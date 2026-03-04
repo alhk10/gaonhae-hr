@@ -19,6 +19,7 @@ import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
+import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,6 +76,9 @@ const SuperadminDashboard = () => {
       </div>
 
       <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-0">
+        {/* Student Registration Approvals */}
+        <StudentRegistrationApprovals showAll />
+
         {/* Claims Approvals */}
         <ClaimsApprovals />
 

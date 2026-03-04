@@ -3990,6 +3990,134 @@ export type Database = {
           },
         ]
       }
+      student_registrations: {
+        Row: {
+          address: string | null
+          branch_id: string | null
+          certificate_name: string | null
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string | null
+          dietary_restrictions: string | null
+          display_name: string | null
+          email: string | null
+          emergency_contact_2_name: string | null
+          emergency_contact_2_phone: string | null
+          emergency_contact_2_relationship: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          languages_spoken: Json | null
+          last_name: string
+          medical_conditions: string | null
+          nationality: Json | null
+          notes: string | null
+          nric_passport: string | null
+          passport_no: string | null
+          phone: string | null
+          postal_code: string | null
+          preferred_name: string | null
+          previous_experience: string | null
+          referral_source: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          training_goals: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          branch_id?: string | null
+          certificate_name?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          dietary_restrictions?: string | null
+          display_name?: string | null
+          email?: string | null
+          emergency_contact_2_name?: string | null
+          emergency_contact_2_phone?: string | null
+          emergency_contact_2_relationship?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          languages_spoken?: Json | null
+          last_name: string
+          medical_conditions?: string | null
+          nationality?: Json | null
+          notes?: string | null
+          nric_passport?: string | null
+          passport_no?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          preferred_name?: string | null
+          previous_experience?: string | null
+          referral_source?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          training_goals?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          branch_id?: string | null
+          certificate_name?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          dietary_restrictions?: string | null
+          display_name?: string | null
+          email?: string | null
+          emergency_contact_2_name?: string | null
+          emergency_contact_2_phone?: string | null
+          emergency_contact_2_relationship?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          languages_spoken?: Json | null
+          last_name?: string
+          medical_conditions?: string | null
+          nationality?: Json | null
+          notes?: string | null
+          nric_passport?: string | null
+          passport_no?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          preferred_name?: string | null
+          previous_experience?: string | null
+          referral_source?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          training_goals?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_registrations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_scheduled_classes: {
         Row: {
           attended_at: string | null
