@@ -199,16 +199,17 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
-          <div className="border border-border rounded overflow-hidden">
-            {/* Single flat grid: header + all day cells */}
-            <div className="grid grid-cols-7 divide-x divide-border">
+          <div className="rounded overflow-hidden border border-border">
+            {/* Header row using bg-gap pattern */}
+            <div className="grid grid-cols-7 bg-border gap-px">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                <div key={i} className="min-w-0 py-0.5 text-center text-[9px] sm:text-[10px] font-medium text-muted-foreground bg-muted/30">
+                <div key={i} className="bg-muted/30 min-w-0 py-0.5 text-center text-[9px] sm:text-[10px] font-medium text-muted-foreground">
                   {day}
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7 divide-x divide-y divide-border border-t border-border">
+            {/* Day grid: single flat grid with bg-gap pattern (zero extra width) */}
+            <div className="grid grid-cols-7 bg-border gap-px">
               {(() => {
                 const allCells: (Date | null)[] = [
                   ...Array.from({ length: startDayOfWeek }, () => null),
@@ -217,7 +218,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                 while (allCells.length % 7 !== 0) allCells.push(null);
                 return allCells.map((day, idx) => {
                   if (!day) {
-                    return <div key={`empty-${idx}`} className="min-w-0 min-h-[1.5rem] bg-muted/10" />;
+                    return <div key={`empty-${idx}`} className="bg-background min-w-0" />;
                   }
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const dayBookings = bookingsByDate.get(dateStr) || [];
@@ -228,7 +229,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                   return (
                     <div
                       key={dateStr}
-                      className={`min-w-0 min-h-[1.5rem] p-[2px] overflow-hidden ${today ? 'bg-primary/5' : ''}`}
+                      className={`min-w-0 p-[2px] overflow-hidden ${today ? 'bg-primary/5' : 'bg-background'}`}
                     >
                       <div className={`text-[9px] sm:text-[10px] leading-none ${today ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                         {format(day, 'd')}
