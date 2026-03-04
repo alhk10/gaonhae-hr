@@ -1,6 +1,7 @@
 /**
  * Inventory Adjustment Dialog
  * Dialog for adjusting inventory levels at specific locations
+ * Supports branch-restricted mode with transfer option
  */
 
 import React, { useState, useEffect } from 'react';
@@ -11,39 +12,70 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Plus, Minus, Package } from 'lucide-react';
+import { Loader2, Plus, Minus, Package, ArrowRightLeft } from 'lucide-react';
 import { adjustInventory, getInventoryLocations, InventoryLocation } from '@/services/inventoryService';
+import { createTransferRequest } from '@/services/inventoryTransferService';
 import { Product } from '@/services/productService';
+import { useBranches } from '@/hooks/useBranches';
+import { supabase } from '@/integrations/supabase/client';
 
 interface InventoryAdjustmentDialogProps {
   product: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdjustmentComplete?: () => void;
+  branchId?: string;
 }
 
 export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps> = ({
   product,
   open,
   onOpenChange,
-  onAdjustmentComplete
+  onAdjustmentComplete,
+  branchId
 }) => {
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<InventoryLocation[]>([]);
+  const [branchLocationId, setBranchLocationId] = useState<string>('');
+  const { branches } = useBranches();
   const [formData, setFormData] = useState({
     location_id: '',
     quantity: '',
-    adjustment_type: 'add' as 'add' | 'remove',
+    adjustment_type: 'add' as 'add' | 'remove' | 'transfer',
     reason: '',
-    size_variant: ''
+    size_variant: '',
+    transfer_to_branch_id: ''
   });
+
+  const isBranchMode = !!branchId;
 
   useEffect(() => {
     if (open) {
-      loadLocations();
+      if (isBranchMode) {
+        loadBranchLocation();
+      } else {
+        loadLocations();
+      }
       resetForm();
     }
-  }, [open]);
+  }, [open, branchId]);
+
+  const loadBranchLocation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_locations')
+        .select('id, name')
+        .eq('branch_id', branchId!)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setBranchLocationId(data[0].id);
+        setFormData(prev => ({ ...prev, location_id: data[0].id }));
+      }
+    } catch (error) {
+      console.error('Error loading branch location:', error);
+    }
+  };
 
   const loadLocations = async () => {
     try {
@@ -60,16 +92,22 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       quantity: '',
       adjustment_type: 'add',
       reason: '',
-      size_variant: ''
+      size_variant: '',
+      transfer_to_branch_id: ''
     });
+    setBranchLocationId('');
   };
+
+  const otherBranches = branches.filter(b => b.id !== branchId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!product) return;
+
+    const locationId = isBranchMode ? branchLocationId : formData.location_id;
     
-    if (!formData.location_id) {
+    if (!locationId) {
       toast.error('Please select a location');
       return;
     }
@@ -85,13 +123,44 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       return;
     }
 
+    if (formData.adjustment_type === 'transfer') {
+      if (!formData.transfer_to_branch_id) {
+        toast.error('Please select a destination branch');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const branchName = branches.find(b => b.id === branchId)?.name || branchId || 'Unknown';
+        const success = await createTransferRequest({
+          from_branch_id: branchId!,
+          to_branch_id: formData.transfer_to_branch_id,
+          product_id: product.id,
+          quantity,
+          size_variant: formData.size_variant || undefined,
+          reason: formData.reason.trim(),
+          requested_by: branchName,
+        });
+        if (success) {
+          onOpenChange(false);
+          onAdjustmentComplete?.();
+        }
+      } catch (error) {
+        console.error('Error creating transfer request:', error);
+        toast.error('Failed to create transfer request');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const quantityDelta = formData.adjustment_type === 'add' ? quantity : -quantity;
       
       await adjustInventory(
         product.id,
-        formData.location_id,
+        locationId,
         quantityDelta,
         formData.reason.trim(),
         formData.size_variant || undefined
@@ -124,25 +193,27 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Location *</Label>
-            <Select
-              value={formData.location_id}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Location - hidden in branch mode */}
+          {!isBranchMode && (
+            <div className="space-y-2">
+              <Label htmlFor="location">Location *</Label>
+              <Select
+                value={formData.location_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, location_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Size Variant (if product has sizes) */}
           {product.requires_size && product.available_sizes && product.available_sizes.length > 0 && (
@@ -175,22 +246,58 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
                 type="button"
                 variant={formData.adjustment_type === 'add' ? 'default' : 'outline'}
                 className="flex-1"
-                onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'add' }))}
+                onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'add', transfer_to_branch_id: '' }))}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Stock
+                <Plus className="w-4 h-4 mr-1" />
+                Add
               </Button>
               <Button
                 type="button"
                 variant={formData.adjustment_type === 'remove' ? 'destructive' : 'outline'}
                 className="flex-1"
-                onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'remove' }))}
+                onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'remove', transfer_to_branch_id: '' }))}
               >
-                <Minus className="w-4 h-4 mr-2" />
-                Remove Stock
+                <Minus className="w-4 h-4 mr-1" />
+                Remove
               </Button>
+              {isBranchMode && (
+                <Button
+                  type="button"
+                  variant={formData.adjustment_type === 'transfer' ? 'default' : 'outline'}
+                  className={`flex-1 ${formData.adjustment_type === 'transfer' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, adjustment_type: 'transfer' }))}
+                >
+                  <ArrowRightLeft className="w-4 h-4 mr-1" />
+                  Transfer
+                </Button>
+              )}
             </div>
           </div>
+
+          {/* Transfer To Branch - only when transfer type selected */}
+          {formData.adjustment_type === 'transfer' && (
+            <div className="space-y-2">
+              <Label>Transfer To Branch *</Label>
+              <Select
+                value={formData.transfer_to_branch_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, transfer_to_branch_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select destination branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {otherBranches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Transfer requests require superadmin approval before stock is moved.
+              </p>
+            </div>
+          )}
 
           {/* Quantity */}
           <div className="space-y-2">
@@ -213,7 +320,9 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
               id="reason"
               value={formData.reason}
               onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="Enter reason for adjustment (e.g., Stock received, Damaged goods, Correction)"
+              placeholder={formData.adjustment_type === 'transfer' 
+                ? "Enter reason for transfer request" 
+                : "Enter reason for adjustment (e.g., Stock received, Damaged goods, Correction)"}
               rows={3}
               required
             />
@@ -230,7 +339,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirm Adjustment
+              {formData.adjustment_type === 'transfer' ? 'Submit Transfer Request' : 'Confirm Adjustment'}
             </Button>
           </DialogFooter>
         </form>

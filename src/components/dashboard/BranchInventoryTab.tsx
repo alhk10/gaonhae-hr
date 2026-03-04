@@ -258,7 +258,8 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
         product={adjustProduct}
         open={adjustDialogOpen}
         onOpenChange={setAdjustDialogOpen}
-        onAdjustmentComplete={() => refetchInventory()}
+        onAdjustmentComplete={() => { refetchInventory(); refetchTransfers(); }}
+        branchId={branchId}
       />
 
       <StockTransferRequestDialog
