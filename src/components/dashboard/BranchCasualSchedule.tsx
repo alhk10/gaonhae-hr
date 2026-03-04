@@ -208,7 +208,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
             ))}
 
             {Array.from({ length: startDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} className="bg-background p-0.5 min-h-[28px]" />
+              <div key={`empty-${i}`} className="bg-background p-0.5" />
             ))}
 
             {days.map(day => {
@@ -221,14 +221,14 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                   key={dateStr}
                   className={`bg-background p-0.5 ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
                 >
-                  <div className={`text-xs font-medium mb-1 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <div className={`text-xs font-medium mb-0 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
                     {format(day, 'd')}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="flex flex-col gap-px">
                     {dayBookings.map(booking => (
                       <div
                         key={booking.id}
-                        className={`text-[9px] sm:text-[10px] px-0.5 sm:px-1 py-0.5 rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
+                        className={`text-[9px] sm:text-[10px] leading-tight px-0.5 sm:px-1 py-px rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
                         onClick={() => openManageDialog(booking)}
                         title={booking.employee_name}
                       >
