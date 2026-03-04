@@ -1269,6 +1269,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                           ))}
                         </SelectContent>
                       </Select>
+                    ) : selectedProduct?.requires_size ? (
+                      <Input
+                        type="text"
+                        value={newItem.size_variant}
+                        onChange={(e) => handleNewItemChange('size_variant', e.target.value)}
+                        placeholder="Size"
+                        className="h-8 w-20"
+                      />
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
