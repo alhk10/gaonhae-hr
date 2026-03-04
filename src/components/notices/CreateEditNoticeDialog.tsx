@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette, Link } from 'lucide-react';
+import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette, Link, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
@@ -253,6 +253,16 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                 </Toggle>
                 <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('outdent')} aria-label="Outdent">
                   <IndentDecrease className="w-3.5 h-3.5" />
+                </Toggle>
+                <Separator orientation="vertical" className="h-5 mx-0.5" />
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('justifyLeft')} aria-label="Align Left">
+                  <AlignLeft className="w-3.5 h-3.5" />
+                </Toggle>
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('justifyCenter')} aria-label="Align Center">
+                  <AlignCenter className="w-3.5 h-3.5" />
+                </Toggle>
+                <Toggle size="sm" className="h-7 w-7 p-0" onPressedChange={() => execCommand('justifyRight')} aria-label="Align Right">
+                  <AlignRight className="w-3.5 h-3.5" />
                 </Toggle>
                 <Separator orientation="vertical" className="h-5 mx-0.5" />
                 <Popover>
