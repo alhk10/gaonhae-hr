@@ -199,7 +199,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
-          <div className="rounded-lg overflow-hidden border border-border">
+          <div className="rounded-lg overflow-x-auto border border-border min-w-0">
             {/* Header row */}
             <div className="grid grid-cols-7 gap-px bg-border">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
@@ -227,7 +227,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                 <div key={wi} className="grid grid-cols-7 gap-px bg-border">
                   {week.map((day, di) => {
                     if (!day) {
-                      return <div key={`empty-${wi}-${di}`} className="bg-background p-px h-14" />;
+                      return <div key={`empty-${wi}-${di}`} className="bg-background p-px min-h-[1.5rem]" />;
                     }
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayBookings = bookingsByDate.get(dateStr) || [];
@@ -238,7 +238,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                     return (
                       <div
                         key={dateStr}
-                        className={`bg-background p-px h-14 overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
+                        className={`bg-background p-px min-h-[1.5rem] ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
                       >
                         <div className={`text-xs font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}>
                           {format(day, 'd')}

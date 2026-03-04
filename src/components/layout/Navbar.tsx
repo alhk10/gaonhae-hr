@@ -62,9 +62,9 @@ const Navbar = ({ onToggleSidebar, sidebarOpen }: NavbarProps) => {
 
   return (
     <>
-      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center min-h-[4rem]">
             {/* Logo + Sidebar Toggle */}
             <div className="flex items-center">
               {onToggleSidebar && (
@@ -87,32 +87,32 @@ const Navbar = ({ onToggleSidebar, sidebarOpen }: NavbarProps) => {
 
             {/* Desktop User Menu */}
             {!isMobile && (
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center flex-wrap gap-1 lg:gap-2">
+                <div className="flex items-center space-x-2 mr-1">
                   <User className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">{user.email}</span>
+                  <span className="text-sm text-gray-700 truncate max-w-[150px] lg:max-w-none">{user.email}</span>
                 </div>
                 
-                <Button variant="outline" size="sm" onClick={handleSetPin} className="flex items-center space-x-1">
+                <Button variant="outline" size="sm" onClick={handleSetPin} className="flex items-center space-x-1" title="Set PIN">
                   <Shield className="w-4 h-4" />
-                  <span>Set PIN</span>
+                  <span className="hidden lg:inline">Set PIN</span>
                 </Button>
                 
                 {hasPin && (
-                  <Button variant="outline" size="sm" onClick={handleLockNow} className="flex items-center space-x-1">
+                  <Button variant="outline" size="sm" onClick={handleLockNow} className="flex items-center space-x-1" title="Lock Now">
                     <Lock className="w-4 h-4" />
-                    <span>Lock Now</span>
+                    <span className="hidden lg:inline">Lock Now</span>
                   </Button>
                 )}
                 
-                <Button variant="outline" size="sm" onClick={handlePasswordChange} className="flex items-center space-x-1">
+                <Button variant="outline" size="sm" onClick={handlePasswordChange} className="flex items-center space-x-1" title="Change Password">
                   <Key className="w-4 h-4" />
-                  <span>Change Password</span>
+                  <span className="hidden lg:inline">Change Password</span>
                 </Button>
                 
-                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center space-x-1">
+                <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center space-x-1" title="Logout">
                   <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
+                  <span className="hidden lg:inline">Logout</span>
                 </Button>
               </div>
             )}
