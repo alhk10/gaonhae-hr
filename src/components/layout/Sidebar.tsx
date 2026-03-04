@@ -289,9 +289,9 @@ const Sidebar = () => {
   
   const hamburgerButton = (
     <Button
-      variant="ghost"
+      variant="outline"
       size="sm"
-      className="fixed top-[18px] left-4 z-[60] bg-white border shadow-sm"
+      className="fixed top-[18px] left-4 z-[60] bg-background border border-border shadow-md hover:bg-accent"
       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
     >
       {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
