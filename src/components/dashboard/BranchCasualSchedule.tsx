@@ -200,7 +200,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border">
-            {/* Header row - separate from grid to avoid row height issues */}
+            {/* Header row */}
             <div className="grid grid-cols-7 gap-px bg-border">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
                 <div key={day} className="bg-muted p-1 sm:p-2 text-center text-xs font-medium text-muted-foreground">
@@ -209,47 +209,61 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                 </div>
               ))}
             </div>
-            {/* Day cells grid with fixed row height */}
-            <div className="grid grid-cols-7 gap-px bg-border" style={{ gridAutoRows: '3.5rem' }}>
-              {Array.from({ length: startDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} className="bg-background p-px overflow-hidden" />
-              ))}
+            {/* Week rows - each row is independent so heights don't equalize across weeks */}
+            {(() => {
+              // Build all cells: leading empties + actual days
+              const allCells: (Date | null)[] = [
+                ...Array.from({ length: startDayOfWeek }, () => null),
+                ...days
+              ];
+              // Pad to complete last week
+              while (allCells.length % 7 !== 0) allCells.push(null);
+              // Chunk into weeks
+              const weeks: (Date | null)[][] = [];
+              for (let i = 0; i < allCells.length; i += 7) {
+                weeks.push(allCells.slice(i, i + 7));
+              }
+              return weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-px bg-border">
+                  {week.map((day, di) => {
+                    if (!day) {
+                      return <div key={`empty-${wi}-${di}`} className="bg-background p-px h-14" />;
+                    }
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const dayBookings = bookingsByDate.get(dateStr) || [];
+                    const today = isToday(day);
+                    const maxVisible = 3;
+                    const hiddenCount = dayBookings.length - maxVisible;
 
-              {days.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayBookings = bookingsByDate.get(dateStr) || [];
-                const today = isToday(day);
-
-                const maxVisible = 3;
-                const hiddenCount = dayBookings.length - maxVisible;
-
-                return (
-                  <div
-                    key={dateStr}
-                    className={`bg-background p-px overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
-                  >
-                    <div className={`text-xs font-medium mb-0 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {format(day, 'd')}
-                    </div>
-                    <div className="flex flex-col gap-px">
-                      {dayBookings.slice(0, maxVisible).map(booking => (
-                        <div
-                          key={booking.id}
-                          className={`text-[9px] sm:text-[10px] leading-tight px-0.5 sm:px-1 py-px rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
-                          onClick={() => openManageDialog(booking)}
-                          title={booking.employee_name}
-                        >
-                          {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || 'Unknown'}
+                    return (
+                      <div
+                        key={dateStr}
+                        className={`bg-background p-px h-14 overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
+                      >
+                        <div className={`text-xs font-medium ${today ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {format(day, 'd')}
                         </div>
-                      ))}
-                      {hiddenCount > 0 && (
-                        <div className="text-[8px] text-muted-foreground text-center">+{hiddenCount} more</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                        <div className="flex flex-col gap-px">
+                          {dayBookings.slice(0, maxVisible).map(booking => (
+                            <div
+                              key={booking.id}
+                              className={`text-[9px] sm:text-[10px] leading-tight px-0.5 sm:px-1 py-px rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
+                              onClick={() => openManageDialog(booking)}
+                              title={booking.employee_name}
+                            >
+                              {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || 'Unknown'}
+                            </div>
+                          ))}
+                          {hiddenCount > 0 && (
+                            <div className="text-[8px] text-muted-foreground text-center">+{hiddenCount} more</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
           </div>
         )}
 
