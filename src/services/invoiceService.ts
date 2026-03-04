@@ -334,14 +334,76 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       };
     });
 
-    const { error: itemsError } = await supabase
+    const { data: insertedItems, error: itemsError } = await supabase
       .from('invoice_items')
-      .insert(itemsToInsert);
+      .insert(itemsToInsert)
+      .select('id, product_id');
 
     if (itemsError) {
       // Try to clean up the invoice if items creation failed
       await supabase.from('invoices').delete().eq('id', invoice.id);
       throw new Error(`Failed to create invoice items: ${itemsError.message}`);
+    }
+
+    // Create entitlements for lesson/class products
+    if (insertedItems && insertedItems.length > 0) {
+      const productIds = [...new Set(insertedItems.map(i => i.product_id))];
+      const { data: productDetails } = await supabase
+        .from('products')
+        .select('id, is_lesson, session_count, validity_type, validity_months, term_id, allowed_class_types, name')
+        .in('id', productIds);
+
+      if (productDetails) {
+        const lessonProducts = new Map(
+          productDetails.filter(p => p.is_lesson && p.session_count && p.session_count > 0)
+            .map(p => [p.id, p])
+        );
+
+        const entitlementsToCreate = [];
+        for (const insertedItem of insertedItems) {
+          const product = lessonProducts.get(insertedItem.product_id);
+          if (!product) continue;
+
+          const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
+          const quantity = originalItem?.quantity || 1;
+          const totalSessions = product.session_count * quantity;
+
+          // Calculate validity dates
+          let validFrom: string | null = new Date().toISOString().split('T')[0];
+          let validTo: string | null = null;
+          if (product.validity_type === 'months' && product.validity_months) {
+            const end = new Date();
+            end.setMonth(end.getMonth() + product.validity_months);
+            validTo = end.toISOString().split('T')[0];
+          }
+
+          entitlementsToCreate.push({
+            student_id: invoiceData.student_id,
+            product_id: product.id,
+            source_type: 'invoice',
+            source_id: insertedItem.id,
+            sessions_total: totalSessions,
+            sessions_used: 0,
+            sessions_remaining: totalSessions,
+            is_active: true,
+            valid_from: validFrom,
+            valid_to: validTo,
+            branch_scope: invoiceData.branch_id || null,
+            class_type_scope: product.allowed_class_types?.join(',') || null,
+            notes: `Auto-created from invoice ${invoiceNumber}`,
+          });
+        }
+
+        if (entitlementsToCreate.length > 0) {
+          const { error: entitlementError } = await supabase
+            .from('entitlements')
+            .insert(entitlementsToCreate);
+          if (entitlementError) {
+            logger.error('Failed to create entitlements', entitlementError);
+            // Non-fatal - invoice is still valid
+          }
+        }
+      }
     }
 
     // Log the creation
