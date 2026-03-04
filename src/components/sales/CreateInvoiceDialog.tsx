@@ -825,12 +825,21 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Handle product change
   const handleProductChange = async (productId: string) => {
     const product = products.find(p => p.id === productId);
-    const isClassesCategory = selectedCategory?.name === 'Classes';
+    
+    // Auto-fill category from product
+    const productCategory = product ? categories.find(c => c.id === product.category_id) : null;
+    const isClassesCategory = productCategory?.name === 'Classes';
     
     let selectedTermId = newItem.term_id;
     
-    if (isClassesCategory && formData.branch_id && formData.student_id) {
-      selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+    if (isClassesCategory && formData.branch_id) {
+      // Ensure terms are loaded
+      if (branchTerms.length === 0) {
+        await loadBranchTerms(formData.branch_id);
+      }
+      if (formData.student_id) {
+        selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
+      }
     }
 
     // Check for branch-specific pricing
@@ -845,6 +854,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setNewItem(prev => ({
       ...prev,
       product_id: productId,
+      category_id: product?.category_id || prev.category_id,
       unit_price: unitPrice,
       size_variant: '',
       color_variant: '',
