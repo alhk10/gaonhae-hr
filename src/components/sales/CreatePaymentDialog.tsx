@@ -223,6 +223,11 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type (images only)
+      if (!file.type.startsWith('image/')) {
+        toast.error('Only image files are accepted for payment proof');
+        return;
+      }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('File size must be less than 5MB');
@@ -533,7 +538,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*"
                   onChange={handleFileSelect}
                   className="hidden"
                   id="proof-upload"
