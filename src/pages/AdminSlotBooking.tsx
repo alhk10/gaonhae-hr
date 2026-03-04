@@ -940,25 +940,25 @@ const AdminSlotBooking = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-0 w-full overflow-hidden">
+              <CardContent className="px-0 sm:px-2 pb-3 w-full overflow-hidden">
                 <div className="w-full max-w-full">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    className="w-full max-w-full border-0"
+                    className="w-full max-w-full border-0 p-0"
                     classNames={{
-                      months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full max-w-full",
-                      month: "space-y-4 w-full max-w-full",
+                      months: "flex flex-col w-full max-w-full",
+                      month: "space-y-1 w-full max-w-full",
                       caption: "flex justify-center pt-1 relative items-center",
-                      caption_label: isMobile ? "text-sm font-medium" : "text-lg font-medium",
+                      caption_label: isMobile ? "text-sm font-medium" : "text-base font-medium",
                       nav: "space-x-1 flex items-center",
-                      table: "w-full max-w-full border-collapse space-y-1",
-                      head_row: "flex w-full max-w-full",
-                      head_cell: `text-muted-foreground rounded-md w-full font-normal flex-1 text-center ${isMobile ? 'text-xs p-1' : 'text-sm p-2'}`,
-                      row: "flex w-full max-w-full mt-2",
-                      cell: `text-center relative flex-1 border-r border-b focus-within:relative focus-within:z-20 ${isMobile ? 'h-48 p-0.5' : 'h-60 p-1'}`,
-                      day: `w-full h-full font-normal aria-selected:opacity-100 hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${isMobile ? 'p-0.5' : 'p-1'}`,
+                      table: "w-full max-w-full border-collapse",
+                      head_row: "flex w-full",
+                      head_cell: `text-muted-foreground font-normal flex-1 min-w-0 text-center ${isMobile ? 'text-[10px] py-1' : 'text-xs py-1'}`,
+                      row: "flex w-full",
+                      cell: `text-center relative flex-1 min-w-0 focus-within:relative focus-within:z-20 ${isMobile ? 'p-0' : 'p-0'}`,
+                      day: `w-full h-full font-normal aria-selected:opacity-100 hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden p-0.5`,
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                       day_today: "bg-accent text-accent-foreground font-semibold",
                       day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
@@ -970,20 +970,20 @@ const AdminSlotBooking = () => {
                       Day: ({ date, ...props }) => {
                         const dayBookings = getBookingsForDate(date);
                         const hasBookings = dayBookings.length > 0;
-                        const maxVisible = isMobile ? 6 : 10;
+                        const maxVisible = isMobile ? 3 : 4;
                         
                         return (
-                          <div className="relative w-full h-full overflow-hidden">
+                          <div className="relative w-full overflow-hidden border-r border-b border-border last:border-r-0" style={{ minHeight: isMobile ? '3.5rem' : '4.5rem' }}>
                             <div
                               className={`w-full h-full hover:bg-accent rounded-sm cursor-pointer transition-colors flex flex-col items-start justify-start overflow-hidden ${
                                 isSameDay(date, selectedDate) ? 'bg-primary text-primary-foreground' : ''
-                              } ${hasBookings ? 'bg-blue-50' : ''} ${isMobile ? 'p-0.5' : 'p-1'}`}
+                              } ${hasBookings ? 'bg-blue-50' : ''} p-0.5`}
                               onClick={() => handleDateClick(date)}
                             >
                               <div className="w-full h-full flex flex-col overflow-hidden">
-                                <span className={`font-medium text-left mb-0.5 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-sm'}`}>{date.getDate()}</span>
+                                <span className={`font-medium text-left flex-shrink-0 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>{date.getDate()}</span>
                                 {hasBookings && (
-                                  <div className="flex flex-col gap-0.5 w-full flex-1 overflow-hidden">
+                                  <div className="flex flex-col gap-px w-full flex-1 overflow-hidden">
                                     {dayBookings.slice(0, maxVisible).map((booking, idx) => {
                                       const branch = branches.find(b => b.id === booking.branchId);
                                       const hasClockedIn = hasEmployeeClockedIn(booking.employeeId, date);
@@ -995,7 +995,7 @@ const AdminSlotBooking = () => {
                                             e.stopPropagation();
                                             handleApprovalClick(booking, e);
                                           }}
-                                          className={`px-0.5 py-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-xs leading-tight' : 'text-xs'}`}
+                                          className={`px-0.5 rounded text-white truncate hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0 ${isMobile ? 'text-[8px] leading-[1.2]' : 'text-[10px] leading-tight'}`}
                                            style={{ 
                                              backgroundColor: convertTailwindColorToHex(branch?.color || '#6b7280'),
                                              ...(booking.status === 'pending' && { border: '1px solid #fbbf24' }),
@@ -1005,8 +1005,8 @@ const AdminSlotBooking = () => {
                                          >
                                            <span className="truncate">
                                              {isMobile ? 
-                                               booking.employeeName.slice(0, 10) : 
-                                               booking.employeeName
+                                               booking.employeeName.slice(0, 8) : 
+                                               booking.employeeName.slice(0, 12)
                                              }
                                              {booking.status === 'pending' && ' ⏳'}
                                              {booking.status === 'approved' && !hasClockedIn && ' ✅'}
@@ -1016,13 +1016,13 @@ const AdminSlotBooking = () => {
                                       );
                                     })}
                                     {dayBookings.length > maxVisible && (
-                                      <span className={`text-gray-600 flex-shrink-0 ${isMobile ? 'text-xs' : 'text-xs'}`}>+{dayBookings.length - maxVisible}</span>
+                                      <span className={`text-muted-foreground flex-shrink-0 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`}>+{dayBookings.length - maxVisible}</span>
                                     )}
                                   </div>
                                 )}
                                 {!hasBookings && (
                                   <div className="flex items-center justify-center flex-1">
-                                    <Plus className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                                    <Plus className="w-3 h-3 text-muted-foreground/40" />
                                   </div>
                                 )}
                               </div>
