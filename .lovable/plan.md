@@ -1,31 +1,52 @@
 
 
-## Problem Analysis
+## Plan: Invoice Edit Mode Enhancements
 
-Looking at the current code and the screenshot:
+### Problem
+1. **Status field** is directly editable in edit mode — it should be read-only and driven only by payment recordings (including partial payment status)
+2. **Items tab** is read-only in edit mode — users need to add, remove, and change products
+3. **Lessons/class slots** need to be editable for all class items, not just existing ones
 
-1. **Saturday truncated**: The `divide-x` utility adds `border-left: 1px` to 6 cells = 6px extra width. Combined with the Card border and any parent padding, the 7th column overflows. This is the fundamental width issue.
+### Changes
 
-2. **Vertical space**: `min-h-[1.5rem]` (24px) forces every cell — including empty ones — to be at least 24px tall. In a flat grid this means fully-empty rows still take up significant space.
+All changes are in **`src/components/sales/ViewEditInvoiceDialog.tsx`**:
 
-## Solution
+#### 1. Remove Status Dropdown from Edit Mode
+- Remove the `<Select>` for status (lines 495-513) entirely
+- Display status as a read-only badge in both view and edit modes
+- Remove `status` from `editData` state since it's no longer user-editable
+- Remove the status update logic from `handleSave`
+- Add `partial` and `verified` to `getStatusBadgeVariant` and `getDisplayStatus` for proper rendering
 
-### File: `src/components/dashboard/BranchCasualSchedule.tsx`
+#### 2. Add Item Editing Capabilities to Items Tab
+- Add state for editable items (`editItems`) initialized from `invoice.items` when entering edit mode
+- Load products list (from `getProducts`) and categories when dialog opens
+- In edit mode, render each item row with:
+  - Product selector (searchable dropdown, reusing the pattern from CreateInvoiceDialog)
+  - Editable quantity input
+  - Editable unit price input
+  - Remove button (trash icon)
+- Add an "Add Item" button below the items table
+- When a product is selected, auto-populate name, description, and unit price
+- Recalculate subtotal/tax/total dynamically from edited items
 
-**Replace the border strategy entirely** — instead of `divide-x divide-y` (which adds border width to cells), use the **background-gap pattern**:
-- Grid container: `bg-border gap-px` (1px gap filled by the container's border-colored background)
-- Each cell: `bg-background` (covers the gap, creating visual grid lines)
-- This adds **zero** extra width to any cell — all 7 columns get exactly 1/7 of the space
+#### 3. Enable Class Slot Selection for New/Changed Items
+- When a product belongs to the "Classes" category, show the `ClassScheduleSelector` component
+- Reuse existing term-loading and age-calculation logic already in the component
+- Allow selecting/changing terms and class slots for any class-type item
 
-**Reduce vertical waste**:
-- Remove `min-h-[1.5rem]` from empty cells — they inherit height from the tallest sibling in the same grid row
-- Set `min-h-[0.75rem]` only on trailing padding cells (rows that are fully empty)
+#### 4. Update Save Logic
+- On save, sync edited items back to `invoice_items` table:
+  - Delete removed items
+  - Update changed items (product, quantity, price, metadata)
+  - Insert new items
+- Recalculate and update invoice totals (subtotal, tax, total, balance_due)
+- The invoice status remains unchanged — only payment recordings affect it
 
-**Structural changes**:
-- Header row: same `bg-border gap-px` pattern, each header cell `bg-muted/30`
-- Day grid: single flat `grid grid-cols-7 bg-border gap-px` wrapping all cells
-- Wrap entire calendar in `border border-border rounded overflow-hidden` 
-- Keep `CardContent` at `px-0 sm:px-2`
+### Technical Details
 
-All functionality (click-to-manage, color coding, display names, +N more, legend, manage dialog) remains completely intact — only the grid structure and border approach changes.
+- Products will be fetched using `getProducts()` from `productService`
+- Tax calculations will follow the existing pattern using `COUNTRY_TAX_RATES` from constants
+- Item metadata (class slots, term info) will be preserved/updated during edits
+- The `handleSave` function will perform a transactional update: delete removed items, upsert changed/new items, then update the invoice totals
 
