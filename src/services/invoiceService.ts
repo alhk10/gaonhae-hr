@@ -380,11 +380,10 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           entitlementsToCreate.push({
             student_id: invoiceData.student_id,
             product_id: product.id,
-            source_type: 'invoice',
+            source_type: 'invoice_item',
             source_id: insertedItem.id,
             sessions_total: totalSessions,
             sessions_used: 0,
-            sessions_remaining: totalSessions,
             is_active: true,
             valid_from: validFrom,
             valid_to: validTo,
