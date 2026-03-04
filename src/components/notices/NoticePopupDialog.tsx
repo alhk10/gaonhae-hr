@@ -47,7 +47,7 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
             )}
 
             {notice.content && (
-              <p className="text-sm text-foreground whitespace-pre-wrap">{notice.content}</p>
+              <div className="text-sm text-foreground" dangerouslySetInnerHTML={{ __html: notice.content }} />
             )}
 
             {notice.attachment_url && (
