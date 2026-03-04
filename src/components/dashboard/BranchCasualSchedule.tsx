@@ -195,73 +195,66 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-1 sm:px-3 pb-3">
+      <CardContent className="px-0 sm:px-2 pb-3">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
-          <div className="w-full">
-            {/* Header row */}
-            <div className="grid grid-cols-7 border-b border-border">
+          <div className="border border-border rounded overflow-hidden">
+            {/* Single flat grid: header + all day cells */}
+            <div className="grid grid-cols-7 divide-x divide-border">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                <div key={i} className="py-1 text-center text-[10px] sm:text-xs font-medium text-muted-foreground">
+                <div key={i} className="min-w-0 py-0.5 text-center text-[9px] sm:text-[10px] font-medium text-muted-foreground bg-muted/30">
                   {day}
                 </div>
               ))}
             </div>
-            {/* Week rows */}
-            {(() => {
-              const allCells: (Date | null)[] = [
-                ...Array.from({ length: startDayOfWeek }, () => null),
-                ...days
-              ];
-              while (allCells.length % 7 !== 0) allCells.push(null);
-              const weeks: (Date | null)[][] = [];
-              for (let i = 0; i < allCells.length; i += 7) {
-                weeks.push(allCells.slice(i, i + 7));
-              }
-              return weeks.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 border-b border-border last:border-b-0">
-                  {week.map((day, di) => {
-                    if (!day) {
-                      return <div key={`empty-${wi}-${di}`} className="border-r border-border last:border-r-0" />;
-                    }
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const dayBookings = bookingsByDate.get(dateStr) || [];
-                    const today = isToday(day);
-                    const maxVisible = 3;
-                    const hiddenCount = dayBookings.length - maxVisible;
+            <div className="grid grid-cols-7 divide-x divide-y divide-border border-t border-border">
+              {(() => {
+                const allCells: (Date | null)[] = [
+                  ...Array.from({ length: startDayOfWeek }, () => null),
+                  ...days
+                ];
+                while (allCells.length % 7 !== 0) allCells.push(null);
+                return allCells.map((day, idx) => {
+                  if (!day) {
+                    return <div key={`empty-${idx}`} className="min-w-0 min-h-[1.5rem] bg-muted/10" />;
+                  }
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dayBookings = bookingsByDate.get(dateStr) || [];
+                  const today = isToday(day);
+                  const maxVisible = 3;
+                  const hiddenCount = dayBookings.length - maxVisible;
 
-                    return (
-                      <div
-                        key={dateStr}
-                        className={`border-r border-border last:border-r-0 p-[1px] overflow-hidden ${today ? 'bg-primary/5' : ''}`}
-                      >
-                        <div className={`text-[10px] leading-none ${today ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                          {format(day, 'd')}
-                        </div>
-                        {dayBookings.length > 0 && (
-                          <div className="flex flex-col">
-                            {dayBookings.slice(0, maxVisible).map(booking => (
-                              <div
-                                key={booking.id}
-                                className={`text-[8px] sm:text-[9px] leading-[1.1] px-px truncate cursor-pointer rounded-sm ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
-                                onClick={() => openManageDialog(booking)}
-                                title={booking.employee_name}
-                              >
-                                {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || '?'}
-                              </div>
-                            ))}
-                            {hiddenCount > 0 && (
-                              <div className="text-[7px] text-muted-foreground text-center leading-none">+{hiddenCount}</div>
-                            )}
-                          </div>
-                        )}
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`min-w-0 min-h-[1.5rem] p-[2px] overflow-hidden ${today ? 'bg-primary/5' : ''}`}
+                    >
+                      <div className={`text-[9px] sm:text-[10px] leading-none ${today ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                        {format(day, 'd')}
                       </div>
-                    );
-                  })}
-                </div>
-              ));
-            })()}
+                      {dayBookings.length > 0 && (
+                        <div className="flex flex-col">
+                          {dayBookings.slice(0, maxVisible).map(booking => (
+                            <div
+                              key={booking.id}
+                              className={`text-[8px] sm:text-[9px] leading-[1.1] px-px truncate cursor-pointer rounded-sm ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
+                              onClick={() => openManageDialog(booking)}
+                              title={booking.employee_name}
+                            >
+                              {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || '?'}
+                            </div>
+                          ))}
+                          {hiddenCount > 0 && (
+                            <div className="text-[7px] text-muted-foreground text-center leading-none">+{hiddenCount}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           </div>
         )}
 
