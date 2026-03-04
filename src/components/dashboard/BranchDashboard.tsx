@@ -66,6 +66,7 @@ import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
 import { Student } from '@/services/studentService';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
+import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -667,7 +668,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <NoticeManagementTab role="branch" branchId={branchId} userEmail={user?.email || ''} />
         </TabsContent>
 
-        <TabsContent value="approvals">
+        <TabsContent value="approvals" className="space-y-4">
+          <StudentRegistrationApprovals branchId={branchId} />
+
           <Card>
             <CardHeader>
               <CardTitle>Pending Student Update Requests</CardTitle>
