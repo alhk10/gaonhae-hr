@@ -12,6 +12,7 @@ import { UserPlus, User, Mail, GraduationCap, Phone, MapPin, Heart, CheckCircle,
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { submitStudentRegistration } from '@/services/studentRegistrationService';
+import { supabase } from '@/integrations/supabase/client';
 
 const commonNationalities = [
   'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Argentine', 'Armenian', 'Australian', 'Austrian',
@@ -206,10 +207,26 @@ const StudentRegistration = () => {
 
     setLoading(true);
     try {
+      // Upload signature to Supabase Storage
+      let signatureUrl: string | undefined;
+      if (signature) {
+        const blob = await (await fetch(signature)).blob();
+        const fileName = `sig_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('student-signatures')
+          .upload(fileName, blob, { contentType: 'image/png' });
+        if (uploadError) throw new Error('Failed to upload signature');
+        const { data: urlData } = supabase.storage
+          .from('student-signatures')
+          .getPublicUrl(fileName);
+        signatureUrl = urlData.publicUrl;
+      }
+
       await submitStudentRegistration({
         ...formData,
         gender: formData.gender || undefined,
         date_of_birth: formData.date_of_birth || undefined,
+        signature_url: signatureUrl,
       });
       setSubmitted(true);
       toast.success('Registration submitted successfully!');

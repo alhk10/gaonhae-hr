@@ -4025,6 +4025,7 @@ export type Database = {
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          signature_url: string | null
           status: string
           training_goals: string | null
           updated_at: string
@@ -4064,6 +4065,7 @@ export type Database = {
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          signature_url?: string | null
           status?: string
           training_goals?: string | null
           updated_at?: string
@@ -4103,6 +4105,7 @@ export type Database = {
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          signature_url?: string | null
           status?: string
           training_goals?: string | null
           updated_at?: string
