@@ -284,9 +284,23 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                   setContent(contentRef.current?.innerHTML || '');
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    document.execCommand('insertLineBreak');
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) {
+                      const range = sel.getRangeAt(0);
+                      range.deleteContents();
+                      const br = document.createElement('br');
+                      range.insertNode(br);
+                      // Add extra br at end to ensure cursor moves down
+                      if (!br.nextSibling || (br.nextSibling.nodeType === Node.TEXT_NODE && br.nextSibling.textContent === '')) {
+                        br.after(document.createElement('br'));
+                      }
+                      range.setStartAfter(br);
+                      range.setEndAfter(br);
+                      sel.removeAllRanges();
+                      sel.addRange(range);
+                    }
                     setContent(contentRef.current?.innerHTML || '');
                   }
                 }}
