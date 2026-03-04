@@ -32,6 +32,7 @@ import { differenceInYears, differenceInMonths } from 'date-fns';
 interface CreateInvoiceDialogProps {
   trigger: React.ReactNode;
   onInvoiceCreated?: () => void;
+  branchId?: string;
 }
 
 // Calculate age in decimal years
@@ -71,6 +72,8 @@ interface ProductWithVariants {
     sizes?: string[];
     colors?: string[];
   };
+  available_sizes?: string[];
+  requires_size?: boolean;
   requires_belt_level?: boolean;
   allowed_belt_levels?: string[];
   allowed_class_types?: string[];
@@ -284,7 +287,7 @@ const LineDiscountPopover: React.FC<{
   );
 };
 
-const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated }) => {
+const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onInvoiceCreated, branchId: lockedBranchId }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
@@ -328,6 +331,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       loadBranches();
       loadCategories();
       loadGradingSlots();
+      
+      // Auto-lock branch if branchId prop is provided
+      if (lockedBranchId) {
+        setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
+        loadBranchTerms(lockedBranchId);
+      }
     }
   }, [open]);
 
@@ -425,6 +434,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         base_price: p.base_price,
         category_id: p.category_id,
         available_variants: p.available_variants,
+        available_sizes: p.available_sizes,
+        requires_size: p.requires_size,
         requires_belt_level: p.requires_belt_level,
         allowed_belt_levels: p.allowed_belt_levels,
         allowed_class_types: p.allowed_class_types
@@ -432,6 +443,25 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     } catch (error) {
       console.error('Error loading products:', error);
       toast.error('Failed to load products');
+    }
+  };
+
+  // Fetch branch-specific price override for a product
+  const getBranchPrice = async (productId: string, branchId: string): Promise<number | null> => {
+    if (!productId || !branchId) return null;
+    try {
+      const { data, error } = await supabase
+        .from('price_rules')
+        .select('price_override, is_active')
+        .eq('product_id', productId)
+        .eq('branch_id', branchId)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error || !data) return null;
+      return data.price_override;
+    } catch {
+      return null;
     }
   };
 
@@ -561,7 +591,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const resetForm = () => {
     setFormData({
       student_id: '',
-      branch_id: '',
+      branch_id: lockedBranchId || '',
       notes: '',
       internal_notes: ''
     });
@@ -771,11 +801,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     if (isClassesCategory && formData.branch_id && formData.student_id) {
       selectedTermId = await refreshTermSelection(formData.branch_id, formData.student_id);
     }
+
+    // Check for branch-specific pricing
+    let unitPrice = product?.base_price || 0;
+    if (product && formData.branch_id) {
+      const branchPrice = await getBranchPrice(product.id, formData.branch_id);
+      if (branchPrice !== null) {
+        unitPrice = branchPrice;
+      }
+    }
     
     setNewItem(prev => ({
       ...prev,
       product_id: productId,
-      unit_price: product?.base_price || 0,
+      unit_price: unitPrice,
       size_variant: '',
       color_variant: '',
       term_id: selectedTermId
@@ -866,9 +905,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
 
-  // Get selected product's variants
+  // Get selected product's variants — merge available_variants.sizes with legacy available_sizes
   const selectedProduct = products.find(p => p.id === newItem.product_id);
-  const sizeOptions = selectedProduct?.available_variants?.sizes || [];
+  const sizeOptions = selectedProduct?.available_variants?.sizes?.length
+    ? selectedProduct.available_variants.sizes
+    : (selectedProduct?.available_sizes || []);
   const colorOptions = selectedProduct?.available_variants?.colors || [];
 
   const selectedCategory = categories.find(c => c.id === newItem.category_id);
@@ -885,8 +926,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       return;
     }
 
-    // Validate size selection for products with size variants
-    if (sizeOptions.length > 0 && !newItem.size_variant) {
+    // Validate size selection for products with size variants or requires_size flag
+    if ((sizeOptions.length > 0 || selectedProduct?.requires_size) && !newItem.size_variant) {
       toast.error('Please select a size for this product');
       return;
     }
@@ -1027,18 +1068,24 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="branch_id">Branch *</Label>
-                <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableBranches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name} {branch.country && `(${branch.country})`}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {lockedBranchId ? (
+                  <div className="flex items-center h-10 px-3 rounded-md border border-input bg-muted text-sm">
+                    {branches.find(b => b.id === lockedBranchId)?.name || lockedBranchId}
+                  </div>
+                ) : (
+                  <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableBranches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name} {branch.country && `(${branch.country})`}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
