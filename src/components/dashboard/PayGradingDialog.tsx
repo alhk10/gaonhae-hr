@@ -810,8 +810,16 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   <div className="border-2 border-dashed rounded-lg p-4 text-center">
                     <input
                       type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && !file.type.startsWith('image/')) {
+                          toast.error('Only image files are accepted for payment proof');
+                          e.target.value = '';
+                          return;
+                        }
+                        setProofFile(file || null);
+                      }}
                       className="hidden"
                       id="grading-proof-upload"
                     />
@@ -825,7 +833,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                         <div className="space-y-2">
                           <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                           <p className="text-sm text-muted-foreground">
-                            Click to upload payment screenshot or PDF
+                            Click to upload payment screenshot
                           </p>
                         </div>
                       )}
