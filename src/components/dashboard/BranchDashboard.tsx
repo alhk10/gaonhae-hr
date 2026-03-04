@@ -632,28 +632,27 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 ) : (
                   <div className="space-y-2">
                     {invoices.map((invoice: any) => (
-                      <div key={invoice.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">{invoice.invoice_number}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown'} · {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right mr-2">
-                            <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                            <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
-                              {invoice.status}
-                            </Badge>
-                          </div>
-                          <Button variant="ghost" size="icon" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
-                            <Eye className="w-4 h-4" />
+                      <div key={invoice.id} className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg text-sm">
+                        <span className="font-semibold whitespace-nowrap">{invoice.invoice_number}</span>
+                        <span className="text-muted-foreground truncate min-w-0">
+                          {invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}`.toUpperCase() : 'Unknown'}
+                        </span>
+                        <span className="text-muted-foreground whitespace-nowrap hidden sm:inline">
+                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                        </span>
+                        <span className="font-medium whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
+                        <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                          {invoice.status}
+                        </Badge>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
+                            <Eye className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
-                            <Edit className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
+                            <Edit className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
-                            <Trash2 className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </div>
