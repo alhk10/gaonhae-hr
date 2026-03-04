@@ -97,18 +97,24 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
 
     for (const product of allProducts) {
       const invItems = inventoryByProduct.get(product.id) || [];
-      const hasSizes = product.requires_size && Array.isArray(product.available_sizes) && product.available_sizes.length > 0;
+      const definedSizes = Array.isArray(product.available_sizes) ? (product.available_sizes as string[]) : [];
+      
+      // Collect all size variants from both product definition and actual inventory
+      const invBySizeMap = new Map<string, number>();
+      let hasAnySizeVariant = false;
+      for (const inv of invItems) {
+        if (inv.size_variant) {
+          hasAnySizeVariant = true;
+          invBySizeMap.set(inv.size_variant, (invBySizeMap.get(inv.size_variant) || 0) + inv.quantity_on_hand);
+        }
+      }
+
+      const hasSizes = product.requires_size || definedSizes.length > 0 || hasAnySizeVariant;
 
       if (hasSizes) {
-        const sizes = product.available_sizes as string[];
-        const invBySizeMap = new Map<string, number>();
-        for (const inv of invItems) {
-          if (inv.size_variant) {
-            invBySizeMap.set(inv.size_variant, (invBySizeMap.get(inv.size_variant) || 0) + inv.quantity_on_hand);
-          }
-        }
-        // Ensure all defined sizes appear
-        const variants: VariantRow[] = sizes.map(size => ({
+        // Merge defined sizes with any sizes found in inventory
+        const allSizes = new Set([...definedSizes, ...invBySizeMap.keys()]);
+        const variants: VariantRow[] = Array.from(allSizes).map(size => ({
           size_variant: size,
           quantity_on_hand: invBySizeMap.get(size) || 0,
         }));
