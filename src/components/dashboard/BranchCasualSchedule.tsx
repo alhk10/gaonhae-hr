@@ -199,7 +199,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading schedule...</div>
         ) : (
-          <div className="grid grid-cols-7 auto-rows-min items-start gap-px bg-border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden" style={{ gridAutoRows: 'minmax(2rem, 4rem)' }}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
               <div key={day} className="bg-muted p-1 sm:p-2 text-center text-xs font-medium text-muted-foreground">
                 <span className="sm:hidden">{'SMTWTFS'[i]}</span>
@@ -222,7 +222,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
               return (
                 <div
                   key={dateStr}
-                  className={`bg-background p-px min-h-[2.5rem] max-h-[4.5rem] overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
+                  className={`bg-background p-px overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
                 >
                   <div className={`text-xs font-medium mb-0 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
                     {format(day, 'd')}
