@@ -365,7 +365,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       const response = await getStudents(1, 1000);
       setStudents(response.students.map(s => ({ 
         id: s.id, 
-        name: `${s.first_name} ${s.last_name}`, 
+        name: s.display_name || `${s.first_name} ${s.last_name}`, 
         email: s.email || '',
         branch_id: s.branch_id,
         status: s.status,
