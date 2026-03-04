@@ -15,6 +15,7 @@ export interface LeaveEntitlementCalculation {
 export interface EligibleEmployee {
   id: string;
   name: string;
+  display_name?: string;
   type: string;
   position: string | null;
   joinDate: string | null;

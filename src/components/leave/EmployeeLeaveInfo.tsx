@@ -9,6 +9,7 @@ interface EmployeeLeaveInfoProps {
   employee: {
     id: string;
     name: string;
+    display_name?: string;
     type: string;
     position?: string;
     joinDate?: string;
@@ -47,7 +48,7 @@ const EmployeeLeaveInfo: React.FC<EmployeeLeaveInfoProps> = ({
     return (
       <div className="flex items-center space-x-2">
         {getStatusIcon()}
-        <span className="text-sm font-medium">{employee.name}</span>
+        <span className="text-sm font-medium">{employee.display_name || employee.name}</span>
         <Badge variant={isEligible ? "default" : "secondary"} className="text-xs">
           {getEmployeeTypeDisplay()}
         </Badge>
@@ -67,7 +68,7 @@ const EmployeeLeaveInfo: React.FC<EmployeeLeaveInfoProps> = ({
           {getStatusIcon()}
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-medium text-gray-900">{employee.name}</h3>
+              <h3 className="font-medium text-gray-900">{employee.display_name || employee.name}</h3>
               <Badge variant="outline" className="text-xs">
                 {getEmployeeTypeDisplay()}
               </Badge>

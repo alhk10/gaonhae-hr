@@ -291,7 +291,7 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
           
           {currentEmployee && (
             <div className="text-xs text-gray-500 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-              <span className="font-medium text-indigo-700">Partner:</span> {currentEmployee.name} 
+              <span className="font-medium text-indigo-700">Partner:</span> {currentEmployee.display_name || currentEmployee.name} 
               <span className="mx-2">|</span>
               <span className="font-medium text-indigo-700">Position:</span> {currentEmployee.position}
               {currentEmployee.department && currentEmployee.department !== 'Main Office' && (

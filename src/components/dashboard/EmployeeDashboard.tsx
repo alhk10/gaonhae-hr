@@ -443,7 +443,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     setShowViewPayslip(true);
   };
 
-  const displayName = employeeData?.name || user?.name || 'Employee';
+  const displayName = employeeData?.display_name || employeeData?.name || user?.name || 'Employee';
   const canClockIn = (employeeData?.type !== 'Casual' || hasApprovedSlot) && locationCheckPassed;
   const isClockedIn = clockStatus?.status === 'clocked-in';
 
@@ -756,7 +756,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           open={showSlotBooking}
           onOpenChange={setShowSlotBooking}
           employeeId={effectiveEmployeeId}
-          employeeName={employeeData.name}
+          employeeName={employeeData.display_name || employeeData.name}
           employeeType={employeeData.type}
           qualifications={employeeData.qualifications}
           joinDate={employeeData.joinDate}
@@ -803,7 +803,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           open={showBranchChange}
           onOpenChange={setShowBranchChange}
           employeeId={effectiveEmployeeId}
-          employeeName={employeeData.name}
+          employeeName={employeeData.display_name || employeeData.name}
         />
       )}
 

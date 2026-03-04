@@ -235,7 +235,7 @@ const EmployeeDetails = () => {
   };
 
   const handleDeleteEmployee = () => {
-    if (window.confirm(`Are you sure you want to remove ${employeeData?.name}? This will set their resign date to today.`)) {
+    if (window.confirm(`Are you sure you want to remove ${employeeData?.display_name || employeeData?.name}? This will set their resign date to today.`)) {
       deleteEmployeeMutation.mutate(id!);
     }
   };
@@ -307,7 +307,7 @@ const EmployeeDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-gray-900">{employeeData.name}</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{employeeData.display_name || employeeData.name}</h2>
                 {isSuperAdmin && (
                   <>
                     <Badge 
@@ -643,7 +643,7 @@ const EmployeeDetails = () => {
           {isSuperAdmin && (
             <LocationExceptionManager
               employeeId={employeeData.id}
-              employeeName={employeeData.name}
+              employeeName={employeeData.display_name || employeeData.name}
             />
           )}
 
@@ -651,7 +651,7 @@ const EmployeeDetails = () => {
           {isSuperAdmin && (
             <InvoiceAccessManager
               employeeId={employeeData.id}
-              employeeName={employeeData.name}
+              employeeName={employeeData.display_name || employeeData.name}
               isEditing={isEditing}
             />
           )}
@@ -660,23 +660,23 @@ const EmployeeDetails = () => {
           <div className="space-y-6 mt-8">
             <EmployeeClaimHistory 
               employeeId={employeeData.id} 
-              employeeName={employeeData.name} 
+              employeeName={employeeData.display_name || employeeData.name} 
             />
             
             <EmployeeLeaveHistory 
               employeeId={employeeData.id} 
-              employeeName={employeeData.name} 
+              employeeName={employeeData.display_name || employeeData.name} 
             />
             
             <EmployeePayrollHistory 
               employeeId={employeeData.id} 
-              employeeName={employeeData.name} 
+              employeeName={employeeData.display_name || employeeData.name} 
             />
 
             {/* Partner Branch Shares - Only visible for Partner/Senior Partner positions */}
             <PartnerBranchSharesManager
               employeeId={employeeData.id}
-              employeeName={employeeData.name}
+              employeeName={employeeData.display_name || employeeData.name}
               position={employeeData.position || ''}
             />
           </div>

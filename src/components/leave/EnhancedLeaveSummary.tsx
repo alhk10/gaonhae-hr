@@ -380,7 +380,7 @@ const EnhancedLeaveSummary = () => {
                     <div key={employee.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium">{employee.name}</span>
+                          <span className="font-medium">{employee.display_name || employee.name}</span>
                           <Badge variant="outline" className="text-xs">
                             {employee.type}{employee.position ? ` - ${employee.position}` : ''}
                           </Badge>
