@@ -1,39 +1,36 @@
 
 
-## Plan: Add Lesson Booking from My Classes Tab
+## Plan: Branch-Restricted Inventory Adjustment with Transfer Option
 
-### Overview
-Add an "Add Lesson" button on the My Classes tab that lets students book unbooked lessons from their remaining entitlement sessions. Uses a compact dialog to pick a date and timetable slot, then creates a `student_scheduled_classes` entry via the existing `createScheduledClass` service.
+### Part 1: Restrict Branch Users to Their Own Branch Location
 
-### Changes to `src/components/dashboard/StudentMyClassSchedule.tsx`
+**`src/components/sales/InventoryAdjustmentDialog.tsx`**:
+- Add optional `branchId` prop to the dialog interface
+- When `branchId` is provided, auto-select that branch's location and hide the location dropdown (branch users can only adjust their own branch)
+- When `branchId` is not provided (superadmin context), show all locations as before
 
-1. **Accept entitlements data as prop** — Add `entitlements` and `readOnly` props. Calculate unbooked sessions (total entitlement sessions minus already scheduled classes count).
+**`src/components/dashboard/BranchInventoryTab.tsx`**:
+- Pass `branchId` to `InventoryAdjustmentDialog` so the location is locked to the current branch
 
-2. **Add "Add Lesson" button** — Show a compact button with remaining session count badge near the filter row. Only visible when unbooked sessions > 0 and not readOnly.
+### Part 2: Add "Transfer" as an Adjustment Type
 
-3. **Create inline Add Lesson Dialog** — A compact `Dialog` with:
-   - Calendar date picker (restricted to valid weekdays from timetables, within active term dates, future dates only)
-   - Available time slots for selected date (from branch timetables, with capacity checks)
-   - Confirm button that calls `createScheduledClass` from `classEnrollmentService`
-   - Auto-refresh scheduled classes query on success
+**`src/components/sales/InventoryAdjustmentDialog.tsx`**:
+- Add a third adjustment type button: "Transfer" (with `ArrowRightLeft` icon)
+- When "Transfer" is selected, show a "Transfer To" branch dropdown (all branches except current)
+- On confirm with transfer type: call `createTransferRequest` from `inventoryTransferService` instead of `adjustInventory` — stock is NOT moved immediately, it creates a pending transfer request requiring superadmin approval
+- The existing transfer request approval flow already handles the actual stock movement
 
-4. **Capacity check** — Before showing a slot, query existing `student_scheduled_classes` for that date+timetable_id to check against `max_capacity`.
+### Part 3: Wire Up Props
 
-### Changes to `src/components/dashboard/StudentDashboard.tsx`
+**`src/components/dashboard/BranchInventoryTab.tsx`**:
+- Pass `branchId` prop to `InventoryAdjustmentDialog`
 
-1. **Pass entitlements and readOnly** to `StudentMyClassSchedule`:
-   ```tsx
-   <StudentMyClassSchedule 
-     studentId={studentId!} 
-     branchId={student?.branch_id}
-     entitlements={entitlements}
-     readOnly={readOnly}
-   />
-   ```
+**`src/components/sales/ProductManagementList.tsx`** (superadmin context):
+- No `branchId` prop passed — full location access, no transfer option (superadmin can use the existing transfer dialog separately)
 
 ### Technical Details
-- Reuse existing `createScheduledClass` from `classEnrollmentService.ts` — no new service code needed.
-- Unbooked count = `totalSessions - scheduledClasses.filter(s => s.status !== 'cancelled' && s.status !== 'swapped').length`
-- The dialog reuses the same timetable data already fetched in `StudentMyClassSchedule`.
-- Compact design: small calendar, horizontal slot chips, minimal padding.
+- No database changes needed — `inventory_transfer_requests` table already exists with the approval workflow
+- The existing `StockTransferApprovals` component on the superadmin dashboard already handles approval/rejection
+- Transfer type only shown when `branchId` is provided (branch context)
+- `requested_by` will use the branch name or a context identifier
 
