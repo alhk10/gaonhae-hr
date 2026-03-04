@@ -216,16 +216,19 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
               const dayBookings = bookingsByDate.get(dateStr) || [];
               const today = isToday(day);
 
+              const maxVisible = 3;
+              const hiddenCount = dayBookings.length - maxVisible;
+
               return (
                 <div
                   key={dateStr}
-                  className={`bg-background p-px ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
+                  className={`bg-background p-px min-h-[2.5rem] max-h-[4.5rem] overflow-hidden ${today ? 'ring-2 ring-primary ring-inset' : ''}`}
                 >
                   <div className={`text-xs font-medium mb-0 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
                     {format(day, 'd')}
                   </div>
                   <div className="flex flex-col gap-px">
-                    {dayBookings.map(booking => (
+                    {dayBookings.slice(0, maxVisible).map(booking => (
                       <div
                         key={booking.id}
                         className={`text-[9px] sm:text-[10px] leading-tight px-0.5 sm:px-1 py-px rounded border cursor-pointer truncate ${employeeColorMap.get(booking.employee_id) || 'bg-muted'}`}
@@ -235,6 +238,9 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                         {displayNameMap.get(booking.employee_id) || booking.employee_name?.split(' ')[0] || 'Unknown'}
                       </div>
                     ))}
+                    {hiddenCount > 0 && (
+                      <div className="text-[8px] text-muted-foreground text-center">+{hiddenCount} more</div>
+                    )}
                   </div>
                 </div>
               );
