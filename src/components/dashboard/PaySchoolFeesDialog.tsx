@@ -657,7 +657,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       <SelectContent>
                         {classProducts.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
-                            {product.name} - ${product.effective_price}/week
+                            {product.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
