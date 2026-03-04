@@ -1,39 +1,31 @@
 
 
-## Analysis
+## Problem Analysis
 
-From the screenshot, two problems persist:
+Looking at the current code and the screenshot:
 
-1. **Saturday column truncated**: The 7-column grid exceeds the Card's available width. The `border-r` on each cell plus card padding (`px-1 sm:px-3`) consumes space, and there's no mechanism to force all 7 columns to fit.
+1. **Saturday truncated**: The `divide-x` utility adds `border-left: 1px` to 6 cells = 6px extra width. Combined with the Card border and any parent padding, the 7th column overflows. This is the fundamental width issue.
 
-2. **Excessive vertical space**: The per-week independent grid rows approach means each week is a separate `div.grid-cols-7`. Empty cells in a week row still occupy height from the `border-b` and any implicit minimum sizing. The user explicitly wants a **single flat grid** where all cells are uniform.
+2. **Vertical space**: `min-h-[1.5rem]` (24px) forces every cell — including empty ones — to be at least 24px tall. In a flat grid this means fully-empty rows still take up significant space.
 
-## Plan
+## Solution
 
 ### File: `src/components/dashboard/BranchCasualSchedule.tsx`
 
-**Calendar grid rewrite** (lines 202-264):
+**Replace the border strategy entirely** — instead of `divide-x divide-y` (which adds border width to cells), use the **background-gap pattern**:
+- Grid container: `bg-border gap-px` (1px gap filled by the container's border-colored background)
+- Each cell: `bg-background` (covers the gap, creating visual grid lines)
+- This adds **zero** extra width to any cell — all 7 columns get exactly 1/7 of the space
 
-1. **Single flat grid**: Replace the per-week `div` approach with one `<div className="grid grid-cols-7">` containing all cells (padding cells + day cells + trailing cells). This naturally equalizes all row heights.
+**Reduce vertical waste**:
+- Remove `min-h-[1.5rem]` from empty cells — they inherit height from the tallest sibling in the same grid row
+- Set `min-h-[0.75rem]` only on trailing padding cells (rows that are fully empty)
 
-2. **Force 7 columns to fit**: Use `table-fixed`-style approach — set each column to `w-[calc(100%/7)]` or simply rely on `grid-cols-7` with `min-w-0` on both the grid and each cell. Remove all horizontal borders (`border-r`) and use a single `border` + `divide-x divide-y` pattern via Tailwind's divide utilities, which add no extra width.
+**Structural changes**:
+- Header row: same `bg-border gap-px` pattern, each header cell `bg-muted/30`
+- Day grid: single flat `grid grid-cols-7 bg-border gap-px` wrapping all cells
+- Wrap entire calendar in `border border-border rounded overflow-hidden` 
+- Keep `CardContent` at `px-0 sm:px-2`
 
-3. **Compact cells**: Remove all padding beyond `p-[2px]`. Keep text at `text-[8px] sm:text-[9px]`. Day number at `text-[9px] sm:text-[10px]`.
-
-4. **Zero card padding on mobile**: Change `CardContent` padding to `px-0 sm:px-2`.
-
-5. **Outline border on grid**: Single `border border-border rounded` on the outer grid container, with `divide-x divide-y divide-border` for internal lines — this avoids double-border width issues.
-
-The structure becomes:
-```text
-<div class="grid grid-cols-7 border border-border divide-x divide-y divide-border">
-  {emptyCells}  <!-- startDayOfWeek empties -->
-  {dayCells}    <!-- actual month days -->
-  {trailCells}  <!-- pad to multiple of 7 -->
-</div>
-```
-
-Each cell: `<div class="min-w-0 p-[2px] overflow-hidden min-h-[2rem]">` — the `min-h-[2rem]` gives a small baseline so empty cells aren't zero-height, but content-heavy cells grow naturally and all cells in the same CSS grid row equalize.
-
-All existing functionality (click to manage, color coding, display names, +N more, legend, manage dialog) is preserved unchanged.
+All functionality (click-to-manage, color coding, display names, +N more, legend, manage dialog) remains completely intact — only the grid structure and border approach changes.
 
