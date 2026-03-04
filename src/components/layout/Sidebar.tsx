@@ -287,21 +287,24 @@ const Sidebar = () => {
   const isAuthLoading = !user || authData.isLoading;
   const isDataLoading = userrole === 'employee' && isLoading && !currentEmployee && !authData.adminAccess;
   
+  const hamburgerButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="fixed top-[18px] left-4 z-[60] bg-white border shadow-sm"
+      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+    >
+      {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+    </Button>
+  );
+
   if (isAuthLoading || isDataLoading) {
-    return null;
+    return hamburgerButton;
   }
 
   return (
     <>
-      {/* Menu Button - visible on all screen sizes */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="fixed top-[18px] left-4 z-[60] bg-white border shadow-sm"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
+      {hamburgerButton}
 
       {/* Sidebar Overlay */}
       {mobileMenuOpen && (
