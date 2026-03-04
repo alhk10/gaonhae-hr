@@ -341,6 +341,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       handleInputChange('branch_id', availableBranches[0].id);
     }
   }, [availableBranches.length, formData.branch_id]);
+
   
   // Load grading slots for Grading Fees category
   const loadGradingSlots = async () => {
@@ -383,6 +384,13 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
     return isActive && matchesBranch;
   });
+
+  // Auto-select student if only 1 filtered student available
+  useEffect(() => {
+    if (filteredStudents.length === 1 && !formData.student_id) {
+      handleInputChange('student_id', filteredStudents[0].id);
+    }
+  }, [filteredStudents.length, formData.student_id, formData.branch_id]);
 
   const loadBranches = async () => {
     try {
