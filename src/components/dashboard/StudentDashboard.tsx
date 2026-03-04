@@ -1132,7 +1132,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         <TabsContent value="schedule">
           <StudentMyClassSchedule 
             studentId={studentId!} 
-            branchId={student?.branch_id} 
+            branchId={student?.branch_id}
+            entitlements={entitlements}
+            readOnly={readOnly}
           />
         </TabsContent>
 

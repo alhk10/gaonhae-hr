@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { 
   Calendar, Clock, CheckCircle2, XCircle, ArrowRightLeft, 
-  Ban, AlertCircle, Filter 
+  Ban, AlertCircle, Filter, Plus, Loader2 
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, isPast, isToday, parseISO } from 'date-fns';
+import { format, isPast, isToday, parseISO, getDay, isAfter, isBefore, startOfDay } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { createScheduledClass } from '@/services/classEnrollmentService';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import RescheduleClassDialog from './RescheduleClassDialog';
+
+interface Entitlement {
+  id: string;
+  sessions_total: number;
+  sessions_remaining: number | null;
+  sessions_used: number;
+  class_type_scope: string | null;
+  branch_scope: string | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  [key: string]: any;
+}
 
 interface StudentMyClassScheduleProps {
   studentId: string;
   branchId?: string;
+  entitlements?: Entitlement[];
+  readOnly?: boolean;
 }
 
 type FilterType = 'upcoming' | 'past' | 'all';
@@ -36,11 +55,18 @@ interface ScheduledClassDisplay {
   timetable_id?: string | null;
 }
 
-const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ studentId, branchId }) => {
+const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ 
+  studentId, branchId, entitlements = [], readOnly = false 
+}) => {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterType>('upcoming');
   const [rescheduleClass, setRescheduleClass] = useState<ScheduledClassDisplay | null>(null);
   const [rescheduleMode, setRescheduleMode] = useState<'reschedule' | 'makeup'>('reschedule');
+  const [addLessonOpen, setAddLessonOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
+  const [booking, setBooking] = useState(false);
 
   // Fetch active enrollments
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
@@ -94,7 +120,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
     enabled: enrollmentIds.length > 0,
   });
 
-  // Fetch branch timetables for rescheduling
+  // Fetch branch timetables
   const effectiveBranchId = branchId || enrollments[0]?.branch_id;
   const { data: timetables = [] } = useQuery({
     queryKey: ['branch-timetables-for-reschedule', effectiveBranchId],
@@ -111,10 +137,100 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
     enabled: !!effectiveBranchId,
   });
 
+  // Calculate unbooked sessions
+  const activeClassCount = scheduledClasses.filter(
+    s => s.status !== 'cancelled' && s.status !== 'swapped'
+  ).length;
+  const totalEntitlementSessions = entitlements.reduce((sum, e) => sum + (e.sessions_remaining || 0), 0);
+  const unbookedCount = Math.max(0, totalEntitlementSessions - activeClassCount);
+
+  // Available weekdays from timetables
+  const availableWeekdays = useMemo(() => {
+    return [...new Set(timetables.map(t => t.weekday))];
+  }, [timetables]);
+
+  // Term date bounds for the calendar
+  const termBounds = useMemo(() => {
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    terms.forEach(t => {
+      const s = parseISO(t.start_date);
+      const e = parseISO(t.end_date);
+      if (!minDate || isBefore(s, minDate)) minDate = s;
+      if (!maxDate || isAfter(e, maxDate)) maxDate = e;
+    });
+    return { minDate, maxDate };
+  }, [terms]);
+
+  // Slots for selected date
+  const slotsForDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const dayOfWeek = getDay(selectedDate);
+    return timetables.filter(t => t.weekday === dayOfWeek);
+  }, [selectedDate, timetables]);
+
+  // Capacity check for selected date slots
+  const { data: slotCapacities = {} } = useQuery({
+    queryKey: ['slot-capacities', selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '', slotsForDate.map(s => s.id).join(',')],
+    queryFn: async () => {
+      if (!selectedDate || slotsForDate.length === 0) return {};
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const timetableIds = slotsForDate.map(s => s.id);
+      const { data, error } = await supabase
+        .from('student_scheduled_classes')
+        .select('timetable_id')
+        .eq('scheduled_date', dateStr)
+        .in('timetable_id', timetableIds)
+        .neq('status', 'cancelled')
+        .neq('status', 'swapped');
+      if (error) return {};
+      const counts: Record<string, number> = {};
+      (data || []).forEach(d => {
+        if (d.timetable_id) counts[d.timetable_id] = (counts[d.timetable_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!selectedDate && slotsForDate.length > 0,
+  });
+
+  // Calendar disabled date logic
+  const isDateDisabled = (date: Date) => {
+    const today = startOfDay(new Date());
+    if (isBefore(date, today)) return true;
+    if (termBounds.minDate && isBefore(date, termBounds.minDate)) return true;
+    if (termBounds.maxDate && isAfter(date, termBounds.maxDate)) return true;
+    const dayOfWeek = getDay(date);
+    if (!availableWeekdays.includes(dayOfWeek)) return true;
+    return false;
+  };
+
+  const handleBookLesson = async () => {
+    if (!selectedDate || !selectedSlot || enrollmentIds.length === 0) return;
+    setBooking(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      await createScheduledClass({
+        enrollment_id: enrollmentIds[0],
+        timetable_id: selectedSlot.id,
+        scheduled_date: dateStr,
+        start_time: selectedSlot.start_time,
+        end_time: selectedSlot.end_time,
+      });
+      toast.success('Lesson booked successfully');
+      setAddLessonOpen(false);
+      setSelectedDate(undefined);
+      setSelectedSlot(null);
+      queryClient.invalidateQueries({ queryKey: ['student-all-scheduled-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['student-entitlements'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to book lesson');
+    } finally {
+      setBooking(false);
+    }
+  };
+
   // Build display data
   const enrollmentMap = enrollments.reduce((acc, e) => ({ ...acc, [e.id]: e }), {} as Record<string, any>);
-
-  // Build timetable class_type lookup
   const timetableClassTypeMap = timetables.reduce((acc, t) => ({ ...acc, [t.id]: t.class_type }), {} as Record<string, string>);
 
   const displayClasses: ScheduledClassDisplay[] = scheduledClasses.map(sc => {
@@ -142,7 +258,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
   const filteredClasses = displayClasses.filter(c => {
     if (filter === 'upcoming') return c.scheduled_date >= today && c.status !== 'cancelled' && c.status !== 'swapped';
     if (filter === 'past') return c.scheduled_date < today || c.status === 'attended' || c.status === 'absent';
-    return true; // 'all'
+    return true;
   });
 
   // Group by term
@@ -157,18 +273,12 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'attended':
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
-      case 'absent':
-        return <XCircle className="w-5 h-5 text-red-600" />;
-      case 'scheduled':
-        return <Clock className="w-5 h-5 text-muted-foreground" />;
-      case 'swapped':
-        return <ArrowRightLeft className="w-5 h-5 text-orange-500" />;
-      case 'cancelled':
-        return <Ban className="w-5 h-5 text-muted-foreground" />;
-      default:
-        return <Clock className="w-5 h-5 text-muted-foreground" />;
+      case 'attended': return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+      case 'absent': return <XCircle className="w-5 h-5 text-red-600" />;
+      case 'scheduled': return <Clock className="w-5 h-5 text-muted-foreground" />;
+      case 'swapped': return <ArrowRightLeft className="w-5 h-5 text-orange-500" />;
+      case 'cancelled': return <Ban className="w-5 h-5 text-muted-foreground" />;
+      default: return <Clock className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -183,13 +293,8 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
     }
   };
 
-  const canReschedule = (cls: ScheduledClassDisplay) => {
-    return cls.status === 'scheduled' && cls.scheduled_date >= today;
-  };
-
-  const canMakeUp = (cls: ScheduledClassDisplay) => {
-    return cls.status === 'absent';
-  };
+  const canReschedule = (cls: ScheduledClassDisplay) => cls.status === 'scheduled' && cls.scheduled_date >= today;
+  const canMakeUp = (cls: ScheduledClassDisplay) => cls.status === 'absent';
 
   const handleReschedule = (cls: ScheduledClassDisplay) => {
     setRescheduleClass(cls);
@@ -227,8 +332,8 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
 
   return (
     <div className="space-y-4">
-      {/* Filter Buttons */}
-      <div className="flex items-center gap-2">
+      {/* Filter Row + Add Lesson Button */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Filter className="w-4 h-4 text-muted-foreground" />
         {(['upcoming', 'past', 'all'] as FilterType[]).map(f => (
           <Button
@@ -241,6 +346,21 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
             {f}
           </Button>
         ))}
+        
+        {!readOnly && unbookedCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAddLessonOpen(true)}
+            className="ml-auto gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Lesson
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
+              {unbookedCount}
+            </Badge>
+          </Button>
+        )}
       </div>
 
       {/* Classes grouped by term */}
@@ -273,7 +393,6 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
                         isClassToday ? 'bg-primary/5 border-primary/20' : 'bg-muted/30'
                       }`}
                     >
-                      {/* Left: Date + Info */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`text-center min-w-[44px] ${isClassToday ? 'text-primary' : ''}`}>
                           <p className="text-xs uppercase font-medium">{format(classDate, 'EEE')}</p>
@@ -291,7 +410,6 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
                         </div>
                       </div>
 
-                      {/* Right: Status + Actions */}
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="flex items-center gap-1">
                           {getStatusIcon(cls.status)}
@@ -308,26 +426,16 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
                         </div>
 
                         {canReschedule(cls) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReschedule(cls)}
-                            className="text-xs"
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleReschedule(cls)} className="text-xs">
                             <ArrowRightLeft className="w-3 h-3 mr-1" />
                             {isMobile ? 'Swap' : 'Reschedule'}
                           </Button>
                         )}
 
                         {canMakeUp(cls) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleMakeUp(cls)}
-                            className="text-xs"
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleMakeUp(cls)} className="text-xs">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {isMobile ? 'Make Up' : 'Make Up'}
+                            Make Up
                           </Button>
                         )}
                       </div>
@@ -352,6 +460,88 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ student
           termEndDate={rescheduleClass.term_id ? termDateMap[rescheduleClass.term_id]?.end_date : undefined}
         />
       )}
+
+      {/* Add Lesson Dialog */}
+      <Dialog open={addLessonOpen} onOpenChange={(open) => {
+        setAddLessonOpen(open);
+        if (!open) { setSelectedDate(undefined); setSelectedSlot(null); }
+      }}>
+        <DialogContent className="max-w-sm p-4">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-base">Add Lesson</DialogTitle>
+            <DialogDescription className="text-xs">
+              {unbookedCount} session{unbookedCount !== 1 ? 's' : ''} remaining
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* Compact Calendar */}
+            <CalendarComponent
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => { setSelectedDate(date); setSelectedSlot(null); }}
+              disabled={isDateDisabled}
+              className={cn("p-2 pointer-events-auto rounded-md border mx-auto")}
+              initialFocus
+            />
+
+            {/* Time Slots */}
+            {selectedDate && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Available slots for {format(selectedDate, 'EEE, d MMM')}
+                </p>
+                {slotsForDate.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No slots available</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {slotsForDate.map(slot => {
+                      const currentCount = slotCapacities[slot.id] || 0;
+                      const isFull = slot.max_capacity ? currentCount >= slot.max_capacity : false;
+                      const isSelected = selectedSlot?.id === slot.id;
+
+                      return (
+                        <Button
+                          key={slot.id}
+                          variant={isSelected ? 'default' : 'outline'}
+                          size="sm"
+                          disabled={isFull}
+                          onClick={() => setSelectedSlot(slot)}
+                          className={cn(
+                            "text-xs h-7 px-2",
+                            isFull && "opacity-50 line-through"
+                          )}
+                        >
+                          <Clock className="w-3 h-3 mr-1" />
+                          {slot.start_time?.substring(0, 5)} - {slot.end_time?.substring(0, 5)}
+                          {slot.class_type && (
+                            <span className="ml-1 text-muted-foreground">({slot.class_type})</span>
+                          )}
+                          {isFull && <span className="ml-1">(Full)</span>}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Confirm Button */}
+            <Button
+              onClick={handleBookLesson}
+              disabled={!selectedDate || !selectedSlot || booking}
+              className="w-full h-8 text-sm"
+              size="sm"
+            >
+              {booking ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Booking...</>
+              ) : (
+                'Confirm Booking'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
