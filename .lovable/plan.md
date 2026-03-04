@@ -1,38 +1,14 @@
 
 
-## Plan: Auto-fill category when selecting a product
+## Plan: Remove Duplicated Slot Booking Approval Sections
 
-### Root Cause
-When a product is selected via the product search, `handleProductChange` updates the product ID and price but never sets `newItem.category_id`. Since `selectedCategory` is derived from `newItem.category_id`, all category-dependent logic (term/slot for Classes, size for Uniforms) remains inactive.
+### Problem
+The Superadmin Dashboard renders `SlotBookingApprovals` (line 93) as a standalone section, AND `SlotBookingManagementContent` (line 129) which has its own built-in "Pending Approvals" section. This causes the same pending slot booking approvals to appear twice.
 
 ### Fix
 
-**`src/components/sales/CreateInvoiceDialog.tsx`** — In `handleProductChange`, after finding the product, set the `category_id` from the product's `category_id`. Then re-derive `isClassesCategory` from the product's actual category rather than from `selectedCategory` (which hasn't updated yet):
+**`src/components/dashboard/SuperadminDashboard.tsx`**:
+- Remove the standalone `<SlotBookingApprovals />` component (line 93-94) since `SlotBookingManagementContent` already handles pending approvals with approve/reject actions inline.
 
-```typescript
-const handleProductChange = async (productId: string) => {
-  const product = products.find(p => p.id === productId);
-  
-  // Auto-fill category from product
-  const productCategory = product ? categories.find(c => c.id === product.category_id) : null;
-  const isClassesCategory = productCategory?.name === 'Classes';
-  
-  // ... rest of existing logic (term refresh, branch pricing) stays the same ...
-
-  setNewItem(prev => ({
-    ...prev,
-    product_id: productId,
-    category_id: product?.category_id || prev.category_id,  // <-- auto-fill
-    unit_price: unitPrice,
-    size_variant: '',
-    color_variant: '',
-    term_id: selectedTermId
-  }));
-};
-```
-
-This single change ensures:
-- **Terms/slots** appear when a Classes product is selected (category auto-set triggers term loading)
-- **Size variants** appear when a Uniform product is selected (category ID matches `UNIFORMS_CATEGORY_ID`)
-- The category dropdown visually updates to reflect the product's category
+This keeps the approvals integrated within the slot booking management calendar context where they are most useful, and eliminates the duplication.
 
