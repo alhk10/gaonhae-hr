@@ -67,6 +67,7 @@ import { Student } from '@/services/studentService';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
+import NegativeInventoryAlert from './NegativeInventoryAlert';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -321,6 +322,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   return (
     <div className="space-y-6">
+      <NegativeInventoryAlert branchId={branchId} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">

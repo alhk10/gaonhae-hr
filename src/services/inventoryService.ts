@@ -161,10 +161,6 @@ export const adjustInventory = async (
       // Update existing inventory
       const newQuantity = existing.quantity_on_hand + quantityDelta;
       
-      if (newQuantity < 0) {
-        throw new Error('Insufficient inventory for this adjustment');
-      }
-
       const { error: updateError } = await supabase
         .from('inventory_items')
         .update({
@@ -176,10 +172,6 @@ export const adjustInventory = async (
       if (updateError) throw updateError;
     } else {
       // Create new inventory item
-      if (quantityDelta < 0) {
-        throw new Error('Cannot create inventory with negative quantity');
-      }
-
       const { error: insertError } = await supabase
         .from('inventory_items')
         .insert({

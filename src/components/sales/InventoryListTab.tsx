@@ -77,7 +77,8 @@ const InventoryListTab: React.FC = () => {
 
   const getStockStatus = (item: InventoryItemWithDetails) => {
     const available = item.quantity_on_hand - item.quantity_reserved;
-    if (available <= 0) return 'out_of_stock';
+    if (available < 0) return 'negative';
+    if (available === 0) return 'out_of_stock';
     if (item.reorder_point && item.quantity_on_hand <= item.reorder_point) return 'low_stock';
     return 'in_stock';
   };
@@ -103,9 +104,18 @@ const InventoryListTab: React.FC = () => {
   const lowStockCount = filteredItems.filter(item => getStockStatus(item) === 'low_stock').length;
   const outOfStockCount = filteredItems.filter(item => getStockStatus(item) === 'out_of_stock').length;
 
+  const negativeCount = filteredItems.filter(item => getStockStatus(item) === 'negative').length;
+
   const renderStatusBadge = (item: InventoryItemWithDetails) => {
     const status = getStockStatus(item);
     switch (status) {
+      case 'negative':
+        return (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Negative ({item.quantity_on_hand - item.quantity_reserved})
+          </Badge>
+        );
       case 'out_of_stock':
         return (
           <Badge variant="destructive" className="flex items-center gap-1">
