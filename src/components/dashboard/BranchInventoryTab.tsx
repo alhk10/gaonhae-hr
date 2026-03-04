@@ -132,7 +132,8 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
   });
 
   const getStockBadge = (qty: number) => {
-    if (qty <= 0) return <Badge variant="destructive">Out of Stock</Badge>;
+    if (qty < 0) return <Badge variant="destructive">Negative ({qty})</Badge>;
+    if (qty === 0) return <Badge variant="destructive">Out of Stock</Badge>;
     if (qty <= 5) return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-300">Low Stock</Badge>;
     return <Badge variant="secondary">In Stock</Badge>;
   };

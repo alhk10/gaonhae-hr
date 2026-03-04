@@ -22,6 +22,7 @@ import StockTransferApprovals from './StockTransferApprovals';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
+import NegativeInventoryAlert from './NegativeInventoryAlert';
 import { useAuth } from '@/contexts/AuthContext';
 
 const SuperadminDashboard = () => {
@@ -64,6 +65,8 @@ const SuperadminDashboard = () => {
   });
 
   return (
+    <>
+    <NegativeInventoryAlert />
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
@@ -126,6 +129,7 @@ const SuperadminDashboard = () => {
         <NoticeManagementTab role="superadmin" userEmail={user?.email || ''} />
       </TabsContent>
     </Tabs>
+    </>
   );
 };
 
