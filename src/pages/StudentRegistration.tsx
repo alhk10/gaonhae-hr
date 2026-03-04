@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { UserPlus, User, Mail, GraduationCap, Phone, MapPin, Heart, CheckCircle } from 'lucide-react';
+import { UserPlus, User, Mail, GraduationCap, Phone, MapPin, Heart, CheckCircle, Shield, Eraser } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { submitStudentRegistration } from '@/services/studentRegistrationService';
@@ -42,11 +43,15 @@ const referralSourceOptions = [
   { value: 'others', label: 'Others' }
 ];
 
-const uppercaseFields = ['first_name', 'last_name', 'certificate_name', 'display_name', 'preferred_name', 'nric_passport', 'passport_no', 'address', 'emergency_contact_name', 'emergency_contact_2_name'];
+const uppercaseFields = ['first_name', 'last_name', 'certificate_name', 'display_name', 'preferred_name', 'address', 'emergency_contact_name', 'emergency_contact_2_name'];
 
 const StudentRegistration = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [policyAgreed, setPolicyAgreed] = useState(false);
+  const [signature, setSignature] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
   const { branches } = useBranches();
 
   const [formData, setFormData] = useState({
@@ -58,8 +63,6 @@ const StudentRegistration = () => {
     display_name: '',
     date_of_birth: '',
     gender: '',
-    nric_passport: '',
-    passport_no: '',
     phone: '',
     whatsapp: '',
     email: '',
@@ -81,6 +84,74 @@ const StudentRegistration = () => {
     branch_id: '',
     notes: ''
   });
+
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.strokeStyle = 'hsl(var(--foreground))';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }, []);
+
+  useEffect(() => {
+    initCanvas();
+    window.addEventListener('resize', initCanvas);
+    return () => window.removeEventListener('resize', initCanvas);
+  }, [initCanvas]);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    isDrawingRef.current = true;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const endDraw = () => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setSignature(canvas.toDataURL('image/png'));
+    }
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSignature(null);
+  };
 
   const handleInputChange = (field: string, value: string) => {
     const processedValue = uppercaseFields.includes(field) ? value.toUpperCase() : value;
@@ -108,12 +179,20 @@ const StudentRegistration = () => {
       toast.error('First name and last name are required');
       return;
     }
-    if (!formData.email && !formData.phone) {
-      toast.error('Either email or phone number is required');
+    if (!formData.email) {
+      toast.error('Email is required');
       return;
     }
     if (!formData.branch_id) {
       toast.error('Please select a branch');
+      return;
+    }
+    if (!policyAgreed) {
+      toast.error('Please agree to the school policy');
+      return;
+    }
+    if (!signature) {
+      toast.error('Please provide your signature');
       return;
     }
 
@@ -144,15 +223,23 @@ const StudentRegistration = () => {
             <p className="text-muted-foreground">
               Thank you for registering. Your application is pending review and you will be contacted once it has been approved.
             </p>
-            <Button onClick={() => { setSubmitted(false); setFormData({
-              referral_source: '', first_name: '', last_name: '', preferred_name: '', certificate_name: '', display_name: '',
-              date_of_birth: '', gender: '', nric_passport: '', passport_no: '', phone: '', whatsapp: '', email: '',
-              address: '', postal_code: '', nationality: [], languages_spoken: [],
-              emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
-              emergency_contact_2_name: '', emergency_contact_2_phone: '', emergency_contact_2_relationship: '',
-              current_belt: '', previous_experience: '', training_goals: '', medical_conditions: '', dietary_restrictions: '',
-              branch_id: '', notes: ''
-            }); }} variant="outline">
+            <Button onClick={() => {
+              setSubmitted(false);
+              setPolicyAgreed(false);
+              setSignature(null);
+              setFormData({
+                referral_source: '', first_name: '', last_name: '', preferred_name: '', certificate_name: '', display_name: '',
+                date_of_birth: '', gender: '', phone: '', whatsapp: '', email: '',
+                address: '', postal_code: '', nationality: [], languages_spoken: [],
+                emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
+                emergency_contact_2_name: '', emergency_contact_2_phone: '', emergency_contact_2_relationship: '',
+                current_belt: '', previous_experience: '', training_goals: '', medical_conditions: '', dietary_restrictions: '',
+                branch_id: '', notes: ''
+              });
+              setTimeout(() => {
+                initCanvas();
+              }, 100);
+            }} variant="outline">
               Submit Another Registration
             </Button>
           </CardContent>
@@ -231,7 +318,7 @@ const StudentRegistration = () => {
                   <Input value={formData.preferred_name} onChange={e => handleInputChange('preferred_name', e.target.value)} />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Gender</Label>
                   <Select value={formData.gender} onValueChange={v => handleInputChange('gender', v)}>
@@ -247,14 +334,6 @@ const StudentRegistration = () => {
                   <Label className="text-xs">Date of Birth</Label>
                   <Input type="date" value={formData.date_of_birth} onChange={e => handleInputChange('date_of_birth', e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">NRIC/FIN</Label>
-                  <Input value={formData.nric_passport} onChange={e => handleInputChange('nric_passport', e.target.value)} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Passport No.</Label>
-                <Input value={formData.passport_no} onChange={e => handleInputChange('passport_no', e.target.value)} />
               </div>
             </CardContent>
           </Card>
@@ -275,8 +354,8 @@ const StudentRegistration = () => {
                   <Input value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', e.target.value)} placeholder="+65 9123 4567" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
-                  <Input type="email" value={formData.email} onChange={e => handleInputChange('email', e.target.value)} />
+                  <Label className="text-xs">Email *</Label>
+                  <Input type="email" value={formData.email} onChange={e => handleInputChange('email', e.target.value)} required />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -394,6 +473,64 @@ const StudentRegistration = () => {
               <div className="space-y-1">
                 <Label className="text-xs">Additional Notes</Label>
                 <Textarea value={formData.notes} onChange={e => handleInputChange('notes', e.target.value)} rows={2} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* School Policy */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4" /> Our School Policy</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground space-y-3">
+                <p>The school operates on a term-to-term basis. A term consists of 10 weeks. The school will be closed on Public Holidays. We may also be closed for Competitions, Gradings, and other Special Events.</p>
+                <p>Class fees are chargeable on a per term or per lesson basis. Class fees are to be paid before the term commencement date. Makeup lessons must be completed within the same term. Any unused lessons beyond this period will be forfeited.</p>
+                <p>Annual membership fees, which cover administration, affiliation, and insurance costs, which may be subject to change each year. The updated fee will be communicated to members prior to renewal.</p>
+                <p>All fees paid are non-transferable and non-refundable. A school credit may be offered in some cases.</p>
+                <p>Uniforms and accessories may be exchanged or returned within 7 days of purchase, provided they are clean and in saleable condition. Refunds for returns will be issued as school credits.</p>
+                <p>The school requires students to wear the appropriate guards when practising kyorugi (sparring). Strictly no guards, no kyorugi (sparring).</p>
+                <p>Gradings are made on personal ability and progressions. Students are graded according to Gaonhae Taekwondo Syllabus.</p>
+                <p>Images and videos captured during training, demonstrations, or competitions are the exclusive property of Gaonhae Taekwondo and may be used for publicity, advertising, or journalism purposes.</p>
+                <p>Personal information collected is used solely for purposes such as fulfilling service obligations, verifying identity, processing payments or credit transactions, and providing related requested services.</p>
+                <p>Students registered with Gaonhae Taekwondo shall abide by the school rules and the rules of the governing sport authority. Students participate in classes and activities at their own risk and agree to indemnify Gaonhae Taekwondo against any loss, injury, damage, expense, or liability arising from such participation.</p>
+                <p>While every effort is made to prevent accidents, students register with Gaonhae Taekwondo at their own risk. Gaonhae Taekwondo and its instructors are not liable for any accidents or injuries that may occur.</p>
+              </div>
+
+              <div className="flex items-start space-x-3 pt-2">
+                <Checkbox
+                  id="policy-agree"
+                  checked={policyAgreed}
+                  onCheckedChange={(checked) => setPolicyAgreed(checked === true)}
+                />
+                <label htmlFor="policy-agree" className="text-sm font-medium leading-tight cursor-pointer">
+                  <span className="font-semibold">Acknowledgement & Agreement</span>
+                  <br />
+                  <span className="text-muted-foreground font-normal">I have read and understood the school policy, and I agree to comply with its terms.</span>
+                </label>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Signature *</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={clearSignature} className="h-7 text-xs gap-1">
+                    <Eraser className="w-3 h-3" /> Clear
+                  </Button>
+                </div>
+                <div className="border-2 border-dashed border-border rounded-md bg-background">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-32 cursor-crosshair touch-none"
+                    onMouseDown={startDraw}
+                    onMouseMove={draw}
+                    onMouseUp={endDraw}
+                    onMouseLeave={endDraw}
+                    onTouchStart={startDraw}
+                    onTouchMove={draw}
+                    onTouchEnd={endDraw}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Draw your signature above</p>
               </div>
             </CardContent>
           </Card>
