@@ -3148,6 +3148,7 @@ export type Database = {
           updated_by: string | null
           validity_months: number | null
           validity_type: string | null
+          warn_below_quantity: number | null
         }
         Insert: {
           allowed_belt_levels?: string[] | null
@@ -3182,6 +3183,7 @@ export type Database = {
           updated_by?: string | null
           validity_months?: number | null
           validity_type?: string | null
+          warn_below_quantity?: number | null
         }
         Update: {
           allowed_belt_levels?: string[] | null
@@ -3216,6 +3218,7 @@ export type Database = {
           updated_by?: string | null
           validity_months?: number | null
           validity_type?: string | null
+          warn_below_quantity?: number | null
         }
         Relationships: [
           {

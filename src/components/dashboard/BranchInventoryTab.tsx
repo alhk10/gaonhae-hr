@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Package, ArrowRightLeft, ChevronRight } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Search, Package, ArrowRightLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InventoryAdjustmentDialog } from '@/components/sales/InventoryAdjustmentDialog';
@@ -12,6 +12,7 @@ import StockTransferRequestDialog from './StockTransferRequestDialog';
 import { getTransferRequestsByBranch } from '@/services/inventoryTransferService';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { toast } from 'sonner';
 
 interface BranchInventoryTabProps {
   branchId: string;
@@ -30,11 +31,14 @@ interface ProductGroup {
 }
 
 const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [adjustProduct, setAdjustProduct] = useState<any>(null);
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [editingWarnBelow, setEditingWarnBelow] = useState<string | null>(null);
+  const [warnBelowValue, setWarnBelowValue] = useState<string>('');
 
   // Fetch inventory locations for this branch
   const { data: locations = [] } = useQuery({
@@ -74,7 +78,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, category_id, requires_size, available_sizes, is_service')
+        .select('id, name, sku, category_id, requires_size, available_sizes, is_service, warn_below_quantity')
         .eq('is_service', false)
         .order('name');
       if (error) throw error;
@@ -153,6 +157,62 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
     });
   };
 
+  const saveWarnBelow = async (productId: string) => {
+    const val = warnBelowValue.trim() === '' ? null : parseInt(warnBelowValue, 10);
+    if (val !== null && isNaN(val)) {
+      toast.error('Please enter a valid number');
+      return;
+    }
+    const { error } = await supabase
+      .from('products')
+      .update({ warn_below_quantity: val } as any)
+      .eq('id', productId);
+    if (error) {
+      toast.error('Failed to update threshold');
+    } else {
+      toast.success('Threshold updated');
+      queryClient.invalidateQueries({ queryKey: ['all-products-for-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['low-stock-warnings'] });
+    }
+    setEditingWarnBelow(null);
+  };
+
+  const renderWarnBelow = (product: any) => {
+    const warnQty = product.warn_below_quantity;
+    if (editingWarnBelow === product.id) {
+      return (
+        <Input
+          type="number"
+          className="w-16 h-7 text-xs"
+          value={warnBelowValue}
+          onChange={(e) => setWarnBelowValue(e.target.value)}
+          onBlur={() => saveWarnBelow(product.id)}
+          onKeyDown={(e) => { if (e.key === 'Enter') saveWarnBelow(product.id); if (e.key === 'Escape') setEditingWarnBelow(null); }}
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+    return (
+      <span
+        className="text-xs text-muted-foreground cursor-pointer hover:text-foreground min-w-[40px] text-center"
+        title="Click to set warn threshold"
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingWarnBelow(product.id);
+          setWarnBelowValue(warnQty != null ? String(warnQty) : '');
+        }}
+      >
+        {warnQty != null ? (
+          <span className="flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3 text-yellow-600" />
+            {warnQty}
+          </span>
+        ) : '—'}
+      </span>
+    );
+  };
+
   const getStockBadge = (qty: number) => {
     if (qty < 0) return <Badge variant="destructive">Negative ({qty})</Badge>;
     if (qty === 0) return <Badge variant="destructive">Out of Stock</Badge>;
@@ -223,6 +283,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
+                        {renderWarnBelow(product)}
                         {getStockBadge(group.totalQty)}
                         <span className="font-mono font-medium text-sm w-12 text-right">{group.totalQty}</span>
                         <Button
@@ -256,6 +317,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
+                          {renderWarnBelow(product)}
                           {getStockBadge(group.totalQty)}
                           <span className="font-mono font-medium text-sm w-12 text-right">{group.totalQty}</span>
                           <Button
