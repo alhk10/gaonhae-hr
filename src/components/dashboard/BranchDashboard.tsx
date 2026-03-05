@@ -438,27 +438,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   {filteredStudents.slice(0, 20).map((student) => (
                     <div
                       key={student.id}
-                      className="p-4 flex items-center justify-between hover:bg-muted/50 cursor-pointer"
+                      className="px-3 py-2 flex items-center gap-3 hover:bg-muted/50 cursor-pointer text-sm"
                       onClick={() => {
                         setSelectedStudent(student as Student);
                         setStudentDetailsOpen(true);
                       }}
                     >
-                      <div>
-                        <p className="font-medium">
-                          {student.first_name} {student.last_name}
-                        </p>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          {student.phone && <span>{student.phone}</span>}
-                          {student.phone && student.email && <span>•</span>}
-                          <span>{student.email || 'No email'}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={student.current_belt ? 'default' : 'secondary'}>
+                      <span className="font-semibold uppercase tracking-wide truncate w-48 shrink-0">
+                        {student.first_name} {student.last_name}
+                      </span>
+                      <span className="text-muted-foreground text-xs truncate w-28 shrink-0">
+                        {student.phone || '—'}
+                      </span>
+                      <span className="text-muted-foreground text-xs truncate flex-1 min-w-0">
+                        {student.email || '—'}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-xs">
                           {student.current_belt || 'No belt'}
                         </Badge>
-                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
+                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className="text-xs capitalize">
                           {student.status}
                         </Badge>
                       </div>
