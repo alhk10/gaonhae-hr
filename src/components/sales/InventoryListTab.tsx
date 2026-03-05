@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, Package, AlertTriangle, PackageX, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useBranches } from '@/hooks/useBranches';
 
 interface VariantRow {
   label: string;
@@ -27,8 +28,8 @@ interface ProductGroup {
   product_id: string;
   product_name: string;
   product_sku: string;
-  location_id: string | null;
-  location_name: string;
+  branch_id: string | null;
+  branch_name: string;
   warn_below_quantity: number | null;
   totalQty: number;
   totalReserved: number;
@@ -52,9 +53,12 @@ function variantLabel(sizeVariant: string | null, variantCombination: any): stri
 
 const InventoryListTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [locationFilter, setLocationFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+
+  // Fetch branches for filter
+  const { branches } = useBranches();
 
   // Fetch ALL non-service products
   const { data: allProducts = [], isLoading: productsLoading } = useQuery({
@@ -70,7 +74,7 @@ const InventoryListTab: React.FC = () => {
     }
   });
 
-  // Fetch inventory items with location details
+  // Fetch inventory items with location details (to resolve branch_id)
   const { data: inventoryItems = [], isLoading: inventoryLoading } = useQuery({
     queryKey: ['inventory-list'],
     queryFn: async () => {
@@ -87,32 +91,26 @@ const InventoryListTab: React.FC = () => {
     }
   });
 
-  // Fetch locations for filter
-  const { data: locations = [] } = useQuery({
-    queryKey: ['inventory-locations-filter'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('inventory_locations')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data;
-    }
-  });
-
   const isLoading = productsLoading || inventoryLoading;
 
-  // Build product groups with cascading variants
+  // Build a map of branch_id -> branch_name from branches hook
+  const branchNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of branches) map.set(b.id, b.name);
+    return map;
+  }, [branches]);
+
+  // Build product groups with cascading variants — grouped by product + branch
   const productGroups: ProductGroup[] = useMemo(() => {
-    // Group inventory items by product + location
-    const groupKey = (pid: string, lid: string) => `${pid}__${lid}`;
+    const groupKey = (pid: string, branchId: string) => `${pid}__${branchId}`;
     const invByGroup = new Map<string, typeof inventoryItems>();
     const productsWithInventory = new Set<string>();
 
     for (const item of inventoryItems) {
+      const branchId = (item as any)?.location?.branch_id as string | undefined;
+      if (!branchId) continue;
       productsWithInventory.add(item.product_id);
-      const key = groupKey(item.product_id, item.location_id);
+      const key = groupKey(item.product_id, branchId);
       if (!invByGroup.has(key)) invByGroup.set(key, []);
       invByGroup.get(key)!.push(item);
     }
@@ -122,17 +120,15 @@ const InventoryListTab: React.FC = () => {
     for (const product of allProducts) {
       if (product.is_service) continue;
 
-      // Find all location groups for this product
       const productInvKeys = Array.from(invByGroup.keys()).filter(k => k.startsWith(`${product.id}__`));
 
       if (productInvKeys.length === 0) {
-        // No inventory at all - synthetic 0-stock row
         groups.push({
           product_id: product.id,
           product_name: product.name,
           product_sku: product.sku || '-',
-          location_id: null,
-          location_name: '—',
+          branch_id: null,
+          branch_name: '—',
           warn_below_quantity: product.warn_below_quantity ?? null,
           totalQty: 0,
           totalReserved: 0,
@@ -146,17 +142,15 @@ const InventoryListTab: React.FC = () => {
 
       for (const key of productInvKeys) {
         const items = invByGroup.get(key)!;
-        const locationName = (items[0] as any)?.location?.name || 'Unknown';
-        const locationId = items[0].location_id;
+        const branchId = (items[0] as any)?.location?.branch_id as string;
+        const branchName = branchNameMap.get(branchId) || 'Unknown';
 
-        // Check if this product has variants
         const hasSize = items.some(i => i.size_variant);
         const hasCombo = items.some(i => i.variant_combination && Object.keys(i.variant_combination as object).length > 0);
         const hasVariants = hasSize || hasCombo;
 
         const variants: VariantRow[] = [];
         if (hasVariants) {
-          // Also include defined sizes with 0 stock
           const definedSizes = Array.isArray(product.available_sizes) ? (product.available_sizes as string[]) : [];
           const seenLabels = new Set<string>();
 
@@ -171,7 +165,6 @@ const InventoryListTab: React.FC = () => {
             });
           }
 
-          // Add defined sizes not yet in inventory
           for (const size of definedSizes) {
             if (!seenLabels.has(size)) {
               variants.push({ label: size, quantity_on_hand: 0, quantity_reserved: 0, cost_per_unit: null });
@@ -190,8 +183,8 @@ const InventoryListTab: React.FC = () => {
           product_id: product.id,
           product_name: product.name,
           product_sku: product.sku || '-',
-          location_id: locationId,
-          location_name: locationName,
+          branch_id: branchId,
+          branch_name: branchName,
           warn_below_quantity: product.warn_below_quantity ?? null,
           totalQty,
           totalReserved,
@@ -204,7 +197,7 @@ const InventoryListTab: React.FC = () => {
     }
 
     return groups;
-  }, [allProducts, inventoryItems]);
+  }, [allProducts, inventoryItems, branchNameMap]);
 
   const getStockStatus = (qty: number, reserved: number, warnBelow: number | null) => {
     const available = qty - reserved;
@@ -219,10 +212,10 @@ const InventoryListTab: React.FC = () => {
     const matchesSearch =
       item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product_sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = locationFilter === 'all' || item.location_id === locationFilter;
+    const matchesBranch = branchFilter === 'all' || item.branch_id === branchFilter;
     const status = getStockStatus(item.totalQty, item.totalReserved, item.warn_below_quantity);
     const matchesStatus = statusFilter === 'all' || status === statusFilter;
-    return matchesSearch && matchesLocation && matchesStatus;
+    return matchesSearch && matchesBranch && matchesStatus;
   });
 
   const totalItems = filteredItems.length;
@@ -320,14 +313,14 @@ const InventoryListTab: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="All Locations" />
+                <SelectValue placeholder="All Branches" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map(loc => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(b => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -356,7 +349,7 @@ const InventoryListTab: React.FC = () => {
           ) : (
             <div className="border rounded-lg divide-y">
               {filteredItems.map((group, idx) => {
-                const groupKey = `${group.product_id}__${group.location_id || 'none'}`;
+                const groupKey = `${group.product_id}__${group.branch_id || 'none'}`;
                 const isExpanded = expandedProducts.has(groupKey);
                 const status = getStockStatus(group.totalQty, group.totalReserved, group.warn_below_quantity);
 
@@ -368,7 +361,7 @@ const InventoryListTab: React.FC = () => {
                         <p className="font-medium truncate">{group.product_name}</p>
                         <p className="text-sm text-muted-foreground">
                           {group.product_sku !== '-' && <>SKU: {group.product_sku} • </>}
-                          {group.location_name}
+                           {group.branch_name}
                         </p>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
@@ -399,7 +392,7 @@ const InventoryListTab: React.FC = () => {
                             <p className="font-medium truncate">{group.product_name}</p>
                             <p className="text-sm text-muted-foreground">
                               {group.product_sku !== '-' && <>SKU: {group.product_sku} • </>}
-                              {group.location_name} • {group.variants.length} variant{group.variants.length !== 1 ? 's' : ''}
+                              {group.branch_name} • {group.variants.length} variant{group.variants.length !== 1 ? 's' : ''}
                             </p>
                           </div>
                         </div>
