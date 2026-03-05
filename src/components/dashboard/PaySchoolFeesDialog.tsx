@@ -829,7 +829,15 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <SelectValue placeholder="Select package" />
                       </SelectTrigger>
                       <SelectContent>
-                        {classProducts.map((product) => (
+                        {classProducts
+                          .filter((product) => {
+                            // Filter by student's belt level
+                            if (product.allowed_belt_levels && product.allowed_belt_levels.length > 0 && student.current_belt) {
+                              return product.allowed_belt_levels.includes(student.current_belt);
+                            }
+                            return true; // No restriction if allowed_belt_levels is null/empty or student has no belt
+                          })
+                          .map((product) => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.name}
                           </SelectItem>
@@ -851,6 +859,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                       term={selectedTerm}
                       lessonsPerWeek={selectedProduct?.lessons_per_week}
                       allowedClassTypes={selectedProduct?.allowed_class_types}
+                      allowedDays={selectedProduct?.lesson_days}
                     />
                   </div>
                 )}

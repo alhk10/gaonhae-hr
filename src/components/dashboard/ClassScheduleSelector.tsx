@@ -18,6 +18,7 @@ interface ClassScheduleSelectorProps {
   term: Term;
   lessonsPerWeek?: number; // Max lessons allowed per week (from product config)
   allowedClassTypes?: string[]; // Filter to only show these class types
+  allowedDays?: string[]; // Filter to only show these days (e.g., ["Monday", "Tuesday"])
 }
 
 const WEEKDAYS = [
@@ -30,6 +31,10 @@ const WEEKDAYS = [
   { value: 0, short: 'Sun', full: 'Sunday' },
 ];
 
+const DAY_NAME_TO_NUMBER: Record<string, number> = {
+  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6,
+};
+
 const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   branchId,
   studentAge,
@@ -38,6 +43,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   term,
   lessonsPerWeek,
   allowedClassTypes,
+  allowedDays,
 }) => {
   // Fetch class schedules for this branch
   const { data: allClasses = [], isLoading } = useQuery({
@@ -94,9 +100,16 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
       if (allowedClassTypes && allowedClassTypes.length > 0) {
         if (!cls.class_type || !allowedClassTypes.includes(cls.class_type)) return false;
       }
+
+      // Filter by allowed days
+      if (allowedDays && allowedDays.length > 0) {
+        const allowedDayNumbers = allowedDays.map(d => DAY_NAME_TO_NUMBER[d]).filter(n => n !== undefined);
+        if (!allowedDayNumbers.includes(cls.weekday)) return false;
+      }
+
       return true;
     });
-  }, [allClasses, studentAge, allowedClassTypes, classTypeAgeSettings]);
+  }, [allClasses, studentAge, allowedClassTypes, allowedDays, classTypeAgeSettings]);
 
   // Determine operating days (days that have classes)
   const operatingDays = useMemo(() => {
