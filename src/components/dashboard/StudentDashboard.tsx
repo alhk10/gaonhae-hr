@@ -1052,49 +1052,100 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                     const displayStatus = invoice.status === 'draft' ? 'unpaid' : invoice.status;
                     const isPaid = invoice.status === 'paid';
                     return (
-                      <div key={invoice.id} className={`flex items-center justify-between ${isMobile ? 'p-2 gap-2' : 'p-4'} border rounded-lg`}>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{invoice.invoice_number}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                          </p>
-                        </div>
-                          <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-3'} flex-shrink-0`}>
-                          <div className="text-right">
-                            <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
-                            <Badge 
-                              variant={isPaid ? 'default' : 'destructive'} 
-                              className={isPaid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}
-                            >
-                              {displayStatus}
-                            </Badge>
-                          </div>
-                          {!isPaid && invoice.balance_due > 0 && !readOnly && (
-                            <CreatePaymentDialog
-                              trigger={
-                                <Button variant="default" size="sm">
-                                  <CreditCard className="w-4 h-4 mr-1" />
-                                  Pay
-                                </Button>
-                              }
-                              preSelectedInvoiceId={invoice.id}
-                              onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
-                              isStudentPortal={true}
-                            />
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewPDF(invoice.id)}
-                            disabled={generatingPdfId === invoice.id}
-                          >
-                            {generatingPdfId === invoice.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                      <div key={invoice.id} className={`border rounded-lg ${isMobile ? 'p-3 space-y-2' : 'flex items-center justify-between p-4'}`}>
+                        {isMobile ? (
+                          <>
+                            <div className="flex items-start justify-between">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm">{invoice.invoice_number}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-2">
+                                <p className="font-medium text-sm">${invoice.total_amount?.toFixed(2)}</p>
+                                <Badge 
+                                  variant={isPaid ? 'default' : 'destructive'} 
+                                  className={`text-[10px] px-1.5 h-5 ${isPaid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
+                                >
+                                  {displayStatus}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-2">
+                              {!isPaid && invoice.balance_due > 0 && !readOnly && (
+                                <CreatePaymentDialog
+                                  trigger={
+                                    <Button variant="default" size="sm">
+                                      <CreditCard className="w-3.5 h-3.5 mr-1" />
+                                      Pay
+                                    </Button>
+                                  }
+                                  preSelectedInvoiceId={invoice.id}
+                                  onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                                  isStudentPortal={true}
+                                />
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewPDF(invoice.id)}
+                                disabled={generatingPdfId === invoice.id}
+                              >
+                                {generatingPdfId === invoice.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <FileText className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{invoice.invoice_number}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <div className="text-right">
+                                <p className="font-medium">${invoice.total_amount?.toFixed(2)}</p>
+                                <Badge 
+                                  variant={isPaid ? 'default' : 'destructive'} 
+                                  className={isPaid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}
+                                >
+                                  {displayStatus}
+                                </Badge>
+                              </div>
+                              {!isPaid && invoice.balance_due > 0 && !readOnly && (
+                                <CreatePaymentDialog
+                                  trigger={
+                                    <Button variant="default" size="sm">
+                                      <CreditCard className="w-4 h-4 mr-1" />
+                                      Pay
+                                    </Button>
+                                  }
+                                  preSelectedInvoiceId={invoice.id}
+                                  onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['student-invoices', studentId] })}
+                                  isStudentPortal={true}
+                                />
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewPDF(invoice.id)}
+                                disabled={generatingPdfId === invoice.id}
+                              >
+                                {generatingPdfId === invoice.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
