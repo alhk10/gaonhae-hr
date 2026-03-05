@@ -1,17 +1,18 @@
 
 
-## Plan: Compact Student Dashboard Design
+## Plan: Fix Notice Popup Dialog for Mobile
+
+The dialog's title text doesn't wrap and the image can overflow on narrow screens, causing horizontal scrolling.
 
 ### Changes
 
-**File: `src/components/dashboard/StudentDashboard.tsx`**
+**File: `src/components/notices/NoticePopupDialog.tsx`**
 
-1. **Remove subtitle** — Delete lines 728-730 (`<p>Manage your profile, view invoices, and track your progress</p>`).
-
-2. **Make tabs wrap instead of scroll** — Change TabsList from `flex-nowrap` to `h-auto flex-wrap` so tabs flow onto a second line on narrow screens instead of horizontally scrolling.
-
-3. **Compact stats cards** — Reduce padding, font sizes, and icon sizes in the 3 stats cards (Sessions Remaining, Outstanding Balance, Current Belt) for a denser layout.
+1. **DialogContent**: Add `overflow-x-hidden w-[95vw] sm:w-full` to constrain width on mobile and prevent horizontal overflow.
+2. **DialogTitle**: Add `break-words` class so long titles wrap instead of overflowing.
+3. **Image**: Add `max-w-full` to ensure images shrink to fit the container.
+4. **Content div**: Add `overflow-hidden break-words` to the content area to prevent any inner HTML from causing horizontal scroll.
 
 ### Files to modify
-- **Edit**: `src/components/dashboard/StudentDashboard.tsx`
+- **Edit**: `src/components/notices/NoticePopupDialog.tsx`
 
