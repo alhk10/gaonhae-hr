@@ -38,6 +38,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditInvoiceDialog from '@/components/sales/ViewEditInvoiceDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice } from '@/services/invoiceService';
+import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
 import {
   AlertDialog,
@@ -74,7 +75,7 @@ interface BranchDashboardProps {
 }
 
 const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('students');
@@ -298,8 +299,13 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     if (!deleteTarget) return;
     try {
       if (deleteTarget.type === 'invoice') {
-        await deleteInvoice(deleteTarget.id);
-        toast.success('Invoice deleted');
+        if (userrole !== 'superadmin') {
+          await createInvoiceDeletionRequest(deleteTarget.id);
+          toast.success('Deletion request submitted for superadmin approval');
+        } else {
+          await deleteInvoice(deleteTarget.id);
+          toast.success('Invoice deleted');
+        }
       } else {
         await deletePayment(deleteTarget.id);
         toast.success('Payment deleted');
@@ -307,8 +313,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
       queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-    } catch (error) {
-      toast.error(`Failed to delete ${deleteTarget.type}`);
+    } catch (error: any) {
+      toast.error(error?.message || `Failed to delete ${deleteTarget.type}`);
     } finally {
       setDeleteTarget(null);
     }
@@ -770,15 +776,19 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleteTarget?.type}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget?.type === 'invoice' && userrole !== 'superadmin' ? 'Request Deletion?' : `Delete ${deleteTarget?.type}?`}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deleteTarget?.type} "{deleteTarget?.label}"? This action cannot be undone.
+              {deleteTarget?.type === 'invoice' && userrole !== 'superadmin'
+                ? `This will submit a deletion request for invoice "${deleteTarget?.label}" to the superadmin for approval.`
+                : `Are you sure you want to delete ${deleteTarget?.type} "${deleteTarget?.label}"? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {deleteTarget?.type === 'invoice' && userrole !== 'superadmin' ? 'Submit Request' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

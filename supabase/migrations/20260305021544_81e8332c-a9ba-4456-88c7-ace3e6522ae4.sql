@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS warn_below_quantity integer DEFAULT NULL;
