@@ -112,19 +112,52 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       const invoiceIds = invoices.map(inv => inv.id);
       const { data: items } = await supabase
         .from('invoice_items')
-        .select('metadata')
+        .select('metadata, product_id, products(name)')
         .in('invoice_id', invoiceIds)
         .order('created_at', { ascending: false });
 
       if (!items) return null;
 
-      // Find the most recent item that has term-related metadata
+      // Find the most recent item that has term-related metadata (only require term_id)
       for (const item of items) {
-        const metadata = item.metadata as any;
-        if (metadata?.term_id && (metadata?.product_name || metadata?.selected_class_slots)) {
+        const metadata = (item as any).metadata as any;
+        if (metadata?.term_id) {
+          const productNameFallback = (item as any).products?.name;
+          const productName = metadata.product_name || productNameFallback;
+          let selectedClassSlots = metadata.selected_class_slots as string[] | undefined;
+
+          // Fallback: if no selected_class_slots in metadata, query student_scheduled_classes
+          if (!selectedClassSlots || selectedClassSlots.length === 0) {
+            // Find enrollments for this student to get scheduled timetable slots
+            const { data: enrollments } = await supabase
+              .from('student_class_enrollments')
+              .select('id')
+              .eq('student_id', studentId)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(5);
+
+            if (enrollments && enrollments.length > 0) {
+              const enrollmentIds = enrollments.map(e => e.id);
+              const { data: scheduledClasses } = await (supabase
+                .from('student_scheduled_classes')
+                .select('timetable_id, scheduled_date') as any)
+                .in('enrollment_id', enrollmentIds)
+                .eq('status', 'scheduled')
+                .order('scheduled_date', { ascending: false })
+                .limit(100);
+
+              if (scheduledClasses && scheduledClasses.length > 0) {
+                selectedClassSlots = scheduledClasses.map(
+                  (sc: any) => `${sc.timetable_id}_${sc.scheduled_date}`
+                );
+              }
+            }
+          }
+
           return {
-            product_name: metadata.product_name as string | undefined,
-            selected_class_slots: metadata.selected_class_slots as string[] | undefined,
+            product_name: productName as string | undefined,
+            selected_class_slots: selectedClassSlots,
           };
         }
       }
