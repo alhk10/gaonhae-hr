@@ -896,15 +896,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
         <TabsContent value="profile">
           <Card>
-            <CardHeader className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-row items-center justify-between'}`}>
-              <div>
-                <CardTitle>My Profile</CardTitle>
-                <CardDescription>
-                  {isEditing 
-                    ? 'Edit your profile details. Changes will be submitted for approval.'
-                    : 'View and update your personal information'}
-                </CardDescription>
-              </div>
+            <CardHeader className={`flex ${isMobile ? 'flex-col gap-2 p-3' : 'flex-row items-center justify-between'}`}>
+              <CardTitle className="text-lg">My Profile</CardTitle>
               {!isEditing ? (
                 <Button onClick={() => guardAction(handleStartEdit)} disabled={hasPendingRequest || readOnly} size={isMobile ? 'sm' : 'default'}>
                   <Edit className="w-4 h-4 mr-2" />
@@ -923,7 +916,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 </div>
               )}
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={`space-y-3 ${isMobile ? 'p-3 pt-0' : ''}`}>
               {/* Passport Photo */}
               <div className="flex items-start gap-4 pb-4 border-b">
                 <div className="relative shrink-0">
@@ -931,10 +924,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                     <img
                       src={(student as any).passport_photo_url}
                       alt="Passport photo"
-                      className="w-24 h-32 object-cover rounded-lg border"
+                      className="w-20 h-28 object-cover rounded-lg border"
                     />
                   ) : (
-                    <div className="w-24 h-32 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center bg-muted/50">
+                    <div className="w-20 h-28 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center bg-muted/50">
                       <Camera className="w-6 h-6 text-muted-foreground/50" />
                       <span className="text-xs text-muted-foreground/50 mt-1">No photo</span>
                     </div>
@@ -980,7 +973,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid grid-cols-1 md:grid-cols-2 ${isMobile ? 'gap-2' : 'gap-4'}`}>
                 <div>
                   <Label>First Name</Label>
                   <Input value={student.first_name || ''} disabled />
@@ -1025,7 +1018,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
               <div className="border-t pt-4 mt-4">
                 <h4 className="font-medium mb-3">Emergency Contact</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${isMobile ? 'gap-2' : 'gap-4'}`}>
                   <div>
                     <Label>Contact Name</Label>
                     <Input 
@@ -1050,15 +1043,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
         <TabsContent value="invoices">
           <Card>
-            <CardHeader>
-              <CardTitle>My Invoices</CardTitle>
-              <CardDescription>View all your invoices and payment history</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
               {invoices.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No invoices found</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {invoices.map((invoice) => {
                     const displayStatus = invoice.status === 'draft' ? 'unpaid' : invoice.status;
                     const isPaid = invoice.status === 'paid';
