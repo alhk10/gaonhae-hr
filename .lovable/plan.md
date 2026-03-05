@@ -1,35 +1,43 @@
 
 
-## Problem
+## Plan: Redesign InventoryListTab — Compact Table with Branch Columns
 
-1. **Location filter shows "Main Store" repeated** -- Every branch has one inventory_location named "Main Store". The InventoryListTab groups/filters by `inventory_locations` instead of branches, making the filter useless (screenshot shows 6x "Main Store").
+### Current Issues
+- Each product+branch combo is a separate row (duplicating product names)
+- Shows SKU, branch name, variant count as subtitle text
+- Branch filter dropdown is redundant since branches will become columns
+- No selling price shown; cost price only on some rows
 
-2. **Chestguard in Yishun has no size variant** -- The inventory record for 10 chestguards in Yishun has `size_variant = null`. The user expects it grouped under "Size 2". This is a data issue -- the adjustment dialog likely didn't capture the size variant when the stock was added. But the display logic also needs to properly reflect branch grouping.
+### New Design
 
-## Plan
+**One row per product.** Each branch gets its own column showing the total stock quantity for that product at that branch. Variants (size/color) are cascaded sub-rows revealed on click. Remove SKU subtitle, branch text, variant count text. Remove branch filter. Add cost price and selling price columns.
 
-### 1. InventoryListTab: Replace location-based grouping with branch-based grouping
+### Layout (compact table-style)
 
-**File: `src/components/sales/InventoryListTab.tsx`**
+```text
+| Product Name | Cost | Sell | [Branch1] | [Branch2] | ... | Warn | Status |
+|--------------|------|------|-----------|-----------|-----|------|--------|
+| > Chestguard | 5.00 | 8.00 |    10     |     0     |  0  |  5   | In Stk |
+|   Size 2     |      |      |    10     |     0     |  0  |      |        |
+| Arm Guard    | 3.00 | 6.00 |     0     |     0     |  0  |  —   | OOS    |
+```
 
-- Replace the "locations" query with a branches query (fetch from `branches` table, exclude Competition/Headquarters)
-- Replace the location filter dropdown: label it "All Branches" and list branch names
-- Change the grouping key from `product_id + location_id` to `product_id + branch_id` (resolve branch_id via `inventory_locations.branch_id`)
-- Display branch name instead of location name in each row
-- Update the `ProductGroup` interface: replace `location_id`/`location_name` with `branch_id`/`branch_name`
-- For the filter, match on `branch_id` instead of `location_id`
+### Changes to `src/components/sales/InventoryListTab.tsx`
 
-### 2. BranchInventoryTab: Already branch-scoped (no changes needed)
+1. **Restructure data**: Group by `product_id` only (not product+branch). For each product, build a map of `branch_id → { total, variants[] }`. This gives one row per product with per-branch quantities.
 
-This component already filters by `branchId` prop via location lookup. It works correctly.
+2. **Remove branch filter** dropdown. Keep search and status filter only.
 
-### 3. Fix chestguard size assignment
+3. **Add branch columns**: Dynamically render a column header for each branch (from `useBranches`). Each product row shows the branch-level total. Variant sub-rows also show per-branch quantities.
 
-The 10 chestguards in Yishun were added without a `size_variant`. Update the inventory record to set `size_variant = '2'` so it appears under "Size 2" in the cascade view.
+4. **Add Cost/Sell columns**: Fetch `base_price` from products query. Display `cost_per_unit` (avg from inventory) and `base_price` (selling price) as columns.
 
-- Run a migration or data fix to set `size_variant = '2'` on the Yishun chestguard inventory record (id: `c72d329e-0b59-49f0-ba13-c44b00e77b01`)
+5. **Remove subtitle text**: No SKU, no branch name, no "X variants" text. Product name only, single line.
+
+6. **Compact styling**: Reduce padding (`py-1.5 px-3`), smaller text (`text-xs`/`text-sm`), use a proper table element for alignment.
+
+7. **Variant cascade**: On click, expand to show variant rows with the same branch columns, each cell showing that variant's quantity at that branch.
 
 ### Files to modify
-- **Edit**: `src/components/sales/InventoryListTab.tsx` -- Replace location grouping/filtering with branch grouping/filtering
-- **Data fix**: Update the Yishun chestguard record to have `size_variant = '2'`
+- **Edit**: `src/components/sales/InventoryListTab.tsx` — Full redesign as described above
 
