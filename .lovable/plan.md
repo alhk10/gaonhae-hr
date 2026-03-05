@@ -1,31 +1,20 @@
 
 
-## Plan: Fix Package & Class Timeslot Prefill from Previous Invoice
+## Plan: UI Cleanup and Early Payment Discount
 
-### Root Cause
+### Changes
 
-The query at line 124 requires BOTH `term_id` AND (`product_name` OR `selected_class_slots`) in the invoice item metadata. The existing invoice in the database only has `{"term_id": "..."}` — it was created before the code that stores `product_name` and `selected_class_slots` was added (lines 553-560). So the query returns `null` and nothing gets prefilled.
-
-### Fix
+**File: `src/components/dashboard/ClassScheduleSelector.tsx`**
+1. Remove the "X of Y sessions selected" text from the summary footer (lines 337-340). Keep the limit info on the left.
 
 **File: `src/components/dashboard/PaySchoolFeesDialog.tsx`**
+1. Remove the "Rate" row from the summary card (lines 899-902).
+2. Add an early payment discount: compute whether today is on or before the selected term's `start_date`. If so, apply a `$10` discount and show it as a labeled row in the summary (e.g., "Early Payment Discount: -$10.00") between School Fees and Total.
+3. Update `combinedTotal` to subtract the discount.
+4. Pass the discount into the invoice creation so the invoice reflects it (add as a discount line item or adjust the total).
 
-1. **Relax the metadata filter** (line 124): Accept items that have just `term_id` — don't require `product_name` or `selected_class_slots` to be present.
-
-2. **Add fallback data sources**: When `product_name` is missing from metadata, fetch it from the `invoice_items.product_id → products.name` join. When `selected_class_slots` is missing, fetch slots from `student_scheduled_classes` for that student's most recent term enrollment.
-
-3. **Expand the query** to select `product_id` alongside `metadata`, then join products to get the name as fallback.
-
-4. **Add scheduled classes fallback**: Query `student_scheduled_classes` joined with `student_class_enrollments` for this student to get `timetable_id` values, which can be used to reconstruct the slot pattern for the new term.
-
-### Specific Changes
-
-In the `previousInvoiceMetadata` query:
-- Select `metadata, product_id, products(name)` instead of just `metadata`
-- Change filter from `metadata?.term_id && (metadata?.product_name || metadata?.selected_class_slots)` to just `metadata?.term_id`
-- Return `product_name: metadata.product_name || item.products?.name`
-- When `selected_class_slots` is missing, query `student_scheduled_classes` for the student's enrolled timetable IDs as fallback
-
-### Files to modify
-- **Edit**: `src/components/dashboard/PaySchoolFeesDialog.tsx` — Fix metadata query and add fallback data sources
+### Details
+- The $10 discount is automatic and non-configurable — applied whenever the payment date (today) is on or before `selectedTerm.start_date`.
+- The discount row only appears in the summary when applicable.
+- The invoice item metadata will include `early_payment_discount: true` for audit trail.
 
