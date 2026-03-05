@@ -483,6 +483,11 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     prefillSlots();
   }, [selectedTermId, selectedTerm, student.branch_id, previousInvoiceMetadata, selectedClassSlots.length]);
 
+  // Clear selected class slots when package changes
+  useEffect(() => {
+    setSelectedClassSlots([]);
+  }, [selectedProductId]);
+
   // Auto-select first unpaid term
   useEffect(() => {
     if (unpaidTerms.length > 0 && !selectedTermId) {
