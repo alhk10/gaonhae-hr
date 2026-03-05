@@ -19,7 +19,9 @@ interface BranchInventoryTabProps {
 }
 
 interface VariantRow {
+  label: string;
   size_variant: string | null;
+  variant_combination: any;
   quantity_on_hand: number;
 }
 
@@ -99,34 +101,55 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
 
     const groups: ProductGroup[] = [];
 
+    const buildLabel = (sizeVariant: string | null, variantCombination: any): string => {
+      const parts: string[] = [];
+      if (sizeVariant) parts.push(sizeVariant);
+      if (variantCombination && typeof variantCombination === 'object') {
+        for (const [, value] of Object.entries(variantCombination)) {
+          if (value) parts.push(`${value}`);
+        }
+      }
+      return parts.length > 0 ? parts.join(' / ') : '—';
+    };
+
     for (const product of allProducts) {
       const invItems = inventoryByProduct.get(product.id) || [];
       const definedSizes = Array.isArray(product.available_sizes) ? (product.available_sizes as string[]) : [];
       
-      // Collect all size variants from both product definition and actual inventory
-      const invBySizeMap = new Map<string, number>();
-      let hasAnySizeVariant = false;
+      // Collect all variant rows from inventory
+      const variantMap = new Map<string, VariantRow>();
+      let hasAnyVariant = false;
+      
       for (const inv of invItems) {
-        if (inv.size_variant) {
-          hasAnySizeVariant = true;
-          invBySizeMap.set(inv.size_variant, (invBySizeMap.get(inv.size_variant) || 0) + inv.quantity_on_hand);
+        const hasSizeOrCombo = inv.size_variant || (inv.variant_combination && Object.keys(inv.variant_combination as object).length > 0);
+        if (hasSizeOrCombo) {
+          hasAnyVariant = true;
+          const label = buildLabel(inv.size_variant, inv.variant_combination);
+          const existing = variantMap.get(label);
+          variantMap.set(label, {
+            label,
+            size_variant: inv.size_variant,
+            variant_combination: inv.variant_combination,
+            quantity_on_hand: (existing?.quantity_on_hand || 0) + inv.quantity_on_hand,
+          });
         }
       }
 
-      const hasSizes = product.requires_size || definedSizes.length > 0 || hasAnySizeVariant;
+      const hasSizes = product.requires_size || definedSizes.length > 0 || hasAnyVariant;
 
       if (hasSizes) {
-        // Merge defined sizes with any sizes found in inventory
-        const allSizes = new Set([...definedSizes, ...invBySizeMap.keys()]);
-        const variants: VariantRow[] = Array.from(allSizes).map(size => ({
-          size_variant: size,
-          quantity_on_hand: invBySizeMap.get(size) || 0,
-        }));
+        // Add defined sizes not yet in inventory
+        for (const size of definedSizes) {
+          if (!variantMap.has(size)) {
+            variantMap.set(size, { label: size, size_variant: size, variant_combination: null, quantity_on_hand: 0 });
+          }
+        }
+        const variants = Array.from(variantMap.values());
         const totalQty = variants.reduce((sum, v) => sum + v.quantity_on_hand, 0);
         groups.push({ product, totalQty, variants, hasVariants: true });
       } else {
         const totalQty = invItems.reduce((sum, inv) => sum + inv.quantity_on_hand, 0);
-        groups.push({ product, totalQty, variants: [{ size_variant: null, quantity_on_hand: totalQty }], hasVariants: false });
+        groups.push({ product, totalQty, variants: [{ label: '—', size_variant: null, variant_combination: null, quantity_on_hand: totalQty }], hasVariants: false });
       }
     }
 
@@ -312,7 +335,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
                             <p className="font-medium">{product?.name || 'Unknown'}</p>
                             <p className="text-sm text-muted-foreground">
                               {product?.sku && <>SKU: {product.sku}</>}
-                              {' • '}{group.variants.length} sizes
+                              {' • '}{group.variants.length} variant{group.variants.length !== 1 ? 's' : ''}
                             </p>
                           </div>
                         </div>
@@ -336,9 +359,9 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="border-t bg-muted/20">
-                        {group.variants.map(variant => (
-                          <div key={variant.size_variant} className="px-4 py-2 pl-12 flex items-center justify-between border-b last:border-b-0">
-                            <span className="text-sm">{variant.size_variant}</span>
+                        {group.variants.map((variant, vIdx) => (
+                          <div key={variant.label + vIdx} className="px-4 py-2 pl-12 flex items-center justify-between border-b last:border-b-0">
+                            <span className="text-sm">{variant.label}</span>
                             <div className="flex items-center gap-3">
                               {getStockBadge(variant.quantity_on_hand)}
                               <span className="font-mono text-sm w-12 text-right">{variant.quantity_on_hand}</span>

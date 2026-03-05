@@ -2,6 +2,7 @@
  * Inventory List Tab
  * Displays inventory across all branches with filtering
  * Shows ALL products including those with 0 stock
+ * Cascading variant display (size & color)
  */
 
 import React, { useState, useMemo } from 'react';
@@ -10,30 +11,50 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Package, AlertTriangle, PackageX } from 'lucide-react';
+import { Search, Package, AlertTriangle, PackageX, ChevronRight } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-interface InventoryRow {
-  id: string;
+interface VariantRow {
+  label: string;
+  quantity_on_hand: number;
+  quantity_reserved: number;
+  cost_per_unit: number | null;
+}
+
+interface ProductGroup {
   product_id: string;
   product_name: string;
   product_sku: string;
   location_id: string | null;
-  location_name: string | null;
-  size_variant: string | null;
-  quantity_on_hand: number;
-  quantity_reserved: number;
-  cost_per_unit: number | null;
-  reorder_point: number | null;
+  location_name: string;
   warn_below_quantity: number | null;
+  totalQty: number;
+  totalReserved: number;
+  totalAvailable: number;
+  avgCost: number | null;
+  variants: VariantRow[];
+  hasVariants: boolean;
+}
+
+/** Build a human-readable label from size_variant + variant_combination */
+function variantLabel(sizeVariant: string | null, variantCombination: any): string {
+  const parts: string[] = [];
+  if (sizeVariant) parts.push(sizeVariant);
+  if (variantCombination && typeof variantCombination === 'object') {
+    for (const [key, value] of Object.entries(variantCombination)) {
+      if (value) parts.push(`${value}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(' / ') : '—';
 }
 
 const InventoryListTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   // Fetch ALL non-service products
   const { data: allProducts = [], isLoading: productsLoading } = useQuery({
@@ -41,7 +62,7 @@ const InventoryListTab: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, is_service, warn_below_quantity')
+        .select('id, name, sku, is_service, warn_below_quantity, requires_size, available_sizes')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
@@ -82,92 +103,151 @@ const InventoryListTab: React.FC = () => {
 
   const isLoading = productsLoading || inventoryLoading;
 
-  // Build combined list: all products + inventory items, including 0-stock products
-  const combinedRows: InventoryRow[] = useMemo(() => {
-    const rows: InventoryRow[] = [];
+  // Build product groups with cascading variants
+  const productGroups: ProductGroup[] = useMemo(() => {
+    // Group inventory items by product + location
+    const groupKey = (pid: string, lid: string) => `${pid}__${lid}`;
+    const invByGroup = new Map<string, typeof inventoryItems>();
     const productsWithInventory = new Set<string>();
 
-    // Add all existing inventory items
     for (const item of inventoryItems) {
       productsWithInventory.add(item.product_id);
-      const product = allProducts.find(p => p.id === item.product_id);
-      rows.push({
-        id: item.id,
-        product_id: item.product_id,
-        product_name: (item as any).product?.name || product?.name || 'Unknown Product',
-        product_sku: (item as any).product?.sku || product?.sku || '-',
-        location_id: item.location_id,
-        location_name: (item as any).location?.name || 'Unknown',
-        size_variant: item.size_variant,
-        quantity_on_hand: item.quantity_on_hand,
-        quantity_reserved: item.quantity_reserved,
-        cost_per_unit: item.cost_per_unit,
-        reorder_point: item.reorder_point,
-        warn_below_quantity: product?.warn_below_quantity ?? null,
-      });
+      const key = groupKey(item.product_id, item.location_id);
+      if (!invByGroup.has(key)) invByGroup.set(key, []);
+      invByGroup.get(key)!.push(item);
     }
 
-    // Add products that have NO inventory records (0 stock)
+    const groups: ProductGroup[] = [];
+
     for (const product of allProducts) {
       if (product.is_service) continue;
-      if (productsWithInventory.has(product.id)) continue;
-      rows.push({
-        id: `synthetic-${product.id}`,
-        product_id: product.id,
-        product_name: product.name,
-        product_sku: product.sku || '-',
-        location_id: null,
-        location_name: '—',
-        size_variant: null,
-        quantity_on_hand: 0,
-        quantity_reserved: 0,
-        cost_per_unit: null,
-        reorder_point: null,
-        warn_below_quantity: product.warn_below_quantity ?? null,
-      });
+
+      // Find all location groups for this product
+      const productInvKeys = Array.from(invByGroup.keys()).filter(k => k.startsWith(`${product.id}__`));
+
+      if (productInvKeys.length === 0) {
+        // No inventory at all - synthetic 0-stock row
+        groups.push({
+          product_id: product.id,
+          product_name: product.name,
+          product_sku: product.sku || '-',
+          location_id: null,
+          location_name: '—',
+          warn_below_quantity: product.warn_below_quantity ?? null,
+          totalQty: 0,
+          totalReserved: 0,
+          totalAvailable: 0,
+          avgCost: null,
+          variants: [],
+          hasVariants: false,
+        });
+        continue;
+      }
+
+      for (const key of productInvKeys) {
+        const items = invByGroup.get(key)!;
+        const locationName = (items[0] as any)?.location?.name || 'Unknown';
+        const locationId = items[0].location_id;
+
+        // Check if this product has variants
+        const hasSize = items.some(i => i.size_variant);
+        const hasCombo = items.some(i => i.variant_combination && Object.keys(i.variant_combination as object).length > 0);
+        const hasVariants = hasSize || hasCombo;
+
+        const variants: VariantRow[] = [];
+        if (hasVariants) {
+          // Also include defined sizes with 0 stock
+          const definedSizes = Array.isArray(product.available_sizes) ? (product.available_sizes as string[]) : [];
+          const seenLabels = new Set<string>();
+
+          for (const item of items) {
+            const label = variantLabel(item.size_variant, item.variant_combination);
+            seenLabels.add(label);
+            variants.push({
+              label,
+              quantity_on_hand: item.quantity_on_hand,
+              quantity_reserved: item.quantity_reserved,
+              cost_per_unit: item.cost_per_unit,
+            });
+          }
+
+          // Add defined sizes not yet in inventory
+          for (const size of definedSizes) {
+            if (!seenLabels.has(size)) {
+              variants.push({ label: size, quantity_on_hand: 0, quantity_reserved: 0, cost_per_unit: null });
+            }
+          }
+        }
+
+        const totalQty = items.reduce((s, i) => s + i.quantity_on_hand, 0);
+        const totalReserved = items.reduce((s, i) => s + i.quantity_reserved, 0);
+        const costsWithValue = items.filter(i => i.cost_per_unit != null);
+        const avgCost = costsWithValue.length > 0
+          ? costsWithValue.reduce((s, i) => s + (i.cost_per_unit || 0), 0) / costsWithValue.length
+          : null;
+
+        groups.push({
+          product_id: product.id,
+          product_name: product.name,
+          product_sku: product.sku || '-',
+          location_id: locationId,
+          location_name: locationName,
+          warn_below_quantity: product.warn_below_quantity ?? null,
+          totalQty,
+          totalReserved,
+          totalAvailable: totalQty - totalReserved,
+          avgCost,
+          variants,
+          hasVariants,
+        });
+      }
     }
 
-    return rows;
+    return groups;
   }, [allProducts, inventoryItems]);
 
-  const getStockStatus = (item: InventoryRow) => {
-    const available = item.quantity_on_hand - item.quantity_reserved;
+  const getStockStatus = (qty: number, reserved: number, warnBelow: number | null) => {
+    const available = qty - reserved;
     if (available < 0) return 'negative';
+    if (available === 0 && qty === 0) return 'out_of_stock';
     if (available === 0) return 'out_of_stock';
-    if (item.warn_below_quantity != null && item.quantity_on_hand <= item.warn_below_quantity) return 'low_stock';
-    if (item.reorder_point && item.quantity_on_hand <= item.reorder_point) return 'low_stock';
+    if (warnBelow != null && qty <= warnBelow) return 'low_stock';
     return 'in_stock';
   };
 
-  const filteredItems = combinedRows.filter(item => {
+  const filteredItems = productGroups.filter(item => {
     const matchesSearch =
       item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product_sku?.toLowerCase().includes(searchTerm.toLowerCase());
-
     const matchesLocation = locationFilter === 'all' || item.location_id === locationFilter;
-
-    const status = getStockStatus(item);
+    const status = getStockStatus(item.totalQty, item.totalReserved, item.warn_below_quantity);
     const matchesStatus = statusFilter === 'all' || status === statusFilter;
-
     return matchesSearch && matchesLocation && matchesStatus;
   });
 
-  // Calculate totals
   const totalItems = filteredItems.length;
   const totalValue = filteredItems.reduce((sum, item) =>
-    sum + (item.quantity_on_hand * (item.cost_per_unit || 0)), 0
+    sum + (item.totalQty * (item.avgCost || 0)), 0
   );
-  const lowStockCount = filteredItems.filter(item => getStockStatus(item) === 'low_stock').length;
-  const outOfStockCount = filteredItems.filter(item => getStockStatus(item) === 'out_of_stock').length;
+  const lowStockCount = filteredItems.filter(item => getStockStatus(item.totalQty, item.totalReserved, item.warn_below_quantity) === 'low_stock').length;
+  const outOfStockCount = filteredItems.filter(item => getStockStatus(item.totalQty, item.totalReserved, item.warn_below_quantity) === 'out_of_stock').length;
 
-  const renderStatusBadge = (item: InventoryRow) => {
-    const status = getStockStatus(item);
+  const toggleExpanded = (key: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const renderStatusBadge = (status: string, available: number) => {
     switch (status) {
       case 'negative':
         return (
           <Badge variant="destructive" className="flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            Negative ({item.quantity_on_hand - item.quantity_reserved})
+            Negative ({available})
           </Badge>
         );
       case 'out_of_stock':
@@ -264,70 +344,103 @@ const InventoryListTab: React.FC = () => {
             </Select>
           </div>
 
-          {/* Table */}
+          {/* Cascading Product List */}
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map(i => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">No inventory items found</div>
           ) : (
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Variant</TableHead>
-                    <TableHead className="text-right">On Hand</TableHead>
-                    <TableHead className="text-right">Reserved</TableHead>
-                    <TableHead className="text-right">Available</TableHead>
-                    <TableHead className="text-right">Cost/Unit</TableHead>
-                    <TableHead className="text-right">Warn Below</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        No inventory items found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredItems.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {item.product_name}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.product_sku}
-                        </TableCell>
-                        <TableCell>{item.location_name}</TableCell>
-                        <TableCell>{item.size_variant || '-'}</TableCell>
-                        <TableCell className="text-right">{item.quantity_on_hand}</TableCell>
-                        <TableCell className="text-right">{item.quantity_reserved}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {item.quantity_on_hand - item.quantity_reserved}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.cost_per_unit != null ? `$${item.cost_per_unit.toFixed(2)}` : '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.warn_below_quantity != null ? (
-                            <span className="flex items-center justify-end gap-1 text-yellow-600">
+            <div className="border rounded-lg divide-y">
+              {filteredItems.map((group, idx) => {
+                const groupKey = `${group.product_id}__${group.location_id || 'none'}`;
+                const isExpanded = expandedProducts.has(groupKey);
+                const status = getStockStatus(group.totalQty, group.totalReserved, group.warn_below_quantity);
+
+                if (!group.hasVariants) {
+                  // Simple product row
+                  return (
+                    <div key={groupKey} className="p-4 flex items-center justify-between hover:bg-muted/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{group.product_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {group.product_sku !== '-' && <>SKU: {group.product_sku} • </>}
+                          {group.location_name}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        {group.warn_below_quantity != null && (
+                          <span className="flex items-center gap-1 text-xs text-yellow-600">
+                            <AlertTriangle className="w-3 h-3" />
+                            {group.warn_below_quantity}
+                          </span>
+                        )}
+                        <span className="font-mono text-sm w-12 text-right">{group.totalQty}</span>
+                        {group.avgCost != null && (
+                          <span className="text-sm text-muted-foreground w-20 text-right">${group.avgCost.toFixed(2)}</span>
+                        )}
+                        {renderStatusBadge(status, group.totalAvailable)}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Product with variants - collapsible
+                return (
+                  <Collapsible key={groupKey} open={isExpanded} onOpenChange={() => toggleExpanded(groupKey)}>
+                    <CollapsibleTrigger asChild>
+                      <div className="p-4 flex items-center justify-between hover:bg-muted/50 cursor-pointer">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{group.product_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {group.product_sku !== '-' && <>SKU: {group.product_sku} • </>}
+                              {group.location_name} • {group.variants.length} variant{group.variants.length !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                          {group.warn_below_quantity != null && (
+                            <span className="flex items-center gap-1 text-xs text-yellow-600">
                               <AlertTriangle className="w-3 h-3" />
-                              {item.warn_below_quantity}
+                              {group.warn_below_quantity}
                             </span>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell>{renderStatusBadge(item)}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          )}
+                          <span className="font-mono text-sm w-12 text-right">{group.totalQty}</span>
+                          {group.avgCost != null && (
+                            <span className="text-sm text-muted-foreground w-20 text-right">${group.avgCost.toFixed(2)}</span>
+                          )}
+                          {renderStatusBadge(status, group.totalAvailable)}
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="border-t bg-muted/20">
+                        {group.variants.map((variant, vIdx) => {
+                          const vAvailable = variant.quantity_on_hand - variant.quantity_reserved;
+                          const vStatus = getStockStatus(variant.quantity_on_hand, variant.quantity_reserved, null);
+                          return (
+                            <div key={vIdx} className="px-4 py-2 pl-12 flex items-center justify-between border-b last:border-b-0">
+                              <span className="text-sm">{variant.label}</span>
+                              <div className="flex items-center gap-4">
+                                <span className="font-mono text-sm w-12 text-right">{variant.quantity_on_hand}</span>
+                                {variant.cost_per_unit != null && (
+                                  <span className="text-sm text-muted-foreground w-20 text-right">${variant.cost_per_unit.toFixed(2)}</span>
+                                )}
+                                {renderStatusBadge(vStatus, vAvailable)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </CardContent>
