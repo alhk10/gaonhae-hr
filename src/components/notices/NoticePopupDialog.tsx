@@ -24,12 +24,12 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle className="text-lg">{notice.subject}</DialogTitle>
+            <DialogTitle className="text-lg break-words">{notice.subject}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-hidden break-words">
             {notice.image_url && (
               <div
                 className="relative cursor-pointer group"
@@ -38,7 +38,7 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
                 <img
                   src={notice.image_url}
                   alt={notice.subject}
-                  className="w-full rounded-md object-contain max-h-80"
+                  className="w-full max-w-full rounded-md object-contain max-h-80"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-md flex items-center justify-center">
                   <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
