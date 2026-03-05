@@ -321,8 +321,8 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
   if (enrollments.length === 0) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
-          <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <CardContent className="p-4 text-center text-muted-foreground">
+          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-50" />
           <p className="font-medium">No Active Enrollments</p>
           <p className="text-sm mt-1">You don't have any active class enrollments yet.</p>
         </CardContent>
@@ -331,7 +331,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Filter Row + Add Lesson Button */}
       <div className="flex items-center gap-2 flex-wrap">
         <Filter className="w-4 h-4 text-muted-foreground" />
@@ -366,7 +366,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
       {/* Classes grouped by term */}
       {Object.keys(groupedByTerm).length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
+          <CardContent className="p-4 text-center text-muted-foreground">
             <p>No classes found for the selected filter.</p>
           </CardContent>
         </Card>
