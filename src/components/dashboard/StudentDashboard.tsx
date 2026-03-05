@@ -723,7 +723,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             {isMobile ? 'Student Portal' : `Student Portal - ${student.first_name} ${student.last_name}`}
           </h2>
           {isMobile && (
-            <p className="text-sm font-medium text-foreground">{student.first_name} {student.last_name}</p>
+            <p className="text-sm font-medium text-foreground">
+              {student.first_name} {student.last_name}
+              {student.current_belt && <span className="text-muted-foreground"> · {student.current_belt}</span>}
+            </p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -757,7 +760,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2">
@@ -781,20 +784,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Balance</p>
                 <p className="text-lg font-bold leading-tight truncate">${outstandingBalance.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className="bg-purple-500 p-1.5 rounded-md shrink-0">
-                <GraduationCap className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Belt</p>
-                <p className="text-lg font-bold leading-tight truncate">{student.current_belt || 'Not set'}</p>
               </div>
             </div>
           </CardContent>
