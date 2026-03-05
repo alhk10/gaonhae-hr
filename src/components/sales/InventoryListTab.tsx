@@ -1,19 +1,22 @@
 /**
  * Inventory List Tab — Compact table with dynamic branch columns
  * One row per product, variants cascade on click
+ * Supports inline mass-edit mode for branch stock quantities
  */
 
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Package, AlertTriangle, PackageX, ChevronRight } from 'lucide-react';
+import { Search, Package, AlertTriangle, PackageX, ChevronRight, Pencil, Save, X, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useBranches } from '@/hooks/useBranches';
+import { toast } from 'sonner';
 
 /** Per-branch stock info for a single variant */
 interface BranchQty {
@@ -50,10 +53,20 @@ function variantLabel(sizeVariant: string | null, variantCombination: any): stri
   return parts.length > 0 ? parts.join(' / ') : '—';
 }
 
+// Key for edit tracking: productId_variantLabel_branchId
+type EditKey = string;
+function makeEditKey(productId: string, variantLabel: string, branchId: string): EditKey {
+  return `${productId}__${variantLabel}__${branchId}`;
+}
+
 const InventoryListTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editValues, setEditValues] = useState<Record<EditKey, string>>({});
+  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const { branches } = useBranches();
 
@@ -86,11 +99,34 @@ const InventoryListTab: React.FC = () => {
     }
   });
 
+  // Fetch branch location IDs for creating new inventory items
+  const { data: branchLocations = [] } = useQuery({
+    queryKey: ['branch-inventory-locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_locations')
+        .select('id, branch_id')
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isEditMode,
+  });
+
+  const branchLocationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const loc of branchLocations) {
+      if (loc.branch_id && !map.has(loc.branch_id)) {
+        map.set(loc.branch_id, loc.id);
+      }
+    }
+    return map;
+  }, [branchLocations]);
+
   const isLoading = productsLoading || inventoryLoading;
 
   // Build product rows grouped by product_id only
   const productRows: ProductRow[] = useMemo(() => {
-    // Index inventory by product_id
     const invByProduct = new Map<string, typeof inventoryItems>();
     for (const item of inventoryItems) {
       const pid = item.product_id;
@@ -105,19 +141,17 @@ const InventoryListTab: React.FC = () => {
 
       const items = invByProduct.get(product.id) || [];
 
-      // Compute branch totals
       const branchTotals: Record<string, number> = {};
       for (const b of branches) branchTotals[b.id] = 0;
 
       let grandTotal = 0;
       const costValues: number[] = [];
 
-      // Build variant map: variantLabel -> branch_id -> qty
       const variantMap = new Map<string, Record<string, BranchQty>>();
 
       const hasSize = items.some(i => i.size_variant);
       const hasCombo = items.some(i => i.variant_combination && Object.keys(i.variant_combination as object).length > 0);
-      const hasVariants = hasSize || hasCombo;
+      const hasVariants = hasSize || hasCombo || (product.requires_size && (product.available_sizes as string[] || []).length > 0);
 
       for (const item of items) {
         const branchId = (item as any)?.location?.branch_id as string | undefined;
@@ -147,7 +181,6 @@ const InventoryListTab: React.FC = () => {
       const variants: VariantInfo[] = [];
       if (hasVariants) {
         for (const [label, bMap] of variantMap.entries()) {
-          // Find cost from items matching this variant
           const matchingItem = items.find(i => variantLabel(i.size_variant, i.variant_combination) === label);
           variants.push({
             label,
@@ -205,6 +238,166 @@ const InventoryListTab: React.FC = () => {
     });
   };
 
+  const enterEditMode = useCallback(() => {
+    // Pre-populate editValues from current data and expand all products with variants
+    const values: Record<EditKey, string> = {};
+    const expanded = new Set<string>();
+
+    for (const row of productRows) {
+      if (row.hasVariants) {
+        expanded.add(row.product_id);
+        for (const v of row.variants) {
+          for (const b of branches) {
+            const key = makeEditKey(row.product_id, v.label, b.id);
+            values[key] = String(v.branchQty[b.id]?.qty || 0);
+          }
+        }
+      } else {
+        // Non-variant product: use branchTotals
+        for (const b of branches) {
+          const key = makeEditKey(row.product_id, '—', b.id);
+          values[key] = String(row.branchTotals[b.id] || 0);
+        }
+      }
+    }
+
+    setEditValues(values);
+    setExpandedProducts(expanded);
+    setIsEditMode(true);
+  }, [productRows, branches]);
+
+  const cancelEditMode = () => {
+    setIsEditMode(false);
+    setEditValues({});
+  };
+
+  const handleEditValueChange = (key: EditKey, value: string) => {
+    setEditValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveEdits = async () => {
+    setSaving(true);
+    try {
+      // Calculate deltas by comparing editValues to current data
+      const updates: Array<{
+        product_id: string;
+        branch_id: string;
+        size_variant: string | null;
+        new_qty: number;
+        current_qty: number;
+      }> = [];
+
+      for (const row of productRows) {
+        if (row.hasVariants) {
+          for (const v of row.variants) {
+            for (const b of branches) {
+              const key = makeEditKey(row.product_id, v.label, b.id);
+              const newQty = parseInt(editValues[key] || '0') || 0;
+              const currentQty = v.branchQty[b.id]?.qty || 0;
+              if (newQty !== currentQty) {
+                updates.push({
+                  product_id: row.product_id,
+                  branch_id: b.id,
+                  size_variant: v.label === '—' ? null : v.label,
+                  new_qty: newQty,
+                  current_qty: currentQty,
+                });
+              }
+            }
+          }
+        } else {
+          for (const b of branches) {
+            const key = makeEditKey(row.product_id, '—', b.id);
+            const newQty = parseInt(editValues[key] || '0') || 0;
+            const currentQty = row.branchTotals[b.id] || 0;
+            if (newQty !== currentQty) {
+              updates.push({
+                product_id: row.product_id,
+                branch_id: b.id,
+                size_variant: null,
+                new_qty: newQty,
+                current_qty: currentQty,
+              });
+            }
+          }
+        }
+      }
+
+      if (updates.length === 0) {
+        toast.info('No changes to save');
+        setIsEditMode(false);
+        return;
+      }
+
+      // Process each update
+      for (const update of updates) {
+        const locationId = branchLocationMap.get(update.branch_id);
+        if (!locationId) {
+          console.warn(`No inventory location for branch ${update.branch_id}, skipping`);
+          continue;
+        }
+
+        // Find existing inventory item
+        let query = supabase
+          .from('inventory_items')
+          .select('id, quantity_on_hand')
+          .eq('product_id', update.product_id)
+          .eq('location_id', locationId);
+
+        if (update.size_variant) {
+          query = query.eq('size_variant', update.size_variant);
+        } else {
+          query = query.is('size_variant', null);
+        }
+
+        const { data: existing } = await query.maybeSingle();
+
+        if (existing) {
+          // Update existing
+          await supabase
+            .from('inventory_items')
+            .update({ quantity_on_hand: update.new_qty, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+        } else {
+          // Create new inventory item
+          await supabase
+            .from('inventory_items')
+            .insert({
+              product_id: update.product_id,
+              location_id: locationId,
+              quantity_on_hand: update.new_qty,
+              quantity_reserved: 0,
+              size_variant: update.size_variant,
+            });
+        }
+
+        // Record movement
+        const delta = update.new_qty - update.current_qty;
+        await supabase
+          .from('inventory_movements')
+          .insert({
+            product_id: update.product_id,
+            location_id: locationId,
+            quantity_delta: delta,
+            movement_type: delta > 0 ? 'in' : 'out',
+            reason: 'Mass stock edit',
+            size_variant: update.size_variant,
+          });
+      }
+
+      toast.success(`Updated ${updates.length} stock entries`);
+      setIsEditMode(false);
+      setEditValues({});
+      queryClient.invalidateQueries({ queryKey: ['inventory-list'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-all-products'] });
+    } catch (error) {
+      console.error('Error saving stock edits:', error);
+      toast.error('Failed to save stock changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'negative':
@@ -216,6 +409,29 @@ const InventoryListTab: React.FC = () => {
       default:
         return <Badge variant="secondary" className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0"><Package className="w-2.5 h-2.5 mr-0.5" />OK</Badge>;
     }
+  };
+
+  const renderBranchCell = (productId: string, vLabel: string, branchId: string, currentQty: number) => {
+    if (!isEditMode) {
+      return (
+        <span className={`font-mono ${currentQty === 0 ? 'text-muted-foreground/40' : ''}`}>
+          {currentQty}
+        </span>
+      );
+    }
+
+    const key = makeEditKey(productId, vLabel, branchId);
+    const value = editValues[key] ?? String(currentQty);
+
+    return (
+      <Input
+        type="number"
+        min="0"
+        value={value}
+        onChange={(e) => handleEditValueChange(key, e.target.value)}
+        className="h-6 w-14 text-xs text-center font-mono px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    );
   };
 
   return (
@@ -264,6 +480,23 @@ const InventoryListTab: React.FC = () => {
                 <SelectItem value="out_of_stock">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
+            {!isEditMode ? (
+              <Button variant="outline" size="sm" className="h-8" onClick={enterEditMode}>
+                <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                Edit Stock
+              </Button>
+            ) : (
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" className="h-8" onClick={cancelEditMode} disabled={saving}>
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Cancel
+                </Button>
+                <Button size="sm" className="h-8" onClick={saveEdits} disabled={saving}>
+                  {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                  Save
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -291,15 +524,15 @@ const InventoryListTab: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredItems.map((row) => {
-                    const isExpanded = expandedProducts.has(row.product_id);
+                    const isExpanded = isEditMode ? (row.hasVariants ? true : false) : expandedProducts.has(row.product_id);
                     const status = getStockStatus(row.grandTotal, row.warn_below_quantity);
 
                     return (
                       <React.Fragment key={row.product_id}>
                         {/* Product row */}
                         <TableRow
-                          className={`${row.hasVariants ? 'cursor-pointer' : ''} hover:bg-muted/40`}
-                          onClick={() => row.hasVariants && toggleExpanded(row.product_id)}
+                          className={`${!isEditMode && row.hasVariants ? 'cursor-pointer' : ''} hover:bg-muted/40`}
+                          onClick={() => !isEditMode && row.hasVariants && toggleExpanded(row.product_id)}
                         >
                           <TableCell className="py-1.5 px-3 text-sm font-medium">
                             <div className="flex items-center gap-1.5">
@@ -318,8 +551,12 @@ const InventoryListTab: React.FC = () => {
                           {branches.map(b => {
                             const qty = row.branchTotals[b.id] || 0;
                             return (
-                              <TableCell key={b.id} className={`py-1.5 px-2 text-xs text-center font-mono ${qty === 0 ? 'text-muted-foreground/40' : ''}`}>
-                                {qty}
+                              <TableCell key={b.id} className="py-1.5 px-2 text-xs text-center">
+                                {row.hasVariants ? (
+                                  <span className={`font-mono ${qty === 0 ? 'text-muted-foreground/40' : ''}`}>{qty}</span>
+                                ) : (
+                                  renderBranchCell(row.product_id, '—', b.id, qty)
+                                )}
                               </TableCell>
                             );
                           })}
@@ -334,7 +571,7 @@ const InventoryListTab: React.FC = () => {
                           </TableCell>
                         </TableRow>
 
-                        {/* Variant sub-rows */}
+                        {/* Variant sub-rows — in edit mode, always show all variants */}
                         {isExpanded && row.variants.map((v, vIdx) => {
                           const vTotal = branches.reduce((sum, b) => sum + (v.branchQty[b.id]?.qty || 0), 0);
                           return (
@@ -349,8 +586,8 @@ const InventoryListTab: React.FC = () => {
                               {branches.map(b => {
                                 const bQty = v.branchQty[b.id]?.qty || 0;
                                 return (
-                                  <TableCell key={b.id} className={`py-1 px-2 text-xs text-center font-mono ${bQty === 0 ? 'text-muted-foreground/30' : 'text-muted-foreground'}`}>
-                                    {bQty}
+                                  <TableCell key={b.id} className="py-1 px-2 text-xs text-center">
+                                    {renderBranchCell(row.product_id, v.label, b.id, bQty)}
                                   </TableCell>
                                 );
                               })}
