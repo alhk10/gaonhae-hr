@@ -759,37 +759,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </Card>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-2">
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className="bg-blue-500 p-1.5 rounded-md shrink-0">
-                <Calendar className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Sessions</p>
-                <p className="text-lg font-bold leading-tight">{totalSessions}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className={`${outstandingBalance > 0 ? 'bg-orange-500' : 'bg-green-500'} p-1.5 rounded-md shrink-0`}>
-                <DollarSign className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Balance</p>
-                <p className="text-lg font-bold leading-tight truncate">${outstandingBalance.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className={`w-full h-auto flex-wrap justify-start gap-1 ${isMobile ? 'text-xs' : ''}`}>
@@ -802,6 +771,37 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-2">
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-500 p-1.5 rounded-md shrink-0">
+                    <Calendar className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Sessions</p>
+                    <p className="text-lg font-bold leading-tight">{totalSessions}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className={`${outstandingBalance > 0 ? 'bg-orange-500' : 'bg-green-500'} p-1.5 rounded-md shrink-0`}>
+                    <DollarSign className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Balance</p>
+                    <p className="text-lg font-bold leading-tight truncate">${outstandingBalance.toFixed(2)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Quick Actions */}
           <QuickActionsSection
             studentId={studentId!}
