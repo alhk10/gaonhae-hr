@@ -1,32 +1,31 @@
 
 
-## Plan: Prefill Package and Class Timeslots from Previous Invoice
-
-### Problem
-When a student opens "Pay School Fees" for a new term, neither the package (product) nor the class timeslots are prefilled. The `previousEnrollment` prop is null (no enrollment records exist for this student), so the existing auto-fill at line 322-331 does nothing. The user expects both fields to carry forward from the most recent invoice.
+## Plan: Fix Package & Class Timeslot Prefill from Previous Invoice
 
 ### Root Cause
-- The auto-fill logic depends on `previousEnrollment` from `student_class_enrollments`, which is empty for this student
-- No fallback exists to read from the previous invoice's `invoice_items.metadata` which stores `product_name` and `selected_class_slots`
 
-### Solution
+The query at line 124 requires BOTH `term_id` AND (`product_name` OR `selected_class_slots`) in the invoice item metadata. The existing invoice in the database only has `{"term_id": "..."}` — it was created before the code that stores `product_name` and `selected_class_slots` was added (lines 553-560). So the query returns `null` and nothing gets prefilled.
+
+### Fix
 
 **File: `src/components/dashboard/PaySchoolFeesDialog.tsx`**
 
-1. **Add a query to fetch the most recent invoice item metadata** for this student where the item has a `term_id` in metadata (i.e., it's a class/term invoice item):
-   - Query `invoice_items` joined with `invoices` filtered by `student_id`, status in `['paid', 'draft', 'verified']`, ordered by `created_at desc`
-   - Select `metadata` (which contains `product_name`, `selected_class_slots`, `term_id`)
-   - Limit 1
+1. **Relax the metadata filter** (line 124): Accept items that have just `term_id` — don't require `product_name` or `selected_class_slots` to be present.
 
-2. **Prefill package from previous invoice metadata**: In the existing `useEffect` (line 322-331), add a fallback that checks `previousInvoiceMetadata.product_name` when `previousEnrollment` is null or has no match. Match it against `classProducts` by name.
+2. **Add fallback data sources**: When `product_name` is missing from metadata, fetch it from the `invoice_items.product_id → products.name` join. When `selected_class_slots` is missing, fetch slots from `student_scheduled_classes` for that student's most recent term enrollment.
 
-3. **Prefill class timeslots**: Add a new `useEffect` that triggers when `selectedTermId` changes and previous slot data is available:
-   - Extract unique timetable IDs from previous `selected_class_slots` (format: `timetableId_YYYY-MM-DD`)
-   - For each timetable ID, look up its weekday from `branch_timetables`
-   - Generate new slot strings for those same weekdays within the new term's date range (excluding breaks/holidays)
-   - Set `selectedClassSlots` to these generated strings
-   - Only auto-fill if `selectedClassSlots` is currently empty (don't override manual selection)
+3. **Expand the query** to select `product_id` alongside `metadata`, then join products to get the name as fallback.
+
+4. **Add scheduled classes fallback**: Query `student_scheduled_classes` joined with `student_class_enrollments` for this student to get `timetable_id` values, which can be used to reconstruct the slot pattern for the new term.
+
+### Specific Changes
+
+In the `previousInvoiceMetadata` query:
+- Select `metadata, product_id, products(name)` instead of just `metadata`
+- Change filter from `metadata?.term_id && (metadata?.product_name || metadata?.selected_class_slots)` to just `metadata?.term_id`
+- Return `product_name: metadata.product_name || item.products?.name`
+- When `selected_class_slots` is missing, query `student_scheduled_classes` for the student's enrolled timetable IDs as fallback
 
 ### Files to modify
-- **Edit**: `src/components/dashboard/PaySchoolFeesDialog.tsx` -- Add previous invoice query, prefill package fallback, and class slot auto-fill logic
+- **Edit**: `src/components/dashboard/PaySchoolFeesDialog.tsx` — Fix metadata query and add fallback data sources
 
