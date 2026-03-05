@@ -221,22 +221,22 @@ const InventoryListTab: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardContent className="p-3">
-          <div className="text-xl font-bold">{totalItems}</div>
-          <p className="text-xs text-muted-foreground">Products</p>
+      <div className="flex flex-wrap gap-2">
+        <Card className="flex-1 min-w-[100px]"><CardContent className="p-2 flex items-center gap-2">
+          <span className="text-lg font-bold">{totalItems}</span>
+          <span className="text-xs text-muted-foreground">Products</span>
         </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <div className="text-xl font-bold">${totalValue.toFixed(2)}</div>
-          <p className="text-xs text-muted-foreground">Total Value</p>
+        <Card className="flex-1 min-w-[120px]"><CardContent className="p-2 flex items-center gap-2">
+          <span className="text-lg font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-xs text-muted-foreground">Value</span>
         </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <div className="text-xl font-bold text-yellow-600">{lowStockCount}</div>
-          <p className="text-xs text-muted-foreground">Low Stock</p>
+        <Card className="flex-1 min-w-[100px]"><CardContent className="p-2 flex items-center gap-2">
+          <span className="text-lg font-bold text-yellow-600">{lowStockCount}</span>
+          <span className="text-xs text-muted-foreground">Low Stock</span>
         </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <div className="text-xl font-bold text-destructive">{outOfStockCount}</div>
-          <p className="text-xs text-muted-foreground">Out of Stock</p>
+        <Card className="flex-1 min-w-[110px]"><CardContent className="p-2 flex items-center gap-2">
+          <span className="text-lg font-bold text-destructive">{outOfStockCount}</span>
+          <span className="text-xs text-muted-foreground">Out of Stock</span>
         </CardContent></Card>
       </div>
 
