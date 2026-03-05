@@ -725,9 +725,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           {isMobile && (
             <p className="text-sm font-medium text-foreground">{student.first_name} {student.last_name}</p>
           )}
-          <p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
-            Manage your profile, view invoices, and track your progress
-          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {isSimulated && (
@@ -760,44 +757,44 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2">
         <Card>
-          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Sessions Remaining</p>
-                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>{totalSessions}</p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-500 p-1.5 rounded-md shrink-0">
+                <Calendar className="w-4 h-4 text-white" />
               </div>
-              <div className="bg-blue-500 p-3 rounded-lg">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Outstanding Balance</p>
-                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>${outstandingBalance.toFixed(2)}</p>
-              </div>
-              <div className={`${outstandingBalance > 0 ? 'bg-orange-500' : 'bg-green-500'} p-3 rounded-lg`}>
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className={`${isMobile ? 'p-3' : 'p-6'}`}>
-            <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Current Belt</p>
-                <p className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold truncate`}>{student.current_belt || 'Not set'}</p>
+                <p className="text-xs text-muted-foreground">Sessions</p>
+                <p className="text-lg font-bold leading-tight">{totalSessions}</p>
               </div>
-              <div className="bg-purple-500 p-3 rounded-lg flex-shrink-0">
-                <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className={`${outstandingBalance > 0 ? 'bg-orange-500' : 'bg-green-500'} p-1.5 rounded-md shrink-0`}>
+                <DollarSign className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-lg font-bold leading-tight truncate">${outstandingBalance.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-purple-500 p-1.5 rounded-md shrink-0">
+                <GraduationCap className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Belt</p>
+                <p className="text-lg font-bold leading-tight truncate">{student.current_belt || 'Not set'}</p>
               </div>
             </div>
           </CardContent>
@@ -806,7 +803,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`w-full flex-nowrap ${isMobile ? 'text-xs' : ''}`}>
+        <TabsList className={`w-full h-auto flex-wrap justify-start gap-1 ${isMobile ? 'text-xs' : ''}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profile">{isMobile ? 'Profile' : 'My Profile'}</TabsTrigger>
           <TabsTrigger value="invoices">
