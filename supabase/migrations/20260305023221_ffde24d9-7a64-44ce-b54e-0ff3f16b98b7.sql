@@ -1,0 +1,1 @@
+UPDATE public.inventory_items SET size_variant = '2' WHERE id = 'c72d329e-0b59-49f0-ba13-c44b00e77b01' AND size_variant IS NULL;
