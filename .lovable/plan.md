@@ -1,30 +1,35 @@
 
 
-## Plan: Fix Class Filtering by Package — Revised
+## Plan: Filter Classes by Product Configuration (Belt, Days, Class Types)
 
-### Current State
-
-The database already has `allowed_class_types` and `lessons_per_week` populated for most products. The code at line 847-848 already passes these to `ClassScheduleSelector`, which filters correctly.
-
-**Only these products are missing the data:**
-
-| Product | Missing fields |
-|---|---|
-| Little Gaonhae 1x Weekday | `allowed_class_types`, `lessons_per_week` |
-| Little Gaonhae 1x Weekend | `allowed_class_types`, `lessons_per_week` |
-| Little Gaonhae 2x Weekday | `allowed_class_types`, `lessons_per_week` |
-| Little Gaonhae 2x Weekend | `allowed_class_types`, `lessons_per_week` |
-| 1x Week | `allowed_class_types` (lessons_per_week=1 already set) |
+### Problem
+The product table already has all the configuration fields populated (`allowed_class_types`, `lessons_per_week`, `lesson_days`, `allowed_belt_levels`), and the query fetches `SELECT *`, but:
+1. **Available days** (`lesson_days`) are not passed to or filtered by `ClassScheduleSelector` — so classes on Friday/Saturday/Sunday still show for weekday-only packages.
+2. **Belt level requirements** (`allowed_belt_levels`) are not used to filter the package dropdown — students see packages they're not eligible for.
+3. **Class type filtering** already works via `allowedClassTypes` prop.
 
 ### Changes
 
-**1. Database update** — Populate the missing fields:
-- Little Gaonhae products → `allowed_class_types: ["Little Gaonhae"]`, `lessons_per_week` extracted from name (1 or 2)
-- "1x Week" already has `lessons_per_week=1` and `allowed_class_types: ["Little Gaonhae", "Kids", "Junior", "Teens & Adults"]` — this is a generic package so keep as-is or set to null (no restriction). Will set to null to allow all class types.
+**File: `src/components/dashboard/ClassScheduleSelector.tsx`**
+1. Add a new optional prop `allowedDays?: string[]` (e.g., `["Monday", "Tuesday", "Wednesday", "Thursday"]`).
+2. In the `eligibleClasses` filter, map each day name to its weekday number (Monday=1, ..., Sunday=0) and exclude classes whose `weekday` is not in the allowed set.
 
-**2. Code change in `PaySchoolFeesDialog.tsx`** — Add a `useEffect` to clear `selectedClassSlots` when the selected package changes (so switching packages doesn't carry over invalid timeslots from a previous selection).
+**File: `src/components/dashboard/PaySchoolFeesDialog.tsx`**
+1. Filter `classProducts` in the package dropdown to only show products where the student's `current_belt` is in the product's `allowed_belt_levels` (or `allowed_belt_levels` is null/empty, meaning no restriction).
+2. Pass `selectedProduct?.lesson_days` as the new `allowedDays` prop to `ClassScheduleSelector`.
+
+### Day name to weekday number mapping
+```text
+Monday    → 1
+Tuesday   → 2
+Wednesday → 3
+Thursday  → 4
+Friday    → 5
+Saturday  → 6
+Sunday    → 0
+```
 
 ### Files to modify
-- **Edit**: `src/components/dashboard/PaySchoolFeesDialog.tsx` — Add slot reset on package change
-- **Database**: Update Little Gaonhae products to set `allowed_class_types` and `lessons_per_week`
+- **Edit**: `src/components/dashboard/ClassScheduleSelector.tsx` — Add `allowedDays` prop and filter
+- **Edit**: `src/components/dashboard/PaySchoolFeesDialog.tsx` — Filter packages by belt level, pass `allowedDays`
 
