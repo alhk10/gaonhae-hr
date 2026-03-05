@@ -1,35 +1,35 @@
 
 
-## Analysis
+## Problem
 
-The screenshot shows the **InventoryListTab** (sales module), not the BranchInventoryTab. This component only queries the `inventory_items` table, so products with zero stock (no inventory records) don't appear at all. The BranchInventoryTab already handles this correctly by fetching all products separately.
+1. **Location filter shows "Main Store" repeated** -- Every branch has one inventory_location named "Main Store". The InventoryListTab groups/filters by `inventory_locations` instead of branches, making the filter useless (screenshot shows 6x "Main Store").
 
-The LowStockWarnings component and `warn_below_quantity` column on products were already added in the previous implementation. The remaining work is fixing the InventoryListTab.
+2. **Chestguard in Yishun has no size variant** -- The inventory record for 10 chestguards in Yishun has `size_variant = null`. The user expects it grouped under "Size 2". This is a data issue -- the adjustment dialog likely didn't capture the size variant when the stock was added. But the display logic also needs to properly reflect branch grouping.
 
 ## Plan
 
-### 1. Fix InventoryListTab to show all products including 0 stock
+### 1. InventoryListTab: Replace location-based grouping with branch-based grouping
 
 **File: `src/components/sales/InventoryListTab.tsx`**
 
-- Add a query to fetch all non-service products (like BranchInventoryTab does)
-- Cross-reference with inventory_items to build a complete list
-- For products with no inventory records, generate synthetic rows with 0 quantities
-- This ensures every product appears in the list regardless of stock level
+- Replace the "locations" query with a branches query (fetch from `branches` table, exclude Competition/Headquarters)
+- Replace the location filter dropdown: label it "All Branches" and list branch names
+- Change the grouping key from `product_id + location_id` to `product_id + branch_id` (resolve branch_id via `inventory_locations.branch_id`)
+- Display branch name instead of location name in each row
+- Update the `ProductGroup` interface: replace `location_id`/`location_name` with `branch_id`/`branch_name`
+- For the filter, match on `branch_id` instead of `location_id`
 
-### 2. Add "Warn Below" column to InventoryListTab
+### 2. BranchInventoryTab: Already branch-scoped (no changes needed)
 
-**File: `src/components/sales/InventoryListTab.tsx`**
+This component already filters by `branchId` prop via location lookup. It works correctly.
 
-- Include `warn_below_quantity` in the products query
-- Add a "Warn Below" table column header between "Cost/Unit" and "Status"
-- Display the threshold value or "—" if not set
-- Factor the `warn_below_quantity` into the `getStockStatus` logic: if a product has a `warn_below_quantity` set and current stock is at or below that threshold, mark it as `low_stock`
+### 3. Fix chestguard size assignment
 
-### 3. Superadmin dashboard warning section
+The 10 chestguards in Yishun were added without a `size_variant`. Update the inventory record to set `size_variant = '2'` so it appears under "Size 2" in the cascade view.
 
-Already implemented via `LowStockWarnings` component in the previous round. No changes needed.
+- Run a migration or data fix to set `size_variant = '2'` on the Yishun chestguard inventory record (id: `c72d329e-0b59-49f0-ba13-c44b00e77b01`)
 
 ### Files to modify
-- **Edit**: `src/components/sales/InventoryListTab.tsx` — Fetch all products, show 0-stock items, add warn_below column
+- **Edit**: `src/components/sales/InventoryListTab.tsx` -- Replace location grouping/filtering with branch grouping/filtering
+- **Data fix**: Update the Yishun chestguard record to have `size_variant = '2'`
 
