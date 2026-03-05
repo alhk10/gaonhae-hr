@@ -96,6 +96,43 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     return calculateAge(student.date_of_birth);
   }, [student.date_of_birth]);
 
+  // Fetch previous invoice metadata for prefilling package and class slots
+  const { data: previousInvoiceMetadata } = useQuery({
+    queryKey: ['student-previous-invoice-metadata', studentId],
+    queryFn: async () => {
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('student_id', studentId)
+        .in('status', ['paid', 'draft', 'verified'])
+        .order('created_at', { ascending: false });
+
+      if (!invoices || invoices.length === 0) return null;
+
+      const invoiceIds = invoices.map(inv => inv.id);
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('metadata')
+        .in('invoice_id', invoiceIds)
+        .order('created_at', { ascending: false });
+
+      if (!items) return null;
+
+      // Find the most recent item that has term-related metadata
+      for (const item of items) {
+        const metadata = item.metadata as any;
+        if (metadata?.term_id && (metadata?.product_name || metadata?.selected_class_slots)) {
+          return {
+            product_name: metadata.product_name as string | undefined,
+            selected_class_slots: metadata.selected_class_slots as string[] | undefined,
+          };
+        }
+      }
+      return null;
+    },
+    enabled: !!studentId,
+  });
+
   // Fetch paid term IDs for this student
   const { data: paidTermIds = [] } = useQuery({
     queryKey: ['student-paid-terms', studentId],
@@ -318,17 +355,100 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const selectedProduct = classProducts.find(p => p.id === selectedProductId);
   const selectedGradingSlot = gradingSlots.find(s => s.id === selectedGradingSlotId);
 
-  // Auto-fill from previous enrollment
+  // Auto-fill from previous enrollment or previous invoice metadata
   useEffect(() => {
-    if (previousEnrollment && !selectedProductId && classProducts.length > 0) {
+    if (selectedProductId || classProducts.length === 0) return;
+    
+    // Try previousEnrollment first
+    if (previousEnrollment) {
       const matchingProduct = classProducts.find(p => 
         p.name?.toLowerCase() === previousEnrollment.tier_name?.toLowerCase()
       );
       if (matchingProduct) {
         setSelectedProductId(matchingProduct.id);
+        return;
       }
     }
-  }, [previousEnrollment, classProducts, selectedProductId]);
+    
+    // Fallback: match by previous invoice metadata product_name
+    if (previousInvoiceMetadata?.product_name) {
+      const matchingProduct = classProducts.find(p => 
+        p.name?.toLowerCase() === previousInvoiceMetadata.product_name?.toLowerCase()
+      );
+      if (matchingProduct) {
+        setSelectedProductId(matchingProduct.id);
+      }
+    }
+  }, [previousEnrollment, previousInvoiceMetadata, classProducts, selectedProductId]);
+
+  // Auto-fill class timeslots from previous invoice
+  useEffect(() => {
+    if (
+      !selectedTermId ||
+      !selectedTerm ||
+      !student.branch_id ||
+      selectedClassSlots.length > 0 ||
+      !previousInvoiceMetadata?.selected_class_slots?.length
+    ) return;
+
+    const prefillSlots = async () => {
+      // Extract unique timetable IDs from previous slots (format: "timetableId_YYYY-MM-DD")
+      const prevTimetableIds = [...new Set(
+        previousInvoiceMetadata.selected_class_slots!.map(s => s.split('_')[0])
+      )];
+
+      if (prevTimetableIds.length === 0) return;
+
+      // Fetch timetable weekdays for those IDs
+      const { data: timetables } = await supabase
+        .from('branch_timetables')
+        .select('id, weekday')
+        .in('id', prevTimetableIds)
+        .eq('branch_id', student.branch_id!)
+        .eq('is_active', true);
+
+      if (!timetables || timetables.length === 0) return;
+
+      // Build a map of timetableId -> weekday
+      const timetableWeekdays = new Map(timetables.map(t => [t.id, t.weekday]));
+
+      // Generate new slot strings for the selected term's date range
+      const termStart = new Date(selectedTerm.start_date);
+      const termEnd = new Date(selectedTerm.end_date);
+      
+      // Collect break dates for exclusion
+      const breakDates = new Set<string>();
+      if (selectedTerm.breaks) {
+        for (const brk of selectedTerm.breaks) {
+          const bStart = new Date(brk.start_date);
+          const bEnd = new Date(brk.end_date);
+          for (let d = new Date(bStart); d <= bEnd; d.setDate(d.getDate() + 1)) {
+            breakDates.add(d.toISOString().split('T')[0]);
+          }
+        }
+      }
+
+      const newSlots: string[] = [];
+      for (let d = new Date(termStart); d <= termEnd; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        if (breakDates.has(dateStr)) continue;
+        
+        const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon, ...
+        
+        for (const [timetableId, weekday] of timetableWeekdays) {
+          if (weekday === dayOfWeek) {
+            newSlots.push(`${timetableId}_${dateStr}`);
+          }
+        }
+      }
+
+      if (newSlots.length > 0) {
+        setSelectedClassSlots(newSlots);
+      }
+    };
+
+    prefillSlots();
+  }, [selectedTermId, selectedTerm, student.branch_id, previousInvoiceMetadata, selectedClassSlots.length]);
 
   // Auto-select first unpaid term
   useEffect(() => {
