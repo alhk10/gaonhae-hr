@@ -334,10 +334,11 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
             <>Limit: {lessonsPerWeek}/week × {termWeeks.length} weeks</>
           )}
         </span>
-        <span className={isAtLimit ? 'text-amber-600 font-medium' : 'text-muted-foreground'}>
-          {selectedSlots.length} of {maxSessions} sessions selected
-          {isAtLimit && ' (limit reached)'}
-        </span>
+        {isAtLimit && (
+          <span className="text-amber-600 font-medium">
+            Limit reached
+          </span>
+        )}
       </div>
     </div>
   );

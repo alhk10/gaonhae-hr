@@ -525,7 +525,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     : 0;
 
   const gradingFee = gradingProduct?.effective_price ?? 0;
-  const combinedTotal = calculatedPrice + (includeGrading ? gradingFee : 0);
+  
+  // Early payment discount: $10 off if paying on or before term start date
+  const earlyPaymentDiscount = useMemo(() => {
+    if (!selectedTerm) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const termStart = new Date(selectedTerm.start_date);
+    termStart.setHours(0, 0, 0, 0);
+    return today <= termStart ? 10 : 0;
+  }, [selectedTerm]);
+
+  const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount);
 
   // Payment methods based on country
   const getPaymentMethods = () => {
@@ -578,20 +589,25 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         branch_id: student.branch_id,
         payment_terms_days: 7,
         internal_notes: `Term enrollment: ${selectedTerm.name} - ${selectedProduct.name}${isRemainingWeeks ? ' (Remaining weeks)' : ''}`,
-        items: [{
-          product_id: selectedProduct.id,
-          description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} ${weeksLabel}`,
-          quantity: termWeeks,
-          unit_price: selectedProduct.effective_price,
-          metadata: {
-            term_id: selectedTerm.id,
-            term_name: selectedTerm.name,
-            product_name: selectedProduct.name,
-            weeks: termWeeks,
-            is_remaining_weeks: isRemainingWeeks,
-            selected_class_slots: selectedClassSlots,
+        items: [
+          {
+            product_id: selectedProduct.id,
+            description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} ${weeksLabel}`,
+            quantity: termWeeks,
+            unit_price: selectedProduct.effective_price,
+            total_override: earlyPaymentDiscount > 0 ? (termWeeks * selectedProduct.effective_price - earlyPaymentDiscount) : undefined,
+            metadata: {
+              term_id: selectedTerm.id,
+              term_name: selectedTerm.name,
+              product_name: selectedProduct.name,
+              weeks: termWeeks,
+              is_remaining_weeks: isRemainingWeeks,
+              selected_class_slots: selectedClassSlots,
+              early_payment_discount: earlyPaymentDiscount > 0,
+              early_payment_discount_amount: earlyPaymentDiscount > 0 ? earlyPaymentDiscount : undefined,
+            },
           },
-        }],
+        ],
       });
 
       // Step 2: Upload proof of payment (shared for both)
@@ -896,10 +912,6 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <span className="text-muted-foreground">Duration</span>
                         <span className="font-medium text-right">{termWeeks} {isRemainingWeeks ? 'remaining weeks' : 'weeks'}</span>
                       </div>
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-muted-foreground">Rate</span>
-                        <span className="font-medium text-right">${selectedProduct.effective_price}/week</span>
-                      </div>
                       {selectedClassSlots.length > 0 && (
                         <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-muted-foreground">Classes Selected</span>
@@ -914,6 +926,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-muted-foreground">Grading Fee</span>
                           <span className="font-medium">${gradingFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {earlyPaymentDiscount > 0 && (
+                        <div className="flex justify-between text-xs sm:text-sm text-green-600">
+                          <span>Early Payment Discount</span>
+                          <span className="font-medium">-${earlyPaymentDiscount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="border-t pt-1.5 flex justify-between">
