@@ -242,7 +242,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text('Description', margin + 2, yPos);
+  doc.text('Products/Services', margin + 2, yPos);
   doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
 
   yPos += 8;
