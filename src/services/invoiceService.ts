@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
+import { createEnrollment, createScheduledClass } from './classEnrollmentService';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
@@ -418,6 +419,67 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             logger.error('Failed to create entitlements', entitlementError);
             // Non-fatal - invoice is still valid
           }
+        }
+
+        // Create class enrollments and scheduled classes for items with class slots
+        try {
+          for (const insertedItem of insertedItems) {
+            const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
+            const itemMetadata = originalItem?.metadata;
+            
+            // Only process items that have selected class slots and a term
+            const selectedClassSlots = itemMetadata?.selected_class_slots as string[] | undefined;
+            const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0];
+            
+            if (!selectedClassSlots || selectedClassSlots.length === 0 || !termId) continue;
+            
+            const product = productDetails?.find(p => p.id === insertedItem.product_id);
+            const className = product?.name || 'Class';
+            const branchId = invoiceData.branch_id;
+            
+            if (!branchId) continue;
+
+            // Create enrollment
+            const enrollmentId = await createEnrollment({
+              student_id: invoiceData.student_id,
+              term_id: termId,
+              branch_id: branchId,
+              class_type: className,
+              tier_name: className,
+              total_price: originalItem?.quantity 
+                ? originalItem.quantity * originalItem.unit_price 
+                : 0,
+              invoice_item_id: insertedItem.id,
+            });
+
+            // Get timetable data for the selected slots
+            const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
+            const { data: timetables } = await supabase
+              .from('branch_timetables')
+              .select('id, start_time, end_time')
+              .in('id', timetableIds);
+
+            const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+
+            for (const slot of selectedClassSlots) {
+              const [timetableId, date] = slot.split('_');
+              const timetable = timetableMap.get(timetableId);
+              if (timetable && date) {
+                await createScheduledClass({
+                  enrollment_id: enrollmentId,
+                  timetable_id: timetableId,
+                  scheduled_date: date,
+                  start_time: timetable.start_time,
+                  end_time: timetable.end_time,
+                });
+              }
+            }
+
+            logger.info(`Created enrollment and ${selectedClassSlots.length} scheduled classes for invoice ${invoiceNumber}`);
+          }
+        } catch (enrollmentError) {
+          logger.error('Failed to create enrollments/scheduled classes (non-fatal)', enrollmentError);
+          // Non-fatal - invoice is still valid
         }
       }
     }
