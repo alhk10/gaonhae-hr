@@ -1,24 +1,28 @@
 
 
-## Plan: Add Grading Paid Count to Grading Tab Metric
+## Plan: Conditional Default Tab on Branch Dashboard
 
-### Current Behavior
-The Grading tab shows `Grading ({gradingListCount})` where `gradingListCount` is the total number of unique students with lesson-type invoices for the current term.
+### Goal
+Default to "Approvals" tab when there are pending items, otherwise default to "Weekly Timetable".
 
-### Desired Behavior
-Show how many students have paid for their grading test, e.g. `Grading (3/10)` — 3 paid out of 10 total.
+### Change: `src/components/dashboard/BranchDashboard.tsx`
 
-### Changes
+1. **Change initial state** (line 82): Set `activeTab` initial value to `'timetable'` (instead of `'students'`).
 
-#### 1. Update metric query in `src/components/dashboard/BranchDashboard.tsx`
+2. **Add a `useEffect`** after the `unverifiedPayments` computation (~line 353): Track whether the initial tab has been set. On first load, once `pendingRequests` and `unverifiedPayments` data is available, if either has items, switch `activeTab` to `'approvals'`. Use a ref (`hasSetInitialTab`) to ensure this only fires once per mount.
 
-**Lines 225-265**: Modify the `grading-list-count` query to also count students with paid grading invoices. The logic:
-- Query `grading_registrations` that have an `invoice_item_id`
-- Join to `invoice_items` → `invoices` to check if the invoice status is `'paid'`
-- Filter by current term and branch
-- Return `{ total: number, gradingPaid: number }` instead of just a number
+```typescript
+const hasSetInitialTab = useRef(false);
 
-**Line 386**: Update the tab label from `Grading ({gradingListCount})` to `Grading ({gradingPaidCount}/{gradingListCount})` showing paid vs total.
+useEffect(() => {
+  if (!hasSetInitialTab.current && (pendingRequests.length > 0 || unverifiedPayments.length > 0)) {
+    setActiveTab('approvals');
+    hasSetInitialTab.current = true;
+  } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
+    hasSetInitialTab.current = true; // data loaded, no approvals — keep timetable
+  }
+}, [pendingRequests, unverifiedPayments]);
+```
 
 ### Scope
 - One file: `src/components/dashboard/BranchDashboard.tsx`
