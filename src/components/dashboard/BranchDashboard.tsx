@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +79,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const { user, userrole } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useState('timetable');
+  const hasSetInitialTab = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('unpaid');
@@ -352,6 +353,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     (p: any) => !p.is_verified && p.proof_of_payment_url && p.payment_method !== 'cash'
   );
 
+  useEffect(() => {
+    if (!hasSetInitialTab.current && (pendingRequests.length > 0 || unverifiedPayments.length > 0)) {
+      setActiveTab('approvals');
+      hasSetInitialTab.current = true;
+    } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
+      hasSetInitialTab.current = true;
+    }
+  }, [pendingRequests, unverifiedPayments]);
 
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
