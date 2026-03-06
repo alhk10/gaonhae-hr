@@ -236,13 +236,6 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   // Items table header
   const tableStartY = yPos;
-  const colWidths = {
-    description: 95,
-    qty: 25,
-    price: 35,
-    total: 35
-  };
-  
   // Table header background
   doc.setFillColor(245, 245, 245);
   doc.rect(margin, yPos - 5, pageWidth - margin * 2, 10, 'F');
@@ -250,8 +243,6 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('Description', margin + 2, yPos);
-  doc.text('Qty', margin + colWidths.description, yPos, { align: 'center' });
-  doc.text('Unit Price', margin + colWidths.description + colWidths.qty + 15, yPos, { align: 'right' });
   doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
 
   yPos += 8;
@@ -268,9 +259,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(item.description.substring(0, 50), margin + 2, yPos);
-      doc.text(item.quantity.toString(), margin + colWidths.description, yPos, { align: 'center' });
-      doc.text(formatCurrency(item.unit_price), margin + colWidths.description + colWidths.qty + 15, yPos, { align: 'right' });
+      doc.text(item.description.substring(0, 80), margin + 2, yPos);
       doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
       
       yPos += 6;
