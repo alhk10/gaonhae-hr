@@ -94,9 +94,11 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)}>
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(notice)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {(role === 'superadmin' || notice.created_by_branch_id !== null) && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(notice)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
