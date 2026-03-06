@@ -1,29 +1,30 @@
 
 
-## Plan: Auto-populate Attendance from Scheduled Students
+## Plan: Add Ad-Hoc (Once-Off) Lesson Configuration
 
-### Problem
-When opening the attendance dialog for a slot (e.g., Kids 3:30 PM Thursday), it queries the `class_attendance` table which is empty. Abby is in `student_scheduled_classes` but not in `class_attendance`, so she doesn't appear. Additionally, all scheduled students should default to "present" (checked).
+### Context
+Currently, the Lesson Configuration section only supports recurring weekly lessons (with lessons_per_week, available days, and class types). The user wants an "ad-hoc" or "once-off" lesson type where students can book individual sessions without a fixed weekly schedule.
 
-### Root Cause
-The `SlotAttendanceDialog` only reads from `class_attendance`. There's no logic to seed attendance records from `student_scheduled_classes` when the dialog opens.
+### Database Change
+Add a new column `is_adhoc_lesson` (boolean, default false) to the `products` table via migration. This distinguishes recurring lessons from one-off bookable lessons.
 
-### Changes
+### UI Changes (both AddProductDialog and EditProductDialog)
+When `is_lesson` is toggled on, show a lesson type selector:
+- **Recurring** (current behavior): shows lessons_per_week, available days, and class types
+- **Ad-Hoc / Once-Off**: hides lessons_per_week and available days (not applicable), shows only allowed class types selection
 
-**File: `src/services/classAttendanceService.ts`**
-- Add a new function `autoPopulateAttendanceFromSchedule(branchId, timetableId, date)` that:
-  1. Queries `student_scheduled_classes` for that `timetable_id` and `scheduled_date`, joined with enrollments to get `student_id` and filter by `branch_id`
-  2. Checks which students already have `class_attendance` records
-  3. For any scheduled student without an attendance record, inserts a `class_attendance` record with `status = 'present'`
+The toggle can be a simple radio group or segmented control under the "This is a lesson product" switch.
 
-**File: `src/components/dashboard/SlotAttendanceDialog.tsx`**
-- Before fetching attendance, call `autoPopulateAttendanceFromSchedule` to seed records from scheduled classes
-- This can be done inside the `queryFn` of the attendance query: call auto-populate first, then fetch attendance as before
-- This ensures that every time the dialog opens, scheduled students are automatically added with "present" status
+### Files to Modify
+
+1. **New migration**: Add `is_adhoc_lesson boolean default false` to `products` table
+2. **`src/integrations/supabase/types.ts`**: Add `is_adhoc_lesson` field to products Row/Insert/Update types
+3. **`src/services/productService.ts`**: Add `is_adhoc_lesson` to the `Product` interface, `transformProduct`, `createProduct`, and `updateProduct`
+4. **`src/components/sales/AddProductDialog.tsx`**: Add ad-hoc toggle in lesson config section; conditionally show/hide recurring fields
+5. **`src/components/sales/EditProductDialog.tsx`**: Same UI changes as AddProductDialog
 
 ### Behavior
-- When a slot is clicked, scheduled students appear immediately in the Attendance tab with "present" checked
-- Staff can still toggle to "absent" or remove students
-- Staff can still add non-scheduled students via the "Add Students" tab
-- Existing attendance records are not overwritten (only missing ones are created)
+- When "Ad-Hoc" is selected: only class type checkboxes are shown (no weekly schedule fields)
+- When "Recurring" is selected: current behavior (lessons_per_week, days, class types)
+- `is_adhoc_lesson` is stored on the product and can be used downstream to differentiate booking/enrollment flows
 
