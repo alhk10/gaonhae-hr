@@ -22,6 +22,7 @@ import {
   recordAttendance,
   addStudentToSlot,
   removeStudentFromSlot,
+  autoPopulateAttendanceFromSchedule,
   ClassAttendanceRecord,
   StudentForAttendance,
 } from '@/services/classAttendanceService';
@@ -55,7 +56,12 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
   // Fetch attendance records for this slot
   const { data: attendance = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['slot-attendance', branchId, slot?.timetableId, slot?.date],
-    queryFn: () => getSlotAttendance(branchId, slot!.timetableId, slot!.date),
+    queryFn: async () => {
+      // Auto-populate attendance from scheduled students first
+      await autoPopulateAttendanceFromSchedule(branchId, slot!.timetableId, slot!.date);
+      // Then fetch the attendance list
+      return getSlotAttendance(branchId, slot!.timetableId, slot!.date);
+    },
     enabled: open && !!slot,
   });
 
