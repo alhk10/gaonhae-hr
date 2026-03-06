@@ -100,11 +100,15 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
 
       // Add regular class slots
       dayTimetable.forEach(slot => {
-        const matchingClasses = dayClasses.filter(sc => 
-          sc.start_time === slot.start_time && 
-          sc.end_time === slot.end_time &&
-          sc.class_type === slot.class_type
-        );
+        const matchingClasses = dayClasses.filter(sc => {
+          // Match by timetable_id first (most accurate), fallback to time+type matching
+          if ((sc as any).timetable_id) {
+            return (sc as any).timetable_id === slot.id;
+          }
+          return sc.start_time === slot.start_time && 
+            sc.end_time === slot.end_time &&
+            sc.class_type === slot.class_type;
+        });
 
         allSlots.push({
           id: slot.id,

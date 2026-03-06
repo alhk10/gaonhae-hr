@@ -452,14 +452,24 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
               invoice_item_id: insertedItem.id,
             });
 
-            // Get timetable data for the selected slots
+            // Get timetable data for the selected slots (including class_type for accurate enrollment)
             const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
             const { data: timetables } = await supabase
               .from('branch_timetables')
-              .select('id, start_time, end_time')
+              .select('id, start_time, end_time, class_type')
               .in('id', timetableIds);
 
             const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+            
+            // Use the timetable's class_type for the enrollment (more accurate than product name)
+            const firstTimetable = timetables?.[0];
+            if (firstTimetable?.class_type) {
+              // Update the enrollment's class_type to match the timetable
+              await supabase
+                .from('student_class_enrollments')
+                .update({ class_type: firstTimetable.class_type })
+                .eq('id', enrollmentId);
+            }
 
             for (const slot of selectedClassSlots) {
               const [timetableId, date] = slot.split('_');
