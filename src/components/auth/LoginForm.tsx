@@ -99,13 +99,13 @@ const LoginForm = () => {
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-sm">
               <img 
-                src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" 
+                src="/images/logo-white-bg.jpg" 
                 alt="Gaonhae Taekwondo Logo"
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold text-gray-900">Gaonhae HR</CardTitle>
+              <CardTitle className="text-2xl font-bold text-gray-900">Gaonhae Taekwondo</CardTitle>
               <CardDescription className="text-gray-600">
                 Employee & Student Portal
               </CardDescription>

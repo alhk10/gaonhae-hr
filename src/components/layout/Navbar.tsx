@@ -78,11 +78,11 @@ const Navbar = ({ onToggleSidebar, sidebarOpen }: NavbarProps) => {
                 </Button>
               )}
               <img 
-                src="/lovable-uploads/bec86f13-6728-40c7-8387-ff2cf171961b.png" 
-                alt="Gaonhae HR" 
+                src="/images/logo-white-bg.jpg" 
+                alt="Gaonhae Taekwondo" 
                 className="h-8 w-auto"
               />
-              <span className="ml-2 text-xl font-bold text-gray-900">Gaonhae HR</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">Gaonhae Taekwondo</span>
             </div>
 
             {/* Desktop User Menu */}
