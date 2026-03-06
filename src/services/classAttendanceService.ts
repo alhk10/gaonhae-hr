@@ -37,9 +37,9 @@ export interface StudentForAttendance {
   status: string;
 }
 
-// 1x Weekend product for overage invoices
-const OVERAGE_PRODUCT_ID = '7886c756-580e-4966-ba6f-e4fae6c6d4b5';
-const OVERAGE_PRODUCT_PRICE = 26.00;
+// Ad-Hoc Lesson product for overage/ad-hoc invoices
+const ADHOC_LESSON_PRODUCT_ID = '66b8a674-73b9-4460-a87c-809882ba0b13';
+const ADHOC_LESSON_BASE_PRICE = 27.00;
 
 /**
  * Get attendance records for a specific slot on a specific date
@@ -305,7 +305,71 @@ export async function getStudentTermQuota(
 }
 
 /**
- * Check if student exceeds quota and issue overage invoice if needed
+ * Get the ad-hoc lesson price, checking branch price_rules for overrides
+ */
+async function getAdHocLessonPrice(branchId: string): Promise<number> {
+  try {
+    const { data: priceRule } = await supabase
+      .from('price_rules')
+      .select('price_override')
+      .eq('product_id', ADHOC_LESSON_PRODUCT_ID)
+      .eq('branch_id', branchId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    return priceRule?.price_override ?? ADHOC_LESSON_BASE_PRICE;
+  } catch {
+    return ADHOC_LESSON_BASE_PRICE;
+  }
+}
+
+/**
+ * Check active entitlements for a student and consume one session if available.
+ * Returns true if a session was consumed, false otherwise.
+ */
+async function tryConsumeEntitlement(studentId: string): Promise<boolean> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Find earliest active entitlement with remaining sessions
+    const { data: entitlement, error } = await supabase
+      .from('entitlements')
+      .select('id, sessions_remaining, sessions_used')
+      .eq('student_id', studentId)
+      .eq('is_active', true)
+      .gt('sessions_remaining', 0)
+      .or(`valid_to.is.null,valid_to.gte.${today}`)
+      .order('valid_to', { ascending: true, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!entitlement || !entitlement.sessions_remaining || entitlement.sessions_remaining <= 0) {
+      return false;
+    }
+
+    // Consume one session
+    const { error: updateError } = await supabase
+      .from('entitlements')
+      .update({
+        sessions_remaining: entitlement.sessions_remaining - 1,
+        sessions_used: (entitlement.sessions_used || 0) + 1,
+      })
+      .eq('id', entitlement.id);
+
+    if (updateError) throw updateError;
+
+    logger.info(`Consumed 1 entitlement session for student ${studentId} (entitlement ${entitlement.id}), ${entitlement.sessions_remaining - 1} remaining`);
+    return true;
+  } catch (error) {
+    logger.error('Failed to consume entitlement session', error);
+    return false;
+  }
+}
+
+/**
+ * Check if student exceeds quota and issue overage/ad-hoc invoice if needed.
+ * First checks entitlements for remaining sessions before invoicing.
  */
 export async function checkAndIssueOverageInvoice(
   studentId: string,
@@ -334,36 +398,54 @@ export async function checkAndIssueOverageInvoice(
 
     logger.info(`Student ${studentId}: attended ${attendedCount}, quota ${purchasedQuota}`);
 
-    // Check if exceeded quota
+    // Within quota, no action needed
     if (attendedCount <= purchasedQuota) {
-      return; // Within quota, no action needed
-    }
-
-    // Check if overage invoice already exists for this term
-    const existingOverageCount = await getOverageInvoiceCount(studentId, term.id);
-    const expectedOverageInvoices = attendedCount - purchasedQuota;
-
-    if (existingOverageCount >= expectedOverageInvoices) {
-      logger.info('Overage invoice already exists for this excess, skipping');
       return;
     }
 
-    // Create overage invoice
-    logger.info(`Creating overage invoice for student ${studentId}, term ${term.id}`);
-    
+    // Exceeded quota — try to consume an entitlement session first
+    const consumed = await tryConsumeEntitlement(studentId);
+    if (consumed) {
+      logger.info('Entitlement session consumed, no invoice needed');
+      return;
+    }
+
+    // No entitlement available — check if ad-hoc invoice already exists
+    const existingAdHocCount = await getAdHocInvoiceCount(studentId, term.id);
+    const expectedInvoices = attendedCount - purchasedQuota;
+
+    if (existingAdHocCount >= expectedInvoices) {
+      logger.info('Ad-hoc invoice already exists for this excess, skipping');
+      return;
+    }
+
+    // Get branch-specific price
+    const price = await getAdHocLessonPrice(branchId);
+
+    // Determine invoice type
+    const invoiceType = purchasedQuota === 0 ? 'adhoc' : 'overage';
+    const description = invoiceType === 'adhoc'
+      ? `Ad-Hoc Lesson (${term.name})`
+      : `Ad-Hoc Lesson - Additional Session (${term.name})`;
+
+    // Create ad-hoc lesson invoice
+    logger.info(`Creating ${invoiceType} invoice for student ${studentId}, term ${term.id}`);
+
     await createInvoice({
       student_id: studentId,
       branch_id: branchId,
       payment_terms_days: 14,
-      notes: `Additional class session for ${term.name}`,
-      internal_notes: `Auto-generated overage invoice. Term: ${term.name}. Attended: ${attendedCount}, Quota: ${purchasedQuota}`,
+      notes: invoiceType === 'adhoc'
+        ? `Ad-hoc lesson for ${term.name}`
+        : `Additional class session for ${term.name}`,
+      internal_notes: `Auto-generated ${invoiceType} invoice. Term: ${term.name}. Attended: ${attendedCount}, Quota: ${purchasedQuota}`,
       items: [{
-        product_id: OVERAGE_PRODUCT_ID,
-        description: `1x Weekend - Additional Session (${term.name})`,
+        product_id: ADHOC_LESSON_PRODUCT_ID,
+        description,
         quantity: 1,
-        unit_price: OVERAGE_PRODUCT_PRICE,
+        unit_price: price,
         metadata: {
-          type: 'overage',
+          type: invoiceType,
           term_id: term.id,
           term_name: term.name,
           attended_count: attendedCount,
@@ -372,7 +454,7 @@ export async function checkAndIssueOverageInvoice(
       }]
     });
 
-    logger.info('Overage invoice created successfully');
+    logger.info(`${invoiceType} invoice created successfully`);
   } catch (error) {
     logger.error('Failed to check/issue overage invoice', error);
     // Don't throw - we don't want to fail attendance recording due to invoice issues
@@ -380,9 +462,9 @@ export async function checkAndIssueOverageInvoice(
 }
 
 /**
- * Count existing overage invoices for a student in a term
+ * Count existing ad-hoc/overage invoices for a student in a term
  */
-async function getOverageInvoiceCount(
+async function getAdHocInvoiceCount(
   studentId: string,
   termId: string
 ): Promise<number> {
@@ -398,28 +480,28 @@ async function getOverageInvoiceCount(
 
     const invoiceIds = invoices.map(inv => inv.id);
 
-    // Get invoice items that are overage items for this term
+    // Get invoice items that are ad-hoc/overage items for this term
     const { data: items, error: itemsError } = await supabase
       .from('invoice_items')
       .select('id, metadata')
       .in('invoice_id', invoiceIds)
-      .eq('product_id', OVERAGE_PRODUCT_ID);
+      .eq('product_id', ADHOC_LESSON_PRODUCT_ID);
 
     if (itemsError) throw itemsError;
     if (!items) return 0;
 
-    // Count items with matching term_id and type: overage
+    // Count items with matching term_id and type: adhoc or overage
     let count = 0;
     for (const item of items) {
       const metadata = item.metadata as Record<string, any> | null;
-      if (metadata?.type === 'overage' && metadata?.term_id === termId) {
+      if ((metadata?.type === 'overage' || metadata?.type === 'adhoc') && metadata?.term_id === termId) {
         count++;
       }
     }
 
     return count;
   } catch (error) {
-    logger.error('Failed to get overage invoice count', error);
+    logger.error('Failed to get ad-hoc invoice count', error);
     return 0;
   }
 }
@@ -435,20 +517,29 @@ export async function autoPopulateAttendanceFromSchedule(
   date: string
 ): Promise<void> {
   try {
-    // Get scheduled students for this timetable and date (join through enrollment to get student_id)
-    const { data: scheduledStudents, error: schedError } = await supabase
+    // Step 1: Get scheduled classes for this timetable and date
+    const { data: scheduledClasses, error: schedError } = await supabase
       .from('student_scheduled_classes')
-      .select('id, enrollment_id, student_class_enrollments(student_id)')
+      .select('id, enrollment_id')
       .eq('timetable_id', timetableId)
-      .eq('scheduled_date', date);
+      .eq('scheduled_date', date)
+      .eq('status', 'scheduled');
 
     if (schedError) throw schedError;
-    if (!scheduledStudents || scheduledStudents.length === 0) return;
+    if (!scheduledClasses || scheduledClasses.length === 0) return;
 
-    // Extract student_ids from the joined enrollment data
-    const studentIds = scheduledStudents
-      .map(s => (s.student_class_enrollments as any)?.student_id)
-      .filter(Boolean) as string[];
+    // Step 2: Get student_ids from enrollments using separate query
+    const enrollmentIds = scheduledClasses.map(s => s.enrollment_id).filter(Boolean) as string[];
+    if (enrollmentIds.length === 0) return;
+
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('student_class_enrollments')
+      .select('student_id')
+      .in('id', enrollmentIds);
+
+    if (enrollError) throw enrollError;
+
+    const studentIds = (enrollments || []).map(e => e.student_id).filter(Boolean) as string[];
 
     if (studentIds.length === 0) return;
 
