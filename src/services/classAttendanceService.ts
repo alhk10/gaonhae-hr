@@ -425,6 +425,75 @@ async function getOverageInvoiceCount(
 }
 
 /**
+ * Auto-populate attendance from scheduled students.
+ * For any student in student_scheduled_classes who doesn't have a class_attendance record,
+ * creates one with status = 'present'.
+ */
+export async function autoPopulateAttendanceFromSchedule(
+  branchId: string,
+  timetableId: string,
+  date: string
+): Promise<void> {
+  try {
+    // Get scheduled students for this timetable and date (join through enrollment to get student_id)
+    const { data: scheduledStudents, error: schedError } = await supabase
+      .from('student_scheduled_classes')
+      .select('id, enrollment_id, student_class_enrollments(student_id)')
+      .eq('timetable_id', timetableId)
+      .eq('scheduled_date', date);
+
+    if (schedError) throw schedError;
+    if (!scheduledStudents || scheduledStudents.length === 0) return;
+
+    // Extract student_ids from the joined enrollment data
+    const studentIds = scheduledStudents
+      .map(s => (s.student_class_enrollments as any)?.student_id)
+      .filter(Boolean) as string[];
+
+    if (studentIds.length === 0) return;
+
+    // Get existing attendance records for this slot/date
+    const { data: existingAttendance, error: attError } = await supabase
+      .from('class_attendance')
+      .select('student_id')
+      .eq('branch_id', branchId)
+      .eq('timetable_id', timetableId)
+      .eq('class_date', date);
+
+    if (attError) throw attError;
+
+    const existingStudentIds = new Set((existingAttendance || []).map(a => a.student_id));
+
+    // Filter to students who don't have attendance records yet
+    const missingStudentIds = studentIds.filter(id => !existingStudentIds.has(id));
+
+    if (missingStudentIds.length === 0) return;
+
+    // Insert attendance records with status = 'present'
+    const records = missingStudentIds.map(studentId => ({
+      student_id: studentId,
+      branch_id: branchId,
+      timetable_id: timetableId,
+      class_date: date,
+      status: 'present' as const,
+      attendance_method: 'auto_scheduled',
+      recorded_at: new Date().toISOString(),
+    }));
+
+    const { error: insertError } = await supabase
+      .from('class_attendance')
+      .insert(records);
+
+    if (insertError) throw insertError;
+
+    logger.info(`Auto-populated ${missingStudentIds.length} attendance records from schedule`);
+  } catch (error) {
+    logger.error('Failed to auto-populate attendance from schedule', error);
+    // Don't throw - we don't want to block the dialog from opening
+  }
+}
+
+/**
  * Bulk update attendance for multiple students
  */
 export async function bulkUpdateAttendance(
