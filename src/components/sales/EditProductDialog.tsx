@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Package, Tag, Award, Layers, Settings, Briefcase, Calendar } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CLASS_TYPES } from '@/services/branchTimetableService';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
@@ -51,6 +52,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     is_service: false,
     is_active: true,
     is_lesson: false,
+    is_adhoc_lesson: false,
     lessons_per_week: 1,
     lesson_days: [] as string[],
     allowed_class_types: [] as string[],
@@ -78,6 +80,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         is_service: product.is_service || false,
         is_active: product.is_active,
         is_lesson: product.is_lesson || false,
+        is_adhoc_lesson: product.is_adhoc_lesson || false,
         lessons_per_week: product.lessons_per_week || 1,
         lesson_days: product.lesson_days || [],
         allowed_class_types: product.allowed_class_types || [],
@@ -130,8 +133,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
         is_lesson: formData.is_lesson,
-        lessons_per_week: formData.is_lesson ? formData.lessons_per_week : null,
-        lesson_days: formData.is_lesson ? formData.lesson_days : null,
+        is_adhoc_lesson: formData.is_lesson ? formData.is_adhoc_lesson : false,
+        lessons_per_week: formData.is_lesson && !formData.is_adhoc_lesson ? formData.lessons_per_week : null,
+        lesson_days: formData.is_lesson && !formData.is_adhoc_lesson ? formData.lesson_days : null,
         allowed_class_types: formData.is_lesson ? formData.allowed_class_types : null
       });
 
@@ -155,7 +159,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     setFormData(prev => {
       // Clear lesson fields when toggling off
       if (field === 'is_lesson' && !value) {
-        return { ...prev, [field]: value, lessons_per_week: 1, lesson_days: [], allowed_class_types: [] };
+        return { ...prev, [field]: value, is_adhoc_lesson: false, lessons_per_week: 1, lesson_days: [], allowed_class_types: [] };
       }
       return { ...prev, [field]: value };
     });
@@ -357,61 +361,91 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               
               {formData.is_lesson && (
                 <div className="space-y-3 pt-2">
+                  {/* Lesson Type Selector */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Lessons per Week</Label>
-                    <Select 
-                      value={String(formData.lessons_per_week)} 
-                      onValueChange={(value) => handleInputChange('lessons_per_week', parseInt(value))}
+                    <Label className="text-xs">Lesson Type</Label>
+                    <RadioGroup
+                      value={formData.is_adhoc_lesson ? 'adhoc' : 'recurring'}
+                      onValueChange={(value) => handleInputChange('is_adhoc_lesson', value === 'adhoc')}
+                      className="flex gap-4"
                     >
-                      <SelectTrigger className="h-9 w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7].map(n => (
-                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <RadioGroupItem value="recurring" />
+                        <span className="text-xs font-medium">Recurring (Weekly)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <RadioGroupItem value="adhoc" />
+                        <span className="text-xs font-medium">Ad-Hoc (Once-Off)</span>
+                      </label>
+                    </RadioGroup>
+                    <p className="text-xs text-muted-foreground">
+                      {formData.is_adhoc_lesson 
+                        ? 'Students can book individual sessions without a fixed weekly schedule'
+                        : 'Students attend fixed weekly lessons on set days'}
+                    </p>
                   </div>
-                  
+
+                  {/* Recurring-only fields */}
+                  {!formData.is_adhoc_lesson && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Lessons per Week</Label>
+                        <Select 
+                          value={String(formData.lessons_per_week)} 
+                          onValueChange={(value) => handleInputChange('lessons_per_week', parseInt(value))}
+                        >
+                          <SelectTrigger className="h-9 w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-xs">Available Days (days students can attend)</Label>
+                        <p className="text-xs text-muted-foreground">Select which days of the week students can choose from for their lessons</p>
+                        <div className="grid grid-cols-4 gap-2 pt-1">
+                          {WEEKDAYS.map(day => (
+                            <label key={day} className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox 
+                                checked={formData.lesson_days.includes(day)}
+                                onCheckedChange={(checked) => toggleLessonDay(day, !!checked)}
+                              />
+                              <span className="text-xs">{day}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {formData.lessons_per_week !== formData.lesson_days.length && formData.lesson_days.length > 0 && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            Note: Selected {formData.lesson_days.length} day(s) but lessons per week is {formData.lessons_per_week}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Class types - shown for both recurring and ad-hoc */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Available Days (days students can attend)</Label>
-                    <p className="text-xs text-muted-foreground">Select which days of the week students can choose from for their lessons</p>
-                    <div className="grid grid-cols-4 gap-2 pt-1">
-                      {WEEKDAYS.map(day => (
-                        <label key={day} className="flex items-center gap-2 cursor-pointer">
+                    <Label className="text-xs">Class Type (types students can book)</Label>
+                    <p className="text-xs text-muted-foreground">Select which class types are allowed for this product</p>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {CLASS_TYPES.map(ct => (
+                        <label key={ct} className="flex items-center gap-2 cursor-pointer">
                           <Checkbox 
-                            checked={formData.lesson_days.includes(day)}
-                            onCheckedChange={(checked) => toggleLessonDay(day, !!checked)}
+                            checked={formData.allowed_class_types.includes(ct)}
+                            onCheckedChange={(checked) => toggleClassType(ct, !!checked)}
                           />
-                          <span className="text-xs">{day}</span>
+                          <span className="text-xs">{ct}</span>
                         </label>
                       ))}
                     </div>
-                    {formData.lessons_per_week !== formData.lesson_days.length && formData.lesson_days.length > 0 && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        Note: Selected {formData.lesson_days.length} day(s) but lessons per week is {formData.lessons_per_week}
-                      </p>
-                    )}
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Class Type (types students can book)</Label>
-                  <p className="text-xs text-muted-foreground">Select which class types are allowed for this product</p>
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {CLASS_TYPES.map(ct => (
-                      <label key={ct} className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox 
-                          checked={formData.allowed_class_types.includes(ct)}
-                          onCheckedChange={(checked) => toggleClassType(ct, !!checked)}
-                        />
-                        <span className="text-xs">{ct}</span>
-                      </label>
-                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             </section>
 
             {/* Status Section */}
