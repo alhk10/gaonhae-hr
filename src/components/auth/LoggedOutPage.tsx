@@ -29,7 +29,7 @@ const LoggedOutPage: React.FC<LoggedOutPageProps> = ({ onLoginClick, hasError = 
           <p className="text-gray-600">
             {hasError 
               ? 'There was an error with your session. Please log in again to continue.'
-              : 'You have been successfully logged out of Gaonhae HR.'
+              : 'You have been successfully logged out of Gaonhae Taekwondo.'
             }
           </p>
           <Button 
