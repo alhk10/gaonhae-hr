@@ -10,6 +10,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays, e
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
 import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services/gradingService';
+import { getAttendanceForWeek } from '@/services/classAttendanceService';
 import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
 import SlotAttendanceDialog from './SlotAttendanceDialog';
 
@@ -80,7 +81,19 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
     staleTime: 60 * 1000, // 1 minute
   });
 
-  const isLoading = timetableLoading || classesLoading || gradingLoading;
+  // Fetch attendance records for the week (to merge manually-added students)
+  const { data: weekAttendance = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['week-attendance', branchId, format(currentWeekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd')],
+    queryFn: () => getAttendanceForWeek(
+      branchId,
+      format(currentWeekStart, 'yyyy-MM-dd'),
+      format(weekEnd, 'yyyy-MM-dd')
+    ),
+    enabled: !!branchId,
+    staleTime: 60 * 1000,
+  });
+
+  const isLoading = timetableLoading || classesLoading || gradingLoading || attendanceLoading;
 
   // Group scheduled classes and grading slots by date
   const groupedByDay = useMemo(() => {
@@ -120,11 +133,29 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
           beltLevels: slot.belt_levels || [],
           ageFrom: slot.age_from,
           ageTo: slot.age_to,
-          students: matchingClasses.map(sc => ({
-            id: sc.id,
-            name: sc.student_name || 'Unknown',
-            status: sc.status,
-          })),
+          students: (() => {
+            // Start with enrollment-based students
+            const enrolledStudents = matchingClasses.map(sc => ({
+              id: sc.id,
+              name: sc.student_name || 'Unknown',
+              status: sc.status,
+            }));
+
+            // Merge attendance-based students not already in enrolled list
+            const enrolledNames = new Set(enrolledStudents.map(s => s.name));
+            const attendanceForSlot = weekAttendance.filter(
+              a => a.timetable_id === slot.id && a.class_date === dateKey
+            );
+            const extraStudents = attendanceForSlot
+              .filter(a => !enrolledNames.has(a.student_name))
+              .map(a => ({
+                id: a.student_id,
+                name: a.student_name,
+                status: a.status,
+              }));
+
+            return [...enrolledStudents, ...extraStudents];
+          })(),
         });
       });
 
@@ -153,7 +184,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
     });
 
     return result;
-  }, [weekDays, timetable, scheduledClasses, gradingSlots]);
+  }, [weekDays, timetable, scheduledClasses, gradingSlots, weekAttendance]);
 
   const goToToday = () => {
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
