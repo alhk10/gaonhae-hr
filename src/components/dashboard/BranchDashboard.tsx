@@ -331,7 +331,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       <NegativeInventoryAlert branchId={branchId} />
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">
+        <h2 className="text-lg sm:text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
         <Button variant="outline" size="sm" onClick={() => setClassTypeSettingsOpen(true)}>
@@ -351,14 +351,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="timetable">Weekly Timetable</TabsTrigger>
-          <TabsTrigger value="students">Students ({activeStudentsCount})</TabsTrigger>
-          <TabsTrigger value="invoices">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
-          <TabsTrigger value="grading">Grading List ({gradingListCount})</TabsTrigger>
-          <TabsTrigger value="casual-schedule">Casual Employee Schedule</TabsTrigger>
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-          <TabsTrigger value="notices">Notices</TabsTrigger>
-          <TabsTrigger value="approvals">Pending Approvals ({pendingRequests.length})</TabsTrigger>
+          <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
+          <TabsTrigger value="students" className="text-xs sm:text-sm">Students ({activeStudentsCount})</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
+          <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingListCount})</TabsTrigger>
+          <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
+          <TabsTrigger value="inventory" className="text-xs sm:text-sm">Inventory</TabsTrigger>
+          <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
+          <TabsTrigger value="approvals" className="text-xs sm:text-sm">Approvals ({pendingRequests.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="space-y-4">
@@ -438,28 +438,29 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   {filteredStudents.slice(0, 20).map((student) => (
                     <div
                       key={student.id}
-                      className="px-3 py-2 flex items-center gap-3 hover:bg-muted/50 cursor-pointer text-sm"
+                      className="px-2 py-1.5 sm:px-3 sm:py-2 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 hover:bg-muted/50 cursor-pointer text-sm"
                       onClick={() => {
                         setSelectedStudent(student as Student);
                         setStudentDetailsOpen(true);
                       }}
                     >
-                      <span className="font-semibold uppercase tracking-wide truncate w-48 shrink-0">
-                        {student.first_name} {student.last_name}
-                      </span>
-                      <span className="text-muted-foreground text-xs truncate w-28 shrink-0">
-                        {student.phone || '—'}
-                      </span>
-                      <span className="text-muted-foreground text-xs truncate flex-1 min-w-0">
-                        {student.email || '—'}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-xs">
+                      {/* Line 1: Name + badges */}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-semibold uppercase tracking-wide truncate text-xs sm:text-sm sm:w-48 sm:shrink-0">
+                          {student.first_name} {student.last_name}
+                        </span>
+                        <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px] sm:text-xs shrink-0">
                           {student.current_belt || 'No belt'}
                         </Badge>
-                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className="text-xs capitalize">
+                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs capitalize shrink-0">
                           {student.status}
                         </Badge>
+                      </div>
+                      {/* Line 2: Contact info */}
+                      <div className="flex items-center gap-2 text-muted-foreground text-[11px] sm:text-xs sm:flex-1 min-w-0">
+                        <span className="truncate">{student.phone || '—'}</span>
+                        <span className="hidden sm:inline">·</span>
+                        <span className="truncate">{student.email || '—'}</span>
                       </div>
                     </div>
                   ))}
@@ -488,11 +489,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
         <TabsContent value="invoices">
           <Card>
-            <CardHeader>
+            <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle>Invoices & Payments</CardTitle>
-                  <CardDescription>Last 20 invoices for this branch</CardDescription>
+                  <CardTitle className="text-sm sm:text-base">Invoices & Payments</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Last 20 invoices for this branch</CardDescription>
                 </div>
               <div className="flex gap-2 items-center">
                   <DropdownMenu>
