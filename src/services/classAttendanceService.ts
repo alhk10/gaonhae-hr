@@ -585,6 +585,44 @@ export async function autoPopulateAttendanceFromSchedule(
 }
 
 /**
+ * Get all attendance records for a branch within a date range (for timetable display).
+ * Returns records with student names, grouped by timetable_id + class_date.
+ */
+export async function getAttendanceForWeek(
+  branchId: string,
+  startDate: string,
+  endDate: string
+): Promise<Array<{
+  student_id: string;
+  student_name: string;
+  timetable_id: string | null;
+  class_date: string;
+  status: string;
+}>> {
+  try {
+    const { data, error } = await supabase
+      .from('class_attendance')
+      .select('student_id, timetable_id, class_date, status, students(first_name, last_name)')
+      .eq('branch_id', branchId)
+      .gte('class_date', startDate)
+      .lte('class_date', endDate);
+
+    if (error) throw error;
+
+    return (data || []).map(r => ({
+      student_id: r.student_id,
+      student_name: r.students ? `${r.students.first_name} ${r.students.last_name}` : 'Unknown',
+      timetable_id: r.timetable_id,
+      class_date: r.class_date,
+      status: r.status,
+    }));
+  } catch (error) {
+    logger.error('Failed to get attendance for week', error);
+    return [];
+  }
+}
+
+/**
  * Bulk update attendance for multiple students
  */
 export async function bulkUpdateAttendance(
