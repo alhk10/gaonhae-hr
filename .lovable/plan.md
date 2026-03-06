@@ -1,31 +1,36 @@
 
 
-## Plan: Compact Mobile Invoice Tab with 6-Month Filter, Date & Name Search
+## Plan: Compact CreatePaymentDialog for Mobile
 
-### Changes to `src/components/dashboard/BranchDashboard.tsx`
+### Changes to `src/components/sales/CreatePaymentDialog.tsx`
 
-**1. Remove "Last 20 invoices" description**
+**1. Dialog width & padding — fit to page**
+- Change `max-w-2xl` to `max-w-[95vw] sm:max-w-2xl` on DialogContent
+- Reduce form spacing from `space-y-6` to `space-y-3`
 
-**2. Filter invoices by last 6 months instead of current year**
-- Compute `sixMonthsAgo` using `subMonths(new Date(), 6)` from date-fns
-- Update Supabase query: `.gte('created_at', sixMonthsAgo.toISOString())` and remove `.limit(20)`
-- Update query key to include the 6-month marker
+**2. Remove description text**
+- Remove `DialogDescription` ("Record a payment against an invoice")
 
-**3. Add date and name filtering**
-- New state: `invoiceDateFilter` (Date | null), `invoiceNameFilter` (string)
-- Compact filter row: small text input for name search + date picker
-- Client-side filtering on fetched results
+**3. Compact Invoice Details card**
+- Reduce CardHeader padding, CardTitle to `text-sm`
+- Reduce grid text to `text-xs`
+- Balance Due: shrink from `text-lg` to `text-sm`
+- **Remove quantity × unit price** from invoice items — show only description + total amount
 
-**4. Compact 2-line mobile invoice rows**
-- **Line 1**: Student name (bold, truncated) + amount + status badge + action buttons (h-6 w-6)
-- **Line 2**: Invoice number + date (muted, `text-[11px]`)
-- Row padding: `px-2 py-1.5`
-- Header buttons: `h-7 text-xs`, "Create" shortened on mobile
+**4. Compact Payment Details section**
+- Reduce heading from `text-lg` to `text-sm`
+- Shrink Label text, Input heights (`h-8`), Select triggers (`h-8`)
+- Reduce Textarea rows from 3 to 2
+- Upload button: `text-xs h-8`
+- Proof file display: smaller padding
 
-**5. Payment verification section — compact on mobile**
-- Proof image: `w-[100px] sm:w-[252px]`
-- Verify button: `text-xs h-7`
+**5. Compact footer buttons**
+- Cancel & Record Payment buttons: `text-xs h-8`
+
+**6. Default payment method to PayNow for Singapore**
+- In the initial `formData` state and `resetForm`, change default `payment_method` from `'bank_transfer'` to `'paynow'`
+- The existing `useEffect` on line 326-336 already handles switching to PayNow for Singapore branches — this just ensures the initial default matches
 
 ### Scope
-Single file: `src/components/dashboard/BranchDashboard.tsx`. Layout + minor query/filter logic changes.
+Single file: `src/components/sales/CreatePaymentDialog.tsx`. Layout + one default value change.
 
