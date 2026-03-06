@@ -1,57 +1,51 @@
 
 
-## Plan: Fix Orphaned Entitlements When Invoices Are Deleted or Edited
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
 ### Problem
-When an invoice is deleted (or items removed during editing), the associated `entitlements` records are **not** cleaned up. The `deleteInvoice` function in `invoiceService.ts` cleans up enrollments and scheduled classes but completely ignores entitlements. This causes orphaned entitlement records that inflate student session counts (e.g., Wei En showing 49 instead of 25).
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
 ### Changes
 
-#### 1. `src/services/invoiceService.ts` — `deleteInvoice` function (~line 599)
-After fetching `invoiceItems` and before deleting them, **deactivate entitlements** linked to those invoice items:
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-```typescript
-// Deactivate entitlements linked to this invoice's items
-if (invoiceItems && invoiceItems.length > 0) {
-  const itemIds = invoiceItems.map(item => item.id);
-  
-  await supabase
-    .from('entitlements')
-    .update({ is_active: false, notes: 'Deactivated - source invoice deleted' })
-    .in('source_id', itemIds)
-    .eq('source_type', 'invoice_item');
-}
-```
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-This goes inside the existing `if (invoiceItems && invoiceItems.length > 0)` block, alongside the enrollment cleanup.
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-#### 2. `src/components/sales/ViewEditInvoiceDialog.tsx` — item deletion during edit (~line 325-331)
-When invoice items are removed during editing, also deactivate their linked entitlements:
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-```typescript
-// Before deleting removed items, deactivate their entitlements
-if (removedItemIds.length > 0) {
-  await supabase
-    .from('entitlements')
-    .update({ is_active: false, notes: 'Deactivated - invoice item removed' })
-    .in('source_id', removedItemIds)
-    .eq('source_type', 'invoice_item');
-}
-```
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-#### 3. Database: Clean up Wei En's orphaned entitlement
-Run a migration to deactivate orphaned entitlements whose `source_id` no longer references a valid `invoice_items` row:
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-```sql
-UPDATE entitlements
-SET is_active = false, notes = 'Deactivated - orphaned (source invoice item missing)'
-WHERE source_type = 'invoice_item'
-  AND is_active = true
-  AND source_id NOT IN (SELECT id::text FROM invoice_items);
-```
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
+
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
 
 ### Scope
-- **Modified**: `src/services/invoiceService.ts` (add entitlement cleanup to delete flow)
-- **Modified**: `src/components/sales/ViewEditInvoiceDialog.tsx` (add entitlement cleanup to edit flow)
-- **Migration**: One-time cleanup of existing orphaned entitlements
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 
