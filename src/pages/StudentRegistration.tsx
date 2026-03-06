@@ -13,27 +13,9 @@ import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { submitStudentRegistration } from '@/services/studentRegistrationService';
 import { supabase } from '@/integrations/supabase/client';
+import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
 
-const commonNationalities = [
-  'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Argentine', 'Armenian', 'Australian', 'Austrian',
-  'Azerbaijani', 'Bahamian', 'Bahraini', 'Bangladeshi', 'Barbadian', 'Belarusian', 'Belgian', 'Belizean', 'Beninese', 'Bhutanese',
-  'Bolivian', 'Bosnian', 'Botswanan', 'Brazilian', 'British', 'Bruneian', 'Bulgarian', 'Burkinabe', 'Burmese', 'Burundian',
-  'Cambodian', 'Cameroonian', 'Canadian', 'Chilean', 'Chinese', 'Colombian', 'Croatian', 'Cuban', 'Czech', 'Danish',
-  'Dutch', 'Ecuadorian', 'Egyptian', 'Emirati', 'Estonian', 'Ethiopian', 'Filipino', 'Finnish', 'French', 'Georgian',
-  'German', 'Ghanaian', 'Greek', 'Hungarian', 'Icelandic', 'Indian', 'Indonesian', 'Iranian', 'Iraqi', 'Irish',
-  'Israeli', 'Italian', 'Jamaican', 'Japanese', 'Jordanian', 'Kazakh', 'Kenyan', 'Korean (South)', 'Kuwaiti', 'Latvian',
-  'Lebanese', 'Lithuanian', 'Malaysian', 'Maltese', 'Mexican', 'Mongolian', 'Moroccan', 'Nepalese', 'New Zealander',
-  'Nigerian', 'Norwegian', 'Pakistani', 'Palestinian', 'Peruvian', 'Polish', 'Portuguese', 'Qatari', 'Romanian', 'Russian',
-  'Saudi', 'Senegalese', 'Serbian', 'Singaporean', 'Slovak', 'Slovenian', 'South African', 'Spanish', 'Sri Lankan',
-  'Swedish', 'Swiss', 'Syrian', 'Taiwanese', 'Thai', 'Turkish', 'Ukrainian', 'Uruguayan', 'Venezuelan', 'Vietnamese',
-  'Zambian', 'Zimbabwean'
-];
-
-const commonLanguages = [
-  'English', 'Mandarin', 'Malay', 'Tamil', 'Cantonese', 'Hokkien', 'Teochew',
-  'Japanese', 'Korean', 'Thai', 'Vietnamese', 'Indonesian', 'Hindi', 'Bengali',
-  'Tagalog', 'French', 'German', 'Spanish', 'Arabic', 'Russian'
-];
+// Nationalities and languages imported from shared constants
 
 const referralSourceOptions = [
   { value: 'family_friends', label: 'Family & Friends' },
