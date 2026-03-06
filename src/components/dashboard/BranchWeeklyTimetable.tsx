@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isToday } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays, eachDayOfInterval, isToday, isSameWeek } from 'date-fns';
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
 import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services/gradingService';
@@ -33,6 +33,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Start on Monday
   );
+  const [mobileDate, setMobileDate] = useState(() => new Date());
   const [selectedSlot, setSelectedSlot] = useState<{
     timetableId: string;
     date: string;
@@ -154,9 +155,36 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
     return result;
   }, [weekDays, timetable, scheduledClasses, gradingSlots]);
 
-  const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const goToToday = () => {
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    setMobileDate(new Date());
+  };
   const goToPreviousWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
   const goToNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
+
+  const goToPreviousDay = () => {
+    setMobileDate(prev => {
+      const newDate = subDays(prev, 1);
+      // Sync week if needed
+      if (!isSameWeek(newDate, currentWeekStart, { weekStartsOn: 1 })) {
+        setCurrentWeekStart(startOfWeek(newDate, { weekStartsOn: 1 }));
+      }
+      return newDate;
+    });
+  };
+  const goToNextDay = () => {
+    setMobileDate(prev => {
+      const newDate = addDays(prev, 1);
+      if (!isSameWeek(newDate, currentWeekStart, { weekStartsOn: 1 })) {
+        setCurrentWeekStart(startOfWeek(newDate, { weekStartsOn: 1 }));
+      }
+      return newDate;
+    });
+  };
+
+  const mobileDateKey = format(mobileDate, 'yyyy-MM-dd');
+  const mobileDayClasses = groupedByDay[mobileDateKey] || [];
+  const mobileDayIsToday = isToday(mobileDate);
 
   const formatTimeDisplay = (time: string): string => {
     const [hours, minutes] = time.split(':');
@@ -330,116 +358,110 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
           </ScrollArea>
         </div>
 
-        {/* Weekly Grid - Mobile (stacked by day) */}
-        <div className="sm:hidden flex flex-col gap-2">
-          {weekDays.map(day => {
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const dayClasses = groupedByDay[dateKey] || [];
-            const dayIsToday = isToday(day);
+        {/* Mobile - Single day view */}
+        <div className="sm:hidden">
+          {/* Day Navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousDay}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-center">
+              <span className="text-sm font-semibold">
+                {WEEKDAYS[mobileDate.getDay()]?.short || format(mobileDate, 'EEE')}, {format(mobileDate, 'd MMM yyyy')}
+              </span>
+              {mobileDayIsToday && (
+                <Badge variant="default" className="ml-2 text-[10px] px-1.5 py-0">Today</Badge>
+              )}
+            </div>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextDay}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-            return (
-              <div
-                key={dateKey}
-                className={`border rounded-lg overflow-hidden ${
-                  dayIsToday ? 'border-primary border-2 bg-primary/5' : 'border-border'
-                }`}
-              >
-                {/* Day Header - inline on mobile */}
-                <div className={`px-3 py-1.5 flex items-center gap-2 font-medium ${
-                  dayIsToday ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}>
-                  <span className="text-sm font-semibold">{WEEKDAYS[day.getDay()]?.short || format(day, 'EEE')}</span>
-                  <span className="text-sm">{format(day, 'd MMM')}</span>
-                  {dayClasses.length > 0 && (
-                    <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                      {dayClasses.length} slot{dayClasses.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Slots */}
-                {dayClasses.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-2">No classes</p>
-                ) : (
-                  <div className="p-1.5 space-y-1.5">
-                    {dayClasses.map(slot => {
-                      const isClickable = slot.type === 'class';
-                      const handleSlotClick = () => {
-                        if (isClickable) {
-                          setSelectedSlot({
-                            timetableId: slot.id,
-                            date: dateKey,
-                            startTime: slot.startTime,
-                            endTime: slot.endTime,
-                            classType: slot.classType,
-                            beltLevels: slot.beltLevels,
-                            ageFrom: slot.ageFrom,
-                            ageTo: slot.ageTo,
-                          });
-                          setAttendanceDialogOpen(true);
-                        }
-                      };
-                      return (
-                        <div
-                          key={slot.id}
-                          onClick={handleSlotClick}
-                          className={`border rounded p-2 ${
-                            slot.type === 'grading' 
-                              ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' 
-                              : 'bg-card hover:bg-muted/50 cursor-pointer transition-colors'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {formatTimeDisplay(slot.startTime)}
+          {/* Day Content */}
+          <div className={`border rounded-lg overflow-hidden ${
+            mobileDayIsToday ? 'border-primary border-2 bg-primary/5' : 'border-border'
+          }`}>
+            {mobileDayClasses.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No classes</p>
+            ) : (
+              <div className="p-1.5 space-y-1.5">
+                {mobileDayClasses.map(slot => {
+                  const isClickable = slot.type === 'class';
+                  const handleSlotClick = () => {
+                    if (isClickable) {
+                      setSelectedSlot({
+                        timetableId: slot.id,
+                        date: mobileDateKey,
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        classType: slot.classType,
+                        beltLevels: slot.beltLevels,
+                        ageFrom: slot.ageFrom,
+                        ageTo: slot.ageTo,
+                      });
+                      setAttendanceDialogOpen(true);
+                    }
+                  };
+                  return (
+                    <div
+                      key={slot.id}
+                      onClick={handleSlotClick}
+                      className={`border rounded p-2 ${
+                        slot.type === 'grading' 
+                          ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' 
+                          : 'bg-card hover:bg-muted/50 cursor-pointer transition-colors'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {formatTimeDisplay(slot.startTime)}
+                        </span>
+                        {slot.type === 'grading' ? (
+                          <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-600 text-white">
+                            GRADING
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${getClassTypeBadgeClasses(slot.classType)}`}>
+                            {slot.classType}
+                          </Badge>
+                        )}
+                        {slot.beltLevels && slot.beltLevels.length > 0 && slot.type === 'grading' && (
+                          slot.beltLevels.map((belt, idx) => (
+                            <Badge key={idx} variant="outline" className="text-[10px] px-1 py-0">
+                              {belt}
+                            </Badge>
+                          ))
+                        )}
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          {slot.students.length} student{slot.students.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {slot.students.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {slot.students.map(student => (
+                            <span
+                              key={student.id}
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                slot.type === 'grading' 
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                                  : getStatusColor(student.status || 'scheduled')
+                              }`}
+                            >
+                              {student.name}
+                              {student.currentBelt && (
+                                <span className="ml-0.5 opacity-75">({student.currentBelt})</span>
+                              )}
                             </span>
-                            {slot.type === 'grading' ? (
-                              <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-600 text-white">
-                                GRADING
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${getClassTypeBadgeClasses(slot.classType)}`}>
-                                {slot.classType}
-                              </Badge>
-                            )}
-                            {slot.beltLevels && slot.beltLevels.length > 0 && slot.type === 'grading' && (
-                              slot.beltLevels.map((belt, idx) => (
-                                <Badge key={idx} variant="outline" className="text-[10px] px-1 py-0">
-                                  {belt}
-                                </Badge>
-                              ))
-                            )}
-                            <span className="text-[10px] text-muted-foreground ml-auto">
-                              {slot.students.length} student{slot.students.length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                          {slot.students.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {slot.students.map(student => (
-                                <span
-                                  key={student.id}
-                                  className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    slot.type === 'grading' 
-                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
-                                      : getStatusColor(student.status || 'scheduled')
-                                  }`}
-                                >
-                                  {student.name}
-                                  {student.currentBelt && (
-                                    <span className="ml-0.5 opacity-75">({student.currentBelt})</span>
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          ))}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
 
         {/* Attendance Dialog */}
