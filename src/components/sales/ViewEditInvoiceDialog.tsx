@@ -321,8 +321,15 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       const currentIds = new Set(editItems.filter(i => !i.isNew).map(i => i.id));
       const removedIds = [...originalIds].filter(id => !currentIds.has(id));
       
-      // Delete removed items
+      // Delete removed items and deactivate their entitlements
       if (removedIds.length > 0) {
+        // Deactivate entitlements linked to removed invoice items
+        await supabase
+          .from('entitlements')
+          .update({ is_active: false, notes: 'Deactivated - invoice item removed' })
+          .in('source_id', removedIds)
+          .eq('source_type', 'invoice_item');
+
         const { error: deleteError } = await supabase
           .from('invoice_items')
           .delete()
