@@ -1,36 +1,29 @@
 
 
-## Plan: Mobile-Friendly Dashboard Tabs and Compact Student List
+## Plan: Mobile Day-by-Day Timetable View
 
 ### Problem
-The DashboardSwitcher tabs (Overview, Branch, Employee, Student) show as a single scrollable line on mobile, getting cut off. The Branch Dashboard content including its tabs and student list need smaller font sizes, tighter padding, and a 2-line per row layout for mobile.
+The weekly timetable currently uses a 7-column grid with `min-w-[800px]` and horizontal scrolling, which is unusable on mobile.
 
-### Changes
+### Solution
+On mobile (`sm:` breakpoint), switch from the 7-column grid to a vertical stacked list showing one day at a time with day navigation tabs, or simply stack all days vertically. A day-by-day accordion/tab approach is cleanest.
 
-**1. `src/components/dashboard/DashboardSwitcher.tsx` — 2-line tab layout on mobile**
-- Change `TabsList` from `overflow-x-auto` to `grid grid-cols-2 sm:flex sm:w-auto w-full` so the 4 tabs display as a 2x2 grid on mobile, wrapping into 2 lines.
+**Approach: Vertical day stack on mobile, grid on desktop**
 
-**2. `src/components/dashboard/BranchDashboard.tsx` — Compact mobile styling**
+### Changes to `src/components/dashboard/BranchWeeklyTimetable.tsx`
 
-*Header:*
-- Reduce title from `text-2xl` to `text-lg sm:text-2xl`
+1. **Remove `min-w-[800px]` wrapper on mobile** — only apply it on `sm:` and above
+2. **Mobile layout**: Stack days vertically as collapsible sections or simple cards, each showing the day header and its slots beneath
+3. **Desktop layout**: Keep existing 7-column grid unchanged
 
-*Branch tabs (lines 352-362):*
-- Add smaller text on mobile: `text-xs` on TabsTriggers
-- Ensure `flex-wrap` continues to work for multi-line wrapping
-
-*Student list (lines 437-465):*
-- Convert from single-line horizontal layout to a 2-line stacked layout on mobile:
-  - **Line 1**: Name (bold, uppercase) + belt badge + status badge
-  - **Line 2**: Phone + email (smaller, muted)
-- On desktop, keep the current single-line layout
-- Use `flex-col sm:flex-row` pattern for responsive switching
-- Reduce padding: `px-2 py-1.5 sm:px-3 sm:py-2`
-
-*Invoice & Payment section:*
-- Reduce CardHeader padding on mobile
-- Smaller font sizes for mobile
+Specifically:
+- Wrap the grid in responsive classes: `flex flex-col gap-2 sm:grid sm:grid-cols-7 sm:gap-2`
+- Remove the `min-w-[800px]` div — use `sm:min-w-[800px]` or remove entirely since the grid handles it
+- On mobile, each day card becomes a full-width row with the day header on the left and slots flowing to the right or below
+- Reduce `min-h-[200px]` to `min-h-0` on mobile
+- Day header: horizontal layout on mobile (`flex items-center gap-2 p-2`) showing "Mon 3" inline, vertical on desktop (current centered layout)
+- Keep ScrollArea only for desktop: conditionally wrap or use `overflow-auto` only on `sm:`
 
 ### Scope
-Only UI/CSS changes — no database or logic changes needed. Two files modified.
+Single file change: `src/components/dashboard/BranchWeeklyTimetable.tsx`. CSS/layout only, no logic changes.
 
