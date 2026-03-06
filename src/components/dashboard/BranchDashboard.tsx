@@ -222,47 +222,61 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
-  // Fetch grading list count (students with lesson invoices for current term)
-  const { data: gradingListCount = 0 } = useQuery({
+  // Fetch grading list count and paid count (students with lesson invoices for current term)
+  const { data: gradingMetrics = { total: 0, paid: 0 } } = useQuery({
     queryKey: ['grading-list-count', branchId, currentTerm?.id],
     queryFn: async () => {
-      if (!currentTerm) return 0;
+      if (!currentTerm) return { total: 0, paid: 0 };
       
-      // Get lesson products
-      const { data: lessonProducts } = await supabase
-        .from('products')
-        .select('id')
-        .eq('is_lesson', true);
-      
-      const lessonProductIds = (lessonProducts || []).map(p => p.id);
-      if (lessonProductIds.length === 0) return 0;
-
-      // Get invoice items with lesson products for this branch
-      const { data: invoiceItems } = await supabase
-        .from('invoice_items')
+      // Get grading registrations with invoice info for this term's grading slots
+      const { data: registrations } = await supabase
+        .from('grading_registrations')
         .select(`
-          metadata,
-          invoices!inner (
-            student_id,
+          id,
+          student_id,
+          invoice_item_id,
+          grading_slots!inner (
             branch_id
           )
         `)
-        .in('product_id', lessonProductIds)
-        .eq('invoices.branch_id', branchId);
+        .not('grading_slot_id', 'is', null);
 
-      // Filter by term_id in metadata and get unique student count
-      const studentIds = new Set<string>();
-      (invoiceItems || []).forEach(item => {
-        const metadata = item.metadata as Record<string, any> | null;
-        if (metadata?.term_id === currentTerm.id) {
-          studentIds.add((item.invoices as any).student_id);
-        }
-      });
+      if (!registrations || registrations.length === 0) return { total: 0, paid: 0 };
 
-      return studentIds.size;
+      // Filter by branch
+      const branchRegs = registrations.filter(
+        r => (r.grading_slots as any)?.branch_id === branchId
+      );
+
+      // Get unique students (total)
+      const allStudentIds = new Set(branchRegs.map(r => r.student_id));
+      const total = allStudentIds.size;
+
+      // Get invoice_item_ids to check payment status
+      const itemIds = branchRegs
+        .filter(r => r.invoice_item_id)
+        .map(r => r.invoice_item_id as string);
+
+      if (itemIds.length === 0) return { total, paid: 0 };
+
+      // Check which invoice items belong to paid invoices
+      const { data: paidItems } = await supabase
+        .from('invoice_items')
+        .select('id, invoices!inner(status, student_id)')
+        .in('id', itemIds)
+        .eq('invoices.status', 'paid');
+
+      const paidStudentIds = new Set(
+        (paidItems || []).map(item => (item.invoices as any).student_id)
+      );
+
+      return { total, paid: paidStudentIds.size };
     },
     enabled: !!branchId && !!currentTerm,
   });
+
+  const gradingListCount = gradingMetrics.total;
+  const gradingPaidCount = gradingMetrics.paid;
 
   // Check if casual employees have bookings this month
   const { data: hasCasualBookings = false } = useQuery({
@@ -383,7 +397,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
-          <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingListCount})</TabsTrigger>
+          <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{gradingListCount})</TabsTrigger>
           {hasCasualBookings && (
             <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
           )}
