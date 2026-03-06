@@ -56,7 +56,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     invoice_id: preSelectedInvoiceId || '',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
-    payment_method: 'bank_transfer' as CreatePaymentData['payment_method'],
+    payment_method: 'paynow' as CreatePaymentData['payment_method'],
     reference_number: '',
     proof_of_payment_url: '',
     notes: ''
@@ -210,7 +210,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       invoice_id: preSelectedInvoiceId || '',
       amount: '',
       payment_date: new Date().toISOString().split('T')[0],
-      payment_method: 'bank_transfer',
+      payment_method: 'paynow',
       reference_number: '',
       proof_of_payment_url: '',
       notes: ''
@@ -347,15 +347,12 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
-          <DialogDescription>
-            Record a payment against an invoice
-          </DialogDescription>
+          <DialogTitle className="text-sm">Record Payment</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Invoice Selection - Hidden when pre-selected (e.g., from Student Portal) */}
           {!preSelectedInvoiceId && (
             <div className="space-y-4">
@@ -405,14 +402,14 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
           {/* Selected Invoice Info */}
           {selectedInvoice && (
             <Card className="bg-muted/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5" />
                   Invoice Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+              <CardContent className="space-y-2 px-3 pb-3">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">Student:</span>
                     <div className="font-medium">{selectedInvoice.student_name}</div>
@@ -427,7 +424,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Balance Due:</span>
-                    <div className="font-bold text-lg text-destructive">
+                    <div className="font-bold text-sm text-destructive">
                       {formatCurrencyValue(selectedInvoice.balance_due)}
                     </div>
                   </div>
@@ -435,20 +432,17 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
                 {/* Invoice Items */}
                 {invoiceItems.length > 0 && (
-                  <div className="border-t pt-3 mt-2">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Items</p>
-                    <div className="space-y-1.5">
+                  <div className="border-t pt-2 mt-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Items</p>
+                    <div className="space-y-1">
                       {invoiceItems.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-sm">
+                        <div key={item.id} className="flex items-center justify-between text-xs">
                           <div className="flex-1 min-w-0">
                             <span className="truncate block">{item.description}</span>
                           </div>
-                          <div className="flex items-center gap-3 ml-2 text-muted-foreground shrink-0">
-                            <span>{item.quantity} × {formatCurrencyValue(item.unit_price)}</span>
-                            <span className="font-medium text-foreground w-20 text-right">
-                              {formatCurrencyValue(item.total_amount)}
-                            </span>
-                          </div>
+                          <span className="font-medium text-foreground ml-2 shrink-0">
+                            {formatCurrencyValue(item.total_amount)}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -459,14 +453,14 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
           )}
 
           {/* Payment Details */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Payment Details</h3>
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Payment Details</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Payment Amount *</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="amount" className="text-xs">Payment Amount *</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <DollarSign className="absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     id="amount"
                     type="number"
@@ -476,33 +470,34 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                     value={formData.amount}
                     onChange={(e) => handleInputChange('amount', e.target.value)}
                     placeholder="0.00"
-                    className="pl-10"
+                    className="pl-9 h-8 text-xs"
                     required
                   />
                 </div>
                 {selectedInvoice && formData.amount && parseFloat(formData.amount) > selectedInvoice.balance_due && (
-                  <p className="text-sm text-destructive">
+                  <p className="text-xs text-destructive">
                     Amount exceeds balance due of {formatCurrencyValue(selectedInvoice.balance_due)}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payment_date">Payment Date *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="payment_date" className="text-xs">Payment Date *</Label>
                 <Input
                   id="payment_date"
                   type="date"
                   value={formData.payment_date}
                   onChange={(e) => handleInputChange('payment_date', e.target.value)}
+                  className="h-8 text-xs"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="payment_method">Payment Method *</Label>
+            <div className="space-y-1">
+              <Label htmlFor="payment_method" className="text-xs">Payment Method *</Label>
               <Select value={formData.payment_method} onValueChange={(value) => handleInputChange('payment_method', value)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -522,19 +517,20 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               paynowQrUrl={invoiceTemplate?.paynow_qr_url}
             />
 
-            <div className="space-y-2">
-              <Label htmlFor="reference_number">Reference Number</Label>
+            <div className="space-y-1">
+              <Label htmlFor="reference_number" className="text-xs">Reference Number</Label>
               <Input
                 id="reference_number"
                 value={formData.reference_number}
                 onChange={(e) => handleInputChange('reference_number', e.target.value)}
                 placeholder="Transaction ID, cheque number, etc."
+                className="h-8 text-xs"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Proof of Payment {formData.payment_method !== 'cash' && '*'}</Label>
-              <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Proof of Payment {formData.payment_method !== 'cash' && '*'}</Label>
+              <div className="space-y-1.5">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -544,44 +540,45 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                   id="proof-upload"
                 />
                 {proofFile ? (
-                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 text-sm truncate">{proofFile.name}</span>
+                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="flex-1 text-xs truncate">{proofFile.name}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                       onClick={removeFile}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
                 ) : (
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="w-full h-8 text-xs"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
                     Upload Proof of Payment
                   </Button>
                 )}
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   Accepted formats: Images, PDF (max 5MB)
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-xs">Notes</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="Additional notes about this payment"
-                rows={3}
+                rows={2}
+                className="text-xs"
               />
             </div>
           </div>
@@ -592,11 +589,12 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              className="h-8 text-xs"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || uploadingProof || !formData.invoice_id || !formData.amount}>
-              {(loading || uploadingProof) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <Button type="submit" disabled={loading || uploadingProof || !formData.invoice_id || !formData.amount} className="h-8 text-xs">
+              {(loading || uploadingProof) && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
               {uploadingProof ? 'Uploading...' : 'Record Payment'}
             </Button>
           </DialogFooter>
