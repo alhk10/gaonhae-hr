@@ -110,7 +110,7 @@ const DashboardSwitcher: React.FC<DashboardSwitcherProps> = ({ defaultView = 'ov
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
             <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)}>
-              <TabsList className="w-full sm:w-auto overflow-x-auto">
+              <TabsList className="grid grid-cols-2 w-full sm:flex sm:w-auto h-auto">
                 <TabsTrigger value="overview" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                   <Eye className="w-4 h-4 hidden sm:block" />
                   Overview
