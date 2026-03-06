@@ -1,41 +1,33 @@
 
 
-## Plan: Use Remaining Entitlement Sessions Before Issuing Ad-Hoc Invoice
+## Plan: Fix Attendance Auto-Population Check Constraint Error
 
-### Problem
-When a student is added to a class slot, the system checks attendance count vs purchased quota (from invoice items). If exceeded, it creates an overage invoice. But it doesn't account for **unbooked entitlement sessions** — the student may have paid for the term but simply hasn't booked all their sessions yet.
+### Root Cause
 
-### Revised Logic for `checkAndIssueOverageInvoice`
+The `class_attendance` table has a check constraint (`class_attendance_attendance_method_check`) that only allows these values for `attendance_method`: `'manual'`, `'scan'`, `'app'`, `'kiosk'`.
 
-**File: `src/services/classAttendanceService.ts`**
+The previous implementation used `'auto_scheduled'` which violates this constraint, causing the insert to fail with error code `23514`. This is why Abby is not showing in the Thursday attendance dialog — the auto-populate silently fails.
 
-**Current flow:**
-1. Count attended lessons in term
-2. Get purchased quota from invoice items
-3. If attended > quota → create overage invoice
+Ally's Friday attendance record was created manually (method: `'manual'`) so it works, but she only shows because someone already added her. The auto-populate path is broken for all students.
 
-**New flow:**
-1. Count attended lessons in term
-2. Get purchased quota from invoice items
-3. **Also check `entitlements` table** for the student — sum `sessions_remaining` from active entitlements (`is_active = true`, `valid_to` is null or >= today)
-4. If `sessions_remaining > 0` → **consume one session** (decrement `sessions_remaining`, increment `sessions_used`) → no invoice needed
-5. If `sessions_remaining === 0` AND attended > quota → create ad-hoc lesson invoice using the correct "Ad-Hoc Lesson" product (`66b8a674-73b9-4460-a87c-809882ba0b13`, $27 base price)
+### Changes
 
-### Additional Fix: Auto-Populate Attendance
+#### 1. Database Migration: Update check constraint to include `'auto_scheduled'`
 
-**Same file, `autoPopulateAttendanceFromSchedule` function:**
+```sql
+ALTER TABLE public.class_attendance 
+DROP CONSTRAINT class_attendance_attendance_method_check;
 
-The embedded join `student_class_enrollments(student_id)` should work given the FK exists. However, to be safe and handle edge cases, split into two queries:
-1. Query `student_scheduled_classes` for `enrollment_id`s matching the timetable and date
-2. Query `student_class_enrollments` for `student_id`s using those enrollment IDs
+ALTER TABLE public.class_attendance 
+ADD CONSTRAINT class_attendance_attendance_method_check 
+CHECK (attendance_method = ANY (ARRAY['manual', 'scan', 'app', 'kiosk', 'auto_scheduled']));
+```
 
-### Ad-Hoc Invoice Details
+#### 2. No code changes needed
 
-- Update `OVERAGE_PRODUCT_ID` to `66b8a674-73b9-4460-a87c-809882ba0b13` (Ad-Hoc Lesson)
-- Update price to $27 (with branch `price_rules` override lookup)
-- Invoice metadata: `type: 'adhoc'` when no entitlement exists, `type: 'overage'` when quota exceeded after entitlement depletion
-- Description: "Ad-Hoc Lesson" instead of "1x Weekend"
+The code in `classAttendanceService.ts` is already correct — it uses `'auto_scheduled'` which is the right value. The constraint just needs to be updated to allow it.
 
 ### Scope
-Single file: `src/services/classAttendanceService.ts`
+- One database migration (alter check constraint)
+- No file changes
 
