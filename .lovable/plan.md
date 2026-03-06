@@ -1,29 +1,20 @@
 
 
-## Plan: Mobile Day-by-Day Timetable View
+## Plan: Show Only Today on Mobile Timetable View
 
 ### Problem
-The weekly timetable currently uses a 7-column grid with `min-w-[800px]` and horizontal scrolling, which is unusable on mobile.
-
-### Solution
-On mobile (`sm:` breakpoint), switch from the 7-column grid to a vertical stacked list showing one day at a time with day navigation tabs, or simply stack all days vertically. A day-by-day accordion/tab approach is cleanest.
-
-**Approach: Vertical day stack on mobile, grid on desktop**
+The mobile timetable currently stacks all 7 days vertically, requiring excessive scrolling. The user wants to show only today's schedule on mobile.
 
 ### Changes to `src/components/dashboard/BranchWeeklyTimetable.tsx`
 
-1. **Remove `min-w-[800px]` wrapper on mobile** — only apply it on `sm:` and above
-2. **Mobile layout**: Stack days vertically as collapsible sections or simple cards, each showing the day header and its slots beneath
-3. **Desktop layout**: Keep existing 7-column grid unchanged
+1. **Add day navigation state for mobile** — Add a `mobileDate` state initialized to `new Date()`, with prev/next day buttons so the user can navigate between days on mobile.
 
-Specifically:
-- Wrap the grid in responsive classes: `flex flex-col gap-2 sm:grid sm:grid-cols-7 sm:gap-2`
-- Remove the `min-w-[800px]` div — use `sm:min-w-[800px]` or remove entirely since the grid handles it
-- On mobile, each day card becomes a full-width row with the day header on the left and slots flowing to the right or below
-- Reduce `min-h-[200px]` to `min-h-0` on mobile
-- Day header: horizontal layout on mobile (`flex items-center gap-2 p-2`) showing "Mon 3" inline, vertical on desktop (current centered layout)
-- Keep ScrollArea only for desktop: conditionally wrap or use `overflow-auto` only on `sm:`
+2. **Update mobile navigation header** — On mobile, show day-level navigation (< Today >) with the current day displayed (e.g., "Tue 3 Mar") instead of the week range.
+
+3. **Filter mobile view to single day** — Instead of mapping over all `weekDays`, the mobile section will only render the single `mobileDate` day's slots.
+
+4. **Sync mobile date with week changes** — When the user navigates weeks, reset `mobileDate` to the first day of that week (or today if the current week).
 
 ### Scope
-Single file change: `src/components/dashboard/BranchWeeklyTimetable.tsx`. CSS/layout only, no logic changes.
+Single file: `src/components/dashboard/BranchWeeklyTimetable.tsx`. Logic + layout change, no new dependencies.
 
