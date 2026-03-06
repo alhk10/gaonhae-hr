@@ -1101,19 +1101,19 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
         <DialogHeader>
-          <DialogTitle>Create New Invoice</DialogTitle>
+          <DialogTitle className="text-base md:text-lg">Create New Invoice</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Invoice Details - Branch first, then Student */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Invoice Details</h3>
+          <div className="space-y-2 md:space-y-4">
+            <h3 className="text-sm md:text-lg font-medium">Invoice Details</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="branch_id">Branch *</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+              <div className="space-y-1 md:space-y-2">
+                <Label htmlFor="branch_id" className="text-xs md:text-sm">Branch *</Label>
                 {lockedBranchId ? (
                   <div className="flex items-center h-10 px-3 rounded-md border border-input bg-muted text-sm">
                     {branches.find(b => b.id === lockedBranchId)?.name || lockedBranchId}
@@ -1134,8 +1134,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="student_id">Student *</Label>
+              <div className="space-y-1 md:space-y-2">
+                <Label htmlFor="student_id" className="text-xs md:text-sm">Student *</Label>
                 <StudentSearchSelect
                   students={filteredStudents}
                   value={formData.student_id}
@@ -1152,11 +1152,116 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           </div>
 
           {/* Invoice Items Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Invoice Items</h3>
+          <div className="space-y-2 md:space-y-4">
+            <h3 className="text-sm md:text-lg font-medium">Invoice Items</h3>
 
-            {/* Items Table with Inline Add Row */}
-            <Table>
+            {/* === MOBILE CARD LAYOUT === */}
+            <div className="md:hidden space-y-2">
+              {/* Existing Items as compact cards */}
+              {items.map((item, index) => {
+                const itemProduct = products.find(p => p.id === item.product_id);
+                const itemCategory = categories.find(c => c.id === itemProduct?.category_id);
+                return (
+                  <div key={index} className="border rounded-md p-2 space-y-1 text-xs">
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-muted-foreground">{itemCategory?.name || '-'} · </span>
+                        <span className="font-medium">{item.product_name}</span>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-6 w-6 shrink-0 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Qty:</span>
+                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-12 h-6 text-xs px-1" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Price:</span>
+                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className="w-16 h-6 text-xs px-1" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Disc:</span>
+                        <LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} />
+                      </div>
+                      <span className="font-medium ml-auto">${item.total.toFixed(2)}</span>
+                    </div>
+                    {(item.size_variant || item.color_variant || item.term_name || item.grading_slot_title) && (
+                      <div className="text-muted-foreground flex gap-2 flex-wrap">
+                        {item.size_variant && <span>Size: {item.size_variant}</span>}
+                        {item.color_variant && <span>Color: {item.color_variant}</span>}
+                        {item.term_name && <span>Term: {item.term_name}</span>}
+                        {item.grading_slot_title && <span>Slot: {item.grading_slot_title}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Mobile Add Item Card */}
+              <div className="border rounded-md p-2 space-y-2 bg-muted/30 text-xs">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 items-end">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="h-7 text-xs px-1" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Price</Label>
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground' : ''}`} />
+                  </div>
+                  <Button type="button" onClick={addItem} size="sm" className="h-7 text-xs" disabled={!newItem.product_id}>
+                    <Plus className="h-3 w-3 mr-1" /> Add
+                  </Button>
+                </div>
+                {/* Size / Color / Term row - only when relevant */}
+                {(sizeOptions.length > 0 || showSizeInput || colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees') && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {sizeOptions.length > 0 ? (
+                      <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>{sizeOptions.map((size) => (<SelectItem key={size} value={size}>{size}</SelectItem>))}</SelectContent>
+                      </Select>
+                    ) : showSizeInput ? (
+                      <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs px-1" />
+                    ) : colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    {colorOptions.length > 0 ? (
+                      <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>{colorOptions.map((color) => (<SelectItem key={color} value={color}>{color}</SelectItem>))}</SelectContent>
+                      </Select>
+                    ) : selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    {selectedCategory?.name === 'Classes' && branchTerms.length > 0 ? (
+                      <Select value={newItem.term_id} onValueChange={(value) => handleNewItemChange('term_id', value)} disabled={termLoading}>
+                        <SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
+                        <SelectContent>{branchTerms.map((term) => (<SelectItem key={term.id} value={term.id}>{term.name}</SelectItem>))}</SelectContent>
+                      </Select>
+                    ) : selectedCategory?.name === 'Grading Fees' && getFilteredGradingSlots().length > 0 ? (
+                      <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
+                        <SelectContent>{getFilteredGradingSlots().map((slot) => (<SelectItem key={slot.id} value={slot.id}>{slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>))}</SelectContent>
+                      </Select>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* === DESKTOP TABLE LAYOUT === */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Category</TableHead>
@@ -1183,45 +1288,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                          className="w-14 h-8"
-                        />
+                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-14 h-8" />
                       </TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unit_price}
-                          onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
-                          className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`}
-                        />
+                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                       </TableCell>
                       <TableCell>
-                        <LineDiscountPopover
-                          discountType={item.discount_type}
-                          discountValue={item.discount_value}
-                          onChange={(type, value) => updateItemDiscount(index, type, value)}
-                        />
+                        <LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} />
                       </TableCell>
                       <TableCell>{item.size_variant || '-'}</TableCell>
                       <TableCell>{item.color_variant || '-'}</TableCell>
                       <TableCell>{item.term_name || item.grading_slot_title || '-'}</TableCell>
-                      <TableCell className="font-medium">
-                        ${item.total.toFixed(2)}
-                      </TableCell>
+                      <TableCell className="font-medium">${item.total.toFixed(2)}</TableCell>
                       <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(index)}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-8 w-8 text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -1233,70 +1313,28 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 <TableRow className="bg-muted/30">
                   <TableCell>
                     <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
-                      <SelectTrigger className="h-8 w-24">
-                        <SelectValue placeholder="Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectTrigger className="h-8 w-24"><SelectValue placeholder="Category" /></SelectTrigger>
+                      <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>))}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <ProductSearchSelect
-                      products={filteredProducts}
-                      value={newItem.product_id}
-                      onValueChange={handleProductChange}
-                    />
+                    <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={newItem.quantity}
-                      onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)}
-                      className="w-14 h-8"
-                    />
+                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-14 h-8" />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newItem.unit_price}
-                      onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)}
-                      disabled={selectedProduct && selectedProduct.base_price > 0}
-                      className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`}
-                    />
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                   </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground text-sm">-</span>
-                  </TableCell>
+                  <TableCell><span className="text-muted-foreground text-sm">-</span></TableCell>
                   <TableCell>
                     {sizeOptions.length > 0 ? (
                       <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
-                        <SelectTrigger className="h-8 w-20">
-                          <SelectValue placeholder="Size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sizeOptions.map((size) => (
-                            <SelectItem key={size} value={size}>
-                              {size}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectContent>{sizeOptions.map((size) => (<SelectItem key={size} value={size}>{size}</SelectItem>))}</SelectContent>
                       </Select>
                     ) : showSizeInput ? (
-                      <Input
-                        type="text"
-                        value={newItem.size_variant}
-                        onChange={(e) => handleNewItemChange('size_variant', e.target.value)}
-                        placeholder="Size"
-                        className="h-8 w-20"
-                      />
+                      <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-8 w-20" />
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
@@ -1304,16 +1342,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <TableCell>
                     {colorOptions.length > 0 ? (
                       <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
-                        <SelectTrigger className="h-8 w-20">
-                          <SelectValue placeholder="Color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorOptions.map((color) => (
-                            <SelectItem key={color} value={color}>
-                              {color}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectContent>{colorOptions.map((color) => (<SelectItem key={color} value={color}>{color}</SelectItem>))}</SelectContent>
                       </Select>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
@@ -1322,42 +1352,18 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   <TableCell>
                     {selectedCategory?.name === 'Classes' ? (
                       branchTerms.length > 0 ? (
-                        <Select 
-                          value={newItem.term_id} 
-                          onValueChange={(value) => handleNewItemChange('term_id', value)}
-                          disabled={termLoading}
-                        >
-                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}>
-                            <SelectValue placeholder={termLoading ? "..." : "Term"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {branchTerms.map((term) => (
-                              <SelectItem key={term.id} value={term.id}>
-                                {term.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                        <Select value={newItem.term_id} onValueChange={(value) => handleNewItemChange('term_id', value)} disabled={termLoading}>
+                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
+                          <SelectContent>{branchTerms.map((term) => (<SelectItem key={term.id} value={term.id}>{term.name}</SelectItem>))}</SelectContent>
                         </Select>
                       ) : (
                         <span className="text-muted-foreground text-xs">No terms</span>
                       )
                     ) : selectedCategory?.name === 'Grading Fees' ? (
                       getFilteredGradingSlots().length > 0 ? (
-                        <Select 
-                          value={newItem.grading_slot_id} 
-                          onValueChange={(value) => handleNewItemChange('grading_slot_id', value)}
-                          disabled={gradingSlotsLoading}
-                        >
-                          <SelectTrigger className="h-8 w-36">
-                            <SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getFilteredGradingSlots().map((slot) => (
-                              <SelectItem key={slot.id} value={slot.id}>
-                                {slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                        <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
+                          <SelectTrigger className="h-8 w-36"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
+                          <SelectContent>{getFilteredGradingSlots().map((slot) => (<SelectItem key={slot.id} value={slot.id}>{slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>))}</SelectContent>
                         </Select>
                       ) : (
                         <span className="text-muted-foreground text-xs">No slots</span>
@@ -1368,13 +1374,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   </TableCell>
                   <TableCell className="text-muted-foreground">-</TableCell>
                   <TableCell>
-                    <Button 
-                      type="button" 
-                      onClick={addItem} 
-                      size="icon"
-                      className="h-8 w-8"
-                      disabled={!newItem.product_id}
-                    >
+                    <Button type="button" onClick={addItem} size="icon" className="h-8 w-8" disabled={!newItem.product_id}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -1383,13 +1383,13 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             </Table>
 
             {termError && selectedCategory?.name === 'Classes' && (
-              <p className="text-sm text-destructive">{termError}</p>
+              <p className="text-xs md:text-sm text-destructive">{termError}</p>
             )}
 
             {/* Class Schedule Selector */}
             {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Select Class Schedule</h4>
+              <div className="space-y-1 md:space-y-2">
+                <h4 className="text-xs md:text-sm font-medium">Select Class Schedule</h4>
                 <ClassScheduleSelector
                   branchId={formData.branch_id}
                   studentAge={studentAge}
@@ -1404,7 +1404,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             {/* Totals Section */}
             {items.length > 0 && (
               <div className="flex justify-end">
-                <div className="w-64 space-y-2">
+                <div className="w-full md:w-64 space-y-1 md:space-y-2 text-xs md:text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
@@ -1413,7 +1413,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <span>Tax ({taxRate}%{isInclusive ? ' incl.' : ''}):</span>
                     <span>${taxAmount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <div className="flex justify-between font-bold text-sm md:text-lg border-t pt-1 md:pt-2">
                     <span>Total:</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
@@ -1425,26 +1425,28 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           <Separator />
 
           {/* Notes Section */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+          <div className="space-y-2 md:space-y-4">
+            <div className="space-y-1 md:space-y-2">
+              <Label htmlFor="notes" className="text-xs md:text-sm">Notes</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="Public notes (visible to student)"
-                rows={2}
+                rows={1}
+                className="min-h-[32px] md:min-h-[60px] text-xs md:text-sm"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="internal_notes">Internal Notes</Label>
+            <div className="space-y-1 md:space-y-2">
+              <Label htmlFor="internal_notes" className="text-xs md:text-sm">Internal Notes</Label>
               <Textarea
                 id="internal_notes"
                 value={formData.internal_notes}
                 onChange={(e) => handleInputChange('internal_notes', e.target.value)}
                 placeholder="Internal notes (not visible to student)"
-                rows={2}
+                rows={1}
+                className="min-h-[32px] md:min-h-[60px] text-xs md:text-sm"
               />
             </div>
           </div>
@@ -1455,10 +1457,11 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              className="text-xs md:text-sm h-8 md:h-10"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || items.length === 0}>
+            <Button type="submit" disabled={loading || items.length === 0} className="text-xs md:text-sm h-8 md:h-10">
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Invoice
             </Button>
