@@ -587,7 +587,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
               {/* Invoices Section */}
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Invoices</h4>
+                
                 {(() => {
                   const filteredInvoices = invoices.filter((invoice: any) => {
                     const studentName = invoice.students
