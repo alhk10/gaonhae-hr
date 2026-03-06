@@ -22,7 +22,8 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+import { format, subMonths, isSameDay } from 'date-fns';
+import { DatePicker } from '@/components/ui/date-picker';
 import { toast } from 'sonner';
 import { 
   getPendingRequestsByBranch, 
@@ -92,6 +93,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
   const [classTypeSettingsOpen, setClassTypeSettingsOpen] = useState(false);
+  const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
+  const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
@@ -122,14 +125,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  // Fetch invoices for this branch with student names
+  // Fetch invoices for this branch with student names (last 6 months)
+  const sixMonthsAgo = subMonths(new Date(), 6);
   const { data: invoices = [] } = useQuery({
-    queryKey: ['branch-invoices', branchId, invoiceStatusFilter],
+    queryKey: ['branch-invoices', branchId, invoiceStatusFilter, 'last-6-months'],
     queryFn: async () => {
       let query = supabase
         .from('invoices')
         .select('*, students(first_name, last_name)')
         .eq('branch_id', branchId)
+        .gte('created_at', sixMonthsAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (invoiceStatusFilter === 'unpaid') {
@@ -490,15 +495,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <Card>
             <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="text-sm sm:text-base">Invoices & Payments</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Last 20 invoices for this branch</CardDescription>
-                </div>
-              <div className="flex gap-2 items-center">
+                <CardTitle className="text-sm sm:text-base">Invoices & Payments</CardTitle>
+                <div className="flex gap-1.5 sm:gap-2 items-center">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Filter className="w-4 h-4 mr-2" />
+                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                        <Filter className="w-3.5 h-3.5 mr-1" />
                         {invoiceStatusFilter === 'unpaid' ? 'Unpaid' : invoiceStatusFilter === 'paid' ? 'Paid' : invoiceStatusFilter === 'cancelled' ? 'Cancelled' : 'Replaced'}
                       </Button>
                     </DropdownMenuTrigger>
@@ -513,9 +515,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   </DropdownMenu>
                   <CreateInvoiceDialog
                     trigger={
-                      <Button size="sm">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Create Invoice
+                      <Button size="sm" className="h-7 text-xs">
+                        <FileText className="w-3.5 h-3.5 mr-1" />
+                        <span className="hidden sm:inline">Create Invoice</span>
+                        <span className="sm:hidden">Create</span>
                       </Button>
                     }
                     branchId={branchId}
@@ -525,6 +528,29 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                     }}
                   />
                 </div>
+              </div>
+              {/* Name & Date filter row */}
+              <div className="flex items-center gap-1.5 mt-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5" />
+                  <Input
+                    placeholder="Search name..."
+                    value={invoiceNameFilter}
+                    onChange={(e) => setInvoiceNameFilter(e.target.value)}
+                    className="pl-8 h-7 text-xs"
+                  />
+                </div>
+                <DatePicker
+                  selected={invoiceDateFilter}
+                  onSelect={setInvoiceDateFilter}
+                  placeholder="Date"
+                  className="h-7 text-xs w-[130px] sm:w-[160px]"
+                />
+                {(invoiceNameFilter || invoiceDateFilter) && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs px-2 shrink-0" onClick={() => { setInvoiceNameFilter(''); setInvoiceDateFilter(undefined); }}>
+                    Clear
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -558,7 +584,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                             href={payment.proof_of_payment_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 w-[252px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
+                            className="shrink-0 w-[100px] sm:w-[252px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
                           >
                             <img
                               src={payment.proof_of_payment_url}
@@ -584,6 +610,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
+                              className="text-xs h-7"
                               onClick={async () => {
                                 try {
                                   const { error: paymentError } = await supabase
@@ -632,38 +659,56 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               {/* Invoices Section */}
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">Invoices</h4>
-                {invoices.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No invoices found</p>
-                ) : (
-                  <div className="space-y-2">
-                    {invoices.map((invoice: any) => (
-                      <div key={invoice.id} className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg text-sm">
-                        <span className="text-muted-foreground whitespace-nowrap text-xs">
-                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
-                        </span>
-                        <span className="font-semibold whitespace-nowrap">{invoice.invoice_number}</span>
-                        <span className="text-muted-foreground truncate min-w-0">
-                          {invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}`.toUpperCase() : 'Unknown'}
-                        </span>
-                        <span className="font-medium whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
-                        <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                          {invoice.status}
-                        </Badge>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
-                            <Eye className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
-                            <Edit className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const filteredInvoices = invoices.filter((invoice: any) => {
+                    const studentName = invoice.students
+                      ? `${invoice.students.first_name} ${invoice.students.last_name}`
+                      : '';
+                    const matchesName = !invoiceNameFilter || studentName.toLowerCase().includes(invoiceNameFilter.toLowerCase());
+                    const matchesDate = !invoiceDateFilter || isSameDay(new Date(invoice.created_at), invoiceDateFilter);
+                    return matchesName && matchesDate;
+                  });
+                  return filteredInvoices.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No invoices found</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {filteredInvoices.map((invoice: any) => {
+                        const studentName = invoice.students
+                          ? `${invoice.students.first_name} ${invoice.students.last_name}`.toUpperCase()
+                          : 'Unknown';
+                        return (
+                          <div key={invoice.id} className="px-2 py-1.5 bg-muted/50 rounded-lg">
+                            {/* Line 1: Student name, amount, status, actions */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs truncate min-w-0">{studentName}</span>
+                              <span className="font-medium text-xs whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
+                              <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-[10px] px-1 h-4 shrink-0">
+                                {invoice.status}
+                              </Badge>
+                              <div className="flex items-center shrink-0">
+                                <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            {/* Line 2: Invoice number + date */}
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span>{invoice.invoice_number}</span>
+                              <span>·</span>
+                              <span>{format(new Date(invoice.created_at), 'dd MMM yyyy')}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
             </CardContent>
