@@ -622,12 +622,19 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
           .in('enrollment_id', enrollmentIds)
           .eq('status', 'scheduled');
 
-        // Deactivate the enrollments
+      // Deactivate the enrollments
         await supabase
           .from('student_class_enrollments')
           .update({ status: 'inactive' })
           .in('id', enrollmentIds);
       }
+
+      // Deactivate entitlements linked to this invoice's items
+      await supabase
+        .from('entitlements')
+        .update({ is_active: false, notes: 'Deactivated - source invoice deleted' })
+        .in('source_id', itemIds)
+        .eq('source_type', 'invoice_item');
     }
 
     // Delete invoice items (foreign key constraint)
