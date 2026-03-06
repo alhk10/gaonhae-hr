@@ -1,33 +1,34 @@
 
 
-## Plan: Fix Attendance Auto-Population Check Constraint Error
+## Plan: Show Attendance-Based Students in Timetable + Verify Ad-Hoc Invoice
 
-### Root Cause
+### Problem Analysis
 
-The `class_attendance` table has a check constraint (`class_attendance_attendance_method_check`) that only allows these values for `attendance_method`: `'manual'`, `'scan'`, `'app'`, `'kiosk'`.
+Two separate issues:
 
-The previous implementation used `'auto_scheduled'` which violates this constraint, causing the insert to fail with error code `23514`. This is why Abby is not showing in the Thursday attendance dialog — the auto-populate silently fails.
+**Issue 1: Ally not showing in Friday 3:30pm timetable slot**
+The timetable view (`BranchWeeklyTimetable.tsx`) only displays students from `student_scheduled_classes` (enrollment-based). Ally was added manually via the attendance dialog, creating a `class_attendance` record but no `student_scheduled_class` entry. The timetable doesn't read `class_attendance` data, so she shows as "No students."
 
-Ally's Friday attendance record was created manually (method: `'manual'`) so it works, but she only shows because someone already added her. The auto-populate path is broken for all students.
+**Issue 2: Ad-hoc invoice**
+An ad-hoc invoice **was** actually created (ID: `1a7a0584-7cbd-4179-9b8f-2eea2d42321b`, status: draft). It may not have been visible at the time the user checked. No code change needed here.
+
+### Solution
+
+Merge `class_attendance` records into the timetable display so students added via attendance (manually or ad-hoc) also appear under their slot.
 
 ### Changes
 
-#### 1. Database Migration: Update check constraint to include `'auto_scheduled'`
+#### 1. New service function: `getAttendanceForWeek` in `classAttendanceService.ts`
 
-```sql
-ALTER TABLE public.class_attendance 
-DROP CONSTRAINT class_attendance_attendance_method_check;
+Add a function that fetches all `class_attendance` records for a branch within a date range, joining student names. Returns records grouped by `timetable_id + class_date`.
 
-ALTER TABLE public.class_attendance 
-ADD CONSTRAINT class_attendance_attendance_method_check 
-CHECK (attendance_method = ANY (ARRAY['manual', 'scan', 'app', 'kiosk', 'auto_scheduled']));
-```
+#### 2. Update `BranchWeeklyTimetable.tsx`
 
-#### 2. No code changes needed
-
-The code in `classAttendanceService.ts` is already correct — it uses `'auto_scheduled'` which is the right value. The constraint just needs to be updated to allow it.
+- Fetch attendance records for the week using the new function
+- In the `groupedByDay` memo, after mapping `student_scheduled_classes` into `slot.students`, also merge in any students from `class_attendance` who aren't already in the list
+- This ensures manually-added students (like Ally) appear in the timetable view with their names
 
 ### Scope
-- One database migration (alter check constraint)
-- No file changes
+- `src/services/classAttendanceService.ts` — add `getAttendanceForWeek` function
+- `src/components/dashboard/BranchWeeklyTimetable.tsx` — fetch and merge attendance data into slot students
 
