@@ -27,7 +27,7 @@ import { format, parseISO, subDays, differenceInYears, differenceInMonths } from
 import { GradingSlot } from '@/services/gradingService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
-import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
+
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { getNextBelt } from './QuickActionsSection';
 import { getInvoiceTemplates } from '@/services/invoiceTemplateService';
@@ -466,41 +466,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
           proof_of_payment_url: proofUrl,
         });
 
-        // Create enrollment record
-        const enrollmentId = await createEnrollment({
-          student_id: studentId,
-          term_id: selectedTerm.id,
-          branch_id: student.branch_id!,
-          class_type: selectedProduct.name || 'Class',
-          tier_name: selectedProduct.name || 'Standard',
-          total_price: termInvoice.total_amount,
-          invoice_item_id: undefined,
-        });
-
-        // Create scheduled classes
-        if (selectedClassSlots.length > 0) {
-          const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
-          const { data: timetables } = await supabase
-            .from('branch_timetables')
-            .select('id, start_time, end_time')
-            .in('id', timetableIds);
-
-          const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
-
-          for (const slot of selectedClassSlots) {
-            const [timetableId, date] = slot.split('_');
-            const timetable = timetableMap.get(timetableId);
-            if (timetable && date) {
-              await createScheduledClass({
-                enrollment_id: enrollmentId,
-                timetable_id: timetableId,
-                scheduled_date: date,
-                start_time: timetable.start_time,
-                end_time: timetable.end_time,
-              });
-            }
-          }
-        }
+        // Enrollment and scheduled classes are now automatically created by createInvoice
       }
 
       return { termIncluded: alsoPayTermFees };
