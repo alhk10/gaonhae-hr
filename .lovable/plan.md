@@ -1,30 +1,57 @@
 
 
-## Plan: Conditional Default Tab on Branch Dashboard
+## Plan: Fix Orphaned Entitlements When Invoices Are Deleted or Edited
 
-### Goal
-Default to "Approvals" tab when there are pending items, otherwise default to "Weekly Timetable".
+### Problem
+When an invoice is deleted (or items removed during editing), the associated `entitlements` records are **not** cleaned up. The `deleteInvoice` function in `invoiceService.ts` cleans up enrollments and scheduled classes but completely ignores entitlements. This causes orphaned entitlement records that inflate student session counts (e.g., Wei En showing 49 instead of 25).
 
-### Change: `src/components/dashboard/BranchDashboard.tsx`
+### Changes
 
-1. **Change initial state** (line 82): Set `activeTab` initial value to `'timetable'` (instead of `'students'`).
-
-2. **Add a `useEffect`** after the `unverifiedPayments` computation (~line 353): Track whether the initial tab has been set. On first load, once `pendingRequests` and `unverifiedPayments` data is available, if either has items, switch `activeTab` to `'approvals'`. Use a ref (`hasSetInitialTab`) to ensure this only fires once per mount.
+#### 1. `src/services/invoiceService.ts` — `deleteInvoice` function (~line 599)
+After fetching `invoiceItems` and before deleting them, **deactivate entitlements** linked to those invoice items:
 
 ```typescript
-const hasSetInitialTab = useRef(false);
+// Deactivate entitlements linked to this invoice's items
+if (invoiceItems && invoiceItems.length > 0) {
+  const itemIds = invoiceItems.map(item => item.id);
+  
+  await supabase
+    .from('entitlements')
+    .update({ is_active: false, notes: 'Deactivated - source invoice deleted' })
+    .in('source_id', itemIds)
+    .eq('source_type', 'invoice_item');
+}
+```
 
-useEffect(() => {
-  if (!hasSetInitialTab.current && (pendingRequests.length > 0 || unverifiedPayments.length > 0)) {
-    setActiveTab('approvals');
-    hasSetInitialTab.current = true;
-  } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
-    hasSetInitialTab.current = true; // data loaded, no approvals — keep timetable
-  }
-}, [pendingRequests, unverifiedPayments]);
+This goes inside the existing `if (invoiceItems && invoiceItems.length > 0)` block, alongside the enrollment cleanup.
+
+#### 2. `src/components/sales/ViewEditInvoiceDialog.tsx` — item deletion during edit (~line 325-331)
+When invoice items are removed during editing, also deactivate their linked entitlements:
+
+```typescript
+// Before deleting removed items, deactivate their entitlements
+if (removedItemIds.length > 0) {
+  await supabase
+    .from('entitlements')
+    .update({ is_active: false, notes: 'Deactivated - invoice item removed' })
+    .in('source_id', removedItemIds)
+    .eq('source_type', 'invoice_item');
+}
+```
+
+#### 3. Database: Clean up Wei En's orphaned entitlement
+Run a migration to deactivate orphaned entitlements whose `source_id` no longer references a valid `invoice_items` row:
+
+```sql
+UPDATE entitlements
+SET is_active = false, notes = 'Deactivated - orphaned (source invoice item missing)'
+WHERE source_type = 'invoice_item'
+  AND is_active = true
+  AND source_id NOT IN (SELECT id::text FROM invoice_items);
 ```
 
 ### Scope
-- One file: `src/components/dashboard/BranchDashboard.tsx`
-- No database changes
+- **Modified**: `src/services/invoiceService.ts` (add entitlement cleanup to delete flow)
+- **Modified**: `src/components/sales/ViewEditInvoiceDialog.tsx` (add entitlement cleanup to edit flow)
+- **Migration**: One-time cleanup of existing orphaned entitlements
 
