@@ -22,7 +22,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format, subMonths, isSameDay } from 'date-fns';
+import { format, subMonths, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import { toast } from 'sonner';
 import { 
@@ -264,6 +264,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
+  // Check if casual employees have bookings this month
+  const { data: hasCasualBookings = false } = useQuery({
+    queryKey: ['casual-bookings-exists', branchId],
+    queryFn: async () => {
+      const now = new Date();
+      const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+      const { count, error } = await supabase
+        .from('slot_bookings' as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('branch_id', branchId)
+        .eq('status', 'approved')
+        .gte('booking_date', monthStart)
+        .lte('booking_date', monthEnd);
+      if (error) return false;
+      return (count || 0) > 0;
+    },
+    enabled: !!branchId,
+  });
+
   const activeStudentsCount = activeStudentIds.length;
   const branchCurrency = branch?.currency || 'SGD';
 
@@ -360,7 +380,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students ({activeStudentsCount})</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingListCount})</TabsTrigger>
-          <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
+          {hasCasualBookings && (
+            <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
+          )}
           <TabsTrigger value="inventory" className="text-xs sm:text-sm">Inventory</TabsTrigger>
           <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
           <TabsTrigger value="approvals" className="text-xs sm:text-sm">Approvals ({pendingRequests.length})</TabsTrigger>
