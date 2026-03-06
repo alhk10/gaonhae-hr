@@ -1,16 +1,38 @@
 
 
-## Plan: Hide Quantity and Unit Price Columns from Invoice PDF
+## Plan: Add Languages & Reorder Dropdowns
 
 ### Problem
-The invoice PDF currently shows four columns: Description, Qty, Unit Price, and Total. The user wants to hide the Qty and Unit Price columns, showing only Description and Total.
+The language dropdown is missing Italian, Polish, and other common languages. Neither the language nor nationality dropdowns prioritize the most commonly selected options at the top.
 
 ### Changes
 
-**File: `src/utils/invoicePDFGenerator.ts`** (lines 239-274)
+Update the `commonLanguages` and `commonNationalities` arrays in **3 files**:
+- `src/components/sales/AddStudentDialog.tsx`
+- `src/components/sales/EditStudentDialog.tsx`
+- `src/pages/StudentRegistration.tsx`
 
-1. **Remove column width definitions** for `qty` and `price`, expand `description` to fill the space
-2. **Remove header text** for "Qty" and "Unit Price" (lines 253-254)
-3. **Remove row data** for quantity and unit_price (lines 272-273)
-4. Keep only "Description" (left-aligned) and "Total" (right-aligned)
+#### Languages
+- Add: Italian, Polish, Portuguese, Dutch, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Ukrainian, Romanian, Czech, Hungarian
+- Reorder so **top 5 most common** appear first (separated by a natural ordering):
+  1. English
+  2. Mandarin
+  3. Malay
+  4. Tamil
+  5. Hindi
+  - Then the rest alphabetically
+
+#### Nationalities
+- Reorder so **top 5 most common** appear first:
+  1. Singaporean
+  2. Malaysian
+  3. Chinese
+  4. Indian
+  5. Indonesian
+  - Then the rest alphabetically (removing duplicates like country-name variants already in the list)
+
+### Files to modify
+- `src/components/sales/AddStudentDialog.tsx` (lines 41-70)
+- `src/components/sales/EditStudentDialog.tsx` (lines 36-70)
+- `src/pages/StudentRegistration.tsx` (lines 17-35 approx)
 
