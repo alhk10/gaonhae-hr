@@ -1,13 +1,13 @@
 /**
  * Branch Grading List Component
- * Shows active students with paid term invoices, enriched grading data
+ * Shows active students with invoices for a term, enriched grading data
  * Pre-filtered by branch ID from props
  * Mass-editable: changes are tracked locally and saved in batch
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ interface GradingListStudent {
   registration_id: string | null;
   lessons_attended: number;
   grading_paid: 'paid' | 'unpaid' | 'n/a';
+  term_paid: string;
   grading_slot_title: string | null;
   grading_slot_date: string | null;
   grading_slot_id: string | null;
@@ -58,6 +59,30 @@ const RESULT_OPTIONS = [
   { value: 'fail', label: 'Fail' },
   { value: 'confirmed', label: 'Confirmed' },
 ];
+
+const getTermPaidBadgeVariant = (status: string): "success" | "destructive" | "secondary" | "default" => {
+  switch (status) {
+    case 'paid': return 'success';
+    case 'overdue':
+    case 'unpaid': return 'destructive';
+    case 'draft':
+    case 'sent':
+    case 'partial':
+    default: return 'secondary';
+  }
+};
+
+const getTermPaidLabel = (status: string): string => {
+  switch (status) {
+    case 'paid': return 'Paid';
+    case 'unpaid': return 'Unpaid';
+    case 'overdue': return 'Overdue';
+    case 'draft': return 'Draft';
+    case 'sent': return 'Sent';
+    case 'partial': return 'Partial';
+    default: return status;
+  }
+};
 
 const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
   const navigate = useNavigate();
@@ -116,13 +141,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
 
   const selectedTermData = terms.find(t => t.id === selectedTerm);
 
-  // Fetch students with paid lesson invoices for selected term
+  // Fetch students with invoices (all statuses except cancelled) for selected term
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
-      // Get lesson products
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
@@ -131,7 +155,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       const lessonProductIds = (lessonProducts || []).map(p => p.id);
       if (lessonProductIds.length === 0) return [];
 
-      // Get invoice items with term_id in metadata, only paid invoices
+      // Get invoice items — include all statuses except cancelled
       const { data: invoiceItems, error: itemsError } = await supabase
         .from('invoice_items')
         .select(`
@@ -147,11 +171,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', branchId)
-        .eq('invoices.status', 'paid');
+        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'overdue', 'paid']);
 
       if (itemsError) throw itemsError;
 
-      // Filter by term_id in metadata
       const termItems = (invoiceItems || []).filter(item => {
         const metadata = item.metadata as Record<string, any> | null;
         return metadata?.term_id === selectedTerm;
@@ -159,10 +182,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
 
       if (termItems.length === 0) return [];
 
-      // Get unique student IDs
       const studentIds = [...new Set(termItems.map(item => (item.invoices as any).student_id))];
 
-      // Fetch active students only
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
@@ -172,7 +193,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       const activeStudentIds = (studentsData || []).map(s => s.id);
       if (activeStudentIds.length === 0) return [];
 
-      // Parallel fetches
       const [regResult, attendanceResult] = await Promise.all([
         supabase
           .from('grading_registrations')
@@ -191,13 +211,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       const registrations = regResult.data || [];
       const attendanceRecords = attendanceResult.data || [];
 
-      // Count attendance per student
       const attendanceCountMap: Record<string, number> = {};
       attendanceRecords.forEach((a: any) => {
         attendanceCountMap[a.student_id] = (attendanceCountMap[a.student_id] || 0) + 1;
       });
 
-      // Build registration map
       const regMap: Record<string, any> = {};
       registrations.forEach(r => {
         if (!regMap[r.student_id]) {
@@ -205,7 +223,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         }
       });
 
-      // Fetch grading slot info
       const slotIds = [...new Set(registrations.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
       let slotMap: Record<string, any> = {};
       if (slotIds.length > 0) {
@@ -216,7 +233,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         (slots || []).forEach(s => { slotMap[s.id] = s; });
       }
 
-      // Fetch grading paid status
       const invoiceItemIds = registrations.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
       let gradingPaidMap: Record<string, string> = {};
       if (invoiceItemIds.length > 0) {
@@ -240,7 +256,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         return acc;
       }, {} as Record<string, any>);
 
-      // Build result list
       const studentResultMap = new Map<string, GradingListStudent>();
       
       for (const item of termItems) {
@@ -267,6 +282,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
           registration_id: reg?.id || null,
           lessons_attended: attendanceCountMap[studentId] || 0,
           grading_paid: (gradingPaidMap[studentId] as 'paid' | 'unpaid') || 'n/a',
+          term_paid: invoice.status || 'draft',
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
           grading_slot_id: reg?.grading_slot_id || null,
@@ -347,7 +363,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         if (!student) continue;
         
         if (student.registration_id) {
-          // Update existing registration
           const updateData: Record<string, any> = {};
           if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
           if (changes.result !== undefined) updateData.result = changes.result;
@@ -363,7 +378,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
             );
           }
         } else {
-          // Create new registration for students without one
           const insertData = {
             student_id: studentId,
             current_belt: student.current_belt || 'white',
@@ -406,6 +420,18 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
     toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
   };
 
+  const renderSlotDisplay = (student: GradingListStudent) => {
+    const effectiveSlotId = getEffectiveSlot(student);
+    const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
+    if (effectiveSlot) {
+      return `${effectiveSlot.title || 'Slot'} - ${effectiveSlot.grading_date ? format(new Date(effectiveSlot.grading_date), 'dd MMM yyyy') : ''}`;
+    }
+    if (student.grading_slot_title || student.grading_slot_date) {
+      return `${student.grading_slot_title || 'Slot'} - ${student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}`;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -435,14 +461,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Students for Grading</CardTitle>
-              <CardDescription>
-                {selectedTermData 
-                  ? `${students.length} active student${students.length !== 1 ? 's' : ''} with paid invoices for ${selectedTermData.name}`
-                  : 'Select a term to view students'}
-              </CardDescription>
-            </div>
+            <CardTitle>Students for Grading</CardTitle>
             <div className="flex gap-2">
               <Button
                 variant={isEditMode ? "default" : "outline"}
@@ -490,221 +509,334 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No active students found with paid class invoices for this term.
+              No active students found with invoices for this term.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead className="w-[120px]">Current Belt</TableHead>
-                    <TableHead className="w-[80px] text-center">Lessons</TableHead>
-                    <TableHead className="w-[80px] text-center">Ready</TableHead>
-                    <TableHead className="w-[100px]">Grading Paid</TableHead>
-                    <TableHead className="w-[160px]">Grading Slot</TableHead>
-                    <TableHead className="w-[140px]">Result</TableHead>
-                    <TableHead className="w-[90px]">Certificate</TableHead>
-                    <TableHead className="w-[100px]">Certificate II</TableHead>
-                    <TableHead className="w-[90px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((student) => {
-                    const effectiveResult = getEffectiveResult(student);
-                    const effectiveReady = getEffectiveReady(student);
-                    const effectiveSlotId = getEffectiveSlot(student);
-                    const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
-                    const isChanged = hasStudentChange(student.student_id);
-                    const canViewCertificate = effectiveResult === 'pass' || effectiveResult === 'confirmed';
-                    const canViewCertificateII = effectiveResult === 'double';
-                    
-                    return (
-                      <TableRow key={student.student_id} className={isChanged ? 'bg-accent/30' : undefined}>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto font-medium"
+            <>
+              {/* Desktop Table */}
+              <div className="overflow-x-auto hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead className="w-[120px]">Current Belt</TableHead>
+                      <TableHead className="w-[80px] text-center">Lessons</TableHead>
+                      <TableHead className="w-[80px] text-center">Ready</TableHead>
+                      <TableHead className="w-[100px]">Term Paid</TableHead>
+                      <TableHead className="w-[100px]">Grading Paid</TableHead>
+                      <TableHead className="w-[160px]">Grading Slot</TableHead>
+                      <TableHead className="w-[140px]">Result</TableHead>
+                      <TableHead className="w-[90px]">Certificate</TableHead>
+                      <TableHead className="w-[100px]">Certificate II</TableHead>
+                      <TableHead className="w-[90px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {students.map((student) => {
+                      const effectiveResult = getEffectiveResult(student);
+                      const effectiveReady = getEffectiveReady(student);
+                      const effectiveSlotId = getEffectiveSlot(student);
+                      const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
+                      const isChanged = hasStudentChange(student.student_id);
+                      const canViewCertificate = effectiveResult === 'pass' || effectiveResult === 'confirmed';
+                      const canViewCertificateII = effectiveResult === 'double';
+                      
+                      return (
+                        <TableRow key={student.student_id} className={isChanged ? 'bg-accent/30' : undefined}>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => navigate(`/parties/student/${student.student_id}`)}
+                            >
+                              <User className="w-3 h-3 mr-1" />
+                              {student.student_name}
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            {student.current_belt ? (
+                              <Badge variant="outline">
+                                {formatBeltLevel(student.current_belt)}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            {student.lessons_attended}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isEditMode ? (
+                              <Checkbox
+                                checked={effectiveReady}
+                                onCheckedChange={(checked) => {
+                                  setLocalReady(student.student_id, !!checked, student.ready_for_grading);
+                                }}
+                              />
+                            ) : (
+                              <span className={`text-[11px] ${effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                                {effectiveReady ? '✓' : '-'}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getTermPaidBadgeVariant(student.term_paid)}>
+                              {getTermPaidLabel(student.term_paid)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
+                            >
+                              {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <Select
+                                value={effectiveSlotId || 'none'}
+                                onValueChange={(value) => {
+                                  setLocalSlot(student.student_id, value === 'none' ? null : value, student.grading_slot_id);
+                                }}
+                                disabled={student.grading_paid !== 'paid'}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Not Assigned</SelectItem>
+                                  {availableSlots.map(slot => (
+                                    <SelectItem key={slot.id} value={slot.id}>
+                                      {slot.title || 'Slot'} - {slot.grading_date ? format(new Date(slot.grading_date), 'dd MMM yyyy') : ''}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              effectiveSlot ? (
+                                <span className="text-sm">
+                                  {effectiveSlot.title || 'Slot'} - {effectiveSlot.grading_date ? format(new Date(effectiveSlot.grading_date), 'dd MMM yyyy') : ''}
+                                </span>
+                              ) : student.grading_slot_title || student.grading_slot_date ? (
+                                <span className="text-sm">
+                                  {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">Not Assigned</span>
+                              )
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <Select
+                                value={effectiveResult || 'none'}
+                                onValueChange={(value) => {
+                                  setLocalResult(student.student_id, value === 'none' ? null : value, student.result);
+                                }}
+                                disabled={student.grading_paid !== 'paid'}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Clear</SelectItem>
+                                  {RESULT_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              effectiveResult ? (
+                                <Badge variant={effectiveResult === 'pass' || effectiveResult === 'double' ? 'success' : effectiveResult === 'fail' ? 'destructive' : 'secondary'}>
+                                  {RESULT_OPTIONS.find(o => o.value === effectiveResult)?.label || effectiveResult}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {canViewCertificate ? (
+                              <Button variant="ghost" size="sm" onClick={() => handleViewCertificate(student.student_id, 1)}>
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {canViewCertificateII ? (
+                              <Button variant="ghost" size="sm" onClick={() => handleViewCertificate(student.student_id, 2)}>
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
+                                title="View Details"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              {student.registration_id && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" title="Delete Registration">
+                                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Request Deletion</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will submit a deletion request for {student.student_name}'s grading registration. A superadmin must approve it before it takes effect.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteMutation.mutate({ registrationId: student.registration_id!, studentId: student.student_id, studentName: student.student_name })}
+                                      >
+                                        Submit Request
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile 3-line layout */}
+              <div className="sm:hidden space-y-1.5">
+                {students.map((student) => {
+                  const effectiveResult = getEffectiveResult(student);
+                  const effectiveReady = getEffectiveReady(student);
+                  const isChanged = hasStudentChange(student.student_id);
+                  const slotDisplay = renderSlotDisplay(student);
+
+                  return (
+                    <div
+                      key={student.student_id}
+                      className={`rounded-lg px-2 py-1.5 ${isChanged ? 'bg-accent/30' : 'bg-muted/50'}`}
+                    >
+                      {/* Line 1: Name, Belt, Ready, Actions */}
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <span
+                            className="font-bold text-xs truncate cursor-pointer"
                             onClick={() => navigate(`/parties/student/${student.student_id}`)}
                           >
-                            <User className="w-3 h-3 mr-1" />
                             {student.student_name}
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          {student.current_belt ? (
-                            <Badge variant="outline">
+                          </span>
+                          {student.current_belt && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
                               {formatBeltLevel(student.current_belt)}
                             </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
                           )}
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {student.lessons_attended}
-                        </TableCell>
-                        <TableCell className="text-center">
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
                           {isEditMode ? (
                             <Checkbox
                               checked={effectiveReady}
                               onCheckedChange={(checked) => {
                                 setLocalReady(student.student_id, !!checked, student.ready_for_grading);
                               }}
-                              disabled={false}
+                              className="h-3.5 w-3.5"
                             />
                           ) : (
-                            <span className={effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
-                              {effectiveReady ? '✓' : '-'}
+                            <span className={`text-[11px] ${effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                              {effectiveReady ? '✓' : ''}
                             </span>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
                           >
-                            {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          {student.registration_id && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <Trash2 className="w-3 h-3 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Request Deletion</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will submit a deletion request for {student.student_name}'s grading registration.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate({ registrationId: student.registration_id!, studentId: student.student_id, studentName: student.student_name })}
+                                  >
+                                    Submit
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Line 2: Lessons, Term Paid, Grading Paid */}
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                        <span className="text-muted-foreground">{student.lessons_attended} lessons</span>
+                        <Badge variant={getTermPaidBadgeVariant(student.term_paid)} className="text-[10px] px-1.5 py-0">
+                          Term: {getTermPaidLabel(student.term_paid)}
+                        </Badge>
+                        <Badge
+                          variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          Grading: {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
+                        </Badge>
+                      </div>
+
+                      {/* Line 3: Grading Slot, Result */}
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                        <span className="text-muted-foreground truncate">
+                          {slotDisplay || 'No slot'}
+                        </span>
+                        {effectiveResult ? (
+                          <Badge
+                            variant={effectiveResult === 'pass' || effectiveResult === 'double' ? 'success' : effectiveResult === 'fail' ? 'destructive' : 'secondary'}
+                            className="text-[10px] px-1.5 py-0 shrink-0"
+                          >
+                            {RESULT_OPTIONS.find(o => o.value === effectiveResult)?.label || effectiveResult}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {isEditMode ? (
-                            <Select
-                              value={effectiveSlotId || 'none'}
-                              onValueChange={(value) => {
-                                setLocalSlot(student.student_id, value === 'none' ? null : value, student.grading_slot_id);
-                              }}
-                              disabled={student.grading_paid !== 'paid'}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Not Assigned</SelectItem>
-                                {availableSlots.map(slot => (
-                                  <SelectItem key={slot.id} value={slot.id}>
-                                    {slot.title || 'Slot'} - {slot.grading_date ? format(new Date(slot.grading_date), 'dd MMM yyyy') : ''}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            effectiveSlot ? (
-                              <span className="text-sm">
-                                {effectiveSlot.title || 'Slot'} - {effectiveSlot.grading_date ? format(new Date(effectiveSlot.grading_date), 'dd MMM yyyy') : ''}
-                              </span>
-                            ) : student.grading_slot_title || student.grading_slot_date ? (
-                              <span className="text-sm">
-                                {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">Not Assigned</span>
-                            )
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isEditMode ? (
-                            <Select
-                              value={effectiveResult || 'none'}
-                              onValueChange={(value) => {
-                                setLocalResult(student.student_id, value === 'none' ? null : value, student.result);
-                              }}
-                              disabled={student.grading_paid !== 'paid'}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Clear</SelectItem>
-                                {RESULT_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            effectiveResult ? (
-                              <Badge variant={effectiveResult === 'pass' || effectiveResult === 'double' ? 'success' : effectiveResult === 'fail' ? 'destructive' : 'secondary'}>
-                                {RESULT_OPTIONS.find(o => o.value === effectiveResult)?.label || effectiveResult}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {canViewCertificate ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewCertificate(student.student_id, 1)}
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {canViewCertificateII ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewCertificate(student.student_id, 2)}
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
-                              title="View Details"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            {student.registration_id && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" title="Delete Registration">
-                                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Request Deletion</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will submit a deletion request for {student.student_name}'s grading registration. A superadmin must approve it before it takes effect.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => deleteMutation.mutate({ registrationId: student.registration_id!, studentId: student.student_id, studentName: student.student_name })}
-                                    >
-                                      Submit Request
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        ) : (
+                          <span className="text-muted-foreground shrink-0">No result</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Sticky save bar at bottom when changes exist */}
+      {/* Sticky save bar */}
       {hasPendingChanges && (
         <div className="sticky bottom-4 z-10 flex justify-center">
           <div className="bg-primary text-primary-foreground rounded-lg px-6 py-3 shadow-lg flex items-center gap-4">
