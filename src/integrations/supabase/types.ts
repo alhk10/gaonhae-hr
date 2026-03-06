@@ -3127,6 +3127,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          is_adhoc_lesson: boolean | null
           is_lesson: boolean | null
           is_recurring: boolean | null
           is_service: boolean
@@ -3162,6 +3163,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_adhoc_lesson?: boolean | null
           is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
@@ -3197,6 +3199,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_adhoc_lesson?: boolean | null
           is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
