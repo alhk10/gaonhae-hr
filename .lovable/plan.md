@@ -1,20 +1,31 @@
 
 
-## Plan: Show Only Today on Mobile Timetable View
+## Plan: Compact Mobile Invoice Tab with 6-Month Filter, Date & Name Search
 
-### Problem
-The mobile timetable currently stacks all 7 days vertically, requiring excessive scrolling. The user wants to show only today's schedule on mobile.
+### Changes to `src/components/dashboard/BranchDashboard.tsx`
 
-### Changes to `src/components/dashboard/BranchWeeklyTimetable.tsx`
+**1. Remove "Last 20 invoices" description**
 
-1. **Add day navigation state for mobile** — Add a `mobileDate` state initialized to `new Date()`, with prev/next day buttons so the user can navigate between days on mobile.
+**2. Filter invoices by last 6 months instead of current year**
+- Compute `sixMonthsAgo` using `subMonths(new Date(), 6)` from date-fns
+- Update Supabase query: `.gte('created_at', sixMonthsAgo.toISOString())` and remove `.limit(20)`
+- Update query key to include the 6-month marker
 
-2. **Update mobile navigation header** — On mobile, show day-level navigation (< Today >) with the current day displayed (e.g., "Tue 3 Mar") instead of the week range.
+**3. Add date and name filtering**
+- New state: `invoiceDateFilter` (Date | null), `invoiceNameFilter` (string)
+- Compact filter row: small text input for name search + date picker
+- Client-side filtering on fetched results
 
-3. **Filter mobile view to single day** — Instead of mapping over all `weekDays`, the mobile section will only render the single `mobileDate` day's slots.
+**4. Compact 2-line mobile invoice rows**
+- **Line 1**: Student name (bold, truncated) + amount + status badge + action buttons (h-6 w-6)
+- **Line 2**: Invoice number + date (muted, `text-[11px]`)
+- Row padding: `px-2 py-1.5`
+- Header buttons: `h-7 text-xs`, "Create" shortened on mobile
 
-4. **Sync mobile date with week changes** — When the user navigates weeks, reset `mobileDate` to the first day of that week (or today if the current week).
+**5. Payment verification section — compact on mobile**
+- Proof image: `w-[100px] sm:w-[252px]`
+- Verify button: `text-xs h-7`
 
 ### Scope
-Single file: `src/components/dashboard/BranchWeeklyTimetable.tsx`. Logic + layout change, no new dependencies.
+Single file: `src/components/dashboard/BranchDashboard.tsx`. Layout + minor query/filter logic changes.
 
