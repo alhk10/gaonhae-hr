@@ -702,15 +702,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
           <StudentRegistrationApprovals branchId={branchId} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Student Update Requests</CardTitle>
-              <CardDescription>Review and approve student profile changes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pendingRequests.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No pending requests</p>
-              ) : (
+          {pendingRequests.length > 0 && (
+            <Card>
+              <CardContent className="pt-6">
                 <div className="space-y-4">
                   {pendingRequests.map((request) => (
                     <Card key={request.id} className="border-orange-200">
@@ -753,9 +747,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                     </Card>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="grading">
