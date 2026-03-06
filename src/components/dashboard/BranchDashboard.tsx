@@ -362,24 +362,24 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         </TabsList>
 
         <TabsContent value="students" className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5" />
               <Input
-                placeholder="Search students..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-8 h-8 text-xs sm:text-sm"
               />
             </div>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
+                <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
+                  <Filter className="w-3.5 h-3.5 mr-1" />
                   Filter
                   {statusFilter !== 'all' && (
-                    <Badge variant="secondary" className="ml-2">{statusFilter}</Badge>
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1">{statusFilter}</Badge>
                   )}
                 </Button>
               </DropdownMenuTrigger>
@@ -401,13 +401,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="flex-1" />
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Student/Trial
+                <Button size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  <span className="hidden sm:inline">Add Student/Trial</span>
+                  <span className="sm:hidden">Add</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
