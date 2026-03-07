@@ -66,17 +66,19 @@ export const getEmployeePayrollData = async (employeeId: string, period?: string
     const claims = await getEmployeeClaims(employeeId);
     
     // Partner claim types that should NOT be included in payroll (they go to Branch P&L)
+    // Only exclude for employees with Partner position
     const PARTNER_CLAIM_TYPES = [
       'Transport',
       'Office Stationeries', 
       'Training Equipment',
       'Other Business Expense'
     ];
+    const isPartner = employee.position?.toLowerCase().includes('partner');
     
     const approvedClaimsTotal = claims
       .filter(claim => 
         claim.status === 'Approved' && 
-        !PARTNER_CLAIM_TYPES.includes(claim.type)
+        (!isPartner || !PARTNER_CLAIM_TYPES.includes(claim.type))
       )
       .reduce((sum, claim) => sum + claim.amount, 0);
 
