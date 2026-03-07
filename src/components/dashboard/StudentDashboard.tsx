@@ -871,6 +871,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                                 {displayStatus}
                               </Badge>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPDF(invoice.id)}
+                              disabled={generatingPdfId === invoice.id}
+                              title="Download PDF"
+                            >
+                              {generatingPdfId === invoice.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <FileText className="w-3 h-3" />
+                              )}
+                            </Button>
                             {!isPaid && invoice.balance_due > 0 && !readOnly && (
                               <CreatePaymentDialog
                                 trigger={
