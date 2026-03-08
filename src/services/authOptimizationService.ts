@@ -11,55 +11,11 @@ import {
   clearAuthCache as clearCacheService
 } from './authCacheService';
 
-// Static fallbacks keyed by employee ID - more stable than email
-const STATIC_FALLBACKS: Record<string, any> = {
-  'EMP1764254219246': { id: 'EMP1764254219246', name: 'Chew Wee Hong Jeremy', type: 'Casual', position: '', department: 'Main Office', isSuperadmin: false },
-  'EMP1750865290864': { id: 'EMP1750865290864', name: 'Corpuz Albert Jr Tiggangay', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', base_salary: 3700, isSuperadmin: false },
-  'EMP1751003565851': { id: 'EMP1751003565851', name: 'Lee Heng Keong Alvin', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', base_salary: 7200, isSuperadmin: true },
-  'EMP1751030249722': { id: 'EMP1751030249722', name: 'Carissa Lee Masters', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
-  'EMP1750866475666': { id: 'EMP1750866475666', name: 'Cha Jinwoo', type: 'Full-Time', position: 'Instructor', department: 'Main Office', base_salary: 3200, isSuperadmin: false },
-  'EMP1751030381806': { id: 'EMP1751030381806', name: 'Clarissa Koh Jia Xuan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
-  'EMP1751006728858': { id: 'EMP1751006728858', name: 'Aw Yi Zhe Eldon', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 650, isSuperadmin: false },
-  'EMP1751006227595': { id: 'EMP1751006227595', name: 'Eugene Goh', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 400, isSuperadmin: false },
-  'EMP1750863118850': { id: 'EMP1750863118850', name: 'Kim Hasung', type: 'Full-Time', position: 'Senior Instructor', department: 'Main Office', base_salary: 3650, isSuperadmin: false },
-  'EMP1750864876850': { id: 'EMP1750864876850', name: 'Kang Hyunjun', type: 'Full-Time', position: 'General Manager', department: 'Main Office', base_salary: 6800, isSuperadmin: false },
-  'EMP1752646101747': { id: 'EMP1752646101747', name: 'Wang Pot Chien', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
-  'EMP1751007228999': { id: 'EMP1751007228999', name: 'Jason Lu Lijie', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 1875, isSuperadmin: false },
-  'EMP1751006368759': { id: 'EMP1751006368759', name: 'Ng Kai Rui Jovious', type: 'Casual', position: 'Casual Instructor', department: 'Kembangan', base_salary: 200, isSuperadmin: false },
-  'EMP1750866300088': { id: 'EMP1750866300088', name: 'Jason Chiang Jia Jun', type: 'Full-Time', position: 'Instructor', department: 'Main Office', base_salary: 900, isSuperadmin: false },
-  'EMP1751004127565': { id: 'EMP1751004127565', name: 'Lee Yan Xuan', type: 'Casual', position: 'Casual Admin', department: 'Main Office', base_salary: 850, isSuperadmin: false },
-  'EMP1751006564567': { id: 'EMP1751006564567', name: 'Liou Siting Jolene', type: 'Casual', position: 'Casual Employee', department: 'Main Office', base_salary: 237.5, isSuperadmin: false },
-  'EMP1751029837839': { id: 'EMP1751029837839', name: 'Nigel Koh K Jun', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', isSuperadmin: false },
-  'EMP1751003052389': { id: 'EMP1751003052389', name: 'Kang Hyeonman', type: 'Full-Time', position: 'Senior Partner', department: 'Main Office', base_salary: 12320, isSuperadmin: false },
-  'EMP1751006984631': { id: 'EMP1751006984631', name: 'Goh Jun Jie Ryan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 1000, isSuperadmin: false },
-  'EMP1752551410290': { id: 'EMP1752551410290', name: 'Siti Aisyah Binti Mohammed Nazzer', type: 'Casual', position: '', department: 'Main Office', base_salary: 800, isSuperadmin: false },
-  'EMP1750866645618': { id: 'EMP1750866645618', name: 'Lee Soohyuk', type: 'Full-Time', position: 'Partner', department: 'Main Office', base_salary: 10500, isSuperadmin: false },
-  'EMP1751006650365': { id: 'EMP1751006650365', name: 'Song Zihan', type: 'Casual', position: 'Casual Instructor', department: 'Main Office', base_salary: 950, isSuperadmin: false }
-};
+// Static fallbacks removed for security - all lookups go through database
+const STATIC_FALLBACKS: Record<string, any> = {};
 
-// Email to Employee ID mapping for static fallback lookup - must match database emails exactly
-const EMAIL_TO_EMPLOYEE_ID: Record<string, string> = {
-  'leeesh101@gmail.com': 'EMP1750866645618',
-  'alhk10@gmail.com': 'EMP1751003565851',
-  'ryangohjj21@gmail.com': 'EMP1751006984631',
-  '20102009jc@gmail.com': 'EMP1764254219246',
-  'eldon.ayz0106@gmail.com': 'EMP1751006728858',
-  'carissamasters@gaonhaetaekwondo.com': 'EMP1751030249722',
-  'chajw0717@gmail.com': 'EMP1750866475666',
-  'clarissa.kohjx@gmail.com': 'EMP1751030381806',
-  'albertcorpuz873@gmail.com': 'EMP1750865290864',
-  'jsnch617@hanyang.ac.kr': 'EMP1750866300088',
-  'jasonlulijie@gmail.com': 'EMP1751007228999',
-  'rkdgusaks@gmail.com': 'EMP1751003052389',
-  'hspno77@gmail.com': 'EMP1750864876850',
-  'leeyanxuan34@gmail.com': 'EMP1751004127565',
-  'szenian1007@gmail.com': 'EMP1750865428602',
-  'superzihan2006@gmail.com': 'EMP1751006650365',
-  'lioujolene@gmail.com': 'EMP1751006564567',
-  'nigelkoh1211@gmail.com': 'EMP1751029837839',
-  'sitiaisyahbintimohdnazzer@gmail.com': 'EMP1752551410290',
-  'taysk1210@gmail.com': 'EMP1763042329199',
-};
+// Email to Employee ID mapping removed for security
+const EMAIL_TO_EMPLOYEE_ID: Record<string, string> = {};
 
 /**
  * Get static fallback by email - matches email to employee ID then returns fallback data
