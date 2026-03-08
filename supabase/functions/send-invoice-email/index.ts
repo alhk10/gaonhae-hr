@@ -1,12 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.1";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
 
 interface SendInvoiceEmailRequest {
   recipientEmail: string;
@@ -18,12 +27,29 @@ interface SendInvoiceEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // JWT Authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
@@ -44,7 +70,6 @@ const handler = async (req: Request): Promise<Response> => {
       pdfBase64 
     }: SendInvoiceEmailRequest = await req.json();
 
-    // Validate required fields
     if (!recipientEmail || !invoiceNumber || !pdfBase64) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: recipientEmail, invoiceNumber, and pdfBase64 are required" }),
@@ -52,13 +77,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format currency
+    const safeStudentName = escapeHtml(studentName || 'Valued Customer');
+    const safeInvoiceNumber = escapeHtml(invoiceNumber);
     const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
 
     const emailResponse = await resend.emails.send({
-      from: "Gaonhae Taekwondo <noreply@resend.dev>", // Using Resend's default domain for testing
+      from: "Gaonhae Taekwondo <noreply@resend.dev>",
       to: [recipientEmail],
-      subject: `Invoice ${invoiceNumber} from Gaonhae Taekwondo`,
+      subject: `Invoice ${safeInvoiceNumber} from Gaonhae Taekwondo`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -73,15 +99,15 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <div style="padding: 20px 0;">
-            <p>Dear ${studentName || 'Valued Customer'},</p>
+            <p>Dear ${safeStudentName},</p>
             
-            <p>Please find attached your invoice <strong>${invoiceNumber}</strong>.</p>
+            <p>Please find attached your invoice <strong>${safeInvoiceNumber}</strong>.</p>
             
             <div style="background-color: #f0f7ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td style="padding: 8px 0; color: #666;">Invoice Number:</td>
-                  <td style="padding: 8px 0; text-align: right; font-weight: bold;">${invoiceNumber}</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: bold;">${safeInvoiceNumber}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #666;">Total Amount:</td>

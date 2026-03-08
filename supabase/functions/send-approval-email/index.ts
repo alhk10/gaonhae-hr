@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.1";
 import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
@@ -6,6 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
 
 interface SendApprovalEmailRequest {
   recipientEmail: string;
@@ -23,6 +33,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // JWT Authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
@@ -51,7 +79,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Build email content based on type
+    // Escape all user-supplied values
+    const safeRecipientName = escapeHtml(recipientName);
+    const safeReviewerName = reviewerName ? escapeHtml(reviewerName) : '';
+    const safeReviewNotes = reviewNotes ? escapeHtml(reviewNotes) : '';
+    const safeChangesDescription = changesDescription ? escapeHtml(changesDescription) : '';
+
     const isApproved = type === 'approved';
     const statusColor = isApproved ? '#16a34a' : '#dc2626';
     const statusText = isApproved ? 'Approved' : 'Rejected';
@@ -82,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <div style="padding: 20px 0;">
-            <p>Dear ${recipientName},</p>
+            <p>Dear ${safeRecipientName},</p>
             
             <p>Your <strong>${requestLabel}</strong> has been reviewed.</p>
             
@@ -90,20 +123,20 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin: 0; font-size: 18px; font-weight: bold; color: ${statusColor};">
                 ${statusText}
               </p>
-              ${reviewerName ? `<p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Reviewed by: ${reviewerName}</p>` : ''}
+              ${safeReviewerName ? `<p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Reviewed by: ${safeReviewerName}</p>` : ''}
             </div>
             
-            ${changesDescription ? `
+            ${safeChangesDescription ? `
             <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 10px 0; font-weight: bold;">Request Details:</p>
-              <p style="margin: 0; color: #666;">${changesDescription}</p>
+              <p style="margin: 0; color: #666;">${safeChangesDescription}</p>
             </div>
             ` : ''}
             
-            ${reviewNotes ? `
+            ${safeReviewNotes ? `
             <div style="background-color: #fff7ed; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 10px 0; font-weight: bold;">Reviewer Notes:</p>
-              <p style="margin: 0; color: #666;">${reviewNotes}</p>
+              <p style="margin: 0; color: #666;">${safeReviewNotes}</p>
             </div>
             ` : ''}
             
