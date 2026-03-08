@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface PushPayload {
   employee_id: string;
-   student_id?: string;
+  student_id?: string;
   template_key: string;
   variables?: Record<string, string>;
   url?: string;
@@ -20,8 +20,35 @@ serve(async (req) => {
   }
 
   try {
+    // JWT Authentication - accepts both user JWTs and service role key (from cron functions)
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // If not the service role key, validate as user JWT
+    if (token !== serviceRoleKey) {
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@gaonhae.com';
@@ -34,7 +61,8 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Use service role client for data operations
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const payload: PushPayload = await req.json();
 
     console.log('Push notification request:', payload);
@@ -62,38 +90,36 @@ serve(async (req) => {
       );
     }
 
-     // Get subscription - check if it's for a student or employee
-     let subscription = null;
-     let subscriptionError = null;
-     let recipientType = 'employee';
-     let recipientId = payload.employee_id;
- 
-     if (payload.student_id) {
-       // Fetch student subscription
-       recipientType = 'student';
-       recipientId = payload.student_id;
-       const result = await supabase
-         .from('student_notification_subscriptions')
-         .select('*')
-         .eq('student_id', payload.student_id)
-         .maybeSingle();
-       subscription = result.data;
-       subscriptionError = result.error;
-     } else if (payload.employee_id) {
-       // Fetch employee subscription
-       const result = await supabase
-         .from('notification_subscriptions')
-         .select('*')
-         .eq('employee_id', payload.employee_id)
-         .maybeSingle();
-       subscription = result.data;
-       subscriptionError = result.error;
-     }
+    // Get subscription - check if it's for a student or employee
+    let subscription = null;
+    let subscriptionError = null;
+    let recipientType = 'employee';
+    let recipientId = payload.employee_id;
 
-     if (subscriptionError || !subscription) {
-       console.log(`No subscription found for ${recipientType}:`, recipientId);
+    if (payload.student_id) {
+      recipientType = 'student';
+      recipientId = payload.student_id;
+      const result = await supabase
+        .from('student_notification_subscriptions')
+        .select('*')
+        .eq('student_id', payload.student_id)
+        .maybeSingle();
+      subscription = result.data;
+      subscriptionError = result.error;
+    } else if (payload.employee_id) {
+      const result = await supabase
+        .from('notification_subscriptions')
+        .select('*')
+        .eq('employee_id', payload.employee_id)
+        .maybeSingle();
+      subscription = result.data;
+      subscriptionError = result.error;
+    }
+
+    if (subscriptionError || !subscription) {
+      console.log(`No subscription found for ${recipientType}:`, recipientId);
       return new Response(
-         JSON.stringify({ message: `No push subscription for this ${recipientType}` }),
+        JSON.stringify({ message: `No push subscription for this ${recipientType}` }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -116,8 +142,8 @@ serve(async (req) => {
       tag: payload.template_key,
       data: {
         template_key: payload.template_key,
-         employee_id: payload.employee_id,
-         student_id: payload.student_id
+        employee_id: payload.employee_id,
+        student_id: payload.student_id
       }
     });
 
@@ -133,15 +159,13 @@ serve(async (req) => {
     );
 
     if (pushResult.success) {
-      // Log successful notification
-       // Only log for employees (students don't have notification_logs entries)
-       if (payload.employee_id) {
-         await supabase.from('notification_logs').insert({
-           employee_id: payload.employee_id,
-           template_key: payload.template_key,
-           metadata: { variables: payload.variables }
-         });
-       }
+      if (payload.employee_id) {
+        await supabase.from('notification_logs').insert({
+          employee_id: payload.employee_id,
+          template_key: payload.template_key,
+          metadata: { variables: payload.variables }
+        });
+      }
 
       console.log('Push notification sent successfully');
       return new Response(
@@ -149,20 +173,19 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      // Handle subscription expiry
       if (pushResult.status === 410 || pushResult.status === 404) {
         console.log('Subscription expired, removing from database');
-         if (payload.student_id) {
-           await supabase
-             .from('student_notification_subscriptions')
-             .delete()
-             .eq('id', subscription.id);
-         } else {
-           await supabase
-             .from('notification_subscriptions')
-             .delete()
-             .eq('id', subscription.id);
-         }
+        if (payload.student_id) {
+          await supabase
+            .from('student_notification_subscriptions')
+            .delete()
+            .eq('id', subscription.id);
+        } else {
+          await supabase
+            .from('notification_subscriptions')
+            .delete()
+            .eq('id', subscription.id);
+        }
       }
 
       console.error('Push notification failed:', pushResult);
@@ -190,7 +213,6 @@ async function sendWebPush(
   payload: string
 ): Promise<{ success: boolean; status?: number; message?: string }> {
   try {
-    // Import web-push compatible functionality for Deno
     const { default: webpush } = await import("https://esm.sh/web-push@3.6.7");
     
     webpush.setVapidDetails(
