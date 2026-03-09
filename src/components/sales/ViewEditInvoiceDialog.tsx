@@ -210,7 +210,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          tax_rate: item.tax_rate > 1 ? item.tax_rate / 100 : item.tax_rate,
           tax_amount: item.tax_amount,
           total_amount: item.total_amount,
           size_variant: item.size_variant,
