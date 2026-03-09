@@ -824,10 +824,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                           onSelect={() => handleProductChange(item.id, p.id)}
                                         >
                                           <Check className={cn("mr-2 h-4 w-4", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
-                                          <div className="flex flex-col">
-                                            <span>{p.name}</span>
-                                            <span className="text-xs text-muted-foreground">{formatCurrency(p.base_price)}</span>
-                                          </div>
+                                          <span>{p.name}</span>
                                         </CommandItem>
                                       ))}
                                     </CommandGroup>
