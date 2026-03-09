@@ -60,9 +60,9 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
         let isSuperadmin = false;
         try {
           const saResult = await withTimeout(
-            Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })),
+            Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
             2000,
-            { data: false, error: null }
+            { data: false, error: null } as any
           );
           isSuperadmin = saResult?.data === true;
         } catch { isSuperadmin = false; }
