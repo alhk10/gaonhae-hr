@@ -382,7 +382,7 @@ const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promi
       const { data: emailData, error: emailError } = await Promise.race([
         emailLookupPromise,
         new Promise<{ data: any; error: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: { message: 'Email lookup timeout' } }), 2000)
+          setTimeout(() => resolve({ data: null, error: { message: 'Email lookup timeout' } }), 5000)
         )
       ]);
       
