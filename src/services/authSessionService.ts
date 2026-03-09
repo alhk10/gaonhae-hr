@@ -354,7 +354,7 @@ const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promi
       .maybeSingle();
     
     const timeout = new Promise<{ data: any; error: any }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'Student auth lookup timeout' } }), 2000)
+      setTimeout(() => resolve({ data: null, error: { message: 'Student auth lookup timeout' } }), 5000)
     );
     
     const { data, error } = await Promise.race([lookupPromise, timeout]);
