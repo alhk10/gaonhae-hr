@@ -318,7 +318,7 @@ export const getUserPageAccess = async (employeeId: string) => {
       .maybeSingle();
 
     const extendedTimeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 2000)
+      setTimeout(() => resolve({ data: null, error: null }), 10000)
     );
 
     const extendedResult = await Promise.race([extendedQuery, extendedTimeout]);
