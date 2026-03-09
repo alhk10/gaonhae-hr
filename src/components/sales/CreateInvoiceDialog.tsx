@@ -356,7 +356,30 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   }, [availableBranches.length, formData.branch_id]);
 
-  
+  // Fetch branch-specific hidden product IDs when branch changes
+  useEffect(() => {
+    const fetchHiddenProducts = async () => {
+      if (!formData.branch_id) {
+        setHiddenProductIds(new Set());
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id')
+          .eq('branch_id', formData.branch_id)
+          .eq('is_active', false);
+        
+        if (error) throw error;
+        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
+      } catch (err) {
+        console.error('Error fetching hidden products:', err);
+        setHiddenProductIds(new Set());
+      }
+    };
+    fetchHiddenProducts();
+  }, [formData.branch_id]);
+
   // Load grading slots for Grading Fees category
   const loadGradingSlots = async () => {
     setGradingSlotsLoading(true);
