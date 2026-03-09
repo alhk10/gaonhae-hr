@@ -173,9 +173,13 @@ const getStudentByAuthIdRPC = async (authUserId: string, email?: string): Promis
 const checkSuperadminRPC = async (email: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase.rpc('is_superadmin', { user_email: email });
+    logger.debug('checkSuperadminRPC result', { data, error: error?.message, email });
     if (error) return false;
     return data === true;
-  } catch { return false; }
+  } catch (err) { 
+    logger.error('checkSuperadminRPC exception', err);
+    return false; 
+  }
 };
 
 // Linked students via SECURITY DEFINER RPC

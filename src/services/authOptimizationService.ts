@@ -61,11 +61,20 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
         try {
           const saResult = await withTimeout(
             Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
-            2000,
+            3000,
             { data: false, error: null } as any
           );
+          logger.debug('Superadmin RPC result inside getCurrentUserEmployee', { 
+            data: saResult?.data, 
+            error: saResult?.error?.message,
+            email 
+          });
           isSuperadmin = saResult?.data === true;
-        } catch { isSuperadmin = false; }
+        } catch (saErr) { 
+          logger.error('Superadmin check failed in getCurrentUserEmployee', saErr);
+          isSuperadmin = false; 
+        }
+        logger.debug('Final isSuperadmin value', { isSuperadmin, email });
         
         const userData = { ...row, isSuperadmin };
         cacheEmployeeData(userData, authUserId);
