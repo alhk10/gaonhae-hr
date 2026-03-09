@@ -54,6 +54,7 @@ interface EditableItem {
   tax_amount: number;
   total_amount: number;
   size_variant?: string;
+  color_variant?: string;
   metadata?: any;
   category_name?: string;
   is_lesson?: boolean;
@@ -150,6 +151,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
+  const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
   
   // Delete request dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -171,6 +173,29 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   }, [open, invoiceId, initialMode]);
 
+  // Fetch branch-specific hidden product IDs
+  useEffect(() => {
+    const fetchHiddenProducts = async () => {
+      if (!invoice?.branch_id) {
+        setHiddenProductIds(new Set());
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id')
+          .eq('branch_id', invoice.branch_id)
+          .eq('is_active', false);
+        if (error) throw error;
+        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
+      } catch (err) {
+        console.error('Error fetching hidden products:', err);
+        setHiddenProductIds(new Set());
+      }
+    };
+    fetchHiddenProducts();
+  }, [invoice?.branch_id]);
+
   // When entering edit mode, initialize editItems and editingClassSlots from invoice
   useEffect(() => {
     if (mode === 'edit' && invoice) {
@@ -189,6 +214,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           tax_amount: item.tax_amount,
           total_amount: item.total_amount,
           size_variant: item.size_variant,
+          color_variant: meta?.color_variant || '',
           metadata: item.metadata,
           category_name: product?.category_name,
           is_lesson: product?.is_lesson,
@@ -386,11 +412,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }));
   };
 
-  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price' | 'size_variant', value: number | string) => {
+  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price' | 'size_variant' | 'color_variant', value: number | string) => {
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const updated = { ...item, [field]: value };
-      return field === 'size_variant' ? updated : recalcItem(updated);
+      return (field === 'size_variant' || field === 'color_variant') ? updated : recalcItem(updated);
     }));
   };
 
@@ -436,6 +462,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           ...(item.metadata || {}),
           ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
           ...(lineDiscount ? { line_discount: lineDiscount } : { line_discount: undefined }),
+          color_variant: item.color_variant || undefined,
         };
         const { error } = await supabase
           .from('invoice_items')
@@ -464,6 +491,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
         const metadata = {
           ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
           ...(lineDiscount ? { line_discount: lineDiscount } : {}),
+          ...(item.color_variant ? { color_variant: item.color_variant } : {}),
         };
         const { error } = await supabase
           .from('invoice_items')
@@ -817,7 +845,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                   <CommandList>
                                     <CommandEmpty>No product found.</CommandEmpty>
                                     <CommandGroup>
-                                      {products.filter(p => p.is_active).map(p => (
+                                      {products.filter(p => p.is_active && !hiddenProductIds.has(p.id)).map(p => (
                                         <CommandItem
                                           key={p.id}
                                           value={p.name}
@@ -878,36 +906,69 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           </div>
                         </div>
 
-                        {/* Size variant row */}
+                        {/* Size / Color variant row */}
                         {(() => {
                           const product = products.find(p => p.id === item.product_id);
                           const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
-                          const showVariant = item.size_variant || availableSizes.length > 0;
-                          if (!showVariant) return null;
+                          const availableColors: string[] = (product as any)?.available_variants?.colors || [];
+                          const showSize = item.size_variant || availableSizes.length > 0;
+                          const showColor = item.color_variant || availableColors.length > 0;
+                          if (!showSize && !showColor) return null;
                           return (
-                            <div className="flex items-center gap-2 pt-1">
-                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Size/Variant:</Label>
-                              {availableSizes.length > 0 ? (
-                                <Select
-                                  value={item.size_variant || ''}
-                                  onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
-                                >
-                                  <SelectTrigger className="h-8 w-40 text-xs">
-                                    <SelectValue placeholder="Select size" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {availableSizes.map((size: string) => (
-                                      <SelectItem key={size} value={size}>{size}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Input
-                                  value={item.size_variant || ''}
-                                  onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
-                                  className="h-8 w-40 text-xs"
-                                  placeholder="Enter variant"
-                                />
+                            <div className="flex items-center gap-4 pt-1 flex-wrap">
+                              {showSize && (
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Size:</Label>
+                                  {availableSizes.length > 0 ? (
+                                    <Select
+                                      value={item.size_variant || ''}
+                                      onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
+                                    >
+                                      <SelectTrigger className="h-8 w-40 text-xs">
+                                        <SelectValue placeholder="Select size" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableSizes.map((size: string) => (
+                                          <SelectItem key={size} value={size}>{size}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={item.size_variant || ''}
+                                      onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
+                                      className="h-8 w-40 text-xs"
+                                      placeholder="Enter size"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                              {showColor && (
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Color:</Label>
+                                  {availableColors.length > 0 ? (
+                                    <Select
+                                      value={item.color_variant || ''}
+                                      onValueChange={(val) => handleItemFieldChange(item.id, 'color_variant', val)}
+                                    >
+                                      <SelectTrigger className="h-8 w-40 text-xs">
+                                        <SelectValue placeholder="Select color" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableColors.map((color: string) => (
+                                          <SelectItem key={color} value={color}>{color}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={item.color_variant || ''}
+                                      onChange={(e) => handleItemFieldChange(item.id, 'color_variant', e.target.value)}
+                                      className="h-8 w-40 text-xs"
+                                      placeholder="Enter color"
+                                    />
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
