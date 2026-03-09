@@ -1287,26 +1287,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   const itemCategory = categories.find(c => c.id === itemProduct?.category_id);
                   return (
                     <TableRow key={index}>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="px-2 text-muted-foreground">
                         {itemCategory?.name || '-'}
                       </TableCell>
-                      <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell>
-                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-14 h-8" />
+                      <TableCell className="px-2 font-medium">{item.product_name}</TableCell>
+                      <TableCell className="px-2">
+                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
                       </TableCell>
-                      <TableCell>
-                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
+                      <TableCell className="px-2">
+                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-14 h-7 text-xs px-1 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} />
                       </TableCell>
-                      <TableCell>{item.size_variant || '-'}</TableCell>
-                      <TableCell>{item.color_variant || '-'}</TableCell>
-                      <TableCell>{item.term_name || item.grading_slot_title || '-'}</TableCell>
-                      <TableCell className="font-medium">${item.total.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-8 w-8 text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
+                      <TableCell className="px-2">{item.size_variant || '-'}</TableCell>
+                      <TableCell className="px-2">{item.color_variant || '-'}</TableCell>
+                      <TableCell className="px-2">{item.term_name || item.grading_slot_title || '-'}</TableCell>
+                      <TableCell className="px-2 font-medium text-right">${item.total.toFixed(2)}</TableCell>
+                      <TableCell className="px-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-7 w-7 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
