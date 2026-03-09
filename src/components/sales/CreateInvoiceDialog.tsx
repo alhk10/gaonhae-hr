@@ -1397,6 +1397,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   onSlotsChange={setSelectedClassSlots}
                   term={branchTerms.find(t => t.id === newItem.term_id)!}
                   allowedClassTypes={selectedProduct?.allowed_class_types}
+                  allowedDays={selectedProduct?.lesson_days}
+                  lessonsPerWeek={selectedProduct?.lessons_per_week}
                 />
               </div>
             )}
