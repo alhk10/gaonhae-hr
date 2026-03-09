@@ -771,7 +771,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                         <DollarSign className="w-3 h-3" />
                                       </Button>
                                     }
-                                    invoiceId={invoice.id}
+                                    preSelectedInvoiceId={invoice.id}
                                     onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['branch-invoices'] })}
                                   />
                                 )}
