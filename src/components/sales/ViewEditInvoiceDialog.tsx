@@ -906,12 +906,12 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           </div>
                         </div>
 
-                        {/* Size / Color variant row */}
+                        {/* Size / Color variant row - always show in edit mode */}
                         {(() => {
                           const product = products.find(p => p.id === item.product_id);
                           const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
                           const availableColors: string[] = (product as any)?.available_variants?.colors || [];
-                          const showSize = item.size_variant || availableSizes.length > 0;
+                          const showSize = true; // Always show size field in edit mode
                           const showColor = item.color_variant || availableColors.length > 0;
                           if (!showSize && !showColor) return null;
                           return (
