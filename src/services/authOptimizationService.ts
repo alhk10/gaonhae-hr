@@ -110,7 +110,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
       .maybeSingle();
       
     const extendedTimeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 3000)
+      setTimeout(() => resolve({ data: null, error: null }), 10000)
     );
     
     const extendedResult = await Promise.race([extendedQuery, extendedTimeout]);
