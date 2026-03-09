@@ -212,7 +212,6 @@ const ProductSearchSelect: React.FC<{
                   <Check className={cn('mr-2 h-4 w-4', value === product.id ? 'opacity-100' : 'opacity-0')} />
                   <div className="flex flex-col">
                     <span>{product.name}</span>
-                    <span className="text-xs text-muted-foreground">{product.sku} — ${product.base_price.toFixed(2)}</span>
                   </div>
                 </CommandItem>
               ))}
