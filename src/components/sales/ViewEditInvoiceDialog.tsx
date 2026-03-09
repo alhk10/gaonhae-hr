@@ -318,7 +318,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       ? gross * ((item.discount_value || 0) / 100)
       : (item.discount_value || 0);
     const net = Math.max(0, gross - discountAmt);
-    const taxAmt = net * (item.tax_rate / 100);
+    const taxAmt = net * item.tax_rate;
     return { ...item, tax_amount: taxAmt, total_amount: net + taxAmt };
   };
 
@@ -366,9 +366,9 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    // Get branch country for tax rate
+    // Get branch country for tax rate (stored as decimal, e.g. 0.09 for 9%)
     const branchCountry = invoice?.branch_id ? 'Singapore' : 'Singapore'; // default
-    const taxRate = product.tax_rate ?? COUNTRY_TAX_RATES[branchCountry] ?? 0;
+    const taxRate = product.tax_rate ?? (COUNTRY_TAX_RATES[branchCountry] ?? 0) / 100;
 
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
