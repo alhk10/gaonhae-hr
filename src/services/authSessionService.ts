@@ -73,16 +73,32 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       };
     }
 
-    // PARALLEL: All three checks with individual timeouts (4s each)
+    // PARALLEL: All three checks with individual timeouts (6s each)
     logger.debug('Running parallel auth checks');
-    const [studentData, userData, isSuperadmin] = await Promise.all([
-      withTimeout(getStudentByAuthIdRPC(authUserId, email), 4000, null),
-      withTimeout(getUserData(email, authUserId).catch(() => null), 4000, null),
-      withTimeout(checkSuperadminRPC(email), 4000, false)
+    const [studentData, userData, isSuperadminInitial] = await Promise.all([
+      withTimeout(getStudentByAuthIdRPC(authUserId, email), 6000, null),
+      withTimeout(getUserData(email, authUserId).catch(() => null), 6000, null),
+      withTimeout(checkSuperadminRPC(email), 6000, false)
     ]);
     
+    // If superadmin check timed out but we have no data yet, retry with longer timeout
+    let isSuperadmin = isSuperadminInitial;
+    if (!isSuperadmin && !studentData) {
+      logger.debug('Superadmin initial check was false, retrying with longer timeout');
+      isSuperadmin = await withTimeout(checkSuperadminRPC(email), 8000, false);
+      logger.debug('Superadmin retry result', { isSuperadmin });
+    }
+    
+    // Also retry employee data if missing
+    let finalUserData = userData;
+    if (!finalUserData && !studentData) {
+      logger.debug('Employee data missing, retrying');
+      finalUserData = await withTimeout(getUserData(email, authUserId).catch(() => null), 8000, null);
+      logger.debug('Employee data retry result', { hasEmployee: !!finalUserData });
+    }
+    
     logger.debug('Parallel auth checks complete', { 
-      hasStudent: !!studentData, hasEmployee: !!userData, isSuperadmin 
+      hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
     });
 
     // Priority 1: Student
@@ -98,17 +114,17 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     }
 
     // Priority 2: Superadmin employee
-    if (userData?.isSuperadmin || (isSuperadmin && userData)) {
+    if (finalUserData?.isSuperadmin || (isSuperadmin && finalUserData)) {
       logger.info('User is superadmin employee');
       return {
-        user: { id: authUserId, email, name: userData.name, employeeId: userData.id, department: userData.department, position: userData.position },
-        userrole: 'superadmin', userType: 'employee', userDetails: userData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
+        userrole: 'superadmin', userType: 'employee', userDetails: finalUserData,
         adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents: []
       };
     }
 
     // Priority 3: Superadmin without employee record
-    if (isSuperadmin && !userData) {
+    if (isSuperadmin && !finalUserData) {
       logger.info('User is superadmin (no employee record)');
       return {
         user: { id: authUserId, email, name: email, role: 'superadmin' },
@@ -118,17 +134,17 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     }
 
     // Priority 4: Regular employee — fetch admin/page access in parallel
-    if (userData) {
+    if (finalUserData) {
       logger.debug('Fetching admin/page access');
       const [adminAccess, pageAccess] = await Promise.all([
-        withTimeout(getUserAdminAccess(userData.id).catch(() => null), 3000, null),
-        withTimeout(getUserPageAccess(userData.id).catch(() => DEFAULT_PAGE_ACCESS), 3000, DEFAULT_PAGE_ACCESS)
+        withTimeout(getUserAdminAccess(finalUserData.id).catch(() => null), 3000, null),
+        withTimeout(getUserPageAccess(finalUserData.id).catch(() => DEFAULT_PAGE_ACCESS), 3000, DEFAULT_PAGE_ACCESS)
       ]);
       const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
       logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee' });
       return {
-        user: { id: authUserId, email, name: userData.name, employeeId: userData.id, department: userData.department, position: userData.position },
-        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', userDetails: userData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
+        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', userDetails: finalUserData,
         adminAccess, pageAccess, isSuperadmin: false, linkedStudents: []
       };
     }
