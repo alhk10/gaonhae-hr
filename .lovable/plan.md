@@ -1,41 +1,51 @@
 
 
-## Problem
-The View/Edit Invoice dialog's edit mode is missing two features that exist in the Create Invoice dialog:
-1. **Size variant editing** — no way to view or change the `size_variant` field on line items
-2. **Line discount editing** — no discount controls; the `LineDiscountPopover` component and discount logic are absent
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-## Root Cause
-The `EditableItem` interface and edit UI in `ViewEditInvoiceDialog.tsx` were built with only Product, Qty, Unit Price, and Total fields. The `size_variant` column (which exists on `invoice_items`) and discount data (stored in `metadata.line_discount`) are loaded but never rendered or editable.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-## Plan
+### Changes
 
-### 1. Add discount and variant fields to EditableItem interface
-- Add `discount_type?: 'percentage' | 'amount'` and `discount_value?: number` to `EditableItem`
-- Initialize these from `metadata.line_discount` when entering edit mode
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-### 2. Copy LineDiscountPopover from CreateInvoiceDialog
-- Extract or duplicate the `LineDiscountPopover` component into ViewEditInvoiceDialog (it's a small inline component)
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-### 3. Add size variant selector to edit UI
-- After the Product/Qty/Price row, add a conditional row showing a size variant `Select` (from product's `available_variants.sizes` or `available_sizes`) or a text `Input` for freeform sizes
-- Pre-populate with the item's current `size_variant`
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-### 4. Add LineDiscountPopover to each edit item row
-- Place it next to the Total column, matching the CreateInvoiceDialog layout
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-### 5. Update recalcItem to factor in discounts
-- Modify `recalcItem` to apply discount before tax: `gross = qty * price`, then subtract discount, then apply tax
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-### 6. Update handleItemFieldChange
-- Support `'size_variant'` as a field
-- Add a new `handleItemDiscountChange` function
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-### 7. Update save logic
-- Include `size_variant` in the update/insert calls (already a column on `invoice_items`)
-- Store discount in `metadata.line_discount`
-- Use discounted total for `total_amount`
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
 
-### Files to modify
-- `src/components/sales/ViewEditInvoiceDialog.tsx` — all changes in this single file
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
+
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 

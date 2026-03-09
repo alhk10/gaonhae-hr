@@ -22,7 +22,7 @@ import { createDeletionRequest } from '@/services/paymentDeletionRequestService'
 import { getProducts, type Product } from '@/services/productService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown, Percent } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
@@ -57,7 +57,76 @@ interface EditableItem {
   metadata?: any;
   category_name?: string;
   is_lesson?: boolean;
+  discount_type?: 'percentage' | 'amount';
+  discount_value?: number;
 }
+
+// Line discount popover component
+const LineDiscountPopover: React.FC<{
+  discountType?: 'percentage' | 'amount';
+  discountValue?: number;
+  onChange: (type: 'percentage' | 'amount', value: number) => void;
+}> = ({ discountType = 'percentage', discountValue = 0, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [localType, setLocalType] = useState<'percentage' | 'amount'>(discountType);
+  const [localValue, setLocalValue] = useState(discountValue.toString());
+
+  useEffect(() => {
+    setLocalType(discountType);
+    setLocalValue(discountValue.toString());
+  }, [discountType, discountValue]);
+
+  const handleApply = () => {
+    onChange(localType, parseFloat(localValue) || 0);
+    setOpen(false);
+  };
+
+  const displayText = discountValue && discountValue > 0
+    ? (discountType === 'percentage' ? `${discountValue}%` : `$${discountValue.toFixed(2)}`)
+    : '-';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" className="h-8 px-2 text-xs font-normal min-w-[40px]">
+          {displayText}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-3 space-y-2">
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'percentage' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('percentage')}
+          >
+            <Percent className="h-3 w-3 mr-1" /> %
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'amount' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('amount')}
+          >
+            <DollarSign className="h-3 w-3 mr-1" /> $
+          </Button>
+        </div>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          className="h-8"
+          placeholder={localType === 'percentage' ? 'e.g. 10' : 'e.g. 5.00'}
+        />
+        <Button type="button" size="sm" className="w-full h-7" onClick={handleApply}>Apply</Button>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   invoiceId,
@@ -107,6 +176,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     if (mode === 'edit' && invoice) {
       const items: EditableItem[] = invoice.items.map((item) => {
         const product = products.find(p => p.id === item.product_id);
+        const meta = item.metadata as any;
+        const lineDiscount = meta?.line_discount;
         return {
           id: item.id,
           product_id: item.product_id,
@@ -121,6 +192,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           metadata: item.metadata,
           category_name: product?.category_name,
           is_lesson: product?.is_lesson,
+          discount_type: lineDiscount?.type || 'percentage',
+          discount_value: lineDiscount?.value || 0,
         };
       });
       setEditItems(items);
@@ -238,16 +311,26 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   };
 
-  // Recalculate item totals
+  // Recalculate item totals (with discount)
   const recalcItem = (item: EditableItem): EditableItem => {
-    const subtotal = item.quantity * item.unit_price;
-    const taxAmt = subtotal * (item.tax_rate / 100);
-    return { ...item, tax_amount: taxAmt, total_amount: subtotal + taxAmt };
+    const gross = item.quantity * item.unit_price;
+    const discountAmt = item.discount_type === 'percentage'
+      ? gross * ((item.discount_value || 0) / 100)
+      : (item.discount_value || 0);
+    const net = Math.max(0, gross - discountAmt);
+    const taxAmt = net * (item.tax_rate / 100);
+    return { ...item, tax_amount: taxAmt, total_amount: net + taxAmt };
   };
 
-  // Calculated totals from editItems
+  // Calculated totals from editItems (with discounts)
   const editTotals = useMemo(() => {
-    const subtotal = editItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+    const subtotal = editItems.reduce((sum, i) => {
+      const gross = i.quantity * i.unit_price;
+      const discountAmt = i.discount_type === 'percentage'
+        ? gross * ((i.discount_value || 0) / 100)
+        : (i.discount_value || 0);
+      return sum + Math.max(0, gross - discountAmt);
+    }, 0);
     const tax = editItems.reduce((sum, i) => sum + i.tax_amount, 0);
     const total = subtotal + tax;
     const amountPaid = invoice?.amount_paid || 0;
@@ -303,11 +386,18 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }));
   };
 
-  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price', value: number) => {
+  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price' | 'size_variant', value: number | string) => {
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const updated = { ...item, [field]: value };
-      return recalcItem(updated);
+      return field === 'size_variant' ? updated : recalcItem(updated);
+    }));
+  };
+
+  const handleItemDiscountChange = (itemId: string, type: 'percentage' | 'amount', value: number) => {
+    setEditItems(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      return recalcItem({ ...item, discount_type: type, discount_value: value });
     }));
   };
 
@@ -339,7 +429,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
       // Update existing items
       for (const item of editItems.filter(i => !i.isNew)) {
-        const metadata = { ...(item.metadata || {}), ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}) };
+        const lineDiscount = (item.discount_value && item.discount_value > 0)
+          ? { type: item.discount_type, value: item.discount_value }
+          : undefined;
+        const metadata = {
+          ...(item.metadata || {}),
+          ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
+          ...(lineDiscount ? { line_discount: lineDiscount } : { line_discount: undefined }),
+        };
         const { error } = await supabase
           .from('invoice_items')
           .update({
@@ -350,6 +447,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             tax_rate: item.tax_rate,
             tax_amount: item.tax_amount,
             total_amount: item.total_amount,
+            size_variant: item.size_variant || null,
             metadata,
             updated_at: new Date().toISOString(),
           })
@@ -360,7 +458,13 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       // Insert new items
       for (const item of editItems.filter(i => i.isNew)) {
         if (!item.product_id) continue; // skip empty items
-        const metadata = editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : null;
+        const lineDiscount = (item.discount_value && item.discount_value > 0)
+          ? { type: item.discount_type, value: item.discount_value }
+          : undefined;
+        const metadata = {
+          ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
+          ...(lineDiscount ? { line_discount: lineDiscount } : {}),
+        };
         const { error } = await supabase
           .from('invoice_items')
           .insert({
@@ -372,7 +476,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             tax_rate: item.tax_rate,
             tax_amount: item.tax_amount,
             total_amount: item.total_amount,
-            metadata,
+            size_variant: item.size_variant || null,
+            metadata: Object.keys(metadata).length > 0 ? metadata : null,
           });
         if (error) throw error;
       }
@@ -731,7 +836,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               </PopoverContent>
                             </Popover>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-1">
                             <Label className="text-xs">Qty</Label>
                             <Input
                               type="number"
@@ -748,6 +853,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               min={0}
                               value={item.unit_price}
                               onChange={(e) => handleItemFieldChange(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <Label className="text-xs">Discount</Label>
+                            <LineDiscountPopover
+                              discountType={item.discount_type}
+                              discountValue={item.discount_value}
+                              onChange={(type, value) => handleItemDiscountChange(item.id, type, value)}
                             />
                           </div>
                           <div className="col-span-2 text-right">
@@ -767,6 +880,41 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                             </Button>
                           </div>
                         </div>
+
+                        {/* Size variant row */}
+                        {(() => {
+                          const product = products.find(p => p.id === item.product_id);
+                          const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
+                          const showVariant = item.size_variant || availableSizes.length > 0;
+                          if (!showVariant) return null;
+                          return (
+                            <div className="flex items-center gap-2 pt-1">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Size/Variant:</Label>
+                              {availableSizes.length > 0 ? (
+                                <Select
+                                  value={item.size_variant || ''}
+                                  onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
+                                >
+                                  <SelectTrigger className="h-8 w-40 text-xs">
+                                    <SelectValue placeholder="Select size" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableSizes.map((size: string) => (
+                                      <SelectItem key={size} value={size}>{size}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={item.size_variant || ''}
+                                  onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
+                                  className="h-8 w-40 text-xs"
+                                  placeholder="Enter variant"
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Class Schedule Selector for class items */}
                         {isClassItem && termIds.length > 0 && invoice.branch_id && (
@@ -869,6 +1017,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                       <TableHead>Description</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Tax</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                     </TableRow>
@@ -878,6 +1027,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                       const metadata = item.metadata as any;
                       const classSlots: string[] = metadata?.selected_class_slots || [];
                       const hasClassSlots = classSlots.length > 0;
+                      const lineDiscount = metadata?.line_discount;
 
                       return (
                         <React.Fragment key={item.id}>
@@ -892,13 +1042,18 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                             </TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
                             <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell className="text-right text-xs">
+                              {lineDiscount?.value && lineDiscount.value > 0
+                                ? (lineDiscount.type === 'percentage' ? `${lineDiscount.value}%` : formatCurrency(lineDiscount.value))
+                                : '-'}
+                            </TableCell>
                             <TableCell className="text-right">{formatCurrency(item.tax_amount)}</TableCell>
                             <TableCell className="text-right font-medium">{formatCurrency(item.total_amount)}</TableCell>
                           </TableRow>
 
                           {hasClassSlots && (
                             <TableRow className="border-0 hover:bg-transparent">
-                              <TableCell colSpan={5} className="pt-0 pb-2">
+                              <TableCell colSpan={6} className="pt-0 pb-2">
                                 <div className="flex flex-wrap gap-1 items-center">
                                   <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
                                   {classSlots
