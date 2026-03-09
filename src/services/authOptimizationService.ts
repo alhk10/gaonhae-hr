@@ -149,7 +149,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 
   try {
     const result = await withTimeout(
-      toPromise(supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId })),
+      Promise.resolve(supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId })) as Promise<any>,
       3000,
       { data: null, error: { message: 'timeout' } } as any
     );
