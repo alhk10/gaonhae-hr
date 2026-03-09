@@ -331,7 +331,7 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
       .maybeSingle();
     
     const timeout = new Promise<{ data: any }>((resolve) =>
-      setTimeout(() => resolve({ data: null }), 2000)
+      setTimeout(() => resolve({ data: null }), 8000)
     );
     
     const { data } = await Promise.race([lookupPromise as any, timeout]);
