@@ -31,28 +31,51 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
   try {
     logger.debug('Fetching employee data via RPC', { email });
     
-    const result = await withTimeout(
-      toPromise(supabase.rpc('get_employee_by_email_for_auth', { p_email: email })),
-      4000,
-      { data: null, error: { message: 'timeout' } } as any
-    );
+    // Call RPC directly without toPromise wrapper - supabase already returns a thenable
+    let result: any;
+    try {
+      const rpcCall = supabase.rpc('get_employee_by_email_for_auth', { p_email: email });
+      result = await withTimeout(
+        Promise.resolve(rpcCall) as Promise<any>,
+        5000,
+        { data: null, error: { message: 'timeout' } } as any
+      );
+    } catch (rpcError) {
+      logger.error('RPC call failed', rpcError);
+      result = { data: null, error: rpcError };
+    }
     
-    if (result.data && !result.error) {
+    logger.debug('RPC result', { 
+      hasData: !!result?.data, 
+      dataType: typeof result?.data,
+      isArray: Array.isArray(result?.data),
+      dataLength: Array.isArray(result?.data) ? result.data.length : 'n/a',
+      error: result?.error?.message || null
+    });
+    
+    if (result?.data && !result?.error) {
       const row = Array.isArray(result.data) ? result.data[0] : result.data;
-      if (row) {
-        logger.debug('Got employee data via RPC');
-        const isSuperadmin = await withTimeout(
-          toPromise(supabase.rpc('is_superadmin', { user_email: email })).then(r => r.data === true),
-          2000,
-          false
-        );
+      if (row && row.id) {
+        logger.debug('Got employee data via RPC', { employeeId: row.id, name: row.name });
+        let isSuperadmin = false;
+        try {
+          const saResult = await withTimeout(
+            Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
+            2000,
+            { data: false, error: null } as any
+          );
+          isSuperadmin = saResult?.data === true;
+        } catch { isSuperadmin = false; }
+        
         const userData = { ...row, isSuperadmin };
         cacheEmployeeData(userData, authUserId);
         return userData;
       }
     }
     
-    logger.debug('RPC returned no employee data, trying cache');
+    logger.debug('RPC returned no usable employee data, trying cache', {
+      rawData: JSON.stringify(result?.data)?.substring(0, 200)
+    });
     
     if (authUserId) {
       const cached = getCachedEmployeeByAuthId(authUserId);
@@ -82,7 +105,7 @@ export const getUserData = getCurrentUserEmployee;
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
     const result = await withTimeout(
-      toPromise(supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId })),
+      Promise.resolve(supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId })) as Promise<any>,
       3000,
       { data: null, error: { message: 'timeout' } } as any
     );
@@ -126,7 +149,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 
   try {
     const result = await withTimeout(
-      toPromise(supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId })),
+      Promise.resolve(supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId })) as Promise<any>,
       3000,
       { data: null, error: { message: 'timeout' } } as any
     );
@@ -164,7 +187,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
   try {
     const result = await withTimeout(
-      toPromise(supabase.rpc('is_superadmin', { user_email: email })),
+      Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
       2000,
       { data: false, error: null } as any
     );
