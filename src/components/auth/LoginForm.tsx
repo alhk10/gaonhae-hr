@@ -106,9 +106,6 @@ const LoginForm = () => {
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">Gaonhae Taekwondo</CardTitle>
-              <CardDescription className="text-gray-600">
-                Employee & Student Portal
-              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
