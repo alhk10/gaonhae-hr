@@ -1105,7 +1105,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
+      <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
         <DialogHeader>
           <DialogTitle className="text-base md:text-lg">Create New Invoice</DialogTitle>
         </DialogHeader>
@@ -1265,19 +1265,19 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             </div>
 
             {/* === DESKTOP TABLE LAYOUT === */}
-            <Table className="hidden md:table">
+            <Table className="hidden md:table text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="w-14">Qty</TableHead>
-                  <TableHead className="w-20">Price</TableHead>
-                  <TableHead className="w-16">Discount</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Color</TableHead>
-                  <TableHead>Term/Slot</TableHead>
-                  <TableHead className="w-24">Total</TableHead>
-                  <TableHead className="w-12">Actions</TableHead>
+                  <TableHead className="px-2">Category</TableHead>
+                  <TableHead className="px-2">Product</TableHead>
+                  <TableHead className="px-2 w-12">Qty</TableHead>
+                  <TableHead className="px-2 w-16">Price</TableHead>
+                  <TableHead className="px-2 w-14">Disc</TableHead>
+                  <TableHead className="px-2 w-14">Size</TableHead>
+                  <TableHead className="px-2 w-14">Color</TableHead>
+                  <TableHead className="px-2">Term/Slot</TableHead>
+                  <TableHead className="px-2 w-16 text-right">Total</TableHead>
+                  <TableHead className="px-1 w-9"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1287,26 +1287,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   const itemCategory = categories.find(c => c.id === itemProduct?.category_id);
                   return (
                     <TableRow key={index}>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="px-2 text-muted-foreground">
                         {itemCategory?.name || '-'}
                       </TableCell>
-                      <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell>
-                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-14 h-8" />
+                      <TableCell className="px-2 font-medium">{item.product_name}</TableCell>
+                      <TableCell className="px-2">
+                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
                       </TableCell>
-                      <TableCell>
-                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-16 h-8 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
+                      <TableCell className="px-2">
+                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-14 h-7 text-xs px-1 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} />
                       </TableCell>
-                      <TableCell>{item.size_variant || '-'}</TableCell>
-                      <TableCell>{item.color_variant || '-'}</TableCell>
-                      <TableCell>{item.term_name || item.grading_slot_title || '-'}</TableCell>
-                      <TableCell className="font-medium">${item.total.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-8 w-8 text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
+                      <TableCell className="px-2">{item.size_variant || '-'}</TableCell>
+                      <TableCell className="px-2">{item.color_variant || '-'}</TableCell>
+                      <TableCell className="px-2">{item.term_name || item.grading_slot_title || '-'}</TableCell>
+                      <TableCell className="px-2 font-medium text-right">${item.total.toFixed(2)}</TableCell>
+                      <TableCell className="px-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-7 w-7 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1315,49 +1315,49 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
                 {/* Inline Add Item Row */}
                 <TableRow className="bg-muted/30">
-                  <TableCell>
+                  <TableCell className="px-2">
                     <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
-                      <SelectTrigger className="h-8 w-24"><SelectValue placeholder="Category" /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
                       <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>))}</SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2">
                     <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
                   </TableCell>
-                  <TableCell>
-                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-14 h-8" />
+                  <TableCell className="px-2">
+                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
                   </TableCell>
-                  <TableCell>
-                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-16 h-8 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
+                  <TableCell className="px-2">
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                   </TableCell>
-                  <TableCell><span className="text-muted-foreground text-sm">-</span></TableCell>
-                  <TableCell>
+                  <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
+                  <TableCell className="px-2">
                     {sizeOptions.length > 0 ? (
                       <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
-                        <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Size" /></SelectTrigger>
+                        <SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Size" /></SelectTrigger>
                         <SelectContent>{sizeOptions.map((size) => (<SelectItem key={size} value={size}>{size}</SelectItem>))}</SelectContent>
                       </Select>
                     ) : showSizeInput ? (
-                      <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-8 w-20" />
+                      <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs w-16 px-1" />
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2">
                     {colorOptions.length > 0 ? (
                       <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
-                        <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Color" /></SelectTrigger>
+                        <SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Color" /></SelectTrigger>
                         <SelectContent>{colorOptions.map((color) => (<SelectItem key={color} value={color}>{color}</SelectItem>))}</SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2">
                     {selectedCategory?.name === 'Classes' ? (
                       branchTerms.length > 0 ? (
                         <Select value={newItem.term_id} onValueChange={(value) => handleNewItemChange('term_id', value)} disabled={termLoading}>
-                          <SelectTrigger className={`h-8 w-28 ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
+                          <SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
                           <SelectContent>{branchTerms.map((term) => (<SelectItem key={term.id} value={term.id}>{term.name}</SelectItem>))}</SelectContent>
                         </Select>
                       ) : (
@@ -1366,20 +1366,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     ) : selectedCategory?.name === 'Grading Fees' ? (
                       getFilteredGradingSlots().length > 0 ? (
                         <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
-                          <SelectTrigger className="h-8 w-36"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
                           <SelectContent>{getFilteredGradingSlots().map((slot) => (<SelectItem key={slot.id} value={slot.id}>{slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>))}</SelectContent>
                         </Select>
                       ) : (
                         <span className="text-muted-foreground text-xs">No slots</span>
                       )
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">-</TableCell>
-                  <TableCell>
-                    <Button type="button" onClick={addItem} size="icon" className="h-8 w-8" disabled={!newItem.product_id}>
-                      <Plus className="h-4 w-4" />
+                  <TableCell className="px-2 text-muted-foreground">-</TableCell>
+                  <TableCell className="px-1">
+                    <Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id}>
+                      <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </TableCell>
                 </TableRow>
