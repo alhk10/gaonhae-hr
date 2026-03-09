@@ -322,9 +322,15 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     return { ...item, tax_amount: taxAmt, total_amount: net + taxAmt };
   };
 
-  // Calculated totals from editItems
+  // Calculated totals from editItems (with discounts)
   const editTotals = useMemo(() => {
-    const subtotal = editItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+    const subtotal = editItems.reduce((sum, i) => {
+      const gross = i.quantity * i.unit_price;
+      const discountAmt = i.discount_type === 'percentage'
+        ? gross * ((i.discount_value || 0) / 100)
+        : (i.discount_value || 0);
+      return sum + Math.max(0, gross - discountAmt);
+    }, 0);
     const tax = editItems.reduce((sum, i) => sum + i.tax_amount, 0);
     const total = subtotal + tax;
     const amountPaid = invoice?.amount_paid || 0;
