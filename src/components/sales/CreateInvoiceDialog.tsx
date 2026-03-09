@@ -212,7 +212,6 @@ const ProductSearchSelect: React.FC<{
                   <Check className={cn('mr-2 h-4 w-4', value === product.id ? 'opacity-100' : 'opacity-0')} />
                   <div className="flex flex-col">
                     <span>{product.name}</span>
-                    <span className="text-xs text-muted-foreground">{product.sku} — ${product.base_price.toFixed(2)}</span>
                   </div>
                 </CommandItem>
               ))}
@@ -300,6 +299,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
   const { accessibleBranches, isSuperadmin, canCreate } = useInvoiceAccess();
   
   // Term state for Classes category
@@ -356,7 +356,30 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   }, [availableBranches.length, formData.branch_id]);
 
-  
+  // Fetch branch-specific hidden product IDs when branch changes
+  useEffect(() => {
+    const fetchHiddenProducts = async () => {
+      if (!formData.branch_id) {
+        setHiddenProductIds(new Set());
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id')
+          .eq('branch_id', formData.branch_id)
+          .eq('is_active', false);
+        
+        if (error) throw error;
+        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
+      } catch (err) {
+        console.error('Error fetching hidden products:', err);
+        setHiddenProductIds(new Set());
+      }
+    };
+    fetchHiddenProducts();
+  }, [formData.branch_id]);
+
   // Load grading slots for Grading Fees category
   const loadGradingSlots = async () => {
     setGradingSlotsLoading(true);
@@ -918,11 +941,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return filtered;
   };
 
-  // Get filtered products based on selected category AND student belt level
+  // Get filtered products based on selected category, student belt level, AND branch pricing rules
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
     const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
-    return matchesCategory && matchesBelt;
+    const notHidden = !hiddenProductIds.has(p.id);
+    return matchesCategory && matchesBelt && notHidden;
   });
 
   // Auto-select product if only 1 option available
