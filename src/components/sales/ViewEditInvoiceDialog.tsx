@@ -151,6 +151,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
+  const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
   
   // Delete request dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
