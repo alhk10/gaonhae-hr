@@ -50,7 +50,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
       .maybeSingle();
       
     const quickTimeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 800)
+      setTimeout(() => resolve({ data: null, error: null }), 5000)
     );
     
     const quickResult = await Promise.race([quickCheck, quickTimeout]);
