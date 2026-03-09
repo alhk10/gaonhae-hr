@@ -17,6 +17,13 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   return Promise.race([promise, timeout]);
 };
 
+// Convert supabase query builder to a real Promise
+const toPromise = <T>(queryBuilder: PromiseLike<T>): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    queryBuilder.then(resolve, reject);
+  });
+};
+
 /**
  * Get employee data using SECURITY DEFINER RPC (bypasses slow RLS)
  */
@@ -25,7 +32,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
     logger.debug('Fetching employee data via RPC', { email });
     
     const result = await withTimeout(
-      supabase.rpc('get_employee_by_email_for_auth', { p_email: email }),
+      toPromise(supabase.rpc('get_employee_by_email_for_auth', { p_email: email })),
       4000,
       { data: null, error: { message: 'timeout' } } as any
     );
@@ -35,7 +42,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
       if (row) {
         logger.debug('Got employee data via RPC');
         const isSuperadmin = await withTimeout(
-          supabase.rpc('is_superadmin', { user_email: email }).then(r => r.data === true),
+          toPromise(supabase.rpc('is_superadmin', { user_email: email })).then(r => r.data === true),
           2000,
           false
         );
@@ -47,7 +54,6 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
     
     logger.debug('RPC returned no employee data, trying cache');
     
-    // Cache fallbacks
     if (authUserId) {
       const cached = getCachedEmployeeByAuthId(authUserId);
       if (cached) { logger.info('Using cached employee by auth ID'); return cached; }
@@ -76,7 +82,7 @@ export const getUserData = getCurrentUserEmployee;
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
     const result = await withTimeout(
-      supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId }),
+      toPromise(supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId })),
       3000,
       { data: null, error: { message: 'timeout' } } as any
     );
@@ -120,7 +126,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 
   try {
     const result = await withTimeout(
-      supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId }),
+      toPromise(supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId })),
       3000,
       { data: null, error: { message: 'timeout' } } as any
     );
@@ -158,7 +164,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
   try {
     const result = await withTimeout(
-      supabase.rpc('is_superadmin', { user_email: email }),
+      toPromise(supabase.rpc('is_superadmin', { user_email: email })),
       2000,
       { data: false, error: null } as any
     );
