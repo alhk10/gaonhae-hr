@@ -173,6 +173,29 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   }, [open, invoiceId, initialMode]);
 
+  // Fetch branch-specific hidden product IDs
+  useEffect(() => {
+    const fetchHiddenProducts = async () => {
+      if (!invoice?.branch_id) {
+        setHiddenProductIds(new Set());
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id')
+          .eq('branch_id', invoice.branch_id)
+          .eq('is_active', false);
+        if (error) throw error;
+        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
+      } catch (err) {
+        console.error('Error fetching hidden products:', err);
+        setHiddenProductIds(new Set());
+      }
+    };
+    fetchHiddenProducts();
+  }, [invoice?.branch_id]);
+
   // When entering edit mode, initialize editItems and editingClassSlots from invoice
   useEffect(() => {
     if (mode === 'edit' && invoice) {
