@@ -13,8 +13,10 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const PaymentVerificationApprovals = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
