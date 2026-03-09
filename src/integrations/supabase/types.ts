@@ -4898,6 +4898,19 @@ export type Database = {
       check_employee_admin_access: { Args: never; Returns: boolean }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
+      get_admin_access_for_auth: {
+        Args: { p_employee_id: string }
+        Returns: {
+          attendance: boolean
+          claims: boolean
+          employees: boolean
+          leave_management: boolean
+          payroll: boolean
+          reports: boolean
+          slot_booking: boolean
+          slotBooking: boolean
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_student_id: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
@@ -4917,6 +4930,63 @@ export type Database = {
           service_bonus_days: number
           total_annual_leave: number
           years_of_service: number
+        }[]
+      }
+      get_employee_by_email_for_auth: {
+        Args: { p_email: string }
+        Returns: {
+          address: string
+          bank_account: string
+          bank_name: string
+          base_salary: number
+          date_of_birth: string
+          department: string
+          display_name: string
+          email: string
+          first_name: string
+          hourly_rate: number
+          id: string
+          join_date: string
+          last_name: string
+          name: string
+          nric: string
+          payment_type: string
+          phone: string
+          position: string
+          qualifications: Json
+          residency_status: string
+          resign_date: string
+          security_pin: string
+          type: string
+        }[]
+      }
+      get_linked_students_for_auth: {
+        Args: { p_email: string }
+        Returns: {
+          current_belt: string
+          student_email: string
+          student_id: string
+          student_name: string
+          student_number: string
+        }[]
+      }
+      get_page_access_for_auth: {
+        Args: { p_employee_id: string }
+        Returns: {
+          apply_leave: boolean
+          my_attendance: boolean
+          payslips: boolean
+          profile: boolean
+          slot_booking_employee: boolean
+          submit_claim: boolean
+        }[]
+      }
+      get_student_by_auth_id_for_auth: {
+        Args: { p_auth_user_id: string; p_email?: string }
+        Returns: {
+          student_email: string
+          student_id: string
+          student_name: string
         }[]
       }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
