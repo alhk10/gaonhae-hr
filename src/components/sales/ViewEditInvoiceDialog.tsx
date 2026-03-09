@@ -1053,7 +1053,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
                           {hasClassSlots && (
                             <TableRow className="border-0 hover:bg-transparent">
-                              <TableCell colSpan={5} className="pt-0 pb-2">
+                              <TableCell colSpan={6} className="pt-0 pb-2">
                                 <div className="flex flex-wrap gap-1 items-center">
                                   <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
                                   {classSlots
