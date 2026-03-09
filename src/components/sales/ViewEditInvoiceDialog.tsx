@@ -821,7 +821,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               </PopoverContent>
                             </Popover>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-1">
                             <Label className="text-xs">Qty</Label>
                             <Input
                               type="number"
@@ -838,6 +838,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               min={0}
                               value={item.unit_price}
                               onChange={(e) => handleItemFieldChange(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <Label className="text-xs">Discount</Label>
+                            <LineDiscountPopover
+                              discountType={item.discount_type}
+                              discountValue={item.discount_value}
+                              onChange={(type, value) => handleItemDiscountChange(item.id, type, value)}
                             />
                           </div>
                           <div className="col-span-2 text-right">
@@ -857,6 +865,41 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                             </Button>
                           </div>
                         </div>
+
+                        {/* Size variant row */}
+                        {(() => {
+                          const product = products.find(p => p.id === item.product_id);
+                          const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
+                          const showVariant = item.size_variant || availableSizes.length > 0;
+                          if (!showVariant) return null;
+                          return (
+                            <div className="flex items-center gap-2 pt-1">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Size/Variant:</Label>
+                              {availableSizes.length > 0 ? (
+                                <Select
+                                  value={item.size_variant || ''}
+                                  onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
+                                >
+                                  <SelectTrigger className="h-8 w-40 text-xs">
+                                    <SelectValue placeholder="Select size" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableSizes.map((size: string) => (
+                                      <SelectItem key={size} value={size}>{size}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={item.size_variant || ''}
+                                  onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
+                                  className="h-8 w-40 text-xs"
+                                  placeholder="Enter variant"
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Class Schedule Selector for class items */}
                         {isClassItem && termIds.length > 0 && invoice.branch_id && (
