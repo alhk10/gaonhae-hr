@@ -11,11 +11,13 @@ interface ResponsiveLayoutProps {
 
 const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
-  const { userrole } = useAuth();
+  const { userrole, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Only show sidebar for superadmins
-  const showSidebar = userrole === 'superadmin';
+  // Only show sidebar for superadmins - wait for auth to finish loading
+  const showSidebar = !isLoading && userrole === 'superadmin';
+  
+  console.log('ResponsiveLayout: userrole =', userrole, 'isLoading =', isLoading, 'showSidebar =', showSidebar);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
