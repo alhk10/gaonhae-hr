@@ -1265,19 +1265,19 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             </div>
 
             {/* === DESKTOP TABLE LAYOUT === */}
-            <Table className="hidden md:table">
+            <Table className="hidden md:table text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="w-14">Qty</TableHead>
-                  <TableHead className="w-20">Price</TableHead>
-                  <TableHead className="w-16">Discount</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Color</TableHead>
-                  <TableHead>Term/Slot</TableHead>
-                  <TableHead className="w-24">Total</TableHead>
-                  <TableHead className="w-12">Actions</TableHead>
+                  <TableHead className="px-2">Category</TableHead>
+                  <TableHead className="px-2">Product</TableHead>
+                  <TableHead className="px-2 w-12">Qty</TableHead>
+                  <TableHead className="px-2 w-16">Price</TableHead>
+                  <TableHead className="px-2 w-14">Disc</TableHead>
+                  <TableHead className="px-2 w-14">Size</TableHead>
+                  <TableHead className="px-2 w-14">Color</TableHead>
+                  <TableHead className="px-2">Term/Slot</TableHead>
+                  <TableHead className="px-2 w-16 text-right">Total</TableHead>
+                  <TableHead className="px-1 w-9"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
