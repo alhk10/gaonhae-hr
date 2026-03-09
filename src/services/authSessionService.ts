@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserData, checkSuperadminStatus, getUserAdminAccess, getUserPageAccess } from './authOptimizationService';
+import { getUserData, getUserAdminAccess, getUserPageAccess } from './authOptimizationService';
 import { logger } from '@/utils/logger';
 
 export type UserType = 'employee' | 'student';
@@ -40,11 +40,21 @@ const DEFAULT_PAGE_ACCESS = {
   payslips: true, myAttendance: true, slotBookingEmployee: true
 };
 
+// Helper: wrap any promise with a timeout
+const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
+  return Promise.race([promise, timeout]);
+};
+
 export const processUserSession = async (session: Session | null): Promise<SessionResult | null> => {
   if (!session?.user) return null;
 
   const authUserId = session.user.id;
-  const email = session.user.email!;
+  const email = session.user.email;
+  if (!email) {
+    logger.warn('No email in session');
+    return null;
+  }
   const userMetadata = session.user.user_metadata;
   
   logger.debug('Processing user session', { email, authUserId });
@@ -53,7 +63,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     // FAST PATH: Student from JWT metadata
     if (userMetadata?.user_type === 'student' && userMetadata?.student_id) {
       logger.info('Fast path: Student from JWT metadata');
-      const linkedStudents = await getLinkedStudentsRPC(email);
+      const linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
       const studentName = userMetadata.name || email.split('@')[0];
       return {
         user: { id: authUserId, email, name: studentName, studentId: userMetadata.student_id },
@@ -63,21 +73,22 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       };
     }
 
-    // PARALLEL: All three checks via SECURITY DEFINER RPCs (bypass slow RLS)
-    const [studentResult, employeeResult, superadminResult] = await Promise.allSettled([
-      getStudentByAuthIdRPC(authUserId, email),
-      getUserData(email, authUserId).catch(() => null),
-      checkSuperadminStatus(email).catch(() => false)
+    // PARALLEL: All three checks with individual timeouts (4s each)
+    logger.debug('Running parallel auth checks');
+    const [studentData, userData, isSuperadmin] = await Promise.all([
+      withTimeout(getStudentByAuthIdRPC(authUserId, email), 4000, null),
+      withTimeout(getUserData(email, authUserId).catch(() => null), 4000, null),
+      withTimeout(checkSuperadminRPC(email), 4000, false)
     ]);
-
-    const studentData = studentResult.status === 'fulfilled' ? studentResult.value : null;
-    const userData = employeeResult.status === 'fulfilled' ? employeeResult.value : null;
-    const isSuperadmin = superadminResult.status === 'fulfilled' ? superadminResult.value : false;
+    
+    logger.debug('Parallel auth checks complete', { 
+      hasStudent: !!studentData, hasEmployee: !!userData, isSuperadmin 
+    });
 
     // Priority 1: Student
     if (studentData) {
-      logger.info('User is a student', { email });
-      const linkedStudents = await getLinkedStudentsRPC(email);
+      logger.info('User is a student');
+      const linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
       return {
         user: { id: authUserId, email, name: studentData.name, studentId: studentData.id },
         userrole: null, userType: 'student', userDetails: studentData,
@@ -108,11 +119,13 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
 
     // Priority 4: Regular employee — fetch admin/page access in parallel
     if (userData) {
+      logger.debug('Fetching admin/page access');
       const [adminAccess, pageAccess] = await Promise.all([
-        getUserAdminAccess(userData.id).catch(() => null),
-        getUserPageAccess(userData.id).catch(() => DEFAULT_PAGE_ACCESS)
+        withTimeout(getUserAdminAccess(userData.id).catch(() => null), 3000, null),
+        withTimeout(getUserPageAccess(userData.id).catch(() => DEFAULT_PAGE_ACCESS), 3000, DEFAULT_PAGE_ACCESS)
       ]);
       const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
+      logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee' });
       return {
         user: { id: authUserId, email, name: userData.name, employeeId: userData.id, department: userData.department, position: userData.position },
         userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', userDetails: userData,
@@ -121,7 +134,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     }
 
     // Priority 5: No data found
-    logger.warn('No user data found', { email });
+    logger.warn('No user data found, returning minimal session', { email });
     return {
       user: { id: authUserId, email, name: email.split('@')[0] },
       userrole: 'employee', userType: 'employee', userDetails: null,
@@ -130,14 +143,6 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
 
   } catch (error) {
     logger.error('Session processing error', error);
-    const isSuperadmin = await checkSuperadminStatus(email).catch(() => false);
-    if (isSuperadmin) {
-      return {
-        user: { id: authUserId, email, name: email },
-        userrole: 'superadmin', userType: 'employee', userDetails: null,
-        adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents: []
-      };
-    }
     return {
       user: { id: authUserId, email, name: email.split('@')[0] },
       userrole: 'employee', userType: 'employee', userDetails: null,
@@ -146,7 +151,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   }
 };
 
-// Student lookup via SECURITY DEFINER RPC
+// Student lookup via SECURITY DEFINER RPC with timeout built-in
 const getStudentByAuthIdRPC = async (authUserId: string, email?: string): Promise<{ id: string; name: string; email: string } | null> => {
   try {
     const { data, error } = await supabase.rpc('get_student_by_auth_id_for_auth', {
@@ -164,13 +169,20 @@ const getStudentByAuthIdRPC = async (authUserId: string, email?: string): Promis
   }
 };
 
+// Superadmin check via RPC (bypasses RLS)
+const checkSuperadminRPC = async (email: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('is_superadmin', { user_email: email });
+    if (error) return false;
+    return data === true;
+  } catch { return false; }
+};
+
 // Linked students via SECURITY DEFINER RPC
 const getLinkedStudentsRPC = async (email: string): Promise<LinkedStudentInfo[]> => {
   try {
     const { data, error } = await supabase.rpc('get_linked_students_for_auth', { p_email: email });
-    
     if (error || !data) return [];
-    
     return (Array.isArray(data) ? data : []).map((row: any) => ({
       id: row.student_id,
       name: row.student_name?.trim() || '',
@@ -178,8 +190,5 @@ const getLinkedStudentsRPC = async (email: string): Promise<LinkedStudentInfo[]>
       studentNumber: row.student_number,
       currentBelt: row.current_belt
     }));
-  } catch (error) {
-    logger.error('Linked students RPC failed', error);
-    return [];
-  }
+  } catch { return []; }
 };
