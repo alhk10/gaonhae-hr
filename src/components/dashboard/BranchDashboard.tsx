@@ -100,6 +100,81 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [classTypeSettingsOpen, setClassTypeSettingsOpen] = useState(false);
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+
+  // Handle PDF download for invoice
+  const handleDownloadPDF = async (invoice: any) => {
+    try {
+      setPdfLoadingId(invoice.id);
+      const fullInvoice = await getInvoiceById(invoice.id);
+      let studentData;
+      try { studentData = await getStudentById(invoice.student_id); } catch { studentData = null; }
+      
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
+
+      const termIds: string[] = [];
+      const gradingSlotIds: string[] = [];
+      fullInvoice?.items?.forEach((item: any) => {
+        const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+        if (metadata?.term_id) termIds.push(metadata.term_id);
+        if (metadata?.grading_slot_id) gradingSlotIds.push(metadata.grading_slot_id);
+      });
+
+      const termMap: Record<string, any> = {};
+      if (termIds.length > 0) {
+        const { data: termsData } = await supabase.from('term_calendars').select('id, name, start_date, end_date').in('id', termIds);
+        termsData?.forEach(t => { termMap[t.id] = t; });
+      }
+      const gradingMap: Record<string, any> = {};
+      if (gradingSlotIds.length > 0) {
+        const { data: gradingData } = await supabase.from('grading_slots').select('id, grading_date, start_time').in('id', gradingSlotIds);
+        gradingData?.forEach(s => { gradingMap[s.id] = s; });
+      }
+
+      const fmtShort = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return d; } };
+      const fmtFull = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; } };
+
+      const invoiceData: InvoiceData = {
+        id: invoice.id, invoice_number: invoice.invoice_number,
+        issue_date: invoice.issue_date || null, due_date: invoice.due_date || null,
+        subtotal: invoice.subtotal, tax_amount: invoice.tax_amount, discount_amount: invoice.discount_amount,
+        total_amount: invoice.total_amount, amount_paid: invoice.amount_paid, balance_due: invoice.balance_due,
+        notes: invoice.notes, status: invoice.status,
+        student: studentData ? { name: `${studentData.first_name} ${studentData.last_name}`, address: studentData.address, phone: studentData.phone, email: studentData.email } : undefined,
+        items: fullInvoice?.items?.map((item: any) => {
+          const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
+          let term_info: string | undefined;
+          let grading_info: string | undefined;
+          if (metadata?.term_id && termMap[metadata.term_id]) {
+            const t = termMap[metadata.term_id];
+            term_info = `${t.name} (${fmtShort(t.start_date)} - ${fmtShort(t.end_date)})`;
+          }
+          if (metadata?.grading_slot_id && gradingMap[metadata.grading_slot_id]) {
+            const s = gradingMap[metadata.grading_slot_id];
+            grading_info = s.start_time ? `${fmtFull(s.grading_date)} at ${s.start_time.substring(0, 5)}` : fmtFull(s.grading_date);
+          }
+          return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
+        }) || [],
+        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined } : undefined
+      };
+      await downloadInvoicePDF(invoiceData);
+      toast.success('Invoice PDF downloaded');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
+
   // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
