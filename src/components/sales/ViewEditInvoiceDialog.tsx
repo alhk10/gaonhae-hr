@@ -429,7 +429,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
       // Update existing items
       for (const item of editItems.filter(i => !i.isNew)) {
-        const metadata = { ...(item.metadata || {}), ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}) };
+        const lineDiscount = (item.discount_value && item.discount_value > 0)
+          ? { type: item.discount_type, value: item.discount_value }
+          : undefined;
+        const metadata = {
+          ...(item.metadata || {}),
+          ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
+          ...(lineDiscount ? { line_discount: lineDiscount } : { line_discount: undefined }),
+        };
         const { error } = await supabase
           .from('invoice_items')
           .update({
@@ -440,6 +447,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             tax_rate: item.tax_rate,
             tax_amount: item.tax_amount,
             total_amount: item.total_amount,
+            size_variant: item.size_variant || null,
             metadata,
             updated_at: new Date().toISOString(),
           })
@@ -450,7 +458,13 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       // Insert new items
       for (const item of editItems.filter(i => i.isNew)) {
         if (!item.product_id) continue; // skip empty items
-        const metadata = editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : null;
+        const lineDiscount = (item.discount_value && item.discount_value > 0)
+          ? { type: item.discount_type, value: item.discount_value }
+          : undefined;
+        const metadata = {
+          ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
+          ...(lineDiscount ? { line_discount: lineDiscount } : {}),
+        };
         const { error } = await supabase
           .from('invoice_items')
           .insert({
@@ -462,7 +476,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             tax_rate: item.tax_rate,
             tax_amount: item.tax_amount,
             total_amount: item.total_amount,
-            metadata,
+            size_variant: item.size_variant || null,
+            metadata: Object.keys(metadata).length > 0 ? metadata : null,
           });
         if (error) throw error;
       }
