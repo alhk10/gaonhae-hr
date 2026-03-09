@@ -221,9 +221,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       logger.info('Auth state changed', { event });
       
-      // On TOKEN_REFRESHED event, update the session
-      if (event === 'TOKEN_REFRESHED') {
-        logger.debug('Token refreshed, updating session');
+      // Skip re-processing on TOKEN_REFRESHED if user is already loaded
+      if (event === 'TOKEN_REFRESHED' && user) {
+        logger.debug('Token refreshed, user already loaded — skipping re-process');
+        return;
       }
       
       await handleUserSession(session);

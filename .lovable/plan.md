@@ -1,76 +1,51 @@
 
 
-## Problem Analysis
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-The login hangs on "Loading your workspace..." because the auth session processing runs **all queries sequentially** with long timeouts. Here's the actual flow after `signInWithPassword`:
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-1. `getStudentByAuthId()` — queries `student_auth` (5s timeout) — **missing index on `auth_user_id`**
-2. If not student → `getUserData()` — queries `employees` (5s quick + 10s extended timeout)
-3. If no userData → `checkSuperadminStatus()` — queries `superadmin_users`
-4. If not superadmin → `getEmployeeBasicData()` — queries `employees` **AGAIN** (8s timeout) — completely redundant
-5. If userData found → `getUserAdminAccess()` + `getUserPageAccess()` in parallel (5s + 10s each)
+### Changes
 
-**Worst case: 38+ seconds of sequential waiting.** Even the happy path (employee found on first try) takes 5s student check + 5s employee check + superadmin check + admin/page access = ~15s.
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-Additionally, `onAuthStateChange` fires `TOKEN_REFRESHED` and re-runs the **entire flow** even when the user is already loaded.
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-### Root Causes
-1. **Sequential queries** — student, employee, superadmin should run in parallel
-2. **Redundant `getEmployeeBasicData`** — queries the same `employees` table that already timed out
-3. **Missing index** on `student_auth.auth_user_id` — slows student lookup
-4. **No skip on TOKEN_REFRESHED** — re-processes everything when user is already authenticated
-5. **Double timeout pattern** (quick + extended) means each table gets queried twice
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-## Plan
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-### 1. Rewrite `processUserSession` with parallel queries
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-Run student, employee, and superadmin checks **simultaneously** using `Promise.allSettled`:
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-```typescript
-const [studentResult, employeeResult, superadminResult] = await Promise.allSettled([
-  getStudentByAuthId(authUserId, email),
-  getUserData(email, authUserId),
-  checkSuperadminStatus(email)
-]);
-```
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
 
-Then use whichever resolves with data first. This cuts the sequential chain from 3 steps to 1.
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
 
-### 2. Remove redundant `getEmployeeBasicData` calls
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
 
-Lines 156 and 292 in `authSessionService.ts` call `getEmployeeBasicData` which queries the same `employees` table that `getUserData` already failed on. Remove these — if `getUserData` returned null, querying again won't help.
-
-### 3. Simplify `getCurrentUserEmployee` — remove double timeout pattern
-
-Replace the quick-then-extended pattern with a single query with a reasonable timeout (8s). This halves the number of DB round-trips.
-
-### 4. Skip re-processing on `TOKEN_REFRESHED` in AuthContext
-
-In `AuthContext.tsx`, when the auth event is `TOKEN_REFRESHED` and we already have a user loaded, skip the full `processUserSession` call:
-
-```typescript
-if (event === 'TOKEN_REFRESHED' && user) {
-  return; // User already loaded, no need to re-query everything
-}
-```
-
-### 5. Add missing database index
-
-Create index on `student_auth.auth_user_id` to speed up student lookups.
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/services/authSessionService.ts` | Parallel queries, remove redundant `getEmployeeBasicData` calls |
-| `src/services/authOptimizationService.ts` | Single timeout (8s) instead of quick+extended pattern |
-| `src/contexts/AuthContext.tsx` | Skip re-processing on TOKEN_REFRESHED |
-| Database migration | Add index on `student_auth(auth_user_id)` |
-
-### Why this preserves functionality
-- All the same data is fetched — just in parallel instead of sequentially
-- Cache logic remains intact
-- Fallback chain preserved (DB → cache → defaults)
-- Security fixes from previous changes untouched
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 
