@@ -462,6 +462,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           ...(item.metadata || {}),
           ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
           ...(lineDiscount ? { line_discount: lineDiscount } : { line_discount: undefined }),
+          color_variant: item.color_variant || undefined,
         };
         const { error } = await supabase
           .from('invoice_items')
