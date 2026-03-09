@@ -190,7 +190,13 @@ const ProductSearchSelect: React.FC<{
   const selectedName = products.find(p => p.id === value)?.name;
 
   const filtered = search.trim()
-    ? products.filter(p => fuzzyMatch(p.name, search.trim()) || fuzzyMatch(p.sku, search.trim()))
+    ? products.filter(p => {
+        const q = search.trim();
+        if (fuzzyMatch(p.name, q) || fuzzyMatch(p.sku, q)) return true;
+        // Also match against allowed_class_types
+        if (p.allowed_class_types?.some(ct => fuzzyMatch(ct, q))) return true;
+        return false;
+      })
     : products;
 
   return (
