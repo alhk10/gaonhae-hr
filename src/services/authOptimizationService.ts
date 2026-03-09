@@ -187,7 +187,7 @@ export const getUserPageAccess = async (employeeId: string) => {
 export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
   try {
     const result = await withTimeout(
-      toPromise(supabase.rpc('is_superadmin', { user_email: email })),
+      Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
       2000,
       { data: false, error: null } as any
     );
