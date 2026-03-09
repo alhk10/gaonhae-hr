@@ -1017,6 +1017,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                       <TableHead>Description</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Tax</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                     </TableRow>
@@ -1026,6 +1027,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                       const metadata = item.metadata as any;
                       const classSlots: string[] = metadata?.selected_class_slots || [];
                       const hasClassSlots = classSlots.length > 0;
+                      const lineDiscount = metadata?.line_discount;
 
                       return (
                         <React.Fragment key={item.id}>
@@ -1040,6 +1042,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                             </TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
                             <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell className="text-right text-xs">
+                              {lineDiscount?.value && lineDiscount.value > 0
+                                ? (lineDiscount.type === 'percentage' ? `${lineDiscount.value}%` : formatCurrency(lineDiscount.value))
+                                : '-'}
+                            </TableCell>
                             <TableCell className="text-right">{formatCurrency(item.tax_amount)}</TableCell>
                             <TableCell className="text-right font-medium">{formatCurrency(item.total_amount)}</TableCell>
                           </TableRow>
