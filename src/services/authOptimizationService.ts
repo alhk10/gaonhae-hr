@@ -175,7 +175,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
       .maybeSingle();
 
     const timeoutPromise = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 800)
+      setTimeout(() => resolve({ data: null, error: null }), 5000)
     );
 
     const result = await Promise.race([adminAccessPromise, timeoutPromise]);
