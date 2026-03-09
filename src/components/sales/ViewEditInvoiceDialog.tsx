@@ -57,7 +57,76 @@ interface EditableItem {
   metadata?: any;
   category_name?: string;
   is_lesson?: boolean;
+  discount_type?: 'percentage' | 'amount';
+  discount_value?: number;
 }
+
+// Line discount popover component
+const LineDiscountPopover: React.FC<{
+  discountType?: 'percentage' | 'amount';
+  discountValue?: number;
+  onChange: (type: 'percentage' | 'amount', value: number) => void;
+}> = ({ discountType = 'percentage', discountValue = 0, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [localType, setLocalType] = useState<'percentage' | 'amount'>(discountType);
+  const [localValue, setLocalValue] = useState(discountValue.toString());
+
+  useEffect(() => {
+    setLocalType(discountType);
+    setLocalValue(discountValue.toString());
+  }, [discountType, discountValue]);
+
+  const handleApply = () => {
+    onChange(localType, parseFloat(localValue) || 0);
+    setOpen(false);
+  };
+
+  const displayText = discountValue && discountValue > 0
+    ? (discountType === 'percentage' ? `${discountValue}%` : `$${discountValue.toFixed(2)}`)
+    : '-';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" className="h-8 px-2 text-xs font-normal min-w-[40px]">
+          {displayText}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-3 space-y-2">
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'percentage' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('percentage')}
+          >
+            <Percent className="h-3 w-3 mr-1" /> %
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={localType === 'amount' ? 'default' : 'outline'}
+            className="h-7 flex-1"
+            onClick={() => setLocalType('amount')}
+          >
+            <DollarSign className="h-3 w-3 mr-1" /> $
+          </Button>
+        </div>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          className="h-8"
+          placeholder={localType === 'percentage' ? 'e.g. 10' : 'e.g. 5.00'}
+        />
+        <Button type="button" size="sm" className="w-full h-7" onClick={handleApply}>Apply</Button>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   invoiceId,
