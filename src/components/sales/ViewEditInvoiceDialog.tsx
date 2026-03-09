@@ -176,6 +176,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     if (mode === 'edit' && invoice) {
       const items: EditableItem[] = invoice.items.map((item) => {
         const product = products.find(p => p.id === item.product_id);
+        const meta = item.metadata as any;
+        const lineDiscount = meta?.line_discount;
         return {
           id: item.id,
           product_id: item.product_id,
@@ -190,6 +192,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           metadata: item.metadata,
           category_name: product?.category_name,
           is_lesson: product?.is_lesson,
+          discount_type: lineDiscount?.type || 'percentage',
+          discount_value: lineDiscount?.value || 0,
         };
       });
       setEditItems(items);
