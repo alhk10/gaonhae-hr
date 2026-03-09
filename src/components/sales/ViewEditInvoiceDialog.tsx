@@ -196,7 +196,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           discount_value: lineDiscount?.value || 0,
         };
       });
-      setEditItems(items);
+      setEditItems(items.map(recalcItem));
 
       const slots: Record<string, string[]> = {};
       invoice.items.forEach((item) => {
