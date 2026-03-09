@@ -443,7 +443,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         requires_size: p.requires_size,
         requires_belt_level: p.requires_belt_level,
         allowed_belt_levels: p.allowed_belt_levels,
-        allowed_class_types: p.allowed_class_types
+        allowed_class_types: p.allowed_class_types,
+        lesson_days: p.lesson_days,
+        lessons_per_week: p.lessons_per_week
       })));
     } catch (error) {
       console.error('Error loading products:', error);
