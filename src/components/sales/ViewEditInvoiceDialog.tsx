@@ -214,6 +214,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           tax_amount: item.tax_amount,
           total_amount: item.total_amount,
           size_variant: item.size_variant,
+          color_variant: meta?.color_variant || '',
           metadata: item.metadata,
           category_name: product?.category_name,
           is_lesson: product?.is_lesson,
