@@ -36,9 +36,9 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
     try {
       const rpcCall = supabase.rpc('get_employee_by_email_for_auth', { p_email: email });
       result = await withTimeout(
-        Promise.resolve(rpcCall),
+        Promise.resolve(rpcCall) as Promise<any>,
         5000,
-        { data: null, error: { message: 'timeout' } }
+        { data: null, error: { message: 'timeout' } } as any
       );
     } catch (rpcError) {
       logger.error('RPC call failed', rpcError);
