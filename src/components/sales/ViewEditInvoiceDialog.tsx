@@ -904,36 +904,69 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           </div>
                         </div>
 
-                        {/* Size variant row */}
+                        {/* Size / Color variant row */}
                         {(() => {
                           const product = products.find(p => p.id === item.product_id);
                           const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
-                          const showVariant = item.size_variant || availableSizes.length > 0;
-                          if (!showVariant) return null;
+                          const availableColors: string[] = (product as any)?.available_variants?.colors || [];
+                          const showSize = item.size_variant || availableSizes.length > 0;
+                          const showColor = item.color_variant || availableColors.length > 0;
+                          if (!showSize && !showColor) return null;
                           return (
-                            <div className="flex items-center gap-2 pt-1">
-                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Size/Variant:</Label>
-                              {availableSizes.length > 0 ? (
-                                <Select
-                                  value={item.size_variant || ''}
-                                  onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
-                                >
-                                  <SelectTrigger className="h-8 w-40 text-xs">
-                                    <SelectValue placeholder="Select size" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {availableSizes.map((size: string) => (
-                                      <SelectItem key={size} value={size}>{size}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Input
-                                  value={item.size_variant || ''}
-                                  onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
-                                  className="h-8 w-40 text-xs"
-                                  placeholder="Enter variant"
-                                />
+                            <div className="flex items-center gap-4 pt-1 flex-wrap">
+                              {showSize && (
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Size:</Label>
+                                  {availableSizes.length > 0 ? (
+                                    <Select
+                                      value={item.size_variant || ''}
+                                      onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
+                                    >
+                                      <SelectTrigger className="h-8 w-40 text-xs">
+                                        <SelectValue placeholder="Select size" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableSizes.map((size: string) => (
+                                          <SelectItem key={size} value={size}>{size}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={item.size_variant || ''}
+                                      onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
+                                      className="h-8 w-40 text-xs"
+                                      placeholder="Enter size"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                              {showColor && (
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Color:</Label>
+                                  {availableColors.length > 0 ? (
+                                    <Select
+                                      value={item.color_variant || ''}
+                                      onValueChange={(val) => handleItemFieldChange(item.id, 'color_variant', val)}
+                                    >
+                                      <SelectTrigger className="h-8 w-40 text-xs">
+                                        <SelectValue placeholder="Select color" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availableColors.map((color: string) => (
+                                          <SelectItem key={color} value={color}>{color}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={item.color_variant || ''}
+                                      onChange={(e) => handleItemFieldChange(item.id, 'color_variant', e.target.value)}
+                                      className="h-8 w-40 text-xs"
+                                      placeholder="Enter color"
+                                    />
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
