@@ -764,6 +764,20 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 {invoice.status}
                               </Badge>
                               <div className="flex items-center shrink-0">
+                                {['draft', 'sent', 'unpaid', 'partial', 'overdue'].includes(invoice.status) && (
+                                  <CreatePaymentDialog
+                                    trigger={
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-primary" title="Add Payment">
+                                        <DollarSign className="w-3 h-3" />
+                                      </Button>
+                                    }
+                                    invoiceId={invoice.id}
+                                    onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['branch-invoices'] })}
+                                  />
+                                )}
+                                <Button variant="ghost" size="icon" className="h-6 w-6" title="Download PDF" onClick={() => handleDownloadPDF(invoice)} disabled={pdfLoadingId === invoice.id}>
+                                  {pdfLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
                                 </Button>
