@@ -311,11 +311,15 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   };
 
-  // Recalculate item totals
+  // Recalculate item totals (with discount)
   const recalcItem = (item: EditableItem): EditableItem => {
-    const subtotal = item.quantity * item.unit_price;
-    const taxAmt = subtotal * (item.tax_rate / 100);
-    return { ...item, tax_amount: taxAmt, total_amount: subtotal + taxAmt };
+    const gross = item.quantity * item.unit_price;
+    const discountAmt = item.discount_type === 'percentage'
+      ? gross * ((item.discount_value || 0) / 100)
+      : (item.discount_value || 0);
+    const net = Math.max(0, gross - discountAmt);
+    const taxAmt = net * (item.tax_rate / 100);
+    return { ...item, tax_amount: taxAmt, total_amount: net + taxAmt };
   };
 
   // Calculated totals from editItems
