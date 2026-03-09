@@ -299,6 +299,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
   const { accessibleBranches, isSuperadmin, canCreate } = useInvoiceAccess();
   
   // Term state for Classes category
