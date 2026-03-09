@@ -331,7 +331,7 @@ const getEmployeeBasicData = async (email: string): Promise<{ id: string; name: 
       .maybeSingle();
     
     const timeout = new Promise<{ data: any }>((resolve) =>
-      setTimeout(() => resolve({ data: null }), 2000)
+      setTimeout(() => resolve({ data: null }), 8000)
     );
     
     const { data } = await Promise.race([lookupPromise as any, timeout]);
@@ -354,7 +354,7 @@ const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promi
       .maybeSingle();
     
     const timeout = new Promise<{ data: any; error: any }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'Student auth lookup timeout' } }), 2000)
+      setTimeout(() => resolve({ data: null, error: { message: 'Student auth lookup timeout' } }), 5000)
     );
     
     const { data, error } = await Promise.race([lookupPromise, timeout]);
@@ -382,7 +382,7 @@ const getStudentByAuthId = async (authUserId: string, userEmail?: string): Promi
       const { data: emailData, error: emailError } = await Promise.race([
         emailLookupPromise,
         new Promise<{ data: any; error: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: { message: 'Email lookup timeout' } }), 2000)
+          setTimeout(() => resolve({ data: null, error: { message: 'Email lookup timeout' } }), 5000)
         )
       ]);
       
@@ -434,7 +434,7 @@ const getStudentsByEmail = async (email: string): Promise<LinkedStudentInfo[]> =
       .eq('email', email.toLowerCase());
     
     const timeout = new Promise<{ data: any; error: any }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'Multi-student lookup timeout' } }), 2000)
+      setTimeout(() => resolve({ data: null, error: { message: 'Multi-student lookup timeout' } }), 5000)
     );
     
     const { data, error } = await Promise.race([lookupPromise, timeout]);

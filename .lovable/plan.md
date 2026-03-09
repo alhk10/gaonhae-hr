@@ -1,40 +1,51 @@
 
 
-## Problem
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-After the security fix that removed static PII fallbacks, login is extremely slow or hangs on "Loading your workspace..." indefinitely.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-**Root cause**: The `employees` table has two SELECT RLS policies. One calls `get_current_user_role()` which internally queries `superadmin_users` AND joins `admin_access` with `employees`. This makes every employee lookup slow. The code uses aggressive timeouts (800ms quick, 3000ms extended) that both expire before the query completes, returning `null` and leaving the user without employee data.
+### Changes
 
-Previously, the static fallback maps masked this by returning hardcoded data instantly when the DB was slow. Now that they're removed (correctly, for security), the real DB performance issue is exposed.
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-## Fix
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-### 1. Increase query timeouts in `authOptimizationService.ts`
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-- Quick check timeout: 800ms -> **5000ms**
-- Extended query timeout: 3000ms -> **10000ms**
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-These queries only run on login/token refresh, not on every page load, so longer timeouts are acceptable.
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-### 2. Increase query timeouts in `authSessionService.ts`
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-- `getEmployeeBasicData` timeout: 2000ms -> **8000ms**
-- Student auth lookups: 2000ms -> **5000ms**
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
 
-### 3. Remove redundant second employee query
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
 
-In `authSessionService.ts` lines 156, when `getUserData` returns null, it calls `getEmployeeBasicData` which queries the same `employees` table again. Instead, if `getUserData` already failed due to timeout, we should just proceed with the superadmin check result rather than re-querying.
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
 
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/services/authOptimizationService.ts` | Increase timeouts from 800ms/3000ms to 5000ms/10000ms |
-| `src/services/authSessionService.ts` | Increase timeouts from 2000ms to 5000ms-8000ms |
-
-### Why this preserves functionality
-- No logic changes, only timeout values
-- All database queries and caching remain identical
-- Security fixes (removed PII) stay intact
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 
