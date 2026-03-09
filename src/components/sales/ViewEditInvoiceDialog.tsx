@@ -785,6 +785,9 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                       setEditingClassSlots((prev) => ({ ...prev, [item.id]: slots }))
                                     }
                                     term={term}
+                                    allowedClassTypes={products.find(p => p.id === item.product_id)?.allowed_class_types}
+                                    allowedDays={products.find(p => p.id === item.product_id)?.lesson_days}
+                                    lessonsPerWeek={products.find(p => p.id === item.product_id)?.lessons_per_week}
                                   />
                                 </div>
                               );
