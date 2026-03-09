@@ -12,208 +12,157 @@ import {
 } from './authCacheService';
 
 /**
- * Get employee data with single query + cache fallback (no double timeout pattern)
+ * Get employee data using SECURITY DEFINER RPC (bypasses slow RLS)
  */
 export const getCurrentUserEmployee = async (email: string, authUserId?: string): Promise<any> => {
   try {
-    logger.debug('Fetching employee data', { email, authUserId });
+    logger.debug('Fetching employee data via RPC', { email });
     
-    // Single database query with 8s timeout
-    const dbQuery = supabase
-      .from('employees')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-      
-    const timeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 8000)
+    const dbQuery = supabase.rpc('get_employee_by_email_for_auth', { p_email: email });
+    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 5000)
     );
     
     const result = await Promise.race([dbQuery, timeout]);
     
     if (result.data && !result.error) {
-      logger.debug('Got employee data from database');
-      const isSuperadmin = await checkSuperadminStatusCached(email).catch(() => false);
-      const userData = { ...result.data, isSuperadmin };
-      cacheEmployeeData(userData, authUserId);
-      return userData;
-    }
-    
-    // DB slow or no data — try cache fallbacks
-    logger.warn('Database slow or no data, trying fallbacks', { email });
-    
-    if (authUserId) {
-      const cachedByAuth = getCachedEmployeeByAuthId(authUserId);
-      if (cachedByAuth) {
-        logger.info('Using cached employee data by auth ID');
-        if (cachedByAuth.email !== email) {
-          cachedByAuth.email = email;
-          cacheEmployeeData(cachedByAuth, authUserId);
-        }
-        return cachedByAuth;
+      // RPC returns array, take first row
+      const row = Array.isArray(result.data) ? result.data[0] : result.data;
+      if (row) {
+        logger.debug('Got employee data via RPC');
+        const isSuperadmin = await checkSuperadminStatusDirect(email);
+        const userData = { ...row, isSuperadmin };
+        cacheEmployeeData(userData, authUserId);
+        return userData;
       }
     }
     
-    const cachedByEmail = getCachedEmployeeByEmail(email);
-    if (cachedByEmail) {
-      logger.info('Using cached employee data by email');
-      return cachedByEmail;
+    // Cache fallbacks
+    if (authUserId) {
+      const cached = getCachedEmployeeByAuthId(authUserId);
+      if (cached) { logger.info('Using cached employee by auth ID'); return cached; }
     }
+    const cached = getCachedEmployeeByEmail(email);
+    if (cached) { logger.info('Using cached employee by email'); return cached; }
     
-    logger.warn('No employee data available', { email });
     return null;
-    
   } catch (error) {
     logger.error('Error fetching employee data', error);
-    
     if (authUserId) {
-      const cachedByAuth = getCachedEmployeeByAuthId(authUserId);
-      if (cachedByAuth) return cachedByAuth;
+      const cached = getCachedEmployeeByAuthId(authUserId);
+      if (cached) return cached;
     }
-    
-    const cachedByEmail = getCachedEmployeeByEmail(email);
-    if (cachedByEmail) return cachedByEmail;
-    
+    const cached = getCachedEmployeeByEmail(email);
+    if (cached) return cached;
     throw error;
   }
 };
 
-// Alias for compatibility
 export const getUserData = getCurrentUserEmployee;
 
 /**
- * Get user admin access — single query with 5s timeout + cache fallback
+ * Get admin access using SECURITY DEFINER RPC
  */
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
-    const dbQuery = supabase
-      .from('admin_access')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
-
-    const timeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 5000)
+    const dbQuery = supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId });
+    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 3000)
     );
 
     const { data, error } = await Promise.race([dbQuery, timeout]);
 
     if (data && !error) {
-      const accessData = {
-        employees: data.employees || false,
-        payroll: data.payroll || false,
-        leaveManagement: data.leave_management || false,
-        claims: data.claims || false,
-        attendance: data.attendance || false,
-        slotBooking: data.slotBooking || data.slot_booking || false,
-        reports: data.reports || false
-      };
-      cacheAdminAccess(employeeId, accessData);
-      return accessData;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        const accessData = {
+          employees: row.employees || false,
+          payroll: row.payroll || false,
+          leaveManagement: row.leave_management || false,
+          claims: row.claims || false,
+          attendance: row.attendance || false,
+          slotBooking: row.slotBooking || row.slot_booking || false,
+          reports: row.reports || false
+        };
+        cacheAdminAccess(employeeId, accessData);
+        return accessData;
+      }
     }
 
-    // Cache fallback
-    const cachedAccess = getCachedAdminAccess(employeeId);
-    if (cachedAccess) {
-      logger.info('Using cached admin access', { employeeId });
-      return cachedAccess;
-    }
-    
+    const cached = getCachedAdminAccess(employeeId);
+    if (cached) return cached;
     return null;
-    
   } catch (error) {
     logger.error('Error fetching admin access', error);
-    const cachedAccess = getCachedAdminAccess(employeeId);
-    if (cachedAccess) return cachedAccess;
+    const cached = getCachedAdminAccess(employeeId);
+    if (cached) return cached;
     throw error;
   }
 };
 
 /**
- * Get user page access — single query with 5s timeout + cache fallback
+ * Get page access using SECURITY DEFINER RPC
  */
 export const getUserPageAccess = async (employeeId: string) => {
   const defaultAccess = {
-    profile: true,
-    applyLeave: true,
-    submitClaim: true,
-    payslips: true,
-    myAttendance: true,
-    slotBookingEmployee: true
+    profile: true, applyLeave: true, submitClaim: true,
+    payslips: true, myAttendance: true, slotBookingEmployee: true
   };
 
   try {
-    const dbQuery = supabase
-      .from('employee_page_access')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
-
-    const timeout = new Promise<{ data: null, error: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: null }), 5000)
+    const dbQuery = supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId });
+    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 3000)
     );
 
     const { data, error } = await Promise.race([dbQuery, timeout]);
 
     if (data && !error) {
-      const accessData = {
-        profile: data.profile ?? true,
-        applyLeave: data.apply_leave ?? true,
-        submitClaim: data.submit_claim ?? true,
-        payslips: data.payslips ?? true,
-        myAttendance: data.my_attendance ?? true,
-        slotBookingEmployee: data.slot_booking_employee ?? true
-      };
-      cachePageAccess(employeeId, accessData);
-      return accessData;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        const accessData = {
+          profile: row.profile ?? true,
+          applyLeave: row.apply_leave ?? true,
+          submitClaim: row.submit_claim ?? true,
+          payslips: row.payslips ?? true,
+          myAttendance: row.my_attendance ?? true,
+          slotBookingEmployee: row.slot_booking_employee ?? true
+        };
+        cachePageAccess(employeeId, accessData);
+        return accessData;
+      }
     }
 
-    const cachedAccess = getCachedPageAccess(employeeId);
-    if (cachedAccess) {
-      logger.info('Using cached page access', { employeeId });
-      return cachedAccess;
-    }
-    
+    const cached = getCachedPageAccess(employeeId);
+    if (cached) return cached;
     return defaultAccess;
-    
   } catch (error) {
     logger.error('Error fetching page access', error);
-    const cachedAccess = getCachedPageAccess(employeeId);
-    if (cachedAccess) return cachedAccess;
+    const cached = getCachedPageAccess(employeeId);
+    if (cached) return cached;
     return defaultAccess;
   }
 };
 
 /**
- * Check superadmin status
+ * Check superadmin status - direct query (superadmin_users has simple RLS)
  */
-export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
-  try {
-    return await checkSuperadminStatusCached(email);
-  } catch (error) {
-    logger.error('Error checking superadmin status', error);
-    return false;
-  }
-};
-
-export const checkSuperadminStatusCached = async (email: string): Promise<boolean> => {
+const checkSuperadminStatusDirect = async (email: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('superadmin_users')
       .select('is_active')
       .eq('employee_email', email)
       .maybeSingle();
-
-    if (error) {
-      logger.error('Superadmin query error', error);
-      return false;
-    }
-
+    if (error) return false;
     return data?.is_active === true;
-  } catch (error) {
-    logger.error('Error checking superadmin status', error);
-    return false;
-  }
+  } catch { return false; }
 };
+
+export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
+  return checkSuperadminStatusDirect(email);
+};
+
+export const checkSuperadminStatusCached = checkSuperadminStatusDirect;
 
 export { clearAuthCache } from './authCacheService';
