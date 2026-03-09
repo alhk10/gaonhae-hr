@@ -79,6 +79,8 @@ interface ProductWithVariants {
   requires_belt_level?: boolean;
   allowed_belt_levels?: string[];
   allowed_class_types?: string[];
+  lesson_days?: string[];
+  lessons_per_week?: number;
 }
 
 // Grading category ID for validation
