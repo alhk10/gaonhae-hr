@@ -318,7 +318,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       ? gross * ((item.discount_value || 0) / 100)
       : (item.discount_value || 0);
     const net = Math.max(0, gross - discountAmt);
-    const taxAmt = net * (item.tax_rate / 100);
+    const taxAmt = net * item.tax_rate;
     return { ...item, tax_amount: taxAmt, total_amount: net + taxAmt };
   };
 
