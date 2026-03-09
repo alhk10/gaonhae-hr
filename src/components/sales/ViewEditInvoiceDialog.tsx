@@ -54,6 +54,7 @@ interface EditableItem {
   tax_amount: number;
   total_amount: number;
   size_variant?: string;
+  color_variant?: string;
   metadata?: any;
   category_name?: string;
   is_lesson?: boolean;
