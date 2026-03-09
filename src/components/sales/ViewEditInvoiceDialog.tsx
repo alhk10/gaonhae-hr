@@ -843,7 +843,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                   <CommandList>
                                     <CommandEmpty>No product found.</CommandEmpty>
                                     <CommandGroup>
-                                      {products.filter(p => p.is_active).map(p => (
+                                      {products.filter(p => p.is_active && !hiddenProductIds.has(p.id)).map(p => (
                                         <CommandItem
                                           key={p.id}
                                           value={p.name}
