@@ -386,11 +386,18 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }));
   };
 
-  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price', value: number) => {
+  const handleItemFieldChange = (itemId: string, field: 'quantity' | 'unit_price' | 'size_variant', value: number | string) => {
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const updated = { ...item, [field]: value };
-      return recalcItem(updated);
+      return field === 'size_variant' ? updated : recalcItem(updated);
+    }));
+  };
+
+  const handleItemDiscountChange = (itemId: string, type: 'percentage' | 'amount', value: number) => {
+    setEditItems(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      return recalcItem({ ...item, discount_type: type, discount_value: value });
     }));
   };
 
