@@ -1105,7 +1105,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
+      <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
         <DialogHeader>
           <DialogTitle className="text-base md:text-lg">Create New Invoice</DialogTitle>
         </DialogHeader>
