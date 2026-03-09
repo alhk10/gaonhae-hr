@@ -392,9 +392,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    // Get branch country for tax rate (stored as decimal, e.g. 0.09 for 9%)
+    // Get branch country for tax rate - normalize to decimal (e.g. 0.09 for 9%)
     const branchCountry = invoice?.branch_id ? 'Singapore' : 'Singapore'; // default
-    const taxRate = product.tax_rate ?? (COUNTRY_TAX_RATES[branchCountry] ?? 0) / 100;
+    const rawTaxRate = product.tax_rate ?? (COUNTRY_TAX_RATES[branchCountry] ?? 0);
+    // Normalize: if tax_rate > 1, it's a percentage (e.g. 9), convert to decimal (0.09)
+    const taxRate = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
 
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
