@@ -11,6 +11,12 @@ import {
   clearAuthCache as clearCacheService
 } from './authCacheService';
 
+// Helper: wrap any promise with a timeout
+const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
+  return Promise.race([promise, timeout]);
+};
+
 /**
  * Get employee data using SECURITY DEFINER RPC (bypasses slow RLS)
  */
@@ -18,24 +24,28 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
   try {
     logger.debug('Fetching employee data via RPC', { email });
     
-    const dbQuery = supabase.rpc('get_employee_by_email_for_auth', { p_email: email });
-    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 5000)
+    const result = await withTimeout(
+      supabase.rpc('get_employee_by_email_for_auth', { p_email: email }),
+      4000,
+      { data: null, error: { message: 'timeout' } } as any
     );
     
-    const result = await Promise.race([dbQuery, timeout]);
-    
     if (result.data && !result.error) {
-      // RPC returns array, take first row
       const row = Array.isArray(result.data) ? result.data[0] : result.data;
       if (row) {
         logger.debug('Got employee data via RPC');
-        const isSuperadmin = await checkSuperadminStatusDirect(email);
+        const isSuperadmin = await withTimeout(
+          supabase.rpc('is_superadmin', { user_email: email }).then(r => r.data === true),
+          2000,
+          false
+        );
         const userData = { ...row, isSuperadmin };
         cacheEmployeeData(userData, authUserId);
         return userData;
       }
     }
+    
+    logger.debug('RPC returned no employee data, trying cache');
     
     // Cache fallbacks
     if (authUserId) {
@@ -54,7 +64,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
     }
     const cached = getCachedEmployeeByEmail(email);
     if (cached) return cached;
-    throw error;
+    return null;
   }
 };
 
@@ -65,15 +75,14 @@ export const getUserData = getCurrentUserEmployee;
  */
 export const getUserAdminAccess = async (employeeId: string) => {
   try {
-    const dbQuery = supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId });
-    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 3000)
+    const result = await withTimeout(
+      supabase.rpc('get_admin_access_for_auth', { p_employee_id: employeeId }),
+      3000,
+      { data: null, error: { message: 'timeout' } } as any
     );
 
-    const { data, error } = await Promise.race([dbQuery, timeout]);
-
-    if (data && !error) {
-      const row = Array.isArray(data) ? data[0] : data;
+    if (result.data && !result.error) {
+      const row = Array.isArray(result.data) ? result.data[0] : result.data;
       if (row) {
         const accessData = {
           employees: row.employees || false,
@@ -96,7 +105,7 @@ export const getUserAdminAccess = async (employeeId: string) => {
     logger.error('Error fetching admin access', error);
     const cached = getCachedAdminAccess(employeeId);
     if (cached) return cached;
-    throw error;
+    return null;
   }
 };
 
@@ -110,15 +119,14 @@ export const getUserPageAccess = async (employeeId: string) => {
   };
 
   try {
-    const dbQuery = supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId });
-    const timeout = new Promise<{ data: null, error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), 3000)
+    const result = await withTimeout(
+      supabase.rpc('get_page_access_for_auth', { p_employee_id: employeeId }),
+      3000,
+      { data: null, error: { message: 'timeout' } } as any
     );
 
-    const { data, error } = await Promise.race([dbQuery, timeout]);
-
-    if (data && !error) {
-      const row = Array.isArray(data) ? data[0] : data;
+    if (result.data && !result.error) {
+      const row = Array.isArray(result.data) ? result.data[0] : result.data;
       if (row) {
         const accessData = {
           profile: row.profile ?? true,
@@ -145,24 +153,19 @@ export const getUserPageAccess = async (employeeId: string) => {
 };
 
 /**
- * Check superadmin status - direct query (superadmin_users has simple RLS)
+ * Check superadmin status via existing is_superadmin RPC
  */
-const checkSuperadminStatusDirect = async (email: string): Promise<boolean> => {
+export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('superadmin_users')
-      .select('is_active')
-      .eq('employee_email', email)
-      .maybeSingle();
-    if (error) return false;
-    return data?.is_active === true;
+    const result = await withTimeout(
+      supabase.rpc('is_superadmin', { user_email: email }),
+      2000,
+      { data: false, error: null } as any
+    );
+    return result.data === true;
   } catch { return false; }
 };
 
-export const checkSuperadminStatus = async (email: string): Promise<boolean> => {
-  return checkSuperadminStatusDirect(email);
-};
-
-export const checkSuperadminStatusCached = checkSuperadminStatusDirect;
+export const checkSuperadminStatusCached = checkSuperadminStatus;
 
 export { clearAuthCache } from './authCacheService';
