@@ -918,11 +918,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return filtered;
   };
 
-  // Get filtered products based on selected category AND student belt level
+  // Get filtered products based on selected category, student belt level, AND branch pricing rules
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
     const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
-    return matchesCategory && matchesBelt;
+    const notHidden = !hiddenProductIds.has(p.id);
+    return matchesCategory && matchesBelt && notHidden;
   });
 
   // Auto-select product if only 1 option available
