@@ -706,7 +706,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents.slice(0, 50).map((student) => {
+                      {filteredStudents.map((student) => {
                         const edits = massEditData[student.id] || {};
                         const getVal = (field: string, original: string | null) => edits[field] !== undefined ? edits[field] : (original || '');
                         return (
