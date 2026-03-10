@@ -442,8 +442,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   }, [pendingRequests, unverifiedPayments]);
 
   const filteredStudents = students.filter(student => {
+    const displayName = (student.display_name || `${student.first_name} ${student.last_name}`).toLowerCase();
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = displayName.includes(searchTerm.toLowerCase()) ||
+           fullName.includes(searchTerm.toLowerCase()) ||
            student.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
     return matchesSearch && matchesStatus;
