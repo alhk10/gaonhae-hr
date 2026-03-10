@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,7 +21,9 @@ import {
   Settings,
   Download,
   Loader2,
-  Users
+  Users,
+  Save,
+  X
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,6 +78,9 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
+import { BELT_LEVELS } from '@/constants/beltLevels';
+import { normalizePartyData } from '@/utils/partyUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BranchDashboardProps {
   branchId: string;
@@ -104,6 +109,49 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const [massEditMode, setMassEditMode] = useState(false);
+  const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
+  const [massEditSaving, setMassEditSaving] = useState(false);
+
+  const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
+    setMassEditData(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], [field]: value }
+    }));
+  }, []);
+
+  const handleMassEditSave = async () => {
+    const changedIds = Object.keys(massEditData);
+    if (changedIds.length === 0) {
+      setMassEditMode(false);
+      return;
+    }
+    setMassEditSaving(true);
+    try {
+      for (const studentId of changedIds) {
+        const changes = massEditData[studentId];
+        if (Object.keys(changes).length === 0) continue;
+        const normalized = normalizePartyData(changes);
+        // If first_name or last_name changed, also update the name field
+        const student = filteredStudents.find(s => s.id === studentId);
+        if (student && (normalized.first_name || normalized.last_name)) {
+          const firstName = normalized.first_name || student.first_name;
+          const lastName = normalized.last_name !== undefined ? normalized.last_name : (student.last_name || '');
+          normalized.name = `${firstName} ${lastName}`.trim();
+        }
+        const { error } = await supabase.from('students').update(normalized).eq('id', studentId);
+        if (error) throw error;
+      }
+      toast.success(`Updated ${changedIds.length} student(s)`);
+      setMassEditMode(false);
+      setMassEditData({});
+      queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+    } catch (error: any) {
+      toast.error(`Failed to save: ${error.message}`);
+    } finally {
+      setMassEditSaving(false);
+    }
+  };
 
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
@@ -589,12 +637,24 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {userrole === 'superadmin' && (
-              <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
+            {userrole === 'superadmin' && !massEditMode && (
+              <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0" onClick={() => { setMassEditMode(true); setMassEditData({}); }}>
                 <Users className="w-3.5 h-3.5 mr-1" />
                 <span className="hidden sm:inline">Mass Edit</span>
                 <span className="sm:hidden">Mass</span>
               </Button>
+            )}
+            {massEditMode && (
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="default" className="h-8 px-3 text-xs" onClick={handleMassEditSave} disabled={massEditSaving}>
+                  {massEditSaving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setMassEditMode(false); setMassEditData({}); }} disabled={massEditSaving}>
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Cancel
+                </Button>
+              </div>
             )}
 
             <DropdownMenu>
@@ -646,33 +706,81 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents.slice(0, 50).map((student) => (
-                        <TableRow
-                          key={student.id}
-                          className="cursor-pointer hover:bg-muted/50 text-xs"
-                          onClick={() => {
-                            setSelectedStudent(student as Student);
-                            setStudentDetailsOpen(true);
-                          }}
-                        >
-                          <TableCell className="py-1.5 font-semibold uppercase tracking-wide text-xs">
-                            {student.display_name || `${student.first_name} ${student.last_name}`}
-                          </TableCell>
-                          {userrole === 'superadmin' && (
-                            <>
-                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.first_name}</TableCell>
-                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.last_name || '—'}</TableCell>
-                            </>
-                          )}
-                          <TableCell className="py-1.5">
-                            <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px]">
-                              {student.current_belt || 'No belt'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="py-1.5 text-xs text-muted-foreground">{student.phone || '—'}</TableCell>
-                          <TableCell className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{student.email || '—'}</TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredStudents.slice(0, 50).map((student) => {
+                        const edits = massEditData[student.id] || {};
+                        const getVal = (field: string, original: string | null) => edits[field] !== undefined ? edits[field] : (original || '');
+                        return (
+                          <TableRow
+                            key={student.id}
+                            className={`${massEditMode ? '' : 'cursor-pointer'} hover:bg-muted/50 text-xs`}
+                            onClick={() => {
+                              if (!massEditMode) {
+                                setSelectedStudent(student as Student);
+                                setStudentDetailsOpen(true);
+                              }
+                            }}
+                          >
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs uppercase" value={getVal('display_name', student.display_name)} onChange={(e) => handleMassEditChange(student.id, 'display_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="font-semibold uppercase tracking-wide text-xs">{student.display_name || `${student.first_name} ${student.last_name}`}</span>
+                              )}
+                            </TableCell>
+                            {userrole === 'superadmin' && (
+                              <>
+                                <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                                  {massEditMode ? (
+                                    <Input className="h-7 text-xs uppercase" value={getVal('first_name', student.first_name)} onChange={(e) => handleMassEditChange(student.id, 'first_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                                  ) : (
+                                    <span className="uppercase text-xs">{student.first_name}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                                  {massEditMode ? (
+                                    <Input className="h-7 text-xs uppercase" value={getVal('last_name', student.last_name)} onChange={(e) => handleMassEditChange(student.id, 'last_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                                  ) : (
+                                    <span className="uppercase text-xs">{student.last_name || '—'}</span>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Select value={getVal('current_belt', student.current_belt)} onValueChange={(v) => handleMassEditChange(student.id, 'current_belt', v)}>
+                                  <SelectTrigger className="h-7 text-[10px] w-28" onClick={(e) => e.stopPropagation()}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="No belt">No belt</SelectItem>
+                                    {BELT_LEVELS.map(belt => (
+                                      <SelectItem key={belt} value={belt}>{belt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px]">
+                                  {student.current_belt || 'No belt'}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs w-32" value={getVal('phone', student.phone)} onChange={(e) => handleMassEditChange(student.id, 'phone', e.target.value)} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{student.phone || '—'}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs" value={getVal('email', student.email)} onChange={(e) => handleMassEditChange(student.id, 'email', e.target.value)} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{student.email || '—'}</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
