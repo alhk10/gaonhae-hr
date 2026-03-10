@@ -494,12 +494,27 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   }, [pendingRequests, unverifiedPayments]);
 
   const filteredStudents = students.filter(student => {
+    // Always exclude withdrawn students
+    if (student.status?.toLowerCase() === 'withdrawn') return false;
+    
     const displayName = (student.display_name || `${student.first_name} ${student.last_name}`).toLowerCase();
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
     const matchesSearch = displayName.includes(searchTerm.toLowerCase()) ||
            fullName.includes(searchTerm.toLowerCase()) ||
            student.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    
+    let matchesStatus = false;
+    const studentStatus = student.status?.toLowerCase() || '';
+    if (statusFilter === 'active_inactive') {
+      matchesStatus = studentStatus === 'active' || studentStatus === 'inactive';
+    } else if (statusFilter === 'active') {
+      matchesStatus = studentStatus === 'active';
+    } else if (statusFilter === 'inactive') {
+      matchesStatus = studentStatus === 'inactive';
+    } else if (statusFilter === 'trial') {
+      matchesStatus = studentStatus === 'trial';
+    }
+    
     return matchesSearch && matchesStatus;
   });
 
