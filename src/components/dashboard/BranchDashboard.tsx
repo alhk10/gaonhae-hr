@@ -20,7 +20,8 @@ import {
   ExternalLink,
   Settings,
   Download,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
