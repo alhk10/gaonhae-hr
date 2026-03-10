@@ -621,7 +621,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               {studentsLoading ? (
                 <div className="p-4 space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
+                    <Skeleton key={i} className="h-8 w-full" />
                   ))}
                 </div>
               ) : filteredStudents.length === 0 ? (
@@ -629,36 +629,52 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   No students found
                 </div>
               ) : (
-                <div className="divide-y">
-                  {filteredStudents.slice(0, 20).map((student) => (
-                    <div
-                      key={student.id}
-                      className="px-2 py-1.5 sm:px-3 sm:py-2 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 hover:bg-muted/50 cursor-pointer text-sm"
-                      onClick={() => {
-                        setSelectedStudent(student as Student);
-                        setStudentDetailsOpen(true);
-                      }}
-                    >
-                      {/* Line 1: Name + badges */}
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-semibold uppercase tracking-wide truncate text-xs sm:text-sm sm:w-48 sm:shrink-0">
-                          {student.display_name || `${student.first_name} ${student.last_name}`}
-                        </span>
-                        <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px] sm:text-xs shrink-0">
-                          {student.current_belt || 'No belt'}
-                        </Badge>
-                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs capitalize shrink-0">
-                          {student.status}
-                        </Badge>
-                      </div>
-                      {/* Line 2: Contact info */}
-                      <div className="flex items-center gap-2 text-muted-foreground text-[11px] sm:text-xs sm:flex-1 min-w-0">
-                        <span className="truncate">{student.phone || '—'}</span>
-                        <span className="hidden sm:inline">·</span>
-                        <span className="truncate">{student.email || '—'}</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="text-xs">
+                        <TableHead className="text-xs py-2">Display Name</TableHead>
+                        {userrole === 'superadmin' && (
+                          <>
+                            <TableHead className="text-xs py-2 hidden sm:table-cell">First Name</TableHead>
+                            <TableHead className="text-xs py-2 hidden sm:table-cell">Last Name</TableHead>
+                          </>
+                        )}
+                        <TableHead className="text-xs py-2">Belt</TableHead>
+                        <TableHead className="text-xs py-2">Contact</TableHead>
+                        <TableHead className="text-xs py-2 hidden sm:table-cell">Email</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredStudents.slice(0, 50).map((student) => (
+                        <TableRow
+                          key={student.id}
+                          className="cursor-pointer hover:bg-muted/50 text-xs"
+                          onClick={() => {
+                            setSelectedStudent(student as Student);
+                            setStudentDetailsOpen(true);
+                          }}
+                        >
+                          <TableCell className="py-1.5 font-semibold uppercase tracking-wide text-xs">
+                            {student.display_name || `${student.first_name} ${student.last_name}`}
+                          </TableCell>
+                          {userrole === 'superadmin' && (
+                            <>
+                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.first_name}</TableCell>
+                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.last_name || '—'}</TableCell>
+                            </>
+                          )}
+                          <TableCell className="py-1.5">
+                            <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px]">
+                              {student.current_belt || 'No belt'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-1.5 text-xs text-muted-foreground">{student.phone || '—'}</TableCell>
+                          <TableCell className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{student.email || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
