@@ -21,6 +21,7 @@ import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingM
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
+import StudentWithdrawalApprovals from './StudentWithdrawalApprovals';
 import LowStockWarnings from './LowStockWarnings';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
@@ -83,6 +84,9 @@ const SuperadminDashboard = () => {
       <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-0">
         {/* Student Registration Approvals */}
         <StudentRegistrationApprovals showAll />
+
+        {/* Student Withdrawal Approvals */}
+        <StudentWithdrawalApprovals />
 
         {/* Claims Approvals */}
         <ClaimsApprovals />

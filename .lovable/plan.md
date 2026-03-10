@@ -1,52 +1,51 @@
 
 
-## Plan: Student Withdrawal with Superadmin Approval
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-### Overview
-Add an inline "Withdraw" button in the branch dashboard student table that creates a withdrawal request requiring superadmin approval. Add a corresponding approval section in the Superadmin Dashboard that is hidden when empty.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-### Database Changes
+### Changes
 
-**New table: `student_withdrawal_requests`**
-- `id` UUID primary key
-- `student_id` UUID references students(id)
-- `student_name` text
-- `branch_id` text
-- `requested_by` text (employee email)
-- `requested_at` timestamptz default now()
-- `status` text default 'pending' (pending/approved/rejected)
-- `reviewed_by` text nullable
-- `reviewed_at` timestamptz nullable
-- `review_notes` text nullable
-- `created_at` / `updated_at` timestamptz
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-RLS policies: superadmins full access, employees with branch access can insert and select.
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-### Service Layer
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-**New file: `src/services/studentWithdrawalRequestService.ts`**
-- `createWithdrawalRequest(studentId, studentName, branchId, requestedBy)`
-- `getPendingWithdrawalRequests()` — all pending (for superadmin dashboard)
-- `getPendingWithdrawalRequestsCount()` 
-- `approveWithdrawalRequest(requestId, reviewedBy)` — marks approved, updates student status to "withdrawn"
-- `rejectWithdrawalRequest(requestId, reviewedBy, notes)`
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-### UI Changes
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-**1. Branch Dashboard student table (`BranchDashboard.tsx`)**
-- Add an "Actions" column (visible when not in mass edit mode)
-- Show a small "Withdraw" button (or icon button) inline per student row for active students
-- On click: confirm via alert dialog, then call `createWithdrawalRequest`
-- Toast success: "Withdrawal request submitted for superadmin approval"
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-**2. New component: `StudentWithdrawalApprovals.tsx`**
-- Similar pattern to existing approval components (e.g., `StudentRegistrationApprovals`)
-- Shows pending withdrawal requests with student name, branch, requested by, date
-- Approve/Reject buttons
-- On approve: updates student status to "withdrawn" and marks request approved
-- Hidden when no pending requests (conditional render)
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
 
-**3. Superadmin Dashboard (`SuperadminDashboard.tsx`)**
-- Import and render `StudentWithdrawalApprovals` in the overview tab
-- Conditionally hidden when count is 0 (following the existing pattern)
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
+
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 
