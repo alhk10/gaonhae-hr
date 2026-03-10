@@ -705,6 +705,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                         <TableHead className="text-xs py-2">Belt</TableHead>
                         <TableHead className="text-xs py-2">Contact</TableHead>
                         <TableHead className="text-xs py-2 hidden sm:table-cell">Email</TableHead>
+                        {!massEditMode && <TableHead className="text-xs py-2 w-20">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
