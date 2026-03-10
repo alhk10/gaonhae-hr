@@ -78,6 +78,9 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
+import { BELT_LEVELS } from '@/constants/beltLevels';
+import { normalizePartyData } from '@/utils/partyUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BranchDashboardProps {
   branchId: string;
