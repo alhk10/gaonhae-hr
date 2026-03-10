@@ -95,7 +95,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [activeTab, setActiveTab] = useState('timetable');
   const hasSetInitialTab = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active_inactive');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('unpaid');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
