@@ -81,6 +81,8 @@ import NegativeInventoryAlert from './NegativeInventoryAlert';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { normalizePartyData } from '@/utils/partyUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { createWithdrawalRequest } from '@/services/studentWithdrawalRequestService';
+import { UserMinus } from 'lucide-react';
 
 interface BranchDashboardProps {
   branchId: string;
