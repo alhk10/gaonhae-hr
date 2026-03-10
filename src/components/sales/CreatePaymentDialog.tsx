@@ -570,17 +570,6 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="notes" className="text-xs">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Additional notes about this payment"
-                rows={2}
-                className="text-xs"
-              />
-            </div>
           </div>
 
           <DialogFooter>
