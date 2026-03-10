@@ -109,6 +109,49 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const [massEditMode, setMassEditMode] = useState(false);
+  const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
+  const [massEditSaving, setMassEditSaving] = useState(false);
+
+  const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
+    setMassEditData(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], [field]: value }
+    }));
+  }, []);
+
+  const handleMassEditSave = async () => {
+    const changedIds = Object.keys(massEditData);
+    if (changedIds.length === 0) {
+      setMassEditMode(false);
+      return;
+    }
+    setMassEditSaving(true);
+    try {
+      for (const studentId of changedIds) {
+        const changes = massEditData[studentId];
+        if (Object.keys(changes).length === 0) continue;
+        const normalized = normalizePartyData(changes);
+        // If first_name or last_name changed, also update the name field
+        const student = filteredStudents.find(s => s.id === studentId);
+        if (student && (normalized.first_name || normalized.last_name)) {
+          const firstName = normalized.first_name || student.first_name;
+          const lastName = normalized.last_name !== undefined ? normalized.last_name : (student.last_name || '');
+          normalized.name = `${firstName} ${lastName}`.trim();
+        }
+        const { error } = await supabase.from('students').update(normalized).eq('id', studentId);
+        if (error) throw error;
+      }
+      toast.success(`Updated ${changedIds.length} student(s)`);
+      setMassEditMode(false);
+      setMassEditData({});
+      queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+    } catch (error: any) {
+      toast.error(`Failed to save: ${error.message}`);
+    } finally {
+      setMassEditSaving(false);
+    }
+  };
 
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
