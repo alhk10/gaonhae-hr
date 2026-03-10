@@ -85,6 +85,9 @@ const SuperadminDashboard = () => {
         {/* Student Registration Approvals */}
         <StudentRegistrationApprovals showAll />
 
+        {/* Student Withdrawal Approvals */}
+        <StudentWithdrawalApprovals />
+
         {/* Claims Approvals */}
         <ClaimsApprovals />
 
