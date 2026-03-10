@@ -250,6 +250,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         .from('students')
         .select('*')
         .eq('branch_id', branchId)
+        .neq('status', 'withdrawn')
         .order('first_name');
       if (error) throw error;
       return data || [];
