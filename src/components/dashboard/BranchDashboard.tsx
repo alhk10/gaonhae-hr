@@ -630,7 +630,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       {/* Line 1: Name + badges */}
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-semibold uppercase tracking-wide truncate text-xs sm:text-sm sm:w-48 sm:shrink-0">
-                          {student.first_name} {student.last_name}
+                          {student.display_name || `${student.first_name} ${student.last_name}`}
                         </span>
                         <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px] sm:text-xs shrink-0">
                           {student.current_belt || 'No belt'}
