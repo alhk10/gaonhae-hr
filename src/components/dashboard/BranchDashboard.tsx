@@ -637,12 +637,24 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {userrole === 'superadmin' && (
-              <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
+            {userrole === 'superadmin' && !massEditMode && (
+              <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0" onClick={() => { setMassEditMode(true); setMassEditData({}); }}>
                 <Users className="w-3.5 h-3.5 mr-1" />
                 <span className="hidden sm:inline">Mass Edit</span>
                 <span className="sm:hidden">Mass</span>
               </Button>
+            )}
+            {massEditMode && (
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="default" className="h-8 px-3 text-xs" onClick={handleMassEditSave} disabled={massEditSaving}>
+                  {massEditSaving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setMassEditMode(false); setMassEditData({}); }} disabled={massEditSaving}>
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Cancel
+                </Button>
+              </div>
             )}
 
             <DropdownMenu>
