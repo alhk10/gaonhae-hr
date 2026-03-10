@@ -658,8 +658,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
             onOpenChange={setStudentDetailsOpen}
             student={selectedStudent}
             branchId={branchId}
-            onStudentUpdated={() => {
-              queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+            onStudentUpdated={async () => {
+              await queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+              // Refresh selectedStudent from the updated cache
+              if (selectedStudent) {
+                const updatedStudents = queryClient.getQueryData<Student[]>(['branch-students', branchId]);
+                const updated = updatedStudents?.find(s => s.id === selectedStudent.id);
+                if (updated) setSelectedStudent(updated);
+              }
             }}
             onViewInvoice={(invoiceId) => {
               setStudentDetailsOpen(false);
