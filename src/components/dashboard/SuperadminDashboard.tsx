@@ -21,6 +21,7 @@ import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingM
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
+import StudentWithdrawalApprovals from './StudentWithdrawalApprovals';
 import LowStockWarnings from './LowStockWarnings';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
