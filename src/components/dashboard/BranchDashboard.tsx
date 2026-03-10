@@ -631,24 +631,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
                   <Filter className="w-3.5 h-3.5 mr-1" />
                   Filter
-                  {statusFilter !== 'all' && (
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1">{statusFilter}</Badge>
+                  {statusFilter !== 'active_inactive' && (
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1">
+                      {statusFilter === 'active' ? 'Active' : statusFilter === 'inactive' ? 'Inactive' : 'Trial'}
+                    </Badge>
                   )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-                  All Students
+                <DropdownMenuItem onClick={() => setStatusFilter('active_inactive')}>
+                  Active + Inactive
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Active')}>
-                  Active
+                <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                  Active Only
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Inactive')}>
-                  Inactive
+                <DropdownMenuItem onClick={() => setStatusFilter('inactive')}>
+                  Inactive Only
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Trial')}>
+                <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
                 </DropdownMenuItem>
               </DropdownMenuContent>
