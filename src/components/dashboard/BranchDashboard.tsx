@@ -706,33 +706,81 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents.slice(0, 50).map((student) => (
-                        <TableRow
-                          key={student.id}
-                          className="cursor-pointer hover:bg-muted/50 text-xs"
-                          onClick={() => {
-                            setSelectedStudent(student as Student);
-                            setStudentDetailsOpen(true);
-                          }}
-                        >
-                          <TableCell className="py-1.5 font-semibold uppercase tracking-wide text-xs">
-                            {student.display_name || `${student.first_name} ${student.last_name}`}
-                          </TableCell>
-                          {userrole === 'superadmin' && (
-                            <>
-                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.first_name}</TableCell>
-                              <TableCell className="py-1.5 uppercase text-xs hidden sm:table-cell">{student.last_name || '—'}</TableCell>
-                            </>
-                          )}
-                          <TableCell className="py-1.5">
-                            <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px]">
-                              {student.current_belt || 'No belt'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="py-1.5 text-xs text-muted-foreground">{student.phone || '—'}</TableCell>
-                          <TableCell className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{student.email || '—'}</TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredStudents.slice(0, 50).map((student) => {
+                        const edits = massEditData[student.id] || {};
+                        const getVal = (field: string, original: string | null) => edits[field] !== undefined ? edits[field] : (original || '');
+                        return (
+                          <TableRow
+                            key={student.id}
+                            className={`${massEditMode ? '' : 'cursor-pointer'} hover:bg-muted/50 text-xs`}
+                            onClick={() => {
+                              if (!massEditMode) {
+                                setSelectedStudent(student as Student);
+                                setStudentDetailsOpen(true);
+                              }
+                            }}
+                          >
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs uppercase" value={getVal('display_name', student.display_name)} onChange={(e) => handleMassEditChange(student.id, 'display_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="font-semibold uppercase tracking-wide text-xs">{student.display_name || `${student.first_name} ${student.last_name}`}</span>
+                              )}
+                            </TableCell>
+                            {userrole === 'superadmin' && (
+                              <>
+                                <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                                  {massEditMode ? (
+                                    <Input className="h-7 text-xs uppercase" value={getVal('first_name', student.first_name)} onChange={(e) => handleMassEditChange(student.id, 'first_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                                  ) : (
+                                    <span className="uppercase text-xs">{student.first_name}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                                  {massEditMode ? (
+                                    <Input className="h-7 text-xs uppercase" value={getVal('last_name', student.last_name)} onChange={(e) => handleMassEditChange(student.id, 'last_name', e.target.value.toUpperCase())} onClick={(e) => e.stopPropagation()} />
+                                  ) : (
+                                    <span className="uppercase text-xs">{student.last_name || '—'}</span>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Select value={getVal('current_belt', student.current_belt)} onValueChange={(v) => handleMassEditChange(student.id, 'current_belt', v)}>
+                                  <SelectTrigger className="h-7 text-[10px] w-28" onClick={(e) => e.stopPropagation()}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="No belt">No belt</SelectItem>
+                                    {BELT_LEVELS.map(belt => (
+                                      <SelectItem key={belt} value={belt}>{belt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge variant={student.current_belt ? 'default' : 'outline'} className="text-[10px]">
+                                  {student.current_belt || 'No belt'}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs w-32" value={getVal('phone', student.phone)} onChange={(e) => handleMassEditChange(student.id, 'phone', e.target.value)} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{student.phone || '—'}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5 hidden sm:table-cell">
+                              {massEditMode ? (
+                                <Input className="h-7 text-xs" value={getVal('email', student.email)} onChange={(e) => handleMassEditChange(student.id, 'email', e.target.value)} onClick={(e) => e.stopPropagation()} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{student.email || '—'}</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
