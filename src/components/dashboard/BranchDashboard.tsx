@@ -95,7 +95,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [activeTab, setActiveTab] = useState('timetable');
   const hasSetInitialTab = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active_inactive');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('unpaid');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
@@ -494,12 +494,27 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   }, [pendingRequests, unverifiedPayments]);
 
   const filteredStudents = students.filter(student => {
+    // Always exclude withdrawn students
+    if (student.status?.toLowerCase() === 'withdrawn') return false;
+    
     const displayName = (student.display_name || `${student.first_name} ${student.last_name}`).toLowerCase();
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
     const matchesSearch = displayName.includes(searchTerm.toLowerCase()) ||
            fullName.includes(searchTerm.toLowerCase()) ||
            student.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+    
+    let matchesStatus = false;
+    const studentStatus = student.status?.toLowerCase() || '';
+    if (statusFilter === 'active_inactive') {
+      matchesStatus = studentStatus === 'active' || studentStatus === 'inactive';
+    } else if (statusFilter === 'active') {
+      matchesStatus = studentStatus === 'active';
+    } else if (statusFilter === 'inactive') {
+      matchesStatus = studentStatus === 'inactive';
+    } else if (statusFilter === 'trial') {
+      matchesStatus = studentStatus === 'trial';
+    }
+    
     return matchesSearch && matchesStatus;
   });
 
@@ -616,24 +631,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0">
                   <Filter className="w-3.5 h-3.5 mr-1" />
                   Filter
-                  {statusFilter !== 'all' && (
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1">{statusFilter}</Badge>
+                  {statusFilter !== 'active_inactive' && (
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1">
+                      {statusFilter === 'active' ? 'Active' : statusFilter === 'inactive' ? 'Inactive' : 'Trial'}
+                    </Badge>
                   )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-                  All Students
+                <DropdownMenuItem onClick={() => setStatusFilter('active_inactive')}>
+                  Active + Inactive
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Active')}>
-                  Active
+                <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                  Active Only
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Inactive')}>
-                  Inactive
+                <DropdownMenuItem onClick={() => setStatusFilter('inactive')}>
+                  Inactive Only
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('Trial')}>
+                <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
                 </DropdownMenuItem>
               </DropdownMenuContent>
