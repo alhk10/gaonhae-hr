@@ -516,11 +516,11 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         <DialogHeader>
           <DialogTitle>
             {step === 'select' && 'Register for Grading'}
-            {step === 'success' && 'Registration Successful'}
+            {step === 'success' && ''}
           </DialogTitle>
           <DialogDescription>
             {step === 'select' && 'Select a grading session and complete payment'}
-            {step === 'success' && 'Your registration is confirmed'}
+            {step === 'success' && ''}
           </DialogDescription>
         </DialogHeader>
 
