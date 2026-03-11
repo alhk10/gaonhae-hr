@@ -606,7 +606,13 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     if (invoiceItems && invoiceItems.length > 0) {
       const itemIds = invoiceItems.map(item => item.id);
 
-      // 1. Nullify grading_registrations.invoice_item_id to unblock FK (NO ACTION constraint)
+      // 1. Delete grading_registrations linked to these invoice items (removes grading test data)
+      await supabase
+        .from('grading_registrations')
+        .delete()
+        .in('invoice_item_id', itemIds);
+
+      // 1b. Also nullify any remaining references (safety net for NO ACTION constraint)
       await supabase
         .from('grading_registrations')
         .update({ invoice_item_id: null })
