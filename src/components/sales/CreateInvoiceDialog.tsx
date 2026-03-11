@@ -714,6 +714,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     if (field === 'branch_id') {
       setSelectedClassSlots([]);
       loadBranchTerms(value);
+      loadClassTypeAgeSettings(value);
       
       if (selectedCategory?.name === 'Classes' && formData.student_id) {
         const selectedTermId = await refreshTermSelection(value, formData.student_id);
