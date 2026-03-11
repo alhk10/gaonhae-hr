@@ -182,11 +182,11 @@ export const calculateCasualPayroll = (
   // If slot booking pay is provided (from dynamic pricing), use it as base salary
   if (slotBookingPay !== undefined && slotBookingPay > 0) {
     baseSalary = slotBookingPay;
-    console.log(`[CasualPayroll] ✓ Using slot booking dynamic pricing: ${employee.name} = S$${baseSalary}`);
+    logger.debug('[CasualPayroll] Using slot booking dynamic pricing', { id: employee.id });
     warnings.push(`Pay calculated using slot booking + dynamic pricing (November 2025+)`);
   } else {
     // Calculate base pay based on payment type and actual attendance (legacy method)
-    console.log(`[CasualPayroll] Using legacy rates for ${employee.name} (${slotBookingPay === 0 ? 'no bookings/attendance' : 'pre-November 2025'})`);
+    logger.debug('[CasualPayroll] Using legacy rates', { id: employee.id });
     if (paymentType === 'Hourly') {
       // For hourly employees, base salary should be calculated from actual attendance hours
       // This will be handled by the PayrollContext when fetching attendance data
