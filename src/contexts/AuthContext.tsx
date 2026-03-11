@@ -133,7 +133,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (data.session) {
-        await handleUserSession(data.session);
+        // Don't call handleUserSession here — onAuthStateChange(SIGNED_IN) will handle it
+        // This prevents a race condition where two concurrent processUserSession calls
+        // can overwrite each other, causing superadmin to resolve as employee
         toast({
           title: "Login Successful",
           description: "Welcome back!",
