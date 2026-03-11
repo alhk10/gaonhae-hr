@@ -1303,7 +1303,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       <AlertDialog open={showGradingCongrats} onOpenChange={setShowGradingCongrats}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>🎉 Congratulations!</AlertDialogTitle>
+            <AlertDialogTitle>🎉 Your Hardwork Paid Off!</AlertDialogTitle>
             <AlertDialogDescription>
               {student?.first_name || 'Your child'} is now ready for the {gradingTargetBelt || 'next'} Grading Test! Would you like to register now?
             </AlertDialogDescription>
