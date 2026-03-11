@@ -777,7 +777,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="No belt">No belt</SelectItem>
+                                    
                                     {BELT_LEVELS.map(belt => (
                                       <SelectItem key={belt} value={belt}>{belt}</SelectItem>
                                     ))}
