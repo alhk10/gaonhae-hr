@@ -1005,12 +1005,20 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return filtered;
   };
 
-  // Get filtered products based on selected category, student belt level, AND branch pricing rules
+  // Get filtered products based on selected category, student belt level, age, AND branch pricing rules
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
     const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
     const notHidden = !hiddenProductIds.has(p.id);
-    return matchesCategory && matchesBelt && notHidden;
+    
+    // For grading category: filter by student's current belt transition
+    const isGradingCategory = newItem.category_id === GRADING_CATEGORY_ID;
+    const matchesGradingBelt = !isGradingCategory || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
+    
+    // Age-based filtering using branch class type settings
+    const matchesAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+    
+    return matchesCategory && matchesBelt && matchesGradingBelt && matchesAge && notHidden;
   });
 
   // Auto-select product if only 1 option available
