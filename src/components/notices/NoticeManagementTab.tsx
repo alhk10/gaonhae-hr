@@ -88,11 +88,14 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
       ) : (
         <div className="space-y-2">
           {notices.map(notice => (
-            <Card key={notice.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setViewNotice(notice)}>
+            <Card key={notice.id} className={`cursor-pointer hover:bg-muted/50 transition-colors ${!notice.is_active ? 'opacity-50' : ''}`} onClick={() => setViewNotice(notice)}>
               <CardContent className="p-4 flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium truncate">{notice.subject}</p>
+                    {!notice.is_active && (
+                      <Badge variant="destructive" className="text-xs">Disabled</Badge>
+                    )}
                     {notice.target_branches ? (
                       <Badge variant="outline" className="text-xs">{notice.target_branches.length} branch(es)</Badge>
                     ) : (
@@ -107,6 +110,17 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
                   {role === 'branch' && notice.created_by_branch_id === null ? null : (
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)} title="Edit">
                       <Edit className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {(role === 'superadmin' || notice.created_by_branch_id !== null) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 ${notice.is_active ? 'text-amber-600' : 'text-green-600'}`}
+                      onClick={() => handleToggleActive(notice)}
+                      title={notice.is_active ? 'Disable' : 'Enable'}
+                    >
+                      <Ban className="w-4 h-4" />
                     </Button>
                   )}
                   {(role === 'superadmin' || notice.created_by_branch_id !== null) && (
