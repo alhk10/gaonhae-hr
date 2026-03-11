@@ -189,6 +189,19 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
       });
     }
 
+    // Filter by entitlement class type scope (e.g., exclude Private Lessons if not in entitlements)
+    if (entitlements.length > 0) {
+      const allowedClassTypes = new Set<string>();
+      entitlements.forEach(e => {
+        if (e.class_type_scope) {
+          e.class_type_scope.split(',').forEach(ct => allowedClassTypes.add(ct.trim()));
+        }
+      });
+      if (allowedClassTypes.size > 0) {
+        slots = slots.filter(t => t.class_type && allowedClassTypes.has(t.class_type));
+      }
+    }
+
     return slots;
   }, [selectedDate, timetables, studentDateOfBirth, studentCurrentBelt]);
 
