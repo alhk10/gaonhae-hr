@@ -1343,7 +1343,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
                         <SelectContent>{colorOptions.map((color) => (<SelectItem key={color} value={color}>{color}</SelectItem>))}</SelectContent>
                       </Select>
-                    ) : selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    ) : selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID ? <div /> : null}
                     {selectedCategory?.name === 'Classes' && branchTerms.length > 0 ? (
                       <Select value={newItem.term_id} onValueChange={(value) => handleNewItemChange('term_id', value)} disabled={termLoading}>
                         <SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
