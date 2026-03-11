@@ -23,7 +23,7 @@ export interface Notice {
   updated_at: string;
 }
 
-export const getNotices = async (): Promise<Notice[]> => {
+export const getNotices = async (includeInactive: boolean = false): Promise<Notice[]> => {
   const today = new Date().toISOString().split('T')[0];
   
   // First delete notices past their delete_on date
@@ -33,11 +33,16 @@ export const getNotices = async (): Promise<Notice[]> => {
     .lte('delete_on', today)
     .not('delete_on', 'is', null);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('notices' as any)
     .select('*')
-    .eq('is_active', true)
     .order('created_at', { ascending: false });
+
+  if (!includeInactive) {
+    query = query.eq('is_active', true);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []) as unknown as Notice[];
 };
