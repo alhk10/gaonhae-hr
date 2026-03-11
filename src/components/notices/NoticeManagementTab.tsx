@@ -34,9 +34,9 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
   const [viewNotice, setViewNotice] = useState<Notice | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Notice | null>(null);
 
-  const { data: notices = [], isLoading } = useQuery({
-    queryKey: ['notices'],
-    queryFn: getNotices,
+  const { data: notices = [], isLoading } = useQuery<Notice[]>({
+    queryKey: ['notices', 'management'],
+    queryFn: () => getNotices(true),
   });
 
   const handleDelete = async () => {
