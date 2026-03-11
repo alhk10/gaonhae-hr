@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Trash2, Edit, Megaphone, Eye, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { getNotices, deleteNotice, Notice } from '@/services/noticeService';
+import { getNotices, deleteNotice, updateNotice, Notice } from '@/services/noticeService';
 import CreateEditNoticeDialog from './CreateEditNoticeDialog';
 import NoticePopupDialog from './NoticePopupDialog';
 import {
