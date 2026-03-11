@@ -86,7 +86,7 @@ const PaymentSummary = () => {
 
   const handleLockToggle = async (recordId: string, isLocked: boolean) => {
     try {
-      console.log(`${isLocked ? 'Locking' : 'Unlocking'} payroll ${recordId} by user ${user?.name}`);
+      // Lock/unlock payroll
       await updatePayrollLockStatus(recordId, isLocked);
       
       // Update local state
