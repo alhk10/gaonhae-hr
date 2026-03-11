@@ -2474,6 +2474,51 @@ export type Database = {
           },
         ]
       }
+      notice_payments: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          id: string
+          notice_id: string
+          paid_by_email: string
+          payment_method: string
+          product_id: string | null
+          proof_url: string | null
+          reference_number: string | null
+          status: string | null
+          updated_at: string | null
+          variant: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          notice_id: string
+          paid_by_email: string
+          payment_method: string
+          product_id?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+          variant?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          notice_id?: string
+          paid_by_email?: string
+          payment_method?: string
+          product_id?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+          variant?: string | null
+        }
+        Relationships: []
+      }
       notices: {
         Row: {
           attachment_name: string | null
