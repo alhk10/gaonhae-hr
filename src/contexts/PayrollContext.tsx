@@ -307,8 +307,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
       throw new Error(errMsg);
     }
 
-    console.log('  ✓ Employee profile loaded');
-    console.log('  ✓ Calling calculateCasualEmployeePayroll service...\n');
+    logger.debug('Employee profile loaded, calling calculation service', { id: employee.employeeId });
 
     try {
       // CRITICAL: Use the new calculation service for ALL periods
