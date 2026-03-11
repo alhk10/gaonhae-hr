@@ -42,6 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Sequence counter to prevent stale session processing from overwriting newer results
   const sessionSeqRef = React.useRef(0);
+  // Ref to track current user for stale closure in onAuthStateChange
+  const userRef = React.useRef<any>(null);
 
   const handleUserSession = async (session: Session | null) => {
     const seq = ++sessionSeqRef.current;
