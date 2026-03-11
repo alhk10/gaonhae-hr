@@ -45,7 +45,7 @@ const SubmitClaim = () => {
   const isPartner = currentEmployee?.position?.toLowerCase() === 'partner' || isSeniorPartner;
   const canManageClaims = userrole === 'superadmin' || isSeniorPartner;
 
-  console.log('SubmitClaim: Component rendered with user:', user?.email);
+  // Component rendered
 
 
   // Load claim types from database
