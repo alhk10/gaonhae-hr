@@ -820,23 +820,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return acc;
       }, {} as any) || {};
 
-      console.log(`👥 Grouped attendance for ${Object.keys(employeeAttendance).length} unique employees`);
-
-      // Debug: Log Wang Pot Chien specifically
-      const wangData = Object.values(employeeAttendance).find((item: any) => 
-        item.employee?.name?.includes('Wang Pot Chien')
-      );
-      if (wangData) {
-        console.log('🔍 Wang Pot Chien attendance data found:', {
-          name: (wangData as any).employee.name,
-          totalHours: (wangData as any).totalHours,
-          totalDays: (wangData as any).totalDays,
-          hourlyRate: (wangData as any).employee.hourly_rate,
-          paymentType: (wangData as any).employee.payment_type
-        });
-      } else {
-        console.log('❌ Wang Pot Chien not found in attendance data');
-      }
+      logger.debug('Grouped attendance for unique employees', { count: Object.keys(employeeAttendance).length });
 
       // Filter out employees already in payroll, but be more lenient for debugging
       const existingEmployeeIds = new Set([
