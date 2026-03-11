@@ -876,32 +876,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPayrollState(prevState => ({ ...prevState, isLoading: true }));
     
     try {
-      console.log('🚀 Starting auto-add casual employees with attendance');
+      logger.debug('Starting auto-add casual employees with attendance');
       const eligibleEmployees = await getEligibleCasualEmployeesForPayroll();
-      
-      // Special handling for Wang Pot Chien if not in eligible list
-      const wangEmployeeId = 'EMP1752646101747';
-      const isWangInEligible = eligibleEmployees.some(emp => emp.employeeId === wangEmployeeId);
-      const isWangInPayroll = payrollState.casualEmployees.some(emp => emp.employeeId === wangEmployeeId);
-      
-      if (!isWangInEligible && !isWangInPayroll) {
-        console.log('🔧 Wang Pot Chien missing from eligible list, adding manually...');
-        const wangEmployee = payrollState.availableEmployees.find(emp => emp.id === wangEmployeeId);
-        if (wangEmployee) {
-          eligibleEmployees.push({
-            id: wangEmployee.id,
-            name: wangEmployee.name,
-            employeeId: wangEmployee.id,
-            paymentType: 'Daily',
-            hourlyRate: 14.00,
-            baseSalary: 0,
-            totalHours: 5.55, // From attendance query
-            totalDays: 1,
-            attendanceRecords: 1
-          });
-          console.log('✅ Wang Pot Chien manually added to eligible list');
-        }
-      }
       
       if (eligibleEmployees.length === 0) {
         console.log('⚠️  No eligible casual employees found with attendance');
