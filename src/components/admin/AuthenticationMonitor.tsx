@@ -31,7 +31,7 @@ const AuthenticationMonitor = () => {
 
       for (const employee of employees) {
         if (employee.email) {
-          console.log(`AuthenticationMonitor: Checking auth for ${employee.name} (${employee.email})`);
+          // Auth check for employee
           const hasAuth = await checkEmployeeAuthStatus(employee.email);
           statuses.push({
             employee,
