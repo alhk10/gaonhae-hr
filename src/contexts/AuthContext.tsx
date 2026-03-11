@@ -40,12 +40,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Sequence counter to prevent stale session processing from overwriting newer results
+  const sessionSeqRef = React.useRef(0);
+
   const handleUserSession = async (session: Session | null) => {
+    const seq = ++sessionSeqRef.current;
     logger.debug('Processing user session', { email: session?.user?.email });
     
     const result = await processUserSession(session);
     
     if (!result) {
+      // Only apply if this is still the latest session processing
+      if (seq !== sessionSeqRef.current) {
+        logger.debug('Stale session result (null), skipping', { seq, current: sessionSeqRef.current });
+        return;
+      }
       setUser(null);
       setUserrole(null);
       setUserType(null);
@@ -55,6 +64,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLinkedStudents([]);
       setSelectedStudentId(null);
       setIsLoading(false);
+      return;
+    }
+
+    // Only apply if this is still the latest session processing
+    if (seq !== sessionSeqRef.current) {
+      logger.debug('Stale session result, skipping', { seq, current: sessionSeqRef.current, role: result.userrole });
       return;
     }
 
@@ -118,7 +133,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (data.session) {
-        await handleUserSession(data.session);
+        // Don't call handleUserSession here — onAuthStateChange(SIGNED_IN) will handle it
+        // This prevents a race condition where two concurrent processUserSession calls
+        // can overwrite each other, causing superadmin to resolve as employee
         toast({
           title: "Login Successful",
           description: "Welcome back!",

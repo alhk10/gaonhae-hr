@@ -61,7 +61,7 @@ export const getCurrentUserEmployee = async (email: string, authUserId?: string)
         try {
           const saResult = await withTimeout(
             Promise.resolve(supabase.rpc('is_superadmin', { user_email: email })) as Promise<any>,
-            3000,
+            5000,
             { data: false, error: null } as any
           );
           logger.debug('Superadmin RPC result inside getCurrentUserEmployee', { 
