@@ -211,16 +211,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const id = uuidv4();
     const effectivePeriod = periodOverride || payrollState.currentPeriod;
     
-    console.log('\n╔════════════════════════════════════════════════════════════════╗');
-    console.log('║  🚀 CASUAL EMPLOYEE PAYROLL - CALCULATION START               ║');
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log('║  Employee:', employee.name.padEnd(46), '║');
-    console.log('║  ID:', employee.employeeId.padEnd(53), '║');
-    console.log('║  Period:', effectivePeriod.padEnd(49), '║');
-    console.log('║  Hours:', String(employee.hoursWorked || 0).padEnd(51), '║');
-    console.log('║  Days:', String(employee.daysWorked || 0).padEnd(52), '║');
-    console.log('║  Prefetched Profile:', prefetchedProfile ? 'YES' : 'NO'.padEnd(37), '║');
-    console.log('╚════════════════════════════════════════════════════════════════╝\n');
+    logger.debug('Casual employee payroll calculation start', { id: employee.employeeId, period: effectivePeriod });
     
     if (!effectivePeriod) {
       console.error('❌ [addCasualEmployee] NO PERIOD PROVIDED - ABORTING');
