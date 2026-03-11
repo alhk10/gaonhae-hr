@@ -845,11 +845,6 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   ? 'Grading Registration & Term Enrollment Confirmed!'
                   : 'Grading Registration Confirmed!'}
               </h3>
-              <p className="text-muted-foreground">
-                {wasTermIncluded
-                  ? 'You are registered for the grading exam and enrolled for the next term. Good luck!'
-                  : 'You are registered for the grading exam. Good luck!'}
-              </p>
             </div>
             <Button onClick={handleClose}>Done</Button>
           </div>
