@@ -229,14 +229,16 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   });
 
   // Check if student is ready for grading (also fetch target_belt)
+  // Exclude registrations that already have an invoice_item_id (already paid)
   const { data: readyGradingInfo } = useQuery({
     queryKey: ['student-ready-for-grading-dashboard', studentId],
     queryFn: async () => {
       const { data } = await supabase
         .from('grading_registrations')
-        .select('id, ready_for_grading, target_belt')
+        .select('id, ready_for_grading, target_belt, invoice_item_id')
         .eq('student_id', studentId!)
         .eq('ready_for_grading', true)
+        .is('invoice_item_id', null)
         .limit(1)
         .maybeSingle();
       return data;
@@ -246,10 +248,20 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const isReadyForGrading = !!readyGradingInfo;
   const gradingTargetBelt = readyGradingInfo?.target_belt;
 
-  // Check if grading invoice exists recently (60 days)
+  // Check if grading invoice exists recently (any registration with invoice_item_id)
   const { data: hasRecentGradingInvoice } = useQuery({
     queryKey: ['student-recent-grading-invoice', studentId],
     queryFn: async () => {
+      // Check if any grading registration for this student has been paid (has invoice_item_id)
+      const { data: paidRegistrations } = await supabase
+        .from('grading_registrations')
+        .select('id')
+        .eq('student_id', studentId!)
+        .not('invoice_item_id', 'is', null)
+        .limit(1);
+      if (paidRegistrations && paidRegistrations.length > 0) return true;
+
+      // Fallback: check invoice items metadata
       const studentInvoiceIds = invoices.map(i => i.id);
       if (studentInvoiceIds.length === 0) return false;
       const { data: items } = await supabase
