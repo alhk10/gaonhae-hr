@@ -160,7 +160,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     queryFn: async () => {
       const { data } = await supabase
         .from('grading_registrations')
-        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title)')
+        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title, branch_id, branches(name))')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
         .not('invoice_item_id', 'is', null)
