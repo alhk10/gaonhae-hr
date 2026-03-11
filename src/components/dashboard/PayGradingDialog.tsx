@@ -418,7 +418,24 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         }],
       });
 
-      // Step 2: Upload proof of payment
+      // Step 1b: Link grading registration to invoice item
+      const { data: gradingInvoiceItems } = await supabase
+        .from('invoice_items')
+        .select('id')
+        .eq('invoice_id', gradingInvoice.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (gradingInvoiceItems) {
+        // Find the student's grading registration for this slot
+        await supabase
+          .from('grading_registrations')
+          .update({ invoice_item_id: gradingInvoiceItems.id })
+          .eq('student_id', studentId)
+          .eq('ready_for_grading', true)
+          .is('invoice_item_id', null);
+      }
+
       setIsUploading(true);
       const proofUrl = await uploadProofOfPayment(proofFile);
 
