@@ -859,7 +859,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
             attendanceRecords: item.records.length
           };
           
-          console.log(`✅ Eligible employee: ${result.name} - ${result.totalHours} hours, ${result.totalDays} days`);
+          logger.debug('Eligible employee', { id: result.employeeId, hours: result.totalHours, days: result.totalDays });
           return result;
         });
 
