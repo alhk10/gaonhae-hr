@@ -152,8 +152,25 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     enabled: !!student.id,
   });
 
+  // Check for paid grading registration
+  const { data: paidGrading } = useQuery({
+    queryKey: ['paid-grading-registration', student.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grading_registrations')
+        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title)')
+        .eq('student_id', student.id)
+        .eq('ready_for_grading', true)
+        .not('invoice_item_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!student.id,
+  });
+
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
-  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0 && !!isReadyForGrading;
+  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0 && !!isReadyForGrading && !paidGrading;
   const nextBelt = getNextBelt(student.current_belt);
 
   return (
