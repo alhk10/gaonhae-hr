@@ -910,7 +910,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }, payrollState.currentPeriod);
       }
 
-      console.log(`✅ Successfully added ${eligibleEmployees.length} casual employees to payroll`);
+      logger.debug('Successfully added casual employees to payroll', { count: eligibleEmployees.length });
       return { 
         addedCount: eligibleEmployees.length, 
         employees: eligibleEmployees 
