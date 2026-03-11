@@ -28,6 +28,7 @@ import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
 import { getTerm, type Term } from '@/services/termCalendarService';
+import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { COUNTRY_TAX_RATES } from '@/config/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
