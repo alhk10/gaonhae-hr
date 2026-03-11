@@ -1,51 +1,37 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Remove PII and Sensitive Data from Console Logs
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+Employee names (Wang Pot Chien, Siti Aisyah, Ryan Goh), NRIC numbers, bank details, and the word "payroll" are being logged to the browser console. This is a security risk — any user can open DevTools and see this data.
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+**1. `src/contexts/PayrollContext.tsx`** — Remove all debug logging that exposes PII:
+- Remove lines 600, 603-610 (DB data debug logs with names/emails)
+- Remove lines 687-698 (processed employee names/emails logs)  
+- Remove lines 888-904 (Wang Pot Chien attendance debug block)
+- Remove lines 960, 969, 983 (Wang Pot Chien manual-add logs)
+- Replace remaining `console.log` calls with `logger.debug()` using only counts/IDs, never names or emails
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+**2. `src/utils/payrollWorkarounds.ts`** — Remove hardcoded PII:
+- Remove the `MISSING_EMPLOYEES_WORKAROUND` array containing names, NRICs, and bank accounts
+- Remove the `shouldApplyWorkaround` function that references names
+- Keep only generic utility functions (`getPeriodDates`, `getAttendanceDataForMissingEmployees`) but reference employee IDs only, not names
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+**3. `src/utils/payrollCalculations.ts`** — Sanitize logs:
+- Replace `console.log` statements that include `employee.name` with ID-only references
+- Convert verbose period-checking logs to `logger.debug()`
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+**4. `src/services/slotBookingPayrollService.ts`** — Reduce logging:
+- Remove or convert detailed pay calculation logs to `logger.debug()`
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+**5. General sweep** — across files found in search (16 files):
+- Replace `console.log` containing employee names/emails with `logger.debug()` using IDs only
+- Remove any hardcoded name references used for debugging
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+### Approach
+- Use the existing `src/utils/logger.ts` which already suppresses `debug` level in production
+- In development, logs will show employee IDs only (e.g., `"Employee EMP175... loaded"`) — never names, NRICs, or bank details
+- The hardcoded workaround data in PayrollContext (lines 556-592) with names/NRICs/bank accounts will also be removed since the comment on line 595 already says it's disabled
 
