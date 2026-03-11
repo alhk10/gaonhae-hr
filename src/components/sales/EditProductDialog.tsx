@@ -49,6 +49,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     available_variants: { sizes: [], colors: [] } as ProductVariants,
     allowed_belt_levels: [] as string[],
     requires_belt_level: false,
+    min_age: '' as string | number,
+    max_age: '' as string | number,
     is_service: false,
     is_active: true,
     is_lesson: false,
