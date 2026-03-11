@@ -2487,7 +2487,13 @@ export type Database = {
           image_url: string | null
           is_active: boolean | null
           link: string | null
+          payment_amount: number | null
+          payment_product_id: string | null
+          payment_variant: string | null
           subject: string
+          target_age_max: number | null
+          target_age_min: number | null
+          target_belt_levels: string[] | null
           target_branches: string[] | null
           updated_at: string | null
         }
@@ -2503,7 +2509,13 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           link?: string | null
+          payment_amount?: number | null
+          payment_product_id?: string | null
+          payment_variant?: string | null
           subject: string
+          target_age_max?: number | null
+          target_age_min?: number | null
+          target_belt_levels?: string[] | null
           target_branches?: string[] | null
           updated_at?: string | null
         }
@@ -2519,7 +2531,13 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           link?: string | null
+          payment_amount?: number | null
+          payment_product_id?: string | null
+          payment_variant?: string | null
           subject?: string
+          target_age_max?: number | null
+          target_age_min?: number | null
+          target_belt_levels?: string[] | null
           target_branches?: string[] | null
           updated_at?: string | null
         }
