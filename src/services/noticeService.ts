@@ -42,7 +42,7 @@ export const getNotices = async (): Promise<Notice[]> => {
   return (data || []) as unknown as Notice[];
 };
 
-export const createNotice = async (notice: Omit<Notice, 'id' | 'created_at' | 'updated_at' | 'is_active'>): Promise<Notice> => {
+export const createNotice = async (notice: Omit<Notice, 'id' | 'created_at' | 'updated_at' | 'is_active'> & Record<string, any>): Promise<Notice> => {
   const { data, error } = await supabase
     .from('notices' as any)
     .insert(notice as any)
