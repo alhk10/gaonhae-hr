@@ -897,13 +897,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           hoursWorked = daysWorked * 8; // Assume 8 hours per day
         }
 
-        console.log(`➕ Adding ${employee.name} to payroll:`, {
-          paymentType,
-          hoursWorked,
-          daysWorked,
-          hourlyRate: employee.hourlyRate,
-          expectedPay: paymentType === 'Hourly' ? hoursWorked * employee.hourlyRate : 'N/A'
-        });
+        logger.debug('Adding employee to payroll', { id: employee.id, paymentType, hoursWorked, daysWorked });
 
         await addCasualEmployee({
           employeeId: employee.id,
