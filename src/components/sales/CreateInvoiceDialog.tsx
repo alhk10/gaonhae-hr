@@ -385,6 +385,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       if (lockedBranchId) {
         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
         loadBranchTerms(lockedBranchId);
+        loadClassTypeAgeSettings(lockedBranchId);
       }
     }
   }, [open]);
