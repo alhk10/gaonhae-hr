@@ -81,6 +81,8 @@ interface ProductWithVariants {
   allowed_class_types?: string[];
   lesson_days?: string[];
   lessons_per_week?: number;
+  min_age?: number | null;
+  max_age?: number | null;
 }
 
 // Grading category ID for validation
@@ -513,7 +515,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         allowed_belt_levels: p.allowed_belt_levels,
         allowed_class_types: p.allowed_class_types,
         lesson_days: p.lesson_days,
-        lessons_per_week: p.lessons_per_week
+        lessons_per_week: p.lessons_per_week,
+        min_age: p.min_age,
+        max_age: p.max_age
       })));
     } catch (error) {
       console.error('Error loading products:', error);
@@ -1027,8 +1031,13 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const isGradingProduct = p.category_id === GRADING_CATEGORY_ID;
     const matchesGradingBelt = !isGradingProduct || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
     
-    // Age-based filtering using branch class type settings
-    const matchesAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+    // Age-based filtering using branch class type settings AND product-level age requirements
+    const matchesBranchAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+    const matchesProductAge = !formData.student_id || studentAge <= 0 || (
+      (p.min_age == null || studentAge >= p.min_age) &&
+      (p.max_age == null || studentAge <= p.max_age)
+    );
+    const matchesAge = matchesBranchAge && matchesProductAge;
     
     return matchesCategory && matchesBelt && matchesGradingBelt && matchesAge && notHidden;
   });
