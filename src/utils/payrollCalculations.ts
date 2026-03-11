@@ -11,7 +11,7 @@ export const SLOT_BOOKING_PAYROLL_START_DATE = new Date(2025, 10, 1);
  * @param period - Format: "November 2025" or "2025-11"
  */
 export const isSlotBookingPayrollPeriod = (period: string): boolean => {
-  console.log('[isSlotBookingPayrollPeriod] Checking period:', period);
+  logger.debug('[isSlotBookingPayrollPeriod] Checking period', { period });
   
   const monthMap: { [key: string]: number } = {
     January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
@@ -24,20 +24,10 @@ export const isSlotBookingPayrollPeriod = (period: string): boolean => {
     const monthIndex = monthMap[monthName];
     const year = parseInt(yearStr);
     
-    console.log('[isSlotBookingPayrollPeriod] Parsed Month Year format:');
-    console.log('  - Month Name:', monthName);
-    console.log('  - Month Index:', monthIndex);
-    console.log('  - Year:', year);
-    
     if (monthIndex !== undefined && !isNaN(year)) {
       const periodDate = new Date(year, monthIndex, 1);
       const result = periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
-      
-      console.log('[isSlotBookingPayrollPeriod] Comparison:');
-      console.log('  - Period Date:', periodDate.toISOString());
-      console.log('  - Start Date:', SLOT_BOOKING_PAYROLL_START_DATE.toISOString());
-      console.log('  - Result:', result);
-      
+      logger.debug('[isSlotBookingPayrollPeriod] result', { result });
       return result;
     }
   }
@@ -47,19 +37,10 @@ export const isSlotBookingPayrollPeriod = (period: string): boolean => {
   const year = parseInt(yearStr);
   const month = parseInt(monthStr) - 1; // 0-indexed
   
-  console.log('[isSlotBookingPayrollPeriod] Parsed YYYY-MM format:');
-  console.log('  - Year:', year);
-  console.log('  - Month (0-indexed):', month);
-  
   if (!isNaN(year) && !isNaN(month)) {
     const periodDate = new Date(year, month, 1);
     const result = periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
-    
-    console.log('[isSlotBookingPayrollPeriod] Comparison:');
-    console.log('  - Period Date:', periodDate.toISOString());
-    console.log('  - Start Date:', SLOT_BOOKING_PAYROLL_START_DATE.toISOString());
-    console.log('  - Result:', result);
-    
+    logger.debug('[isSlotBookingPayrollPeriod] result', { result });
     return result;
   }
   
