@@ -52,6 +52,16 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
     }
   };
 
+  const handleToggleActive = async (notice: Notice) => {
+    try {
+      await updateNotice(notice.id, { is_active: !notice.is_active });
+      toast.success(notice.is_active ? 'Notice disabled' : 'Notice enabled');
+      queryClient.invalidateQueries({ queryKey: ['notices'] });
+    } catch {
+      toast.error('Failed to update notice');
+    }
+  };
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['notices'] });
 
   return (
