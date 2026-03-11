@@ -1,51 +1,30 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Investigation: ABBY CHAN appearing on Yishun timetable after invoice deletion
 
-### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+### Root Cause
 
-### Changes
+The `deleteInvoice` function in `src/services/invoiceService.ts` (line 625-629) **nullifies** `class_attendance.entitlement_id` but does **not delete** the `class_attendance` records themselves. This means:
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+1. Invoice deleted → entitlements deleted → scheduled classes deleted → enrollments deleted ✓
+2. But `class_attendance` records remain with `entitlement_id = null` ✗
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+The Weekly Timetable (`BranchWeeklyTimetable.tsx`, lines 154-168) merges attendance-based students into the display via `getAttendanceForWeek`, which queries `class_attendance` by branch + date range. Since ABBY CHAN's attendance records persist, she still appears on the timetable.
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+### Fix
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+**File: `src/services/invoiceService.ts`** — In `deleteInvoice`, after nullifying `class_attendance.entitlement_id`, also **hard-delete** those attendance records. Additionally, get the `student_id` from the invoice and delete any `class_attendance` records for that student at that branch that were created via the enrollment/entitlement system.
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+Specifically, change the logic at lines 625-629 from:
+- Nullify `class_attendance.entitlement_id` → keep records
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
+To:
+- **Delete** `class_attendance` records where `entitlement_id` matches the deleted entitlements (these are system-generated attendance records tied to the invoice)
+- Also query the invoice's `student_id` and `branch_id`, then delete any remaining `class_attendance` records for that student+branch where `attendance_method = 'auto_scheduled'` (to catch records that may not have had an entitlement link)
 
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+This ensures that when an invoice is fully deleted, all traces of the student's scheduled attendance are removed from the timetable.
 
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
+### Scope of Changes
 
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+- **`src/services/invoiceService.ts`**: Modify `deleteInvoice` to hard-delete `class_attendance` records linked to deleted entitlements, and clean up auto-scheduled attendance for the student
 
