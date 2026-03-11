@@ -24,6 +24,7 @@ export interface GradingSlot {
   updated_by: string | null;
   min_age?: number | null;
   max_age?: number | null;
+  available_branch_ids?: string[] | null;
   // Computed fields
   branch_name?: string;
   registration_count?: number;
