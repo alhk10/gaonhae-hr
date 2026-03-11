@@ -1004,6 +1004,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         );
       });
     }
+
+    // Filter by student age against slot's min_age/max_age
+    if (studentAge > 0) {
+      filtered = filtered.filter(slot => {
+        const minOk = slot.min_age == null || studentAge >= slot.min_age;
+        const maxOk = slot.max_age == null || studentAge <= slot.max_age;
+        return minOk && maxOk;
+      });
+    }
     
     return filtered;
   };
