@@ -67,6 +67,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
+    // Only apply if this is still the latest session processing
+    if (seq !== sessionSeqRef.current) {
+      logger.debug('Stale session result, skipping', { seq, current: sessionSeqRef.current, role: result.userrole });
+      return;
+    }
+
     setUser(result.user);
     setUserrole(result.userrole);
     setUserType(result.userType);
