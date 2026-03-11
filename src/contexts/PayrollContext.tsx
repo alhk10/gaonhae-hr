@@ -828,7 +828,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ...payrollState.fullTimeEmployees.map(emp => emp.employeeId)
       ]);
 
-      console.log(`🚫 Current employees in payroll (${existingEmployeeIds.size}):`, Array.from(existingEmployeeIds));
+      logger.debug('Current employees in payroll', { count: existingEmployeeIds.size });
 
       const eligibleEmployees = Object.values(employeeAttendance)
         .filter((item: any) => {
