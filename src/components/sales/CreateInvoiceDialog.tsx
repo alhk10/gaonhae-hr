@@ -1459,7 +1459,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       ) : (
                         <span className="text-muted-foreground text-xs">No terms</span>
                       )
-                    ) : selectedCategory?.name === 'Grading Fees' ? (
+                    ) : newItem.category_id === GRADING_CATEGORY_ID ? (
                       getFilteredGradingSlots().length > 0 ? (
                         <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
                           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
