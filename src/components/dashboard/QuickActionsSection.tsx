@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, GraduationCap, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { CreditCard, GraduationCap, Clock, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +49,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   
 }) => {
   const isMobile = useIsMobile();
+  const [showGradingInstructions, setShowGradingInstructions] = useState(false);
   // Check if student has branch
   const hasBranch = !!student.branch_id;
 
@@ -223,23 +225,49 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                   <p className="text-sm text-muted-foreground mb-1">
                     {formatBeltLevel(paidGrading.current_belt)} → {formatBeltLevel(paidGrading.target_belt)}
                   </p>
-                  {(paidGrading as any).grading_slots && (
-                    <div className="text-sm text-muted-foreground space-y-0.5">
-                      <p className="font-medium text-foreground">
-                        {format(new Date((paidGrading as any).grading_slots.grading_date), 'dd MMM yyyy')}
-                        {(paidGrading as any).grading_slots.start_time && ` • ${(paidGrading as any).grading_slots.start_time.slice(0, 5)}`}
-                        {(paidGrading as any).grading_slots.end_time && ` - ${(paidGrading as any).grading_slots.end_time.slice(0, 5)}`}
-                      </p>
-                      {((paidGrading as any).grading_slots.location || (paidGrading as any).grading_slots.title) && (
-                        <p>{(paidGrading as any).grading_slots.title || (paidGrading as any).grading_slots.location}</p>
-                      )}
-                    </div>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 text-green-700 border-green-300 hover:bg-green-100 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/30"
+                    onClick={() => setShowGradingInstructions(true)}
+                  >
+                    <Info className="w-4 h-4 mr-1.5" />
+                    Grading Instructions & Attire
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Grading Instructions Dialog */}
+        <Dialog open={showGradingInstructions} onOpenChange={setShowGradingInstructions}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-center text-lg">Grading Instructions & Attire</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-5">
+              <div>
+                <h4 className="font-semibold text-base mb-2">GRADING INSTRUCTIONS</h4>
+                <ul className="text-sm text-muted-foreground space-y-1.5 list-disc pl-5">
+                  <li>Arrive 10 minutes before.</li>
+                  <li>Green belts and above must have their protection guards worn before reporting.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-base mb-2">GRADING TEST ATTIRE</h4>
+                <ul className="text-sm text-muted-foreground space-y-1.5 list-disc pl-5">
+                  <li>White Training Uniform</li>
+                  <li>Boys must not wear an inner T-shirt.</li>
+                  <li>Girls must wear a plain white inner T-shirt.</li>
+                  <li>No fingernail art or coloring.</li>
+                  <li>No accessories</li>
+                  <li>One single ponytail for long hair (only black rubber band).</li>
+                </ul>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Pay Grading - only shown when student is marked ready and NOT yet paid */}
         {canPayGrading && (
