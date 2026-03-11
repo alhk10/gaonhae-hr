@@ -1328,7 +1328,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   </Button>
                 </div>
                 {/* Size / Color / Term row - only when relevant */}
-                {(sizeOptions.length > 0 || showSizeInput || colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees') && (
+                {(sizeOptions.length > 0 || showSizeInput || colorOptions.length > 0 || selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID) && (
                   <div className="grid grid-cols-2 gap-1.5">
                     {sizeOptions.length > 0 ? (
                       <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
