@@ -579,7 +579,7 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     // Get invoice details for logging before deletion
     const { data: invoice } = await supabase
       .from('invoices')
-      .select('invoice_number, total_amount, status')
+      .select('invoice_number, total_amount, status, student_id, branch_id')
       .eq('id', invoiceId)
       .single();
 
@@ -622,10 +622,10 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
       if (entitlements && entitlements.length > 0) {
         const entitlementIds = entitlements.map(e => e.id);
 
-        // 3. Nullify class_attendance.entitlement_id to unblock FK (NO ACTION constraint)
+        // 3. Hard-delete class_attendance records linked to these entitlements
         await supabase
           .from('class_attendance')
-          .update({ entitlement_id: null })
+          .delete()
           .in('entitlement_id', entitlementIds);
 
         // 4. Hard delete entitlements
@@ -633,6 +633,16 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
           .from('entitlements')
           .delete()
           .in('id', entitlementIds);
+      }
+
+      // 4b. Clean up any remaining auto-scheduled attendance for this student+branch
+      if (invoice?.student_id && invoice?.branch_id) {
+        await supabase
+          .from('class_attendance')
+          .delete()
+          .eq('student_id', invoice.student_id)
+          .eq('branch_id', invoice.branch_id)
+          .eq('attendance_method', 'auto_scheduled');
       }
 
       // 5. Find and delete enrollments + scheduled classes
