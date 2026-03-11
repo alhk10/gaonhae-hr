@@ -1349,7 +1349,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         <SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
                         <SelectContent>{branchTerms.map((term) => (<SelectItem key={term.id} value={term.id}>{term.name}</SelectItem>))}</SelectContent>
                       </Select>
-                    ) : selectedCategory?.name === 'Grading Fees' && getFilteredGradingSlots().length > 0 ? (
+                    ) : newItem.category_id === GRADING_CATEGORY_ID && getFilteredGradingSlots().length > 0 ? (
                       <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
                         <SelectContent>{getFilteredGradingSlots().map((slot) => (<SelectItem key={slot.id} value={slot.id}>{slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>))}</SelectContent>
