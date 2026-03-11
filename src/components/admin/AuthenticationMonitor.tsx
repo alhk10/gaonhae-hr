@@ -39,7 +39,7 @@ const AuthenticationMonitor = () => {
             checked: true
           });
         } else {
-          console.log(`AuthenticationMonitor: Employee ${employee.name} has no email`);
+          // Employee has no email
           statuses.push({
             employee,
             hasAuth: false,

@@ -55,11 +55,5 @@ export const validateEmployeeAccess = (userrole: string | null, pageAccess: any)
 };
 
 export const logAuthState = (context: string, authData: any) => {
-  console.group(`🔐 Auth State: ${context}`);
-  console.log('User:', authData.user?.email || 'Not logged in');
-  console.log('Role:', authData.userrole || 'No role');
-  console.log('Is Loading:', authData.isLoading);
-  console.log('Admin Access:', authData.adminAccess);
-  console.log('Page Access:', authData.pageAccess);
-  console.groupEnd();
+  // Auth state logging suppressed in production for security
 };

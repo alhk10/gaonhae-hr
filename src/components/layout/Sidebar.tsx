@@ -107,7 +107,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   }, [user, userrole]);
 
   const getMenuItems = useCallback((): MenuItem[] => {
-    console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email, 'userType:', userType);
+    // Generate menu based on role
     
     // Students don't see the sidebar menu (they have their own portal)
     if (userType === 'student') {

@@ -88,7 +88,7 @@ const SubmitClaim = () => {
       try {
         setIsLoading(true);
         setEmployeeLoadError(null);
-        console.log('SubmitClaim: Loading employee data for:', user.email);
+        // Loading employee data
         
         // Get current employee
         const employees = await getEmployees();

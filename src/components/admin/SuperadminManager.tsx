@@ -110,7 +110,7 @@ const SuperadminManager: React.FC = () => {
         return;
       }
 
-      console.log('SuperadminManager: Adding superadmin:', selectedEmp.email);
+      // Adding superadmin
 
       const { error } = await supabase
         .from('superadmin_users')

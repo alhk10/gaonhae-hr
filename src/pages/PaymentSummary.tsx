@@ -108,7 +108,7 @@ const PaymentSummary = () => {
     }
     
     try {
-      console.log(`🚀 Super admin ${user?.name} deleting payroll: ${payrollId}`);
+      // Deleting payroll record
       
       // Find the record for logging
       const recordToDelete = payrollHistory.find(p => p.id === payrollId);
