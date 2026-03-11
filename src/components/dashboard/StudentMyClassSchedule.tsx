@@ -35,6 +35,8 @@ interface StudentMyClassScheduleProps {
   branchId?: string;
   entitlements?: Entitlement[];
   readOnly?: boolean;
+  studentDateOfBirth?: string;
+  studentCurrentBelt?: string;
 }
 
 type FilterType = 'upcoming' | 'past' | 'all';
