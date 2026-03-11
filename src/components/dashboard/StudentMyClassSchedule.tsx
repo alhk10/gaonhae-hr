@@ -58,7 +58,8 @@ interface ScheduledClassDisplay {
 }
 
 const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ 
-  studentId, branchId, entitlements = [], readOnly = false 
+  studentId, branchId, entitlements = [], readOnly = false,
+  studentDateOfBirth, studentCurrentBelt
 }) => {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
