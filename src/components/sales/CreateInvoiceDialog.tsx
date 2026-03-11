@@ -1041,7 +1041,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   useEffect(() => {
     const categoryName = categories.find(c => c.id === newItem.category_id)?.name;
     const filteredSlots = getFilteredGradingSlots();
-    if (categoryName === 'Grading Fees' && filteredSlots.length === 1 && !newItem.grading_slot_id) {
+    if (categoryName === 'Grading' && filteredSlots.length === 1 && !newItem.grading_slot_id) {
       handleNewItemChange('grading_slot_id', filteredSlots[0].id);
     }
   }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
