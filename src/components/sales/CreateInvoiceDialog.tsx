@@ -989,7 +989,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     let filtered = gradingSlots;
     
     if (formData.branch_id) {
-      filtered = filtered.filter(slot => slot.branch_id === formData.branch_id);
+      filtered = filtered.filter(slot => 
+        slot.branch_id === formData.branch_id || 
+        (slot.available_branch_ids && slot.available_branch_ids.includes(formData.branch_id))
+      );
     }
     
     if (studentBelt) {
