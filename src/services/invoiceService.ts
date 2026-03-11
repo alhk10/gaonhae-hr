@@ -597,87 +597,122 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     }
 
     // Get invoice items to find linked enrollments
-    const { data: invoiceItems } = await supabase
+    const { data: invoiceItems, error: invoiceItemsFetchError } = await supabase
       .from('invoice_items')
       .select('id')
       .eq('invoice_id', invoiceId);
 
-    // Thorough cleanup of all related data in FK-safe order
-    if (invoiceItems && invoiceItems.length > 0) {
-      const itemIds = invoiceItems.map(item => item.id);
+    if (invoiceItemsFetchError) {
+      throw new Error(`Failed to fetch invoice items: ${invoiceItemsFetchError.message}`);
+    }
 
+    const itemIds = (invoiceItems || []).map(item => item.id);
+
+    // Thorough cleanup of all related data in FK-safe order
+    if (itemIds.length > 0) {
       // 1. Delete grading_registrations linked to these invoice items (removes grading test data)
-      await supabase
+      const { error: gradingRegistrationsDeleteError } = await supabase
         .from('grading_registrations')
         .delete()
         .in('invoice_item_id', itemIds);
 
-      // 1b. Also nullify any remaining references (safety net for NO ACTION constraint)
-      await supabase
-        .from('grading_registrations')
-        .update({ invoice_item_id: null })
-        .in('invoice_item_id', itemIds);
+      if (gradingRegistrationsDeleteError) {
+        throw new Error(`Failed to delete grading registrations: ${gradingRegistrationsDeleteError.message}`);
+      }
 
       // 2. Get entitlement IDs linked to these invoice items
-      const { data: entitlements } = await supabase
+      const { data: entitlements, error: entitlementsFetchError } = await supabase
         .from('entitlements')
         .select('id')
         .in('source_id', itemIds)
         .eq('source_type', 'invoice_item');
 
+      if (entitlementsFetchError) {
+        throw new Error(`Failed to fetch entitlements: ${entitlementsFetchError.message}`);
+      }
+
       if (entitlements && entitlements.length > 0) {
         const entitlementIds = entitlements.map(e => e.id);
 
         // 3. Hard-delete class_attendance records linked to these entitlements
-        await supabase
+        const { error: entitlementAttendanceDeleteError } = await supabase
           .from('class_attendance')
           .delete()
           .in('entitlement_id', entitlementIds);
 
+        if (entitlementAttendanceDeleteError) {
+          throw new Error(`Failed to delete entitlement-linked attendance: ${entitlementAttendanceDeleteError.message}`);
+        }
+
         // 4. Hard delete entitlements
-        await supabase
+        const { error: entitlementsDeleteError } = await supabase
           .from('entitlements')
           .delete()
           .in('id', entitlementIds);
-      }
 
-      // 4b. Clean up any remaining auto-scheduled attendance for this student+branch
-      if (invoice?.student_id && invoice?.branch_id) {
-        await supabase
-          .from('class_attendance')
-          .delete()
-          .eq('student_id', invoice.student_id)
-          .eq('branch_id', invoice.branch_id)
-          .eq('attendance_method', 'auto_scheduled');
+        if (entitlementsDeleteError) {
+          throw new Error(`Failed to delete entitlements: ${entitlementsDeleteError.message}`);
+        }
       }
 
       // 5. Find and delete enrollments + scheduled classes
-      const { data: enrollments } = await supabase
+      const { data: enrollments, error: enrollmentsFetchError } = await supabase
         .from('student_class_enrollments')
         .select('id')
         .in('invoice_item_id', itemIds);
+
+      if (enrollmentsFetchError) {
+        throw new Error(`Failed to fetch enrollments: ${enrollmentsFetchError.message}`);
+      }
 
       if (enrollments && enrollments.length > 0) {
         const enrollmentIds = enrollments.map(e => e.id);
 
         // Delete scheduled classes (hard delete)
-        await supabase
+        const { error: scheduledClassesDeleteError } = await supabase
           .from('student_scheduled_classes')
           .delete()
           .in('enrollment_id', enrollmentIds);
 
+        if (scheduledClassesDeleteError) {
+          throw new Error(`Failed to delete scheduled classes: ${scheduledClassesDeleteError.message}`);
+        }
+
         // Delete enrollments (hard delete)
-        await supabase
+        const { error: enrollmentsDeleteError } = await supabase
           .from('student_class_enrollments')
           .delete()
           .in('id', enrollmentIds);
-      }
 
-      // 6. Delete payments linked to this invoice
-      await supabase
-        .from('payments')
+        if (enrollmentsDeleteError) {
+          throw new Error(`Failed to delete enrollments: ${enrollmentsDeleteError.message}`);
+        }
+      }
+    }
+
+    // 6. Clean up remaining auto-scheduled attendance for this student+branch
+    // (important when old records are detached from entitlements)
+    if (invoice?.student_id && invoice?.branch_id) {
+      const { error: autoScheduledAttendanceDeleteError } = await supabase
+        .from('class_attendance')
         .delete()
-        .eq('invoice_id', invoiceId);
+        .eq('student_id', invoice.student_id)
+        .eq('branch_id', invoice.branch_id)
+        .eq('attendance_method', 'auto_scheduled');
+
+      if (autoScheduledAttendanceDeleteError) {
+        throw new Error(`Failed to delete auto-scheduled attendance: ${autoScheduledAttendanceDeleteError.message}`);
+      }
+    }
+
+    // 7. Delete payments linked to this invoice
+    const { error: paymentsDeleteError } = await supabase
+      .from('payments')
+      .delete()
+      .eq('invoice_id', invoiceId);
+
+    if (paymentsDeleteError) {
+      throw new Error(`Failed to delete payments: ${paymentsDeleteError.message}`);
     }
 
     // Delete invoice items (foreign key constraint)
