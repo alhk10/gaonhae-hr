@@ -1,6 +1,7 @@
 
 import { calculateCPF, calculateAge } from './cpfCalculations';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
+import { logger } from '@/utils/logger';
 
 // Cutoff date for slot booking-based payroll (November 1, 2025)
 export const SLOT_BOOKING_PAYROLL_START_DATE = new Date(2025, 10, 1);
