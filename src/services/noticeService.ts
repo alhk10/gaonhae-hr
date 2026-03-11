@@ -12,6 +12,12 @@ export interface Notice {
   created_by_email: string;
   created_by_branch_id: string | null;
   target_branches: string[] | null;
+  target_age_min: number | null;
+  target_age_max: number | null;
+  target_belt_levels: string[] | null;
+  payment_product_id: string | null;
+  payment_variant: string | null;
+  payment_amount: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -36,7 +42,7 @@ export const getNotices = async (): Promise<Notice[]> => {
   return (data || []) as unknown as Notice[];
 };
 
-export const createNotice = async (notice: Omit<Notice, 'id' | 'created_at' | 'updated_at' | 'is_active'>): Promise<Notice> => {
+export const createNotice = async (notice: Omit<Notice, 'id' | 'created_at' | 'updated_at' | 'is_active'> & Record<string, any>): Promise<Notice> => {
   const { data, error } = await supabase
     .from('notices' as any)
     .insert(notice as any)
