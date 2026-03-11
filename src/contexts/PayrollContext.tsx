@@ -347,11 +347,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         warnings: payrollResult.warnings
       } as CasualEmployee;
 
-      console.log('  ✅ Employee object created with metadata:');
-      console.log('     - calculationMethod:', newEmployee.slotBookingMetadata?.calculationMethod);
-      console.log('     - totalSlots:', newEmployee.slotBookingMetadata?.totalSlots);
-      console.log('     - slotBookingPay:', newEmployee.slotBookingPay);
-      console.log('');
+      logger.debug('Employee object created', { id: newEmployee.employeeId, method: newEmployee.slotBookingMetadata?.calculationMethod });
 
       setPayrollState(prevState => {
         // De-duplicate: check if employee already exists
