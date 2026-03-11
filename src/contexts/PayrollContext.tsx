@@ -552,62 +552,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) throw error;
       
-      // AUTO-FIX: Ensure Wang Pot Chien and Siti Aisyah are always included
-      const missingEmployeeData = [
-        {
-          id: 'EMP1752646101747',
-          name: 'Wang Pot Chien',
-          type: 'Casual',
-          base_salary: 0,
-          hourly_rate: 14.00,
-          payment_type: 'Daily',
-          nric: 'T0277825J',
-          date_of_birth: '',
-          residency_status: 'PR',
-          bank_name: 'DBS/POSB',
-          bank_account: '2710458060',
-          position: '',
-          phone: '',
-          address: '',
-          email: '',
-          join_date: ''
-        },
-        {
-          id: 'EMP1752551410290',
-          name: 'Siti Aisyah Binti Mohammed Nazzer',
-          type: 'Casual',
-          base_salary: 800.00,
-          hourly_rate: 0,
-          payment_type: 'Daily',
-          nric: 'T0631113F',
-          date_of_birth: '',
-          residency_status: 'Citizen',
-          bank_name: 'DBS/POSB',
-          bank_account: '1860056501',
-          position: '',
-          phone: '',
-          address: '',
-          email: '',
-          join_date: ''
-        }
-      ];
-      
-      // REMOVED: Auto-fix workaround that was interfering with authentication
-      // This workaround should only run in PayrollProcessing.tsx, not in global context
-      // The workaround was creating fake employee data with empty emails, preventing login
-      
       let allEmployees = employees || [];
-      console.log('PayrollContext: Loaded employees from database:', allEmployees.length);
-      
-      // Enhanced logging for authentication debugging
-      const wangInDb = employees?.find(emp => emp.id === 'EMP1752646101747');
-      const sitiInDb = employees?.find(emp => emp.id === 'EMP1752551410290');
-      const ryanInDb = employees?.find(emp => emp.id === 'EMP1751006984631');
-      
-      console.log('PayrollContext - Real DB Data:');
-      console.log('  Wang Pot Chien:', wangInDb ? `${wangInDb.name} (${wangInDb.email})` : 'Not found');
-      console.log('  Siti Aisyah:', sitiInDb ? `${sitiInDb.name} (${sitiInDb.email})` : 'Not found');
-      console.log('  Ryan Goh:', ryanInDb ? `${ryanInDb.name} (${ryanInDb.email})` : 'Not found');
+      logger.debug('Loaded employees from database', { count: allEmployees.length });
 
       // Fetch allowances and deductions for all employees
       const allEmployeeIds = allEmployees.map(emp => emp.id);
