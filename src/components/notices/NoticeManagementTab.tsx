@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Trash2, Edit, Megaphone } from 'lucide-react';
+import { Plus, Trash2, Edit, Megaphone, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { getNotices, deleteNotice, Notice } from '@/services/noticeService';
@@ -91,9 +91,15 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)}>
-                    <Edit className="w-4 h-4" />
-                  </Button>
+                  {role === 'branch' && notice.created_by_branch_id === null ? (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewNotice(notice)}>
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  )}
                   {(role === 'superadmin' || notice.created_by_branch_id !== null) && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(notice)}>
                       <Trash2 className="w-4 h-4" />
