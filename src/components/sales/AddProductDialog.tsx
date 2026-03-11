@@ -45,6 +45,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     available_variants: { sizes: [], colors: [] } as ProductVariants,
     allowed_belt_levels: [] as string[],
     requires_belt_level: false,
+    min_age: '' as string | number,
+    max_age: '' as string | number,
     is_service: false,
     is_active: true,
     is_lesson: false,
@@ -101,6 +103,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         requires_color: enabledVariantTypes.color,
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
         requires_belt_level: formData.requires_belt_level,
+        min_age: formData.min_age !== '' ? Number(formData.min_age) : null,
+        max_age: formData.max_age !== '' ? Number(formData.max_age) : null,
         is_service: formData.is_service,
         is_active: formData.is_active,
         is_lesson: formData.is_lesson,
@@ -134,6 +138,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       available_variants: { sizes: [], colors: [] },
       allowed_belt_levels: [],
       requires_belt_level: false,
+      min_age: '',
+      max_age: '',
       is_service: false,
       is_active: true,
       is_lesson: false,
@@ -349,6 +355,41 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 </p>
               </div>
             )}
+          </section>
+
+          {/* Age Requirements Section */}
+          <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Award className="w-4 h-4" />
+              Age Requirements
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Restrict this product to students within a specific age range
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Minimum Age</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="No minimum"
+                  value={formData.min_age}
+                  onChange={(e) => handleInputChange('min_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Maximum Age</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="No maximum"
+                  value={formData.max_age}
+                  onChange={(e) => handleInputChange('max_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                  className="h-8"
+                />
+              </div>
+            </div>
           </section>
 
           {/* Lesson Configuration Section */}

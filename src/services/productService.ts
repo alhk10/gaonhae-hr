@@ -80,6 +80,9 @@ export interface Product {
   max_belt_level?: string;
   requires_belt_level?: boolean;
   allowed_belt_levels?: string[];
+  // Age requirements
+  min_age?: number | null;
+  max_age?: number | null;
   session_count?: number;
   validity_type?: 'months' | 'term';
   validity_months?: number;

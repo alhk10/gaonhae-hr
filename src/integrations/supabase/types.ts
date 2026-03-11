@@ -3133,8 +3133,10 @@ export type Database = {
           is_service: boolean
           lesson_days: string[] | null
           lessons_per_week: number | null
+          max_age: number | null
           max_belt_level: string | null
           metadata: Json | null
+          min_age: number | null
           min_belt_level: string | null
           name: string
           requires_belt_level: boolean | null
@@ -3169,8 +3171,10 @@ export type Database = {
           is_service?: boolean
           lesson_days?: string[] | null
           lessons_per_week?: number | null
+          max_age?: number | null
           max_belt_level?: string | null
           metadata?: Json | null
+          min_age?: number | null
           min_belt_level?: string | null
           name: string
           requires_belt_level?: boolean | null
@@ -3205,8 +3209,10 @@ export type Database = {
           is_service?: boolean
           lesson_days?: string[] | null
           lessons_per_week?: number | null
+          max_age?: number | null
           max_belt_level?: string | null
           metadata?: Json | null
+          min_age?: number | null
           min_belt_level?: string | null
           name?: string
           requires_belt_level?: boolean | null

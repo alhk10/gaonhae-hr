@@ -49,6 +49,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     available_variants: { sizes: [], colors: [] } as ProductVariants,
     allowed_belt_levels: [] as string[],
     requires_belt_level: false,
+    min_age: '' as string | number,
+    max_age: '' as string | number,
     is_service: false,
     is_active: true,
     is_lesson: false,
@@ -77,6 +79,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         available_variants: variants,
         allowed_belt_levels: product.allowed_belt_levels || [],
         requires_belt_level: product.requires_belt_level || false,
+        min_age: product.min_age ?? '',
+        max_age: product.max_age ?? '',
         is_service: product.is_service || false,
         is_active: product.is_active,
         is_lesson: product.is_lesson || false,
@@ -132,6 +136,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         requires_color: enabledVariantTypes.color,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
+        min_age: formData.min_age !== '' ? Number(formData.min_age) : null,
+        max_age: formData.max_age !== '' ? Number(formData.max_age) : null,
         is_lesson: formData.is_lesson,
         is_adhoc_lesson: formData.is_lesson ? formData.is_adhoc_lesson : false,
         lessons_per_week: formData.is_lesson && !formData.is_adhoc_lesson ? formData.lessons_per_week : null,
@@ -343,6 +349,41 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   </p>
                 </div>
               )}
+            </section>
+
+            {/* Age Requirements Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Award className="w-4 h-4" />
+                Age Requirements
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Restrict this product to students within a specific age range
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Minimum Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="No minimum"
+                    value={formData.min_age}
+                    onChange={(e) => handleInputChange('min_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Maximum Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="No maximum"
+                    value={formData.max_age}
+                    onChange={(e) => handleInputChange('max_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="h-8"
+                  />
+                </div>
+              </div>
             </section>
 
             {/* Lesson Configuration Section */}
