@@ -504,7 +504,15 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
               selected={selectedDate}
               onSelect={(date) => { setSelectedDate(date); setSelectedSlot(null); }}
               disabled={isDateDisabled}
-              className={cn("p-2 pointer-events-auto rounded-md border mx-auto")}
+              className={cn("p-2 pointer-events-auto rounded-md border mx-auto [&_table]:w-full")}
+              classNames={{
+                months: "space-y-2",
+                head_row: "flex w-full",
+                head_cell: "flex-1 text-center text-muted-foreground text-xs font-normal",
+                row: "flex w-full",
+                cell: "flex-1 text-center p-0",
+                day: "h-8 w-8 mx-auto text-sm",
+              }}
               initialFocus
             />
 
