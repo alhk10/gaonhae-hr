@@ -293,7 +293,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
               slotBookingEmployee: true
             }
           };
-          console.log('  ✅ Employee fetched successfully');
+          logger.debug('Employee fetched successfully', { id: employee.employeeId });
         }
       } catch (error) {
         console.error('  ❌ Fatal error fetching employee profile:', error);
