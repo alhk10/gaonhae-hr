@@ -1536,34 +1536,6 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             )}
           </div>
 
-          <Separator />
-
-          {/* Notes Section */}
-          <div className="space-y-2 md:space-y-4">
-            <div className="space-y-1 md:space-y-2">
-              <Label htmlFor="notes" className="text-xs md:text-sm">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Public notes (visible to student)"
-                rows={1}
-                className="min-h-[32px] md:min-h-[60px] text-xs md:text-sm"
-              />
-            </div>
-
-            <div className="space-y-1 md:space-y-2">
-              <Label htmlFor="internal_notes" className="text-xs md:text-sm">Internal Notes</Label>
-              <Textarea
-                id="internal_notes"
-                value={formData.internal_notes}
-                onChange={(e) => handleInputChange('internal_notes', e.target.value)}
-                placeholder="Internal notes (not visible to student)"
-                rows={1}
-                className="min-h-[32px] md:min-h-[60px] text-xs md:text-sm"
-              />
-            </div>
-          </div>
 
           <DialogFooter>
             <Button
