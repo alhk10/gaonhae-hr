@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, GraduationCap, Clock, AlertCircle } from 'lucide-react';
+import { CreditCard, GraduationCap, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
@@ -151,8 +152,25 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     enabled: !!student.id,
   });
 
+  // Check for paid grading registration
+  const { data: paidGrading } = useQuery({
+    queryKey: ['paid-grading-registration', student.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('grading_registrations')
+        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title)')
+        .eq('student_id', student.id)
+        .eq('ready_for_grading', true)
+        .not('invoice_item_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!student.id,
+  });
+
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
-  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0 && !!isReadyForGrading;
+  const canPayGrading = hasBranch && !!student.current_belt && gradingSlots.length > 0 && !!isReadyForGrading && !paidGrading;
   const nextBelt = getNextBelt(student.current_belt);
 
   return (
@@ -192,7 +210,38 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Pay Grading - only shown when student is marked ready */}
+        {/* Grading Registered - shown when grading is paid */}
+        {paidGrading && (
+          <Card className="transition-all border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/30">
+            <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
+              <div className="flex items-start gap-3 md:gap-4">
+                <div className="bg-green-500/10 p-2.5 md:p-3 rounded-lg flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} text-green-700 dark:text-green-400`}>Grading Registered ✓</h3>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {formatBeltLevel(paidGrading.current_belt)} → {formatBeltLevel(paidGrading.target_belt)}
+                  </p>
+                  {(paidGrading as any).grading_slots && (
+                    <div className="text-sm text-muted-foreground space-y-0.5">
+                      <p className="font-medium text-foreground">
+                        {format(new Date((paidGrading as any).grading_slots.grading_date), 'dd MMM yyyy')}
+                        {(paidGrading as any).grading_slots.start_time && ` • ${(paidGrading as any).grading_slots.start_time.slice(0, 5)}`}
+                        {(paidGrading as any).grading_slots.end_time && ` - ${(paidGrading as any).grading_slots.end_time.slice(0, 5)}`}
+                      </p>
+                      {((paidGrading as any).grading_slots.location || (paidGrading as any).grading_slots.title) && (
+                        <p>{(paidGrading as any).grading_slots.title || (paidGrading as any).grading_slots.location}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pay Grading - only shown when student is marked ready and NOT yet paid */}
         {canPayGrading && (
           <Card className="cursor-pointer transition-all hover:shadow-md">
             <CardContent className={`${isMobile ? 'p-4' : 'p-6'}`}>
