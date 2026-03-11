@@ -136,6 +136,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       available_variants: { sizes: [], colors: [] },
       allowed_belt_levels: [],
       requires_belt_level: false,
+      min_age: '',
+      max_age: '',
       is_service: false,
       is_active: true,
       is_lesson: false,
