@@ -169,8 +169,28 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
   const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
     const dayOfWeek = getDay(selectedDate);
-    return timetables.filter(t => t.weekday === dayOfWeek);
-  }, [selectedDate, timetables]);
+    let slots = timetables.filter(t => t.weekday === dayOfWeek);
+
+    // Filter by student age
+    if (studentDateOfBirth) {
+      const studentAge = differenceInYears(new Date(), new Date(studentDateOfBirth));
+      slots = slots.filter(t => {
+        if (t.age_from != null && studentAge < t.age_from) return false;
+        if (t.age_to != null && studentAge > t.age_to) return false;
+        return true;
+      });
+    }
+
+    // Filter by student belt level
+    if (studentCurrentBelt) {
+      slots = slots.filter(t => {
+        if (!t.belt_levels || t.belt_levels.length === 0) return true;
+        return t.belt_levels.includes(studentCurrentBelt);
+      });
+    }
+
+    return slots;
+  }, [selectedDate, timetables, studentDateOfBirth, studentCurrentBelt]);
 
   // Capacity check for selected date slots
   const { data: slotCapacities = {} } = useQuery({
