@@ -427,10 +427,14 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         .maybeSingle();
 
       if (gradingInvoiceItems) {
-        // Find the student's grading registration for this slot
+        // Update the student's grading registration with invoice item, slot, and target belt
         await supabase
           .from('grading_registrations')
-          .update({ invoice_item_id: gradingInvoiceItems.id })
+          .update({ 
+            invoice_item_id: gradingInvoiceItems.id,
+            grading_slot_id: selectedSlot.id,
+            target_belt: nextBelt || undefined,
+          })
           .eq('student_id', studentId)
           .eq('ready_for_grading', true)
           .is('invoice_item_id', null);
