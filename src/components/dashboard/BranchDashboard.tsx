@@ -133,6 +133,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       for (const studentId of changedIds) {
         const changes = massEditData[studentId];
         if (Object.keys(changes).length === 0) continue;
+        // Convert "No belt" back to null for database constraint
+        if (changes.current_belt === 'No belt') {
+          changes.current_belt = null;
+        }
         const normalized = normalizePartyData(changes);
         // If first_name or last_name changed, also update the name field
         const student = filteredStudents.find(s => s.id === studentId);
