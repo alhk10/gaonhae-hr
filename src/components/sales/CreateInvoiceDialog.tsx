@@ -116,6 +116,41 @@ const isProductAvailableForBelt = (
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
+// Check if a grading product matches the student's current belt transition
+// Grading products follow the pattern "CurrentBelt >> NextBelt"
+const isGradingProductForBelt = (productName: string, studentBelt: string): boolean => {
+  if (!studentBelt) return true; // Show all if no belt info
+  const normalizedBelt = normalizeBelt(studentBelt);
+  if (!normalizedBelt) return true;
+  
+  // Extract the "from" belt from product name (e.g., "White >> Yellow Tip" → "White")
+  const parts = productName.split('>>').map(p => p.trim());
+  if (parts.length !== 2) return true; // Not a belt transition product, show it
+  
+  const fromBelt = normalizeBelt(parts[0]);
+  return fromBelt === normalizedBelt;
+};
+
+// Check if a product's allowed class types are suitable for a student's age
+const isProductAvailableForAge = (
+  product: ProductWithVariants,
+  studentAge: number,
+  classTypeAgeSettings: Array<{ class_type: string; min_age: number | null; max_age: number | null }>
+): boolean => {
+  if (!studentAge || studentAge <= 0) return true;
+  if (!product.allowed_class_types || product.allowed_class_types.length === 0) return true;
+  if (classTypeAgeSettings.length === 0) return true;
+  
+  // Product is available if at least one of its allowed class types fits the student's age
+  return product.allowed_class_types.some(classType => {
+    const setting = classTypeAgeSettings.find(s => s.class_type === classType);
+    if (!setting) return true; // No age restriction defined for this class type
+    const minOk = setting.min_age === null || studentAge >= setting.min_age;
+    const maxOk = setting.max_age === null || studentAge <= setting.max_age;
+    return minOk && maxOk;
+  });
+};
+
 // Fuzzy match: checks if all characters of query appear in order within target
 const fuzzyMatch = (target: string, query: string): boolean => {
   const t = target.toLowerCase();
