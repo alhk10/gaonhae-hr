@@ -602,11 +602,40 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
       .select('id')
       .eq('invoice_id', invoiceId);
 
-    // Clean up enrollments and scheduled classes linked to this invoice's items
+    // Thorough cleanup of all related data in FK-safe order
     if (invoiceItems && invoiceItems.length > 0) {
       const itemIds = invoiceItems.map(item => item.id);
-      
-      // Find enrollments linked to these invoice items
+
+      // 1. Nullify grading_registrations.invoice_item_id to unblock FK (NO ACTION constraint)
+      await supabase
+        .from('grading_registrations')
+        .update({ invoice_item_id: null })
+        .in('invoice_item_id', itemIds);
+
+      // 2. Get entitlement IDs linked to these invoice items
+      const { data: entitlements } = await supabase
+        .from('entitlements')
+        .select('id')
+        .in('source_id', itemIds)
+        .eq('source_type', 'invoice_item');
+
+      if (entitlements && entitlements.length > 0) {
+        const entitlementIds = entitlements.map(e => e.id);
+
+        // 3. Nullify class_attendance.entitlement_id to unblock FK (NO ACTION constraint)
+        await supabase
+          .from('class_attendance')
+          .update({ entitlement_id: null })
+          .in('entitlement_id', entitlementIds);
+
+        // 4. Hard delete entitlements
+        await supabase
+          .from('entitlements')
+          .delete()
+          .in('id', entitlementIds);
+      }
+
+      // 5. Find and delete enrollments + scheduled classes
       const { data: enrollments } = await supabase
         .from('student_class_enrollments')
         .select('id')
@@ -614,27 +643,25 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
 
       if (enrollments && enrollments.length > 0) {
         const enrollmentIds = enrollments.map(e => e.id);
-        
-        // Cancel scheduled classes for these enrollments
+
+        // Delete scheduled classes (hard delete)
         await supabase
           .from('student_scheduled_classes')
-          .update({ status: 'cancelled' })
-          .in('enrollment_id', enrollmentIds)
-          .eq('status', 'scheduled');
+          .delete()
+          .in('enrollment_id', enrollmentIds);
 
-      // Deactivate the enrollments
+        // Delete enrollments (hard delete)
         await supabase
           .from('student_class_enrollments')
-          .update({ status: 'inactive' })
+          .delete()
           .in('id', enrollmentIds);
       }
 
-      // Deactivate entitlements linked to this invoice's items
+      // 6. Delete payments linked to this invoice
       await supabase
-        .from('entitlements')
-        .update({ is_active: false, notes: 'Deactivated - source invoice deleted' })
-        .in('source_id', itemIds)
-        .eq('source_type', 'invoice_item');
+        .from('payments')
+        .delete()
+        .eq('invoice_id', invoiceId);
     }
 
     // Delete invoice items (foreign key constraint)
