@@ -837,10 +837,10 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const hasValidHours = item.totalHours > 0;
           
           if (!isNotAlreadyInPayroll) {
-            console.log(`⏭️  Employee ${item.employee?.name} already in payroll, hours: ${item.totalHours}`);
+            logger.debug('Employee already in payroll', { id: item.employee?.id });
           }
           if (!hasValidHours) {
-            console.log(`⏭️  Employee ${item.employee?.name} has no hours: ${item.totalHours}`);
+            logger.debug('Employee has no hours', { id: item.employee?.id });
           }
           
           return isNotAlreadyInPayroll && hasValidEmployee && hasValidHours;
