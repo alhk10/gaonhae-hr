@@ -243,7 +243,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       logger.info('Auth state changed', { event });
       
       // Skip re-processing on TOKEN_REFRESHED if user is already loaded
-      if (event === 'TOKEN_REFRESHED' && user) {
+      // Use ref to avoid stale closure issue
+      if (event === 'TOKEN_REFRESHED' && userRef.current) {
         logger.debug('Token refreshed, user already loaded — skipping re-process');
         return;
       }
