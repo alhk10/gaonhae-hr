@@ -319,25 +319,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         employee.claims || 0
       );
 
-      console.log('\n╔════════════════════════════════════════════════════════════════╗');
-      console.log('║  ✅ CALCULATION COMPLETE                                      ║');
-      console.log('╠════════════════════════════════════════════════════════════════╣');
-      console.log('║  Method:', payrollResult.calculationMethod.padEnd(48), '║');
-      console.log('║  Base Salary:', `$${payrollResult.baseSalary.toFixed(2)}`.padEnd(45), '║');
-      console.log('║  Slot Pay:', `$${payrollResult.slotBookingPay.toFixed(2)}`.padEnd(48), '║');
-      console.log('║  Slot Count:', String(payrollResult.slotCount).padEnd(47), '║');
-      console.log('║  Gross Pay:', `$${payrollResult.grossPay.toFixed(2)}`.padEnd(47), '║');
-      console.log('║  Employee CPF:', `$${payrollResult.employeeCPF.toFixed(2)}`.padEnd(44), '║');
-      console.log('║  Net Pay:', `$${payrollResult.totalPay.toFixed(2)}`.padEnd(49), '║');
-      if (payrollResult.warnings && payrollResult.warnings.length > 0) {
-        console.log('║  ⚠️  Warnings:', payrollResult.warnings.length.toString().padEnd(44), '║');
-        payrollResult.warnings.forEach(w => console.log('║    -', w.padEnd(55), '║'));
-      }
-      if (payrollResult.errors && payrollResult.errors.length > 0) {
-        console.log('║  ❌ Errors:', payrollResult.errors.length.toString().padEnd(46), '║');
-        payrollResult.errors.forEach(e => console.log('║    -', e.padEnd(55), '║'));
-      }
-      console.log('╚════════════════════════════════════════════════════════════════╝\n');
+      logger.debug('Calculation complete', { id: employee.employeeId, method: payrollResult.calculationMethod, slotCount: payrollResult.slotCount });
 
       const newEmployee: CasualEmployee = {
         ...employee,
