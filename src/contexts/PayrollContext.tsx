@@ -863,7 +863,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return result;
         });
 
-      console.log(`🎯 Final eligible employees count: ${eligibleEmployees.length}`);
+      logger.debug('Final eligible employees', { count: eligibleEmployees.length });
       return eligibleEmployees;
       
     } catch (error) {
