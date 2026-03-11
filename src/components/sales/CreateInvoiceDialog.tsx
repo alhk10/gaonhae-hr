@@ -81,6 +81,8 @@ interface ProductWithVariants {
   allowed_class_types?: string[];
   lesson_days?: string[];
   lessons_per_week?: number;
+  min_age?: number | null;
+  max_age?: number | null;
 }
 
 // Grading category ID for validation
