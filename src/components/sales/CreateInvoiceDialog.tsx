@@ -1127,7 +1127,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setSelectedClassSlots([]);
     setNewItem({
       product_id: '',
-      category_id: newItem.category_id,
+      category_id: '',
       quantity: 1,
       unit_price: 0,
       size_variant: '',
