@@ -49,6 +49,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   
 }) => {
   const isMobile = useIsMobile();
+  const [showGradingInstructions, setShowGradingInstructions] = useState(false);
   // Check if student has branch
   const hasBranch = !!student.branch_id;
 
