@@ -1,51 +1,30 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Show "Grading Registered" Card When Grading is Already Paid
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+When a student has already paid for grading, the "Pay Grading" card with "Select Grading Session" button still shows. Instead, it should display a confirmation card with the registered slot details.
 
-### Changes
+### Approach
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+**File: `src/components/dashboard/QuickActionsSection.tsx`**
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+1. Add a new query to fetch the student's **paid grading registration** — a `grading_registrations` record where `ready_for_grading = true` AND `invoice_item_id IS NOT NULL` (meaning paid), joined with `grading_slots` to get slot details (date, time, location, title).
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+2. Replace the grading card logic:
+   - If a **paid registration** exists → show a green "Grading Registered" card with:
+     - A checkmark icon (green theme instead of purple)
+     - Title: "Grading Registered ✓"
+     - Slot details: date (formatted), time, location/title
+     - Belt transition text: "Current Belt → Target Belt"
+   - If **not paid but ready** (current `canPayGrading` logic) → show the existing "Pay Grading" card as-is
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+3. The query will select from `grading_registrations` joined with `grading_slots` on `grading_slot_id`, filtering by `student_id`, `ready_for_grading = true`, and `invoice_item_id IS NOT NULL`.
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+### Technical Details
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+- Query: `supabase.from('grading_registrations').select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title)').eq('student_id', student.id).eq('ready_for_grading', true).not('invoice_item_id', 'is', null).limit(1).maybeSingle()`
+- Display the slot date formatted as "dd MMM yyyy", time as "HH:mm", and location if available
+- Use `CheckCircle` icon with green styling to indicate successful registration
+- Card is non-interactive (no button needed)
 
