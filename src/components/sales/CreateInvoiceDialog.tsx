@@ -515,7 +515,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         allowed_belt_levels: p.allowed_belt_levels,
         allowed_class_types: p.allowed_class_types,
         lesson_days: p.lesson_days,
-        lessons_per_week: p.lessons_per_week
+        lessons_per_week: p.lessons_per_week,
+        min_age: p.min_age,
+        max_age: p.max_age
       })));
     } catch (error) {
       console.error('Error loading products:', error);
