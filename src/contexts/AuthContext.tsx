@@ -42,6 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Sequence counter to prevent stale session processing from overwriting newer results
   const sessionSeqRef = React.useRef(0);
+  // Ref to track current user for stale closure in onAuthStateChange
+  const userRef = React.useRef<any>(null);
 
   const handleUserSession = async (session: Session | null) => {
     const seq = ++sessionSeqRef.current;
@@ -56,6 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       setUser(null);
+      userRef.current = null;
       setUserrole(null);
       setUserType(null);
       setUserDetails(null);
@@ -74,6 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setUser(result.user);
+    userRef.current = result.user;
     setUserrole(result.userrole);
     setUserType(result.userType);
     setUserDetails(result.userDetails);
@@ -133,9 +137,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (data.session) {
-        // Don't call handleUserSession here — onAuthStateChange(SIGNED_IN) will handle it
-        // This prevents a race condition where two concurrent processUserSession calls
-        // can overwrite each other, causing superadmin to resolve as employee
+        // handleUserSession may also be triggered by onAuthStateChange(SIGNED_IN),
+        // but the sequence counter prevents stale results from overwriting newer ones
+        await handleUserSession(data.session);
         toast({
           title: "Login Successful",
           description: "Welcome back!",
@@ -239,7 +243,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       logger.info('Auth state changed', { event });
       
       // Skip re-processing on TOKEN_REFRESHED if user is already loaded
-      if (event === 'TOKEN_REFRESHED' && user) {
+      // Use ref to avoid stale closure issue
+      if (event === 'TOKEN_REFRESHED' && userRef.current) {
         logger.debug('Token refreshed, user already loaded — skipping re-process');
         return;
       }
