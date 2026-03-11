@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, isPast, isToday, parseISO, getDay, isAfter, isBefore, startOfDay } from 'date-fns';
+import { format, isPast, isToday, parseISO, getDay, isAfter, isBefore, startOfDay, differenceInYears } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
