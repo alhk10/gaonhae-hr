@@ -46,12 +46,14 @@ const LoginForm = () => {
     try {
       const result = await login(validationResult.data.email, validationResult.data.password);
       if (!result.success) {
-        // Always prompt to verify/resend for new employees on failed login
-        setVerificationEmail(validationResult.data.email);
-        setShowEmailDialog(true);
-        if (!result.needsVerification) {
-          setError('Invalid credentials. Please check your email and password.');
+        if (result.needsVerification) {
+          setVerificationEmail(validationResult.data.email);
+          setShowEmailDialog(true);
+          return;
         }
+
+        setShowEmailDialog(false);
+        setError('Invalid credentials. Please check your email and password.');
       }
     } catch (err) {
       setError('Invalid credentials. Please check your email and password.');
