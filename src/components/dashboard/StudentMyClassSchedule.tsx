@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, isPast, isToday, parseISO, getDay, isAfter, isBefore, startOfDay } from 'date-fns';
+import { format, isPast, isToday, parseISO, getDay, isAfter, isBefore, startOfDay, differenceInYears } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
@@ -35,6 +35,8 @@ interface StudentMyClassScheduleProps {
   branchId?: string;
   entitlements?: Entitlement[];
   readOnly?: boolean;
+  studentDateOfBirth?: string;
+  studentCurrentBelt?: string;
 }
 
 type FilterType = 'upcoming' | 'past' | 'all';
@@ -56,7 +58,8 @@ interface ScheduledClassDisplay {
 }
 
 const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({ 
-  studentId, branchId, entitlements = [], readOnly = false 
+  studentId, branchId, entitlements = [], readOnly = false,
+  studentDateOfBirth, studentCurrentBelt
 }) => {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -166,8 +169,28 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
   const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
     const dayOfWeek = getDay(selectedDate);
-    return timetables.filter(t => t.weekday === dayOfWeek);
-  }, [selectedDate, timetables]);
+    let slots = timetables.filter(t => t.weekday === dayOfWeek);
+
+    // Filter by student age
+    if (studentDateOfBirth) {
+      const studentAge = differenceInYears(new Date(), new Date(studentDateOfBirth));
+      slots = slots.filter(t => {
+        if (t.age_from != null && studentAge < t.age_from) return false;
+        if (t.age_to != null && studentAge > t.age_to) return false;
+        return true;
+      });
+    }
+
+    // Filter by student belt level
+    if (studentCurrentBelt) {
+      slots = slots.filter(t => {
+        if (!t.belt_levels || t.belt_levels.length === 0) return true;
+        return t.belt_levels.includes(studentCurrentBelt);
+      });
+    }
+
+    return slots;
+  }, [selectedDate, timetables, studentDateOfBirth, studentCurrentBelt]);
 
   // Capacity check for selected date slots
   const { data: slotCapacities = {} } = useQuery({
@@ -481,7 +504,15 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
               selected={selectedDate}
               onSelect={(date) => { setSelectedDate(date); setSelectedSlot(null); }}
               disabled={isDateDisabled}
-              className={cn("p-2 pointer-events-auto rounded-md border mx-auto")}
+              className={cn("p-2 pointer-events-auto rounded-md border mx-auto [&_table]:w-full")}
+              classNames={{
+                months: "space-y-2",
+                head_row: "flex w-full",
+                head_cell: "flex-1 text-center text-muted-foreground text-xs font-normal",
+                row: "flex w-full",
+                cell: "flex-1 text-center p-0",
+                day: "h-8 w-8 mx-auto text-sm",
+              }}
               initialFocus
             />
 

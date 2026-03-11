@@ -1186,6 +1186,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             branchId={student?.branch_id}
             entitlements={entitlements}
             readOnly={readOnly}
+            studentDateOfBirth={student?.date_of_birth}
+            studentCurrentBelt={student?.current_belt}
           />
         </TabsContent>
 
