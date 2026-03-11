@@ -264,6 +264,8 @@ export const createProduct = async (productData: Omit<Product, 'id' | 'created_a
       lesson_days: productData.is_lesson && !productData.is_adhoc_lesson ? productData.lesson_days : null,
       allowed_class_types: productData.is_lesson ? productData.allowed_class_types : null,
       is_active: productData.is_active,
+      min_age: productData.min_age ?? null,
+      max_age: productData.max_age ?? null,
       metadata: productData.metadata,
       created_by: productData.created_by,
       updated_by: productData.updated_by
