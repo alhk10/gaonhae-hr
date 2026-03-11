@@ -61,9 +61,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   // Run system validation for superadmin users (only once per session)
   useEffect(() => {
     if (userrole === 'superadmin' && user?.email) {
-      console.log('🧪 Running system validation for superadmin user...');
       systemValidator.runAllTests(user.email).then(results => {
-        console.log('🧪 System validation complete for', user.email);
+        // Validation complete
       });
     }
   }, [userrole, user?.email]);
