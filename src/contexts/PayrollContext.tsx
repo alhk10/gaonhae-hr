@@ -223,7 +223,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // If not found in available employees, fetch directly from database
     if (!employeeProfile) {
-      console.log('  📡 Employee not in cache, fetching from database...');
+      logger.debug('Employee not in cache, fetching from database', { id: employee.employeeId });
       try {
         const { data: empData, error } = await supabase
           .from('employees')
