@@ -239,7 +239,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                   {(paidGrading as any).grading_slots && (
                     <div className="text-sm text-muted-foreground mb-1 space-y-0.5">
                       <p>
-                        {(paidGrading as any).grading_slots.branches?.name && `${(paidGrading as any).grading_slots.branches.name} • `}
+                        {(paidGrading as any).grading_slots.branch_name && `${(paidGrading as any).grading_slots.branch_name} • `}
                         {format(new Date((paidGrading as any).grading_slots.grading_date), 'dd MMM yyyy')}
                         {(paidGrading as any).grading_slots.start_time && ` • ${(paidGrading as any).grading_slots.start_time.slice(0, 5)}`}
                       </p>
