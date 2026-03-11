@@ -136,6 +136,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         requires_color: enabledVariantTypes.color,
         category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : undefined,
         allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
+        min_age: formData.min_age !== '' ? Number(formData.min_age) : null,
+        max_age: formData.max_age !== '' ? Number(formData.max_age) : null,
         is_lesson: formData.is_lesson,
         is_adhoc_lesson: formData.is_lesson ? formData.is_adhoc_lesson : false,
         lessons_per_week: formData.is_lesson && !formData.is_adhoc_lesson ? formData.lessons_per_week : null,
