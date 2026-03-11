@@ -630,18 +630,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
        })) || [];
 
-      console.log('PayrollContext: Processed availableEmployees:', availableEmployees.length);
-      console.log('PayrollContext: Available employee names:', availableEmployees.map(emp => emp.name));
-      
-      // Verify employees have correct email addresses for authentication
-      const wangInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752646101747');
-      const sitiInAvailable = availableEmployees.find(emp => emp.id === 'EMP1752551410290');
-      const ryanInAvailable = availableEmployees.find(emp => emp.id === 'EMP1751006984631');
-      
-      console.log('PayrollContext - Processed employees with emails:');
-      console.log('  Wang Pot Chien:', wangInAvailable ? `${wangInAvailable.name} (${wangInAvailable.email})` : 'Not found');
-      console.log('  Siti Aisyah:', sitiInAvailable ? `${sitiInAvailable.name} (${sitiInAvailable.email})` : 'Not found');
-      console.log('  Ryan Goh:', ryanInAvailable ? `${ryanInAvailable.name} (${ryanInAvailable.email})` : 'Not found');
+      logger.debug('Processed availableEmployees', { count: availableEmployees.length });
 
       setPayrollState(prevState => ({
         ...prevState,
