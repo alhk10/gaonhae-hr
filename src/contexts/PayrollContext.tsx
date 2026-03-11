@@ -363,15 +363,9 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
       });
 
-      console.log('  ✅ Employee added to payroll state\n');
+      logger.debug('Employee added to payroll state', { id: newEmployee.employeeId });
     } catch (error) {
-      console.error('\n❌ ═══════════════════════════════════════════════════════════');
-      console.error('❌  FATAL ERROR IN CALCULATION');
-      console.error('❌ ═══════════════════════════════════════════════════════════');
-      console.error('Error details:', error);
-      console.error('Employee:', employee.name, employee.employeeId);
-      console.error('Period:', effectivePeriod);
-      console.error('❌ ═══════════════════════════════════════════════════════════\n');
+      logger.error('Fatal error in payroll calculation', error, { id: employee.employeeId, period: effectivePeriod });
       throw error;
     }
   }, [payrollState.availableEmployees, payrollState.currentPeriod]);
