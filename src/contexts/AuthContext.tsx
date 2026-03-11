@@ -40,7 +40,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Sequence counter to prevent stale session processing from overwriting newer results
+  const sessionSeqRef = React.useRef(0);
+
   const handleUserSession = async (session: Session | null) => {
+    const seq = ++sessionSeqRef.current;
     logger.debug('Processing user session', { email: session?.user?.email });
     
     const result = await processUserSession(session);
