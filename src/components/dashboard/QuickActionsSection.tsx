@@ -160,12 +160,23 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     queryFn: async () => {
       const { data } = await supabase
         .from('grading_registrations')
-        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title, branch_id, branches(name))')
+        .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title, branch_id)')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
         .not('invoice_item_id', 'is', null)
         .limit(1)
         .maybeSingle();
+      
+      if (data && (data as any).grading_slots?.branch_id) {
+        const { data: branch } = await supabase
+          .from('branches')
+          .select('name')
+          .eq('id', (data as any).grading_slots.branch_id)
+          .maybeSingle();
+        if (branch) {
+          (data as any).grading_slots.branch_name = branch.name;
+        }
+      }
       return data;
     },
     enabled: !!student.id,
@@ -228,7 +239,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                   {(paidGrading as any).grading_slots && (
                     <div className="text-sm text-muted-foreground mb-1 space-y-0.5">
                       <p>
-                        {(paidGrading as any).grading_slots.branches?.name && `${(paidGrading as any).grading_slots.branches.name} • `}
+                        {(paidGrading as any).grading_slots.branch_name && `${(paidGrading as any).grading_slots.branch_name} • `}
                         {format(new Date((paidGrading as any).grading_slots.grading_date), 'dd MMM yyyy')}
                         {(paidGrading as any).grading_slots.start_time && ` • ${(paidGrading as any).grading_slots.start_time.slice(0, 5)}`}
                       </p>
