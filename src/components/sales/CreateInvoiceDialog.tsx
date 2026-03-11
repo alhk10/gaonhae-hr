@@ -1041,7 +1041,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   useEffect(() => {
     const categoryName = categories.find(c => c.id === newItem.category_id)?.name;
     const filteredSlots = getFilteredGradingSlots();
-    if (categoryName === 'Grading Fees' && filteredSlots.length === 1 && !newItem.grading_slot_id) {
+    if (categoryName === 'Grading' && filteredSlots.length === 1 && !newItem.grading_slot_id) {
       handleNewItemChange('grading_slot_id', filteredSlots[0].id);
     }
   }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
@@ -1328,7 +1328,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   </Button>
                 </div>
                 {/* Size / Color / Term row - only when relevant */}
-                {(sizeOptions.length > 0 || showSizeInput || colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees') && (
+                {(sizeOptions.length > 0 || showSizeInput || colorOptions.length > 0 || selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID) && (
                   <div className="grid grid-cols-2 gap-1.5">
                     {sizeOptions.length > 0 ? (
                       <Select value={newItem.size_variant} onValueChange={(value) => handleNewItemChange('size_variant', value)}>
@@ -1337,19 +1337,19 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </Select>
                     ) : showSizeInput ? (
                       <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs px-1" />
-                    ) : colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    ) : colorOptions.length > 0 || selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID ? <div /> : null}
                     {colorOptions.length > 0 ? (
                       <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
                         <SelectContent>{colorOptions.map((color) => (<SelectItem key={color} value={color}>{color}</SelectItem>))}</SelectContent>
                       </Select>
-                    ) : selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    ) : selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID ? <div /> : null}
                     {selectedCategory?.name === 'Classes' && branchTerms.length > 0 ? (
                       <Select value={newItem.term_id} onValueChange={(value) => handleNewItemChange('term_id', value)} disabled={termLoading}>
                         <SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger>
                         <SelectContent>{branchTerms.map((term) => (<SelectItem key={term.id} value={term.id}>{term.name}</SelectItem>))}</SelectContent>
                       </Select>
-                    ) : selectedCategory?.name === 'Grading Fees' && getFilteredGradingSlots().length > 0 ? (
+                    ) : newItem.category_id === GRADING_CATEGORY_ID && getFilteredGradingSlots().length > 0 ? (
                       <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
                         <SelectContent>{getFilteredGradingSlots().map((slot) => (<SelectItem key={slot.id} value={slot.id}>{slot.title || `${slot.branch_name} - ${new Date(slot.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>))}</SelectContent>
@@ -1459,7 +1459,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       ) : (
                         <span className="text-muted-foreground text-xs">No terms</span>
                       )
-                    ) : selectedCategory?.name === 'Grading Fees' ? (
+                    ) : newItem.category_id === GRADING_CATEGORY_ID ? (
                       getFilteredGradingSlots().length > 0 ? (
                         <Select value={newItem.grading_slot_id} onValueChange={(value) => handleNewItemChange('grading_slot_id', value)} disabled={gradingSlotsLoading}>
                           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger>
