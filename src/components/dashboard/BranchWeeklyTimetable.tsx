@@ -141,20 +141,33 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
               status: sc.status,
             }));
 
+            // Deduplicate enrolled students by name (same student can appear multiple times)
+            const seenStudentKeys = new Set<string>();
+            const uniqueEnrolled = enrolledStudents.filter(s => {
+              const key = `${s.name}`;
+              if (seenStudentKeys.has(key)) return false;
+              seenStudentKeys.add(key);
+              return true;
+            });
+
             // Merge attendance-based students not already in enrolled list
-            const enrolledNames = new Set(enrolledStudents.map(s => s.name));
             const attendanceForSlot = weekAttendance.filter(
               a => a.timetable_id === slot.id && a.class_date === dateKey
             );
             const extraStudents = attendanceForSlot
-              .filter(a => !enrolledNames.has(a.student_name))
+              .filter(a => {
+                const key = `${a.student_name}`;
+                if (seenStudentKeys.has(key)) return false;
+                seenStudentKeys.add(key);
+                return true;
+              })
               .map(a => ({
                 id: a.student_id,
                 name: a.student_name,
                 status: a.status,
               }));
 
-            return [...enrolledStudents, ...extraStudents];
+            return [...uniqueEnrolled, ...extraStudents];
           })(),
         });
       });
