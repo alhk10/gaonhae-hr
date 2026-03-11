@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette, Link, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { ImagePlus, Paperclip, X, Loader2, Bold, Underline, IndentIncrease, IndentDecrease, Type, Palette, Link, AlignLeft, AlignCenter, AlignRight, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Notice, createNotice, updateNotice, uploadNoticeFile, sendNoticeNotifications } from '@/services/noticeService';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const TEXT_COLORS = [
   { label: 'Black', value: '#000000' },
@@ -58,13 +59,23 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
 
+  // Target Individuals state
+  const [targetAgeMin, setTargetAgeMin] = useState<string>('');
+  const [targetAgeMax, setTargetAgeMax] = useState<string>('');
+  const [targetBeltLevels, setTargetBeltLevels] = useState<string[]>([]);
+
+  // Payment option state
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [paymentProductId, setPaymentProductId] = useState<string>('');
+  const [paymentVariant, setPaymentVariant] = useState<string>('');
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     contentRef.current?.focus();
   }, []);
 
   const handleFontSize = (size: string) => {
-    // Map readable sizes to execCommand fontSize (1-7)
     const sizeMap: Record<string, string> = { 'small': '2', 'normal': '3', 'large': '4', 'x-large': '5' };
     execCommand('fontSize', sizeMap[size] || '3');
   };
@@ -78,6 +89,24 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
     enabled: role === 'superadmin',
   });
 
+  // Fetch products for payment option (superadmin only)
+  const { data: products = [] } = useQuery({
+    queryKey: ['products-for-notice'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, base_price, available_sizes, available_variants, requires_size')
+        .eq('is_active', true)
+        .order('name');
+      return data || [];
+    },
+    enabled: role === 'superadmin',
+  });
+
+  // Get selected product details
+  const selectedProduct = products.find((p: any) => p.id === paymentProductId);
+  const productVariants: string[] = selectedProduct?.available_sizes || [];
+
   // Group branches by country
   const branchesByCountry = branches.reduce<Record<string, typeof branches>>((acc, b) => {
     const country = b.country || 'Other';
@@ -86,7 +115,6 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
     return acc;
   }, {});
 
-  // Sort countries: named countries first alphabetically, 'Other' last
   const sortedCountries = Object.keys(branchesByCountry).sort((a, b) => {
     if (a === 'Other') return 1;
     if (b === 'Other') return -1;
@@ -103,6 +131,13 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setAllBranches(!notice.target_branches);
         setLink(notice.link || '');
         setDeleteOn(notice.delete_on || '');
+        setTargetAgeMin(notice.target_age_min?.toString() || '');
+        setTargetAgeMax(notice.target_age_max?.toString() || '');
+        setTargetBeltLevels(notice.target_belt_levels || []);
+        setPaymentEnabled(!!notice.payment_product_id);
+        setPaymentProductId(notice.payment_product_id || '');
+        setPaymentVariant(notice.payment_variant || '');
+        setPaymentAmount(notice.payment_amount?.toString() || '');
         setTimeout(() => {
           if (contentRef.current) contentRef.current.innerHTML = notice.content || '';
         }, 50);
@@ -116,6 +151,13 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         setDeleteOn('');
         setSelectedBranches([]);
         setAllBranches(true);
+        setTargetAgeMin('');
+        setTargetAgeMax('');
+        setTargetBeltLevels([]);
+        setPaymentEnabled(false);
+        setPaymentProductId('');
+        setPaymentVariant('');
+        setPaymentAmount('');
         setTimeout(() => {
           if (contentRef.current) contentRef.current.innerHTML = '';
         }, 50);
@@ -152,7 +194,7 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
 
       const targetBranches = role === 'superadmin' && !allBranches ? selectedBranches : null;
 
-      const payload = {
+      const payload: any = {
         subject: subject.trim(),
         content: content.trim() || null,
         image_url,
@@ -163,6 +205,12 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
         target_branches: targetBranches,
         created_by_email: userEmail,
         created_by_branch_id: role === 'branch' ? branchId || null : null,
+        target_age_min: role === 'superadmin' && targetAgeMin ? parseInt(targetAgeMin) : null,
+        target_age_max: role === 'superadmin' && targetAgeMax ? parseInt(targetAgeMax) : null,
+        target_belt_levels: role === 'superadmin' && targetBeltLevels.length > 0 ? targetBeltLevels : null,
+        payment_product_id: role === 'superadmin' && paymentEnabled && paymentProductId ? paymentProductId : null,
+        payment_variant: role === 'superadmin' && paymentEnabled && paymentVariant ? paymentVariant : null,
+        payment_amount: role === 'superadmin' && paymentEnabled && paymentAmount ? parseFloat(paymentAmount) : null,
       };
 
       if (notice) {
@@ -171,7 +219,6 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
       } else {
         await createNotice(payload);
         toast.success('Notice created');
-        // Send push notifications for new notices (fire and forget)
         sendNoticeNotifications(subject.trim(), targetBranches);
       }
 
@@ -302,7 +349,6 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                       range.deleteContents();
                       const br = document.createElement('br');
                       range.insertNode(br);
-                      // Add extra br at end to ensure cursor moves down
                       if (!br.nextSibling || (br.nextSibling.nodeType === Node.TEXT_NODE && br.nextSibling.textContent === '')) {
                         br.after(document.createElement('br'));
                       }
@@ -421,6 +467,162 @@ const CreateEditNoticeDialog: React.FC<CreateEditNoticeDialogProps> = ({
                 )}
               </div>
             </div>
+          )}
+
+          {/* === TARGET INDIVIDUALS (Superadmin only) === */}
+          {role === 'superadmin' && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Target Individuals</Label>
+                <p className="text-xs text-muted-foreground">Filter which students see this notice. Leave blank for all.</p>
+
+                {/* Age Level */}
+                <div>
+                  <Label className="text-xs">Age Range</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      type="number"
+                      placeholder="Min age"
+                      value={targetAgeMin}
+                      onChange={(e) => setTargetAgeMin(e.target.value)}
+                      className="w-24"
+                      min={0}
+                      max={99}
+                    />
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <Input
+                      type="number"
+                      placeholder="Max age"
+                      value={targetAgeMax}
+                      onChange={(e) => setTargetAgeMax(e.target.value)}
+                      className="w-24"
+                      min={0}
+                      max={99}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Show only to students within this age range</p>
+                </div>
+
+                {/* Belt Level */}
+                <div>
+                  <Label className="text-xs">Belt Levels</Label>
+                  <div className="mt-1 max-h-32 overflow-y-auto border rounded-md p-2 space-y-1">
+                    {BELT_LEVELS_ARRAY.map((belt) => (
+                      <div key={belt} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={targetBeltLevels.includes(belt)}
+                          onCheckedChange={(checked) => {
+                            setTargetBeltLevels(prev =>
+                              checked ? [...prev, belt] : prev.filter(b => b !== belt)
+                            );
+                          }}
+                        />
+                        <span className="text-xs">{belt}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {targetBeltLevels.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Selected:</span>
+                      {targetBeltLevels.map(belt => (
+                        <span key={belt} className="text-xs bg-muted px-1.5 py-0.5 rounded">{belt}</span>
+                      ))}
+                      <Button variant="ghost" size="sm" className="h-5 text-xs px-1" onClick={() => setTargetBeltLevels([])}>
+                        Clear
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">Show only to students of selected belt levels</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* === PAYMENT OPTION (Superadmin only) === */}
+          {role === 'superadmin' && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={paymentEnabled}
+                    onCheckedChange={(checked) => {
+                      setPaymentEnabled(!!checked);
+                      if (!checked) {
+                        setPaymentProductId('');
+                        setPaymentVariant('');
+                        setPaymentAmount('');
+                      }
+                    }}
+                  />
+                  <Label className="text-sm font-semibold cursor-pointer">Enable Payment Collection</Label>
+                </div>
+
+                {paymentEnabled && (
+                  <div className="ml-6 space-y-3">
+                    {/* Product Selection */}
+                    <div>
+                      <Label className="text-xs">Product *</Label>
+                      <Select value={paymentProductId} onValueChange={(val) => {
+                        setPaymentProductId(val);
+                        setPaymentVariant('');
+                        const prod = products.find((p: any) => p.id === val);
+                        if (prod) {
+                          setPaymentAmount((prod as any).base_price?.toString() || '');
+                        }
+                      }}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select a product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} - ${Number(p.base_price).toFixed(2)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Variant Selection */}
+                    {productVariants.length > 0 && (
+                      <div>
+                        <Label className="text-xs">Variant / Size</Label>
+                        <Select value={paymentVariant} onValueChange={setPaymentVariant}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select variant" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {productVariants.map((v: string) => (
+                              <SelectItem key={v} value={v}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Amount */}
+                    <div>
+                      <Label className="text-xs">Amount ($)</Label>
+                      <Input
+                        type="number"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="mt-1"
+                        min={0}
+                        step="0.01"
+                      />
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Students will see payment options (PayNow, Bank Transfer, Cash) and can upload proof of payment when viewing this notice.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
 
