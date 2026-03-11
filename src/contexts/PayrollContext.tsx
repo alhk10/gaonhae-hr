@@ -9,7 +9,6 @@ import { getSlotBookingPayForPeriod } from '@/services/slotBookingPayrollService
 import { calculateCasualEmployeePayroll } from '@/services/casualPayrollCalculationService';
 import { formatPeriodForAPI, getCurrentPeriod } from '@/utils/periodUtils';
 import { logger } from '@/utils/logger';
-import { logger } from '@/utils/logger';
 import { usePayrollPersistence } from '@/hooks/usePayrollPersistence';
 
 export interface PayrollContextType {
