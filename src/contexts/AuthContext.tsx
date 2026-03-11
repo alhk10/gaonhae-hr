@@ -50,6 +50,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const result = await processUserSession(session);
     
     if (!result) {
+      // Only apply if this is still the latest session processing
+      if (seq !== sessionSeqRef.current) {
+        logger.debug('Stale session result (null), skipping', { seq, current: sessionSeqRef.current });
+        return;
+      }
       setUser(null);
       setUserrole(null);
       setUserType(null);
