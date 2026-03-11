@@ -45,7 +45,7 @@ const SubmitClaim = () => {
   const isPartner = currentEmployee?.position?.toLowerCase() === 'partner' || isSeniorPartner;
   const canManageClaims = userrole === 'superadmin' || isSeniorPartner;
 
-  console.log('SubmitClaim: Component rendered with user:', user?.email);
+  // Component rendered
 
 
   // Load claim types from database
@@ -88,7 +88,7 @@ const SubmitClaim = () => {
       try {
         setIsLoading(true);
         setEmployeeLoadError(null);
-        console.log('SubmitClaim: Loading employee data for:', user.email);
+        // Loading employee data
         
         // Get current employee
         const employees = await getEmployees();

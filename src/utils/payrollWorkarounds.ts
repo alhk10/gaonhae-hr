@@ -1,5 +1,6 @@
-// Emergency workaround for missing employees in payroll
+// Utility functions for payroll period calculations
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface MissingEmployeeData {
   id: string;
@@ -14,39 +15,16 @@ export interface MissingEmployeeData {
   bankAccount: string;
 }
 
-// Force-add Wang Pot Chien and Siti Aisyah with their data
-export const MISSING_EMPLOYEES_WORKAROUND: MissingEmployeeData[] = [
-  {
-    id: 'EMP1752646101747',
-    name: 'Wang Pot Chien',
-    type: 'Casual',
-    paymentType: 'Hourly',
-    hourlyRate: 14.00,
-    residencyStatus: 'PR',
-    nric: 'T0277825J',
-    bankName: 'DBS/POSB',
-    bankAccount: '2710458060'
-  },
-  {
-    id: 'EMP1752551410290', 
-    name: 'Siti Aisyah Binti Mohammed Nazzer',
-    type: 'Casual',
-    paymentType: 'Monthly',
-    baseSalary: 800.00,
-    residencyStatus: 'Citizen',
-    nric: 'T0631113F',
-    bankName: 'DBS/POSB',
-    bankAccount: '1860056501'
-  }
-];
+// Workaround data removed for security - employee data should only come from database
+export const MISSING_EMPLOYEES_WORKAROUND: MissingEmployeeData[] = [];
 
-export async function getAttendanceDataForMissingEmployees(period: string) {
+export async function getAttendanceDataForMissingEmployees(period: string, employeeIds: string[]) {
   const [startDate, endDate] = getPeriodDates(period);
   
   const { data: attendanceData } = await supabase
     .from('attendance')
     .select('employee_id, hours_worked, date')
-    .in('employee_id', MISSING_EMPLOYEES_WORKAROUND.map(emp => emp.id))
+    .in('employee_id', employeeIds)
     .gte('date', startDate)
     .lte('date', endDate)
     .in('status', ['Present', 'Late']);
@@ -72,9 +50,6 @@ export function getPeriodDates(period: string): [string, string] {
 }
 
 export function shouldApplyWorkaround(employeesInPayroll: any[]): boolean {
-  const wangExists = employeesInPayroll.some(emp => emp.employeeId === 'EMP1752646101747' || emp.name?.toLowerCase().includes('wang'));
-  const sitiExists = employeesInPayroll.some(emp => emp.employeeId === 'EMP1752551410290' || emp.name?.toLowerCase().includes('siti'));
-  
-  console.log('Workaround check - Wang exists:', wangExists, 'Siti exists:', sitiExists);
-  return !wangExists || !sitiExists;
+  // Workaround disabled - all employee data should come from database
+  return false;
 }

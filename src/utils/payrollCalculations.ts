@@ -1,6 +1,7 @@
 
 import { calculateCPF, calculateAge } from './cpfCalculations';
 import { EmployeeProfile, PayrollEmployee, CasualEmployeePayroll } from '@/types/employee';
+import { logger } from '@/utils/logger';
 
 // Cutoff date for slot booking-based payroll (November 1, 2025)
 export const SLOT_BOOKING_PAYROLL_START_DATE = new Date(2025, 10, 1);
@@ -10,7 +11,7 @@ export const SLOT_BOOKING_PAYROLL_START_DATE = new Date(2025, 10, 1);
  * @param period - Format: "November 2025" or "2025-11"
  */
 export const isSlotBookingPayrollPeriod = (period: string): boolean => {
-  console.log('[isSlotBookingPayrollPeriod] Checking period:', period);
+  logger.debug('[isSlotBookingPayrollPeriod] Checking period', { period });
   
   const monthMap: { [key: string]: number } = {
     January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
@@ -23,20 +24,10 @@ export const isSlotBookingPayrollPeriod = (period: string): boolean => {
     const monthIndex = monthMap[monthName];
     const year = parseInt(yearStr);
     
-    console.log('[isSlotBookingPayrollPeriod] Parsed Month Year format:');
-    console.log('  - Month Name:', monthName);
-    console.log('  - Month Index:', monthIndex);
-    console.log('  - Year:', year);
-    
     if (monthIndex !== undefined && !isNaN(year)) {
       const periodDate = new Date(year, monthIndex, 1);
       const result = periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
-      
-      console.log('[isSlotBookingPayrollPeriod] Comparison:');
-      console.log('  - Period Date:', periodDate.toISOString());
-      console.log('  - Start Date:', SLOT_BOOKING_PAYROLL_START_DATE.toISOString());
-      console.log('  - Result:', result);
-      
+      logger.debug('[isSlotBookingPayrollPeriod] result', { result });
       return result;
     }
   }
@@ -46,23 +37,14 @@ export const isSlotBookingPayrollPeriod = (period: string): boolean => {
   const year = parseInt(yearStr);
   const month = parseInt(monthStr) - 1; // 0-indexed
   
-  console.log('[isSlotBookingPayrollPeriod] Parsed YYYY-MM format:');
-  console.log('  - Year:', year);
-  console.log('  - Month (0-indexed):', month);
-  
   if (!isNaN(year) && !isNaN(month)) {
     const periodDate = new Date(year, month, 1);
     const result = periodDate >= SLOT_BOOKING_PAYROLL_START_DATE;
-    
-    console.log('[isSlotBookingPayrollPeriod] Comparison:');
-    console.log('  - Period Date:', periodDate.toISOString());
-    console.log('  - Start Date:', SLOT_BOOKING_PAYROLL_START_DATE.toISOString());
-    console.log('  - Result:', result);
-    
+    logger.debug('[isSlotBookingPayrollPeriod] result', { result });
     return result;
   }
   
-  console.warn('[isSlotBookingPayrollPeriod] ⚠️ Could not parse period format:', period);
+  logger.warn('[isSlotBookingPayrollPeriod] Could not parse period format', { period });
   return false;
 };
 
@@ -200,11 +182,11 @@ export const calculateCasualPayroll = (
   // If slot booking pay is provided (from dynamic pricing), use it as base salary
   if (slotBookingPay !== undefined && slotBookingPay > 0) {
     baseSalary = slotBookingPay;
-    console.log(`[CasualPayroll] ✓ Using slot booking dynamic pricing: ${employee.name} = S$${baseSalary}`);
+    logger.debug('[CasualPayroll] Using slot booking dynamic pricing', { id: employee.id });
     warnings.push(`Pay calculated using slot booking + dynamic pricing (November 2025+)`);
   } else {
     // Calculate base pay based on payment type and actual attendance (legacy method)
-    console.log(`[CasualPayroll] Using legacy rates for ${employee.name} (${slotBookingPay === 0 ? 'no bookings/attendance' : 'pre-November 2025'})`);
+    logger.debug('[CasualPayroll] Using legacy rates', { id: employee.id });
     if (paymentType === 'Hourly') {
       // For hourly employees, base salary should be calculated from actual attendance hours
       // This will be handled by the PayrollContext when fetching attendance data
@@ -239,69 +221,21 @@ export const calculateCasualPayroll = (
   let employeeCPF = 0;
   let employerCPF = 0;
   
-  // Debug logging for Ng Kai Rui Jovious
-  if (employee.name === 'Ng Kai Rui Jovious') {
-    console.log('🔍 CPF Debug - Before CPF Calculation:', {
-      grossSalary,
-      dateOfBirth: employee.dateOfBirth,
-      residencyStatus: employee.residencyStatus,
-      hasDateOfBirth: !!employee.dateOfBirth,
-      hasResidencyStatus: !!employee.residencyStatus
-    });
-  }
-  
   try {
     if (employee.dateOfBirth && employee.residencyStatus) {
       const age = calculateAge(employee.dateOfBirth);
       const cpfCalc = calculateCPF(grossSalary, employee.residencyStatus, age);
       employeeCPF = cpfCalc.employeeCPF;
       employerCPF = cpfCalc.employerCPF;
-      
-      // Debug logging for Ng Kai Rui Jovious
-      if (employee.name === 'Ng Kai Rui Jovious') {
-        console.log('🔍 CPF Debug - CPF Calculation Result:', {
-          age,
-          grossSalary,
-          residencyStatus: employee.residencyStatus,
-          cpfCalc,
-          employeeCPF,
-          employerCPF
-        });
-      }
     } else {
       warnings.push('CPF not calculated due to missing date of birth or residency status');
-      if (employee.name === 'Ng Kai Rui Jovious') {
-        console.log('❌ CPF Debug - Missing required data:', {
-          dateOfBirth: employee.dateOfBirth,
-          residencyStatus: employee.residencyStatus
-        });
-      }
     }
   } catch (error) {
     errors.push(`CPF calculation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    if (employee.name === 'Ng Kai Rui Jovious') {
-      console.log('❌ CPF Debug - Calculation Error:', error);
-    }
   }
 
   const totalCPF = employeeCPF + employerCPF;
   const netSalary = Math.max(0, grossSalary - employeeCPF - totalDeductions + approvedClaims);
-
-  // Debug logging for final result for Ng Kai Rui Jovious
-  if (employee.name === 'Ng Kai Rui Jovious') {
-    console.log('🔍 CPF Debug - Final Calculation Result:', {
-      baseSalary,
-      totalAllowances,
-      totalDeductions,
-      grossSalary,
-      employeeCPF,
-      employerCPF,
-      totalCPF: employeeCPF + employerCPF,
-      netSalary,
-      errors,
-      warnings
-    });
-  }
 
   // Validation warnings
   if (paymentType === 'Hourly' && hoursWorked > 60) {

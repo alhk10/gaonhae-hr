@@ -86,7 +86,7 @@ const PaymentSummary = () => {
 
   const handleLockToggle = async (recordId: string, isLocked: boolean) => {
     try {
-      console.log(`${isLocked ? 'Locking' : 'Unlocking'} payroll ${recordId} by user ${user?.name}`);
+      // Lock/unlock payroll
       await updatePayrollLockStatus(recordId, isLocked);
       
       // Update local state
@@ -108,7 +108,7 @@ const PaymentSummary = () => {
     }
     
     try {
-      console.log(`🚀 Super admin ${user?.name} deleting payroll: ${payrollId}`);
+      // Deleting payroll record
       
       // Find the record for logging
       const recordToDelete = payrollHistory.find(p => p.id === payrollId);

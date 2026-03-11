@@ -507,42 +507,7 @@ const PayrollProcessing = () => {
           // Wait for payroll state to update before applying workaround
           await new Promise(resolve => setTimeout(resolve, 500));
           
-          // Apply workaround for missing employees if needed
-          try {
-            const currentEmployeesInPayroll = [...payrollState.fullTimeEmployees, ...payrollState.casualEmployees];
-            
-            if (shouldApplyWorkaround(currentEmployeesInPayroll)) {
-              // Convert "November 2025" to "2025-11" format for the workaround
-              const formattedPeriodForWorkaround = formatPeriodForAPI(selectedPeriod);
-              const attendanceWorkaround = await getAttendanceDataForMissingEmployees(formattedPeriodForWorkaround);
-              
-              // Add missing employees
-              for (const missingEmp of MISSING_EMPLOYEES_WORKAROUND) {
-                const alreadyExists = currentEmployeesInPayroll.some(emp => 
-                  emp.employeeId === missingEmp.id || emp.name === missingEmp.name
-                );
-                
-                if (!alreadyExists) {
-                  const attendanceData = attendanceWorkaround[missingEmp.id] || { totalHours: 0, totalDays: 0 };
-                  
-                  await addCasualEmployee({
-                    employeeId: missingEmp.id,
-                    name: missingEmp.name,
-                    paymentType: missingEmp.paymentType,
-                    hourlyRate: missingEmp.hourlyRate || 0,
-                    baseSalary: missingEmp.baseSalary || 0,
-                    hoursWorked: attendanceData.totalHours,
-                    daysWorked: attendanceData.totalDays,
-                    claims: 0
-                  }, selectedPeriod);
-                }
-              }
-              
-              toast.success('Applied workaround for missing employees');
-            }
-          } catch (workaroundError) {
-            console.error('Error in workaround logic:', workaroundError);
-          }
+          // Workaround disabled - all employee data comes from database
         }
       } catch (error) {
         console.error('❌ [PayrollProcessing] Error loading employee data:', error);

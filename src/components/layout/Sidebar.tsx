@@ -61,9 +61,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   // Run system validation for superadmin users (only once per session)
   useEffect(() => {
     if (userrole === 'superadmin' && user?.email) {
-      console.log('🧪 Running system validation for superadmin user...');
       systemValidator.runAllTests(user.email).then(results => {
-        console.log('🧪 System validation complete for', user.email);
+        // Validation complete
       });
     }
   }, [userrole, user?.email]);
@@ -108,7 +107,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   }, [user, userrole]);
 
   const getMenuItems = useCallback((): MenuItem[] => {
-    console.log('Sidebar: Generating menu for userrole:', userrole, 'user:', user?.email, 'userType:', userType);
+    // Generate menu based on role
     
     // Students don't see the sidebar menu (they have their own portal)
     if (userType === 'student') {
