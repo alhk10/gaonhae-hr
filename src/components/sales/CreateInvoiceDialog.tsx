@@ -1027,8 +1027,13 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const isGradingProduct = p.category_id === GRADING_CATEGORY_ID;
     const matchesGradingBelt = !isGradingProduct || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
     
-    // Age-based filtering using branch class type settings
-    const matchesAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+    // Age-based filtering using branch class type settings AND product-level age requirements
+    const matchesBranchAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+    const matchesProductAge = !formData.student_id || studentAge <= 0 || (
+      (p.min_age == null || studentAge >= p.min_age) &&
+      (p.max_age == null || studentAge <= p.max_age)
+    );
+    const matchesAge = matchesBranchAge && matchesProductAge;
     
     return matchesCategory && matchesBelt && matchesGradingBelt && matchesAge && notHidden;
   });
