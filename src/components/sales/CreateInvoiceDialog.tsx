@@ -1337,7 +1337,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </Select>
                     ) : showSizeInput ? (
                       <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs px-1" />
-                    ) : colorOptions.length > 0 || selectedCategory?.name === 'Classes' || selectedCategory?.name === 'Grading Fees' ? <div /> : null}
+                    ) : colorOptions.length > 0 || selectedCategory?.name === 'Classes' || newItem.category_id === GRADING_CATEGORY_ID ? <div /> : null}
                     {colorOptions.length > 0 ? (
                       <Select value={newItem.color_variant} onValueChange={(value) => handleNewItemChange('color_variant', value)}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
