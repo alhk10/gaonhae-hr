@@ -353,7 +353,7 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // De-duplicate: check if employee already exists
         const alreadyExists = prevState.casualEmployees.some(emp => emp.employeeId === newEmployee.employeeId);
         if (alreadyExists) {
-          console.log(`  ⚠ Casual employee ${newEmployee.name} already in payroll, skipping`);
+          logger.debug('Casual employee already in payroll, skipping', { id: newEmployee.employeeId });
           return prevState;
         }
         return {
