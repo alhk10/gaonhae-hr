@@ -758,8 +758,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       setBranchTerms([]);
     }
   };
+  // Load class type age settings for the selected branch
+  const loadClassTypeAgeSettings = async (branchId: string) => {
+    if (!branchId) {
+      setClassTypeAgeSettings([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('branch_class_type_settings')
+        .select('class_type, min_age, max_age')
+        .eq('branch_id', branchId);
+      if (error) throw error;
+      setClassTypeAgeSettings(data || []);
+    } catch (error) {
+      console.error('Error loading class type age settings:', error);
+      setClassTypeAgeSettings([]);
+    }
+  };
 
-  // Check if student already has a class invoice for a specific term
+
   const checkExistingClassInvoice = async (
     studentId: string, 
     termId: string
