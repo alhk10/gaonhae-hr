@@ -44,7 +44,7 @@ export const isSlotBookingPayrollPeriod = (period: string): boolean => {
     return result;
   }
   
-  console.warn('[isSlotBookingPayrollPeriod] ⚠️ Could not parse period format:', period);
+  logger.warn('[isSlotBookingPayrollPeriod] Could not parse period format', { period });
   return false;
 };
 
