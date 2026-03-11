@@ -77,6 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setUser(result.user);
+    userRef.current = result.user;
     setUserrole(result.userrole);
     setUserType(result.userType);
     setUserDetails(result.userDetails);
