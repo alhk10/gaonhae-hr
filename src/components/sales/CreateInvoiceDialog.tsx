@@ -352,6 +352,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
   const [gradingSlotsLoading, setGradingSlotsLoading] = useState(false);
   
+  // Class type age settings for product filtering
+  const [classTypeAgeSettings, setClassTypeAgeSettings] = useState<Array<{ class_type: string; min_age: number | null; max_age: number | null }>>([]);
+  
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
