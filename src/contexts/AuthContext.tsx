@@ -106,7 +106,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; needsVerification?: boolean }> => {
-    setIsLoading(true);
+    // NOTE: Do NOT set isLoading=true here. Setting isLoading causes Index to unmount
+    // the LoginForm and show a spinner. If login fails, a fresh LoginForm mounts
+    // and all error state is lost — the user just sees a "refresh" with no error.
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -123,7 +125,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             description: "Please check your email and click the verification link.",
             variant: "destructive",
           });
-          setIsLoading(false);
           return { success: false, needsVerification: true };
         }
         
@@ -132,11 +133,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: error.message,
           variant: "destructive",
         });
-        setIsLoading(false);
         return { success: false };
       }
 
       if (data.session) {
+        // Now that login succeeded, show loading while we process the session
+        setIsLoading(true);
         // handleUserSession may also be triggered by onAuthStateChange(SIGNED_IN),
         // but the sequence counter prevents stale results from overwriting newer ones
         await handleUserSession(data.session);
@@ -147,7 +149,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: true };
       }
       
-      setIsLoading(false);
       return { success: false };
     } catch (error) {
       logger.error('Unexpected login error', error);
@@ -156,7 +157,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "An unexpected error occurred during login.",
         variant: "destructive",
       });
-      setIsLoading(false);
       return { success: false };
     }
   };
