@@ -91,12 +91,11 @@ const NoticeManagementTab: React.FC<NoticeManagementTabProps> = ({ role, branchI
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {role === 'branch' && notice.created_by_branch_id === null ? (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewNotice(notice)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  ) : (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewNotice(notice)} title="Preview">
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  {role === 'branch' && notice.created_by_branch_id === null ? null : (
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditNotice(notice)} title="Edit">
                       <Edit className="w-4 h-4" />
                     </Button>
                   )}
