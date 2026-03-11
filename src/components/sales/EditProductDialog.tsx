@@ -351,6 +351,41 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               )}
             </section>
 
+            {/* Age Requirements Section */}
+            <section className="rounded-lg bg-accent/30 p-4 space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Award className="w-4 h-4" />
+                Age Requirements
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Restrict this product to students within a specific age range
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Minimum Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="No minimum"
+                    value={formData.min_age}
+                    onChange={(e) => handleInputChange('min_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Maximum Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="No maximum"
+                    value={formData.max_age}
+                    onChange={(e) => handleInputChange('max_age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+            </section>
+
             {/* Lesson Configuration Section */}
             <section className="rounded-lg bg-muted/50 p-4 space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
