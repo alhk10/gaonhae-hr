@@ -1011,9 +1011,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
     const notHidden = !hiddenProductIds.has(p.id);
     
-    // For grading category: filter by student's current belt transition
-    const isGradingCategory = newItem.category_id === GRADING_CATEGORY_ID;
-    const matchesGradingBelt = !isGradingCategory || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
+    // For grading products: always filter by student's current belt transition (regardless of selected category)
+    const isGradingProduct = p.category_id === GRADING_CATEGORY_ID;
+    const matchesGradingBelt = !isGradingProduct || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
     
     // Age-based filtering using branch class type settings
     const matchesAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
