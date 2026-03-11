@@ -28,6 +28,7 @@ import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
 import { getTerm, type Term } from '@/services/termCalendarService';
+import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { COUNTRY_TAX_RATES } from '@/config/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -554,7 +555,59 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           enrollment = enrollmentByTerm;
         }
 
-        if (enrollment) {
+        if (!enrollment && invoice.student_id && slots.length > 0) {
+          // No enrollment exists - create one
+          const existingMetadata = (item.metadata as any) || {};
+          const termId = existingMetadata?.term_id || existingMetadata?.term_ids?.[0];
+          if (termId && invoice.branch_id) {
+            try {
+              const enrollmentId = await createEnrollment({
+                student_id: invoice.student_id,
+                term_id: termId,
+                branch_id: invoice.branch_id,
+                class_type: item.description || 'Class',
+                tier_name: item.description || 'Class',
+                total_price: (item.quantity || 1) * (item.unit_price || 0),
+                invoice_item_id: itemId,
+              });
+
+              // Get timetable data to resolve class_type
+              const timetableIds = [...new Set(slots.map((s: string) => s.split('_')[0]))];
+              const { data: timetables } = await supabase
+                .from('branch_timetables')
+                .select('id, start_time, end_time, class_type')
+                .in('id', timetableIds);
+
+              const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
+
+              // Update enrollment class_type from timetable
+              const firstTimetable = timetables?.[0];
+              if (firstTimetable?.class_type) {
+                await supabase
+                  .from('student_class_enrollments')
+                  .update({ class_type: firstTimetable.class_type })
+                  .eq('id', enrollmentId);
+              }
+
+              // Create scheduled classes
+              for (const slot of slots) {
+                const [timetableId, date] = slot.split('_');
+                const timetable = timetableMap.get(timetableId);
+                if (timetable && date) {
+                  await createScheduledClass({
+                    enrollment_id: enrollmentId,
+                    timetable_id: timetableId,
+                    scheduled_date: date,
+                    start_time: timetable.start_time,
+                    end_time: timetable.end_time,
+                  });
+                }
+              }
+            } catch (err) {
+              console.error('Failed to create enrollment during invoice edit', err);
+            }
+          }
+        } else if (enrollment) {
           await supabase
             .from('student_scheduled_classes')
             .delete()
