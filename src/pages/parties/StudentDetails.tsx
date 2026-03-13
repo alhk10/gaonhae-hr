@@ -168,6 +168,33 @@ const StudentDetails: React.FC = () => {
     loadStudentData();
   };
 
+  const handleAddCredit = async () => {
+    const amount = parseFloat(creditAmount);
+    if (!amount || amount <= 0 || !creditDescription.trim()) {
+      toast.error('Enter a valid amount and description');
+      return;
+    }
+    setCreditSaving(true);
+    try {
+      await addManualCredit(student!.id, amount, creditDescription, user?.email || undefined);
+      toast.success(`Credit of $${amount.toFixed(2)} added`);
+      setAddCreditOpen(false);
+      setCreditAmount('');
+      setCreditDescription('');
+      // Refresh credits
+      const [balance, history] = await Promise.all([
+        getStudentCreditBalance(student!.id),
+        getStudentCreditHistory(student!.id)
+      ]);
+      setCreditBalance(balance);
+      setCreditHistory(history);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add credit');
+    } finally {
+      setCreditSaving(false);
+    }
+  };
+
   if (loading || !student) {
     return (
       <AuthGuard>
