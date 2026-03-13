@@ -12,10 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
+import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 
 interface AddStudentDialogProps {
   trigger?: React.ReactNode;
@@ -92,7 +94,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     // Training Information
     current_belt: '',
     previous_experience: '',
-    training_goals: '',
+    training_goals: [] as string[],
     medical_conditions: '',
     dietary_restrictions: '',
     
@@ -168,7 +170,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       // Import the createStudent function
       const { createStudent } = await import('@/services/studentService');
       
-      await createStudent(formData);
+      await createStudent({ ...formData, training_goals: formData.training_goals.join(', ') });
       
       toast.success('Student added successfully');
       setIsOpen(false);
@@ -198,7 +200,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         emergency_contact_2_relationship: '',
         current_belt: '',
         previous_experience: '',
-        training_goals: '',
+        training_goals: [],
         medical_conditions: '',
         dietary_restrictions: '',
         branch_id: '',
@@ -373,22 +375,16 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="phone" className="text-xs">Phone</Label>
-                  <Input
-                    id="phone"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="+65 9123 4567"
-                    className="h-9"
+                    onChange={(value) => handleInputChange('phone', value)}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="whatsapp" className="text-xs">WhatsApp</Label>
-                  <Input
-                    id="whatsapp"
+                  <PhoneInput
                     value={formData.whatsapp}
-                    onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-                    placeholder="+65 9123 4567"
-                    className="h-9"
+                    onChange={(value) => handleInputChange('whatsapp', value)}
                   />
                 </div>
                 <div className="space-y-1">
@@ -487,12 +483,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="emergency_contact_phone" className="text-xs">Phone</Label>
-                    <Input
-                      id="emergency_contact_phone"
+                    <PhoneInput
                       value={formData.emergency_contact_phone}
-                      onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                      placeholder="+65 9123 4567"
-                      className="h-9"
+                      onChange={(value) => handleInputChange('emergency_contact_phone', value)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -505,13 +498,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                         <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="father">Father</SelectItem>
-                        <SelectItem value="mother">Mother</SelectItem>
-                        <SelectItem value="guardian">Guardian</SelectItem>
-                        <SelectItem value="spouse">Spouse</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="friend">Friend</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {relationshipOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -534,12 +525,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="emergency_contact_2_phone" className="text-xs">Phone</Label>
-                    <Input
-                      id="emergency_contact_2_phone"
+                    <PhoneInput
                       value={formData.emergency_contact_2_phone}
-                      onChange={(e) => handleInputChange('emergency_contact_2_phone', e.target.value)}
-                      placeholder="+65 9123 4567"
-                      className="h-9"
+                      onChange={(value) => handleInputChange('emergency_contact_2_phone', value)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -552,13 +540,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                         <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="father">Father</SelectItem>
-                        <SelectItem value="mother">Mother</SelectItem>
-                        <SelectItem value="guardian">Guardian</SelectItem>
-                        <SelectItem value="spouse">Spouse</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="friend">Friend</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {relationshipOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -591,12 +577,12 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="previous_experience" className="text-xs">Previous Martial Arts Experience</Label>
+                  <Label htmlFor="previous_experience" className="text-xs">Any martial arts or sporting experience</Label>
                   <Textarea
                     id="previous_experience"
                     value={formData.previous_experience}
                     onChange={(e) => handleInputChange('previous_experience', e.target.value)}
-                    placeholder="Describe any previous training"
+                    placeholder="Describe any previous training or sporting background"
                     rows={2}
                     className="min-h-[60px]"
                   />
@@ -605,13 +591,11 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
 
               <div className="space-y-1">
                 <Label htmlFor="training_goals" className="text-xs">Training Goals</Label>
-                <Textarea
-                  id="training_goals"
-                  value={formData.training_goals}
-                  onChange={(e) => handleInputChange('training_goals', e.target.value)}
-                  placeholder="What are the student's training goals?"
-                  rows={2}
-                  className="min-h-[60px]"
+                <MultiSelect
+                  options={trainingGoalOptions}
+                  values={formData.training_goals}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, training_goals: values }))}
+                  placeholder="Select training goals"
                 />
               </div>
 

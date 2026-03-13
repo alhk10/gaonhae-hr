@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Phone, User, Clock, AlertCircle } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
+import { relationshipOptions } from '@/constants/formOptions';
 
 interface AddTrialDialogProps {
   open?: boolean;
@@ -40,15 +42,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
   ];
 
   // Relationship options
-  const relationshipOptions = [
-    { value: 'father', label: 'Father' },
-    { value: 'mother', label: 'Mother' },
-    { value: 'guardian', label: 'Guardian' },
-    { value: 'spouse', label: 'Spouse' },
-    { value: 'sibling', label: 'Sibling' },
-    { value: 'friend', label: 'Friend' },
-    { value: 'other', label: 'Other' }
-  ];
+  // Relationship options imported from shared constants
 
   // Belt level options - using shared constants
   // Import is at the top of the file
@@ -361,14 +355,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="+65 9123 4567"
+                    onChange={(value) => handleInputChange('phone', value)}
                   />
                 </div>
                 <div>
@@ -384,11 +376,9 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               </div>
               <div>
                 <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input
-                  id="whatsapp"
+                <PhoneInput
                   value={formData.whatsapp}
-                  onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-                  placeholder="+65 9123 4567"
+                  onChange={(value) => handleInputChange('whatsapp', value)}
                 />
               </div>
             </CardContent>
@@ -415,11 +405,9 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                 </div>
                 <div>
                   <Label htmlFor="emergency_contact_phone">Phone</Label>
-                  <Input
-                    id="emergency_contact_phone"
+                  <PhoneInput
                     value={formData.emergency_contact_phone}
-                    onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                    placeholder="+65 9123 4567"
+                    onChange={(value) => handleInputChange('emergency_contact_phone', value)}
                   />
                 </div>
               </div>

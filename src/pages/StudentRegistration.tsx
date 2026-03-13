@@ -7,15 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Phone, MapPin, Heart, CheckCircle, Shield, Eraser } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
-import { BELT_LEVELS } from '@/constants/beltLevels';
 import { submitStudentRegistration } from '@/services/studentRegistrationService';
 import { supabase } from '@/integrations/supabase/client';
 import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
-
-// Nationalities and languages imported from shared constants
+import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 
 const referralSourceOptions = [
   { value: 'family_friends', label: 'Family & Friends' },
@@ -59,9 +58,8 @@ const StudentRegistration = () => {
     emergency_contact_2_name: '',
     emergency_contact_2_phone: '',
     emergency_contact_2_relationship: '',
-    current_belt: '',
     previous_experience: '',
-    training_goals: '',
+    training_goals: [] as string[],
     medical_conditions: '',
     dietary_restrictions: '',
     branch_id: '',
@@ -189,7 +187,6 @@ const StudentRegistration = () => {
 
     setLoading(true);
     try {
-      // Upload signature to Supabase Storage
       let signatureUrl: string | undefined;
       if (signature) {
         const blob = await (await fetch(signature)).blob();
@@ -206,6 +203,7 @@ const StudentRegistration = () => {
 
       await submitStudentRegistration({
         ...formData,
+        training_goals: formData.training_goals.join(', '),
         gender: formData.gender || undefined,
         date_of_birth: formData.date_of_birth || undefined,
         signature_url: signatureUrl,
@@ -240,7 +238,7 @@ const StudentRegistration = () => {
                 address: '', postal_code: '', nationality: [], languages_spoken: [],
                 emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
                 emergency_contact_2_name: '', emergency_contact_2_phone: '', emergency_contact_2_relationship: '',
-                current_belt: '', previous_experience: '', training_goals: '', medical_conditions: '', dietary_restrictions: '',
+                previous_experience: '', training_goals: [], medical_conditions: '', dietary_restrictions: '',
                 branch_id: '', notes: ''
               });
               setTimeout(() => {
@@ -351,15 +349,17 @@ const StudentRegistration = () => {
               <CardTitle className="text-base flex items-center gap-2"><Phone className="w-4 h-4" /> Contact Information</CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Phone</Label>
-                  <Input value={formData.phone} onChange={e => handleInputChange('phone', e.target.value)} placeholder="+65 9123 4567" />
+                  <PhoneInput value={formData.phone} onChange={v => handleInputChange('phone', v)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">WhatsApp</Label>
-                  <Input value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', e.target.value)} placeholder="+65 9123 4567" />
+                  <PhoneInput value={formData.whatsapp} onChange={v => handleInputChange('whatsapp', v)} />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-xs">Email *</Label>
                   <Input type="email" value={formData.email} onChange={e => handleInputChange('email', e.target.value)} required />
@@ -419,11 +419,18 @@ const StudentRegistration = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Phone</Label>
-                  <Input value={formData.emergency_contact_phone} onChange={e => handleInputChange('emergency_contact_phone', e.target.value)} />
+                  <PhoneInput value={formData.emergency_contact_phone} onChange={v => handleInputChange('emergency_contact_phone', v)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Relationship</Label>
-                  <Input value={formData.emergency_contact_relationship} onChange={e => handleInputChange('emergency_contact_relationship', e.target.value)} />
+                  <Select value={formData.emergency_contact_relationship} onValueChange={v => handleInputChange('emergency_contact_relationship', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {relationshipOptions.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">Secondary Contact</p>
@@ -434,11 +441,18 @@ const StudentRegistration = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Phone</Label>
-                  <Input value={formData.emergency_contact_2_phone} onChange={e => handleInputChange('emergency_contact_2_phone', e.target.value)} />
+                  <PhoneInput value={formData.emergency_contact_2_phone} onChange={v => handleInputChange('emergency_contact_2_phone', v)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Relationship</Label>
-                  <Input value={formData.emergency_contact_2_relationship} onChange={e => handleInputChange('emergency_contact_2_relationship', e.target.value)} />
+                  <Select value={formData.emergency_contact_2_relationship} onValueChange={v => handleInputChange('emergency_contact_2_relationship', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {relationshipOptions.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -451,23 +465,17 @@ const StudentRegistration = () => {
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
               <div className="space-y-1">
-                <Label className="text-xs">Current Belt Level</Label>
-                <Select value={formData.current_belt} onValueChange={v => handleInputChange('current_belt', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select belt level" /></SelectTrigger>
-                  <SelectContent>
-                    {BELT_LEVELS.map(b => (
-                      <SelectItem key={b} value={b}>{b}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Previous Experience</Label>
+                <Label className="text-xs">Any martial arts or sporting experience</Label>
                 <Textarea value={formData.previous_experience} onChange={e => handleInputChange('previous_experience', e.target.value)} rows={2} />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Training Goals</Label>
-                <Textarea value={formData.training_goals} onChange={e => handleInputChange('training_goals', e.target.value)} rows={2} />
+                <MultiSelect
+                  options={trainingGoalOptions}
+                  values={formData.training_goals}
+                  onValuesChange={v => setFormData(prev => ({ ...prev, training_goals: v }))}
+                  placeholder="Select training goals"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Medical Conditions</Label>
