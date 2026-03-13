@@ -136,6 +136,21 @@ const StudentDetails: React.FC = () => {
       setInvoices(invoicesData);
       setChangeLogs(changeLogsData);
 
+      // Load credit data
+      try {
+        setCreditLoading(true);
+        const [balance, history] = await Promise.all([
+          getStudentCreditBalance(id),
+          getStudentCreditHistory(id)
+        ]);
+        setCreditBalance(balance);
+        setCreditHistory(history);
+      } catch {
+        // Credits not critical
+      } finally {
+        setCreditLoading(false);
+      }
+
     } catch (error) {
       console.error('Error loading student data:', error);
       toast.error('Failed to load student information');
