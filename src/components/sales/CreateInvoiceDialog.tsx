@@ -745,7 +745,41 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         return;
       }
 
-      await createInvoice(invoiceData);
+      const createdInvoice = await createInvoice(invoiceData);
+      
+      // Auto-apply student credits if available
+      try {
+        const creditBalance = await getStudentCreditBalance(formData.student_id);
+        if (creditBalance > 0 && createdInvoice?.id) {
+          const invoiceTotal = items.reduce((sum, item) => sum + item.total, 0);
+          const creditToApply = Math.min(creditBalance, invoiceTotal);
+          
+          if (creditToApply > 0) {
+            // Apply credit
+            await applyCredit(
+              formData.student_id,
+              createdInvoice.id,
+              createdInvoice.invoice_number || '',
+              creditToApply,
+              user?.email || undefined
+            );
+            
+            // Create a corresponding payment record
+            await createPayment({
+              invoice_id: createdInvoice.id,
+              amount: creditToApply,
+              payment_date: new Date().toISOString().split('T')[0],
+              payment_method: 'bank_transfer',
+              notes: `Auto-applied from student credit balance`
+            });
+            
+            toast.success(`Student credit of $${creditToApply.toFixed(2)} automatically applied`);
+          }
+        }
+      } catch (creditError) {
+        console.error('Error auto-applying credit:', creditError);
+        // Don't fail invoice creation for credit errors
+      }
       
       toast.success('Invoice created successfully');
       setOpen(false);
