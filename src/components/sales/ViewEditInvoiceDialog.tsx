@@ -844,17 +844,25 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                   </Button>
                 }
               />
-              {mode === 'view' ? (
-                <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              ) : (
+              {mode === 'view' && !isCancelled ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Adjustments
+                  </Button>
+                  {(invoice.status === 'paid' || invoice.status === 'verified' || invoice.status === 'partial' || invoice.status === 'draft') && (
+                    <Button variant="destructive" size="sm" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
+                      <Ban className="h-4 w-4 mr-2" />
+                      Cancel & Refund
+                    </Button>
+                  )}
+                </>
+              ) : mode === 'edit' ? (
                 <Button variant="outline" size="sm" onClick={() => setMode('view')}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </DialogHeader>
