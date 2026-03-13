@@ -25,7 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
-import { createInvoice } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
 
 import ClassScheduleSelector from './ClassScheduleSelector';
@@ -381,6 +381,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     enabled: !!studentId,
   });
 
+  // Check for sibling discount
+  const { data: siblingDiscount = 0 } = useQuery({
+    queryKey: ['sibling-discount', studentId],
+    queryFn: () => getSiblingDiscount(studentId),
+    enabled: !!studentId,
+  });
+
   // Is grading opt-in eligible?
   const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 
@@ -541,7 +548,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     return today <= termStart ? 10 : 0;
   }, [selectedTerm]);
 
-  const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount);
+  const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
 
   // Payment methods based on country
   const getPaymentMethods = () => {
@@ -600,7 +607,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
             description: `${selectedTerm.name} - ${selectedProduct.name} - ${termWeeks} ${weeksLabel}`,
             quantity: termWeeks,
             unit_price: selectedProduct.effective_price,
-            total_override: earlyPaymentDiscount > 0 ? (termWeeks * selectedProduct.effective_price - earlyPaymentDiscount) : undefined,
+            total_override: (earlyPaymentDiscount > 0 || siblingDiscount > 0) ? Math.max(0, termWeeks * selectedProduct.effective_price - earlyPaymentDiscount - siblingDiscount) : undefined,
             metadata: {
               term_id: selectedTerm.id,
               term_name: selectedTerm.name,
@@ -610,6 +617,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               selected_class_slots: selectedClassSlots,
               early_payment_discount: earlyPaymentDiscount > 0,
               early_payment_discount_amount: earlyPaymentDiscount > 0 ? earlyPaymentDiscount : undefined,
+              sibling_discount: siblingDiscount > 0 ? siblingDiscount : undefined,
             },
           },
         ],
@@ -912,6 +920,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <div className="flex justify-between text-xs sm:text-sm text-green-600">
                           <span>Early Payment Discount</span>
                           <span className="font-medium">-${earlyPaymentDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {siblingDiscount > 0 && (
+                        <div className="flex justify-between text-xs sm:text-sm text-green-600">
+                          <span>Sibling Discount</span>
+                          <span className="font-medium">-${siblingDiscount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="border-t pt-1.5 flex justify-between">
