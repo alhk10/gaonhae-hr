@@ -43,8 +43,12 @@ import {
   StudentEntitlement
 } from '@/services/studentService';
 import { getStudentChangeLogs, StudentChangeLog as ChangeLogType } from '@/services/studentChangeLogService';
-
-// Helper to capitalize first letter
+import { getStudentCreditBalance, getStudentCreditHistory, addManualCredit, type StudentCredit } from '@/services/studentCreditService';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 const capitalize = (str: string | null | undefined): string => {
   if (!str) return '-';
   return str.charAt(0).toUpperCase() + str.slice(1);
