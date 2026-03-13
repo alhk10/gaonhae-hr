@@ -781,6 +781,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const getDisplayStatus = (status: string) => {
     if (status === 'draft') return 'Unpaid';
     if (status === 'partial') return 'Partial';
+    if (status === 'partially_paid') return 'Partially Paid';
     if (status === 'verified') return 'Verified';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
