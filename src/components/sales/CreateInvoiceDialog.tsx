@@ -1436,7 +1436,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       ))}
                     </SelectContent>
                   </Select>
-                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
+                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} outOfCriteriaIds={outOfCriteriaProductIds} />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div>
