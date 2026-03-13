@@ -196,13 +196,15 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   // Map 'draft' to 'Unpaid' for display and apply color coding
   let rawStatus = invoice.status || 'unpaid';
   if (rawStatus === 'draft') rawStatus = 'unpaid';
-  const statusText = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  const statusText = rawStatus === 'partially_paid' ? 'Partially Paid' : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
   
-  // Apply color coding: Paid = Green, Unpaid = Red
+  // Apply color coding: Paid = Green, Unpaid = Red, Partially Paid = Orange
   if (rawStatus === 'paid') {
     doc.setTextColor(34, 139, 34); // Forest green
   } else if (rawStatus === 'unpaid') {
     doc.setTextColor(220, 53, 69); // Red
+  } else if (rawStatus === 'partially_paid') {
+    doc.setTextColor(204, 133, 0); // Dark yellow/orange
   }
   
   doc.text(statusText, margin + 35, yPos);

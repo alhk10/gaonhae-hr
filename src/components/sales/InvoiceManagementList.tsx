@@ -231,8 +231,9 @@ const InvoiceManagementList: React.FC = () => {
     switch (status) {
       case 'paid': return 'default';
       case 'unpaid': return 'destructive';
-      case 'draft': return 'destructive'; // Map draft to unpaid styling
+      case 'draft': return 'destructive';
       case 'overdue': return 'destructive';
+      case 'partially_paid': return 'outline';
       case 'cancelled': return 'secondary';
       default: return 'outline';
     }
@@ -242,14 +243,15 @@ const InvoiceManagementList: React.FC = () => {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-800 border-green-200';
       case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
-      case 'draft': return 'bg-red-100 text-red-800 border-red-200'; // Map draft to unpaid styling
+      case 'draft': return 'bg-red-100 text-red-800 border-red-200';
+      case 'partially_paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return '';
     }
   };
 
   const getDisplayStatus = (status: string) => {
-    // Map 'draft' to 'Unpaid' for display
     if (status === 'draft') return 'Unpaid';
+    if (status === 'partially_paid') return 'Partially Paid';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 

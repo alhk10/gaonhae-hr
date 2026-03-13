@@ -68,6 +68,7 @@ const getTermPaidBadgeVariant = (status: string): "success" | "destructive" | "s
     case 'draft':
     case 'sent':
     case 'partial':
+    case 'partially_paid':
     default: return 'secondary';
   }
 };
@@ -80,6 +81,7 @@ const getTermPaidLabel = (status: string): string => {
     case 'draft': return 'Draft';
     case 'sent': return 'Sent';
     case 'partial': return 'Partial';
+    case 'partially_paid': return 'Partially Paid';
     default: return status;
   }
 };
@@ -171,7 +173,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'overdue', 'paid', 'verified']);
+        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
 
       if (itemsError) throw itemsError;
 

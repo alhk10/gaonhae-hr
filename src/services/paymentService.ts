@@ -236,7 +236,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     const effectivePayment = isOverpayment ? invoice.balance_due : paymentData.amount;
     const newAmountPaid = invoice.amount_paid + effectivePayment;
     const newBalanceDue = Math.max(0, invoice.total_amount - newAmountPaid);
-    const newStatus = newBalanceDue <= 0 ? 'paid' : invoice.status;
+    const newStatus = newBalanceDue <= 0 ? 'paid' : 'partially_paid';
 
     const { error: updateError } = await supabase
       .from('invoices')
@@ -395,7 +395,7 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
 
     if (invoice && !invoiceError) {
       const newBalanceDue = invoice.total_amount - actualAmountPaid;
-      const newStatus = newBalanceDue > 0 ? 'unpaid' : 'paid';
+      const newStatus = newBalanceDue <= 0 ? 'paid' : actualAmountPaid > 0 ? 'partially_paid' : 'unpaid';
 
       const { error: updateError } = await supabase
         .from('invoices')

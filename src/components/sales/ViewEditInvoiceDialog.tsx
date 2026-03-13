@@ -175,7 +175,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
-  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified';
+  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
 
   useEffect(() => {
@@ -759,6 +759,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       case 'draft': return 'destructive';
       case 'overdue': return 'destructive';
       case 'partial': return 'outline';
+      case 'partially_paid': return 'outline';
       case 'verified': return 'default';
       case 'cancelled': return 'secondary';
       default: return 'outline';
@@ -772,6 +773,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
       case 'draft': return 'bg-red-100 text-red-800 border-red-200';
       case 'partial': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'partially_paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return '';
     }
   };
@@ -779,6 +781,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const getDisplayStatus = (status: string) => {
     if (status === 'draft') return 'Unpaid';
     if (status === 'partial') return 'Partial';
+    if (status === 'partially_paid') return 'Partially Paid';
     if (status === 'verified') return 'Verified';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
@@ -850,7 +853,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                     <Wrench className="h-4 w-4 mr-2" />
                     Adjustments
                   </Button>
-                  {(invoice.status === 'paid' || invoice.status === 'verified' || invoice.status === 'partial' || invoice.status === 'draft') && (
+                  {(['paid', 'verified', 'partial', 'partially_paid', 'draft'] as string[]).includes(invoice.status) && (
                     <Button variant="destructive" size="sm" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
                       <Ban className="h-4 w-4 mr-2" />
                       Cancel & Refund
