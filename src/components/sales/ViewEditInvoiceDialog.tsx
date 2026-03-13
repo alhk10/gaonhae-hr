@@ -759,6 +759,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       case 'draft': return 'destructive';
       case 'overdue': return 'destructive';
       case 'partial': return 'outline';
+      case 'partially_paid': return 'outline';
       case 'verified': return 'default';
       case 'cancelled': return 'secondary';
       default: return 'outline';
