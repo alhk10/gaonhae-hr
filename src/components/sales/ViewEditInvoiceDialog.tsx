@@ -29,7 +29,7 @@ import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import ClassScheduleSelector from '@/components/dashboard/ClassScheduleSelector';
-import { getTerm, type Term } from '@/services/termCalendarService';
+import { getTerm, getTerms, type Term } from '@/services/termCalendarService';
 import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { COUNTRY_TAX_RATES } from '@/config/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -168,6 +168,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
+  const [branchTerms, setBranchTerms] = useState<Term[]>([]);
 
   // Cancel & Refund dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -308,6 +309,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     fetchStudentDob();
     fetchTermData();
     fetchTimetableTimes();
+
+    // Load branch terms for editing
+    if (invoice.branch_id) {
+      getTerms(invoice.branch_id).then(terms => setBranchTerms(terms)).catch(() => {});
+    }
   }, [invoice]);
 
   const studentAge = useMemo(() => {
@@ -930,6 +936,19 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               </div>
             </div>
 
+            {/* Term display */}
+            {Object.keys(termDataMap).length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label>Term</Label>
+                  <div className="text-sm">
+                    {Object.values(termDataMap).map(t => t.name).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Status is always read-only - shown as badge in header */}
 
             <Separator />
@@ -1110,15 +1129,46 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           );
                         })()}
 
-                        {/* Class Schedule Selector for class items */}
-                        {isClassItem && termIds.length > 0 && invoice.branch_id && (
+                        {/* Term selector and Class Schedule for class items */}
+                        {isClassItem && invoice.branch_id && (
                           <div className="space-y-3 pt-2 border-t">
-                            {termIds.map((termId: string) => {
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Term:</Label>
+                              <Select
+                                value={termIds[0] || ''}
+                                onValueChange={(newTermId) => {
+                                  const newTerm = branchTerms.find(t => t.id === newTermId);
+                                  if (!newTerm) return;
+                                  // Update metadata with new term
+                                  setEditItems(prev => prev.map(ei => {
+                                    if (ei.id !== item.id) return ei;
+                                    const existingMeta = (ei.metadata as any) || {};
+                                    return {
+                                      ...ei,
+                                      metadata: { ...existingMeta, term_id: newTermId, term_ids: [newTermId] }
+                                    };
+                                  }));
+                                  // Add to termDataMap
+                                  setTermDataMap(prev => ({ ...prev, [newTermId]: newTerm }));
+                                  // Clear class slots for this item since term changed
+                                  setEditingClassSlots(prev => ({ ...prev, [item.id]: [] }));
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-60 text-xs">
+                                  <SelectValue placeholder="Select term" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {branchTerms.map(t => (
+                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {termIds.length > 0 && termIds.map((termId: string) => {
                               const term = termDataMap[termId];
                               if (!term) return null;
                               return (
                                 <div key={termId} className="space-y-1">
-                                  <div className="text-xs font-medium text-muted-foreground">{term.name}</div>
                                   <ClassScheduleSelector
                                     branchId={invoice.branch_id!}
                                     studentAge={studentAge}
@@ -1232,6 +1282,13 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                 {item.size_variant && (
                                   <div className="text-xs text-muted-foreground">Size: {item.size_variant}</div>
                                 )}
+                                {(() => {
+                                  const itemTermIds: string[] = (metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []));
+                                  const termNames = itemTermIds.map((id: string) => termDataMap[id]?.name).filter(Boolean);
+                                  return termNames.length > 0 ? (
+                                    <div className="text-xs text-muted-foreground">Term: {termNames.join(', ')}</div>
+                                  ) : null;
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
