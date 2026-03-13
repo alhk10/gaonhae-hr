@@ -110,6 +110,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         student_name: inv.student_name || 'Unknown Student',
+        student_id: inv.student_id,
         total_amount: inv.total_amount,
         balance_due: inv.balance_due,
         status: inv.status,
