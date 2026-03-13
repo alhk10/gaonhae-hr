@@ -381,6 +381,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     enabled: !!studentId,
   });
 
+  // Check for sibling discount
+  const { data: siblingDiscount = 0 } = useQuery({
+    queryKey: ['sibling-discount', studentId],
+    queryFn: () => getSiblingDiscount(studentId),
+    enabled: !!studentId,
+  });
+
   // Is grading opt-in eligible?
   const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 
