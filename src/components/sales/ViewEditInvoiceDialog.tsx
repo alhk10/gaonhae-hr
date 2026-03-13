@@ -1478,6 +1478,52 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel & Refund Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Invoice & Refund</DialogTitle>
+            <DialogDescription>
+              {isSuperadmin
+                ? 'This will cancel the invoice and refund all payments as student credits.'
+                : 'This cancellation request will be sent to a superadmin for approval.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Invoice:</span>
+                <span className="font-medium">{invoice?.invoice_number}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-medium">{invoice ? formatCurrency(invoice.total_amount) : ''}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Paid:</span>
+                <span className="font-medium">{invoice ? formatCurrency(invoice.amount_paid) : ''}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason for cancellation</Label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Enter reason..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>Back</Button>
+            <Button variant="destructive" onClick={handleCancelInvoice} disabled={isCancelling}>
+              {isCancelling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isSuperadmin ? 'Cancel & Refund Now' : 'Submit Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
