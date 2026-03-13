@@ -266,11 +266,12 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
   const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
 
-  // Fetch invoice items when invoice is selected
+  // Fetch invoice items and student credit when invoice is selected
   useEffect(() => {
     const fetchItems = async () => {
       if (!formData.invoice_id) {
         setInvoiceItems([]);
+        setStudentCreditBalance(0);
         return;
       }
       try {
@@ -285,9 +286,20 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       } catch (err) {
         console.error('Error fetching invoice items:', err);
       }
+
+      // Fetch student credit balance
+      const invoice = invoices.find(inv => inv.id === formData.invoice_id);
+      if (invoice?.student_id) {
+        try {
+          const balance = await getStudentCreditBalance(invoice.student_id);
+          setStudentCreditBalance(balance);
+        } catch {
+          setStudentCreditBalance(0);
+        }
+      }
     };
     fetchItems();
-  }, [formData.invoice_id]);
+  }, [formData.invoice_id, invoices]);
   
   // Determine country from selected invoice
   const selectedCountry = selectedInvoice?.branch_country || 'Singapore';
