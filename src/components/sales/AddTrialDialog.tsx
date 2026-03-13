@@ -42,15 +42,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
   ];
 
   // Relationship options
-  const relationshipOptions = [
-    { value: 'father', label: 'Father' },
-    { value: 'mother', label: 'Mother' },
-    { value: 'guardian', label: 'Guardian' },
-    { value: 'spouse', label: 'Spouse' },
-    { value: 'sibling', label: 'Sibling' },
-    { value: 'friend', label: 'Friend' },
-    { value: 'other', label: 'Other' }
-  ];
+  // Relationship options imported from shared constants
 
   // Belt level options - using shared constants
   // Import is at the top of the file
