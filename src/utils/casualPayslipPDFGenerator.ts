@@ -76,8 +76,8 @@ const formatDate = (dateStr: string): string => {
 };
 
 export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
-  // Use A4 for more space for timesheet
-  const doc = new jsPDF('p', 'mm', 'a4');
+  // Use A4 for more space for timesheet, enable compression
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   
   doc.setFont('helvetica');
   
