@@ -1251,6 +1251,13 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                 {item.size_variant && (
                                   <div className="text-xs text-muted-foreground">Size: {item.size_variant}</div>
                                 )}
+                                {(() => {
+                                  const itemTermIds: string[] = (metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []));
+                                  const termNames = itemTermIds.map((id: string) => termDataMap[id]?.name).filter(Boolean);
+                                  return termNames.length > 0 ? (
+                                    <div className="text-xs text-muted-foreground">Term: {termNames.join(', ')}</div>
+                                  ) : null;
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
