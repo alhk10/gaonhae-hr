@@ -113,7 +113,7 @@ export async function approveRegistration(registrationId: string, reviewerEmail:
     emergency_contact_2_name: reg.emergency_contact_2_name || '',
     emergency_contact_2_phone: reg.emergency_contact_2_phone || '',
     emergency_contact_2_relationship: reg.emergency_contact_2_relationship || '',
-    current_belt: reg.current_belt || null,
+    current_belt: reg.current_belt || '',
     previous_experience: reg.previous_experience || '',
     training_goals: reg.training_goals || '',
     medical_conditions: reg.medical_conditions || '',
