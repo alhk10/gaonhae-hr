@@ -1271,11 +1271,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItemQuantity = (index: number, quantity: number) => {
+  const updateItemQuantity = (index: number, value: string) => {
     const updatedItems = [...items];
+    const parsed = parseInt(value);
+    const quantity = value === '' ? 0 : (isNaN(parsed) ? 1 : parsed);
     updatedItems[index].quantity = quantity;
-    updatedItems[index].total = calculateLineTotal(quantity, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
+    updatedItems[index].total = calculateLineTotal(quantity || 1, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
     setItems(updatedItems);
+  };
+
+  const finalizeItemQuantity = (index: number) => {
+    const updatedItems = [...items];
+    if (updatedItems[index].quantity < 1) {
+      updatedItems[index].quantity = 1;
+      updatedItems[index].total = calculateLineTotal(1, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
+      setItems(updatedItems);
+    }
   };
 
   const updateItemPrice = (index: number, price: number) => {
@@ -1408,7 +1419,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Qty:</span>
-                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-12 h-6 text-xs px-1" />
+                        <Input type="number" min="1" value={item.quantity || ''} onChange={(e) => updateItemQuantity(index, e.target.value)} onBlur={() => finalizeItemQuantity(index)} className="w-12 h-6 text-xs px-1" />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Price:</span>
@@ -1450,7 +1461,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="h-7 text-xs px-1" />
+                    <Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="h-7 text-xs px-1" />
                   </div>
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Price</Label>
@@ -1521,7 +1532,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </TableCell>
                       <TableCell className="px-2 font-medium">{item.product_name}</TableCell>
                       <TableCell className="px-2">
-                        <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
+                        <Input type="number" min="1" value={item.quantity || ''} onChange={(e) => updateItemQuantity(index, e.target.value)} onBlur={() => finalizeItemQuantity(index)} className="w-12 h-7 text-xs px-1" />
                       </TableCell>
                       <TableCell className="px-2">
                         <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-14 h-7 text-xs px-1 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
@@ -1554,7 +1565,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} outOfCriteriaIds={outOfCriteriaProductIds} />
                   </TableCell>
                   <TableCell className="px-2">
-                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
+                    <Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="w-12 h-7 text-xs px-1" />
                   </TableCell>
                   <TableCell className="px-2">
                     <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
