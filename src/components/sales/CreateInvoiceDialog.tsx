@@ -1148,7 +1148,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const isUniformProduct = selectedProduct?.category_id === UNIFORMS_CATEGORY_ID;
   const showSizeInput = sizeOptions.length > 0 || selectedProduct?.requires_size || isUniformProduct;
 
-  const addItem = () => {
+  const addItem = async () => {
     if (!newItem.product_id) {
       toast.error('Please select a product');
       return;
