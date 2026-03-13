@@ -255,7 +255,7 @@ const ProductSearchSelect: React.FC<{
                 <CommandItem key={product.id} value={product.id} onSelect={() => { onValueChange(product.id); setOpen(false); setSearch(''); }}>
                   <Check className={cn('mr-2 h-4 w-4', value === product.id ? 'opacity-100' : 'opacity-0')} />
                   <div className="flex flex-col">
-                    <span>{product.name}{outOfCriteriaIds?.has(product.id) ? <span className="ml-1 text-xs text-orange-500 font-medium">(exception)</span> : null}</span>
+                    <span>{product.name}{outOfCriteriaIds?.has(product.id) ? <span className="ml-1 text-xs text-destructive font-medium">(exception)</span> : null}</span>
                   </div>
                 </CommandItem>
               ))}
