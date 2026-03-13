@@ -518,12 +518,9 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="emergency_contact_2_phone" className="text-xs">Phone</Label>
-                    <Input
-                      id="emergency_contact_2_phone"
+                    <PhoneInput
                       value={formData.emergency_contact_2_phone}
-                      onChange={(e) => handleInputChange('emergency_contact_2_phone', e.target.value)}
-                      placeholder="+65 9123 4567"
-                      className="h-9"
+                      onChange={(value) => handleInputChange('emergency_contact_2_phone', value)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -536,13 +533,11 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                         <SelectValue placeholder="Select relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="father">Father</SelectItem>
-                        <SelectItem value="mother">Mother</SelectItem>
-                        <SelectItem value="guardian">Guardian</SelectItem>
-                        <SelectItem value="spouse">Spouse</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="friend">Friend</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {relationshipOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
