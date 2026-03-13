@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userDetails, setUserDetails] = useState<any>(null);
   const [adminAccess, setAdminAccess] = useState<any>(null);
   const [pageAccess, setPageAccess] = useState<any>(null);
+  // Check if there's a cached Supabase session in localStorage to prevent login flash on refresh
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
