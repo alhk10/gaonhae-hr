@@ -684,6 +684,43 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         }
       }
 
+      // Build invoice items including bundle discounts
+      const invoiceItems = items.map(item => {
+        const lineDiscount = item.discount_type && item.discount_value && item.discount_value > 0
+          ? { discount_type: item.discount_type, discount_value: item.discount_value }
+          : undefined;
+
+        return {
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          size_variant: item.size_variant || undefined,
+          total_override: item.total,
+          metadata: {
+            ...(item.term_id ? { term_id: item.term_id } : {}),
+            ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}),
+            ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}),
+            ...(lineDiscount ? { line_discount: lineDiscount } : {})
+          }
+        };
+      });
+
+      // Add bundle discount line items
+      if (bundleDiscount.amount > 0) {
+        for (const desc of bundleDiscount.descriptions) {
+          invoiceItems.push({
+            product_id: items[0].product_id,
+            description: `Bundle Discount: ${desc}`,
+            quantity: 1,
+            unit_price: -10,
+            size_variant: undefined,
+            total_override: -10,
+            metadata: { is_bundle_discount: true, bundle_description: desc } as Record<string, any>
+          });
+        }
+      }
+
       const invoiceData: CreateInvoiceData = {
         student_id: formData.student_id,
         branch_id: formData.branch_id || undefined,
@@ -691,26 +728,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         notes: formData.notes || undefined,
         internal_notes: formData.internal_notes || undefined,
         tax_included: taxIncluded !== null ? taxIncluded : undefined,
-        items: items.map(item => {
-          const lineDiscount = item.discount_type && item.discount_value && item.discount_value > 0
-            ? { discount_type: item.discount_type, discount_value: item.discount_value }
-            : undefined;
-
-          return {
-            product_id: item.product_id,
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            size_variant: item.size_variant || undefined,
-            total_override: item.total,
-            metadata: {
-              ...(item.term_id ? { term_id: item.term_id } : {}),
-              ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}),
-              ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}),
-              ...(lineDiscount ? { line_discount: lineDiscount } : {})
-            }
-          };
-        })
+        items: invoiceItems
       };
 
       // Check if any line item uses an out-of-criteria product (exception)
@@ -1352,8 +1370,36 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return { rate, isInclusive };
   };
 
+  // Calculate bundle discounts based on product combinations
+  const calculateBundleDiscount = (): { amount: number; descriptions: string[] } => {
+    let discount = 0;
+    const descriptions: string[] = [];
+    const productNames = items.map(item => item.product_name.toLowerCase());
+
+    // Bundle 1: Adidas Headgear + Adidas Chestguard = $10 off
+    const hasHeadgear = productNames.some(n => n.includes('adidas headgear'));
+    const hasChestguard = productNames.some(n => n.includes('adidas chestguard'));
+    if (hasHeadgear && hasChestguard) {
+      discount += 10;
+      descriptions.push('Headgear + Chestguard bundle');
+    }
+
+    // Bundle 2: Adidas Arm Guard + Adidas Shin Guard + Adidas Groin Guard = $10 off
+    const hasArmGuard = productNames.some(n => n.includes('adidas arm guard'));
+    const hasShinGuard = productNames.some(n => n.includes('adidas shin guard'));
+    const hasGroinGuard = productNames.some(n => n.includes('adidas groin guard'));
+    if (hasArmGuard && hasShinGuard && hasGroinGuard) {
+      discount += 10;
+      descriptions.push('Arm + Shin + Groin Guard bundle');
+    }
+
+    return { amount: discount, descriptions };
+  };
+
+  const bundleDiscount = calculateBundleDiscount();
+
   const calculateTotals = () => {
-    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0) - bundleDiscount.amount;
     const { rate, isInclusive } = getSelectedBranchTaxConfig();
     const taxRateDecimal = rate / 100;
     
@@ -1706,6 +1752,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </SelectContent>
                     </Select>
                   </div>
+                  {bundleDiscount.amount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Bundle Discount:</span>
+                      <span>-${bundleDiscount.amount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
