@@ -131,7 +131,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     const aspectRatio = logoResult.width / logoResult.height;
     logoHeight = targetLogoHeight;
     logoWidth = targetLogoHeight * aspectRatio;
-    doc.addImage(logoResult.data, 'JPEG', margin, yPos, logoWidth, logoHeight);
+    doc.addImage(logoResult.data, 'JPEG', margin, yPos, logoWidth, logoHeight, undefined, 'FAST');
   }
   
   // Render letterhead text (multi-line company info) to the right of logo
