@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { logInvoiceChange } from './invoiceChangeLogService';
+import { addOverpaymentCredit } from './studentCreditService';
 
 export interface Payment {
   id: string;
