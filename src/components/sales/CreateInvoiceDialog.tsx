@@ -1752,6 +1752,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </SelectContent>
                     </Select>
                   </div>
+                  {bundleDiscount.amount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Bundle Discount:</span>
+                      <span>-${bundleDiscount.amount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
