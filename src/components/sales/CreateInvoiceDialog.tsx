@@ -470,11 +470,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  // Filter students by active status and selected branch
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'active' | 'trial' | 'all'>('active');
+
+  // Filter students by status and selected branch
   const filteredStudents = students.filter(s => {
-    const isActive = s.status === 'active';
+    const matchesStatus = studentStatusFilter === 'all' 
+      ? (s.status === 'active' || s.status === 'trial')
+      : s.status === studentStatusFilter;
     const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
-    return isActive && matchesBranch;
+    return matchesStatus && matchesBranch;
   }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Auto-select student if only 1 filtered student available
