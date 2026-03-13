@@ -69,6 +69,13 @@ const StudentDetails: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [changeLogs, setChangeLogs] = useState<ChangeLogType[]>([]);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+  const [creditHistory, setCreditHistory] = useState<StudentCredit[]>([]);
+  const [creditLoading, setCreditLoading] = useState(false);
+  const [addCreditOpen, setAddCreditOpen] = useState(false);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditDescription, setCreditDescription] = useState('');
+  const [creditSaving, setCreditSaving] = useState(false);
   
   // Loading states
   const [loading, setLoading] = useState(true);
