@@ -165,8 +165,8 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       return;
     }
     
-    if (!formData.phone && !formData.email) {
-      toast.error('Either phone or email is required');
+    if (!formData.phone) {
+      toast.error('Phone number is required');
       return;
     }
     
