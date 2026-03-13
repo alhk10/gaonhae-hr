@@ -351,7 +351,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
                 <Phone className="w-4 h-4" />
-                Contact Information (Phone or Email required)
+                Contact Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
