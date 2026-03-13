@@ -139,6 +139,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   onInvoiceUpdated,
   initialMode = 'view'
 }) => {
+  const { userrole, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
