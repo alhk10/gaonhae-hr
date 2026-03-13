@@ -190,8 +190,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
       return;
     }
     
-    if (!formData.email && !formData.phone) {
-      toast.error('Either email or phone number is required');
+    if (!formData.phone) {
+      toast.error('Phone number is required');
       return;
     }
 
