@@ -199,12 +199,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       const fmtShort = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return d; } };
       const fmtFull = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; } };
 
+      const sourceInvoice = fullInvoice ?? invoice;
+
       const invoiceData: InvoiceData = {
         id: invoice.id, invoice_number: invoice.invoice_number,
-        issue_date: invoice.issue_date || null, due_date: invoice.due_date || null,
-        subtotal: invoice.subtotal, tax_amount: invoice.tax_amount, discount_amount: invoice.discount_amount,
-        total_amount: invoice.total_amount, amount_paid: invoice.amount_paid, balance_due: invoice.balance_due,
-        notes: invoice.notes, status: fullInvoice?.status || invoice.status,
+        issue_date: sourceInvoice.issue_date || null, due_date: sourceInvoice.due_date || null,
+        subtotal: sourceInvoice.subtotal, tax_amount: sourceInvoice.tax_amount, discount_amount: sourceInvoice.discount_amount,
+        total_amount: sourceInvoice.total_amount, amount_paid: sourceInvoice.amount_paid, balance_due: sourceInvoice.balance_due,
+        notes: sourceInvoice.notes, status: sourceInvoice.status,
         student: studentData ? { name: `${studentData.first_name} ${studentData.last_name}`, address: studentData.address, phone: studentData.phone, email: studentData.email } : undefined,
         items: fullInvoice?.items?.map((item: any) => {
           const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
