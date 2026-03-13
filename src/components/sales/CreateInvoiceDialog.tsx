@@ -343,6 +343,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
   const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'active' | 'trial' | 'all'>('active');
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
