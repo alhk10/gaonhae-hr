@@ -217,6 +217,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logger.debug('Token refreshed, user already loaded — skipping re-process');
         return;
       }
+
+      // On INITIAL_SESSION, skip if initAuth will handle it (prevents double-processing race)
+      if (event === 'INITIAL_SESSION') {
+        logger.debug('INITIAL_SESSION event — deferring to initAuth');
+        return;
+      }
+      
+      // Only clear user state on explicit sign-out, not on transient null sessions
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        userRef.current = null;
+        setUserrole(null);
+        setUserType(null);
+        setUserDetails(null);
+        setAdminAccess(null);
+        setPageAccess(null);
+        setLinkedStudents([]);
+        setSelectedStudentId(null);
+        setIsLoading(false);
+        return;
+      }
       
       await handleUserSession(session);
     });
