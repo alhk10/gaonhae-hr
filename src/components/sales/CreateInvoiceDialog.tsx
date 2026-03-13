@@ -1542,7 +1542,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     </Select>
                   </TableCell>
                   <TableCell className="px-2">
-                    <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
+                    <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} outOfCriteriaIds={outOfCriteriaProductIds} />
                   </TableCell>
                   <TableCell className="px-2">
                     <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
