@@ -70,7 +70,8 @@ export async function getSlotAttendance(
       student_name: record.students ? `${record.students.first_name} ${record.students.last_name}` : 'Unknown',
       student_first_name: record.students?.first_name,
       student_last_name: record.students?.last_name,
-      current_belt: record.students?.current_belt
+      current_belt: record.students?.current_belt,
+      student_phone: record.students?.phone
     }));
   } catch (error) {
     logger.error('Failed to get slot attendance', error);
