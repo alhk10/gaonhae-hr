@@ -178,7 +178,7 @@ const calculateLineTotal = (qty: number, price: number, discountType?: 'percenta
 
 // Searchable student select component with fuzzy matching
 const StudentSearchSelect: React.FC<{
-  students: Array<{id: string, name: string}>;
+  students: Array<{id: string, name: string, status?: string}>;
   value: string;
   onValueChange: (value: string) => void;
 }> = ({ students, value, onValueChange }) => {
