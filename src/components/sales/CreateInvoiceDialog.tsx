@@ -357,6 +357,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Class type age settings for product filtering
   const [classTypeAgeSettings, setClassTypeAgeSettings] = useState<Array<{ class_type: string; min_age: number | null; max_age: number | null }>>([]);
   
+  // Tax inclusion toggle state
+  const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null); // null = use branch default
+  const taxManuallySet = useRef(false);
+  
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
