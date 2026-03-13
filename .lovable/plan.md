@@ -1,51 +1,57 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Enforce Term Invoice Payment Before Grading Payment
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+Students can currently pay for grading without having paid their current term invoice. The requirement is: the current term invoice must be paid (status `paid` or `verified`) before grading payment is allowed. Exception: when a grading invoice is created together with a term payment (the "Also pay for next term?" opt-in in PayGradingDialog already handles this).
 
-### Changes
+### Approach
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. Student Dashboard — Block grading if term invoice unpaid (`StudentDashboard.tsx`)
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+- Add a new query `currentTermInvoicePaid` that checks if the student has a **paid/verified** term invoice for the current available terms (not just whether an invoice *exists*, which `hasCurrentTermInvoice` checks).
+- When the user clicks "Pay Grading" in `QuickActionsSection`, intercept the action: if term invoice is unpaid, show a blocking dialog instead of opening PayGradingDialog.
+- Add a new state `showTermPaymentRequired` and an AlertDialog that says "Please pay your current term invoice first" with a button to open the Pay School Fees dialog.
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+#### 2. QuickActionsSection — Pass blocking logic (`QuickActionsSection.tsx`)
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+- Accept a new prop `termInvoicePaid: boolean` from StudentDashboard.
+- In the grading card's button click handler, call `onOpenGrading()` only if `termInvoicePaid` is true, otherwise call a new `onGradingBlocked()` callback.
+- Alternatively, handle this entirely in StudentDashboard by wrapping the `onOpenGrading` callback.
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+**Simpler approach**: Handle the check entirely in `StudentDashboard.tsx` by wrapping the `onOpenGrading` callback passed to QuickActionsSection. No changes needed in QuickActionsSection itself.
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
+#### 3. Branch Dashboard — Block grading invoice creation (`BranchDashboard.tsx` / `CreateInvoiceDialog.tsx`)
 
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+The branch dashboard uses `CreateInvoiceDialog` for all invoice creation (including grading). The blocking logic should be in `CreateInvoiceDialog.tsx`:
+- When a grading product is added as a line item, check if the selected student has a paid/verified term invoice for the current term.
+- If not, show a warning/block with a message to create and pay the term invoice first.
+- **Exception**: If the same invoice being created also contains a term/lesson item, allow it (combined invoice).
 
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
+#### 4. Implementation Details
 
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+**New query in StudentDashboard.tsx** (modify existing `hasCurrentTermInvoice` or add alongside):
+```
+Check invoices for current term → check if any has status 'paid' or 'verified'
+If no term invoice exists at all → also unpaid (block grading)
+```
 
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+**StudentDashboard.tsx onOpenGrading wrapper**:
+```
+onOpenGrading={() => {
+  if (!currentTermInvoicePaid) {
+    setShowTermPaymentRequired(true);
+  } else {
+    guardAction(() => setShowGradingDialog(true));
+  }
+}}
+```
+
+**CreateInvoiceDialog.tsx validation**:
+- When a grading-category product is added, query the student's term invoices.
+- If no paid/verified term invoice exists and no lesson/term item is in the current invoice items list, show a toast or inline warning blocking submission.
+
+### Files to modify
+- `src/components/dashboard/StudentDashboard.tsx` — add paid check query, blocking dialog, wrap onOpenGrading
+- `src/components/sales/CreateInvoiceDialog.tsx` — add validation when grading product added without paid term invoice
 
