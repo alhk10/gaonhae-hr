@@ -1446,11 +1446,12 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               {/* Mobile Add Item Card */}
               <div className="border rounded-md p-2 space-y-2 bg-muted/30 text-xs">
                 <div className="grid grid-cols-2 gap-1.5">
-                  <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
+                  <Select value={newItem.category_id || '__all__'} onValueChange={(val) => handleCategoryChange(val === '__all__' ? '' : val)}>
                     <SelectTrigger className="h-7 text-xs">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__all__">All Categories</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                       ))}
@@ -1556,9 +1557,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 {/* Inline Add Item Row */}
                 <TableRow className="bg-muted/30">
                   <TableCell className="px-2">
-                    <Select value={newItem.category_id} onValueChange={handleCategoryChange}>
+                    <Select value={newItem.category_id || '__all__'} onValueChange={(val) => handleCategoryChange(val === '__all__' ? '' : val)}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
-                      <SelectContent>{categories.map((category) => (<SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>))}</SelectContent>
+                      <SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map((category) => (<SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>))}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell className="px-2">
