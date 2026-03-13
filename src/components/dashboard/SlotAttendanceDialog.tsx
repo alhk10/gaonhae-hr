@@ -53,6 +53,23 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingChanges, setPendingChanges] = useState<Record<string, 'present' | 'absent'>>({});
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
+
+  // Fetch invoices for expanded student
+  const { data: studentInvoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ['student-invoices-attendance', expandedStudentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, total_amount, status, issue_date, due_date')
+        .eq('student_id', expandedStudentId!)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!expandedStudentId,
+  });
 
   // Fetch attendance records for this slot
   const { data: attendance = [], isLoading: attendanceLoading } = useQuery({
