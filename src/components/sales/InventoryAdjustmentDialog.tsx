@@ -102,6 +102,14 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
 
   const otherBranches = branches.filter(b => b.id !== branchId);
 
+  const hasSize = product?.requires_size && product?.available_sizes && product.available_sizes.length > 0;
+  const hasColor = product?.requires_color && product?.available_variants?.colors && product.available_variants.colors.length > 0;
+
+  const getCombinedVariant = (): string | undefined => {
+    const parts = [formData.color_variant, formData.size_variant].filter(Boolean);
+    return parts.length > 0 ? parts.join(' / ') : undefined;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -120,10 +128,22 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       return;
     }
 
+    if (hasSize && !formData.size_variant) {
+      toast.error('Please select a size variant');
+      return;
+    }
+
+    if (hasColor && !formData.color_variant) {
+      toast.error('Please select a color variant');
+      return;
+    }
+
     if (!formData.reason.trim()) {
       toast.error('Please provide a reason for the adjustment');
       return;
     }
+
+    const combinedVariant = getCombinedVariant();
 
     if (formData.adjustment_type === 'transfer') {
       if (!formData.transfer_to_branch_id) {
@@ -139,7 +159,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
           to_branch_id: formData.transfer_to_branch_id,
           product_id: product.id,
           quantity,
-          size_variant: formData.size_variant || undefined,
+          size_variant: combinedVariant,
           reason: formData.reason.trim(),
           requested_by: branchName,
         });
@@ -165,7 +185,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
         locationId,
         quantityDelta,
         formData.reason.trim(),
-        formData.size_variant || undefined
+        combinedVariant
       );
       
       toast.success('Inventory adjusted successfully');
