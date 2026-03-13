@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { createInvoice, getSiblingDiscount, type CreateInvoiceData } from '@/services/invoiceService';
+import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
+import { createPayment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
