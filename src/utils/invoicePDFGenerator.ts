@@ -193,18 +193,30 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text('Status:', margin, yPos);
   doc.setFont('helvetica', 'normal');
   
-  // Map 'draft' to 'Unpaid' for display and apply color coding
+  // Map statuses for display and apply color coding
   let rawStatus = invoice.status || 'unpaid';
-  if (rawStatus === 'draft') rawStatus = 'unpaid';
-  const statusText = rawStatus === 'partially_paid' ? 'Partially Paid' : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  if (rawStatus === 'draft' || rawStatus === 'sent') rawStatus = 'unpaid';
   
-  // Apply color coding: Paid = Green, Unpaid = Red, Partially Paid = Orange
-  if (rawStatus === 'paid') {
+  const statusDisplayMap: Record<string, string> = {
+    'paid': 'Paid',
+    'unpaid': 'Unpaid',
+    'partially_paid': 'Partially Paid',
+    'overdue': 'Overdue',
+    'verified': 'Verified',
+    'cancelled': 'Cancelled',
+    'refunded': 'Refunded',
+  };
+  const statusText = statusDisplayMap[rawStatus] || rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  
+  // Apply color coding
+  if (rawStatus === 'paid' || rawStatus === 'verified') {
     doc.setTextColor(34, 139, 34); // Forest green
-  } else if (rawStatus === 'unpaid') {
+  } else if (rawStatus === 'unpaid' || rawStatus === 'overdue') {
     doc.setTextColor(220, 53, 69); // Red
   } else if (rawStatus === 'partially_paid') {
     doc.setTextColor(204, 133, 0); // Dark yellow/orange
+  } else if (rawStatus === 'cancelled' || rawStatus === 'refunded') {
+    doc.setTextColor(108, 117, 125); // Grey
   }
   
   doc.text(statusText, margin + 35, yPos);
