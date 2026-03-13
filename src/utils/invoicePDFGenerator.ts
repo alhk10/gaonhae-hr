@@ -68,21 +68,29 @@ interface LoadedImage {
   height: number;
 }
 
-const loadImage = (url: string): Promise<LoadedImage | null> => {
+const loadImage = (url: string, maxWidth = 300, maxHeight = 300): Promise<LoadedImage | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      // Downscale to target render size
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth || h > maxHeight) {
+        const scale = Math.min(maxWidth / w, maxHeight / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         resolve({
-          data: canvas.toDataURL('image/png'),
-          width: img.width,
-          height: img.height
+          data: canvas.toDataURL('image/jpeg', 0.7),
+          width: w,
+          height: h
         });
       } else {
         resolve(null);
