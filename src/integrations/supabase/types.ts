@@ -1738,6 +1738,62 @@ export type Database = {
           },
         ]
       }
+      invoice_action_requests: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          invoice_id: string
+          invoice_number: string | null
+          rejection_reason: string | null
+          request_data: Json
+          requested_by: string | null
+          requested_by_email: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_name: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          invoice_number?: string | null
+          rejection_reason?: string | null
+          request_data?: Json
+          requested_by?: string | null
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          invoice_number?: string | null
+          rejection_reason?: string | null
+          request_data?: Json
+          requested_by?: string | null
+          requested_by_email?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_action_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_change_logs: {
         Row: {
           action: string
