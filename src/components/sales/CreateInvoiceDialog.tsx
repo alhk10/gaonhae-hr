@@ -1195,6 +1195,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const term = branchTerms.find(t => t.id === newItem.term_id);
     const gradingSlot = gradingSlots.find(s => s.id === newItem.grading_slot_id);
 
+    // Auto-apply sibling discount for term items
+    let siblingDiscountType: 'amount' | undefined;
+    let siblingDiscountValue: number | undefined;
+    
+    if (term && formData.student_id) {
+      const discount = await getSiblingDiscount(formData.student_id);
+      if (discount > 0) {
+        siblingDiscountType = 'amount';
+        siblingDiscountValue = discount;
+        toast.info(`Sibling discount of $${discount.toFixed(2)} auto-applied`);
+      }
+    }
+
+    const lineTotal = calculateLineTotal(
+      newItem.quantity, 
+      newItem.unit_price, 
+      siblingDiscountType, 
+      siblingDiscountValue
+    );
+
     const item: InvoiceItem = {
       product_id: newItem.product_id,
       product_name: product.name,
@@ -1208,7 +1228,9 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       grading_slot_id: newItem.grading_slot_id || undefined,
       grading_slot_title: gradingSlot?.title || undefined,
       selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
-      total: calculateLineTotal(newItem.quantity, newItem.unit_price)
+      discount_type: siblingDiscountType,
+      discount_value: siblingDiscountValue,
+      total: lineTotal
     };
 
     setItems([...items, item]);
