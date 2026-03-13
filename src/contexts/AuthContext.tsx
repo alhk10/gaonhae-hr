@@ -42,6 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Sequence counter to prevent stale session processing from overwriting newer results
   const sessionSeqRef = React.useRef(0);
+  // Guard: don't allow isLoading=false until initial getSession() completes
+  const initialLoadDoneRef = React.useRef(false);
   // Ref to track current user for stale closure in onAuthStateChange
   const userRef = React.useRef<any>(null);
 
