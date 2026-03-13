@@ -144,21 +144,9 @@ const loadImageAsDataUrl = async (url: string, maxWidth = 200, maxHeight = 200):
   }
 };
 
-const loadSignatureImage = async (url: string): Promise<HTMLImageElement | null> => {
+const loadSignatureImage = async (url: string): Promise<{ data: string; width: number; height: number } | null> => {
   if (!url) return null;
-  try {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load signature'));
-      img.src = url;
-    });
-    return img;
-  } catch (error) {
-    console.warn('Could not load signature for PDF:', error);
-    return null;
-  }
+  return loadImageAsDataUrl(url, 200, 100);
 };
 
 const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
