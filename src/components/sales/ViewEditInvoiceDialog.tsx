@@ -694,6 +694,64 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   };
 
+  const handleCancelInvoice = async () => {
+    if (!invoice) return;
+    try {
+      setIsCancelling(true);
+      if (isSuperadmin) {
+        // Superadmin: execute directly
+        await cancelInvoice(invoice.id);
+        toast.success('Invoice cancelled and payments refunded as student credits');
+        setCancelDialogOpen(false);
+        loadInvoiceData();
+        onInvoiceUpdated?.();
+      } else {
+        // Non-superadmin: submit approval request
+        await submitActionRequest(
+          invoice.id,
+          'cancellation',
+          { reason: cancelReason },
+          invoice.invoice_number,
+          invoice.student_name || '',
+          user?.email || ''
+        );
+        toast.success('Cancellation request submitted for superadmin approval');
+        setCancelDialogOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(`Failed: ${error.message}`);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleSaveWithApproval = async () => {
+    if (!invoice) return;
+    // If paid/verified and not superadmin, route through approval
+    if (isPaidOrVerified && !isSuperadmin) {
+      try {
+        setSaving(true);
+        await submitActionRequest(
+          invoice.id,
+          'adjustment',
+          { editItems, editData, editTotals },
+          invoice.invoice_number,
+          invoice.student_name || '',
+          user?.email || ''
+        );
+        toast.success('Adjustment request submitted for superadmin approval');
+        setMode('view');
+      } catch (error: any) {
+        toast.error(`Failed: ${error.message}`);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Direct save for superadmins or non-paid invoices
+      handleSave();
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'paid': return 'default';
