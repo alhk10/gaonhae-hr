@@ -197,9 +197,9 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       throw new Error('Payment amount must be greater than zero');
     }
 
-    if (paymentData.amount > invoice.balance_due) {
-      throw new Error(`Payment amount (${paymentData.amount}) cannot exceed balance due (${invoice.balance_due})`);
-    }
+    // Track if this is an overpayment
+    const isOverpayment = paymentData.amount > invoice.balance_due;
+    const overpaymentAmount = isOverpayment ? paymentData.amount - invoice.balance_due : 0;
 
     // Generate payment number
     const paymentNumber = await generatePaymentNumber();
