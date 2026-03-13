@@ -1461,7 +1461,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                    <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="h-7 text-xs px-1" />
+                    <Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="h-7 text-xs px-1" />
                   </div>
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Price</Label>
