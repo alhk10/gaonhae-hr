@@ -91,7 +91,7 @@ export async function getBranchStudentsForClass(
   try {
     let query = supabase
       .from('students')
-      .select('id, first_name, last_name, current_belt, date_of_birth, status')
+      .select('id, first_name, last_name, current_belt, date_of_birth, phone, status')
       .eq('branch_id', branchId)
       .eq('status', 'active')
       .order('first_name');

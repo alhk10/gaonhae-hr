@@ -362,11 +362,19 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                           <p className="font-medium">
                             {student.first_name} {student.last_name}
                           </p>
-                          {student.current_belt && (
-                            <Badge variant="outline" className="text-xs mt-0.5">
-                              {student.current_belt}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {student.current_belt && (
+                              <Badge variant="outline" className="text-xs">
+                                {student.current_belt}
+                              </Badge>
+                            )}
+                            {student.phone && (
+                              <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                {student.phone}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <Button
                           size="sm"
