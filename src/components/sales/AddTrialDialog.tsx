@@ -355,14 +355,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="+65 9123 4567"
+                    onChange={(value) => handleInputChange('phone', value)}
                   />
                 </div>
                 <div>
@@ -378,11 +376,9 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               </div>
               <div>
                 <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input
-                  id="whatsapp"
+                <PhoneInput
                   value={formData.whatsapp}
-                  onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-                  placeholder="+65 9123 4567"
+                  onChange={(value) => handleInputChange('whatsapp', value)}
                 />
               </div>
             </CardContent>
