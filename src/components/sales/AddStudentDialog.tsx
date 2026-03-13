@@ -200,7 +200,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         emergency_contact_2_relationship: '',
         current_belt: '',
         previous_experience: '',
-        training_goals: '',
+        training_goals: [],
         medical_conditions: '',
         dietary_restrictions: '',
         branch_id: '',
