@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPageAccess(null);
       setLinkedStudents([]);
       setSelectedStudentId(null);
-      setIsLoading(false);
+      if (initialLoadDoneRef.current) setIsLoading(false);
       return;
     }
 
