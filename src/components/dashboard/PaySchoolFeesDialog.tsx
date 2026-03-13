@@ -25,7 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
-import { createInvoice } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
 
 import ClassScheduleSelector from './ClassScheduleSelector';

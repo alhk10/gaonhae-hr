@@ -818,3 +818,39 @@ export const getInvoiceStats = async (): Promise<{
     throw error;
   }
 };
+
+/**
+ * Get sibling discount amount for a student.
+ * Siblings are identified by sharing the same email address.
+ * If 2+ active students share the same email, each gets $20 off term invoices.
+ */
+export const getSiblingDiscount = async (studentId: string): Promise<number> => {
+  try {
+    // Get the student's email
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('email')
+      .eq('id', studentId)
+      .single();
+
+    if (studentError || !student?.email) return 0;
+
+    // Count active students with the same email
+    const { count, error: countError } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true })
+      .eq('email', student.email)
+      .eq('status', 'active');
+
+    if (countError) {
+      logger.error('Error checking sibling count', countError);
+      return 0;
+    }
+
+    // If 2 or more students share the email, apply $20 discount
+    return (count && count >= 2) ? 20 : 0;
+  } catch (error) {
+    logger.error('Error in getSiblingDiscount', error);
+    return 0;
+  }
+};
