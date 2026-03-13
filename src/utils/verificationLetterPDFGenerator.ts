@@ -680,10 +680,10 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
 };
 
 export const generateEmploymentVerificationLetter = async (data: EmployeeData): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
