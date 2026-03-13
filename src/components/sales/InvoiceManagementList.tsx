@@ -365,19 +365,21 @@ const InvoiceManagementList: React.FC = () => {
       return timeStr.substring(0, 5);
     };
     
+    const sourceInvoice = fullInvoice ?? invoice;
+
     return {
       id: invoice.id,
       invoice_number: invoice.invoice_number,
-      issue_date: invoice.issue_date || null,
-      due_date: invoice.due_date || null,
-      subtotal: invoice.subtotal,
-      tax_amount: invoice.tax_amount,
-      discount_amount: invoice.discount_amount,
-      total_amount: invoice.total_amount,
-      amount_paid: invoice.amount_paid,
-      balance_due: invoice.balance_due,
-      notes: invoice.notes,
-      status: fullInvoice?.status || invoice.status,
+      issue_date: sourceInvoice.issue_date || null,
+      due_date: sourceInvoice.due_date || null,
+      subtotal: sourceInvoice.subtotal,
+      tax_amount: sourceInvoice.tax_amount,
+      discount_amount: sourceInvoice.discount_amount,
+      total_amount: sourceInvoice.total_amount,
+      amount_paid: sourceInvoice.amount_paid,
+      balance_due: sourceInvoice.balance_due,
+      notes: sourceInvoice.notes,
+      status: sourceInvoice.status,
       student: studentData ? {
         name: `${studentData.first_name} ${studentData.last_name}`,
         address: studentData.address,

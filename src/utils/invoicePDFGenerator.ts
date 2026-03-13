@@ -218,9 +218,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text('Status:', margin, yPos);
   doc.setFont('helvetica', 'normal');
   
-  // Map statuses for display and apply color coding
-  let rawStatus = invoice.status || 'unpaid';
-  if (rawStatus === 'draft' || rawStatus === 'sent') rawStatus = 'unpaid';
+  // Resolve status with financial-state fallback to prevent stale DB status in PDFs
+  const rawStatus = resolveInvoiceStatus(invoice);
   
   const statusDisplayMap: Record<string, string> = {
     'paid': 'Paid',
