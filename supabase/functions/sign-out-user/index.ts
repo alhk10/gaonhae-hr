@@ -15,22 +15,16 @@ serve(async (req) => {
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
-    // This function only works with service role key
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace('Bearer ', '') || '';
+    const { userId, serviceKey } = await req.json();
     
-    // Also accept the apikey header (which Supabase client sends)
-    const apiKey = req.headers.get("apikey") || '';
-    
-    // For service-role access, check if the apikey is the service role key
-    if (token !== SERVICE_ROLE_KEY && apiKey !== SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ error: "Forbidden: service role key required" }), {
+    // Validate service key for authorization
+    if (serviceKey !== SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const { userId } = await req.json();
     if (!userId) {
       return new Response(JSON.stringify({ error: "userId is required" }), {
         status: 400,
