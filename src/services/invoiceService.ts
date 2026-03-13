@@ -32,7 +32,7 @@ export interface Invoice {
   total_amount: number;
   amount_paid: number;
   balance_due: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'partial' | 'verified';
   issue_date?: string;
   due_date?: string;
   payment_terms_days?: number;
