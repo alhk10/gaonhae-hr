@@ -99,8 +99,19 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
       logoImg.src = '/images/company-logo.jpg';
     });
     
-    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 8, logoWidth, Math.min(logoHeight, 18));
+    // Downscale logo via canvas for smaller file size
+    const canvas = document.createElement('canvas');
+    const targetW = 150;
+    const targetH = Math.round((logoImg.height / logoImg.width) * targetW);
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(logoImg, 0, 0, targetW, targetH);
+      const logoData = canvas.toDataURL('image/jpeg', 0.7);
+      const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+      doc.addImage(logoData, 'JPEG', startX, 8, logoWidth, Math.min(logoHeight, 18), undefined, 'FAST');
+    }
   } catch (error) {
     console.warn('Could not load logo for PDF:', error);
   }

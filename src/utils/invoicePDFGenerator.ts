@@ -420,7 +420,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Add QR code on the right (below bank transfer info)
     if (qrData) {
       const qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
-      doc.addImage(qrData.data, 'PNG', qrX, qrStartY, qrSize, qrSize);
+      doc.addImage(qrData.data, 'JPEG', qrX, qrStartY, qrSize, qrSize, undefined, 'FAST');
       // Ensure yPos accounts for QR height if notes are shorter
       const qrEndY = qrStartY + qrSize;
       if (yPos < qrEndY) {

@@ -149,18 +149,15 @@ const loadSignatureImage = async (url: string): Promise<{ data: string; width: n
   return loadImageAsDataUrl(url, 200, 100);
 };
 
-const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
+const addLetterhead = async (doc: jsPDF, logoData: { data: string; width: number; height: number } | null) => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  // Increased logo size by 10% (38.5 * 1.1 = 42.35)
   const logoWidth = 42.35;
-  const totalWidth = logoWidth + 5 + 120; // logo + gap + text area
-  // Move 0.8cm (8mm) to the right
+  const totalWidth = logoWidth + 5 + 120;
   const startX = (pageWidth - totalWidth) / 2 + 8;
 
-  // Add logo - centered with text, increased size by 10%
-  if (logoImg) {
-    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 30.25));
+  if (logoData) {
+    const logoHeight = (logoData.height / logoData.width) * logoWidth;
+    doc.addImage(logoData.data, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 30.25), undefined, 'FAST');
   }
 
   // Company details - inline with logo, right of it
