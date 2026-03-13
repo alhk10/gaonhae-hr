@@ -23,6 +23,7 @@ import StockTransferApprovals from './StockTransferApprovals';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import StudentWithdrawalApprovals from './StudentWithdrawalApprovals';
 import LowStockWarnings from './LowStockWarnings';
+import InvoiceActionApprovals from './InvoiceActionApprovals';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
@@ -96,6 +97,9 @@ const SuperadminDashboard = () => {
 
         {/* Invoice Discount Approvals */}
         <InvoiceDiscountApprovals />
+
+        {/* Invoice Action Approvals (Adjustments & Cancellations) */}
+        <InvoiceActionApprovals />
 
         {/* Payment Verification Approvals */}
         <PaymentVerificationApprovals />

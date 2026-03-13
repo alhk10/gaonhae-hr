@@ -28,7 +28,8 @@ export type InvoiceChangeAction =
   | 'item_removed'
   | 'item_updated'
   | 'field_updated'
-  | 'deleted';
+  | 'deleted'
+  | 'cancelled';
 
 /**
  * Log a change to an invoice

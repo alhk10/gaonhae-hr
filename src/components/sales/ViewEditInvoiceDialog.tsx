@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +17,14 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { getInvoiceById, updateInvoiceStatus, type Invoice, type InvoiceItem } from '@/services/invoiceService';
+import { getInvoiceById, updateInvoiceStatus, cancelInvoice, type Invoice, type InvoiceItem } from '@/services/invoiceService';
+import { submitActionRequest } from '@/services/invoiceActionRequestService';
 import { getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
 import { getProducts, type Product } from '@/services/productService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown, Percent } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown, Percent, Ban, Wrench } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
@@ -137,6 +139,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   onInvoiceUpdated,
   initialMode = 'view'
 }) => {
+  const { userrole, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
@@ -165,6 +168,15 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
+
+  // Cancel & Refund dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const isSuperadmin = userrole === 'superadmin';
+  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified';
+  const isCancelled = invoice?.status === 'cancelled';
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -682,6 +694,64 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     }
   };
 
+  const handleCancelInvoice = async () => {
+    if (!invoice) return;
+    try {
+      setIsCancelling(true);
+      if (isSuperadmin) {
+        // Superadmin: execute directly
+        await cancelInvoice(invoice.id);
+        toast.success('Invoice cancelled and payments refunded as student credits');
+        setCancelDialogOpen(false);
+        loadInvoiceData();
+        onInvoiceUpdated?.();
+      } else {
+        // Non-superadmin: submit approval request
+        await submitActionRequest(
+          invoice.id,
+          'cancellation',
+          { reason: cancelReason },
+          invoice.invoice_number,
+          invoice.student_name || '',
+          user?.email || ''
+        );
+        toast.success('Cancellation request submitted for superadmin approval');
+        setCancelDialogOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(`Failed: ${error.message}`);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleSaveWithApproval = async () => {
+    if (!invoice) return;
+    // If paid/verified and not superadmin, route through approval
+    if (isPaidOrVerified && !isSuperadmin) {
+      try {
+        setSaving(true);
+        await submitActionRequest(
+          invoice.id,
+          'adjustment',
+          { editItems, editData, editTotals },
+          invoice.invoice_number,
+          invoice.student_name || '',
+          user?.email || ''
+        );
+        toast.success('Adjustment request submitted for superadmin approval');
+        setMode('view');
+      } catch (error: any) {
+        toast.error(`Failed: ${error.message}`);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Direct save for superadmins or non-paid invoices
+      handleSave();
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'paid': return 'default';
@@ -774,17 +844,25 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                   </Button>
                 }
               />
-              {mode === 'view' ? (
-                <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              ) : (
+              {mode === 'view' && !isCancelled ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Adjustments
+                  </Button>
+                  {(invoice.status === 'paid' || invoice.status === 'verified' || invoice.status === 'partial' || invoice.status === 'draft') && (
+                    <Button variant="destructive" size="sm" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
+                      <Ban className="h-4 w-4 mr-2" />
+                      Cancel & Refund
+                    </Button>
+                  )}
+                </>
+              ) : mode === 'edit' ? (
                 <Button variant="outline" size="sm" onClick={() => setMode('view')}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </DialogHeader>
@@ -1340,10 +1418,10 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             <Button variant="outline" onClick={() => setMode('view')}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSaveWithApproval} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
-              Save Changes
+              {isPaidOrVerified && !isSuperadmin ? 'Submit for Approval' : 'Save Changes'}
             </Button>
           </DialogFooter>
         )}
@@ -1396,6 +1474,52 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             >
               {isSubmittingDelete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel & Refund Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Invoice & Refund</DialogTitle>
+            <DialogDescription>
+              {isSuperadmin
+                ? 'This will cancel the invoice and refund all payments as student credits.'
+                : 'This cancellation request will be sent to a superadmin for approval.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Invoice:</span>
+                <span className="font-medium">{invoice?.invoice_number}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-medium">{invoice ? formatCurrency(invoice.total_amount) : ''}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Paid:</span>
+                <span className="font-medium">{invoice ? formatCurrency(invoice.amount_paid) : ''}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason for cancellation</Label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Enter reason..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>Back</Button>
+            <Button variant="destructive" onClick={handleCancelInvoice} disabled={isCancelling}>
+              {isCancelling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isSuperadmin ? 'Cancel & Refund Now' : 'Submit Request'}
             </Button>
           </DialogFooter>
         </DialogContent>
