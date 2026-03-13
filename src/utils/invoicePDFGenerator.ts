@@ -115,13 +115,13 @@ const formatDate = (dateString: string | null): string => {
 };
 
 export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let yPos = 20;
 
-  // Load and add logo with proper aspect ratio
-  const logoResult = await loadImage('/images/company-logo.jpg');
+  // Load and add logo with proper aspect ratio (downscaled to ~200px)
+  const logoResult = await loadImage('/images/company-logo.jpg', 200, 200);
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
