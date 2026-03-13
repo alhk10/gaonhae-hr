@@ -1466,7 +1466,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               </div>
 
               <div className="space-y-1 md:space-y-2">
-                <Label htmlFor="student_id" className="text-xs md:text-sm">Student *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="student_id" className="text-xs md:text-sm">Student *</Label>
+                  <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+                    {(['active', 'trial', 'all'] as const).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => { setStudentStatusFilter(status); handleInputChange('student_id', ''); }}
+                        className={cn(
+                          'px-2 py-0.5 text-[10px] font-medium rounded transition-colors capitalize',
+                          studentStatusFilter === status
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <StudentSearchSelect
                   students={filteredStudents}
                   value={formData.student_id}
