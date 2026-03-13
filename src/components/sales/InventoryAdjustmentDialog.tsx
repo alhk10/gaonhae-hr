@@ -44,6 +44,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
     adjustment_type: 'add' as 'add' | 'remove' | 'transfer',
     reason: '',
     size_variant: '',
+    color_variant: '',
     transfer_to_branch_id: ''
   });
 
@@ -93,12 +94,21 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       adjustment_type: 'add',
       reason: '',
       size_variant: '',
+      color_variant: '',
       transfer_to_branch_id: ''
     });
     setBranchLocationId('');
   };
 
   const otherBranches = branches.filter(b => b.id !== branchId);
+
+  const hasSize = product?.requires_size && product?.available_sizes && product.available_sizes.length > 0;
+  const hasColor = product?.requires_color && product?.available_variants?.colors && product.available_variants.colors.length > 0;
+
+  const getCombinedVariant = (): string | undefined => {
+    const parts = [formData.color_variant, formData.size_variant].filter(Boolean);
+    return parts.length > 0 ? parts.join(' / ') : undefined;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,10 +128,22 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       return;
     }
 
+    if (hasSize && !formData.size_variant) {
+      toast.error('Please select a size variant');
+      return;
+    }
+
+    if (hasColor && !formData.color_variant) {
+      toast.error('Please select a color variant');
+      return;
+    }
+
     if (!formData.reason.trim()) {
       toast.error('Please provide a reason for the adjustment');
       return;
     }
+
+    const combinedVariant = getCombinedVariant();
 
     if (formData.adjustment_type === 'transfer') {
       if (!formData.transfer_to_branch_id) {
@@ -137,7 +159,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
           to_branch_id: formData.transfer_to_branch_id,
           product_id: product.id,
           quantity,
-          size_variant: formData.size_variant || undefined,
+          size_variant: combinedVariant,
           reason: formData.reason.trim(),
           requested_by: branchName,
         });
@@ -163,7 +185,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
         locationId,
         quantityDelta,
         formData.reason.trim(),
-        formData.size_variant || undefined
+        combinedVariant
       );
       
       toast.success('Inventory adjusted successfully');
@@ -215,20 +237,41 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
             </div>
           )}
 
-          {/* Size Variant (if product has sizes) */}
-          {product.requires_size && product.available_sizes && product.available_sizes.length > 0 && (
+          {/* Color Variant (if product has colors) */}
+          {hasColor && (
             <div className="space-y-2">
-              <Label htmlFor="size_variant">Size Variant</Label>
+              <Label>Color Variant *</Label>
+              <Select
+                value={formData.color_variant}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, color_variant: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {product!.available_variants!.colors!.map((color) => (
+                    <SelectItem key={color} value={color}>
+                      {color}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Size Variant (if product has sizes) */}
+          {hasSize && (
+            <div className="space-y-2">
+              <Label>Size Variant *</Label>
               <Select
                 value={formData.size_variant}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, size_variant: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select size (optional)" />
+                  <SelectValue placeholder="Select size" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific size</SelectItem>
-                  {product.available_sizes.map((size) => (
+                  {product!.available_sizes!.map((size) => (
                     <SelectItem key={size} value={size}>
                       {size}
                     </SelectItem>
