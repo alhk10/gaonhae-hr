@@ -23,6 +23,3 @@ verify_jwt = false
 
 [functions.check-grading-reminders]
 verify_jwt = false
-
-[functions.sign-out-user]
-verify_jwt = false
