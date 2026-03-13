@@ -405,11 +405,9 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                 </div>
                 <div>
                   <Label htmlFor="emergency_contact_phone">Phone</Label>
-                  <Input
-                    id="emergency_contact_phone"
+                  <PhoneInput
                     value={formData.emergency_contact_phone}
-                    onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                    placeholder="+65 9123 4567"
+                    onChange={(value) => handleInputChange('emergency_contact_phone', value)}
                   />
                 </div>
               </div>
