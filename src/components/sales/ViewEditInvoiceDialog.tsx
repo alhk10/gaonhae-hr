@@ -309,6 +309,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     fetchStudentDob();
     fetchTermData();
     fetchTimetableTimes();
+
+    // Load branch terms for editing
+    if (invoice.branch_id) {
+      getTerms(invoice.branch_id).then(terms => setBranchTerms(terms)).catch(() => {});
+    }
   }, [invoice]);
 
   const studentAge = useMemo(() => {
