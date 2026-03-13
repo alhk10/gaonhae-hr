@@ -16,7 +16,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit } from 'lucide-react';
+import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit, DollarSign, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
