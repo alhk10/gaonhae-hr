@@ -1,51 +1,63 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Add "Partially Paid" Status for Invoices
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+When a partial payment is made, the invoice status remains as its original value (e.g., "unpaid" or "draft") instead of updating to reflect the partial payment. The system already has `partially_paid` in the DB constraint but never sets it.
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. `src/services/paymentService.ts` — Set status to "partially_paid" after partial payments
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+**Line 239** (createPayment): Change status logic from keeping original status to setting "partially_paid":
+```typescript
+const newStatus = newBalanceDue <= 0 ? 'paid' : 'partially_paid';
+```
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+**Line 398** (deletePayment/recalculate): Same fix:
+```typescript
+const newStatus = newBalanceDue <= 0 ? 'paid' : newBalanceDue < invoice.total_amount ? 'partially_paid' : 'unpaid';
+```
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+#### 2. `src/components/dashboard/BranchDashboard.tsx` — Include "partially_paid" in the unpaid filter
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+**Line 279**: Add `'partially_paid'` to the unpaid status array:
+```typescript
+query = query.in('status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue']);
+```
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
+#### 3. `src/components/sales/InvoiceManagementList.tsx` — Display styling for partially_paid
 
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+- `getStatusBadgeVariant`: Add `case 'partially_paid': return 'outline';`
+- `getStatusBadgeClass`: Add `case 'partially_paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';`
+- `getDisplayStatus`: Add `if (status === 'partially_paid') return 'Partially Paid';`
 
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
+#### 4. `src/components/sales/ViewEditInvoiceDialog.tsx` — Display styling and logic for partially_paid
 
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+- Add `partially_paid` to badge variant/class/display functions (same as partial styling — yellow)
+- Add `partially_paid` to the Cancel & Refund button condition (line 853)
+- Lock logic: treat `partially_paid` like `paid` for approval routing
 
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+#### 5. `src/utils/invoicePDFGenerator.ts` — PDF status display
+
+- Add color coding for `partially_paid` (yellow/orange) and display as "Partially Paid"
+
+#### 6. Other affected files — badge/status mappings
+
+- `src/components/dashboard/StudentDetailsDialog.tsx`: Add `partially_paid` case
+- `src/components/dashboard/InvoicesCreatedSection.tsx`: Already has it
+- `src/components/dashboard/BranchGradingList.tsx`: Add to status filter array
+- `src/components/sales/CreatePaymentDialog.tsx`: Already handles via `balance_due > 0`
+- `src/components/dashboard/UnpaidInvoiceReminderDialog.tsx`: No change needed (uses balance_due)
+
+### Files to modify
+- `src/services/paymentService.ts`
+- `src/components/dashboard/BranchDashboard.tsx`
+- `src/components/sales/InvoiceManagementList.tsx`
+- `src/components/sales/ViewEditInvoiceDialog.tsx`
+- `src/utils/invoicePDFGenerator.ts`
+- `src/components/dashboard/StudentDetailsDialog.tsx`
+- `src/components/dashboard/BranchGradingList.tsx`
+
+No database changes needed — `partially_paid` is already in the constraint.
 
