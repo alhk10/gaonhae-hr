@@ -154,9 +154,13 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     }
 
     const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
-    if (selectedInvoice && parseFloat(formData.amount) > selectedInvoice.balance_due) {
-      toast.error(`Payment amount cannot exceed balance due of ${formatCurrencyValue(selectedInvoice.balance_due)}`);
-      return;
+    const paymentAmount = parseFloat(formData.amount);
+    
+    if (selectedInvoice && paymentAmount > selectedInvoice.balance_due) {
+      const excess = paymentAmount - selectedInvoice.balance_due;
+      if (!window.confirm(`Payment exceeds balance due by $${excess.toFixed(2)}. The excess will be stored as student credit. Continue?`)) {
+        return;
+      }
     }
 
     setLoading(true);
