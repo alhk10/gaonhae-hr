@@ -471,7 +471,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  const [studentStatusFilter, setStudentStatusFilter] = useState<'active' | 'trial' | 'all'>('active');
+
 
   // Filter students by status and selected branch
   const filteredStudents = students.filter(s => {
