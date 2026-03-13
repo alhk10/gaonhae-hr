@@ -35,6 +35,7 @@ export interface StudentForAttendance {
   last_name: string;
   current_belt?: string;
   date_of_birth?: string;
+  phone?: string;
   status: string;
 }
 
