@@ -716,6 +716,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setBranchTerms([]);
     setTermError(null);
     setSelectedClassSlots([]);
+    setTaxIncluded(null);
+    taxManuallySet.current = false;
   };
 
   const handleInputChange = async (field: string, value: any) => {
