@@ -527,7 +527,7 @@ const addSignatureBlock = async (
     if (signatureImg) {
       const sigWidth = 40;
       const sigHeight = (signatureImg.height / signatureImg.width) * sigWidth;
-      doc.addImage(signatureImg, 'PNG', 20, yPos, sigWidth, Math.min(sigHeight, 20));
+      doc.addImage(signatureImg.data, 'JPEG', 20, yPos, sigWidth, Math.min(sigHeight, 20), undefined, 'FAST');
       yPos += Math.min(sigHeight, 20) + 5;
     }
   } else {
