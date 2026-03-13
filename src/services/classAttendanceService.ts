@@ -26,6 +26,7 @@ export interface ClassAttendanceRecord {
   student_first_name?: string;
   student_last_name?: string;
   current_belt?: string;
+  student_phone?: string;
 }
 
 export interface StudentForAttendance {
