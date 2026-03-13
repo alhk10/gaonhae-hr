@@ -54,6 +54,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [studentCreditBalance, setStudentCreditBalance] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     invoice_id: preSelectedInvoiceId || '',
