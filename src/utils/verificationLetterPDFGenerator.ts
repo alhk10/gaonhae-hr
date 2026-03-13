@@ -115,18 +115,31 @@ const replaceEmployeePlaceholders = (template: string, data: EmployeePlaceholder
     .replace(/{phone}/g, data.phone);
 };
 
-const loadLogo = async (): Promise<HTMLImageElement | null> => {
+const loadImageAsDataUrl = async (url: string, maxWidth = 200, maxHeight = 200): Promise<{ data: string; width: number; height: number } | null> => {
   try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
     await new Promise<void>((resolve, reject) => {
-      logoImg.onload = () => resolve();
-      logoImg.onerror = () => reject(new Error('Failed to load logo'));
-      logoImg.src = '/images/company-logo.jpg';
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = url;
     });
-    return logoImg;
+    let w = img.width;
+    let h = img.height;
+    if (w > maxWidth || h > maxHeight) {
+      const scale = Math.min(maxWidth / w, maxHeight / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    return { data: canvas.toDataURL('image/jpeg', 0.7), width: img.width, height: img.height };
   } catch (error) {
-    console.warn('Could not load logo for PDF:', error);
+    console.warn('Could not load image for PDF:', error);
     return null;
   }
 };
