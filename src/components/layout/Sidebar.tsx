@@ -137,6 +137,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
           { icon: ShoppingCart, label: 'Sales Dashboard', path: '/sales' },
           { icon: Package, label: 'Products & Inventory', path: '/sales/products' },
           { icon: Receipt, label: 'Invoices & Payments', path: '/sales/invoices' },
+          { icon: DollarSign, label: 'Student Credits', path: '/sales/credits' },
           { icon: Award, label: 'Grading', path: '/sales/grading' },
           { icon: TrendingUp, label: 'Sales Reports', path: '/sales/reports' }
         );

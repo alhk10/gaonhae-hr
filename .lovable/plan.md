@@ -1,68 +1,51 @@
 
 
-## Plan: Student Credit Balance System (Overpayments & Refunds)
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-### Overview
-Add a credit balance system where overpayments are stored as student credits, automatically applied to new invoices, and manageable via both student profiles and a dedicated admin page.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-### Database Changes
+### Changes
 
-**New table: `student_credits`**
-- `id` (uuid, PK)
-- `student_id` (uuid, FK to students)
-- `amount` (numeric, positive = credit available)
-- `type` (enum: 'overpayment', 'refund', 'manual_adjustment', 'credit_applied')
-- `reference_id` (text, nullable — links to payment_id or invoice_id)
-- `description` (text)
-- `created_by` (text, nullable)
-- `created_at` (timestamptz)
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-**New view or query pattern**: student credit balance = SUM of all `student_credits` amounts per student (positive entries add credit, negative entries consume it).
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-**RLS**: Same pattern as invoices — superadmins full access, branch staff with sales access can view/insert, students can view own records.
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-### Code Changes
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-#### 1. Payment Service — Allow overpayments (`src/services/paymentService.ts`)
-- Remove the validation at line 199 that blocks payments exceeding `balance_due`
-- When `paymentData.amount > invoice.balance_due`, set the invoice to `paid` (balance_due = 0) and insert a `student_credits` record of type `overpayment` for the excess amount
-- Include the payment_id as `reference_id`
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-#### 2. Credit Service (new: `src/services/studentCreditService.ts`)
-- `getStudentCreditBalance(studentId)` — returns net credit balance
-- `getStudentCreditHistory(studentId)` — returns all credit transactions
-- `addManualCredit(studentId, amount, description)` — admin manual adjustment
-- `applyCredit(studentId, invoiceId, amount)` — deducts credit and applies as payment
-- `getAllStudentCredits()` — admin view of all students with credit balances
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
 
-#### 3. Invoice Creation — Auto-apply credits (`src/components/sales/CreateInvoiceDialog.tsx`)
-- After invoice is created, check if student has credit balance
-- If credit exists, automatically apply it (up to invoice total) by calling `applyCredit` and creating a corresponding payment record
-- Show toast: "Student credit of $X.XX automatically applied"
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
 
-#### 4. Student Profile — Credit tab (`src/pages/parties/StudentDetails.tsx`)
-- Add a "Credits" section showing current balance and transaction history
-- Include a button for admins to add manual credit adjustments
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
 
-#### 5. Admin Credit Management Page (new: `src/pages/sales/CreditManagement.tsx`)
-- Table of all students with credit balances (student name, balance, last transaction date)
-- Click to view full credit history for a student
-- Ability to add manual adjustments or issue refunds (which zero out credit and log as 'refund')
-- Add route and sidebar navigation entry
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
 
-#### 6. Create Payment Dialog (`src/components/sales/CreatePaymentDialog.tsx`)
-- Show student's available credit balance when an invoice is selected
-- Allow payment amount to exceed balance_due (with confirmation: "Excess of $X.XX will be stored as student credit")
-
-### Files to create
-- `src/services/studentCreditService.ts`
-- `src/pages/sales/CreditManagement.tsx`
-
-### Files to modify
-- `src/services/paymentService.ts` — allow overpayments, create credit records
-- `src/components/sales/CreatePaymentDialog.tsx` — show credit info, allow overpayments
-- `src/components/sales/CreateInvoiceDialog.tsx` — auto-apply credits post-creation
-- `src/pages/parties/StudentDetails.tsx` — add credits section
-- `src/App.tsx` — add route for CreditManagement
-- `src/components/layout/Sidebar.tsx` — add nav link
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 

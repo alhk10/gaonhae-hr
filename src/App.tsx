@@ -56,6 +56,7 @@ const InvoiceManagement = lazy(() => import('./pages/sales/InvoiceManagement'));
 const PaymentManagement = lazy(() => import('./pages/sales/PaymentManagement'));
 const SalesAnalytics = lazy(() => import('./pages/sales/SalesAnalytics'));
 const GradingManagement = lazy(() => import('./pages/sales/GradingManagement'));
+const CreditManagement = lazy(() => import('./pages/sales/CreditManagement'));
 const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
 // Configure QueryClient with optimized settings
@@ -458,6 +459,16 @@ function App() {
                         <AuthGuard>
                           <SalesAccessGuard>
                             <GradingManagement />
+                          </SalesAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
+                    <Route 
+                      path="/sales/credits" 
+                      element={
+                        <AuthGuard>
+                          <SalesAccessGuard>
+                            <CreditManagement />
                           </SalesAccessGuard>
                         </AuthGuard>
                       } 

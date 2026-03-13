@@ -16,7 +16,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit } from 'lucide-react';
+import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit, DollarSign, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -43,7 +43,12 @@ import {
   StudentEntitlement
 } from '@/services/studentService';
 import { getStudentChangeLogs, StudentChangeLog as ChangeLogType } from '@/services/studentChangeLogService';
-
+import { getStudentCreditBalance, getStudentCreditHistory, addManualCredit, type StudentCredit } from '@/services/studentCreditService';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 // Helper to capitalize first letter
 const capitalize = (str: string | null | undefined): string => {
   if (!str) return '-';
@@ -64,6 +69,13 @@ const StudentDetails: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [changeLogs, setChangeLogs] = useState<ChangeLogType[]>([]);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+  const [creditHistory, setCreditHistory] = useState<StudentCredit[]>([]);
+  const [creditLoading, setCreditLoading] = useState(false);
+  const [addCreditOpen, setAddCreditOpen] = useState(false);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditDescription, setCreditDescription] = useState('');
+  const [creditSaving, setCreditSaving] = useState(false);
   
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -124,6 +136,21 @@ const StudentDetails: React.FC = () => {
       setInvoices(invoicesData);
       setChangeLogs(changeLogsData);
 
+      // Load credit data
+      try {
+        setCreditLoading(true);
+        const [balance, history] = await Promise.all([
+          getStudentCreditBalance(id),
+          getStudentCreditHistory(id)
+        ]);
+        setCreditBalance(balance);
+        setCreditHistory(history);
+      } catch {
+        // Credits not critical
+      } finally {
+        setCreditLoading(false);
+      }
+
     } catch (error) {
       console.error('Error loading student data:', error);
       toast.error('Failed to load student information');
@@ -139,6 +166,33 @@ const StudentDetails: React.FC = () => {
 
   const handleStudentUpdated = () => {
     loadStudentData();
+  };
+
+  const handleAddCredit = async () => {
+    const amount = parseFloat(creditAmount);
+    if (!amount || amount <= 0 || !creditDescription.trim()) {
+      toast.error('Enter a valid amount and description');
+      return;
+    }
+    setCreditSaving(true);
+    try {
+      await addManualCredit(student!.id, amount, creditDescription, user?.email || undefined);
+      toast.success(`Credit of $${amount.toFixed(2)} added`);
+      setAddCreditOpen(false);
+      setCreditAmount('');
+      setCreditDescription('');
+      // Refresh credits
+      const [balance, history] = await Promise.all([
+        getStudentCreditBalance(student!.id),
+        getStudentCreditHistory(student!.id)
+      ]);
+      setCreditBalance(balance);
+      setCreditHistory(history);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add credit');
+    } finally {
+      setCreditSaving(false);
+    }
   };
 
   if (loading || !student) {
@@ -292,6 +346,94 @@ const StudentDetails: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Section 3b: Student Credits */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Student Credits
+                </div>
+                <div className="flex items-center gap-2">
+                  {creditBalance > 0 && (
+                    <Badge variant="secondary" className="text-green-600 font-semibold text-sm">
+                      Balance: ${creditBalance.toFixed(2)}
+                    </Badge>
+                  )}
+                  {isSuperadmin && (
+                    <Button variant="outline" size="sm" onClick={() => setAddCreditOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Credit
+                    </Button>
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {creditLoading ? (
+                <div className="text-center py-4 text-muted-foreground">Loading...</div>
+              ) : creditHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No credit transactions</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {creditHistory.map(c => (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-sm">
+                          {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={c.type === 'overpayment' ? 'default' : c.type === 'credit_applied' ? 'outline' : c.type === 'refund' ? 'destructive' : 'secondary'}>
+                            {c.type.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${c.amount >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          {c.amount >= 0 ? '+' : ''}${c.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Add Credit Dialog */}
+          <Dialog open={addCreditOpen} onOpenChange={setAddCreditOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Manual Credit</DialogTitle>
+                <DialogDescription>Add a credit adjustment for {student.first_name} {student.last_name}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Amount ($)</Label>
+                  <Input type="number" step="0.01" min="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={creditDescription} onChange={(e) => setCreditDescription(e.target.value)} placeholder="Reason for credit..." rows={2} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddCreditOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddCredit} disabled={creditSaving}>{creditSaving ? 'Saving...' : 'Add Credit'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Section 4: Grading Information */}
           <Card>

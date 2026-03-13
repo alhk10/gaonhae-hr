@@ -11,11 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { createPayment, type CreatePaymentData } from '@/services/paymentService';
 import { getInvoices } from '@/services/invoiceService';
 import { supabase } from '@/integrations/supabase/client';
 import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
+import { getStudentCreditBalance } from '@/services/studentCreditService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import { Loader2, Search, FileText, DollarSign, Upload, X } from 'lucide-react';
 
@@ -30,6 +32,7 @@ interface InvoiceOption {
   id: string;
   invoice_number: string;
   student_name: string;
+  student_id?: string;
   total_amount: number;
   balance_due: number;
   status: string;
@@ -51,6 +54,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [studentCreditBalance, setStudentCreditBalance] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     invoice_id: preSelectedInvoiceId || '',
@@ -106,6 +110,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         student_name: inv.student_name || 'Unknown Student',
+        student_id: inv.student_id,
         total_amount: inv.total_amount,
         balance_due: inv.balance_due,
         status: inv.status,
@@ -149,9 +154,13 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     }
 
     const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
-    if (selectedInvoice && parseFloat(formData.amount) > selectedInvoice.balance_due) {
-      toast.error(`Payment amount cannot exceed balance due of ${formatCurrencyValue(selectedInvoice.balance_due)}`);
-      return;
+    const paymentAmount = parseFloat(formData.amount);
+    
+    if (selectedInvoice && paymentAmount > selectedInvoice.balance_due) {
+      const excess = paymentAmount - selectedInvoice.balance_due;
+      if (!window.confirm(`Payment exceeds balance due by $${excess.toFixed(2)}. The excess will be stored as student credit. Continue?`)) {
+        return;
+      }
     }
 
     setLoading(true);
@@ -257,11 +266,12 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
   const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
 
-  // Fetch invoice items when invoice is selected
+  // Fetch invoice items and student credit when invoice is selected
   useEffect(() => {
     const fetchItems = async () => {
       if (!formData.invoice_id) {
         setInvoiceItems([]);
+        setStudentCreditBalance(0);
         return;
       }
       try {
@@ -276,9 +286,20 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       } catch (err) {
         console.error('Error fetching invoice items:', err);
       }
+
+      // Fetch student credit balance
+      const invoice = invoices.find(inv => inv.id === formData.invoice_id);
+      if (invoice?.student_id) {
+        try {
+          const balance = await getStudentCreditBalance(invoice.student_id);
+          setStudentCreditBalance(balance);
+        } catch {
+          setStudentCreditBalance(0);
+        }
+      }
     };
     fetchItems();
-  }, [formData.invoice_id]);
+  }, [formData.invoice_id, invoices]);
   
   // Determine country from selected invoice
   const selectedCountry = selectedInvoice?.branch_country || 'Singapore';
@@ -445,6 +466,18 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Student Credit Balance */}
+                {studentCreditBalance > 0 && (
+                  <div className="border-t pt-2 mt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Available Student Credit:</span>
+                      <Badge variant="secondary" className="text-green-600 font-semibold">
+                        {formatCurrencyValue(studentCreditBalance)}
+                      </Badge>
                     </div>
                   </div>
                 )}

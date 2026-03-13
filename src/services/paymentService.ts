@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { logInvoiceChange } from './invoiceChangeLogService';
+import { addOverpaymentCredit } from './studentCreditService';
 
 export interface Payment {
   id: string;
@@ -196,9 +197,9 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       throw new Error('Payment amount must be greater than zero');
     }
 
-    if (paymentData.amount > invoice.balance_due) {
-      throw new Error(`Payment amount (${paymentData.amount}) cannot exceed balance due (${invoice.balance_due})`);
-    }
+    // Track if this is an overpayment
+    const isOverpayment = paymentData.amount > invoice.balance_due;
+    const overpaymentAmount = isOverpayment ? paymentData.amount - invoice.balance_due : 0;
 
     // Generate payment number
     const paymentNumber = await generatePaymentNumber();
@@ -231,14 +232,16 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     }
 
     // Update invoice with new payment amounts
-    const newAmountPaid = invoice.amount_paid + paymentData.amount;
-    const newBalanceDue = invoice.total_amount - newAmountPaid;
+    // For overpayments, cap amount_paid at total and set balance to 0
+    const effectivePayment = isOverpayment ? invoice.balance_due : paymentData.amount;
+    const newAmountPaid = invoice.amount_paid + effectivePayment;
+    const newBalanceDue = Math.max(0, invoice.total_amount - newAmountPaid);
     const newStatus = newBalanceDue <= 0 ? 'paid' : invoice.status;
 
     const { error: updateError } = await supabase
       .from('invoices')
       .update({
-        amount_paid: newAmountPaid,
+        amount_paid: invoice.amount_paid + paymentData.amount,
         balance_due: newBalanceDue,
         status: newStatus,
         updated_at: new Date().toISOString()
@@ -248,6 +251,31 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     if (updateError) {
       logger.error('Error updating invoice', updateError);
       // Don't throw here as payment was created successfully
+    }
+
+    // If overpayment, record excess as student credit
+    if (isOverpayment && overpaymentAmount > 0) {
+      try {
+        // Get student_id from invoice
+        const { data: invoiceData } = await supabase
+          .from('invoices')
+          .select('student_id, invoice_number')
+          .eq('id', paymentData.invoice_id)
+          .single();
+
+        if (invoiceData) {
+          await addOverpaymentCredit(
+            invoiceData.student_id,
+            overpaymentAmount,
+            payment.id,
+            invoiceData.invoice_number
+          );
+          logger.info(`Overpayment of ${overpaymentAmount} recorded as credit for student ${invoiceData.student_id}`);
+        }
+      } catch (creditError) {
+        logger.error('Error recording overpayment credit', creditError);
+        // Don't fail the payment - credit recording is secondary
+      }
     }
 
     // Log the payment addition
