@@ -198,7 +198,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     setLoading(true);
     
     try {
-      await updateStudent(student.id, formData);
+      await updateStudent(student.id, { ...formData, training_goals: formData.training_goals.join(', ') });
       
       toast.success('Student updated successfully');
       setOpen(false);
