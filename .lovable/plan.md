@@ -1,51 +1,30 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Add Tax Include/Exclude Toggle to Create Invoice Dialog
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+The Create Invoice dialog currently hardcodes tax inclusion based on the branch's country setting. There is no way for the user to override whether tax is included or excluded when creating an invoice. The product-level `tax_included` setting from `price_rules` is also ignored.
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. Add tax inclusion toggle to CreateInvoiceDialog.tsx
+- Add a state variable `taxIncluded` (boolean), initialized from the branch country default when branch is selected.
+- Add a toggle (Switch or Select with "Tax Included" / "Tax Excluded" options) next to the Totals section, visible once a branch is selected.
+- Update `getSelectedBranchTaxConfig()` to use this state instead of always reading from country defaults.
+- When the branch changes, reset the toggle to the country default.
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+#### 2. Default from product/branch price_rules settings
+- Extend `getBranchPrice()` to also return the `tax_included` field from `price_rules`.
+- When the first item is added with a product that has a branch-specific `tax_included` override, use that as the initial default for the invoice-level toggle (only if user hasn't manually changed it).
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+#### 3. Pass tax inclusion to invoice service
+- Add an optional `tax_included` field to `CreateInvoiceData`.
+- In `createInvoice()`, use the passed `tax_included` value instead of deriving it from country defaults, falling back to country default if not provided.
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+#### 4. UI Placement
+- Place the toggle in the totals summary area (bottom-right), as a compact dropdown or switch: `Tax: Included ▾` / `Tax: Excluded ▾`, sitting above or beside the Subtotal line.
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
-
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+### Files to modify
+- `src/components/sales/CreateInvoiceDialog.tsx` — add state, toggle UI, pass to service
+- `src/services/invoiceService.ts` — accept optional `tax_included` in `CreateInvoiceData`
 
