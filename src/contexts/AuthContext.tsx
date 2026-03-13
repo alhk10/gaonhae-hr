@@ -42,6 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Sequence counter to prevent stale session processing from overwriting newer results
   const sessionSeqRef = React.useRef(0);
+  // Guard: don't allow isLoading=false until initial getSession() completes
+  const initialLoadDoneRef = React.useRef(false);
   // Ref to track current user for stale closure in onAuthStateChange
   const userRef = React.useRef<any>(null);
 
@@ -66,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPageAccess(null);
       setLinkedStudents([]);
       setSelectedStudentId(null);
-      setIsLoading(false);
+      if (initialLoadDoneRef.current) setIsLoading(false);
       return;
     }
 
@@ -97,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSelectedStudentId(null);
     }
     
-    setIsLoading(false);
+    if (initialLoadDoneRef.current) setIsLoading(false);
   };
   
   const handleSetSelectedStudent = (studentId: string) => {
@@ -205,6 +207,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    // Set up listener BEFORE getSession per Supabase best practices
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.info('Auth state changed', { event });
+      
+      // Skip re-processing on TOKEN_REFRESHED if user is already loaded
+      if (event === 'TOKEN_REFRESHED' && userRef.current) {
+        logger.debug('Token refreshed, user already loaded — skipping re-process');
+        return;
+      }
+      
+      await handleUserSession(session);
+    });
+
     const initAuth = async () => {
       try {
         const getSessionPromise = supabase.auth.getSession();
@@ -219,38 +234,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const now = Date.now();
           const timeUntilExpiry = expiresAtMs - now;
           
-          // If token expires in less than 5 minutes, refresh it
           if (timeUntilExpiry < 5 * 60 * 1000) {
             logger.debug('Token expiring soon, proactively refreshing...');
             const { data: refreshData } = await supabase.auth.refreshSession();
             if (refreshData.session) {
+              initialLoadDoneRef.current = true;
               await handleUserSession(refreshData.session);
               return;
             }
           }
         }
         
+        initialLoadDoneRef.current = true;
         await handleUserSession(session);
       } catch (error) {
         logger.error('Error getting initial session', error);
+        initialLoadDoneRef.current = true;
         setIsLoading(false);
       }
     };
 
     initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.info('Auth state changed', { event });
-      
-      // Skip re-processing on TOKEN_REFRESHED if user is already loaded
-      // Use ref to avoid stale closure issue
-      if (event === 'TOKEN_REFRESHED' && userRef.current) {
-        logger.debug('Token refreshed, user already loaded — skipping re-process');
-        return;
-      }
-      
-      await handleUserSession(session);
-    });
 
     // Set up periodic session refresh every 2 minutes to prevent expiration
     const refreshInterval = setInterval(async () => {
@@ -261,7 +265,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const now = Date.now();
           const timeUntilExpiry = expiresAtMs - now;
           
-          // If token expires in less than 10 minutes, refresh it
           if (timeUntilExpiry < 10 * 60 * 1000) {
             logger.debug(`Periodic check: Token expires in ${Math.round(timeUntilExpiry / 60000)} minutes, refreshing...`);
             const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
@@ -275,7 +278,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         logger.error('Error during periodic session refresh', error);
       }
-    }, 2 * 60 * 1000); // Check every 2 minutes
+    }, 2 * 60 * 1000);
 
     return () => {
       subscription.unsubscribe();
