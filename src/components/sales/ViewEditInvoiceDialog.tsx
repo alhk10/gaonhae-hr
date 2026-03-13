@@ -1129,15 +1129,46 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           );
                         })()}
 
-                        {/* Class Schedule Selector for class items */}
-                        {isClassItem && termIds.length > 0 && invoice.branch_id && (
+                        {/* Term selector and Class Schedule for class items */}
+                        {isClassItem && invoice.branch_id && (
                           <div className="space-y-3 pt-2 border-t">
-                            {termIds.map((termId: string) => {
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Term:</Label>
+                              <Select
+                                value={termIds[0] || ''}
+                                onValueChange={(newTermId) => {
+                                  const newTerm = branchTerms.find(t => t.id === newTermId);
+                                  if (!newTerm) return;
+                                  // Update metadata with new term
+                                  setEditItems(prev => prev.map(ei => {
+                                    if (ei.id !== item.id) return ei;
+                                    const existingMeta = (ei.metadata as any) || {};
+                                    return {
+                                      ...ei,
+                                      metadata: { ...existingMeta, term_id: newTermId, term_ids: [newTermId] }
+                                    };
+                                  }));
+                                  // Add to termDataMap
+                                  setTermDataMap(prev => ({ ...prev, [newTermId]: newTerm }));
+                                  // Clear class slots for this item since term changed
+                                  setEditingClassSlots(prev => ({ ...prev, [item.id]: [] }));
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-60 text-xs">
+                                  <SelectValue placeholder="Select term" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {branchTerms.map(t => (
+                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {termIds.length > 0 && termIds.map((termId: string) => {
                               const term = termDataMap[termId];
                               if (!term) return null;
                               return (
                                 <div key={termId} className="space-y-1">
-                                  <div className="text-xs font-medium text-muted-foreground">{term.name}</div>
                                   <ClassScheduleSelector
                                     branchId={invoice.branch_id!}
                                     studentAge={studentAge}
