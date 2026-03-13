@@ -14,7 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Search, UserPlus, X, Check, Loader2 } from 'lucide-react';
+import { Search, UserPlus, X, Check, Loader2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   getSlotAttendance,
@@ -52,6 +53,23 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingChanges, setPendingChanges] = useState<Record<string, 'present' | 'absent'>>({});
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
+
+  // Fetch invoices for expanded student
+  const { data: studentInvoices = [], isLoading: invoicesLoading } = useQuery({
+    queryKey: ['student-invoices-attendance', expandedStudentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, total_amount, status, issue_date, due_date')
+        .eq('student_id', expandedStudentId!)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!expandedStudentId,
+  });
 
   // Fetch attendance records for this slot
   const { data: attendance = [], isLoading: attendanceLoading } = useQuery({
@@ -210,54 +228,92 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                     {attendance.map((record) => {
                       const effectiveStatus = getEffectiveStatus(record);
                       const isUpdating = pendingChanges[record.student_id] !== undefined;
+                      const isExpanded = expandedStudentId === record.student_id;
                       
                       return (
-                        <div
-                          key={record.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border ${
-                            effectiveStatus === 'present'
-                              ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
-                              : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={effectiveStatus === 'present'}
-                              onCheckedChange={(checked) => handleAttendanceChange(record, !!checked)}
-                              disabled={isUpdating}
-                              className="h-5 w-5"
-                            />
-                            <div>
-                              <p className="font-medium">{record.student_name}</p>
-                              {record.current_belt && (
-                                <Badge variant="outline" className="text-xs mt-0.5">
-                                  {record.current_belt}
-                                </Badge>
-                              )}
+                        <div key={record.id} className="rounded-lg border overflow-hidden">
+                          <div
+                            className={`flex items-center justify-between p-3 ${
+                              effectiveStatus === 'present'
+                                ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+                                : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={effectiveStatus === 'present'}
+                                onCheckedChange={(checked) => handleAttendanceChange(record, !!checked)}
+                                disabled={isUpdating}
+                                className="h-5 w-5"
+                              />
+                              <div
+                                className="cursor-pointer select-none"
+                                onClick={() => setExpandedStudentId(isExpanded ? null : record.student_id)}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-medium">{record.student_name}</p>
+                                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                                </div>
+                                {record.current_belt && (
+                                  <Badge variant="outline" className="text-xs mt-0.5">
+                                    {record.current_belt}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isUpdating && <Loader2 className="h-4 w-4 animate-spin" />}
+                              <Badge
+                                variant={effectiveStatus === 'present' ? 'default' : 'destructive'}
+                                className="text-xs"
+                              >
+                                {effectiveStatus === 'present' ? (
+                                  <><Check className="h-3 w-3 mr-1" /> Present</>
+                                ) : (
+                                  <><X className="h-3 w-3 mr-1" /> Absent</>
+                                )}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => removeStudentMutation.mutate(record.id)}
+                                disabled={removeStudentMutation.isPending}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isUpdating && <Loader2 className="h-4 w-4 animate-spin" />}
-                            <Badge
-                              variant={effectiveStatus === 'present' ? 'default' : 'destructive'}
-                              className="text-xs"
-                            >
-                              {effectiveStatus === 'present' ? (
-                                <><Check className="h-3 w-3 mr-1" /> Present</>
+                          {isExpanded && (
+                            <div className="p-3 bg-muted/30 border-t space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                <FileText className="h-3.5 w-3.5" /> Recent Invoices
+                              </p>
+                              {invoicesLoading ? (
+                                <Skeleton className="h-8 w-full" />
+                              ) : studentInvoices.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">No invoices found.</p>
                               ) : (
-                                <><X className="h-3 w-3 mr-1" /> Absent</>
+                                studentInvoices.map((inv) => (
+                                  <div key={inv.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-background border">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono font-medium">{inv.invoice_number}</span>
+                                      <span className="text-muted-foreground">{inv.issue_date ? format(new Date(inv.issue_date), 'dd MMM yyyy') : '-'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">${Number(inv.total_amount).toFixed(2)}</span>
+                                      <Badge variant={
+                                        inv.status === 'paid' || inv.status === 'verified' ? 'default' :
+                                        inv.status === 'overdue' ? 'destructive' : 'secondary'
+                                      } className="text-[10px] px-1.5 py-0">
+                                        {inv.status}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))
                               )}
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => removeStudentMutation.mutate(record.id)}
-                              disabled={removeStudentMutation.isPending}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
