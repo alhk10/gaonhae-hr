@@ -32,6 +32,7 @@ interface InvoiceOption {
   id: string;
   invoice_number: string;
   student_name: string;
+  student_id?: string;
   total_amount: number;
   balance_due: number;
   status: string;
