@@ -570,12 +570,12 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="previous_experience" className="text-xs">Previous Martial Arts Experience</Label>
+                  <Label htmlFor="previous_experience" className="text-xs">Any martial arts or sporting experience</Label>
                   <Textarea
                     id="previous_experience"
                     value={formData.previous_experience}
                     onChange={(e) => handleInputChange('previous_experience', e.target.value)}
-                    placeholder="Describe any previous training"
+                    placeholder="Describe any previous training or sporting background"
                     rows={2}
                     className="min-h-[60px]"
                   />
@@ -584,13 +584,11 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
 
               <div className="space-y-1">
                 <Label htmlFor="training_goals" className="text-xs">Training Goals</Label>
-                <Textarea
-                  id="training_goals"
-                  value={formData.training_goals}
-                  onChange={(e) => handleInputChange('training_goals', e.target.value)}
-                  placeholder="What are the student's training goals?"
-                  rows={2}
-                  className="min-h-[60px]"
+                <MultiSelect
+                  options={trainingGoalOptions}
+                  values={formData.training_goals}
+                  onValuesChange={(values) => setFormData(prev => ({ ...prev, training_goals: values }))}
+                  placeholder="Select training goals"
                 />
               </div>
 
