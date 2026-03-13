@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSelectedStudentId(null);
     }
     
-    setIsLoading(false);
+    if (initialLoadDoneRef.current) setIsLoading(false);
   };
   
   const handleSetSelectedStudent = (studentId: string) => {
