@@ -175,7 +175,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
-  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified';
+  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
 
   useEffect(() => {
