@@ -125,7 +125,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         emergency_contact_2_relationship: (student as any).emergency_contact_2_relationship || '',
         current_belt: formatBeltLevel(student.current_belt) || '',
         previous_experience: student.previous_experience || '',
-        training_goals: student.training_goals || '',
+        training_goals: student.training_goals ? student.training_goals.split(', ').filter(Boolean) : [],
         medical_conditions: student.medical_conditions || '',
         dietary_restrictions: student.dietary_restrictions || '',
         branch_id: student.branch_id || '',
