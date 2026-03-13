@@ -81,6 +81,7 @@ const getTermPaidLabel = (status: string): string => {
     case 'draft': return 'Draft';
     case 'sent': return 'Sent';
     case 'partial': return 'Partial';
+    case 'partially_paid': return 'Partially Paid';
     default: return status;
   }
 };
