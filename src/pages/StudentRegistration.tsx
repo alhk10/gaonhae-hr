@@ -160,6 +160,10 @@ const StudentRegistration = () => {
       toast.error('First name and last name are required');
       return;
     }
+    if (!formData.phone) {
+      toast.error('Phone number is required');
+      return;
+    }
     if (!formData.email) {
       toast.error('Email is required');
       return;
