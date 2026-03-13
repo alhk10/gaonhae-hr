@@ -45,34 +45,48 @@ serve(async (req) => {
       });
     }
 
-    // Client with the caller's JWT to validate and check superadmin
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    
-    // Use getClaims to validate JWT without requiring active session
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    
-    if (claimsErr || !claimsData?.claims?.email) {
-      console.error('JWT validation failed:', claimsErr?.message || 'No email in claims');
-      return new Response(JSON.stringify({ error: "Unauthorized", details: claimsErr?.message }), { 
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    let isAuthorized = false;
+
+    // Check if using service role key (for server-to-server calls)
+    if (token === SERVICE_ROLE_KEY) {
+      isAuthorized = true;
+    } else {
+      // Client with the caller's JWT to validate and check superadmin
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
       });
+      
+      const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+      
+      if (claimsErr || !claimsData?.claims?.email) {
+        console.error('JWT validation failed:', claimsErr?.message || 'No email in claims');
+        return new Response(JSON.stringify({ error: "Unauthorized", details: claimsErr?.message }), { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const callerEmail = claimsData.claims.email as string;
+      const { data: isSuper, error: roleErr } = await userClient.rpc("is_superadmin", { user_email: callerEmail });
+      if (roleErr) {
+        return new Response(JSON.stringify({ error: "Role check failed", details: roleErr.message }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (!isSuper) {
+        return new Response(JSON.stringify({ error: "Forbidden: superadmin only" }), { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      isAuthorized = true;
     }
 
-    const callerEmail = claimsData.claims.email as string;
-    const { data: isSuper, error: roleErr } = await userClient.rpc("is_superadmin", { user_email: callerEmail });
-    if (roleErr) {
-      return new Response(JSON.stringify({ error: "Role check failed", details: roleErr.message }), { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-    if (!isSuper) {
-      return new Response(JSON.stringify({ error: "Forbidden: superadmin only" }), { 
-        status: 403,
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -175,6 +189,31 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, userId }), { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Sign out a user from all sessions
+    if (body.action === "sign_out_user") {
+      const userId = (body as any).userId?.trim();
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "userId is required" }), { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Sign out user globally by invalidating all refresh tokens
+      const { error: signOutErr } = await adminClient.auth.admin.signOut(userId, 'global');
+      if (signOutErr) {
+        return new Response(JSON.stringify({ error: signOutErr.message }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, userId, message: "User signed out from all sessions" }), { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
