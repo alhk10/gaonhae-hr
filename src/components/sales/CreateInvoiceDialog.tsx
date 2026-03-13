@@ -1089,26 +1089,36 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return filtered;
   };
 
-  // Get filtered products based on selected category, student belt level, age, AND branch pricing rules
+  // Get filtered products — show all products (except hidden), only grading products still filter by belt transition
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
-    const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
     const notHidden = !hiddenProductIds.has(p.id);
     
-    // For grading products: always filter by student's current belt transition (regardless of selected category)
+    // For grading products: always filter by student's current belt transition (belt-specific by nature)
     const isGradingProduct = p.category_id === GRADING_CATEGORY_ID;
     const matchesGradingBelt = !isGradingProduct || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
     
-    // Age-based filtering using branch class type settings AND product-level age requirements
-    const matchesBranchAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
-    const matchesProductAge = !formData.student_id || studentAge <= 0 || (
-      (p.min_age == null || studentAge >= p.min_age) &&
-      (p.max_age == null || studentAge <= p.max_age)
-    );
-    const matchesAge = matchesBranchAge && matchesProductAge;
-    
-    return matchesCategory && matchesBelt && matchesGradingBelt && matchesAge && notHidden;
+    return matchesCategory && matchesGradingBelt && notHidden;
   });
+
+  // Identify products that are outside the student's normal belt/age criteria (for visual flagging)
+  const outOfCriteriaProductIds = useMemo(() => {
+    if (!formData.student_id) return new Set<string>();
+    const ids = new Set<string>();
+    for (const p of products) {
+      if (p.category_id === GRADING_CATEGORY_ID) continue; // grading products have their own filter
+      const beltOk = isProductAvailableForBelt(p, studentBelt);
+      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+      const productAgeOk = studentAge <= 0 || (
+        (p.min_age == null || studentAge >= p.min_age) &&
+        (p.max_age == null || studentAge <= p.max_age)
+      );
+      if (!beltOk || !branchAgeOk || !productAgeOk) {
+        ids.add(p.id);
+      }
+    }
+    return ids;
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings]);
 
   // Auto-select product if only 1 option available
   useEffect(() => {
