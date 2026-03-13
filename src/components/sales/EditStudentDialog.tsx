@@ -84,7 +84,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     // Training Information
     current_belt: '',
     previous_experience: '',
-    training_goals: '',
+    training_goals: [] as string[],
     medical_conditions: '',
     dietary_restrictions: '',
     
