@@ -254,11 +254,19 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                                   <p className="font-medium">{record.student_name}</p>
                                   {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                                 </div>
-                                {record.current_belt && (
-                                  <Badge variant="outline" className="text-xs mt-0.5">
-                                    {record.current_belt}
-                                  </Badge>
-                                )}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  {record.current_belt && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {record.current_belt}
+                                    </Badge>
+                                  )}
+                                  {record.student_phone && (
+                                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                      <Phone className="h-3 w-3" />
+                                      {record.student_phone}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
