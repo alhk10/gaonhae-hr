@@ -711,9 +711,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         })
       };
 
+      // Check if any line item uses an out-of-criteria product (exception)
+      const hasExceptionProduct = items.some(item => outOfCriteriaProductIds.has(item.product_id));
+
       // Check if total discount exceeds threshold — require superadmin approval (unless user IS superadmin)
       const totalDiscount = calculateTotalDiscount(items);
-      if (totalDiscount > DISCOUNT_APPROVAL_THRESHOLD && userrole !== 'superadmin') {
+      const needsDiscountApproval = totalDiscount > DISCOUNT_APPROVAL_THRESHOLD && userrole !== 'superadmin';
+      const needsExceptionApproval = hasExceptionProduct && userrole !== 'superadmin';
+
+      if (needsDiscountApproval || needsExceptionApproval) {
         const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
         const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
         const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
@@ -727,7 +733,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           user?.email || null
         );
 
-        toast.success(`Invoice discount of $${totalDiscount.toFixed(2)} requires superadmin approval. Request submitted.`);
+        const reason = needsExceptionApproval
+          ? 'This invoice includes products outside the student\'s criteria and requires superadmin approval.'
+          : `Invoice discount of $${totalDiscount.toFixed(2)} requires superadmin approval. Request submitted.`;
+        toast.success(reason);
         setOpen(false);
         resetForm();
         onInvoiceCreated?.();
