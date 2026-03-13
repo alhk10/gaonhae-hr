@@ -208,6 +208,7 @@ const StudentSearchSelect: React.FC<{
                 <CommandItem key={student.id} value={student.id} onSelect={() => { onValueChange(student.id); setOpen(false); setSearch(''); }}>
                   <Check className={cn('mr-2 h-4 w-4', value === student.id ? 'opacity-100' : 'opacity-0')} />
                   {student.name}
+                  {student.status === 'trial' && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium">Trial</span>}
                 </CommandItem>
               ))}
             </CommandGroup>
