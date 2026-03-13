@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Search, UserPlus, X, Check, Loader2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, UserPlus, X, Check, Loader2, FileText, ChevronDown, ChevronUp, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -254,11 +254,19 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                                   <p className="font-medium">{record.student_name}</p>
                                   {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                                 </div>
-                                {record.current_belt && (
-                                  <Badge variant="outline" className="text-xs mt-0.5">
-                                    {record.current_belt}
-                                  </Badge>
-                                )}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  {record.current_belt && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {record.current_belt}
+                                    </Badge>
+                                  )}
+                                  {record.student_phone && (
+                                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                      <Phone className="h-3 w-3" />
+                                      {record.student_phone}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -354,11 +362,19 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                           <p className="font-medium">
                             {student.first_name} {student.last_name}
                           </p>
-                          {student.current_belt && (
-                            <Badge variant="outline" className="text-xs mt-0.5">
-                              {student.current_belt}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {student.current_belt && (
+                              <Badge variant="outline" className="text-xs">
+                                {student.current_belt}
+                              </Badge>
+                            )}
+                            {student.phone && (
+                              <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                {student.phone}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <Button
                           size="sm"

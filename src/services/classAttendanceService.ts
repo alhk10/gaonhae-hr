@@ -26,6 +26,7 @@ export interface ClassAttendanceRecord {
   student_first_name?: string;
   student_last_name?: string;
   current_belt?: string;
+  student_phone?: string;
 }
 
 export interface StudentForAttendance {
@@ -34,6 +35,7 @@ export interface StudentForAttendance {
   last_name: string;
   current_belt?: string;
   date_of_birth?: string;
+  phone?: string;
   status: string;
 }
 
@@ -54,7 +56,7 @@ export async function getSlotAttendance(
       .from('class_attendance')
       .select(`
         *,
-        students(id, first_name, last_name, current_belt)
+        students(id, first_name, last_name, current_belt, phone)
       `)
       .eq('branch_id', branchId)
       .eq('timetable_id', timetableId)
@@ -68,7 +70,8 @@ export async function getSlotAttendance(
       student_name: record.students ? `${record.students.first_name} ${record.students.last_name}` : 'Unknown',
       student_first_name: record.students?.first_name,
       student_last_name: record.students?.last_name,
-      current_belt: record.students?.current_belt
+      current_belt: record.students?.current_belt,
+      student_phone: record.students?.phone
     }));
   } catch (error) {
     logger.error('Failed to get slot attendance', error);
@@ -88,7 +91,7 @@ export async function getBranchStudentsForClass(
   try {
     let query = supabase
       .from('students')
-      .select('id, first_name, last_name, current_belt, date_of_birth, status')
+      .select('id, first_name, last_name, current_belt, date_of_birth, phone, status')
       .eq('branch_id', branchId)
       .eq('status', 'active')
       .order('first_name');
