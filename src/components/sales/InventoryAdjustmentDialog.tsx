@@ -94,6 +94,7 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
       adjustment_type: 'add',
       reason: '',
       size_variant: '',
+      color_variant: '',
       transfer_to_branch_id: ''
     });
     setBranchLocationId('');
