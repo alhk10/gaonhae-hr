@@ -548,7 +548,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     return today <= termStart ? 10 : 0;
   }, [selectedTerm]);
 
-  const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount);
+  const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
 
   // Payment methods based on country
   const getPaymentMethods = () => {
