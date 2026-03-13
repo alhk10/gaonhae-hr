@@ -1,51 +1,41 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Auto-Apply $20 Sibling Discount on Term Invoices
 
-### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+### How It Works
+- Siblings are students who share the same **email address** in the `students` table.
+- If a student has **2+ students** sharing their email, **all** of them get $20 off their term invoice (not just the 2nd onward — per the requirement "if the student has a sibling both enjoy $20 off").
+- The discount applies only to **term invoices** (items with a `term_id` in metadata).
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. Create a sibling discount helper (`src/services/invoiceService.ts`)
+- Add a function `getSiblingDiscount(studentId: string): Promise<number>` that:
+  - Fetches the student's email from the `students` table
+  - Counts how many **active** students share that email
+  - If count >= 2, returns `20` (per additional family member beyond the first, but since both enjoy $20 off when there's a sibling, it's a flat $20 per student)
+  - If count < 2 or no email, returns `0`
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+#### 2. Apply discount in `PaySchoolFeesDialog.tsx` (Student Dashboard)
+- Query sibling discount on dialog open using the helper
+- Show the discount as a line item in the price summary (e.g., "Sibling Discount: -$20.00")
+- Apply it via `total_override` on the term line item (same pattern as `earlyPaymentDiscount`)
+- Store `sibling_discount: 20` in the item metadata for audit trail
+- Update `combinedTotal` calculation to include sibling discount
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+#### 3. Apply discount in `CreateInvoiceDialog.tsx` (Branch Dashboard)
+- When a term product is added and a student is selected, auto-check for siblings
+- If eligible, auto-apply a $20 line discount (`discount_type: 'amount'`, `discount_value: 20`) on the term line item
+- Show a badge/note indicating "Sibling discount applied"
+- Admin can still manually override the discount
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+#### 4. Apply discount in `classAttendanceService.ts` (auto-created invoices)
+- The `createInvoice` call in `classAttendanceService.ts` also creates term invoices automatically
+- Add sibling check before invoice creation and apply discount via `total_override` if applicable
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
-
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+### Files to modify
+- `src/services/invoiceService.ts` — add `getSiblingDiscount()` helper
+- `src/components/dashboard/PaySchoolFeesDialog.tsx` — query + apply sibling discount in UI and invoice creation
+- `src/components/sales/CreateInvoiceDialog.tsx` — auto-apply discount when term item + student with siblings
+- `src/services/classAttendanceService.ts` — apply sibling discount on auto-created invoices
 
