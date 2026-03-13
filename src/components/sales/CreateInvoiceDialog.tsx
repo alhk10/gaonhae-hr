@@ -1201,7 +1201,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     const country = selectedBranch?.country || null;
     const rate = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
-    const isInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+    // Use manual override if set, otherwise fall back to branch/country default
+    const isInclusive = taxIncluded !== null
+      ? taxIncluded
+      : (country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED);
     return { rate, isInclusive };
   };
 
