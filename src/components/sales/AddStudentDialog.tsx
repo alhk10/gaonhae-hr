@@ -12,10 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS } from '@/constants/beltLevels';
+import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 
 interface AddStudentDialogProps {
   trigger?: React.ReactNode;
