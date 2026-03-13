@@ -78,6 +78,7 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
+import { getPendingRegistrationsCount } from '@/services/studentRegistrationService';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { normalizePartyData } from '@/utils/partyUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -489,14 +490,22 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     (p: any) => !p.is_verified && p.proof_of_payment_url && p.payment_method !== 'cash'
   );
 
+  const { data: pendingRegCount = 0 } = useQuery({
+    queryKey: ['pending-registrations-count', branchId],
+    queryFn: () => getPendingRegistrationsCount(branchId),
+    enabled: !!branchId,
+  });
+
+  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
+
   useEffect(() => {
-    if (!hasSetInitialTab.current && (pendingRequests.length > 0 || unverifiedPayments.length > 0)) {
+    if (!hasSetInitialTab.current && hasApprovals) {
       setActiveTab('approvals');
       hasSetInitialTab.current = true;
     } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
       hasSetInitialTab.current = true;
     }
-  }, [pendingRequests, unverifiedPayments]);
+  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals]);
 
   const filteredStudents = students.filter(student => {
     // Always exclude withdrawn students
@@ -612,9 +621,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           )}
           <TabsTrigger value="inventory" className="text-xs sm:text-sm">Inventory</TabsTrigger>
           <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
-          {(pendingRequests.length > 0 || unverifiedPayments.length > 0) && (
+          {hasApprovals && (
             <TabsTrigger value="approvals" className="text-xs sm:text-sm bg-orange-100 text-orange-700 font-semibold data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-              Approvals ({pendingRequests.length + unverifiedPayments.length})
+              Approvals ({pendingRequests.length + unverifiedPayments.length + pendingRegCount})
             </TabsTrigger>
           )}
         </TabsList>
