@@ -245,7 +245,7 @@ const GradingListTab: React.FC = () => {
         });
         registrations.forEach(r => {
           if (r.invoice_item_id && itemToStatus[r.invoice_item_id]) {
-            gradingPaidMap[r.student_id] = itemToStatus[r.invoice_item_id] === 'paid' ? 'paid' : 'unpaid';
+            gradingPaidMap[r.student_id] = ['paid', 'verified'].includes(itemToStatus[r.invoice_item_id]) ? 'paid' : 'unpaid';
           }
         });
       }
