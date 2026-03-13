@@ -4,7 +4,7 @@
  * Supports branch-based access control for non-superadmin users
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -357,6 +357,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   // Class type age settings for product filtering
   const [classTypeAgeSettings, setClassTypeAgeSettings] = useState<Array<{ class_type: string; min_age: number | null; max_age: number | null }>>([]);
   
+  // Tax inclusion toggle state
+  const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null); // null = use branch default
+  const taxManuallySet = useRef(false);
+  
   const [formData, setFormData] = useState({
     student_id: '',
     branch_id: '',
@@ -631,6 +635,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         payment_terms_days: 30,
         notes: formData.notes || undefined,
         internal_notes: formData.internal_notes || undefined,
+        tax_included: taxIncluded !== null ? taxIncluded : undefined,
         items: items.map(item => {
           const lineDiscount = item.discount_type && item.discount_value && item.discount_value > 0
             ? { discount_type: item.discount_type, discount_value: item.discount_value }
@@ -711,6 +716,8 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setBranchTerms([]);
     setTermError(null);
     setSelectedClassSlots([]);
+    setTaxIncluded(null);
+    taxManuallySet.current = false;
   };
 
   const handleInputChange = async (field: string, value: any) => {
@@ -720,6 +727,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       setSelectedClassSlots([]);
       loadBranchTerms(value);
       loadClassTypeAgeSettings(value);
+      
+      // Reset tax inclusion to branch default when branch changes
+      if (!taxManuallySet.current) {
+        const selectedBranch = branches.find(b => b.id === value);
+        const country = selectedBranch?.country || null;
+        const defaultInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+        setTaxIncluded(defaultInclusive);
+      }
       
       if (selectedCategory?.name === 'Classes' && formData.student_id) {
         const selectedTermId = await refreshTermSelection(value, formData.student_id);
@@ -1189,7 +1204,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     const selectedBranch = branches.find(b => b.id === formData.branch_id);
     const country = selectedBranch?.country || null;
     const rate = country ? (COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
-    const isInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+    // Use manual override if set, otherwise fall back to branch/country default
+    const isInclusive = taxIncluded !== null
+      ? taxIncluded
+      : (country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED);
     return { rate, isInclusive };
   };
 
@@ -1528,6 +1546,24 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             {items.length > 0 && (
               <div className="flex justify-end">
                 <div className="w-full md:w-64 space-y-1 md:space-y-2 text-xs md:text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Tax Mode:</span>
+                    <Select
+                      value={isInclusive ? 'included' : 'excluded'}
+                      onValueChange={(val) => {
+                        taxManuallySet.current = true;
+                        setTaxIncluded(val === 'included');
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-[120px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="included">Tax Included</SelectItem>
+                        <SelectItem value="excluded">Tax Excluded</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>
