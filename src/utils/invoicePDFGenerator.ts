@@ -366,7 +366,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     
     // Load QR code if available
     if (hasQrCode) {
-      qrData = await loadImage(invoice.template!.paynow_qr_url!);
+      qrData = await loadImage(invoice.template!.paynow_qr_url!, 168, 168);
     }
     
     // Calculate max width for notes (leave space for bank info/QR if present)
