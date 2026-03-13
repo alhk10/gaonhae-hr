@@ -368,22 +368,16 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="phone" className="text-xs">Phone</Label>
-                  <Input
-                    id="phone"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="+65 9123 4567"
-                    className="h-9"
+                    onChange={(value) => handleInputChange('phone', value)}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="whatsapp" className="text-xs">WhatsApp</Label>
-                  <Input
-                    id="whatsapp"
+                  <PhoneInput
                     value={formData.whatsapp}
-                    onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-                    placeholder="+65 9123 4567"
-                    className="h-9"
+                    onChange={(value) => handleInputChange('whatsapp', value)}
                   />
                 </div>
                 <div className="space-y-1">
