@@ -70,6 +70,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showSchoolFeesReminder, setShowSchoolFeesReminder] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showActionBlocked, setShowActionBlocked] = useState(false);
+  const [showTermPaymentRequired, setShowTermPaymentRequired] = useState(false);
   const [showNoticePopup, setShowNoticePopup] = useState(false);
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
