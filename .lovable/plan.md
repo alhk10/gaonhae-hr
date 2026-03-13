@@ -1,51 +1,25 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Show All Products but Require Approval for Out-of-Criteria Selections
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+Currently, products are filtered by the student's belt level, age, and class type settings — hiding products the student doesn't normally qualify for. However, branch admins may grant exceptions, so all products should remain visible. Invoices with out-of-criteria products should require superadmin approval.
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. Remove belt/age filtering from product list (`CreateInvoiceDialog.tsx`)
+- In the `filteredProducts` filter (~line 1092-1109), remove `matchesBelt`, `matchesAge`, and keep only `matchesCategory`, `matchesGradingBelt` (grading products should still filter by belt transition since they're belt-specific by nature), and `notHidden`
+- Products that don't match belt/age criteria will still appear but can be visually distinguished
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+#### 2. Flag out-of-criteria products with a visual indicator
+- Add a helper `isOutOfCriteria(product)` that returns true if the product fails belt or age checks
+- In the `ProductSearchSelect` dropdown, show a small warning badge or muted text (e.g., "(exception)") next to out-of-criteria products so the admin knows
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+#### 3. Require superadmin approval for exception invoices
+- In `handleCreateInvoice` (~line 713), add a check: if any line item uses an out-of-criteria product and user is not superadmin, route the invoice through the existing `submitDiscountApproval` flow (or a similar approval mechanism)
+- Store `exception_approval: true` in the invoice metadata to distinguish from discount approvals
+- Show a toast: "This invoice includes products outside the student's criteria and requires superadmin approval."
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
-
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
-
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+### Files to modify
+- `src/components/sales/CreateInvoiceDialog.tsx` — remove strict filtering, add out-of-criteria detection, route to approval
 
