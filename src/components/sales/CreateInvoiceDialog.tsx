@@ -178,7 +178,7 @@ const calculateLineTotal = (qty: number, price: number, discountType?: 'percenta
 
 // Searchable student select component with fuzzy matching
 const StudentSearchSelect: React.FC<{
-  students: Array<{id: string, name: string}>;
+  students: Array<{id: string, name: string, status?: string}>;
   value: string;
   onValueChange: (value: string) => void;
 }> = ({ students, value, onValueChange }) => {
@@ -208,6 +208,7 @@ const StudentSearchSelect: React.FC<{
                 <CommandItem key={student.id} value={student.id} onSelect={() => { onValueChange(student.id); setOpen(false); setSearch(''); }}>
                   <Check className={cn('mr-2 h-4 w-4', value === student.id ? 'opacity-100' : 'opacity-0')} />
                   {student.name}
+                  {student.status === 'trial' && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium">Trial</span>}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -342,6 +343,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
   const [selectedClassSlots, setSelectedClassSlots] = useState<string[]>([]);
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'active' | 'trial' | 'all'>('active');
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -469,11 +471,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  // Filter students by active status and selected branch
+
+
+  // Filter students by status and selected branch
   const filteredStudents = students.filter(s => {
-    const isActive = s.status === 'active';
+    const matchesStatus = studentStatusFilter === 'all' 
+      ? (s.status === 'active' || s.status === 'trial')
+      : s.status === studentStatusFilter;
     const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
-    return isActive && matchesBranch;
+    return matchesStatus && matchesBranch;
   }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Auto-select student if only 1 filtered student available
@@ -1461,7 +1467,26 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
               </div>
 
               <div className="space-y-1 md:space-y-2">
-                <Label htmlFor="student_id" className="text-xs md:text-sm">Student *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="student_id" className="text-xs md:text-sm">Student *</Label>
+                  <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+                    {(['active', 'trial', 'all'] as const).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => { setStudentStatusFilter(status); handleInputChange('student_id', ''); }}
+                        className={cn(
+                          'px-2 py-0.5 text-[10px] font-medium rounded transition-colors capitalize',
+                          studentStatusFilter === status
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <StudentSearchSelect
                   students={filteredStudents}
                   value={formData.student_id}
