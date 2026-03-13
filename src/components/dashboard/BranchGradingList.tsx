@@ -68,6 +68,7 @@ const getTermPaidBadgeVariant = (status: string): "success" | "destructive" | "s
     case 'draft':
     case 'sent':
     case 'partial':
+    case 'partially_paid':
     default: return 'secondary';
   }
 };
