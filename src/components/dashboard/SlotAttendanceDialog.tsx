@@ -14,7 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Search, UserPlus, X, Check, Loader2 } from 'lucide-react';
+import { Search, UserPlus, X, Check, Loader2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   getSlotAttendance,
