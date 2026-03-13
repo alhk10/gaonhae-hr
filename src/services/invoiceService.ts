@@ -854,3 +854,103 @@ export const getSiblingDiscount = async (studentId: string): Promise<number> => 
     return 0;
   }
 };
+
+/**
+ * Cancel an invoice and refund all payments as student credits
+ */
+export const cancelInvoice = async (invoiceId: string): Promise<void> => {
+  try {
+    // Get invoice details
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*, students(first_name, last_name)')
+      .eq('id', invoiceId)
+      .single();
+
+    if (invoiceError || !invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    // Get all payments for this invoice
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('id, amount')
+      .eq('invoice_id', invoiceId);
+
+    const totalPaid = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Refund payments as student credits
+    if (totalPaid > 0) {
+      const { error: creditError } = await supabase
+        .from('student_credits')
+        .insert({
+          student_id: invoice.student_id,
+          amount: totalPaid,
+          type: 'refund',
+          reference_id: invoiceId,
+          description: `Refund from cancelled Invoice #${invoice.invoice_number}`,
+        });
+
+      if (creditError) {
+        logger.error('Error creating refund credit', creditError);
+        throw new Error(`Failed to create refund credit: ${creditError.message}`);
+      }
+    }
+
+    // Deactivate entitlements linked to this invoice's items
+    const { data: items } = await supabase
+      .from('invoice_items')
+      .select('id')
+      .eq('invoice_id', invoiceId);
+
+    if (items && items.length > 0) {
+      const itemIds = items.map(i => i.id);
+      await supabase
+        .from('entitlements')
+        .update({ is_active: false, notes: 'Deactivated - invoice cancelled' })
+        .in('source_id', itemIds)
+        .eq('source_type', 'invoice_item');
+
+      // Deactivate enrollments
+      const { data: enrollments } = await supabase
+        .from('student_class_enrollments')
+        .select('id')
+        .in('invoice_item_id', itemIds);
+
+      if (enrollments && enrollments.length > 0) {
+        const enrollmentIds = enrollments.map(e => e.id);
+        await supabase
+          .from('student_class_enrollments')
+          .update({ status: 'cancelled' })
+          .in('id', enrollmentIds);
+      }
+    }
+
+    // Update invoice status to cancelled
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        status: 'cancelled',
+        balance_due: 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', invoiceId);
+
+    if (updateError) {
+      throw new Error(`Failed to cancel invoice: ${updateError.message}`);
+    }
+
+    // Log the cancellation
+    await logInvoiceChange({
+      invoice_id: invoiceId,
+      action: 'cancelled',
+      changes: {
+        invoice_number: invoice.invoice_number,
+        total_refunded: totalPaid,
+      }
+    });
+  } catch (error) {
+    logger.error('Error in cancelInvoice', error);
+    throw error;
+  }
+};

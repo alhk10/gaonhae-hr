@@ -98,6 +98,9 @@ const SuperadminDashboard = () => {
         {/* Invoice Discount Approvals */}
         <InvoiceDiscountApprovals />
 
+        {/* Invoice Action Approvals (Adjustments & Cancellations) */}
+        <InvoiceActionApprovals />
+
         {/* Payment Verification Approvals */}
         <PaymentVerificationApprovals />
 
