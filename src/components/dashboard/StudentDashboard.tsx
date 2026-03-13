@@ -850,7 +850,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               date_of_birth: student.date_of_birth,
             }}
             onOpenSchoolFees={() => guardAction(() => setShowSchoolFeesDialog(true))}
-            onOpenGrading={() => guardAction(() => setShowGradingDialog(true))}
+            onOpenGrading={() => {
+              if (currentTermInvoicePaid === false) {
+                setShowTermPaymentRequired(true);
+              } else {
+                guardAction(() => setShowGradingDialog(true));
+              }
+            }}
             
           />
 
