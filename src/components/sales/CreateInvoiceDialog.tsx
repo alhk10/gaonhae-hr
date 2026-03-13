@@ -1352,8 +1352,36 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return { rate, isInclusive };
   };
 
+  // Calculate bundle discounts based on product combinations
+  const calculateBundleDiscount = (): { amount: number; descriptions: string[] } => {
+    let discount = 0;
+    const descriptions: string[] = [];
+    const productNames = items.map(item => item.product_name.toLowerCase());
+
+    // Bundle 1: Adidas Headgear + Adidas Chestguard = $10 off
+    const hasHeadgear = productNames.some(n => n.includes('adidas headgear'));
+    const hasChestguard = productNames.some(n => n.includes('adidas chestguard'));
+    if (hasHeadgear && hasChestguard) {
+      discount += 10;
+      descriptions.push('Headgear + Chestguard bundle');
+    }
+
+    // Bundle 2: Adidas Arm Guard + Adidas Shin Guard + Adidas Groin Guard = $10 off
+    const hasArmGuard = productNames.some(n => n.includes('adidas arm guard'));
+    const hasShinGuard = productNames.some(n => n.includes('adidas shin guard'));
+    const hasGroinGuard = productNames.some(n => n.includes('adidas groin guard'));
+    if (hasArmGuard && hasShinGuard && hasGroinGuard) {
+      discount += 10;
+      descriptions.push('Arm + Shin + Groin Guard bundle');
+    }
+
+    return { amount: discount, descriptions };
+  };
+
+  const bundleDiscount = calculateBundleDiscount();
+
   const calculateTotals = () => {
-    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0) - bundleDiscount.amount;
     const { rate, isInclusive } = getSelectedBranchTaxConfig();
     const taxRateDecimal = rate / 100;
     
