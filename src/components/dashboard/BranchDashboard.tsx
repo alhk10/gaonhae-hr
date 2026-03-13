@@ -490,14 +490,22 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     (p: any) => !p.is_verified && p.proof_of_payment_url && p.payment_method !== 'cash'
   );
 
+  const { data: pendingRegCount = 0 } = useQuery({
+    queryKey: ['pending-registrations-count', branchId],
+    queryFn: () => getPendingRegistrationsCount(branchId),
+    enabled: !!branchId,
+  });
+
+  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
+
   useEffect(() => {
-    if (!hasSetInitialTab.current && (pendingRequests.length > 0 || unverifiedPayments.length > 0)) {
+    if (!hasSetInitialTab.current && hasApprovals) {
       setActiveTab('approvals');
       hasSetInitialTab.current = true;
     } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
       hasSetInitialTab.current = true;
     }
-  }, [pendingRequests, unverifiedPayments]);
+  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals]);
 
   const filteredStudents = students.filter(student => {
     // Always exclude withdrawn students
