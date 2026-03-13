@@ -773,6 +773,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
       case 'unpaid': return 'bg-red-100 text-red-800 border-red-200';
       case 'draft': return 'bg-red-100 text-red-800 border-red-200';
       case 'partial': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'partially_paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return '';
     }
   };
