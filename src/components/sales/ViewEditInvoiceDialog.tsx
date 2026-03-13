@@ -24,7 +24,7 @@ import { createDeletionRequest } from '@/services/paymentDeletionRequestService'
 import { getProducts, type Product } from '@/services/productService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown, Percent } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, DollarSign, History, Trash2, Eye, Plus, Check, ChevronsUpDown, Percent, Ban, Wrench } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
