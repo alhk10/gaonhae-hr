@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { createInvoice, type CreateInvoiceData } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount, type CreateInvoiceData } from '@/services/invoiceService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
