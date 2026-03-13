@@ -78,7 +78,7 @@ export async function getPendingRegistrationsCount(branchId?: string) {
   return count || 0;
 }
 
-export async function approveRegistration(registrationId: string, reviewerEmail: string) {
+export async function approveRegistration(registrationId: string, reviewerEmail: string, overrides?: Record<string, any>) {
   // Get the registration data
   const { data: reg, error: fetchError } = await supabase
     .from('student_registrations')
@@ -88,39 +88,45 @@ export async function approveRegistration(registrationId: string, reviewerEmail:
 
   if (fetchError || !reg) throw new Error('Registration not found');
 
+  // Merge overrides from the approval dialog
+  const merged = { ...reg, ...(overrides || {}) };
+
+  // Determine belt - null if empty/invalid to satisfy DB constraint
+  const beltValue = merged.current_belt && merged.current_belt.trim() !== '' ? merged.current_belt : null;
+
   // Create the student
   const { createStudent } = await import('@/services/studentService');
   await createStudent({
-    first_name: reg.first_name,
-    last_name: reg.last_name,
-    preferred_name: reg.preferred_name || '',
-    certificate_name: reg.certificate_name || `${reg.first_name} ${reg.last_name}`.trim(),
-    display_name: reg.display_name || `${reg.first_name} ${reg.last_name}`.trim(),
-    date_of_birth: reg.date_of_birth || '',
-    gender: reg.gender || '',
-    nric_passport: reg.nric_passport || '',
-    passport_no: reg.passport_no || '',
-    phone: reg.phone || '',
-    whatsapp: reg.whatsapp || '',
-    email: reg.email || '',
-    address: reg.address || '',
-    postal_code: reg.postal_code || '',
-    nationality: (reg.nationality as string[]) || [],
-    languages_spoken: (reg.languages_spoken as string[]) || [],
-    emergency_contact_name: reg.emergency_contact_name || '',
-    emergency_contact_phone: reg.emergency_contact_phone || '',
-    emergency_contact_relationship: reg.emergency_contact_relationship || '',
-    emergency_contact_2_name: reg.emergency_contact_2_name || '',
-    emergency_contact_2_phone: reg.emergency_contact_2_phone || '',
-    emergency_contact_2_relationship: reg.emergency_contact_2_relationship || '',
-    current_belt: reg.current_belt || '',
-    previous_experience: reg.previous_experience || '',
-    training_goals: reg.training_goals || '',
-    medical_conditions: reg.medical_conditions || '',
-    dietary_restrictions: reg.dietary_restrictions || '',
-    branch_id: reg.branch_id || '',
-    notes: reg.notes || '',
-    referral_source: reg.referral_source || '',
+    first_name: merged.first_name,
+    last_name: merged.last_name,
+    preferred_name: merged.preferred_name || '',
+    certificate_name: merged.certificate_name || `${merged.first_name} ${merged.last_name}`.trim(),
+    display_name: merged.display_name || `${merged.first_name} ${merged.last_name}`.trim(),
+    date_of_birth: merged.date_of_birth || '',
+    gender: merged.gender || '',
+    nric_passport: merged.nric_passport || '',
+    passport_no: merged.passport_no || '',
+    phone: merged.phone || '',
+    whatsapp: merged.whatsapp || '',
+    email: merged.email || '',
+    address: merged.address || '',
+    postal_code: merged.postal_code || '',
+    nationality: (merged.nationality as string[]) || [],
+    languages_spoken: (merged.languages_spoken as string[]) || [],
+    emergency_contact_name: merged.emergency_contact_name || '',
+    emergency_contact_phone: merged.emergency_contact_phone || '',
+    emergency_contact_relationship: merged.emergency_contact_relationship || '',
+    emergency_contact_2_name: merged.emergency_contact_2_name || '',
+    emergency_contact_2_phone: merged.emergency_contact_2_phone || '',
+    emergency_contact_2_relationship: merged.emergency_contact_2_relationship || '',
+    current_belt: beltValue,
+    previous_experience: merged.previous_experience || '',
+    training_goals: merged.training_goals || '',
+    medical_conditions: merged.medical_conditions || '',
+    dietary_restrictions: merged.dietary_restrictions || '',
+    branch_id: merged.branch_id || '',
+    notes: merged.notes || '',
+    referral_source: merged.referral_source || '',
     registered_date: new Date().toISOString().split('T')[0],
     status: 'active',
   });
