@@ -180,6 +180,31 @@ serve(async (req) => {
       });
     }
 
+    // Sign out a user from all sessions
+    if (body.action === "sign_out_user") {
+      const userId = (body as any).userId?.trim();
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "userId is required" }), { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Sign out user globally by invalidating all refresh tokens
+      const { error: signOutErr } = await adminClient.auth.admin.signOut(userId, 'global');
+      if (signOutErr) {
+        return new Response(JSON.stringify({ error: signOutErr.message }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, userId, message: "User signed out from all sessions" }), { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), { 
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
