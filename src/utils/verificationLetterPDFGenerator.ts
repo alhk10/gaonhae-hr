@@ -115,51 +115,49 @@ const replaceEmployeePlaceholders = (template: string, data: EmployeePlaceholder
     .replace(/{phone}/g, data.phone);
 };
 
-const loadLogo = async (): Promise<HTMLImageElement | null> => {
-  try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      logoImg.onload = () => resolve();
-      logoImg.onerror = () => reject(new Error('Failed to load logo'));
-      logoImg.src = '/images/company-logo.jpg';
-    });
-    return logoImg;
-  } catch (error) {
-    console.warn('Could not load logo for PDF:', error);
-    return null;
-  }
-};
-
-const loadSignatureImage = async (url: string): Promise<HTMLImageElement | null> => {
-  if (!url) return null;
+const loadImageAsDataUrl = async (url: string, maxWidth = 200, maxHeight = 200): Promise<{ data: string; width: number; height: number } | null> => {
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load signature'));
+      img.onerror = () => reject(new Error('Failed to load image'));
       img.src = url;
     });
-    return img;
+    let w = img.width;
+    let h = img.height;
+    if (w > maxWidth || h > maxHeight) {
+      const scale = Math.min(maxWidth / w, maxHeight / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    return { data: canvas.toDataURL('image/jpeg', 0.7), width: img.width, height: img.height };
   } catch (error) {
-    console.warn('Could not load signature for PDF:', error);
+    console.warn('Could not load image for PDF:', error);
     return null;
   }
 };
 
-const addLetterhead = async (doc: jsPDF, logoImg: HTMLImageElement | null) => {
+const loadSignatureImage = async (url: string): Promise<{ data: string; width: number; height: number } | null> => {
+  if (!url) return null;
+  return loadImageAsDataUrl(url, 200, 100);
+};
+
+const addLetterhead = async (doc: jsPDF, logoData: { data: string; width: number; height: number } | null) => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  // Increased logo size by 10% (38.5 * 1.1 = 42.35)
   const logoWidth = 42.35;
-  const totalWidth = logoWidth + 5 + 120; // logo + gap + text area
-  // Move 0.8cm (8mm) to the right
+  const totalWidth = logoWidth + 5 + 120;
   const startX = (pageWidth - totalWidth) / 2 + 8;
 
-  // Add logo - centered with text, increased size by 10%
-  if (logoImg) {
-    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 30.25));
+  if (logoData) {
+    const logoHeight = (logoData.height / logoData.width) * logoWidth;
+    doc.addImage(logoData.data, 'JPEG', startX, 15, logoWidth, Math.min(logoHeight, 30.25), undefined, 'FAST');
   }
 
   // Company details - inline with logo, right of it
@@ -529,7 +527,7 @@ const addSignatureBlock = async (
     if (signatureImg) {
       const sigWidth = 40;
       const sigHeight = (signatureImg.height / signatureImg.width) * sigWidth;
-      doc.addImage(signatureImg, 'PNG', 20, yPos, sigWidth, Math.min(sigHeight, 20));
+      doc.addImage(signatureImg.data, 'JPEG', 20, yPos, sigWidth, Math.min(sigHeight, 20), undefined, 'FAST');
       yPos += Math.min(sigHeight, 20) + 5;
     }
   } else {
@@ -591,10 +589,10 @@ const addAddresseeBlock = (
 };
 
 export const generateStudentVerificationLetter = async (data: StudentData): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
@@ -682,10 +680,10 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
 };
 
 export const generateEmploymentVerificationLetter = async (data: EmployeeData): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
@@ -753,10 +751,10 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
 };
 
 export const printStudentVerificationLetter = async (data: StudentData): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
@@ -836,10 +834,10 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 };
 
 export const printEmploymentVerificationLetter = async (data: EmployeeData): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
@@ -904,10 +902,10 @@ export const generateStudentVerificationLetterWithTemplate = async (
   data: StudentData,
   template: LetterTemplateData
 ): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const fullName = `${data.firstName} ${data.lastName}`.trim();
@@ -1019,10 +1017,10 @@ export const printStudentVerificationLetterWithTemplate = async (
   data: StudentData,
   template: LetterTemplateData
 ): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const fullName = `${data.firstName} ${data.lastName}`.trim();
@@ -1134,10 +1132,10 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   data: EmployeeData,
   template: LetterTemplateData
 ): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const currentDate = format(new Date(), 'dd MMMM yyyy');
@@ -1252,10 +1250,10 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   data: EmployeeData,
   template: LetterTemplateData
 ): Promise<void> => {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
   doc.setFont('helvetica');
 
-  const logoImg = await loadLogo();
+  const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
   const currentDate = format(new Date(), 'dd MMMM yyyy');

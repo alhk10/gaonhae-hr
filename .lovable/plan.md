@@ -1,36 +1,51 @@
 
 
-## Plan: Optimize PDF Generation Speed and File Size
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-### Root Cause
-The `loadImage` function in `invoicePDFGenerator.ts` converts all images (logo, QR code) to **PNG data URLs** via canvas (`canvas.toDataURL('image/png')`). PNG is lossless and produces very large base64 strings — this is the primary driver of the 4MB file size and slow generation.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
 ### Changes
 
-#### 1. Use JPEG compression for image encoding (`invoicePDFGenerator.ts`)
-- Change `canvas.toDataURL('image/png')` to `canvas.toDataURL('image/jpeg', 0.7)` in the `loadImage` function
-- Update `addImage` calls to use `'JPEG'` format instead of `'PNG'`
-- For the QR code specifically, keep PNG format but **downscale the canvas** to the actual rendered size (e.g., 168x168 px for a 42mm image at 96 DPI) instead of using the full source resolution
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-#### 2. Downscale images to target render size
-- Before drawing to canvas, resize to the actual dimensions needed in the PDF (no need for a 2000px image when it renders at 70px wide)
-- Add a `maxWidth`/`maxHeight` parameter to `loadImage` to cap canvas dimensions
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-#### 3. Apply same optimizations to other PDF generators
-- `payslipPDFGenerator.ts` — uses `logoImg` directly with `addImage(logoImg, 'JPEG', ...)` which is already reasonable, but can benefit from downscaling
-- `casualPayslipPDFGenerator.ts` — same pattern
-- `verificationLetterPDFGenerator.ts` — likely has similar image loading; apply same compression
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-#### 4. Use jsPDF compression option
-- Pass `{ compress: true }` to `new jsPDF({ compress: true })` to enable stream compression on the output PDF
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-### Expected Impact
-- **File size**: ~4MB → ~200-500KB (8-20x reduction)
-- **Speed**: Image encoding is the bottleneck; smaller canvases + JPEG = significantly faster
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-### Files to modify
-- `src/utils/invoicePDFGenerator.ts` — compress flag, JPEG encoding, image downscaling
-- `src/utils/payslipPDFGenerator.ts` — compress flag, image downscaling
-- `src/utils/casualPayslipPDFGenerator.ts` — compress flag, image downscaling
-- `src/utils/verificationLetterPDFGenerator.ts` — compress flag, JPEG encoding, image downscaling
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
+
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
+
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 

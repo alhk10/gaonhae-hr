@@ -68,21 +68,29 @@ interface LoadedImage {
   height: number;
 }
 
-const loadImage = (url: string): Promise<LoadedImage | null> => {
+const loadImage = (url: string, maxWidth = 300, maxHeight = 300): Promise<LoadedImage | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      // Downscale to target render size
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth || h > maxHeight) {
+        const scale = Math.min(maxWidth / w, maxHeight / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         resolve({
-          data: canvas.toDataURL('image/png'),
-          width: img.width,
-          height: img.height
+          data: canvas.toDataURL('image/jpeg', 0.7),
+          width: w,
+          height: h
         });
       } else {
         resolve(null);
@@ -107,13 +115,13 @@ const formatDate = (dateString: string | null): string => {
 };
 
 export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let yPos = 20;
 
-  // Load and add logo with proper aspect ratio
-  const logoResult = await loadImage('/images/company-logo.jpg');
+  // Load and add logo with proper aspect ratio (downscaled to ~200px)
+  const logoResult = await loadImage('/images/company-logo.jpg', 200, 200);
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
@@ -123,7 +131,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     const aspectRatio = logoResult.width / logoResult.height;
     logoHeight = targetLogoHeight;
     logoWidth = targetLogoHeight * aspectRatio;
-    doc.addImage(logoResult.data, 'JPEG', margin, yPos, logoWidth, logoHeight);
+    doc.addImage(logoResult.data, 'JPEG', margin, yPos, logoWidth, logoHeight, undefined, 'FAST');
   }
   
   // Render letterhead text (multi-line company info) to the right of logo
@@ -358,7 +366,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     
     // Load QR code if available
     if (hasQrCode) {
-      qrData = await loadImage(invoice.template!.paynow_qr_url!);
+      qrData = await loadImage(invoice.template!.paynow_qr_url!, 168, 168);
     }
     
     // Calculate max width for notes (leave space for bank info/QR if present)
@@ -412,7 +420,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Add QR code on the right (below bank transfer info)
     if (qrData) {
       const qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
-      doc.addImage(qrData.data, 'PNG', qrX, qrStartY, qrSize, qrSize);
+      doc.addImage(qrData.data, 'JPEG', qrX, qrStartY, qrSize, qrSize, undefined, 'FAST');
       // Ensure yPos accounts for QR height if notes are shorter
       const qrEndY = qrStartY + qrSize;
       if (yPos < qrEndY) {

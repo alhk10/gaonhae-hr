@@ -25,8 +25,8 @@ interface PayslipData {
 }
 
 export const generatePayslipPDF = async (data: PayslipData) => {
-  // Change paper size to A5
-  const doc = new jsPDF('p', 'mm', 'a5');
+  // Change paper size to A5, enable compression
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a5', compress: true });
   
   // Set font
   doc.setFont('helvetica');
@@ -51,8 +51,19 @@ export const generatePayslipPDF = async (data: PayslipData) => {
       logoImg.src = '/images/company-logo.jpg';
     });
     
-    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-    doc.addImage(logoImg, 'JPEG', startX, 6, logoWidth, Math.min(logoHeight, 16.17)); // height also increased by 10%
+    // Downscale logo via canvas for smaller file size
+    const canvas = document.createElement('canvas');
+    const targetW = 150; // ~150px is plenty for 29mm print width
+    const targetH = Math.round((logoImg.height / logoImg.width) * targetW);
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(logoImg, 0, 0, targetW, targetH);
+      const logoData = canvas.toDataURL('image/jpeg', 0.7);
+      const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+      doc.addImage(logoData, 'JPEG', startX, 6, logoWidth, Math.min(logoHeight, 16.17), undefined, 'FAST');
+    }
   } catch (error) {
     console.warn('Could not load logo for PDF:', error);
   }
