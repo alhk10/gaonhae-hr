@@ -936,6 +936,19 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               </div>
             </div>
 
+            {/* Term display */}
+            {Object.keys(termDataMap).length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label>Term</Label>
+                  <div className="text-sm">
+                    {Object.values(termDataMap).map(t => t.name).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Status is always read-only - shown as badge in header */}
 
             <Separator />
