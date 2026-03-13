@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// One-time function to sign out a specific superadmin user
+// This function should be deleted after use
+const TARGET_USER_ID = "7b2e253e-24f2-4981-9007-326cb585ce40";
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -15,25 +19,8 @@ serve(async (req) => {
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
-    const { userId, serviceKey } = await req.json();
-    
-    // Validate service key for authorization
-    if (serviceKey !== SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "userId is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    const { error } = await adminClient.auth.admin.signOut(userId, 'global');
+    const { error } = await adminClient.auth.admin.signOut(TARGET_USER_ID, 'global');
     
     if (error) {
       console.error('Sign out error:', error.message);
@@ -43,8 +30,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Successfully signed out user ${userId} from all sessions`);
-    return new Response(JSON.stringify({ success: true, userId, message: "User signed out from all sessions" }), {
+    console.log(`Successfully signed out user ${TARGET_USER_ID} from all sessions`);
+    return new Response(JSON.stringify({ 
+      success: true, 
+      userId: TARGET_USER_ID, 
+      message: "Superadmin signed out from all sessions globally" 
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
