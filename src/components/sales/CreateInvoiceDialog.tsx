@@ -221,7 +221,8 @@ const ProductSearchSelect: React.FC<{
   products: ProductWithVariants[];
   value: string;
   onValueChange: (value: string) => void;
-}> = ({ products, value, onValueChange }) => {
+  outOfCriteriaIds?: Set<string>;
+}> = ({ products, value, onValueChange, outOfCriteriaIds }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
