@@ -347,6 +347,94 @@ const StudentDetails: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Section 3b: Student Credits */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Student Credits
+                </div>
+                <div className="flex items-center gap-2">
+                  {creditBalance > 0 && (
+                    <Badge variant="secondary" className="text-green-600 font-semibold text-sm">
+                      Balance: ${creditBalance.toFixed(2)}
+                    </Badge>
+                  )}
+                  {isSuperadmin && (
+                    <Button variant="outline" size="sm" onClick={() => setAddCreditOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Credit
+                    </Button>
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {creditLoading ? (
+                <div className="text-center py-4 text-muted-foreground">Loading...</div>
+              ) : creditHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No credit transactions</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {creditHistory.map(c => (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-sm">
+                          {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={c.type === 'overpayment' ? 'default' : c.type === 'credit_applied' ? 'outline' : c.type === 'refund' ? 'destructive' : 'secondary'}>
+                            {c.type.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${c.amount >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          {c.amount >= 0 ? '+' : ''}${c.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Add Credit Dialog */}
+          <Dialog open={addCreditOpen} onOpenChange={setAddCreditOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Manual Credit</DialogTitle>
+                <DialogDescription>Add a credit adjustment for {student.first_name} {student.last_name}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Amount ($)</Label>
+                  <Input type="number" step="0.01" min="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={creditDescription} onChange={(e) => setCreditDescription(e.target.value)} placeholder="Reason for credit..." rows={2} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddCreditOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddCredit} disabled={creditSaving}>{creditSaving ? 'Saving...' : 'Add Credit'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Section 4: Grading Information */}
           <Card>
             <CardHeader>
