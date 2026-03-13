@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userDetails, setUserDetails] = useState<any>(null);
   const [adminAccess, setAdminAccess] = useState<any>(null);
   const [pageAccess, setPageAccess] = useState<any>(null);
+  // Check if there's a cached Supabase session in localStorage to prevent login flash on refresh
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
@@ -214,6 +215,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Skip re-processing on TOKEN_REFRESHED if user is already loaded
       if (event === 'TOKEN_REFRESHED' && userRef.current) {
         logger.debug('Token refreshed, user already loaded — skipping re-process');
+        return;
+      }
+
+      // On INITIAL_SESSION, skip if initAuth will handle it (prevents double-processing race)
+      if (event === 'INITIAL_SESSION') {
+        logger.debug('INITIAL_SESSION event — deferring to initAuth');
+        return;
+      }
+      
+      // Only clear user state on explicit sign-out, not on transient null sessions
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        userRef.current = null;
+        setUserrole(null);
+        setUserType(null);
+        setUserDetails(null);
+        setAdminAccess(null);
+        setPageAccess(null);
+        setLinkedStudents([]);
+        setSelectedStudentId(null);
+        setIsLoading(false);
         return;
       }
       
