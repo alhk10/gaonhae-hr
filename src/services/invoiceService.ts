@@ -75,6 +75,7 @@ export interface CreateInvoiceData {
   payment_terms_days?: number;
   notes?: string;
   internal_notes?: string;
+  tax_included?: boolean;
   items: Array<{
     product_id: string;
     description: string;
