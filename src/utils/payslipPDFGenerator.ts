@@ -25,8 +25,8 @@ interface PayslipData {
 }
 
 export const generatePayslipPDF = async (data: PayslipData) => {
-  // Change paper size to A5
-  const doc = new jsPDF('p', 'mm', 'a5');
+  // Change paper size to A5, enable compression
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a5', compress: true });
   
   // Set font
   doc.setFont('helvetica');
