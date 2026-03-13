@@ -170,7 +170,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       // Import the createStudent function
       const { createStudent } = await import('@/services/studentService');
       
-      await createStudent(formData);
+      await createStudent({ ...formData, training_goals: formData.training_goals.join(', ') });
       
       toast.success('Student added successfully');
       setIsOpen(false);
