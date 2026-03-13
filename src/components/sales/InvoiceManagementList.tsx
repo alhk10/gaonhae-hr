@@ -377,7 +377,7 @@ const InvoiceManagementList: React.FC = () => {
       amount_paid: invoice.amount_paid,
       balance_due: invoice.balance_due,
       notes: invoice.notes,
-      status: invoice.status,
+      status: fullInvoice?.status || invoice.status,
       student: studentData ? {
         name: `${studentData.first_name} ${studentData.last_name}`,
         address: studentData.address,

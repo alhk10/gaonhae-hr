@@ -204,7 +204,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         issue_date: invoice.issue_date || null, due_date: invoice.due_date || null,
         subtotal: invoice.subtotal, tax_amount: invoice.tax_amount, discount_amount: invoice.discount_amount,
         total_amount: invoice.total_amount, amount_paid: invoice.amount_paid, balance_due: invoice.balance_due,
-        notes: invoice.notes, status: invoice.status,
+        notes: invoice.notes, status: fullInvoice?.status || invoice.status,
         student: studentData ? { name: `${studentData.first_name} ${studentData.last_name}`, address: studentData.address, phone: studentData.phone, email: studentData.email } : undefined,
         items: fullInvoice?.items?.map((item: any) => {
           const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
