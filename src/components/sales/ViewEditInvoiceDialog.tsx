@@ -168,6 +168,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
+  const [branchTerms, setBranchTerms] = useState<Term[]>([]);
 
   // Cancel & Refund dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
