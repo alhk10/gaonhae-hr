@@ -70,6 +70,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const [showSchoolFeesReminder, setShowSchoolFeesReminder] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showActionBlocked, setShowActionBlocked] = useState(false);
+  const [showTermPaymentRequired, setShowTermPaymentRequired] = useState(false);
   const [showNoticePopup, setShowNoticePopup] = useState(false);
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
@@ -219,6 +220,29 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         .from('invoice_items')
         .select('id, invoice_id, metadata')
         .in('invoice_id', studentInvoiceIds);
+      const hasMatch = items?.some(item => {
+        const meta = item.metadata as any;
+        return meta?.term_id && termIds.includes(meta.term_id);
+      });
+      return !!hasMatch;
+    },
+    enabled: !!studentId && availableTerms.length > 0,
+  });
+
+  // Check if current-term invoice is PAID (status paid or verified)
+  const { data: currentTermInvoicePaid } = useQuery({
+    queryKey: ['student-current-term-invoice-paid', studentId, availableTerms.map(t => t.id).join(','), invoices.map(i => `${i.id}:${i.status}`).join(',')],
+    queryFn: async () => {
+      if (!availableTerms.length) return true; // No terms = no restriction
+      const termIds = availableTerms.map(t => t.id);
+      const paidInvoiceIds = invoices
+        .filter(i => i.status === 'paid' || i.status === 'verified')
+        .map(i => i.id);
+      if (paidInvoiceIds.length === 0) return false;
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('id, invoice_id, metadata')
+        .in('invoice_id', paidInvoiceIds);
       const hasMatch = items?.some(item => {
         const meta = item.metadata as any;
         return meta?.term_id && termIds.includes(meta.term_id);
@@ -826,7 +850,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               date_of_birth: student.date_of_birth,
             }}
             onOpenSchoolFees={() => guardAction(() => setShowSchoolFeesDialog(true))}
-            onOpenGrading={() => guardAction(() => setShowGradingDialog(true))}
+            onOpenGrading={() => {
+              if (currentTermInvoicePaid === false) {
+                setShowTermPaymentRequired(true);
+              } else {
+                guardAction(() => setShowGradingDialog(true));
+              }
+            }}
             
           />
 
@@ -1380,6 +1410,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowActionBlocked(false)}>
               OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Term Payment Required Dialog */}
+      <AlertDialog open={showTermPaymentRequired} onOpenChange={setShowTermPaymentRequired}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Term Invoice Payment Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please pay your current term invoice before paying for grading fees. You can pay your school fees first, then proceed with grading payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowTermPaymentRequired(false);
+              setShowSchoolFeesDialog(true);
+            }}>
+              Pay School Fees
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

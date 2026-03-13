@@ -607,6 +607,58 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
 
     setLoading(true);
     try {
+      // Check if invoice contains grading items — if so, validate term invoice is paid
+      const hasGradingItem = items.some(item => {
+        const product = products.find(p => p.id === item.product_id);
+        return product?.category_id === GRADING_CATEGORY_ID;
+      });
+      const hasTermItem = items.some(item => !!item.term_id);
+
+      if (hasGradingItem && !hasTermItem) {
+        // Check if student has a paid/verified term invoice
+        const { data: studentInvoices } = await supabase
+          .from('invoices')
+          .select('id, status')
+          .eq('student_id', formData.student_id)
+          .in('status', ['paid', 'verified']);
+
+        const paidInvoiceIds = (studentInvoices || []).map(i => i.id);
+        let hasTermPaid = false;
+
+        if (paidInvoiceIds.length > 0) {
+          // Check if any paid invoice has a term item for an active term
+          const today = new Date().toISOString().split('T')[0];
+          const { data: activeTerms } = await supabase
+            .from('term_calendars')
+            .select('id')
+            .eq('branch_id', formData.branch_id)
+            .eq('is_active', true)
+            .gte('end_date', today);
+
+          if (activeTerms && activeTerms.length > 0) {
+            const termIds = activeTerms.map(t => t.id);
+            const { data: termItems } = await supabase
+              .from('invoice_items')
+              .select('id, metadata')
+              .in('invoice_id', paidInvoiceIds);
+
+            hasTermPaid = (termItems || []).some(item => {
+              const meta = item.metadata as any;
+              return meta?.term_id && termIds.includes(meta.term_id);
+            });
+          } else {
+            // No active terms = no restriction
+            hasTermPaid = true;
+          }
+        }
+
+        if (!hasTermPaid) {
+          toast.error('This student must have a paid term invoice before creating a grading invoice. Please create and pay the term invoice first, or include a term item in this invoice.');
+          setLoading(false);
+          return;
+        }
+      }
+
       // Check for duplicate grading products in the last 60 days
       for (const item of items) {
         const product = products.find(p => p.id === item.product_id);
