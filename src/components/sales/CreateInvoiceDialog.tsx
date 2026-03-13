@@ -635,6 +635,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         payment_terms_days: 30,
         notes: formData.notes || undefined,
         internal_notes: formData.internal_notes || undefined,
+        tax_included: taxIncluded !== null ? taxIncluded : undefined,
         items: items.map(item => {
           const lineDiscount = item.discount_type && item.discount_value && item.discount_value > 0
             ? { discount_type: item.discount_type, discount_value: item.discount_value }
