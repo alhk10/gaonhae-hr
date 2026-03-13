@@ -221,7 +221,8 @@ const ProductSearchSelect: React.FC<{
   products: ProductWithVariants[];
   value: string;
   onValueChange: (value: string) => void;
-}> = ({ products, value, onValueChange }) => {
+  outOfCriteriaIds?: Set<string>;
+}> = ({ products, value, onValueChange, outOfCriteriaIds }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
@@ -254,7 +255,7 @@ const ProductSearchSelect: React.FC<{
                 <CommandItem key={product.id} value={product.id} onSelect={() => { onValueChange(product.id); setOpen(false); setSearch(''); }}>
                   <Check className={cn('mr-2 h-4 w-4', value === product.id ? 'opacity-100' : 'opacity-0')} />
                   <div className="flex flex-col">
-                    <span>{product.name}</span>
+                    <span>{product.name}{outOfCriteriaIds?.has(product.id) ? <span className="ml-1 text-xs text-destructive font-medium">(exception)</span> : null}</span>
                   </div>
                 </CommandItem>
               ))}
@@ -710,9 +711,15 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
         })
       };
 
+      // Check if any line item uses an out-of-criteria product (exception)
+      const hasExceptionProduct = items.some(item => outOfCriteriaProductIds.has(item.product_id));
+
       // Check if total discount exceeds threshold — require superadmin approval (unless user IS superadmin)
       const totalDiscount = calculateTotalDiscount(items);
-      if (totalDiscount > DISCOUNT_APPROVAL_THRESHOLD && userrole !== 'superadmin') {
+      const needsDiscountApproval = totalDiscount > DISCOUNT_APPROVAL_THRESHOLD && userrole !== 'superadmin';
+      const needsExceptionApproval = hasExceptionProduct && userrole !== 'superadmin';
+
+      if (needsDiscountApproval || needsExceptionApproval) {
         const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
         const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
         const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
@@ -726,7 +733,10 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
           user?.email || null
         );
 
-        toast.success(`Invoice discount of $${totalDiscount.toFixed(2)} requires superadmin approval. Request submitted.`);
+        const reason = needsExceptionApproval
+          ? 'This invoice includes products outside the student\'s criteria and requires superadmin approval.'
+          : `Invoice discount of $${totalDiscount.toFixed(2)} requires superadmin approval. Request submitted.`;
+        toast.success(reason);
         setOpen(false);
         resetForm();
         onInvoiceCreated?.();
@@ -1088,26 +1098,36 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     return filtered;
   };
 
-  // Get filtered products based on selected category, student belt level, age, AND branch pricing rules
+  // Get filtered products — show all products (except hidden), only grading products still filter by belt transition
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
-    const matchesBelt = !formData.student_id || isProductAvailableForBelt(p, studentBelt);
     const notHidden = !hiddenProductIds.has(p.id);
     
-    // For grading products: always filter by student's current belt transition (regardless of selected category)
+    // For grading products: always filter by student's current belt transition (belt-specific by nature)
     const isGradingProduct = p.category_id === GRADING_CATEGORY_ID;
     const matchesGradingBelt = !isGradingProduct || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
     
-    // Age-based filtering using branch class type settings AND product-level age requirements
-    const matchesBranchAge = !formData.student_id || isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
-    const matchesProductAge = !formData.student_id || studentAge <= 0 || (
-      (p.min_age == null || studentAge >= p.min_age) &&
-      (p.max_age == null || studentAge <= p.max_age)
-    );
-    const matchesAge = matchesBranchAge && matchesProductAge;
-    
-    return matchesCategory && matchesBelt && matchesGradingBelt && matchesAge && notHidden;
+    return matchesCategory && matchesGradingBelt && notHidden;
   });
+
+  // Identify products that are outside the student's normal belt/age criteria (for visual flagging)
+  const outOfCriteriaProductIds = useMemo(() => {
+    if (!formData.student_id) return new Set<string>();
+    const ids = new Set<string>();
+    for (const p of products) {
+      if (p.category_id === GRADING_CATEGORY_ID) continue; // grading products have their own filter
+      const beltOk = isProductAvailableForBelt(p, studentBelt);
+      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+      const productAgeOk = studentAge <= 0 || (
+        (p.min_age == null || studentAge >= p.min_age) &&
+        (p.max_age == null || studentAge <= p.max_age)
+      );
+      if (!beltOk || !branchAgeOk || !productAgeOk) {
+        ids.add(p.id);
+      }
+    }
+    return ids;
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings]);
 
   // Auto-select product if only 1 option available
   useEffect(() => {
@@ -1425,7 +1445,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       ))}
                     </SelectContent>
                   </Select>
-                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
+                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} outOfCriteriaIds={outOfCriteriaProductIds} />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div>
@@ -1531,7 +1551,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     </Select>
                   </TableCell>
                   <TableCell className="px-2">
-                    <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} />
+                    <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChange} outOfCriteriaIds={outOfCriteriaProductIds} />
                   </TableCell>
                   <TableCell className="px-2">
                     <Input type="number" min="1" value={newItem.quantity} onChange={(e) => handleNewItemChange('quantity', parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" />
