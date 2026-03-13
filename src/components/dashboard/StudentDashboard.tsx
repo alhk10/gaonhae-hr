@@ -1414,6 +1414,27 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Term Payment Required Dialog */}
+      <AlertDialog open={showTermPaymentRequired} onOpenChange={setShowTermPaymentRequired}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Term Invoice Payment Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please pay your current term invoice before paying for grading fees. You can pay your school fees first, then proceed with grading payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowTermPaymentRequired(false);
+              setShowSchoolFeesDialog(true);
+            }}>
+              Pay School Fees
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
