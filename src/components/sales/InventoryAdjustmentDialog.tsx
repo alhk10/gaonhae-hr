@@ -237,20 +237,41 @@ export const InventoryAdjustmentDialog: React.FC<InventoryAdjustmentDialogProps>
             </div>
           )}
 
-          {/* Size Variant (if product has sizes) */}
-          {product.requires_size && product.available_sizes && product.available_sizes.length > 0 && (
+          {/* Color Variant (if product has colors) */}
+          {hasColor && (
             <div className="space-y-2">
-              <Label htmlFor="size_variant">Size Variant</Label>
+              <Label>Color Variant *</Label>
+              <Select
+                value={formData.color_variant}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, color_variant: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {product!.available_variants!.colors!.map((color) => (
+                    <SelectItem key={color} value={color}>
+                      {color}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Size Variant (if product has sizes) */}
+          {hasSize && (
+            <div className="space-y-2">
+              <Label>Size Variant *</Label>
               <Select
                 value={formData.size_variant}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, size_variant: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select size (optional)" />
+                  <SelectValue placeholder="Select size" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific size</SelectItem>
-                  {product.available_sizes.map((size) => (
+                  {product!.available_sizes!.map((size) => (
                     <SelectItem key={size} value={size}>
                       {size}
                     </SelectItem>
