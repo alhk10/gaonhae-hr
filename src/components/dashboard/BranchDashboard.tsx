@@ -276,7 +276,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         .order('created_at', { ascending: false });
 
       if (invoiceStatusFilter === 'unpaid') {
-        query = query.in('status', ['draft', 'sent', 'unpaid', 'partial', 'overdue']);
+        query = query.in('status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue']);
       } else if (invoiceStatusFilter === 'paid') {
         query = query.in('status', ['paid', 'verified']);
       } else if (invoiceStatusFilter === 'cancelled') {

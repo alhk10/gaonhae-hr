@@ -129,7 +129,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
     switch (status) {
       case 'paid': return 'default';
       case 'unpaid': case 'overdue': return 'destructive';
-      case 'partial': return 'secondary';
+      case 'partial': case 'partially_paid': return 'secondary';
       default: return 'outline';
     }
   };

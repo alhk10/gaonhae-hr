@@ -853,7 +853,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                     <Wrench className="h-4 w-4 mr-2" />
                     Adjustments
                   </Button>
-                  {(invoice.status === 'paid' || invoice.status === 'verified' || invoice.status === 'partial' || invoice.status === 'draft') && (
+                  {(invoice.status === 'paid' || invoice.status === 'verified' || invoice.status === 'partial' || invoice.status === 'partially_paid' || invoice.status === 'draft') && (
                     <Button variant="destructive" size="sm" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
                       <Ban className="h-4 w-4 mr-2" />
                       Cancel & Refund

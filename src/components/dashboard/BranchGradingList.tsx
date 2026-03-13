@@ -173,7 +173,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'overdue', 'paid', 'verified']);
+        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
 
       if (itemsError) throw itemsError;
 
