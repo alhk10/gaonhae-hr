@@ -56,7 +56,7 @@ export async function getSlotAttendance(
       .from('class_attendance')
       .select(`
         *,
-        students(id, first_name, last_name, current_belt)
+        students(id, first_name, last_name, current_belt, phone)
       `)
       .eq('branch_id', branchId)
       .eq('timetable_id', timetableId)
