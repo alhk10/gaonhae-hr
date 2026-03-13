@@ -469,6 +469,18 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Student Credit Balance */}
+                {studentCreditBalance > 0 && (
+                  <div className="border-t pt-2 mt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Available Student Credit:</span>
+                      <Badge variant="secondary" className="text-green-600 font-semibold">
+                        {formatCurrencyValue(studentCreditBalance)}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

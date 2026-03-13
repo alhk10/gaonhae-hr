@@ -463,6 +463,16 @@ function App() {
                         </AuthGuard>
                       } 
                     />
+                    <Route 
+                      path="/sales/credits" 
+                      element={
+                        <AuthGuard>
+                          <SalesAccessGuard>
+                            <CreditManagement />
+                          </SalesAccessGuard>
+                        </AuthGuard>
+                      } 
+                    />
 
                     {/* 404 Route */}
                     <Route path="*" element={<NotFound />} />
