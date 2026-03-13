@@ -725,6 +725,14 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
       loadBranchTerms(value);
       loadClassTypeAgeSettings(value);
       
+      // Reset tax inclusion to branch default when branch changes
+      if (!taxManuallySet.current) {
+        const selectedBranch = branches.find(b => b.id === value);
+        const country = selectedBranch?.country || null;
+        const defaultInclusive = country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+        setTaxIncluded(defaultInclusive);
+      }
+      
       if (selectedCategory?.name === 'Classes' && formData.student_id) {
         const selectedTermId = await refreshTermSelection(value, formData.student_id);
         setNewItem(prev => ({ ...prev, term_id: selectedTermId }));
