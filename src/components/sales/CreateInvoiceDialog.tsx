@@ -1271,11 +1271,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItemQuantity = (index: number, quantity: number) => {
+  const updateItemQuantity = (index: number, value: string) => {
     const updatedItems = [...items];
+    const parsed = parseInt(value);
+    const quantity = value === '' ? 0 : (isNaN(parsed) ? 1 : parsed);
     updatedItems[index].quantity = quantity;
-    updatedItems[index].total = calculateLineTotal(quantity, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
+    updatedItems[index].total = calculateLineTotal(quantity || 1, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
     setItems(updatedItems);
+  };
+
+  const finalizeItemQuantity = (index: number) => {
+    const updatedItems = [...items];
+    if (updatedItems[index].quantity < 1) {
+      updatedItems[index].quantity = 1;
+      updatedItems[index].total = calculateLineTotal(1, updatedItems[index].unit_price, updatedItems[index].discount_type, updatedItems[index].discount_value);
+      setItems(updatedItems);
+    }
   };
 
   const updateItemPrice = (index: number, price: number) => {
