@@ -114,6 +114,31 @@ const formatDate = (dateString: string | null): string => {
   }
 };
 
+const normalizeInvoiceStatus = (status: string | null | undefined): string => {
+  if (!status) return 'unpaid';
+  if (status === 'draft' || status === 'sent') return 'unpaid';
+  if (status === 'partial') return 'partially_paid';
+  return status;
+};
+
+const resolveInvoiceStatus = (invoice: InvoiceData): string => {
+  const normalizedStatus = normalizeInvoiceStatus(invoice.status);
+
+  if (['cancelled', 'refunded', 'verified', 'overdue'].includes(normalizedStatus)) {
+    return normalizedStatus;
+  }
+
+  const total = Number(invoice.total_amount || 0);
+  const paid = Number(invoice.amount_paid || 0);
+  const rawBalance = invoice.balance_due ?? total - paid;
+  const balance = Math.max(0, Number(rawBalance || 0));
+
+  if (paid > 0 && balance > 0) return 'partially_paid';
+  if (total > 0 && balance <= 0) return 'paid';
+
+  return normalizedStatus;
+};
+
 export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
