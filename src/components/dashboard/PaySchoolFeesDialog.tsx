@@ -922,6 +922,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                           <span className="font-medium">-${earlyPaymentDiscount.toFixed(2)}</span>
                         </div>
                       )}
+                      {siblingDiscount > 0 && (
+                        <div className="flex justify-between text-xs sm:text-sm text-green-600">
+                          <span>Sibling Discount</span>
+                          <span className="font-medium">-${siblingDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="border-t pt-1.5 flex justify-between">
                         <span className="font-semibold text-sm">Total</span>
                         <span className="font-bold text-sm sm:text-lg">${combinedTotal.toFixed(2)}</span>
