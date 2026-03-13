@@ -1544,6 +1544,24 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
             {items.length > 0 && (
               <div className="flex justify-end">
                 <div className="w-full md:w-64 space-y-1 md:space-y-2 text-xs md:text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Tax Mode:</span>
+                    <Select
+                      value={isInclusive ? 'included' : 'excluded'}
+                      onValueChange={(val) => {
+                        taxManuallySet.current = true;
+                        setTaxIncluded(val === 'included');
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-[120px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="included">Tax Included</SelectItem>
+                        <SelectItem value="excluded">Tax Excluded</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>${subtotal.toFixed(2)}</span>

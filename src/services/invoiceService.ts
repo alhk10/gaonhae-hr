@@ -246,7 +246,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     }
     
     const taxRate = getTaxRateForCountry(branchCountry);
-    const isTaxIncluded = getIsTaxIncludedForCountry(branchCountry);
+    const isTaxIncluded = invoiceData.tax_included !== undefined
+      ? invoiceData.tax_included
+      : getIsTaxIncludedForCountry(branchCountry);
     
     // Calculate totals based on tax inclusion setting
     let subtotal = 0;
