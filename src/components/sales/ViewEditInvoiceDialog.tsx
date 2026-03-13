@@ -169,6 +169,15 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
 
+  // Cancel & Refund dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const isSuperadmin = userrole === 'superadmin';
+  const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified';
+  const isCancelled = invoice?.status === 'cancelled';
+
   useEffect(() => {
     if (open && invoiceId) {
       loadInvoiceData();
