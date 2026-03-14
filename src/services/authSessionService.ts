@@ -40,11 +40,7 @@ const DEFAULT_PAGE_ACCESS = {
   payslips: true, myAttendance: true, slotBookingEmployee: true
 };
 
-// Helper: wrap any promise with a timeout
-const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
-  return Promise.race([promise, timeout]);
-};
+import { withTimeout } from '@/utils/asyncHelpers';
 
 export const processUserSession = async (session: Session | null): Promise<SessionResult | null> => {
   if (!session?.user) return null;
