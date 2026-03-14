@@ -1,51 +1,42 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Fix: Allow backspace to clear price inputs in Create Invoice
 
 ### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+Price inputs use `parseFloat(e.target.value) || 0` which immediately snaps empty input back to `0`, preventing backspace from clearing the field. This is the same issue that was previously fixed for quantity inputs.
+
+### Affected Fields (all in `CreateInvoiceDialog.tsx`)
+- **Existing item price** — mobile card layout (line 1533)
+- **Existing item price** — desktop table layout (line 1646)
+- **New item price** — mobile card layout (line 1576)
+- **New item price** — desktop table layout (line 1679)
+
+No other numeric fields are affected:
+- Quantity inputs already use the blur-finalize pattern
+- Discount popover already uses string state (`localValue`)
+- GST/tax uses a select dropdown
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+**`src/components/sales/CreateInvoiceDialog.tsx`**
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+1. **Refactor `updateItemPrice`** to accept a string value (like `updateItemQuantity`):
+   - Parse the string; allow empty/zero intermediate states
+   - Recalculate line total using the parsed value
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+2. **Add `finalizeItemPrice`** blur handler:
+   - Ensure price is not negative on blur (clamp to 0)
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+3. **Update all 4 price `<Input>` elements**:
+   - Change `value={item.unit_price}` → `value={item.unit_price || ''}`
+   - Change `onChange` to pass raw `e.target.value` string
+   - Add `onBlur={() => finalizeItemPrice(index)}`
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
-
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
-
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+4. **Update `handleNewItemChange` for price**:
+   - Change `value={newItem.unit_price}` → `value={newItem.unit_price || ''}`
+   - Allow empty string → 0 intermediate state
+   - Add blur handler to finalize
 
 ### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` only
 
