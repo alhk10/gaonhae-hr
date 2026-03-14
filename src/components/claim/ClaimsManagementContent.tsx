@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { getClaims, updateClaimStatus } from '@/data/claimsData';
+import { getClaims, updateClaimStatus } from '@/services/claimsService';
 import { getEmployeeById } from '@/services/employeeService';
 import AddClaimDialog from '@/components/claim/AddClaimDialog';
 import ClaimSettingsDialog from '@/components/claim/ClaimSettingsDialog';

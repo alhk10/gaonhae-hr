@@ -17,8 +17,6 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
   // Only show sidebar for superadmins - wait for auth to finish loading
   const showSidebar = !isLoading && userrole === 'superadmin';
   
-  console.log('ResponsiveLayout: userrole =', userrole, 'isLoading =', isLoading, 'showSidebar =', showSidebar);
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar onToggleSidebar={showSidebar ? () => setSidebarOpen(!sidebarOpen) : undefined} sidebarOpen={sidebarOpen} />

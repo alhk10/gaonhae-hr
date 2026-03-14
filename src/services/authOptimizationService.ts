@@ -11,11 +11,7 @@ import {
   clearAuthCache as clearCacheService
 } from './authCacheService';
 
-// Helper: wrap any promise with a timeout
-const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
-  return Promise.race([promise, timeout]);
-};
+import { withTimeout } from '@/utils/asyncHelpers';
 
 // Convert supabase query builder to a real Promise
 const toPromise = <T>(queryBuilder: PromiseLike<T>): Promise<T> => {

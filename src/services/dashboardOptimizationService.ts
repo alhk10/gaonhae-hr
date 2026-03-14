@@ -31,22 +31,22 @@ export const getDashboardStats = async () => {
     const timeoutDuration = DEFAULT_QUERY_TIMEOUT;
     
     const promises = [
-      // Get total active employees from Supabase
+      // Get total active employees count (head: true = no rows transferred)
       supabase
         .from('employees')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .is('resign_date', null),
       
-      // Get pending claims from Supabase
+      // Get pending claims count
       supabase
         .from('claims')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('status', 'Pending'),
       
-      // Get active claims (approved/in progress) from Supabase
+      // Get active claims count
       supabase
         .from('claims')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .in('status', ['Approved', 'In Progress'])
     ];
 
@@ -58,25 +58,14 @@ export const getDashboardStats = async () => {
     
     const [employeesResult, pendingClaimsResult, activeClaimsResult] = results;
 
-    if (employeesResult.error) {
-      logger.error('Error fetching employees', employeesResult.error);
-      throw employeesResult.error;
-    }
-
-    if (pendingClaimsResult.error) {
-      logger.error('Error fetching pending claims', pendingClaimsResult.error);
-      throw pendingClaimsResult.error;
-    }
-
-    if (activeClaimsResult.error) {
-      logger.error('Error fetching active claims', activeClaimsResult.error);
-      throw activeClaimsResult.error;
-    }
+    if (employeesResult.error) throw employeesResult.error;
+    if (pendingClaimsResult.error) throw pendingClaimsResult.error;
+    if (activeClaimsResult.error) throw activeClaimsResult.error;
 
     const stats = {
-      totalEmployees: employeesResult.data?.length || 0,
-      pendingClaims: pendingClaimsResult.data?.length || 0,
-      activeClaims: activeClaimsResult.data?.length || 0
+      totalEmployees: employeesResult.count ?? 0,
+      pendingClaims: pendingClaimsResult.count ?? 0,
+      activeClaims: activeClaimsResult.count ?? 0
     };
 
     logger.info('Stats fetched successfully', { stats });
@@ -178,13 +167,13 @@ export const getManagerDashboardData = async (): Promise<ManagerDashboardData> =
       getRecentActivity(5),
       supabase
         .from('claims')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('status', 'Approved')
     ]);
 
     const enhancedStats = {
       ...stats,
-      approvedClaims: approvedClaimsResult.data?.length || 0
+      approvedClaims: approvedClaimsResult.count ?? 0
     };
 
     logger.info('Manager dashboard data fetched successfully');
