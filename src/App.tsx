@@ -73,7 +73,7 @@ const LoadingFallback = () => (
 );
 
 // Reusable route wrapper to reduce AuthGuard + PageAccessGuard boilerplate
-const ProtectedRoute = ({ permission, children }: { permission?: string; children: ReactNode }) => (
+const ProtectedRoute = ({ permission, children }: { permission?: keyof AdminAccessPermissions | keyof EmployeePageAccessPermissions; children: ReactNode }) => (
   <AuthGuard>
     {permission ? <PageAccessGuard requiredPermission={permission}>{children}</PageAccessGuard> : children}
   </AuthGuard>
