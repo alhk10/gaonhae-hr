@@ -1184,6 +1184,21 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AddStudentDialog
+        open={showAddStudentDialog}
+        onOpenChange={setShowAddStudentDialog}
+        onStudentAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+        }}
+      />
+
+      <AddTrialDialog
+        open={showAddTrialDialog}
+        onOpenChange={setShowAddTrialDialog}
+        onTrialAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+        }}
+      />
     </div>
   );
 };
