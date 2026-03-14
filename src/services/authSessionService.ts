@@ -81,7 +81,6 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     let finalUserData = userData;
     
     logger.debug('Parallel auth checks complete', { 
-    logger.debug('Parallel auth checks complete', { 
       hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
     });
 
