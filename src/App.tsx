@@ -86,7 +86,7 @@ const SalesRoute = ({ children }: { children: ReactNode }) => (
 );
 
 // Wrap payroll routes with PayrollProvider so it only loads on payroll pages
-const PayrollRoute = ({ permission, children }: { permission?: string; children: ReactNode }) => (
+const PayrollRoute = ({ permission, children }: { permission?: keyof AdminAccessPermissions | keyof EmployeePageAccessPermissions; children: ReactNode }) => (
   <ProtectedRoute permission={permission}>
     <PayrollProvider>{children}</PayrollProvider>
   </ProtectedRoute>
