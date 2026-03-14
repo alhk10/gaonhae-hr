@@ -1349,11 +1349,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  const updateItemPrice = (index: number, price: number) => {
+  const updateItemPrice = (index: number, value: string) => {
     const updatedItems = [...items];
+    const parsed = parseFloat(value);
+    const price = value === '' ? 0 : (isNaN(parsed) ? 0 : parsed);
     updatedItems[index].unit_price = price;
     updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, price, updatedItems[index].discount_type, updatedItems[index].discount_value);
     setItems(updatedItems);
+  };
+
+  const finalizeItemPrice = (index: number) => {
+    const updatedItems = [...items];
+    if (updatedItems[index].unit_price < 0) {
+      updatedItems[index].unit_price = 0;
+      updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, 0, updatedItems[index].discount_type, updatedItems[index].discount_value);
+      setItems(updatedItems);
+    }
   };
 
   const updateItemDiscount = (index: number, type: 'percentage' | 'amount', value: number) => {
