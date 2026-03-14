@@ -705,10 +705,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/parties?tab=students&action=add')}>
+                <DropdownMenuItem onClick={() => setShowAddStudentDialog(true)}>
                   Add New Student
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/parties?tab=trials&action=add')}>
+                <DropdownMenuItem onClick={() => setShowAddTrialDialog(true)}>
                   Add New Trial
                 </DropdownMenuItem>
               </DropdownMenuContent>
