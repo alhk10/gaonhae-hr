@@ -173,7 +173,7 @@ export const getManagerDashboardData = async (): Promise<ManagerDashboardData> =
 
     const enhancedStats = {
       ...stats,
-      approvedClaims: approvedClaimsResult.data?.length || 0
+      approvedClaims: approvedClaimsResult.count ?? 0
     };
 
     logger.info('Manager dashboard data fetched successfully');
