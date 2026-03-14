@@ -78,6 +78,8 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
+import AddStudentDialog from '@/components/sales/AddStudentDialog';
+import AddTrialDialog from '@/components/sales/AddTrialDialog';
 import { getPendingRegistrationsCount } from '@/services/studentRegistrationService';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { normalizePartyData } from '@/utils/partyUtils';
