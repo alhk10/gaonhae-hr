@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { generateSalt, hashPassword, logSecurityEvent } from '@/services/securityService';
+import { logSecurityEvent } from '@/services/securityService';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -43,32 +43,23 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     setIsLoading(true);
 
     try {
-      // Generate salt and hash the default password
-      const salt = generateSalt();
-      const hashedPassword = await hashPassword(defaultPassword, salt);
-
-      console.log('ResetPasswordDialog: Generated password hash for:', employeeEmail);
-
-      // Update/insert password in database with mandatory change flag
-      const { error: upsertError } = await supabase
-        .from('user_passwords')
-        .upsert({
+      // Call auth-admin edge function to reset the actual Supabase Auth password
+      const { data, error } = await supabase.functions.invoke('auth-admin', {
+        body: {
+          action: 'reset_password',
           email: employeeEmail,
-          password_hash: hashedPassword,
-          salt: salt,
-          must_change_password: true,
-          requires_change: true,
-          password_complexity_met: false, // Default password doesn't meet complexity
-          last_password_change: new Date().toISOString(),
-          failed_attempts: 0,
-          locked_until: null
-        }, {
-          onConflict: 'email'
-        });
+          newPassword: defaultPassword,
+        },
+      });
 
-      if (upsertError) {
-        console.error('ResetPasswordDialog: Database error:', upsertError);
-        throw new Error(`Database error: ${upsertError.message}`);
+      if (error) {
+        console.error('ResetPasswordDialog: Edge function error:', error);
+        throw new Error(`Password reset failed: ${error.message}`);
+      }
+
+      if (data?.error) {
+        console.error('ResetPasswordDialog: Reset error:', data.error);
+        throw new Error(data.error);
       }
 
       // Log security event

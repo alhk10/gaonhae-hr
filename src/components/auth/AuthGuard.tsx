@@ -20,19 +20,19 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If not loading and no user, redirect to home
+    // Only redirect if auth is fully resolved (not loading) and no user
     if (!isLoading && !user) {
       console.log('AuthGuard: No authenticated user, redirecting to home');
       navigate('/', { replace: true });
     }
   }, [user, isLoading, navigate]);
 
-  // Show loading while checking authentication
+  // Show loading while checking authentication — never flash login
   if (isLoading) {
     return <>{fallback}</>;
   }
 
-  // If no user, show fallback while redirecting
+  // If no user after loading complete, show fallback while redirect happens
   if (!user) {
     return <>{fallback}</>;
   }

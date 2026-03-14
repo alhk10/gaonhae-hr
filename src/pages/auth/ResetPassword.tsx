@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
+const RECOVERY_FLAG_KEY = 'requiresPasswordChange';
+
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState('');
@@ -23,27 +25,15 @@ const ResetPassword = () => {
   useEffect(() => {
     const initializeRecoverySession = async () => {
       console.log('ResetPassword: Initializing recovery session...');
-      console.log('Full URL:', window.location.href);
-      console.log('Hash:', window.location.hash);
-      console.log('Search:', window.location.search);
       
       try {
-        // With implicit flow, tokens come in the URL hash
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         const errorParam = hashParams.get('error');
         const errorDescription = hashParams.get('error_description');
-        
-        console.log('Hash params:', { 
-          hasAccessToken: !!accessToken, 
-          type, 
-          error: errorParam,
-          errorDescription 
-        });
 
-        // Check for error in URL (e.g., expired link)
         if (errorParam) {
           console.error('Error in URL:', errorParam, errorDescription);
           setError(decodeURIComponent(errorDescription || 'Invalid or expired link. Please request a new password reset.'));
@@ -69,15 +59,16 @@ const ResetPassword = () => {
           
           if (data.session) {
             console.log('Session established from hash tokens');
+            // Set recovery flag so AuthContext knows password change is required
+            sessionStorage.setItem(RECOVERY_FLAG_KEY, 'true');
             setIsRecoveryMode(true);
             setChecking(false);
-            // Clear the hash to prevent issues on refresh
             window.history.replaceState(null, '', window.location.pathname);
             return;
           }
         }
 
-        // Method 2: Check for existing session (user might already be authenticated)
+        // Method 2: Check for existing session
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           console.log('Found existing session, allowing password reset');
@@ -86,7 +77,6 @@ const ResetPassword = () => {
           return;
         }
 
-        // No valid recovery method found
         console.log('No valid recovery token or session found');
         setError('Invalid or expired password reset link. Please request a new one from the login page.');
         setChecking(false);
@@ -98,13 +88,13 @@ const ResetPassword = () => {
       }
     };
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
+        console.log('ResetPassword auth state change:', event);
         
         if (event === 'PASSWORD_RECOVERY') {
           console.log('PASSWORD_RECOVERY event received');
+          sessionStorage.setItem(RECOVERY_FLAG_KEY, 'true');
           setIsRecoveryMode(true);
           setError(null);
           setChecking(false);
@@ -128,7 +118,6 @@ const ResetPassword = () => {
     e.preventDefault();
     setError(null);
 
-    // Validation
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -151,10 +140,13 @@ const ResetPassword = () => {
         throw updateError;
       }
 
+      // Clear the recovery flag — password has been changed
+      sessionStorage.removeItem(RECOVERY_FLAG_KEY);
+      
       setSuccess(true);
       toast.success('Password updated successfully!');
       
-      // Sign out and redirect to login after a short delay
+      // Sign out and redirect to login
       setTimeout(async () => {
         await supabase.auth.signOut();
         navigate('/');
@@ -168,7 +160,6 @@ const ResetPassword = () => {
     }
   };
 
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -187,7 +178,6 @@ const ResetPassword = () => {
     );
   }
 
-  // Loading state while checking auth
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -199,7 +189,6 @@ const ResetPassword = () => {
     );
   }
 
-  // Error state - invalid/expired link
   if (!isRecoveryMode && error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -229,7 +218,6 @@ const ResetPassword = () => {
     );
   }
 
-  // Password reset form
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
