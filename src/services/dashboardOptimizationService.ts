@@ -167,7 +167,7 @@ export const getManagerDashboardData = async (): Promise<ManagerDashboardData> =
       getRecentActivity(5),
       supabase
         .from('claims')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('status', 'Approved')
     ]);
 
