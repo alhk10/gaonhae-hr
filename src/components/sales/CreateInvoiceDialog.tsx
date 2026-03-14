@@ -1349,11 +1349,22 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
     }
   };
 
-  const updateItemPrice = (index: number, price: number) => {
+  const updateItemPrice = (index: number, value: string) => {
     const updatedItems = [...items];
+    const parsed = parseFloat(value);
+    const price = value === '' ? 0 : (isNaN(parsed) ? 0 : parsed);
     updatedItems[index].unit_price = price;
     updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, price, updatedItems[index].discount_type, updatedItems[index].discount_value);
     setItems(updatedItems);
+  };
+
+  const finalizeItemPrice = (index: number) => {
+    const updatedItems = [...items];
+    if (updatedItems[index].unit_price < 0) {
+      updatedItems[index].unit_price = 0;
+      updatedItems[index].total = calculateLineTotal(updatedItems[index].quantity, 0, updatedItems[index].discount_type, updatedItems[index].discount_value);
+      setItems(updatedItems);
+    }
   };
 
   const updateItemDiscount = (index: number, type: 'percentage' | 'amount', value: number) => {
@@ -1530,7 +1541,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Price:</span>
-                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className="w-16 h-6 text-xs px-1" />
+                        <Input type="number" min="0" step="0.01" value={item.unit_price || ''} onChange={(e) => updateItemPrice(index, e.target.value)} onBlur={() => finalizeItemPrice(index)} className="w-16 h-6 text-xs px-1" />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">Disc:</span>
@@ -1573,7 +1584,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   </div>
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Price</Label>
-                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground' : ''}`} />
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const parsed = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(parsed) ? 0 : parsed)); }} onBlur={() => { if (newItem.unit_price < 0) handleNewItemChange('unit_price', 0); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground' : ''}`} />
                   </div>
                   <Button type="button" onClick={addItem} size="sm" className="h-7 text-xs" disabled={!newItem.product_id}>
                     <Plus className="h-3 w-3 mr-1" /> Add
@@ -1643,7 +1654,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                         <Input type="number" min="1" value={item.quantity || ''} onChange={(e) => updateItemQuantity(index, e.target.value)} onBlur={() => finalizeItemQuantity(index)} className="w-12 h-7 text-xs px-1" />
                       </TableCell>
                       <TableCell className="px-2">
-                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} className={`w-14 h-7 text-xs px-1 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
+                        <Input type="number" min="0" step="0.01" value={item.unit_price || ''} onChange={(e) => updateItemPrice(index, e.target.value)} onBlur={() => finalizeItemPrice(index)} className={`w-14 h-7 text-xs px-1 ${item.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                       </TableCell>
                       <TableCell className="px-2">
                         <LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} />
@@ -1676,7 +1687,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                     <Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="w-12 h-7 text-xs px-1" />
                   </TableCell>
                   <TableCell className="px-2">
-                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const parsed = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(parsed) ? 0 : parsed)); }} onBlur={() => { if (newItem.unit_price < 0) handleNewItemChange('unit_price', 0); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : newItem.unit_price === 0 ? 'text-muted-foreground' : ''}`} />
                   </TableCell>
                   <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
                   <TableCell className="px-2">
