@@ -78,6 +78,8 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
+import AddStudentDialog from '@/components/sales/AddStudentDialog';
+import AddTrialDialog from '@/components/sales/AddTrialDialog';
 import { getPendingRegistrationsCount } from '@/services/studentRegistrationService';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { normalizePartyData } from '@/utils/partyUtils';
@@ -115,6 +117,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [massEditMode, setMassEditMode] = useState(false);
   const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
   const [massEditSaving, setMassEditSaving] = useState(false);
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
+  const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
 
   const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
     setMassEditData(prev => ({
@@ -701,10 +705,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/parties?tab=students&action=add')}>
+                <DropdownMenuItem onClick={() => setShowAddStudentDialog(true)}>
                   Add New Student
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/parties?tab=trials&action=add')}>
+                <DropdownMenuItem onClick={() => setShowAddTrialDialog(true)}>
                   Add New Trial
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -1180,6 +1184,21 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AddStudentDialog
+        open={showAddStudentDialog}
+        onOpenChange={setShowAddStudentDialog}
+        onStudentAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+        }}
+      />
+
+      <AddTrialDialog
+        open={showAddTrialDialog}
+        onOpenChange={setShowAddTrialDialog}
+        onTrialAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+        }}
+      />
     </div>
   );
 };
