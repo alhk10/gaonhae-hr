@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { clearAuthCache } from '@/services/authCacheService';
 
 const SESSION_STORAGE_KEY = 'selectedStudentId';
+const RECOVERY_FLAG_KEY = 'requiresPasswordChange';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -34,48 +35,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userDetails, setUserDetails] = useState<any>(null);
   const [adminAccess, setAdminAccess] = useState<any>(null);
   const [pageAccess, setPageAccess] = useState<any>(null);
-  // Check if there's a cached Supabase session in localStorage to prevent login flash on refresh
   const [isLoading, setIsLoading] = useState(true);
-  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(
+    () => sessionStorage.getItem(RECOVERY_FLAG_KEY) === 'true'
+  );
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Sequence counter to prevent stale session processing from overwriting newer results
+  // Sequence counter to prevent stale session processing
   const sessionSeqRef = React.useRef(0);
-  // Guard: don't allow isLoading=false until initial getSession() completes
-  const initialLoadDoneRef = React.useRef(false);
-  // Ref to track current user for stale closure in onAuthStateChange
+  // Single-flight guard: true once initial auth resolution is done
+  const initDoneRef = React.useRef(false);
+  // Prevent double init
+  const initStartedRef = React.useRef(false);
+  // Ref to track current user for stale closure checks
   const userRef = React.useRef<any>(null);
 
-  const handleUserSession = async (session: Session | null) => {
+  const clearUserState = () => {
+    setUser(null);
+    userRef.current = null;
+    setUserrole(null);
+    setUserType(null);
+    setUserDetails(null);
+    setAdminAccess(null);
+    setPageAccess(null);
+    setLinkedStudents([]);
+    setSelectedStudentId(null);
+  };
+
+  const handleUserSession = async (session: Session | null, finalize: boolean = false) => {
     const seq = ++sessionSeqRef.current;
     logger.debug('Processing user session', { email: session?.user?.email });
-    
+
     const result = await processUserSession(session);
-    
-    if (!result) {
-      // Only apply if this is still the latest session processing
-      if (seq !== sessionSeqRef.current) {
-        logger.debug('Stale session result (null), skipping', { seq, current: sessionSeqRef.current });
-        return;
-      }
-      setUser(null);
-      userRef.current = null;
-      setUserrole(null);
-      setUserType(null);
-      setUserDetails(null);
-      setAdminAccess(null);
-      setPageAccess(null);
-      setLinkedStudents([]);
-      setSelectedStudentId(null);
-      if (initialLoadDoneRef.current) setIsLoading(false);
+
+    // Stale check
+    if (seq !== sessionSeqRef.current) {
+      logger.debug('Stale session result, skipping', { seq, current: sessionSeqRef.current });
       return;
     }
 
-    // Only apply if this is still the latest session processing
-    if (seq !== sessionSeqRef.current) {
-      logger.debug('Stale session result, skipping', { seq, current: sessionSeqRef.current, role: result.userrole });
+    if (!result) {
+      clearUserState();
+      if (finalize || initDoneRef.current) {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -86,12 +91,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUserDetails(result.userDetails);
     setAdminAccess(result.adminAccess);
     setPageAccess(result.pageAccess);
-    
+
     // Handle multi-student support
     const students = result.linkedStudents || [];
     setLinkedStudents(students);
-    
-    // Restore or set selected student
+
     if (students.length > 0) {
       const savedStudentId = sessionStorage.getItem(SESSION_STORAGE_KEY);
       const isValidSaved = savedStudentId && students.some(s => s.id === savedStudentId);
@@ -99,20 +103,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setSelectedStudentId(null);
     }
-    
-    if (initialLoadDoneRef.current) setIsLoading(false);
+
+    if (finalize || initDoneRef.current) {
+      setIsLoading(false);
+    }
   };
-  
+
   const handleSetSelectedStudent = (studentId: string) => {
     setSelectedStudentId(studentId);
     sessionStorage.setItem(SESSION_STORAGE_KEY, studentId);
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; needsVerification?: boolean }> => {
-    // NOTE: Do NOT set isLoading=true here. Setting isLoading causes Index to unmount
-    // the LoginForm and show a spinner. If login fails, a fresh LoginForm mounts
-    // and all error state is lost — the user just sees a "refresh" with no error.
-    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -121,7 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         logger.error('Login error', error);
-        
+
         if (error.message.toLowerCase().includes('email not confirmed')) {
           toast({
             title: "Email Not Verified",
@@ -130,7 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           });
           return { success: false, needsVerification: true };
         }
-        
+
         toast({
           title: "Login Failed",
           description: error.message,
@@ -140,18 +142,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (data.session) {
-        // Now that login succeeded, show loading while we process the session
         setIsLoading(true);
-        // handleUserSession may also be triggered by onAuthStateChange(SIGNED_IN),
-        // but the sequence counter prevents stale results from overwriting newer ones
-        await handleUserSession(data.session);
+        await handleUserSession(data.session, true);
         toast({
           title: "Login Successful",
           description: "Welcome back!",
         });
         return { success: true };
       }
-      
+
       return { success: false };
     } catch (error) {
       logger.error('Unexpected login error', error);
@@ -166,9 +165,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async (): Promise<void> => {
     try {
-      // Clear auth cache on logout
       clearAuthCache();
-      
+      sessionStorage.removeItem(RECOVERY_FLAG_KEY);
+      setRequiresPasswordChange(false);
+
       const { error } = await supabase.auth.signOut();
       if (error) {
         logger.error('Logout error', error);
@@ -200,6 +200,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       setRequiresPasswordChange(false);
+      sessionStorage.removeItem(RECOVERY_FLAG_KEY);
       return true;
     } catch (error) {
       logger.error('Unexpected password update error', error);
@@ -208,103 +209,97 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Set up listener BEFORE getSession per Supabase best practices
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Subscribe BEFORE getSession per Supabase best practices
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       logger.info('Auth state changed', { event });
-      
-      // Skip re-processing on TOKEN_REFRESHED if user is already loaded
-      if (event === 'TOKEN_REFRESHED' && userRef.current) {
-        logger.debug('Token refreshed, user already loaded — skipping re-process');
-        return;
-      }
 
-      // On INITIAL_SESSION, skip if initAuth will handle it (prevents double-processing race)
-      if (event === 'INITIAL_SESSION') {
-        logger.debug('INITIAL_SESSION event — deferring to initAuth');
-        return;
-      }
-      
-      // Only clear user state on explicit sign-out, not on transient null sessions
       if (event === 'SIGNED_OUT') {
-        setUser(null);
-        userRef.current = null;
-        setUserrole(null);
-        setUserType(null);
-        setUserDetails(null);
-        setAdminAccess(null);
-        setPageAccess(null);
-        setLinkedStudents([]);
-        setSelectedStudentId(null);
+        clearUserState();
         setIsLoading(false);
         return;
       }
-      
-      await handleUserSession(session);
+
+      // PASSWORD_RECOVERY: set flag so user must change password
+      if (event === 'PASSWORD_RECOVERY') {
+        logger.info('PASSWORD_RECOVERY event — requiring password change');
+        setRequiresPasswordChange(true);
+        sessionStorage.setItem(RECOVERY_FLAG_KEY, 'true');
+        // Still process the session so user is "logged in" but gated
+        // Use fire-and-forget to avoid blocking the callback
+        handleUserSession(session, initDoneRef.current).then(() => {
+          if (!initDoneRef.current) {
+            initDoneRef.current = true;
+            setIsLoading(false);
+          }
+        });
+        return;
+      }
+
+      // INITIAL_SESSION: process it as part of init (don't ignore)
+      if (event === 'INITIAL_SESSION') {
+        // If initAuth already started, let it handle via getSession; skip here
+        if (initStartedRef.current) {
+          logger.debug('INITIAL_SESSION — initAuth already started, deferring');
+          return;
+        }
+        // Otherwise process directly
+        handleUserSession(session, true).then(() => {
+          initDoneRef.current = true;
+        });
+        return;
+      }
+
+      // TOKEN_REFRESHED: skip re-processing if user already loaded
+      if (event === 'TOKEN_REFRESHED' && userRef.current) {
+        logger.debug('Token refreshed, user already loaded — skipping');
+        return;
+      }
+
+      // SIGNED_IN and others: process normally (fire-and-forget)
+      handleUserSession(session, initDoneRef.current);
     });
 
     const initAuth = async () => {
+      if (initStartedRef.current) return;
+      initStartedRef.current = true;
+
       try {
-        const getSessionPromise = supabase.auth.getSession();
-        const timeout = new Promise<{ data: { session: Session | null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 8000)
-        );
-        const { data: { session } } = await Promise.race([getSessionPromise as any, timeout]);
-        
-        // If session exists but is close to expiring, proactively refresh
-        if (session?.expires_at) {
-          const expiresAtMs = session.expires_at * 1000;
-          const now = Date.now();
-          const timeUntilExpiry = expiresAtMs - now;
-          
-          if (timeUntilExpiry < 5 * 60 * 1000) {
-            logger.debug('Token expiring soon, proactively refreshing...');
-            const { data: refreshData } = await supabase.auth.refreshSession();
-            if (refreshData.session) {
-              initialLoadDoneRef.current = true;
-              await handleUserSession(refreshData.session);
-              return;
-            }
-          }
+        // Check for recovery hash in URL before getSession
+        const hash = window.location.hash;
+        if (hash.includes('type=recovery')) {
+          logger.info('Recovery hash detected in URL — setting password change flag');
+          setRequiresPasswordChange(true);
+          sessionStorage.setItem(RECOVERY_FLAG_KEY, 'true');
         }
-        
-        initialLoadDoneRef.current = true;
-        await handleUserSession(session);
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          logger.error('getSession error during init', error);
+          // If refresh token not found, clear state cleanly
+          if ((error as any)?.code === 'refresh_token_not_found' || 
+              error.message?.includes('Refresh Token Not Found')) {
+            logger.info('Refresh token invalid — clearing auth state');
+            clearUserState();
+          }
+          initDoneRef.current = true;
+          setIsLoading(false);
+          return;
+        }
+
+        initDoneRef.current = true;
+        await handleUserSession(session, true);
       } catch (error) {
         logger.error('Error getting initial session', error);
-        initialLoadDoneRef.current = true;
+        initDoneRef.current = true;
         setIsLoading(false);
       }
     };
 
     initAuth();
 
-    // Set up periodic session refresh every 2 minutes to prevent expiration
-    const refreshInterval = setInterval(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.expires_at) {
-          const expiresAtMs = session.expires_at * 1000;
-          const now = Date.now();
-          const timeUntilExpiry = expiresAtMs - now;
-          
-          if (timeUntilExpiry < 10 * 60 * 1000) {
-            logger.debug(`Periodic check: Token expires in ${Math.round(timeUntilExpiry / 60000)} minutes, refreshing...`);
-            const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) {
-              logger.error('Periodic refresh failed:', refreshError);
-            } else if (refreshedData.session) {
-              logger.info('Periodic session refresh successful');
-            }
-          }
-        }
-      } catch (error) {
-        logger.error('Error during periodic session refresh', error);
-      }
-    }, 2 * 60 * 1000);
-
     return () => {
       subscription.unsubscribe();
-      clearInterval(refreshInterval);
     };
   }, []);
 
