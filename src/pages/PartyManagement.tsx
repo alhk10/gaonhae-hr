@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -47,25 +47,6 @@ const PartyManagement = () => {
   const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
   const [showImportStudentsDialog, setShowImportStudentsDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ name: string; email: string } | null>(null);
-
-  // Read URL query params on mount to open dialogs from navigation
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    const action = params.get('action');
-
-    if (tab === 'students' || tab === 'trials') {
-      setActiveTab(tab);
-    }
-    if (action === 'add') {
-      if (tab === 'trials') {
-        setShowAddTrialDialog(true);
-      } else {
-        setShowAddStudentDialog(true);
-      }
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
   
   // Form States
   const [paymentType, setPaymentType] = useState('Monthly');
