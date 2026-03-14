@@ -1584,7 +1584,7 @@ const CreateInvoiceDialog: React.FC<CreateInvoiceDialogProps> = ({ trigger, onIn
                   </div>
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Price</Label>
-                    <Input type="number" min="0" step="0.01" value={newItem.unit_price} onChange={(e) => handleNewItemChange('unit_price', parseFloat(e.target.value) || 0)} disabled={selectedProduct && selectedProduct.base_price > 0} className={`h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground' : ''}`} />
+                    <Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const parsed = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(parsed) ? 0 : parsed)); }} onBlur={() => { if (newItem.unit_price < 0) handleNewItemChange('unit_price', 0); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground' : ''}`} />
                   </div>
                   <Button type="button" onClick={addItem} size="sm" className="h-7 text-xs" disabled={!newItem.product_id}>
                     <Plus className="h-3 w-3 mr-1" /> Add
