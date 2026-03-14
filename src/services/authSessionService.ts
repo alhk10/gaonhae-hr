@@ -77,22 +77,10 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       withTimeout(checkSuperadminRPC(email), 6000, false)
     ]);
     
-    // If superadmin check timed out but we have no data yet, retry with longer timeout
     let isSuperadmin = isSuperadminInitial;
-    if (!isSuperadmin && !studentData) {
-      logger.debug('Superadmin initial check was false, retrying with longer timeout');
-      isSuperadmin = await withTimeout(checkSuperadminRPC(email), 8000, false);
-      logger.debug('Superadmin retry result', { isSuperadmin });
-    }
-    
-    // Also retry employee data if missing
     let finalUserData = userData;
-    if (!finalUserData && !studentData) {
-      logger.debug('Employee data missing, retrying');
-      finalUserData = await withTimeout(getUserData(email, authUserId).catch(() => null), 8000, null);
-      logger.debug('Employee data retry result', { hasEmployee: !!finalUserData });
-    }
     
+    logger.debug('Parallel auth checks complete', { 
     logger.debug('Parallel auth checks complete', { 
       hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
     });

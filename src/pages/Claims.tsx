@@ -26,7 +26,7 @@ import { Settings } from 'lucide-react';
 import {
   getClaims,
   updateClaimStatus
-} from '@/data/claimsData';
+} from '@/services/claimsService';
 import { getEmployeeById } from '@/services/employeeService';
 import AddClaimDialog from '@/components/claim/AddClaimDialog';
 import ClaimSettingsDialog from '@/components/claim/ClaimSettingsDialog';
