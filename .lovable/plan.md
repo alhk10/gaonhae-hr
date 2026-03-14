@@ -1,51 +1,84 @@
 
+Goal: fix two persistent auth issues together:
+1) Jason Lu repeatedly needing password recovery.
+2) Login page flashing for a few seconds before dashboard after refresh.
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+What I found (root causes):
+- Runtime logs show `refresh_token_not_found` during auth bootstrap (`/token` 400), and current auth boot logic can transiently resolve to “logged out”.
+- `AuthContext` currently combines:
+  - ignored `INITIAL_SESSION`,
+  - manual `Promise.race` timeout in `getSession`,
+  - proactive + interval `refreshSession` calls,
+  which can create race conditions and temporary unauthenticated states (causing login-page flash / redirect to `/` before session settles).
+- For Jason specifically, `auth.audit_log_entries` shows many `user_recovery_requested` + `login` events, but no `user_updated_password` events recently. That means recovery links are being used to sign in, but password is not being persistently changed.
+- Admin reset UI (`ResetPasswordDialog`) writes to `public.user_passwords` only, not Supabase Auth (`auth.users`), so it is not a true auth password reset path.
 
-### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+Implementation plan:
 
-### Changes
+1) Refactor auth initialization to be race-safe
+- File: `src/contexts/AuthContext.tsx`
+- Replace current bootstrap flow with a single, deterministic init:
+  - subscribe once to auth state changes,
+  - process `INITIAL_SESSION` (do not ignore),
+  - run one guarded bootstrap `getSession`,
+  - dedupe event/bootstrap processing with a single-flight guard.
+- Remove manual periodic refresh loop and init-time forced refresh logic; rely on Supabase client auto refresh.
+- Keep `isLoading=true` until initial auth state is fully resolved (no transient false).
+- If bootstrap hits `refresh_token_not_found`, clear local auth state cleanly and finalize without oscillation.
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+2) Enforce password update when recovery session is used
+- Files:
+  - `src/contexts/AuthContext.tsx`
+  - `src/pages/auth/ResetPassword.tsx`
+  - `src/pages/Index.tsx` (minimal, only if needed for gating behavior)
+- On `PASSWORD_RECOVERY` (and/or URL hash `type=recovery`) set `requiresPasswordChange=true`.
+- Persist this flag in `sessionStorage` so refresh cannot bypass it.
+- Clear the flag only after successful `supabase.auth.updateUser({ password })`.
+- This guarantees users cannot continue to dashboard indefinitely on recovery-only sessions without setting a real password.
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+3) Correct admin password reset so it actually resets Auth credentials
+- Files:
+  - `src/components/employee/ResetPasswordDialog.tsx`
+  - `supabase/functions/auth-admin/index.ts`
+- Replace `user_passwords` table upsert reset flow with an `auth-admin` action that updates Supabase Auth user password (admin API).
+- Keep superadmin authorization checks in edge function.
+- Optionally invalidate other sessions after admin reset so user logs in with the new credential path immediately.
+- Result: admin “reset password” becomes real and consistent with login system.
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+4) Hardening for no-login-flash behavior on refresh
+- Files:
+  - `src/contexts/AuthContext.tsx`
+  - `src/components/auth/AuthGuard.tsx` (only if needed)
+- Ensure guards never treat auth as “logged out” before bootstrap completion.
+- Prevent redirect-to-home from protected routes during unresolved auth hydration.
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+Technical details:
+- Keep async work out of direct `onAuthStateChange` callback body (fire-and-forget to internal handler) to avoid callback blocking.
+- Do not rely on frequent manual `refreshSession` calls; they can rotate tokens unnecessarily and increase refresh-token race failures.
+- Recovery flow will be explicitly stateful (`requiresPasswordChange`) rather than inferred only from route presence.
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+Validation plan after implementation:
+1) Jason test:
+- Trigger forgot-password once.
+- Confirm forced password-change flow appears.
+- Confirm successful password update.
+- Log out/in with new password (no additional recovery required).
+2) Refresh test:
+- Refresh on `/`, `/employees`, and another protected route.
+- Confirm no login form flash; only loader then destination/dashboard.
+3) Token stability:
+- Keep app open and refresh after some time; ensure no repeated `refresh_token_not_found` loops in console.
+4) Admin reset test:
+- Reset one test user via dialog.
+- Verify they can sign in with reset credential and then set permanent password.
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
+Files to modify:
+- `src/contexts/AuthContext.tsx`
+- `src/pages/auth/ResetPassword.tsx`
+- `src/pages/Index.tsx` (if gating adjustment needed)
+- `src/components/auth/AuthGuard.tsx` (if redirect guard adjustment needed)
+- `src/components/employee/ResetPasswordDialog.tsx`
+- `supabase/functions/auth-admin/index.ts`
 
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
-
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
-
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
-
+Database changes:
+- No schema migration required for this fix set.
