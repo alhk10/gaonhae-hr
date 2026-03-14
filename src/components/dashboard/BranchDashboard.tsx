@@ -117,6 +117,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [massEditMode, setMassEditMode] = useState(false);
   const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
   const [massEditSaving, setMassEditSaving] = useState(false);
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
+  const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
 
   const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
     setMassEditData(prev => ({
