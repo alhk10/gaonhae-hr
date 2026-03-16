@@ -316,9 +316,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   });
 
   // Filter out dismissed notices
+  const getDismissedNoticesKey = () => `dismissed_notices_${viewerNoticeScope}_${studentId}`;
+
   const getUndismissedNotices = (): Notice[] => {
     if (!studentId || activeNotices.length === 0) return [];
-    const dismissedKey = `dismissed_notices_${studentId}`;
+    const dismissedKey = getDismissedNoticesKey();
     const dismissed: string[] = JSON.parse(sessionStorage.getItem(dismissedKey) || '[]');
     return activeNotices.filter(n => !dismissed.includes(n.id));
   };
@@ -330,7 +332,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       setShowNoticePopup(false);
       return;
     }
-    const dismissedKey = `dismissed_notices_${studentId}`;
+    const dismissedKey = getDismissedNoticesKey();
     const dismissed: string[] = JSON.parse(sessionStorage.getItem(dismissedKey) || '[]');
     dismissed.push(undismissedNotices[0].id);
     sessionStorage.setItem(dismissedKey, JSON.stringify(dismissed));
