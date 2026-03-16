@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle, CalendarCheck } from 'lucide-react';
+import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle, CalendarCheck, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
