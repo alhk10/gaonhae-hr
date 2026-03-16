@@ -51,6 +51,7 @@ interface PaySchoolFeesDialogProps {
   availableTerms: Term[];
   previousEnrollment: any | null;
   gradingSlots?: GradingSlot[];
+  readOnly?: boolean;
 }
 
 // Calculate age in decimal years (e.g., 4.5 for 4 years 6 months)
