@@ -27,7 +27,7 @@ export interface InvoiceActionRequest {
  */
 export const submitActionRequest = async (
   invoiceId: string,
-  actionType: 'adjustment' | 'cancellation',
+  actionType: 'adjustment' | 'cancellation' | 'item_refund',
   requestData: any,
   invoiceNumber: string,
   studentName: string,

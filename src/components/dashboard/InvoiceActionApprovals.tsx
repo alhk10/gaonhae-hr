@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Check, X, Loader2, FileText } from 'lucide-react';
 import { getPendingActionRequests, approveActionRequest, rejectActionRequest, type InvoiceActionRequest } from '@/services/invoiceActionRequestService';
 import { cancelInvoice } from '@/services/invoiceService';
+import { refundLineItem } from '@/services/invoiceRefundService';
 import { format } from 'date-fns';
 
 const InvoiceActionApprovals: React.FC = () => {
@@ -29,14 +30,41 @@ const InvoiceActionApprovals: React.FC = () => {
 
   if (requests.length === 0) return null;
 
+  const getActionLabel = (actionType: string) => {
+    switch (actionType) {
+      case 'cancellation': return 'Cancel';
+      case 'item_refund': return 'Item Refund';
+      case 'adjustment': return 'Adjust';
+      default: return actionType;
+    }
+  };
+
+  const getActionVariant = (actionType: string): 'destructive' | 'outline' | 'secondary' => {
+    switch (actionType) {
+      case 'cancellation': return 'destructive';
+      case 'item_refund': return 'secondary';
+      default: return 'outline';
+    }
+  };
+
   const handleApprove = async (request: InvoiceActionRequest) => {
     try {
       setProcessingId(request.id);
       if (request.action_type === 'cancellation') {
         await cancelInvoice(request.invoice_id);
+      } else if (request.action_type === 'item_refund') {
+        const requestData = request.request_data as any;
+        if (requestData?.item_id) {
+          await refundLineItem(requestData.item_id, requestData.reason || 'Approved refund');
+        }
       }
       await approveActionRequest(request.id);
-      toast.success(`${request.action_type === 'cancellation' ? 'Invoice cancelled & refunded' : 'Adjustment approved'} successfully`);
+      const successMsg = request.action_type === 'cancellation' 
+        ? 'Invoice cancelled & refunded' 
+        : request.action_type === 'item_refund'
+        ? 'Line item refunded'
+        : 'Adjustment approved';
+      toast.success(`${successMsg} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
     } catch (error: any) {
       toast.error(`Failed to approve: ${error.message}`);
@@ -83,8 +111,8 @@ const InvoiceActionApprovals: React.FC = () => {
               <div key={request.id} className="p-2.5 border rounded-lg bg-card space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Badge variant={request.action_type === 'cancellation' ? 'destructive' : 'outline'} className="text-[10px] shrink-0">
-                      {request.action_type === 'cancellation' ? 'Cancel' : 'Adjust'}
+                    <Badge variant={getActionVariant(request.action_type)} className="text-[10px] shrink-0">
+                      {getActionLabel(request.action_type)}
                     </Badge>
                     <span className="font-medium text-sm truncate">{request.invoice_number}</span>
                   </div>
@@ -100,6 +128,9 @@ const InvoiceActionApprovals: React.FC = () => {
                 <div className="text-xs text-muted-foreground">
                   {request.student_name} · {request.requested_by_email} · {format(new Date(request.created_at), 'dd MMM yyyy')}
                 </div>
+                {request.action_type === 'item_refund' && (request.request_data as any)?.reason && (
+                  <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
+                )}
               </div>
             ))}
           </div>
@@ -121,8 +152,8 @@ const InvoiceActionApprovals: React.FC = () => {
                 {requests.map((request) => (
                   <TableRow key={request.id}>
                     <TableCell>
-                      <Badge variant={request.action_type === 'cancellation' ? 'destructive' : 'outline'}>
-                        {request.action_type === 'cancellation' ? 'Cancel & Refund' : 'Adjustment'}
+                      <Badge variant={getActionVariant(request.action_type)}>
+                        {getActionLabel(request.action_type)}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{request.invoice_number}</TableCell>
@@ -151,7 +182,7 @@ const InvoiceActionApprovals: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reject Request</DialogTitle>
-            <DialogDescription>Provide a reason for rejecting this {selectedRequest?.action_type} request.</DialogDescription>
+            <DialogDescription>Provide a reason for rejecting this {selectedRequest?.action_type === 'item_refund' ? 'item refund' : selectedRequest?.action_type} request.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label>Reason</Label>
