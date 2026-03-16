@@ -86,6 +86,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
   // Priority: propStudentId > user.studentId > userDetails.id
   const studentId = propStudentId || user?.studentId || userDetails?.id;
+  const viewerNoticeScope = user?.id || userDetails?.id || user?.email || 'guest';
   const hasMultipleStudents = linkedStudents && linkedStudents.length > 1;
   
   console.log('StudentDashboard: Initializing with', { 
