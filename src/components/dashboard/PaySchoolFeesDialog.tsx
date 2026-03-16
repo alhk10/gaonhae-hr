@@ -19,7 +19,8 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Calendar, CreditCard, Upload, CheckCircle, AlertCircle, GraduationCap, ArrowRight } from 'lucide-react';
+import { Loader2, Calendar, CreditCard, Upload, CheckCircle, AlertCircle, GraduationCap, ArrowRight, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
