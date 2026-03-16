@@ -1399,6 +1399,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           gradingSlots={gradingSlots}
           availableTerms={availableTerms}
           previousEnrollment={previousEnrollment}
+          readOnly={readOnly}
         />
       )}
 
