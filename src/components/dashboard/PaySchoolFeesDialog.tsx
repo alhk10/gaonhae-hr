@@ -71,6 +71,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   availableTerms,
   previousEnrollment,
   gradingSlots = [],
+  readOnly = false,
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
