@@ -1259,6 +1259,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           availableTerms={availableTerms}
           previousEnrollment={previousEnrollment}
           gradingSlots={gradingSlots}
+          readOnly={readOnly}
         />
       )}
 
@@ -1278,6 +1279,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           gradingSlots={gradingSlots}
           availableTerms={availableTerms}
           previousEnrollment={previousEnrollment}
+          readOnly={readOnly}
         />
       )}
 
@@ -1347,6 +1349,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           availableTerms={availableTerms}
           previousEnrollment={previousEnrollment}
           gradingSlots={gradingSlots}
+          readOnly={readOnly}
         />
       )}
 
@@ -1396,6 +1399,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           gradingSlots={gradingSlots}
           availableTerms={availableTerms}
           previousEnrollment={previousEnrollment}
+          readOnly={readOnly}
         />
       )}
 

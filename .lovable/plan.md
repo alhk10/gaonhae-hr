@@ -1,30 +1,51 @@
 
 
-## Problem
+## Plan: Make Create Invoice Dialog Mobile-Compact
 
-When branch dashboard users (employees with student view access) open the PaySchoolFeesDialog or PayGradingDialog via "Select Term", they can see and click the "Pay" button. This should not be allowed -- branch users should use the "Create Invoice" flow in the Branch Dashboard instead.
+### Problem
+The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
 
-## Solution
+### Changes
 
-Pass the `readOnly` prop from `StudentDashboard` into both `PaySchoolFeesDialog` and `PayGradingDialog`. When `readOnly` is true:
+#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
 
-1. **Hide the Pay button** and payment-related fields (payment method, reference number, proof of payment upload) in both dialogs
-2. **Show an info message** directing the user to use "Create Invoice" in the Branch Dashboard instead
-3. Keep the term/class selection visible so branch staff can still browse term details
+**Dialog container** (line 1104):
+- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
+- Add `top-[5%]` anchor pattern
 
-## Changes
+**Header** (line 1106):
+- Reduce title size on mobile: `text-base md:text-lg`
 
-### 1. `src/components/dashboard/PaySchoolFeesDialog.tsx`
-- Add `readOnly?: boolean` to `PaySchoolFeesDialogProps`
-- In the payment step, conditionally hide payment method selector, reference number, proof upload, and the Pay button when `readOnly` is true
-- Show an info alert: "To create invoices and collect payments, please use the Invoice & Payment tab in the Branch Dashboard."
-- Change the Cancel button to "Close" when readOnly
+**Invoice Details section** (lines 1111-1152):
+- Reduce heading: `text-sm md:text-lg font-medium`
+- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
+- Smaller labels on mobile: `text-xs md:text-sm`
 
-### 2. `src/components/dashboard/PayGradingDialog.tsx`
-- Same changes as above: add `readOnly?: boolean` prop
-- Hide payment fields and Pay button when readOnly
-- Show the same info message directing to Branch Dashboard
+**Invoice Items section** (lines 1155-1383):
+- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
+  - Row 1: Category select + Product select (side by side)
+  - Row 2: Qty + Price + Discount + Total (side by side, tight)
+  - Row 3: Size/Color/Term fields (only when relevant)
+- Keep the existing Table for desktop (`hidden md:table`)
+- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
 
-### 3. `src/components/dashboard/StudentDashboard.tsx`
-- Pass `readOnly={readOnly}` to all 4 instances of `PaySchoolFeesDialog` and `PayGradingDialog` (manual + auto-triggered)
+**Added items display on mobile**: Each added item as a compact card:
+- Line 1: Product name (bold, truncated) + delete button
+- Line 2: Qty × Price = Total, discount if any
+- Line 3: Size/Color/Term metadata (small, muted)
+
+**Totals section** (lines 1405-1422):
+- Reduce width on mobile: `w-full md:w-64`
+- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+
+**Notes section** (lines 1428-1449):
+- Reduce spacing: `space-y-2 md:space-y-4`
+- Single row textareas on mobile: `rows={1}` on mobile via className height
+
+**Footer** (lines 1452-1465):
+- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
+
+### Scope
+- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
+- No database or service changes
 

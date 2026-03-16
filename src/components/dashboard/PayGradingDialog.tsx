@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle, CalendarCheck } from 'lucide-react';
+import { Loader2, Upload, CheckCircle, ArrowRight, AlertCircle, CalendarCheck, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +51,7 @@ interface PayGradingDialogProps {
   gradingSlots: GradingSlot[];
   availableTerms?: Term[];
   previousEnrollment?: any | null;
+  readOnly?: boolean;
 }
 
 function calculateAge(dateOfBirth: string): number {
@@ -68,6 +70,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   gradingSlots,
   availableTerms = [],
   previousEnrollment,
+  readOnly = false,
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
@@ -757,100 +760,115 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   )}
                 </Label>
                 
-                {/* Payment Method */}
-                <div className="space-y-2">
-                  <Label>Payment Method *</Label>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getPaymentMethods().map((method) => (
-                        <SelectItem key={method.value} value={method.value}>
-                          {method.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!readOnly && (
+                  <>
+                    {/* Payment Method */}
+                    <div className="space-y-2">
+                      <Label>Payment Method *</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getPaymentMethods().map((method) => (
+                            <SelectItem key={method.value} value={method.value}>
+                              {method.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {/* Payment Info Display */}
-                <PaymentInfoDisplay
-                  paymentMethod={paymentMethod}
-                  bankTransferInfo={invoiceTemplate?.bank_transfer_info}
-                  paynowQrUrl={invoiceTemplate?.paynow_qr_url}
-                />
-
-                {/* Reference Number */}
-                <div className="space-y-2">
-                  <Label>Reference Number (Optional)</Label>
-                  <Input
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
-                    placeholder="Transaction reference"
-                  />
-                </div>
-
-                {/* Proof of Payment */}
-                <div className="space-y-2">
-                  <Label>Proof of Payment *</Label>
-                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file && !file.type.startsWith('image/')) {
-                          toast.error('Only image files are accepted for payment proof');
-                          e.target.value = '';
-                          return;
-                        }
-                        setProofFile(file || null);
-                      }}
-                      className="hidden"
-                      id="grading-proof-upload"
+                    {/* Payment Info Display */}
+                    <PaymentInfoDisplay
+                      paymentMethod={paymentMethod}
+                      bankTransferInfo={invoiceTemplate?.bank_transfer_info}
+                      paynowQrUrl={invoiceTemplate?.paynow_qr_url}
                     />
-                    <label htmlFor="grading-proof-upload" className="cursor-pointer">
-                      {proofFile ? (
-                        <div className="flex items-center justify-center gap-2 text-primary">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="text-sm">{proofFile.name}</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            Click to upload payment screenshot
-                          </p>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-                </div>
+
+                    {/* Reference Number */}
+                    <div className="space-y-2">
+                      <Label>Reference Number (Optional)</Label>
+                      <Input
+                        value={referenceNumber}
+                        onChange={(e) => setReferenceNumber(e.target.value)}
+                        placeholder="Transaction reference"
+                      />
+                    </div>
+
+                    {/* Proof of Payment */}
+                    <div className="space-y-2">
+                      <Label>Proof of Payment *</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file && !file.type.startsWith('image/')) {
+                              toast.error('Only image files are accepted for payment proof');
+                              e.target.value = '';
+                              return;
+                            }
+                            setProofFile(file || null);
+                          }}
+                          className="hidden"
+                          id="grading-proof-upload"
+                        />
+                        <label htmlFor="grading-proof-upload" className="cursor-pointer">
+                          {proofFile ? (
+                            <div className="flex items-center justify-center gap-2 text-primary">
+                              <CheckCircle className="w-5 h-5" />
+                              <span className="text-sm">{proofFile.name}</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">
+                                Click to upload payment screenshot
+                              </p>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {readOnly && (
+                  <Alert className="mt-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      To create invoices and collect payments, please use the Invoice & Payment tab in the Branch Dashboard.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
 
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={handleClose}>
-                Cancel
+                {readOnly ? 'Close' : 'Cancel'}
               </Button>
-              <Button
-                onClick={() => createInvoiceAndPayMutation.mutate()}
-                disabled={
-                  !selectedSlotId || 
-                  !gradingProduct || 
-                  !proofFile || 
-                  !!duplicateError || 
-                  isTermFieldsIncomplete ||
-                  createInvoiceAndPayMutation.isPending ||
-                  isUploading
-                }
-              >
-                {(createInvoiceAndPayMutation.isPending || isUploading) && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                {alsoPayTermFees && selectedProduct ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
-              </Button>
+              {!readOnly && (
+                <Button
+                  onClick={() => createInvoiceAndPayMutation.mutate()}
+                  disabled={
+                    !selectedSlotId || 
+                    !gradingProduct || 
+                    !proofFile || 
+                    !!duplicateError || 
+                    isTermFieldsIncomplete ||
+                    createInvoiceAndPayMutation.isPending ||
+                    isUploading
+                  }
+                >
+                  {(createInvoiceAndPayMutation.isPending || isUploading) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {alsoPayTermFees && selectedProduct ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
+                </Button>
+              )}
             </div>
           </div>
         )}
