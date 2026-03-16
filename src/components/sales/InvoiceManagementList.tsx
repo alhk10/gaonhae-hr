@@ -862,12 +862,12 @@ const InvoiceManagementList: React.FC = () => {
 
       {/* View/Edit Invoice Dialog */}
       {selectedInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode={dialogMode}
           invoiceId={selectedInvoiceId}
           open={viewDialogOpen}
           onOpenChange={setViewDialogOpen}
           onInvoiceUpdated={loadInvoices}
-          initialMode={dialogMode}
         />
       )}
 

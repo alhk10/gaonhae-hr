@@ -1143,12 +1143,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
       {/* Invoice View/Edit Dialog */}
       {selectedInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode={invoiceDialogMode}
           invoiceId={selectedInvoiceId}
           open={invoiceDialogOpen}
           onOpenChange={(open) => { setInvoiceDialogOpen(open); if (!open) setSelectedInvoiceId(null); }}
           onInvoiceUpdated={refreshData}
-          initialMode={invoiceDialogMode}
         />
       )}
 

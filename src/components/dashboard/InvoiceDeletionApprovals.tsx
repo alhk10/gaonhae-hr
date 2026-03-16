@@ -181,11 +181,11 @@ const InvoiceDeletionApprovals: React.FC = () => {
       </Card>
 
       {viewInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode="view"
           invoiceId={viewInvoiceId}
           open={!!viewInvoiceId}
           onOpenChange={(open) => !open && setViewInvoiceId(null)}
-          initialMode="view"
         />
       )}
     </>
