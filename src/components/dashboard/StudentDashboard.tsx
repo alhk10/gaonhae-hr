@@ -848,7 +848,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               current_belt: student.current_belt,
               date_of_birth: student.date_of_birth,
             }}
-            onOpenSchoolFees={() => guardAction(() => setShowSchoolFeesDialog(true))}
+            onOpenSchoolFees={() => setShowSchoolFeesDialog(true)}
             onOpenGrading={() => {
               if (currentTermInvoicePaid === false) {
                 setShowTermPaymentRequired(true);
