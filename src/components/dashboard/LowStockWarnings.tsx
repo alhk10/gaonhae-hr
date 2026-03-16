@@ -93,10 +93,10 @@ const LowStockWarnings: React.FC = () => {
 
   return (
     <Card className="border-yellow-300 dark:border-yellow-700">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-          Low Stock Warnings ({lowStockItems.length})
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-yellow-600" />
+          Low Stock ({lowStockItems.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
