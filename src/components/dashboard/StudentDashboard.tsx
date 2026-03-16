@@ -403,10 +403,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     }
   };
 
-  // Show popup chain when portal loads (suppressed in readOnly mode)
+  // Show popup chain when portal loads
   // Chain: Notices → Unpaid Invoices → School Fees → Grading Congrats → Profile Completion
   useEffect(() => {
-    if (readOnly) return;
     if (studentLoading) return;
     if (hasCurrentTermInvoice === undefined || isReadyForGrading === undefined || hasRecentGradingInvoice === undefined) return;
     
@@ -417,7 +416,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     } else {
       triggerUnpaidOrNext();
     }
-  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, readOnly, activeNotices.length]);
+  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, activeNotices.length]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
