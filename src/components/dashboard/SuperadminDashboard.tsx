@@ -71,70 +71,31 @@ const SuperadminDashboard = () => {
   return (
     <>
     <NegativeInventoryAlert />
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
-        </div>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="notices">Notices</TabsTrigger>
+        <h2 className="text-lg sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
+        <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
         </TabsList>
       </div>
 
-      <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-0">
-        {/* Student Registration Approvals */}
+      <TabsContent value="overview" className="space-y-3 sm:space-y-6 mt-0">
         <StudentRegistrationApprovals showAll />
-
-        {/* Student Withdrawal Approvals */}
         <StudentWithdrawalApprovals />
-
-        {/* Claims Approvals */}
         <ClaimsApprovals />
-
-        {/* Leave Approvals */}
         <LeaveApprovals />
-
-        {/* Invoice Discount Approvals */}
         <InvoiceDiscountApprovals />
-
-        {/* Invoice Action Approvals (Adjustments & Cancellations) */}
         <InvoiceActionApprovals />
-
-        {/* Payment Verification Approvals */}
         <PaymentVerificationApprovals />
-
-        {/* Payment Deletion Approvals */}
-        {pendingPaymentDeletionsCount > 0 && (
-          <PaymentDeletionApprovals />
-        )}
-
-        {/* Invoice Deletion Approvals */}
-        {pendingInvoiceDeletionsCount > 0 && (
-          <InvoiceDeletionApprovals />
-        )}
-
-        {/* Grading Registration Deletion Approvals */}
-        {pendingGradingDeletionsCount > 0 && (
-          <GradingDeletionApprovals />
-        )}
-
-        {/* Inventory Order Approvals */}
+        {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
+        {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
+        {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}
         <InventoryOrderApprovals />
-
-        {/* Stock Transfer Approvals */}
         <StockTransferApprovals />
-
-        {/* Slot Booking Edit Approvals (includes branch changes) */}
         <SlotBookingEditApprovals />
-
-        {/* Low Stock Warnings */}
         <LowStockWarnings />
-
-        {/* Invoices Created */}
         <InvoicesCreatedSection />
-
-        {/* Slot Booking Management Calendar */}
         <SlotBookingManagementContent />
       </TabsContent>
 

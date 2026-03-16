@@ -103,7 +103,6 @@ const PaymentVerificationApprovals = () => {
         .eq('id', editingPayment.id);
       if (error) throw error;
 
-      // Recalculate invoice totals
       if (editingPayment.invoice_id) {
         const { data: allPayments } = await supabase
           .from('payments')
@@ -117,11 +116,7 @@ const PaymentVerificationApprovals = () => {
 
         await supabase
           .from('invoices')
-          .update({
-            amount_paid: totalPaid,
-            balance_due: balanceDue,
-            status: newStatus,
-          })
+          .update({ amount_paid: totalPaid, balance_due: balanceDue, status: newStatus })
           .eq('id', editingPayment.invoice_id);
       }
 
@@ -142,31 +137,31 @@ const PaymentVerificationApprovals = () => {
   return (
     <>
       <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ShieldCheck className="w-5 h-5 text-orange-600" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+            <ShieldCheck className="w-4 h-4 text-orange-600" />
             Payment Verification
-            <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
-              {unverifiedPayments.length} pending
+            <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 text-xs">
+              {unverifiedPayments.length}
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 space-y-2">
           {unverifiedPayments.map((payment: any) => (
             <div
               key={payment.id}
-              className="flex items-center gap-3 p-3 bg-background rounded-lg border"
+              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-background rounded-lg border"
             >
               <a
                 href={payment.proof_of_payment_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 w-[252px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
+                className="shrink-0 w-full sm:w-[200px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
               >
                 <img
                   src={payment.proof_of_payment_url}
                   alt="Payment proof"
-                  className="w-full h-auto object-contain"
+                  className="w-full h-auto max-h-[150px] sm:max-h-none object-contain"
                 />
               </a>
               <div className="min-w-0 flex-1">
@@ -183,16 +178,16 @@ const PaymentVerificationApprovals = () => {
                     {payment.payment_method?.replace('_', ' ')}
                   </span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Branch: {branchMap.get(payment.invoices?.branch_id) || payment.invoices?.branch_id || 'Unknown'}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {branchMap.get(payment.invoices?.branch_id) || 'Unknown'}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleEditAmount(payment)}>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEditAmount(payment)}>
                   <Pencil className="w-3 h-3 mr-1" />
                   Edit
                 </Button>
-                <Button size="sm" onClick={() => handleVerify(payment)}>
+                <Button size="sm" className="h-7 text-xs px-2" onClick={() => handleVerify(payment)}>
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Verify
                 </Button>
@@ -226,12 +221,8 @@ const PaymentVerificationApprovals = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingPayment(null)} disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveAmount} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
+            <Button variant="outline" onClick={() => setEditingPayment(null)} disabled={isSaving}>Cancel</Button>
+            <Button onClick={handleSaveAmount} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

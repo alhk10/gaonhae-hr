@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,7 +41,7 @@ const InventoryOrderApprovals: React.FC = () => {
   const { data: pendingOrders = [], isLoading } = useQuery({
     queryKey: ['inventory-orders', 'pending'],
     queryFn: () => getInventoryOrders({ status: 'pending' }),
-    refetchInterval: 60 * 1000 // Refetch every minute
+    refetchInterval: 60 * 1000
   });
 
   const handleApprove = async () => {
@@ -80,94 +80,78 @@ const InventoryOrderApprovals: React.FC = () => {
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4" />
             Pending Purchase Orders
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          <div className="space-y-2">
+            {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (pendingOrders.length === 0) {
-    return null; // Don't show if no pending orders
-  }
+  if (pendingOrders.length === 0) return null;
 
   return (
     <>
       <Card className="border-orange-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-orange-600" />
-            Pending Purchase Orders
-            <Badge variant="secondary" className="bg-orange-100 text-orange-800 ml-2">
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-orange-600" />
+            Purchase Orders
+            <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
               {pendingOrders.length}
             </Badge>
           </CardTitle>
-          <CardDescription>
-            Review and approve inventory purchase orders
-          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          <div className="space-y-2">
             {pendingOrders.map(order => (
               <div 
                 key={order.id} 
-                className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:p-4 bg-muted/50 rounded-lg border"
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Package className="w-5 h-5 text-orange-600" />
+                <div className="flex items-start gap-2 sm:gap-4 min-w-0">
+                  <div className="p-1.5 sm:p-2 bg-orange-100 rounded-lg shrink-0">
+                    <Package className="w-4 h-4 text-orange-600" />
                   </div>
-                  <div>
-                    <p className="font-medium">{order.product?.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.order_number} • {order.quantity} units @ ${order.unit_cost.toFixed(2)}
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{order.product?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.order_number} · {order.quantity} units @ ${order.unit_cost.toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {order.location?.name} • Requested by {order.requested_by_email}
+                      {order.location?.name} · {order.requested_by_email}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-bold">${order.total_cost.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
+                  <div className="text-left sm:text-right">
+                    <p className="font-bold text-sm">${order.total_cost.toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground">
                       {format(new Date(order.created_at), 'MMM d, yyyy')}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-green-600 hover:bg-green-50 border-green-200"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setApproveDialogOpen(true);
-                      }}
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive"
+                      onClick={() => { setSelectedOrder(order); setRejectDialogOpen(true); }}
                     >
-                      <Check className="w-4 h-4 mr-1" />
-                      Approve
+                      <X className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-destructive hover:bg-destructive/10 border-destructive/30"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setRejectDialogOpen(true);
-                      }}
+                      className="h-7 w-7 p-0"
+                      onClick={() => { setSelectedOrder(order); setApproveDialogOpen(true); }}
                     >
-                      <X className="w-4 h-4 mr-1" />
-                      Reject
+                      <Check className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -177,54 +161,35 @@ const InventoryOrderApprovals: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog */}
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Purchase Order</AlertDialogTitle>
             <AlertDialogDescription>
-              This will approve order <strong>{selectedOrder?.order_number}</strong> and add{' '}
-              <strong>{selectedOrder?.quantity} units</strong> of{' '}
-              <strong>{selectedOrder?.product?.name}</strong> to inventory.
-              <br /><br />
-              <strong>Cost:</strong> ${selectedOrder?.unit_cost.toFixed(2)} per unit
-              <br />
-              <strong>Total:</strong> ${selectedOrder?.total_cost.toFixed(2)}
-              <br /><br />
-              The inventory cost will be recalculated using the average cost method.
+              Approve order <strong>{selectedOrder?.order_number}</strong> — {selectedOrder?.quantity} units of <strong>{selectedOrder?.product?.name}</strong> at ${selectedOrder?.unit_cost.toFixed(2)}/unit (Total: ${selectedOrder?.total_cost.toFixed(2)}).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleApprove}
-              disabled={isProcessing}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isProcessing ? 'Processing...' : 'Approve Order'}
+            <AlertDialogAction onClick={handleApprove} disabled={isProcessing} className="bg-green-600 hover:bg-green-700">
+              {isProcessing ? 'Processing...' : 'Approve'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Reject Dialog */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Purchase Order</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject order <strong>{selectedOrder?.order_number}</strong>?
-              This action cannot be undone.
+              Reject order <strong>{selectedOrder?.order_number}</strong>? This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleReject}
-              disabled={isProcessing}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isProcessing ? 'Processing...' : 'Reject Order'}
+            <AlertDialogAction onClick={handleReject} disabled={isProcessing} className="bg-destructive hover:bg-destructive/90">
+              {isProcessing ? 'Processing...' : 'Reject'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
