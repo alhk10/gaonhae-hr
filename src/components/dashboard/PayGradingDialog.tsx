@@ -51,6 +51,7 @@ interface PayGradingDialogProps {
   gradingSlots: GradingSlot[];
   availableTerms?: Term[];
   previousEnrollment?: any | null;
+  readOnly?: boolean;
 }
 
 function calculateAge(dateOfBirth: string): number {
