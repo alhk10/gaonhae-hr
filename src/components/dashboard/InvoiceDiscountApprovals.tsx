@@ -60,10 +60,10 @@ const InvoiceDiscountApprovals: React.FC = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+        <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
           <Receipt className="w-4 h-4 text-amber-600" />
-          Invoice Discount Approvals
+          Invoice Discounts
           {requests.length > 0 && (
             <Badge variant="destructive" className="ml-1">{requests.length}</Badge>
           )}
