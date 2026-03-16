@@ -902,7 +902,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       <DropdownMenuItem onClick={() => setInvoiceStatusFilter('replaced')}>Replaced</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <CreateInvoiceDialog
+                  <InvoiceDialog
+                    mode="create"
                     trigger={
                       <Button size="sm" className="h-7 text-xs">
                         <FileText className="w-3.5 h-3.5 mr-1" />
