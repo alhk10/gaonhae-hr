@@ -951,76 +951,89 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         )}
                       </div>
 
-                      {/* Payment Method */}
-                      <div className="space-y-2">
-                        <Label>Payment Method *</Label>
-                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getPaymentMethods().map((method) => (
-                              <SelectItem key={method.value} value={method.value}>
-                                {method.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {!readOnly && (
+                        <>
+                          {/* Payment Method */}
+                          <div className="space-y-2">
+                            <Label>Payment Method *</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getPaymentMethods().map((method) => (
+                                  <SelectItem key={method.value} value={method.value}>
+                                    {method.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
-                      {/* Payment Info Display */}
-                      <PaymentInfoDisplay
-                        paymentMethod={paymentMethod}
-                        bankTransferInfo={invoiceTemplate?.bank_transfer_info}
-                        paynowQrUrl={invoiceTemplate?.paynow_qr_url}
-                      />
-
-                      {/* Reference Number */}
-                      <div className="space-y-2">
-                        <Label>Reference Number (Optional)</Label>
-                        <Input
-                          value={referenceNumber}
-                          onChange={(e) => setReferenceNumber(e.target.value)}
-                          placeholder="Transaction reference"
-                        />
-                      </div>
-
-                      {/* Proof of Payment */}
-                      <div className="space-y-2">
-                        <Label>Proof of Payment *</Label>
-                        <div className="border-2 border-dashed rounded-lg p-3 sm:p-4 text-center">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file && !file.type.startsWith('image/')) {
-                                toast.error('Only image files are accepted for payment proof');
-                                e.target.value = '';
-                                return;
-                              }
-                              setProofFile(file || null);
-                            }}
-                            className="hidden"
-                            id="proof-upload"
+                          {/* Payment Info Display */}
+                          <PaymentInfoDisplay
+                            paymentMethod={paymentMethod}
+                            bankTransferInfo={invoiceTemplate?.bank_transfer_info}
+                            paynowQrUrl={invoiceTemplate?.paynow_qr_url}
                           />
-                          <label htmlFor="proof-upload" className="cursor-pointer">
-                            {proofFile ? (
-                              <div className="flex items-center justify-center gap-2 text-primary">
-                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                                <span className="text-sm truncate max-w-[200px]">{proofFile.name}</span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
-                                <p className="text-xs text-muted-foreground">
-                                  Click to upload payment screenshot
-                                </p>
-                              </div>
-                            )}
-                          </label>
-                        </div>
-                      </div>
+
+                          {/* Reference Number */}
+                          <div className="space-y-2">
+                            <Label>Reference Number (Optional)</Label>
+                            <Input
+                              value={referenceNumber}
+                              onChange={(e) => setReferenceNumber(e.target.value)}
+                              placeholder="Transaction reference"
+                            />
+                          </div>
+
+                          {/* Proof of Payment */}
+                          <div className="space-y-2">
+                            <Label>Proof of Payment *</Label>
+                            <div className="border-2 border-dashed rounded-lg p-3 sm:p-4 text-center">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && !file.type.startsWith('image/')) {
+                                    toast.error('Only image files are accepted for payment proof');
+                                    e.target.value = '';
+                                    return;
+                                  }
+                                  setProofFile(file || null);
+                                }}
+                                className="hidden"
+                                id="proof-upload"
+                              />
+                              <label htmlFor="proof-upload" className="cursor-pointer">
+                                {proofFile ? (
+                                  <div className="flex items-center justify-center gap-2 text-primary">
+                                    <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                    <span className="text-sm truncate max-w-[200px]">{proofFile.name}</span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                                    <p className="text-xs text-muted-foreground">
+                                      Click to upload payment screenshot
+                                    </p>
+                                  </div>
+                                )}
+                              </label>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {readOnly && (
+                        <Alert className="mt-2">
+                          <Info className="h-4 w-4" />
+                          <AlertDescription>
+                            To create invoices and collect payments, please use the Invoice & Payment tab in the Branch Dashboard.
+                          </AlertDescription>
+                        </Alert>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -1029,29 +1042,31 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
               <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
-                Cancel
+                {readOnly ? 'Close' : 'Cancel'}
               </Button>
-              <Button
-                onClick={() => createInvoiceAndPayMutation.mutate()}
-                disabled={
-                  !selectedTermId || 
-                  !selectedProductId || 
-                  !proofFile ||
-                  (includeGrading && !selectedGradingSlotId) ||
-                  createInvoiceAndPayMutation.isPending || 
-                  isUploading ||
-                  unpaidTerms.length === 0
-                }
-                className="w-full sm:w-auto"
-              >
-                {(createInvoiceAndPayMutation.isPending || isUploading) && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                <span className="sm:hidden">{includeGrading ? 'Pay Both' : 'Pay'}</span>
-                <span className="hidden sm:inline">
-                  {includeGrading ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
-                </span>
-              </Button>
+              {!readOnly && (
+                <Button
+                  onClick={() => createInvoiceAndPayMutation.mutate()}
+                  disabled={
+                    !selectedTermId || 
+                    !selectedProductId || 
+                    !proofFile ||
+                    (includeGrading && !selectedGradingSlotId) ||
+                    createInvoiceAndPayMutation.isPending || 
+                    isUploading ||
+                    unpaidTerms.length === 0
+                  }
+                  className="w-full sm:w-auto"
+                >
+                  {(createInvoiceAndPayMutation.isPending || isUploading) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  <span className="sm:hidden">{includeGrading ? 'Pay Both' : 'Pay'}</span>
+                  <span className="hidden sm:inline">
+                    {includeGrading ? 'Create Invoices & Pay Both' : 'Create Invoice & Pay'}
+                  </span>
+                </Button>
+              )}
             </div>
           </div>
         )}
