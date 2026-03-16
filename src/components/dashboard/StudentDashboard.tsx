@@ -302,8 +302,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   });
 
   // Fetch active notices for student's branch
-  const { data: activeNotices = [] } = useQuery({
-    queryKey: ['student-notices', student?.branch_id],
+  const {
+    data: activeNotices = [],
+    isLoading: noticesLoading,
+    isFetched: noticesFetched,
+  } = useQuery({
+    queryKey: ['student-notices', student?.branch_id, viewerNoticeScope],
     queryFn: async () => {
       const allNotices = await getNotices();
       const branchId = student?.branch_id;
