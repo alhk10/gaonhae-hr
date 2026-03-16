@@ -416,7 +416,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     } else {
       triggerUnpaidOrNext();
     }
-  }, [studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, activeNotices.length]);
+  }, [studentId, studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, activeNotices.length]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
