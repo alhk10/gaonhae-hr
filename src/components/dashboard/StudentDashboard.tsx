@@ -410,20 +410,33 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     }
   };
 
+  useEffect(() => {
+    setShowNoticePopup(false);
+    setShowUnpaidReminder(false);
+    setShowSchoolFeesReminder(false);
+    setShowGradingCongrats(false);
+    setShowProfileCompletion(false);
+  }, [studentId, viewerNoticeScope]);
+
   // Show popup chain when portal loads
   // Chain: Notices → Unpaid Invoices → School Fees → Grading Congrats → Profile Completion
   useEffect(() => {
-    if (studentLoading) return;
+    if (studentLoading || noticesLoading || !noticesFetched) return;
+    if (!studentId || !student) return;
     if (hasCurrentTermInvoice === undefined || isReadyForGrading === undefined || hasRecentGradingInvoice === undefined) return;
-    
-    // Start with notices if any undismissed
+
     if (undismissedNotices.length > 0) {
+      setShowUnpaidReminder(false);
+      setShowSchoolFeesReminder(false);
+      setShowGradingCongrats(false);
+      setShowProfileCompletion(false);
       setCurrentNoticeIndex(0);
       setShowNoticePopup(true);
-    } else {
-      triggerUnpaidOrNext();
+      return;
     }
-  }, [studentId, studentLoading, invoices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, activeNotices.length]);
+
+    triggerUnpaidOrNext();
+  }, [studentId, viewerNoticeScope, student, studentLoading, noticesLoading, noticesFetched, undismissedNotices.length, hasCurrentTermInvoice, isReadyForGrading, hasRecentGradingInvoice, unpaidInvoices.length]);
 
   // Submit profile update request
   const submitUpdateMutation = useMutation({
