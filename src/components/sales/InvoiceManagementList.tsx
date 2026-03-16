@@ -43,8 +43,7 @@ import { toast } from 'sonner';
 import { getInvoices, deleteInvoice, updateInvoiceStatus, type Invoice, getInvoiceById } from '@/services/invoiceService';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { getStudents, getStudentById } from '@/services/studentService';
-import CreateInvoiceDialog from './CreateInvoiceDialog';
-import ViewEditInvoiceDialog from './ViewEditInvoiceDialog';
+import InvoiceDialog from './InvoiceDialog';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { downloadInvoicePDF, shareInvoiceViaWhatsApp, getInvoicePDFBase64, type InvoiceData } from '@/utils/invoicePDFGenerator';
@@ -543,7 +542,8 @@ const InvoiceManagementList: React.FC = () => {
             Export
           </Button>
           {hasAccess && (
-            <CreateInvoiceDialog 
+            <InvoiceDialog 
+              mode="create"
               trigger={
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -677,7 +677,8 @@ const InvoiceManagementList: React.FC = () => {
                 }
               </p>
               {!searchQuery && !statusFilter && !studentFilter && (
-                <CreateInvoiceDialog 
+                <InvoiceDialog 
+                  mode="create"
                   trigger={
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
@@ -861,12 +862,12 @@ const InvoiceManagementList: React.FC = () => {
 
       {/* View/Edit Invoice Dialog */}
       {selectedInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode={dialogMode}
           invoiceId={selectedInvoiceId}
           open={viewDialogOpen}
           onOpenChange={setViewDialogOpen}
           onInvoiceUpdated={loadInvoices}
-          initialMode={dialogMode}
         />
       )}
 

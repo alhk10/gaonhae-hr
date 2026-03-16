@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
 export interface InvoiceActionRequest {
   id: string;
   invoice_id: string;
-  action_type: 'adjustment' | 'cancellation';
+  action_type: 'adjustment' | 'cancellation' | 'item_refund';
   request_data: any;
   requested_by: string | null;
   requested_by_email: string | null;
@@ -27,7 +27,7 @@ export interface InvoiceActionRequest {
  */
 export const submitActionRequest = async (
   invoiceId: string,
-  actionType: 'adjustment' | 'cancellation',
+  actionType: 'adjustment' | 'cancellation' | 'item_refund',
   requestData: any,
   invoiceNumber: string,
   studentName: string,

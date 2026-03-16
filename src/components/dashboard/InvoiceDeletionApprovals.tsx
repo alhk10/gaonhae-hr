@@ -18,7 +18,7 @@ import {
   type InvoiceDeletionRequest
 } from '@/services/invoiceDeletionRequestService';
 import { formatCurrency } from '@/utils/currencyUtils';
-import ViewEditInvoiceDialog from '@/components/sales/ViewEditInvoiceDialog';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
 
 const InvoiceDeletionApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -181,11 +181,11 @@ const InvoiceDeletionApprovals: React.FC = () => {
       </Card>
 
       {viewInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode="view"
           invoiceId={viewInvoiceId}
           open={!!viewInvoiceId}
           onOpenChange={(open) => !open && setViewInvoiceId(null)}
-          initialMode="view"
         />
       )}
     </>

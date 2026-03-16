@@ -40,9 +40,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchCasualSchedule from './BranchCasualSchedule';
-import CreateInvoiceDialog from '@/components/sales/CreateInvoiceDialog';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
-import ViewEditInvoiceDialog from '@/components/sales/ViewEditInvoiceDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
@@ -903,7 +902,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       <DropdownMenuItem onClick={() => setInvoiceStatusFilter('replaced')}>Replaced</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <CreateInvoiceDialog
+                  <InvoiceDialog
+                    mode="create"
                     trigger={
                       <Button size="sm" className="h-7 text-xs">
                         <FileText className="w-3.5 h-3.5 mr-1" />
@@ -1143,12 +1143,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
       {/* Invoice View/Edit Dialog */}
       {selectedInvoiceId && (
-        <ViewEditInvoiceDialog
+        <InvoiceDialog
+          mode={invoiceDialogMode}
           invoiceId={selectedInvoiceId}
           open={invoiceDialogOpen}
           onOpenChange={(open) => { setInvoiceDialogOpen(open); if (!open) setSelectedInvoiceId(null); }}
           onInvoiceUpdated={refreshData}
-          initialMode={invoiceDialogMode}
         />
       )}
 
