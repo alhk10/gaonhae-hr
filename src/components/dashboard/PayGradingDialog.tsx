@@ -70,6 +70,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   gradingSlots,
   availableTerms = [],
   previousEnrollment,
+  readOnly = false,
 }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'select' | 'success'>('select');
