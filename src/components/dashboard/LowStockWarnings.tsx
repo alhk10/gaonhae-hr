@@ -93,16 +93,16 @@ const LowStockWarnings: React.FC = () => {
 
   return (
     <Card className="border-yellow-300 dark:border-yellow-700">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-          Low Stock Warnings ({lowStockItems.length})
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-yellow-600" />
+          Low Stock ({lowStockItems.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y">
           {lowStockItems.map((item, idx) => (
-            <div key={`${item.productId}-${item.branchId}-${idx}`} className="px-4 py-3 flex items-center justify-between">
+            <div key={`${item.productId}-${item.branchId}-${idx}`} className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between">
               <div>
                 <p className="font-medium text-sm">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">

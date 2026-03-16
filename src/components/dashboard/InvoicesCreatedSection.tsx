@@ -64,11 +64,11 @@ const InvoicesCreatedSection = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Invoices Created
+            Invoices
             <Badge variant="secondary" className="text-xs">{invoices.length}</Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -90,7 +90,7 @@ const InvoicesCreatedSection = () => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 pt-0">
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
         ) : invoices.length === 0 ? (

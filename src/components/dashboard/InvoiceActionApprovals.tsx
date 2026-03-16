@@ -32,13 +32,9 @@ const InvoiceActionApprovals: React.FC = () => {
   const handleApprove = async (request: InvoiceActionRequest) => {
     try {
       setProcessingId(request.id);
-
       if (request.action_type === 'cancellation') {
         await cancelInvoice(request.invoice_id);
       }
-      // For adjustments, the request_data contains the edit payload
-      // which would need to be applied - for now we just approve
-      
       await approveActionRequest(request.id);
       toast.success(`${request.action_type === 'cancellation' ? 'Invoice cancelled & refunded' : 'Adjustment approved'} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
@@ -73,61 +69,81 @@ const InvoiceActionApprovals: React.FC = () => {
   return (
     <>
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
             Invoice Action Approvals
-            <Badge variant="destructive" className="ml-2">{requests.length}</Badge>
+            <Badge variant="destructive" className="text-xs">{requests.length}</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Student</TableHead>
-                <TableHead>Requested By</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>
-                    <Badge variant={request.action_type === 'cancellation' ? 'destructive' : 'outline'}>
-                      {request.action_type === 'cancellation' ? 'Cancel & Refund' : 'Adjustment'}
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          {/* Mobile card layout */}
+          <div className="space-y-2 md:hidden">
+            {requests.map((request) => (
+              <div key={request.id} className="p-2.5 border rounded-lg bg-card space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant={request.action_type === 'cancellation' ? 'destructive' : 'outline'} className="text-[10px] shrink-0">
+                      {request.action_type === 'cancellation' ? 'Cancel' : 'Adjust'}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{request.invoice_number}</TableCell>
-                  <TableCell>{request.student_name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{request.requested_by_email}</TableCell>
-                  <TableCell className="text-sm">{format(new Date(request.created_at), 'dd MMM yyyy')}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleApprove(request)}
-                        disabled={processingId === request.id}
-                      >
-                        {processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleRejectClick(request)}
-                        disabled={processingId === request.id}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                    <span className="font-medium text-sm truncate">{request.invoice_number}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleApprove(request)} disabled={processingId === request.id}>
+                      {processingId === request.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 text-green-600" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => handleRejectClick(request)} disabled={processingId === request.id}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {request.student_name} · {request.requested_by_email} · {format(new Date(request.created_at), 'dd MMM yyyy')}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table layout */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Requested By</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <Badge variant={request.action_type === 'cancellation' ? 'destructive' : 'outline'}>
+                        {request.action_type === 'cancellation' ? 'Cancel & Refund' : 'Adjustment'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{request.invoice_number}</TableCell>
+                    <TableCell>{request.student_name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{request.requested_by_email}</TableCell>
+                    <TableCell className="text-sm">{format(new Date(request.created_at), 'dd MMM yyyy')}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="default" onClick={() => handleApprove(request)} disabled={processingId === request.id}>
+                          {processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleRejectClick(request)} disabled={processingId === request.id}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -139,18 +155,12 @@ const InvoiceActionApprovals: React.FC = () => {
           </DialogHeader>
           <div className="space-y-2">
             <Label>Reason</Label>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter rejection reason..."
-              rows={3}
-            />
+            <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} placeholder="Enter rejection reason..." rows={3} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleReject} disabled={processingId !== null}>
-              {processingId && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Reject
+              {processingId && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Reject
             </Button>
           </DialogFooter>
         </DialogContent>

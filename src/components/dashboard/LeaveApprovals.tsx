@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -74,14 +74,14 @@ const LeaveApprovals: React.FC = () => {
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-500" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-500" />
             Leave Approvals
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-destructive">
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          <div className="flex items-center gap-2 text-destructive text-sm">
             <AlertCircle className="w-4 h-4" />
             <span>Failed to load leave requests</span>
           </div>
@@ -96,114 +96,99 @@ const LeaveApprovals: React.FC = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-blue-500" />
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-blue-500" />
           Leave Approvals
           {pendingLeave.length > 0 && (
-            <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
-              {pendingLeave.length} pending
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+              {pendingLeave.length}
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>
-          Review and approve or reject leave requests
-        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
         {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
-                <div className="flex gap-2">
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </div>
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
             ))}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>MC</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card layout */}
+            <div className="space-y-2 md:hidden">
               {pendingLeave.map((leave) => (
-                <TableRow key={leave.id}>
-                  <TableCell className="font-medium">
-                    {leave.employeeName}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{leave.type}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {formatDate(leave.startDate)} - {formatDate(leave.endDate)}
+                <div key={leave.id} className="p-2.5 border rounded-lg bg-card space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-sm truncate">{leave.employeeName}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleApprove(leave.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleReject(leave.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{leave.days}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                      {leave.reason || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {leave.medicalCertificate ? (
-                      <a
-                        href={leave.medicalCertificate}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <Badge variant="outline" className="text-[10px]">{leave.type}</Badge>
+                    <span className="font-medium">{leave.days}d</span>
+                    <span className="text-muted-foreground">{formatDate(leave.startDate)} – {formatDate(leave.endDate)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    {leave.reason && <span className="text-muted-foreground truncate">{leave.reason}</span>}
+                    {leave.medicalCertificate && (
+                      <a href={leave.medicalCertificate} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5 shrink-0">
+                        <ExternalLink className="h-3 w-3" />MC
                       </a>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                        title="Approve leave"
-                        onClick={() => handleApprove(leave.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Reject leave"
-                        onClick={() => handleReject(leave.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Days</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>MC</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingLeave.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell className="font-medium">{leave.employeeName}</TableCell>
+                      <TableCell><Badge variant="outline">{leave.type}</Badge></TableCell>
+                      <TableCell><div className="text-sm">{formatDate(leave.startDate)} - {formatDate(leave.endDate)}</div></TableCell>
+                      <TableCell><span className="font-medium">{leave.days}</span></TableCell>
+                      <TableCell><div className="text-sm text-muted-foreground max-w-[200px] truncate">{leave.reason || '-'}</div></TableCell>
+                      <TableCell>
+                        {leave.medicalCertificate ? (
+                          <a href={leave.medicalCertificate} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                            <ExternalLink className="h-3 w-3" />View
+                          </a>
+                        ) : <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(leave.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><Check className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleReject(leave.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><X className="h-4 w-4" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

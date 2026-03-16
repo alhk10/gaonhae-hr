@@ -45,14 +45,14 @@ const StockTransferApprovals: React.FC = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <ArrowRightLeft className="w-5 h-5" />
-          Stock Transfer Approvals
-          <Badge variant="secondary">{requests.length}</Badge>
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4 pb-2">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <ArrowRightLeft className="w-4 h-4" />
+          Stock Transfers
+          <Badge variant="secondary" className="text-xs">{requests.length}</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2].map(i => <Skeleton key={i} className="h-16 w-full" />)}
