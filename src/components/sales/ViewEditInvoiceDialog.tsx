@@ -92,7 +92,7 @@ const LineDiscountPopover: React.FC<{
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" className="h-8 px-2 text-xs font-normal min-w-[40px]">
+        <Button variant="ghost" className="h-7 px-2 text-xs font-normal min-w-[40px]">
           {displayText}
         </Button>
       </PopoverTrigger>
@@ -123,7 +123,7 @@ const LineDiscountPopover: React.FC<{
           step="0.01"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
-          className="h-8"
+          className="h-7 text-xs"
           placeholder={localType === 'percentage' ? 'e.g. 10' : 'e.g. 5.00'}
         />
         <Button type="button" size="sm" className="w-full h-7" onClick={handleApply}>Apply</Button>
@@ -797,11 +797,37 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
     return new Date(dateString).toLocaleDateString('en-SG');
   };
 
+  // Helper to render class slot badges
+  const renderClassSlotBadges = (classSlots: string[]) => (
+    <div className="flex flex-wrap gap-1 items-center">
+      <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
+      {classSlots
+        .map((slot: string) => {
+          const [timetableId, datePart] = slot.split('_');
+          if (!datePart) return null;
+          try {
+            const tt = timetableTimeMap[timetableId];
+            return { slot, date: parseISO(datePart), startTime: tt?.start_time, endTime: tt?.end_time };
+          } catch { return null; }
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
+        .map((info: any) => (
+          <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex flex-col items-center leading-tight">
+            <span>{format(info.date, 'EEE d MMM')}</span>
+            {info.startTime && info.endTime && (
+              <span className="text-muted-foreground">{info.startTime.slice(0, 5)}-{info.endTime.slice(0, 5)}</span>
+            )}
+          </Badge>
+        ))}
+    </div>
+  );
+
 
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto top-[5%] translate-y-0">
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
@@ -813,7 +839,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
   if (!invoice) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Invoice Not Found</DialogTitle>
             <DialogDescription>The requested invoice could not be found.</DialogDescription>
@@ -825,21 +851,21 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-xl">
+      <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto p-3 sm:p-6 top-[5%] translate-y-0">
+        <DialogHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-base md:text-lg">
                 Invoice {invoice.invoice_number}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-xs md:text-sm truncate">
                 {invoice.student_name}
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <Badge 
                 variant={getStatusBadgeVariant(invoice.status)}
-                className={getStatusBadgeClass(invoice.status)}
+                className={cn(getStatusBadgeClass(invoice.status), "text-xs")}
               >
                 {getDisplayStatus(invoice.status)}
               </Badge>
@@ -847,68 +873,69 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                 invoiceId={invoice.id}
                 invoiceNumber={invoice.invoice_number}
                 trigger={
-                  <Button variant="outline" size="sm">
-                    <History className="h-4 w-4 mr-2" />
-                    History
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-2">
+                    <History className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">History</span>
                   </Button>
                 }
               />
               {mode === 'view' && !isCancelled ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
-                    <Wrench className="h-4 w-4 mr-2" />
-                    Adjustments
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setMode('edit')}>
+                    <Wrench className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Adjustments</span>
                   </Button>
                   {(['paid', 'verified', 'partial', 'partially_paid', 'draft'] as string[]).includes(invoice.status) && (
-                    <Button variant="destructive" size="sm" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
-                      <Ban className="h-4 w-4 mr-2" />
-                      Cancel & Refund
+                    <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
+                      <Ban className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">Cancel & Refund</span>
                     </Button>
                   )}
                 </>
               ) : mode === 'edit' ? (
-                <Button variant="outline" size="sm" onClick={() => setMode('view')}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
+                <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setMode('view')}>
+                  <X className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Cancel</span>
                 </Button>
               ) : null}
             </div>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details">
-              <FileText className="h-4 w-4 mr-2" />
+        <Tabs defaultValue="details" className="mt-2">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="details" className="text-xs md:text-sm py-1.5">
+              <FileText className="h-3.5 w-3.5 mr-1 hidden sm:inline" />
               Details
             </TabsTrigger>
-            <TabsTrigger value="items">
+            <TabsTrigger value="items" className="text-xs md:text-sm py-1.5">
               Items ({mode === 'edit' ? editItems.length : invoice.items.length})
             </TabsTrigger>
-            <TabsTrigger value="payments">
-              <CreditCard className="h-4 w-4 mr-2" />
+            <TabsTrigger value="payments" className="text-xs md:text-sm py-1.5">
+              <CreditCard className="h-3.5 w-3.5 mr-1 hidden sm:inline" />
               Payments ({payments.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
+          {/* Details Tab */}
+          <TabsContent value="details" className="space-y-3 mt-3">
+            <div className="grid grid-cols-2 gap-2 md:gap-4">
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+                <CardHeader className="pb-1 px-3 pt-3">
+                  <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Amount</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
+                <CardContent className="px-3 pb-3">
+                  <div className="text-lg md:text-2xl font-bold">
                     {formatCurrency(mode === 'edit' ? editTotals.total : invoice.total_amount)}
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Balance Due</CardTitle>
+                <CardHeader className="pb-1 px-3 pt-3">
+                  <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Balance Due</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${(mode === 'edit' ? editTotals.balanceDue : invoice.balance_due) > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                <CardContent className="px-3 pb-3">
+                  <div className={`text-lg md:text-2xl font-bold ${(mode === 'edit' ? editTotals.balanceDue : invoice.balance_due) > 0 ? 'text-destructive' : 'text-green-600'}`}>
                     {formatCurrency(mode === 'edit' ? editTotals.balanceDue : invoice.balance_due)}
                   </div>
                 </CardContent>
@@ -917,21 +944,22 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
             <Separator />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Issue Date</Label>
-                <div className="text-sm">{formatDate(invoice.issue_date)}</div>
+            <div className="grid grid-cols-2 gap-2 md:gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs md:text-sm">Issue Date</Label>
+                <div className="text-xs md:text-sm">{formatDate(invoice.issue_date)}</div>
               </div>
-              <div className="space-y-2">
-                <Label>Due Date</Label>
+              <div className="space-y-1">
+                <Label className="text-xs md:text-sm">Due Date</Label>
                 {mode === 'edit' ? (
                   <Input
                     type="date"
                     value={editData.due_date}
                     onChange={(e) => setEditData(prev => ({ ...prev, due_date: e.target.value }))}
+                    className="h-7 text-xs"
                   />
                 ) : (
-                  <div className="text-sm">{formatDate(invoice.due_date)}</div>
+                  <div className="text-xs md:text-sm">{formatDate(invoice.due_date)}</div>
                 )}
               </div>
             </div>
@@ -940,9 +968,9 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             {Object.keys(termDataMap).length > 0 && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label>Term</Label>
-                  <div className="text-sm">
+                <div className="space-y-1">
+                  <Label className="text-xs md:text-sm">Term</Label>
+                  <div className="text-xs md:text-sm">
                     {Object.values(termDataMap).map(t => t.name).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
                   </div>
                 </div>
@@ -953,27 +981,29 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
             <Separator />
 
-            <div className="space-y-2">
-              <Label>Internal Notes</Label>
+            <div className="space-y-1">
+              <Label className="text-xs md:text-sm">Internal Notes</Label>
               {mode === 'edit' ? (
                 <Textarea
                   value={editData.internal_notes}
                   onChange={(e) => setEditData(prev => ({ ...prev, internal_notes: e.target.value }))}
-                  rows={3}
+                  rows={2}
+                  className="text-xs"
                 />
               ) : (
-                <div className="text-sm text-muted-foreground p-2 bg-muted rounded">
+                <div className="text-xs md:text-sm text-muted-foreground p-2 bg-muted rounded">
                   {invoice.internal_notes || 'No internal notes'}
                 </div>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="items" className="mt-4">
+          {/* Items Tab */}
+          <TabsContent value="items" className="mt-3">
             {mode === 'edit' ? (
               <>
                 {/* Editable items */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {editItems.map((item, index) => {
                     const metadata = item.metadata as any;
                     const isClassItem = item.category_name === 'Classes' || item.is_lesson;
@@ -981,20 +1011,23 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                     const classSlots = editingClassSlots[item.id] || [];
 
                     return (
-                      <div key={item.id} className="border rounded-lg p-3 space-y-3">
-                        <div className="grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-5">
+                      <div key={item.id} className="border rounded-lg p-2 md:p-3 space-y-2">
+                        {/* Row 1: Product + Delete */}
+                        <div className="flex items-start gap-1.5">
+                          <div className="flex-1 min-w-0">
                             <Label className="text-xs">Product</Label>
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-10 text-sm">
-                                  {item.product_id
-                                    ? (products.find(p => p.id === item.product_id)?.name || 'Select product...')
-                                    : 'Select product...'}
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-7 text-xs">
+                                  <span className="truncate">
+                                    {item.product_id
+                                      ? (products.find(p => p.id === item.product_id)?.name || 'Select product...')
+                                      : 'Select product...'}
+                                  </span>
+                                  <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[300px] p-0" align="start">
+                              <PopoverContent className="w-[280px] p-0" align="start">
                                 <Command>
                                   <CommandInput placeholder="Search products..." />
                                   <CommandList>
@@ -1006,8 +1039,8 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                           value={p.name}
                                           onSelect={() => handleProductChange(item.id, p.id)}
                                         >
-                                          <Check className={cn("mr-2 h-4 w-4", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
-                                          <span>{p.name}</span>
+                                          <Check className={cn("mr-2 h-3 w-3", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
+                                          <span className="text-xs">{p.name}</span>
                                         </CommandItem>
                                       ))}
                                     </CommandGroup>
@@ -1016,48 +1049,52 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                               </PopoverContent>
                             </Popover>
                           </div>
-                          <div className="col-span-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive mt-4"
+                            onClick={() => handleRemoveItem(item.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Row 2: Qty, Price, Discount, Total */}
+                        <div className="grid grid-cols-4 gap-1.5 items-end">
+                          <div>
                             <Label className="text-xs">Qty</Label>
                             <Input
                               type="number"
                               min={1}
                               value={item.quantity}
                               onChange={(e) => handleItemFieldChange(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                              className="h-7 text-xs"
                             />
                           </div>
-                          <div className="col-span-2">
-                            <Label className="text-xs">Unit Price</Label>
+                          <div>
+                            <Label className="text-xs">Price</Label>
                             <Input
                               type="number"
                               step="0.01"
                               min={0}
                               value={item.unit_price}
                               onChange={(e) => handleItemFieldChange(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                              className="h-7 text-xs"
                             />
                           </div>
-                          <div className="col-span-1">
-                            <Label className="text-xs">Discount</Label>
+                          <div>
+                            <Label className="text-xs">Disc.</Label>
                             <LineDiscountPopover
                               discountType={item.discount_type}
                               discountValue={item.discount_value}
                               onChange={(type, value) => handleItemDiscountChange(item.id, type, value)}
                             />
                           </div>
-                          <div className="col-span-2 text-right">
+                          <div className="text-right">
                             <Label className="text-xs">Total</Label>
-                            <div className="text-sm font-medium pt-2">
+                            <div className="text-xs font-medium pt-1">
                               {formatCurrency(item.total_amount)}
                             </div>
-                          </div>
-                          <div className="col-span-1 flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
                         </div>
 
@@ -1070,17 +1107,17 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                           const showColor = availableColors.length > 0;
                           if (!showSize && !showColor) return null;
                           return (
-                            <div className="flex items-center gap-4 pt-1 flex-wrap">
+                            <div className="flex items-center gap-2 pt-1 flex-wrap">
                               {showSize && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Size:</Label>
                                   {availableSizes.length > 0 ? (
                                     <Select
                                       value={item.size_variant || ''}
                                       onValueChange={(val) => handleItemFieldChange(item.id, 'size_variant', val)}
                                     >
-                                      <SelectTrigger className="h-8 w-40 text-xs">
-                                        <SelectValue placeholder="Select size" />
+                                      <SelectTrigger className="h-7 w-28 text-xs">
+                                        <SelectValue placeholder="Select" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {availableSizes.map((size: string) => (
@@ -1092,22 +1129,22 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                     <Input
                                       value={item.size_variant || ''}
                                       onChange={(e) => handleItemFieldChange(item.id, 'size_variant', e.target.value)}
-                                      className="h-8 w-40 text-xs"
+                                      className="h-7 w-28 text-xs"
                                       placeholder="Enter size"
                                     />
                                   )}
                                 </div>
                               )}
                               {showColor && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Color:</Label>
                                   {availableColors.length > 0 ? (
                                     <Select
                                       value={item.color_variant || ''}
                                       onValueChange={(val) => handleItemFieldChange(item.id, 'color_variant', val)}
                                     >
-                                      <SelectTrigger className="h-8 w-40 text-xs">
-                                        <SelectValue placeholder="Select color" />
+                                      <SelectTrigger className="h-7 w-28 text-xs">
+                                        <SelectValue placeholder="Select" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {availableColors.map((color: string) => (
@@ -1119,7 +1156,7 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                     <Input
                                       value={item.color_variant || ''}
                                       onChange={(e) => handleItemFieldChange(item.id, 'color_variant', e.target.value)}
-                                      className="h-8 w-40 text-xs"
+                                      className="h-7 w-28 text-xs"
                                       placeholder="Enter color"
                                     />
                                   )}
@@ -1131,15 +1168,14 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
                         {/* Term selector and Class Schedule for class items */}
                         {isClassItem && invoice.branch_id && (
-                          <div className="space-y-3 pt-2 border-t">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-2 pt-1 border-t">
+                            <div className="flex items-center gap-1.5">
                               <Label className="text-xs text-muted-foreground whitespace-nowrap">Term:</Label>
                               <Select
                                 value={termIds[0] || ''}
                                 onValueChange={(newTermId) => {
                                   const newTerm = branchTerms.find(t => t.id === newTermId);
                                   if (!newTerm) return;
-                                  // Update metadata with new term
                                   setEditItems(prev => prev.map(ei => {
                                     if (ei.id !== item.id) return ei;
                                     const existingMeta = (ei.metadata as any) || {};
@@ -1148,13 +1184,11 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                                       metadata: { ...existingMeta, term_id: newTermId, term_ids: [newTermId] }
                                     };
                                   }));
-                                  // Add to termDataMap
                                   setTermDataMap(prev => ({ ...prev, [newTermId]: newTerm }));
-                                  // Clear class slots for this item since term changed
                                   setEditingClassSlots(prev => ({ ...prev, [item.id]: [] }));
                                 }}
                               >
-                                <SelectTrigger className="h-8 w-60 text-xs">
+                                <SelectTrigger className="h-7 w-full md:w-60 text-xs">
                                   <SelectValue placeholder="Select term" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1188,62 +1222,40 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
                         )}
 
                         {/* Show selected class dates as badges */}
-                        {classSlots.length > 0 && (
-                          <div className="flex flex-wrap gap-1 items-center">
-                            <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
-                            {classSlots
-                              .map((slot: string) => {
-                                const [timetableId, datePart] = slot.split('_');
-                                if (!datePart) return null;
-                                try {
-                                  const tt = timetableTimeMap[timetableId];
-                                  return { slot, date: parseISO(datePart), startTime: tt?.start_time, endTime: tt?.end_time };
-                                } catch { return null; }
-                              })
-                              .filter(Boolean)
-                              .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
-                              .map((info: any) => (
-                                <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex flex-col items-center leading-tight">
-                                  <span>{format(info.date, 'EEE d MMM')}</span>
-                                  {info.startTime && info.endTime && (
-                                    <span className="text-muted-foreground">{info.startTime.slice(0, 5)}-{info.endTime.slice(0, 5)}</span>
-                                  )}
-                                </Badge>
-                              ))}
-                          </div>
-                        )}
+                        {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
                       </div>
                     );
                   })}
                 </div>
 
-                <Button variant="outline" className="w-full mt-3" onClick={handleAddItem}>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button variant="outline" className="w-full mt-2 h-8 text-xs" onClick={handleAddItem}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Item
                 </Button>
 
-                <Separator className="my-4" />
+                <Separator className="my-3" />
 
+                {/* Edit Totals */}
                 <div className="flex justify-end">
-                  <div className="w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <div className="w-full md:w-64 space-y-1.5">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Subtotal:</span>
                       <span>{formatCurrency(editTotals.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Tax:</span>
                       <span>{formatCurrency(editTotals.tax)}</span>
                     </div>
                     <Separator />
-                    <div className="flex justify-between font-bold">
+                    <div className="flex justify-between font-bold text-sm md:text-base">
                       <span>Total:</span>
                       <span>{formatCurrency(editTotals.total)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Paid:</span>
                       <span className="text-green-600">{formatCurrency(invoice.amount_paid)}</span>
                     </div>
-                    <div className="flex justify-between font-bold">
+                    <div className="flex justify-between font-bold text-sm md:text-base">
                       <span>Balance Due:</span>
                       <span className={editTotals.balanceDue > 0 ? 'text-destructive' : 'text-green-600'}>
                         {formatCurrency(editTotals.balanceDue)}
@@ -1254,116 +1266,138 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               </>
             ) : (
               <>
-                {/* View mode - original table */}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Discount</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoice.items.map((item) => {
-                      const metadata = item.metadata as any;
-                      const classSlots: string[] = metadata?.selected_class_slots || [];
-                      const hasClassSlots = classSlots.length > 0;
-                      const lineDiscount = metadata?.line_discount;
+                {/* View mode - Mobile card layout */}
+                <div className="space-y-2 md:hidden">
+                  {invoice.items.map((item) => {
+                    const metadata = item.metadata as any;
+                    const classSlots: string[] = metadata?.selected_class_slots || [];
+                    const lineDiscount = metadata?.line_discount;
 
-                      return (
-                        <React.Fragment key={item.id}>
-                          <TableRow>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{item.product_name || item.description}</div>
-                                {item.size_variant && (
-                                  <div className="text-xs text-muted-foreground">Size: {item.size_variant}</div>
-                                )}
-                                {(() => {
-                                  const itemTermIds: string[] = (metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []));
-                                  const termNames = itemTermIds.map((id: string) => termDataMap[id]?.name).filter(Boolean);
-                                  return termNames.length > 0 ? (
-                                    <div className="text-xs text-muted-foreground">Term: {termNames.join(', ')}</div>
-                                  ) : null;
-                                })()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">{item.quantity}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                            <TableCell className="text-right text-xs">
-                              {lineDiscount?.value && lineDiscount.value > 0
-                                ? (lineDiscount.type === 'percentage' ? `${lineDiscount.value}%` : formatCurrency(lineDiscount.value))
-                                : '-'}
-                            </TableCell>
-                            <TableCell className="text-right">{formatCurrency(item.tax_amount)}</TableCell>
-                            <TableCell className="text-right font-medium">{formatCurrency(item.total_amount)}</TableCell>
-                          </TableRow>
+                    return (
+                      <div key={item.id} className="border rounded-lg p-2.5 space-y-1.5">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium truncate">{item.product_name || item.description}</div>
+                            {item.size_variant && (
+                              <div className="text-[10px] text-muted-foreground">Size: {item.size_variant}</div>
+                            )}
+                            {(() => {
+                              const itemTermIds: string[] = (metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []));
+                              const termNames = itemTermIds.map((id: string) => termDataMap[id]?.name).filter(Boolean);
+                              return termNames.length > 0 ? (
+                                <div className="text-[10px] text-muted-foreground">Term: {termNames.join(', ')}</div>
+                              ) : null;
+                            })()}
+                          </div>
+                          <div className="text-xs font-semibold whitespace-nowrap">{formatCurrency(item.total_amount)}</div>
+                        </div>
+                        <div className="flex gap-3 text-[10px] text-muted-foreground">
+                          <span>{item.quantity} × {formatCurrency(item.unit_price)}</span>
+                          {lineDiscount?.value && lineDiscount.value > 0 && (
+                            <span className="text-orange-600">
+                              Disc: {lineDiscount.type === 'percentage' ? `${lineDiscount.value}%` : formatCurrency(lineDiscount.value)}
+                            </span>
+                          )}
+                          {item.tax_amount > 0 && <span>Tax: {formatCurrency(item.tax_amount)}</span>}
+                        </div>
+                        {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
+                      </div>
+                    );
+                  })}
+                </div>
 
-                          {hasClassSlots && (
-                            <TableRow className="border-0 hover:bg-transparent">
-                              <TableCell colSpan={6} className="pt-0 pb-2">
-                                <div className="flex flex-wrap gap-1 items-center">
-                                  <span className="text-xs font-medium text-muted-foreground mr-1">Selected Dates:</span>
-                                  {classSlots
-                                    .map((slot: string) => {
-                                      const [timetableId, datePart] = slot.split('_');
-                                      if (!datePart) return null;
-                                      try {
-                                        const tt = timetableTimeMap[timetableId];
-                                        return { slot, date: parseISO(datePart), startTime: tt?.start_time, endTime: tt?.end_time };
-                                      } catch { return null; }
-                                    })
-                                    .filter(Boolean)
-                                    .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
-                                    .map((info: any) => (
-                                      <Badge key={info.slot} variant="secondary" className="text-[10px] px-1.5 py-0.5 flex flex-col items-center leading-tight">
-                                        <span>{format(info.date, 'EEE d MMM')}</span>
-                                        {info.startTime && info.endTime && (
-                                          <span className="text-muted-foreground">{info.startTime.slice(0, 5)}-{info.endTime.slice(0, 5)}</span>
-                                        )}
-                                      </Badge>
-                                    ))}
+                {/* View mode - Desktop table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Description</TableHead>
+                        <TableHead className="text-right text-xs">Qty</TableHead>
+                        <TableHead className="text-right text-xs">Unit Price</TableHead>
+                        <TableHead className="text-right text-xs">Discount</TableHead>
+                        <TableHead className="text-right text-xs">Tax</TableHead>
+                        <TableHead className="text-right text-xs">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoice.items.map((item) => {
+                        const metadata = item.metadata as any;
+                        const classSlots: string[] = metadata?.selected_class_slots || [];
+                        const hasClassSlots = classSlots.length > 0;
+                        const lineDiscount = metadata?.line_discount;
+
+                        return (
+                          <React.Fragment key={item.id}>
+                            <TableRow>
+                              <TableCell className="text-xs">
+                                <div>
+                                  <div className="font-medium">{item.product_name || item.description}</div>
+                                  {item.size_variant && (
+                                    <div className="text-[10px] text-muted-foreground">Size: {item.size_variant}</div>
+                                  )}
+                                  {(() => {
+                                    const itemTermIds: string[] = (metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []));
+                                    const termNames = itemTermIds.map((id: string) => termDataMap[id]?.name).filter(Boolean);
+                                    return termNames.length > 0 ? (
+                                      <div className="text-[10px] text-muted-foreground">Term: {termNames.join(', ')}</div>
+                                    ) : null;
+                                  })()}
                                 </div>
                               </TableCell>
+                              <TableCell className="text-right text-xs">{item.quantity}</TableCell>
+                              <TableCell className="text-right text-xs">{formatCurrency(item.unit_price)}</TableCell>
+                              <TableCell className="text-right text-xs">
+                                {lineDiscount?.value && lineDiscount.value > 0
+                                  ? (lineDiscount.type === 'percentage' ? `${lineDiscount.value}%` : formatCurrency(lineDiscount.value))
+                                  : '-'}
+                              </TableCell>
+                              <TableCell className="text-right text-xs">{formatCurrency(item.tax_amount)}</TableCell>
+                              <TableCell className="text-right text-xs font-medium">{formatCurrency(item.total_amount)}</TableCell>
                             </TableRow>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
 
-                <Separator className="my-4" />
+                            {hasClassSlots && (
+                              <TableRow className="border-0 hover:bg-transparent">
+                                <TableCell colSpan={6} className="pt-0 pb-2">
+                                  {renderClassSlotBadges(classSlots)}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
 
+                <Separator className="my-3" />
+
+                {/* View Totals */}
                 <div className="flex justify-end">
-                  <div className="w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <div className="w-full md:w-64 space-y-1.5">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Subtotal:</span>
                       <span>{formatCurrency(invoice.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Tax:</span>
                       <span>{formatCurrency(invoice.tax_amount)}</span>
                     </div>
                     {invoice.discount_amount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
+                      <div className="flex justify-between text-xs md:text-sm text-green-600">
                         <span>Discount:</span>
                         <span>-{formatCurrency(invoice.discount_amount)}</span>
                       </div>
                     )}
                     <Separator />
-                    <div className="flex justify-between font-bold">
+                    <div className="flex justify-between font-bold text-sm md:text-base">
                       <span>Total:</span>
                       <span>{formatCurrency(invoice.total_amount)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span>Paid:</span>
                       <span className="text-green-600">{formatCurrency(invoice.amount_paid)}</span>
                     </div>
-                    <div className="flex justify-between font-bold">
+                    <div className="flex justify-between font-bold text-sm md:text-base">
                       <span>Balance Due:</span>
                       <span className={invoice.balance_due > 0 ? 'text-destructive' : 'text-green-600'}>
                         {formatCurrency(invoice.balance_due)}
@@ -1375,17 +1409,18 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="payments" className="mt-4">
+          {/* Payments Tab */}
+          <TabsContent value="payments" className="mt-3">
             {payments.length === 0 ? (
-              <div className="text-center py-8">
-                <CreditCard className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No payments recorded</h3>
-                <p className="text-muted-foreground mb-4">Record a payment against this invoice</p>
+              <div className="text-center py-6">
+                <CreditCard className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <h3 className="text-sm font-medium mb-1">No payments recorded</h3>
+                <p className="text-xs text-muted-foreground mb-3">Record a payment against this invoice</p>
                 {invoice.balance_due > 0 && (
                   <CreatePaymentDialog
                     trigger={
-                      <Button>
-                        <DollarSign className="h-4 w-4 mr-2" />
+                      <Button size="sm" className="h-8 text-xs">
+                        <DollarSign className="h-3.5 w-3.5 mr-1" />
                         Record Payment
                       </Button>
                     }
@@ -1396,70 +1431,113 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
               </div>
             ) : (
               <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Payment #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">{payment.payment_number}</TableCell>
-                        <TableCell>{formatDate(payment.payment_date)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {payment.payment_method.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {payment.reference_number || '-'}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-green-600">
-                          {formatCurrency(payment.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {payment.proof_of_payment_url && (
+                {/* Mobile payment cards */}
+                <div className="space-y-2 md:hidden">
+                  {payments.map((payment) => (
+                    <div key={payment.id} className="border rounded-lg p-2.5 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="text-xs font-medium">{payment.payment_number}</div>
+                          <div className="text-[10px] text-muted-foreground">{formatDate(payment.payment_date)}</div>
+                        </div>
+                        <div className="text-xs font-semibold text-green-600">{formatCurrency(payment.amount)}</div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          {payment.payment_method.replace('_', ' ')}
+                        </Badge>
+                        <div className="flex items-center gap-0.5">
+                          {payment.reference_number && (
+                            <span className="text-[10px] text-muted-foreground mr-1">Ref: {payment.reference_number}</span>
+                          )}
+                          {payment.proof_of_payment_url && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                              <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
+                                <Eye className="h-3 w-3" />
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => handleOpenDeleteDialog(payment)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop payment table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Payment #</TableHead>
+                        <TableHead className="text-xs">Date</TableHead>
+                        <TableHead className="text-xs">Method</TableHead>
+                        <TableHead className="text-xs">Reference</TableHead>
+                        <TableHead className="text-right text-xs">Amount</TableHead>
+                        <TableHead className="w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium text-xs">{payment.payment_number}</TableCell>
+                          <TableCell className="text-xs">{formatDate(payment.payment_date)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {payment.payment_method.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {payment.reference_number || '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-green-600 text-xs">
+                            {formatCurrency(payment.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {payment.proof_of_payment_url && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  title="View Uploaded File"
+                                  asChild
+                                >
+                                  <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </a>
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
-                                title="View Uploaded File"
-                                asChild
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                title="Request Delete"
+                                onClick={() => handleOpenDeleteDialog(payment)}
                               >
-                                <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="h-4 w-4" />
-                                </a>
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Request Delete"
-                              onClick={() => handleOpenDeleteDialog(payment)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
                 {invoice.balance_due > 0 && (
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-3 flex justify-end">
                     <CreatePaymentDialog
                       trigger={
-                        <Button>
-                          <DollarSign className="h-4 w-4 mr-2" />
+                        <Button size="sm" className="h-8 text-xs">
+                          <DollarSign className="h-3.5 w-3.5 mr-1" />
                           Record Another Payment
                         </Button>
                       }
@@ -1474,13 +1552,13 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
         </Tabs>
 
         {mode === 'edit' && (
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setMode('view')}>
+          <DialogFooter className="mt-3">
+            <Button variant="outline" onClick={() => setMode('view')} className="h-8 text-xs md:text-sm md:h-10">
               Cancel
             </Button>
-            <Button onClick={handleSaveWithApproval} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Save className="h-4 w-4 mr-2" />
+            <Button onClick={handleSaveWithApproval} disabled={saving} className="h-8 text-xs md:text-sm md:h-10">
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              <Save className="h-3.5 w-3.5 mr-1" />
               {isPaidOrVerified && !isSuperadmin ? 'Submit for Approval' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -1489,50 +1567,52 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
       {/* Delete Request Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md p-3 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Request Payment Deletion</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Request Payment Deletion</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               This deletion request will be sent to a superadmin for approval.
             </DialogDescription>
           </DialogHeader>
           
           {paymentToDelete && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="flex justify-between text-sm">
+            <div className="space-y-3">
+              <div className="p-3 bg-muted rounded-lg space-y-1.5">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-muted-foreground">Payment #:</span>
                   <span className="font-medium">{paymentToDelete.payment_number}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-muted-foreground">Amount:</span>
                   <span className="font-medium text-green-600">{formatCurrency(paymentToDelete.amount)}</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="delete-reason" className="text-xs md:text-sm">Reason for deletion (optional)</Label>
                 <Textarea
                   id="delete-reason"
                   placeholder="Please provide a reason for this deletion request..."
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
-                  rows={3}
+                  rows={2}
+                  className="text-xs"
                 />
               </div>
             </div>
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} className="h-8 text-xs md:text-sm md:h-10">
               Cancel
             </Button>
             <Button 
               variant="destructive" 
               onClick={handleSubmitDeleteRequest}
               disabled={isSubmittingDelete}
+              className="h-8 text-xs md:text-sm md:h-10"
             >
-              {isSubmittingDelete && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isSubmittingDelete && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               Submit Request
             </Button>
           </DialogFooter>
@@ -1541,44 +1621,45 @@ const ViewEditInvoiceDialog: React.FC<ViewEditInvoiceDialogProps> = ({
 
       {/* Cancel & Refund Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md p-3 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Cancel Invoice & Refund</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Cancel Invoice & Refund</DialogTitle>
+            <DialogDescription className="text-xs md:text-sm">
               {isSuperadmin
                 ? 'This will cancel the invoice and refund all payments as student credits.'
                 : 'This cancellation request will be sent to a superadmin for approval.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <div className="flex justify-between text-sm">
+          <div className="space-y-3">
+            <div className="p-3 bg-muted rounded-lg space-y-1.5">
+              <div className="flex justify-between text-xs md:text-sm">
                 <span className="text-muted-foreground">Invoice:</span>
                 <span className="font-medium">{invoice?.invoice_number}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs md:text-sm">
                 <span className="text-muted-foreground">Total:</span>
                 <span className="font-medium">{invoice ? formatCurrency(invoice.total_amount) : ''}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs md:text-sm">
                 <span className="text-muted-foreground">Paid:</span>
                 <span className="font-medium">{invoice ? formatCurrency(invoice.amount_paid) : ''}</span>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Reason for cancellation</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs md:text-sm">Reason for cancellation</Label>
               <Textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Enter reason..."
-                rows={3}
+                rows={2}
+                className="text-xs"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>Back</Button>
-            <Button variant="destructive" onClick={handleCancelInvoice} disabled={isCancelling}>
-              {isCancelling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)} className="h-8 text-xs md:text-sm md:h-10">Back</Button>
+            <Button variant="destructive" onClick={handleCancelInvoice} disabled={isCancelling} className="h-8 text-xs md:text-sm md:h-10">
+              {isCancelling && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               {isSuperadmin ? 'Cancel & Refund Now' : 'Submit Request'}
             </Button>
           </DialogFooter>
