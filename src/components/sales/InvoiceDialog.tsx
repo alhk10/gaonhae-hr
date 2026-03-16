@@ -1029,7 +1029,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const taxRate = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
-      return recalcItem({ ...item, product_id: productId, product_name: product.name, description: product.description || product.name, unit_price: product.base_price, tax_rate: taxRate, category_name: product.category_name, is_lesson: product.is_lesson });
+      return recalcItem({ ...item, product_id: productId, product_name: product.name, description: product.name, unit_price: product.base_price, tax_rate: taxRate, category_name: product.category_name, is_lesson: product.is_lesson });
     }));
   };
 
