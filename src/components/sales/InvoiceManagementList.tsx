@@ -542,7 +542,8 @@ const InvoiceManagementList: React.FC = () => {
             Export
           </Button>
           {hasAccess && (
-            <CreateInvoiceDialog 
+            <InvoiceDialog 
+              mode="create"
               trigger={
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
