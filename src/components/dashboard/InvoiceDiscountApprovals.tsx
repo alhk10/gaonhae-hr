@@ -69,7 +69,7 @@ const InvoiceDiscountApprovals: React.FC = () => {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 space-y-2">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : (

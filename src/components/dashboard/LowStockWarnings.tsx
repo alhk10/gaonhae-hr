@@ -102,7 +102,7 @@ const LowStockWarnings: React.FC = () => {
       <CardContent className="p-0">
         <div className="divide-y">
           {lowStockItems.map((item, idx) => (
-            <div key={`${item.productId}-${item.branchId}-${idx}`} className="px-4 py-3 flex items-center justify-between">
+            <div key={`${item.productId}-${item.branchId}-${idx}`} className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between">
               <div>
                 <p className="font-medium text-sm">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">

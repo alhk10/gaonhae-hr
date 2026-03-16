@@ -90,7 +90,7 @@ const InvoicesCreatedSection = () => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 pt-0">
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
         ) : invoices.length === 0 ? (

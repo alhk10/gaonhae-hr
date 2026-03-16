@@ -52,7 +52,7 @@ const StockTransferApprovals: React.FC = () => {
           <Badge variant="secondary" className="text-xs">{requests.length}</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2].map(i => <Skeleton key={i} className="h-16 w-full" />)}
