@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -127,14 +127,14 @@ const ClaimsApprovals: React.FC = () => {
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-orange-500" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <FileText className="w-4 h-4 text-orange-500" />
             Claims Approvals
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-destructive">
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          <div className="flex items-center gap-2 text-destructive text-sm">
             <AlertCircle className="w-4 h-4" />
             <span>Failed to load claims</span>
           </div>
@@ -149,61 +149,63 @@ const ClaimsApprovals: React.FC = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-orange-500" />
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <FileText className="w-4 h-4 text-orange-500" />
           Claims Approvals
           {pendingClaims.length > 0 && (
-            <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-800">
-              {pendingClaims.length} pending
+            <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+              {pendingClaims.length}
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>
-          Review and approve or reject employee claims
-        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
         {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
-                <div className="flex gap-2">
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </div>
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
             ))}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Receipt</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card layout */}
+            <div className="space-y-2 md:hidden">
               {pendingClaims.map((claim) => {
                 const isEditing = editingId === claim.id;
                 return (
-                  <TableRow key={claim.id}>
-                    <TableCell className="font-medium">
-                      {claim.employee}
-                    </TableCell>
-                    <TableCell>
+                  <div key={claim.id} className="p-2.5 border rounded-lg bg-card space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate">{claim.employee}</span>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {isEditing ? (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={saveEdit} disabled={editMutation.isPending}>
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={cancelEdit}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => startEdit(claim)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleApprove(claim.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleReject(claim.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
                       {isEditing ? (
                         <Select value={editData.type} onValueChange={(v) => setEditData(prev => ({ ...prev, type: v }))}>
-                          <SelectTrigger className="h-8 w-[130px]">
+                          <SelectTrigger className="h-7 w-[120px] text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -213,120 +215,107 @@ const ClaimsApprovals: React.FC = () => {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Badge variant="outline">{claim.type}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{claim.type}</Badge>
                       )}
-                    </TableCell>
-                    <TableCell>
                       {isEditing ? (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="h-8 w-[100px]"
-                          value={editData.amount}
-                          onChange={(e) => setEditData(prev => ({ ...prev, amount: e.target.value }))}
-                        />
+                        <Input type="number" step="0.01" className="h-7 w-[80px] text-xs" value={editData.amount} onChange={(e) => setEditData(prev => ({ ...prev, amount: e.target.value }))} />
                       ) : (
                         <span className="text-green-600 font-medium">{formatCurrency(claim.amount)}</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDate(claim.date)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <Input
-                          className="h-8 w-[160px]"
-                          value={editData.description}
-                          onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-                        />
-                      ) : (
-                        <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                          {claim.description || '-'}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {claim.receipt_url ? (
-                        <a
-                          href={claim.receipt_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View
+                      <span className="text-muted-foreground">{formatDate(claim.date)}</span>
+                      {claim.receipt_url && (
+                        <a href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5">
+                          <ExternalLink className="h-3 w-3" />Receipt
                         </a>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="Save changes"
-                              onClick={saveEdit}
-                              disabled={editMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Cancel edit"
-                              onClick={cancelEdit}
-                              disabled={editMutation.isPending}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              title="Edit claim"
-                              onClick={() => startEdit(claim)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="Approve claim"
-                              onClick={() => handleApprove(claim.id)}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Reject claim"
-                              onClick={() => handleReject(claim.id)}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    {isEditing ? (
+                      <Input className="h-7 text-xs" value={editData.description} onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" />
+                    ) : claim.description ? (
+                      <p className="text-xs text-muted-foreground truncate">{claim.description}</p>
+                    ) : null}
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingClaims.map((claim) => {
+                    const isEditing = editingId === claim.id;
+                    return (
+                      <TableRow key={claim.id}>
+                        <TableCell className="font-medium">{claim.employee}</TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Select value={editData.type} onValueChange={(v) => setEditData(prev => ({ ...prev, type: v }))}>
+                              <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {claimTypes.map(ct => (<SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline">{claim.type}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input type="number" step="0.01" className="h-8 w-[100px]" value={editData.amount} onChange={(e) => setEditData(prev => ({ ...prev, amount: e.target.value }))} />
+                          ) : (
+                            <span className="text-green-600 font-medium">{formatCurrency(claim.amount)}</span>
+                          )}
+                        </TableCell>
+                        <TableCell><div className="text-sm text-muted-foreground">{formatDate(claim.date)}</div></TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input className="h-8 w-[160px]" value={editData.description} onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))} />
+                          ) : (
+                            <div className="text-sm text-muted-foreground max-w-[200px] truncate">{claim.description || '-'}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {claim.receipt_url ? (
+                            <a href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                              <ExternalLink className="h-3 w-3" />View
+                            </a>
+                          ) : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={saveEdit} disabled={editMutation.isPending}><Check className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={cancelEdit} disabled={editMutation.isPending}><X className="h-4 w-4" /></Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => startEdit(claim)}><Pencil className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(claim.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><Check className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleReject(claim.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><X className="h-4 w-4" /></Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

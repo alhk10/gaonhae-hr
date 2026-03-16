@@ -1,10 +1,9 @@
 /**
  * Invoice Deletion Approvals Component
- * Displays pending invoice deletion requests for superadmin approval
  */
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,8 +27,8 @@ const InvoiceDeletionApprovals: React.FC = () => {
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ['pending-invoice-deletion-requests'],
     queryFn: getPendingInvoiceDeletionRequests,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const approveMutation = useMutation({
@@ -39,9 +38,7 @@ const InvoiceDeletionApprovals: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-deletion-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-deletion-count'] });
     },
-    onError: (error: Error) => {
-      toast.error(`Failed to approve: ${error.message}`);
-    }
+    onError: (error: Error) => { toast.error(`Failed to approve: ${error.message}`); }
   });
 
   const rejectMutation = useMutation({
@@ -51,9 +48,7 @@ const InvoiceDeletionApprovals: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-deletion-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-deletion-count'] });
     },
-    onError: (error: Error) => {
-      toast.error(`Failed to reject: ${error.message}`);
-    }
+    onError: (error: Error) => { toast.error(`Failed to reject: ${error.message}`); }
   });
 
   const handleApprove = (requestId: string) => {
@@ -70,27 +65,22 @@ const InvoiceDeletionApprovals: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-SG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-destructive" />
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <FileText className="w-4 h-4 text-destructive" />
             Invoice Deletion Requests
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="w-4 h-4" />
-            <span>Failed to load deletion requests</span>
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+          <div className="flex items-center gap-2 text-destructive text-sm">
+            <AlertCircle className="w-4 h-4" /><span>Failed to load deletion requests</span>
           </div>
         </CardContent>
       </Card>
@@ -100,123 +90,96 @@ const InvoiceDeletionApprovals: React.FC = () => {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-destructive" />
-            Invoice Deletion Requests
+        <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <FileText className="w-4 h-4 text-destructive" />
+            Invoice Deletion
             {requests.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {requests.length} pending
-              </Badge>
+              <Badge variant="destructive" className="text-xs">{requests.length}</Badge>
             )}
           </CardTitle>
-          <CardDescription>
-            Review and approve or reject invoice deletion requests
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-48" />
-                  </div>
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 w-8" />
-                    <Skeleton className="h-8 w-8" />
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
             </div>
           ) : requests.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <div className="text-center py-4 text-muted-foreground text-sm">
               <p>No pending invoice deletion requests</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Requested By</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-2 md:hidden">
                 {requests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">
-                      {request.invoice_number || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {request.student_name || '-'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {request.total_amount ? formatCurrency(request.total_amount) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {request.requested_by_email || 'Unknown'}
+                  <div key={request.id} className="p-2.5 border rounded-lg bg-card space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm">{request.invoice_number || '-'}</span>
+                        {request.student_name && <span className="text-xs text-muted-foreground ml-1">· {request.student_name}</span>}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDate(request.created_at)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {request.reason || '-'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="View Invoice"
-                          onClick={() => setViewInvoiceId(request.invoice_id)}
-                        >
-                          <Eye className="h-4 w-4" />
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setViewInvoiceId(request.invoice_id)}>
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                          title="Approve deletion"
-                          onClick={() => handleApprove(request.id)}
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
-                        >
-                          <Check className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleApprove(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                          <Check className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Reject deletion"
-                          onClick={() => handleReject(request.id)}
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
-                        >
-                          <X className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleReject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending}>
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {request.total_amount ? <span className="font-medium">{formatCurrency(request.total_amount)}</span> : null}
+                      {' · '}{request.requested_by_email || 'Unknown'} · {formatDate(request.created_at)}
+                    </div>
+                    {request.reason && <p className="text-xs text-muted-foreground truncate">{request.reason}</p>}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {requests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="font-medium">{request.invoice_number || '-'}</TableCell>
+                        <TableCell>{request.student_name || '-'}</TableCell>
+                        <TableCell className="font-medium">{request.total_amount ? formatCurrency(request.total_amount) : '-'}</TableCell>
+                        <TableCell><div className="text-sm">{request.requested_by_email || 'Unknown'}</div></TableCell>
+                        <TableCell><div className="text-sm text-muted-foreground">{formatDate(request.created_at)}</div></TableCell>
+                        <TableCell><div className="text-sm text-muted-foreground max-w-[200px] truncate">{request.reason || '-'}</div></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewInvoiceId(request.invoice_id)}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><Check className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleReject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending}><X className="h-4 w-4" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* View Invoice Dialog */}
       {viewInvoiceId && (
         <ViewEditInvoiceDialog
           invoiceId={viewInvoiceId}
