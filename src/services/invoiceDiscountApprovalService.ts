@@ -18,6 +18,7 @@ export interface InvoiceDiscountApproval {
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+  approval_reason: string | null;
   created_at: string;
 }
 
