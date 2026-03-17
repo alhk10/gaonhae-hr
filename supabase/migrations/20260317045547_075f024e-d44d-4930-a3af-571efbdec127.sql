@@ -1,0 +1,1 @@
+ALTER TABLE public.invoice_discount_approvals ADD COLUMN approval_reason TEXT;

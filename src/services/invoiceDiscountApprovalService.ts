@@ -18,6 +18,7 @@ export interface InvoiceDiscountApproval {
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+  approval_reason: string | null;
   created_at: string;
 }
 
@@ -27,7 +28,8 @@ export const submitDiscountApproval = async (
   branchName: string | null,
   totalDiscount: number,
   totalAmount: number,
-  requestedByEmail: string | null
+  requestedByEmail: string | null,
+  approvalReason?: string
 ): Promise<void> => {
   const { error } = await supabase
     .from('invoice_discount_approvals' as any)
@@ -39,6 +41,7 @@ export const submitDiscountApproval = async (
       total_amount: totalAmount,
       item_count: invoiceData.items.length,
       requested_by_email: requestedByEmail,
+      approval_reason: approvalReason || null,
       status: 'pending',
     });
 
