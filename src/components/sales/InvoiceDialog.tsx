@@ -962,7 +962,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
         const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
         const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
-        await submitDiscountApproval(invoiceData, studentName, branchName, totalDisc, totalAmount, user?.email || null);
+        const reasons: string[] = [];
+        if (needsDiscountApproval) reasons.push(`Discount exceeds $${DISCOUNT_APPROVAL_THRESHOLD} threshold`);
+        if (needsExceptionApproval) reasons.push('Includes out-of-criteria products');
+        const approvalReason = reasons.join(' & ');
+        await submitDiscountApproval(invoiceData, studentName, branchName, totalDisc, totalAmount, user?.email || null, approvalReason);
         toast.success(needsExceptionApproval ? 'Invoice includes exception products — submitted for approval.' : `Discount of $${totalDisc.toFixed(2)} requires approval. Request submitted.`);
         setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
       }
