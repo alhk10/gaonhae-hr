@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { CreateInvoiceData } from './invoiceService';
 import { createInvoice } from './invoiceService';
 
-export const DISCOUNT_APPROVAL_THRESHOLD = 200;
+export const DISCOUNT_APPROVAL_THRESHOLD = 250;
 
 export interface InvoiceDiscountApproval {
   id: string;
