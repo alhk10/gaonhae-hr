@@ -1890,6 +1890,7 @@ export type Database = {
       }
       invoice_discount_approvals: {
         Row: {
+          approval_reason: string | null
           branch_name: string | null
           created_at: string
           id: string
@@ -1906,6 +1907,7 @@ export type Database = {
           total_discount: number
         }
         Insert: {
+          approval_reason?: string | null
           branch_name?: string | null
           created_at?: string
           id?: string
@@ -1922,6 +1924,7 @@ export type Database = {
           total_discount?: number
         }
         Update: {
+          approval_reason?: string | null
           branch_name?: string | null
           created_at?: string
           id?: string
