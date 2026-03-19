@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays, eachDayOfInterval, isToday, isSameWeek } from 'date-fns';
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
