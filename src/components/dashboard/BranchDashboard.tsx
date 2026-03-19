@@ -637,14 +637,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         await deletePayment(deleteTarget.id);
         toast.success('Payment deleted');
       }
-      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+      invalidateAllBranchData();
     } catch (error: any) {
       toast.error(error?.message || `Failed to delete ${deleteTarget.type}`);
     } finally {
@@ -653,13 +646,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   };
 
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
+    invalidateAllBranchData();
   };
 
   return (
