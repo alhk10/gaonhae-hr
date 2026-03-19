@@ -620,6 +620,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
     queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
     queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
   };
 
   return (
