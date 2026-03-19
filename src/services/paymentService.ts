@@ -201,49 +201,36 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     const isOverpayment = paymentData.amount > invoice.balance_due;
     const overpaymentAmount = isOverpayment ? paymentData.amount - invoice.balance_due : 0;
 
-    // Generate payment number with retry on duplicate
+    // Let the database assign payment_number atomically to avoid RLS/concurrency collisions
     let payment = null;
-    let retries = 3;
-    
-    while (retries > 0) {
-      const paymentNumber = await generatePaymentNumber();
-      
-      const { data: paymentData2, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          payment_number: paymentNumber,
-          invoice_id: paymentData.invoice_id,
-          amount: paymentData.amount,
-          payment_date: paymentData.payment_date,
-          payment_method: paymentData.payment_method,
-          reference_number: paymentData.reference_number,
-          proof_of_payment_url: paymentData.proof_of_payment_url,
-          notes: paymentData.notes
-        }])
-        .select(`
-          *,
-          invoices(
-            invoice_number,
-            total_amount,
-            students(first_name, last_name)
-          )
-        `)
-        .single();
 
-      if (paymentError) {
-        if (paymentError.message.includes('payments_payment_number_key') && retries > 1) {
-          retries--;
-          // Small delay before retry
-          await new Promise(resolve => setTimeout(resolve, 100));
-          continue;
-        }
-        throw new Error(`Failed to create payment: ${paymentError.message}`);
-      }
-      
-      payment = paymentData2;
-      break;
+    const { data: paymentData2, error: paymentError } = await supabase
+      .from('payments')
+      .insert([{
+        payment_number: '',
+        invoice_id: paymentData.invoice_id,
+        amount: paymentData.amount,
+        payment_date: paymentData.payment_date,
+        payment_method: paymentData.payment_method,
+        reference_number: paymentData.reference_number,
+        proof_of_payment_url: paymentData.proof_of_payment_url,
+        notes: paymentData.notes
+      }])
+      .select(`
+        *,
+        invoices(
+          invoice_number,
+          total_amount,
+          students(first_name, last_name)
+        )
+      `)
+      .single();
+
+    if (paymentError) {
+      throw new Error(`Failed to create payment: ${paymentError.message}`);
     }
 
+    payment = paymentData2;
     if (!payment) {
       throw new Error('Failed to create payment after multiple retries');
     }
