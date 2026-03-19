@@ -300,7 +300,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       invoice_id: paymentData.invoice_id,
       action: 'payment_added',
       changes: {
-        payment_number: paymentNumber,
+        payment_number: payment.payment_number,
         amount: paymentData.amount,
         payment_method: paymentData.payment_method,
         new_balance: newBalanceDue
