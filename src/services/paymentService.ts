@@ -201,34 +201,51 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     const isOverpayment = paymentData.amount > invoice.balance_due;
     const overpaymentAmount = isOverpayment ? paymentData.amount - invoice.balance_due : 0;
 
-    // Generate payment number
-    const paymentNumber = await generatePaymentNumber();
+    // Generate payment number with retry on duplicate
+    let payment = null;
+    let retries = 3;
+    
+    while (retries > 0) {
+      const paymentNumber = await generatePaymentNumber();
+      
+      const { data: paymentData2, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          payment_number: paymentNumber,
+          invoice_id: paymentData.invoice_id,
+          amount: paymentData.amount,
+          payment_date: paymentData.payment_date,
+          payment_method: paymentData.payment_method,
+          reference_number: paymentData.reference_number,
+          proof_of_payment_url: paymentData.proof_of_payment_url,
+          notes: paymentData.notes
+        }])
+        .select(`
+          *,
+          invoices(
+            invoice_number,
+            total_amount,
+            students(first_name, last_name)
+          )
+        `)
+        .single();
 
-    // Create the payment
-    const { data: payment, error: paymentError } = await supabase
-      .from('payments')
-      .insert([{
-        payment_number: paymentNumber,
-        invoice_id: paymentData.invoice_id,
-        amount: paymentData.amount,
-        payment_date: paymentData.payment_date,
-        payment_method: paymentData.payment_method,
-        reference_number: paymentData.reference_number,
-        proof_of_payment_url: paymentData.proof_of_payment_url,
-        notes: paymentData.notes
-      }])
-      .select(`
-        *,
-        invoices(
-          invoice_number,
-          total_amount,
-          students(first_name, last_name)
-        )
-      `)
-      .single();
+      if (paymentError) {
+        if (paymentError.message.includes('payments_payment_number_key') && retries > 1) {
+          retries--;
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue;
+        }
+        throw new Error(`Failed to create payment: ${paymentError.message}`);
+      }
+      
+      payment = paymentData2;
+      break;
+    }
 
-    if (paymentError) {
-      throw new Error(`Failed to create payment: ${paymentError.message}`);
+    if (!payment) {
+      throw new Error('Failed to create payment after multiple retries');
     }
 
     // Update invoice with new payment amounts
@@ -283,7 +300,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       invoice_id: paymentData.invoice_id,
       action: 'payment_added',
       changes: {
-        payment_number: paymentNumber,
+        payment_number: payment.payment_number,
         amount: paymentData.amount,
         payment_method: paymentData.payment_method,
         new_balance: newBalanceDue
@@ -547,14 +564,20 @@ const generatePaymentNumber = async (): Promise<string> => {
 
   if (error) {
     logger.error('Error generating payment number', error);
-    // Fallback to timestamp-based number
-    return `${prefix}${Date.now().toString().slice(-6)}`;
+    // Fallback to timestamp-based number to guarantee uniqueness
+    return `${prefix}${Date.now().toString().slice(-8)}`;
   }
 
   let nextNumber = 1;
   if (data && data.length > 0) {
     const lastNumber = data[0].payment_number.replace(prefix, '');
-    nextNumber = parseInt(lastNumber) + 1;
+    const parsed = parseInt(lastNumber);
+    if (!isNaN(parsed)) {
+      nextNumber = parsed + 1;
+    } else {
+      // If parsing fails, use timestamp fallback
+      return `${prefix}${Date.now().toString().slice(-8)}`;
+    }
   }
 
   return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
