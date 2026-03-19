@@ -533,6 +533,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
 
+  // Realtime subscription for invoice/payment changes to auto-refresh all metrics
+  useEffect(() => {
+    const channel = supabase
+      .channel(`branch-data-${branchId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `branch_id=eq.${branchId}` }, () => {
+        refreshDataRef.current();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        refreshDataRef.current();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [branchId, queryClient]);
+
   useEffect(() => {
     if (!hasSetInitialTab.current && hasApprovals) {
       setActiveTab('approvals');
