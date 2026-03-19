@@ -32,6 +32,7 @@ const LeaveApprovals: React.FC = () => {
     onSuccess: () => {
       toast.success('Leave request approved');
       queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-leave-count'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
     },
     onError: (error: Error) => {
