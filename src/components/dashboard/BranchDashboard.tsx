@@ -533,15 +533,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
 
+  const invalidateAllBranchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+  }, [queryClient, branchId]);
+
   // Realtime subscription for invoice/payment changes to auto-refresh all metrics
   useEffect(() => {
     const channel = supabase
       .channel(`branch-data-${branchId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `branch_id=eq.${branchId}` }, () => {
-        refreshDataRef.current();
+        invalidateAllBranchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
-        refreshDataRef.current();
+        invalidateAllBranchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
         queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
@@ -551,7 +562,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [branchId, queryClient]);
+  }, [branchId, queryClient, invalidateAllBranchData]);
 
   useEffect(() => {
     if (!hasSetInitialTab.current && hasApprovals) {
