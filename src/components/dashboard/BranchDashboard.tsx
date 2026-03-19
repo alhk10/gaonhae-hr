@@ -533,6 +533,37 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
 
+  const invalidateAllBranchData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+  }, [queryClient, branchId]);
+
+  // Realtime subscription for invoice/payment changes to auto-refresh all metrics
+  useEffect(() => {
+    const channel = supabase
+      .channel(`branch-data-${branchId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `branch_id=eq.${branchId}` }, () => {
+        invalidateAllBranchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        invalidateAllBranchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [branchId, queryClient, invalidateAllBranchData]);
+
   useEffect(() => {
     if (!hasSetInitialTab.current && hasApprovals) {
       setActiveTab('approvals');
@@ -606,11 +637,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         await deletePayment(deleteTarget.id);
         toast.success('Payment deleted');
       }
-      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
-      queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
+      invalidateAllBranchData();
     } catch (error: any) {
       toast.error(error?.message || `Failed to delete ${deleteTarget.type}`);
     } finally {
@@ -619,11 +646,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   };
 
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
-    queryClient.invalidateQueries({ queryKey: ['active-students-paid', branchId] });
+    invalidateAllBranchData();
   };
 
   return (
