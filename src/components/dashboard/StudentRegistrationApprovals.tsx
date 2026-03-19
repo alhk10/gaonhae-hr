@@ -76,6 +76,7 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
     onSuccess: () => {
       toast.success('Registration approved and student created');
       queryClient.invalidateQueries({ queryKey: ['pending-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-registration-count'] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['branch-students'] });
       queryClient.invalidateQueries({ queryKey: ['student-management'] });
