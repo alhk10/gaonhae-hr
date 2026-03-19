@@ -366,11 +366,46 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   });
 
   // Fetch grading metrics: grading paid, ready for grading, term paid counts
-  const { data: gradingMetrics = { total: 0, gradingPaid: 0, ready: 0, termPaid: 0 } } = useQuery({
+  const { data: gradingMetrics = { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 } } = useQuery({
     queryKey: ['grading-list-count', branchId, currentTerm?.id],
     queryFn: async () => {
-      if (!currentTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0 };
+      if (!currentTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 };
       
+      // Get lesson products first (needed for both grading metrics and total term students)
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
+
+      // Count total term students (all students with lesson invoices for this term, any non-cancelled status)
+      let totalTermStudents = 0;
+      if (lessonProductIds.length > 0) {
+        const { data: allTermInvoiceItems } = await supabase
+          .from('invoice_items')
+          .select(`
+            metadata,
+            invoices!inner (
+              student_id,
+              branch_id,
+              status
+            )
+          `)
+          .in('product_id', lessonProductIds)
+          .eq('invoices.branch_id', branchId)
+          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+
+        const allTermStudentIds = new Set<string>();
+        (allTermInvoiceItems || []).forEach(item => {
+          const metadata = item.metadata as Record<string, any> | null;
+          if (metadata?.term_id === currentTerm.id) {
+            allTermStudentIds.add((item.invoices as any).student_id);
+          }
+        });
+        totalTermStudents = allTermStudentIds.size;
+      }
+
       // Get grading registrations with invoice info for this term's grading slots
       const { data: registrations } = await supabase
         .from('grading_registrations')
@@ -385,7 +420,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         `)
         .not('grading_slot_id', 'is', null);
 
-      if (!registrations || registrations.length === 0) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0 };
+      if (!registrations || registrations.length === 0) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents };
 
       // Filter by branch
       const branchRegs = registrations.filter(
@@ -413,7 +448,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           .from('invoice_items')
           .select('id, invoices!inner(status, student_id)')
           .in('id', gradingItemIds)
-          .eq('invoices.status', 'paid');
+          .in('invoices.status', ['paid', 'verified']);
 
         const paidStudentIds = new Set(
           (paidItems || []).map(item => (item.invoices as any).student_id)
@@ -422,12 +457,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       }
 
       // Count term paid: students with paid lesson invoices for this term
-      const { data: lessonProducts } = await supabase
-        .from('products')
-        .select('id')
-        .eq('is_lesson', true);
-
-      const lessonProductIds = (lessonProducts || []).map(p => p.id);
       let termPaid = 0;
 
       if (lessonProductIds.length > 0) {
@@ -443,7 +472,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           `)
           .in('product_id', lessonProductIds)
           .eq('invoices.branch_id', branchId)
-          .eq('invoices.status', 'paid');
+          .in('invoices.status', ['paid', 'verified']);
 
         const termPaidStudentIds = new Set<string>();
         (invoiceItems || []).forEach(item => {
@@ -458,7 +487,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         termPaid = termPaidStudentIds.size;
       }
 
-      return { total, gradingPaid, ready, termPaid };
+      return { total, gradingPaid, ready, termPaid, totalTermStudents };
     },
     enabled: !!branchId && !!currentTerm,
   });
@@ -467,6 +496,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const gradingPaidCount = gradingMetrics.gradingPaid;
   const gradingReadyCount = gradingMetrics.ready;
   const gradingTermPaidCount = gradingMetrics.termPaid;
+  const totalTermStudents = gradingMetrics.totalTermStudents;
 
   // Check if casual employees have bookings this month
   const { data: hasCasualBookings = false } = useQuery({
@@ -590,6 +620,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
     queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
     queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
   };
 
   return (
@@ -620,7 +651,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
-          <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading</TabsTrigger>
+          <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
           {hasCasualBookings && (
             <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
           )}
