@@ -207,6 +207,7 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
     const { data: paymentData2, error: paymentError } = await supabase
       .from('payments')
       .insert([{
+        payment_number: '',
         invoice_id: paymentData.invoice_id,
         amount: paymentData.amount,
         payment_date: paymentData.payment_date,
