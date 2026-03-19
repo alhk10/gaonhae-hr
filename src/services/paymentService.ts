@@ -547,14 +547,20 @@ const generatePaymentNumber = async (): Promise<string> => {
 
   if (error) {
     logger.error('Error generating payment number', error);
-    // Fallback to timestamp-based number
-    return `${prefix}${Date.now().toString().slice(-6)}`;
+    // Fallback to timestamp-based number to guarantee uniqueness
+    return `${prefix}${Date.now().toString().slice(-8)}`;
   }
 
   let nextNumber = 1;
   if (data && data.length > 0) {
     const lastNumber = data[0].payment_number.replace(prefix, '');
-    nextNumber = parseInt(lastNumber) + 1;
+    const parsed = parseInt(lastNumber);
+    if (!isNaN(parsed)) {
+      nextNumber = parsed + 1;
+    } else {
+      // If parsing fails, use timestamp fallback
+      return `${prefix}${Date.now().toString().slice(-8)}`;
+    }
   }
 
   return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
