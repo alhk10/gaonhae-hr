@@ -91,6 +91,7 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
     onSuccess: () => {
       toast.success('Registration rejected');
       queryClient.invalidateQueries({ queryKey: ['pending-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-registration-count'] });
       setRejectDialogOpen(false);
       setRejectNotes('');
       setSelectedReg(null);

@@ -122,6 +122,7 @@ const PaymentVerificationApprovals = () => {
       }
 
       queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-verification-count'] });
       queryClient.invalidateQueries({ queryKey: ['branch-payments'] });
       queryClient.invalidateQueries({ queryKey: ['branch-invoices'] });
       toast.success('Payment amount updated');
