@@ -44,6 +44,7 @@ const ClaimsApprovals: React.FC = () => {
     onSuccess: () => {
       toast.success('Claim approved successfully');
       queryClient.invalidateQueries({ queryKey: ['pending-claims-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-claims-count'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
     },
@@ -57,6 +58,7 @@ const ClaimsApprovals: React.FC = () => {
     onSuccess: () => {
       toast.success('Claim rejected');
       queryClient.invalidateQueries({ queryKey: ['pending-claims-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-claims-count'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
     },

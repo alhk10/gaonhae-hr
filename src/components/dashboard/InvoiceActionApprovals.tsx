@@ -66,6 +66,7 @@ const InvoiceActionApprovals: React.FC = () => {
         : 'Adjustment approved';
       toast.success(`${successMsg} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
     } catch (error: any) {
       toast.error(`Failed to approve: ${error.message}`);
     } finally {
@@ -87,6 +88,7 @@ const InvoiceActionApprovals: React.FC = () => {
       toast.success('Request rejected');
       setRejectDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
     } catch (error: any) {
       toast.error(`Failed to reject: ${error.message}`);
     } finally {
