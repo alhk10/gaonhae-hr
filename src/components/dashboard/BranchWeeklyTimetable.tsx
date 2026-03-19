@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays, eachDayOfInterval, isToday, isSameWeek } from 'date-fns';
 import { getClassSchedules, WEEKDAYS } from '@/services/branchTimetableService';
 import { getScheduledClasses } from '@/services/classEnrollmentService';
@@ -31,6 +32,7 @@ interface GroupedClass {
 }
 
 const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId }) => {
+  const queryClient = useQueryClient();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Start on Monday
   );
@@ -49,6 +51,26 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
   const weekEnd = useMemo(() => endOfWeek(currentWeekStart, { weekStartsOn: 1 }), [currentWeekStart]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: currentWeekStart, end: weekEnd }), [currentWeekStart, weekEnd]);
 
+  // Realtime subscription for immediate timetable updates
+  useEffect(() => {
+    const channel = supabase
+      .channel(`timetable-${branchId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_class_enrollments', filter: `branch_id=eq.${branchId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'class_attendance', filter: `branch_id=eq.${branchId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [branchId, queryClient]);
+
   // Fetch branch timetable (class schedule template)
   const { data: timetable = [], isLoading: timetableLoading } = useQuery({
     queryKey: ['branch-timetable', branchId],
@@ -66,7 +88,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
       branchId
     ),
     enabled: !!branchId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 10 * 1000, // 10 seconds - faster refresh for timetable data
   });
 
   // Fetch grading slots for the week
@@ -78,7 +100,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
       branchId
     ),
     enabled: !!branchId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds
   });
 
   // Fetch attendance records for the week (to merge manually-added students)
@@ -90,7 +112,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
       format(weekEnd, 'yyyy-MM-dd')
     ),
     enabled: !!branchId,
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000, // 10 seconds
   });
 
   const isLoading = timetableLoading || classesLoading || gradingLoading || attendanceLoading;
