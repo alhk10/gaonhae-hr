@@ -1124,6 +1124,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Download PDF" onClick={() => handleDownloadPDF(invoice)} disabled={pdfLoadingId === invoice.id}>
                                   {pdfLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                                 </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700" title="Send via WhatsApp" onClick={() => handleWhatsAppShare(invoice)} disabled={whatsappLoadingId === invoice.id}>
+                                  {whatsappLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageCircle className="w-3 h-3" />}
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
                                 </Button>
