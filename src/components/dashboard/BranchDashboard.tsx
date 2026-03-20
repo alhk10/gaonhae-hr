@@ -163,6 +163,78 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   };
 
+  const handleVerifyPayment = useCallback(async (payment: any) => {
+    const paymentsQueryKey = ['branch-payments', branchId] as const;
+    const invoiceQueryPrefix = ['branch-invoices', branchId] as const;
+
+    await queryClient.cancelQueries({ queryKey: paymentsQueryKey });
+    await queryClient.cancelQueries({ queryKey: invoiceQueryPrefix });
+
+    const previousPayments = queryClient.getQueryData<any[]>(paymentsQueryKey);
+    const previousInvoiceQueries = queryClient.getQueriesData<any[]>({ queryKey: invoiceQueryPrefix });
+
+    queryClient.setQueryData<any[]>(paymentsQueryKey, (current = []) =>
+      current.map((entry) =>
+        entry.id === payment.id
+          ? {
+              ...entry,
+              is_verified: true,
+              verified_by: user?.employeeId || null,
+              verified_at: new Date().toISOString(),
+            }
+          : entry
+      )
+    );
+
+    if (payment.invoice_id) {
+      queryClient.setQueriesData<any[]>({ queryKey: invoiceQueryPrefix }, (current) => {
+        if (!Array.isArray(current)) return current;
+
+        return current.map((invoice) =>
+          invoice.id === payment.invoice_id && invoice.status === 'paid'
+            ? { ...invoice, status: 'verified' }
+            : invoice
+        );
+      });
+    }
+
+    try {
+      const verifiedAt = new Date().toISOString();
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update({
+          is_verified: true,
+          verified_by: user?.employeeId || null,
+          verified_at: verifiedAt,
+        })
+        .eq('id', payment.id);
+
+      if (paymentError) throw paymentError;
+
+      if (payment.invoice_id) {
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({ status: 'verified' })
+          .eq('id', payment.invoice_id)
+          .eq('status', 'paid');
+
+        if (invoiceError) throw invoiceError;
+      }
+
+      queryClient.invalidateQueries({ queryKey: paymentsQueryKey });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryPrefix });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
+      toast.success('Payment verified successfully');
+    } catch (error) {
+      queryClient.setQueryData(paymentsQueryKey, previousPayments);
+      previousInvoiceQueries.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      toast.error('Failed to verify payment');
+    }
+  }, [branchId, queryClient, user?.employeeId]);
+
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
     try {
@@ -1106,21 +1178,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" className="text-xs h-7" onClick={async () => {
-                        try {
-                          const { error: paymentError } = await supabase.from('payments').update({ is_verified: true, verified_by: user?.employeeId || null, verified_at: new Date().toISOString() }).eq('id', payment.id);
-                          if (paymentError) throw paymentError;
-                          if (payment.invoice_id) {
-                            const { error: invoiceError } = await supabase.from('invoices').update({ status: 'verified' }).eq('id', payment.invoice_id).eq('status', 'paid');
-                            if (invoiceError) throw invoiceError;
-                          }
-                          queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
-                          queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-                          toast.success('Payment verified successfully');
-                        } catch (error) {
-                          toast.error('Failed to verify payment');
-                        }
-                      }}>
+                      <Button size="sm" className="text-xs h-7" onClick={() => handleVerifyPayment(payment)}>
                         <CheckCircle className="w-3 h-3 mr-1" />
                         Verify
                       </Button>
