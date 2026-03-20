@@ -67,9 +67,63 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   });
   const [invoiceTemplate, setInvoiceTemplate] = useState<InvoiceTemplate | null>(null);
 
+  // Fast single-invoice fetch for pre-selected invoice (inline pay)
+  const loadSingleInvoice = async (invoiceId: string) => {
+    try {
+      setSearchingInvoices(true);
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, student_id, total_amount, balance_due, status, branch_id, students(first_name, last_name)')
+        .eq('id', invoiceId)
+        .single();
+
+      if (error || !data) {
+        console.error('Error loading single invoice:', error);
+        toast.error('Failed to load invoice');
+        return;
+      }
+
+      let branchCountry = 'Singapore';
+      if (data.branch_id) {
+        const { data: branch } = await supabase
+          .from('branches')
+          .select('country')
+          .eq('id', data.branch_id)
+          .single();
+        if (branch?.country) branchCountry = branch.country;
+      }
+
+      const student = data.students as any;
+      const studentName = student
+        ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
+        : 'Unknown Student';
+
+      setInvoices([{
+        id: data.id,
+        invoice_number: data.invoice_number,
+        student_name: studentName,
+        student_id: data.student_id,
+        total_amount: data.total_amount,
+        balance_due: data.balance_due,
+        status: data.status || 'draft',
+        branch_id: data.branch_id || undefined,
+        branch_country: branchCountry
+      }]);
+    } catch (error) {
+      console.error('Error loading single invoice:', error);
+      toast.error('Failed to load invoice');
+    } finally {
+      setSearchingInvoices(false);
+    }
+  };
+
   useEffect(() => {
     if (open) {
-      loadInvoices();
+      if (preSelectedInvoiceId) {
+        loadSingleInvoice(preSelectedInvoiceId);
+      } else {
+        loadInvoices();
+      }
     }
   }, [open]);
 
@@ -82,13 +136,11 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const loadInvoices = async () => {
     try {
       setSearchingInvoices(true);
-      // Load unpaid or partially paid invoices
       const response = await getInvoices(1, 100, searchQuery);
       const unpaidInvoices = response.invoices.filter(inv => 
         inv.status !== 'paid' && inv.status !== 'cancelled' && inv.balance_due > 0
       );
       
-      // Get branch countries for unpaid invoices
       const branchIds = [...new Set(unpaidInvoices.filter(inv => inv.branch_id).map(inv => inv.branch_id))];
       let branchCountries: Record<string, string> = {};
       
@@ -126,7 +178,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   };
 
   useEffect(() => {
-    if (open) {
+    if (open && !preSelectedInvoiceId) {
       const debounceTimer = setTimeout(() => {
         loadInvoices();
       }, 300);
