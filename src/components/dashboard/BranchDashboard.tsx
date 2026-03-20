@@ -249,6 +249,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
 
   const handleWhatsAppShare = async (invoice: any) => {
+    const whatsappWindow = window.open('', '_blank');
+
     try {
       setWhatsappLoadingId(invoice.id);
       const fullInvoice = await getInvoiceById(invoice.id);
@@ -322,9 +324,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       };
 
       const whatsappNumber = studentData?.phone || '';
-      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber);
+      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber, whatsappWindow);
       toast.success('PDF downloaded. Please attach it to the WhatsApp chat.');
     } catch (error) {
+      whatsappWindow?.close();
       console.error('Error sharing via WhatsApp:', error);
       toast.error('Failed to share via WhatsApp');
     } finally {
