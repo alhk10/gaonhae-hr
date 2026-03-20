@@ -113,6 +113,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [whatsappLoadingId, setWhatsappLoadingId] = useState<string | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [massEditMode, setMassEditMode] = useState(false);
   const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
