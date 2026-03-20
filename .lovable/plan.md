@@ -1,51 +1,35 @@
 
 
-## Plan: Make Create Invoice Dialog Mobile-Compact
+## Plan: Fix WhatsApp Invoice PDF Header & WhatsApp URL Error
 
-### Problem
-The Create Invoice dialog uses a wide desktop table layout (`max-w-5xl`) with 10 columns that overflows on mobile screens. The image shows it's already partially compact but needs further optimization.
+### Problems Identified
+
+1. **Different PDF headers**: The "Download PDF" button fetches templates using `.eq('country', countryCode)`, while the "WhatsApp Share" button fetches templates using `.eq('branch_id', invoice.branch_id)`. This causes different (or no) templates to be found, resulting in different headers.
+
+2. **WhatsApp URL fails**: `https://wa.me/` triggers `NET::ERR_CERT_AUTHORITY_INVALID` on some networks. The URL `https://api.whatsapp.com/send` is more widely supported.
 
 ### Changes
 
-#### 1. `src/components/sales/CreateInvoiceDialog.tsx` — DialogContent and form layout
+#### 1. Unify template fetching in `BranchDashboard.tsx` — `handleWhatsAppShare`
 
-**Dialog container** (line 1104):
-- Change `max-w-5xl` to `max-w-[95vw] md:max-w-5xl`
-- Add `top-[5%]` anchor pattern
+Replace the WhatsApp handler's template query (currently filtering by `branch_id`) with the same logic used by `handleDownloadPDF`: query by country code first, then fall back. Additionally, add `bank_transfer_info` to the template object (currently missing from the WhatsApp path).
 
-**Header** (line 1106):
-- Reduce title size on mobile: `text-base md:text-lg`
+**File**: `src/components/dashboard/BranchDashboard.tsx` (lines ~250-304)
+- Change template query from `.eq('branch_id', invoice.branch_id)` to `.eq('country', countryCode).eq('is_active', true)` — matching the download handler exactly.
 
-**Invoice Details section** (lines 1111-1152):
-- Reduce heading: `text-sm md:text-lg font-medium`
-- Tighten spacing: `space-y-2 md:space-y-4`, `gap-2 md:gap-4`
-- Smaller labels on mobile: `text-xs md:text-sm`
+#### 2. Fix WhatsApp URL in `invoicePDFGenerator.ts`
 
-**Invoice Items section** (lines 1155-1383):
-- **Replace the Table with a mobile card layout**: On mobile (`md:hidden`), render each item and the add-item row as stacked cards instead of a horizontal table. Each card shows fields in 2-3 compact rows:
-  - Row 1: Category select + Product select (side by side)
-  - Row 2: Qty + Price + Discount + Total (side by side, tight)
-  - Row 3: Size/Color/Term fields (only when relevant)
-- Keep the existing Table for desktop (`hidden md:table`)
-- Use `text-xs` throughout, `h-7` inputs, `px-1 py-1` cell padding
+**File**: `src/utils/invoicePDFGenerator.ts` (line 518)
+- Change `https://wa.me/${cleanNumber}?text=${message}` to `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${message}`
+- This URL is more reliable across networks and firewalls.
 
-**Added items display on mobile**: Each added item as a compact card:
-- Line 1: Product name (bold, truncated) + delete button
-- Line 2: Qty × Price = Total, discount if any
-- Line 3: Size/Color/Term metadata (small, muted)
+#### 3. Add `bank_transfer_info` to WhatsApp template object
 
-**Totals section** (lines 1405-1422):
-- Reduce width on mobile: `w-full md:w-64`
-- Smaller text: `text-xs md:text-sm`, total `text-sm md:text-lg`
+The download handler doesn't include `bank_transfer_info` either (both miss it from the select). Ensure both paths include it in the template fields selected and passed to `InvoiceData`.
 
-**Notes section** (lines 1428-1449):
-- Reduce spacing: `space-y-2 md:space-y-4`
-- Single row textareas on mobile: `rows={1}` on mobile via className height
+### Technical Details
 
-**Footer** (lines 1452-1465):
-- Smaller buttons on mobile: `text-xs md:text-sm h-8 md:h-10`
-
-### Scope
-- **Modified**: `src/components/sales/CreateInvoiceDialog.tsx` (mobile-responsive compact layout)
-- No database or service changes
+- Template query alignment: both handlers will use `supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1)`
+- If a branch-specific template exists, try that first, then fall back to country — per user's preference of "branch first"
+- WhatsApp API URL change is a drop-in replacement with identical parameter semantics
 
