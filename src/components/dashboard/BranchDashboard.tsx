@@ -235,7 +235,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           }
           return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
         }) || [],
-        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined } : undefined
+        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined, bank_transfer_info: template.bank_transfer_info || undefined } : undefined
       };
       await downloadInvoicePDF(invoiceData);
       toast.success('Invoice PDF downloaded');
