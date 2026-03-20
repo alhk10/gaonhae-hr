@@ -261,8 +261,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         if (bData?.country) branchCountry = bData.country;
       }
 
-      const { data: templates } = await supabase.from('invoice_templates').select('*').eq('branch_id', invoice.branch_id).eq('is_active', true).limit(1);
-      const template = templates?.[0] || null;
+      // Branch-first template: try branch-specific, then fall back to country
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      let template: any = null;
+      if (invoice.branch_id) {
+        const { data: branchTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('branch_id', invoice.branch_id).eq('is_active', true).limit(1);
+        template = branchTemplates?.[0] || null;
+      }
+      if (!template) {
+        const { data: countryTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+        template = countryTemplates?.[0] || null;
+      }
 
       const termIds: string[] = [];
       const gradingSlotIds: string[] = [];
