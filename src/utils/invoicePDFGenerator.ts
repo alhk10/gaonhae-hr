@@ -509,11 +509,9 @@ export const getWhatsAppShareUrl = (
       `Balance due: ${formatCurrency(invoice.balance_due)}. Please find the PDF attachment.`
   });
 
-  if (cleanNumber) {
-    params.set('phone', cleanNumber);
-  }
-
-  return `https://api.whatsapp.com/send?${params.toString()}`;
+  return cleanNumber
+    ? `https://wa.me/${cleanNumber}?${params.toString()}`
+    : `https://wa.me/?${params.toString()}`;
 };
 
 export const shareInvoiceViaWhatsApp = async (
