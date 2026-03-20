@@ -1040,7 +1040,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                       </Button>
                                     }
                                     preSelectedInvoiceId={invoice.id}
-                                    onPaymentCreated={() => queryClient.invalidateQueries({ queryKey: ['branch-invoices'] })}
+                                    onPaymentCreated={() => invalidateAllBranchData()}
                                   />
                                 )}
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Download PDF" onClick={() => handleDownloadPDF(invoice)} disabled={pdfLoadingId === invoice.id}>
