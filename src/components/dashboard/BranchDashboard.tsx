@@ -239,7 +239,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   };
 
-  const [whatsappLoadingId, setWhatsappLoadingId] = useState<string | null>(null);
 
   const handleWhatsAppShare = async (invoice: any) => {
     try {
