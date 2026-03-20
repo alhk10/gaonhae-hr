@@ -446,8 +446,6 @@ const InvoiceManagementList: React.FC = () => {
 
   // Handle WhatsApp share
   const handleShareWhatsApp = async (invoice: Invoice) => {
-    const whatsappWindow = window.open('', '_blank');
-
     try {
       setPdfLoadingId(invoice.id);
       
@@ -461,16 +459,14 @@ const InvoiceManagementList: React.FC = () => {
       
       const whatsappNumber = studentData?.whatsapp || studentData?.phone;
       if (!whatsappNumber) {
-        whatsappWindow?.close();
         toast.error('No WhatsApp or phone number found for this student');
         return;
       }
       
       const invoiceData = await prepareInvoiceDataForPDF(invoice);
-      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber, whatsappWindow);
+      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber);
       toast.success('PDF downloaded. Please attach it to the WhatsApp chat.');
     } catch (error) {
-      whatsappWindow?.close();
       console.error('Error sharing via WhatsApp:', error);
       toast.error('Failed to share via WhatsApp');
     } finally {

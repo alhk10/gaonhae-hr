@@ -498,36 +498,22 @@ export const getInvoicePDFBase64 = async (invoice: InvoiceData): Promise<string>
   return doc.output('datauristring').split(',')[1];
 };
 
-export const getWhatsAppShareUrl = (
-  invoice: InvoiceData,
-  whatsappNumber?: string
-): string => {
-  const cleanNumber = (whatsappNumber || '').replace(/[^\d+]/g, '');
-  const params = new URLSearchParams({
-    text:
-      `Hello! Here is your invoice ${invoice.invoice_number} for ${formatCurrency(invoice.total_amount)}. ` +
-      `Balance due: ${formatCurrency(invoice.balance_due)}. Please find the PDF attachment.`
-  });
-
-  return cleanNumber
-    ? `https://wa.me/${cleanNumber}?${params.toString()}`
-    : `https://wa.me/?${params.toString()}`;
-};
-
 export const shareInvoiceViaWhatsApp = async (
   invoice: InvoiceData,
-  whatsappNumber: string,
-  popup?: Window | null
+  whatsappNumber: string
 ): Promise<void> => {
+  // First download the PDF
   await downloadInvoicePDF(invoice);
-
-  const whatsappUrl = getWhatsAppShareUrl(invoice, whatsappNumber);
-
-  if (popup && !popup.closed) {
-    popup.location.href = whatsappUrl;
-    popup.focus();
-    return;
-  }
-
-  window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  
+  // Clean the phone number (remove spaces, dashes, etc.)
+  const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
+  
+  // Prepare the message
+  const message = encodeURIComponent(
+    `Hello! Here is your invoice ${invoice.invoice_number} for ${formatCurrency(invoice.total_amount)}. ` +
+    `Balance due: ${formatCurrency(invoice.balance_due)}. Please find the PDF attachment.`
+  );
+  
+  // Open WhatsApp Web
+  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
 };

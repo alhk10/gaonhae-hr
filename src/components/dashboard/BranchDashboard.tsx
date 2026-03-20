@@ -23,8 +23,7 @@ import {
   Loader2,
   Users,
   Save,
-  X,
-  MessageCircle
+  X
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,7 +45,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaWhatsApp, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
 import {
@@ -113,7 +112,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
-  const [whatsappLoadingId, setWhatsappLoadingId] = useState<string | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [massEditMode, setMassEditMode] = useState(false);
   const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
@@ -179,16 +177,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         if (branchData?.country) branchCountry = branchData.country;
       }
       const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      // Branch-first template: try branch-specific, then fall back to country
-      let template: any = null;
-      if (invoice.branch_id) {
-        const { data: branchTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('branch_id', invoice.branch_id).eq('is_active', true).limit(1);
-        template = branchTemplates?.[0] || null;
-      }
-      if (!template) {
-        const { data: countryTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
-        template = countryTemplates?.[0] || null;
-      }
+      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
 
       const termIds: string[] = [];
       const gradingSlotIds: string[] = [];
@@ -235,7 +225,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           }
           return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
         }) || [],
-        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined, bank_transfer_info: template.bank_transfer_info || undefined } : undefined
+        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined } : undefined
       };
       await downloadInvoicePDF(invoiceData);
       toast.success('Invoice PDF downloaded');
@@ -247,95 +237,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   };
 
-
-  const handleWhatsAppShare = async (invoice: any) => {
-    const whatsappWindow = window.open('', '_blank');
-
-    try {
-      setWhatsappLoadingId(invoice.id);
-      const fullInvoice = await getInvoiceById(invoice.id);
-      let studentData;
-      try { studentData = await getStudentById(invoice.student_id); } catch { studentData = null; }
-
-      let branchCountry = 'Singapore';
-      if (invoice.branch_id) {
-        const { data: bData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
-        if (bData?.country) branchCountry = bData.country;
-      }
-
-      // Branch-first template: try branch-specific, then fall back to country
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      let template: any = null;
-      if (invoice.branch_id) {
-        const { data: branchTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('branch_id', invoice.branch_id).eq('is_active', true).limit(1);
-        template = branchTemplates?.[0] || null;
-      }
-      if (!template) {
-        const { data: countryTemplates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
-        template = countryTemplates?.[0] || null;
-      }
-
-      const termIds: string[] = [];
-      const gradingSlotIds: string[] = [];
-      fullInvoice?.items?.forEach((item: any) => {
-        const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
-        if (metadata?.term_id) termIds.push(metadata.term_id);
-        if (metadata?.grading_slot_id) gradingSlotIds.push(metadata.grading_slot_id);
-      });
-
-      const termMap: Record<string, any> = {};
-      if (termIds.length > 0) {
-        const { data: termsData } = await supabase.from('term_calendars').select('id, name, start_date, end_date').in('id', termIds);
-        termsData?.forEach(t => { termMap[t.id] = t; });
-      }
-      const gradingMap: Record<string, any> = {};
-      if (gradingSlotIds.length > 0) {
-        const { data: gradingData } = await supabase.from('grading_slots').select('id, grading_date, start_time').in('id', gradingSlotIds);
-        gradingData?.forEach(s => { gradingMap[s.id] = s; });
-      }
-
-      const fmtShort = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return d; } };
-      const fmtFull = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; } };
-
-      const sourceInvoice = fullInvoice ?? invoice;
-
-      const invoiceData: InvoiceData = {
-        id: invoice.id, invoice_number: invoice.invoice_number,
-        issue_date: sourceInvoice.issue_date || null, due_date: sourceInvoice.due_date || null,
-        subtotal: sourceInvoice.subtotal, tax_amount: sourceInvoice.tax_amount, discount_amount: sourceInvoice.discount_amount,
-        total_amount: sourceInvoice.total_amount, amount_paid: sourceInvoice.amount_paid, balance_due: sourceInvoice.balance_due,
-        notes: sourceInvoice.notes, status: sourceInvoice.status,
-        student: studentData ? { name: `${studentData.first_name} ${studentData.last_name}`, address: studentData.address, phone: studentData.phone, email: studentData.email } : undefined,
-        items: fullInvoice?.items?.map((item: any) => {
-          const metadata = item.metadata as { term_id?: string; grading_slot_id?: string } | null;
-          let term_info: string | undefined;
-          let grading_info: string | undefined;
-          if (metadata?.term_id && termMap[metadata.term_id]) {
-            const t = termMap[metadata.term_id];
-            term_info = `${t.name} (${fmtShort(t.start_date)} - ${fmtShort(t.end_date)})`;
-          }
-          if (metadata?.grading_slot_id && gradingMap[metadata.grading_slot_id]) {
-            const s = gradingMap[metadata.grading_slot_id];
-            grading_info = s.start_time ? `${fmtFull(s.grading_date)} at ${s.start_time.substring(0, 5)}` : fmtFull(s.grading_date);
-          }
-          return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
-        }) || [],
-        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined, bank_transfer_info: template.bank_transfer_info || undefined } : undefined
-      };
-
-      const whatsappNumber = studentData?.phone || '';
-      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber, whatsappWindow);
-      toast.success('PDF downloaded. Please attach it to the WhatsApp chat.');
-    } catch (error) {
-      whatsappWindow?.close();
-      console.error('Error sharing via WhatsApp:', error);
-      toast.error('Failed to share via WhatsApp');
-    } finally {
-      setWhatsappLoadingId(null);
-    }
-  };
-
-
+  // Fetch branch info
   const { data: branch } = useQuery({
     queryKey: ['branch', branchId],
     queryFn: async () => {
@@ -1143,9 +1045,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 )}
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Download PDF" onClick={() => handleDownloadPDF(invoice)} disabled={pdfLoadingId === invoice.id}>
                                   {pdfLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700" title="Send via WhatsApp" onClick={() => handleWhatsAppShare(invoice)} disabled={whatsappLoadingId === invoice.id}>
-                                  {whatsappLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageCircle className="w-3 h-3" />}
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
