@@ -515,5 +515,5 @@ export const shareInvoiceViaWhatsApp = async (
   );
   
   // Open WhatsApp Web
-  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+  window.open(`https://api.whatsapp.com/send?phone=${cleanNumber}&text=${message}`, '_blank');
 };
