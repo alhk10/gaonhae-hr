@@ -87,7 +87,7 @@ const getTermPaidLabel = (status: string): string => {
   }
 };
 
-const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
+const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStudentClick }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
