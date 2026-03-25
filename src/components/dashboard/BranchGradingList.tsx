@@ -45,6 +45,7 @@ interface GradingListStudent {
 
 interface BranchGradingListProps {
   branchId: string;
+  onStudentClick?: (studentId: string) => void;
 }
 
 interface PendingChange {
@@ -86,7 +87,7 @@ const getTermPaidLabel = (status: string): string => {
   }
 };
 
-const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
+const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStudentClick }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
@@ -540,7 +541,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                             <Button
                               variant="link"
                               className="p-0 h-auto font-medium"
-                              onClick={() => navigate(`/parties/student/${student.student_id}`)}
+              onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
                             >
                               <User className="w-3 h-3 mr-1" />
                               {student.student_name}
@@ -730,7 +731,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           <span
                             className="font-bold text-xs truncate cursor-pointer"
-                            onClick={() => navigate(`/parties/student/${student.student_id}`)}
+                            onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
                           >
                             {student.student_name}
                           </span>

@@ -1242,7 +1242,18 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         </TabsContent>
 
         <TabsContent value="grading">
-          <BranchGradingList branchId={branchId} />
+          <BranchGradingList branchId={branchId} onStudentClick={async (studentId) => {
+            const cached = queryClient.getQueryData<Student[]>(['branch-students', branchId]);
+            let student = cached?.find(s => s.id === studentId);
+            if (!student) {
+              const { data } = await supabase.from('students').select('*').eq('id', studentId).single();
+              if (data) student = data as Student;
+            }
+            if (student) {
+              setSelectedStudent(student);
+              setStudentDetailsOpen(true);
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="casual-schedule">
