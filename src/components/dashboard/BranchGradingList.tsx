@@ -541,7 +541,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId }) => {
                             <Button
                               variant="link"
                               className="p-0 h-auto font-medium"
-                              onClick={() => navigate(`/parties/student/${student.student_id}`)}
+              onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
                             >
                               <User className="w-3 h-3 mr-1" />
                               {student.student_name}
