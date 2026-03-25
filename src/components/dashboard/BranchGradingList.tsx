@@ -45,6 +45,7 @@ interface GradingListStudent {
 
 interface BranchGradingListProps {
   branchId: string;
+  onStudentClick?: (studentId: string) => void;
 }
 
 interface PendingChange {
