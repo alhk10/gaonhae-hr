@@ -203,7 +203,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
       }
       return data;
     },
-    enabled: !!student.id,
+    enabled: !!student.id && !!currentTermForGrading?.id,
   });
 
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;
