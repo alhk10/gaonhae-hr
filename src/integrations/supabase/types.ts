@@ -2998,6 +2998,60 @@ export type Database = {
           },
         ]
       }
+      payroll_monthly_overrides: {
+        Row: {
+          allowances: Json | null
+          base_salary: number | null
+          created_at: string | null
+          deductions: Json | null
+          employee_id: string
+          hourly_rate: number | null
+          id: string
+          month: string
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          allowances?: Json | null
+          base_salary?: number | null
+          created_at?: string | null
+          deductions?: Json | null
+          employee_id: string
+          hourly_rate?: number | null
+          id?: string
+          month: string
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          allowances?: Json | null
+          base_salary?: number | null
+          created_at?: string | null
+          deductions?: Json | null
+          employee_id?: string
+          hourly_rate?: number | null
+          id?: string
+          month?: string
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_monthly_overrides_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "active_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_monthly_overrides_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_records: {
         Row: {
           cpf_paid: boolean | null
