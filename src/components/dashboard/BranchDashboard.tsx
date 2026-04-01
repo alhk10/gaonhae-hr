@@ -69,7 +69,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
 import { Student } from '@/services/studentService';
