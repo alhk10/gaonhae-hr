@@ -676,28 +676,17 @@ const PayrollProcessing = () => {
   };
 
   const handleDeductionsSave = async (deductions: any[]) => {
-    // Delete existing deductions
-    await supabase
-      .from('deductions')
-      .delete()
-      .eq('employee_id', editDeductionsDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    
+    const { error } = await upsertMonthlyOverride(
+      editDeductionsDialog.employeeId, year, month,
+      { deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount), type: d.type || 'Fixed' })) }
+    );
 
-    // Insert new deductions
-    if (deductions.length > 0) {
-      const { error } = await supabase
-        .from('deductions')
-        .insert(deductions.map(d => ({
-          employee_id: editDeductionsDialog.employeeId,
-          name: d.name,
-          amount: d.amount,
-          type: d.type
-        })));
-
-      if (error) {
-        console.error('Error updating deductions:', error);
-        toast('Error updating deductions');
-        return;
-      }
+    if (error) {
+      console.error('Error updating deductions override:', error);
+      toast('Error updating deductions');
+      return;
     }
 
     // Update local state
