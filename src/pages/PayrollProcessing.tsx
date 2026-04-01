@@ -28,6 +28,60 @@ import { forceRefreshSession } from '@/services/sessionRefreshService';
 import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
+const parsePeriod = (period: string) => {
+  const [monthName, yearStr] = period.split(' ');
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const monthIndex = monthNames.indexOf(monthName) + 1;
+  return { year: parseInt(yearStr), monthName, monthIndex, formatted: `${yearStr}-${monthIndex.toString().padStart(2, '0')}` };
+};
+
+// Load monthly overrides from payroll_monthly_overrides table
+const loadMonthlyOverrides = async (employeeIds: string[], year: number, month: string) => {
+  const { data } = await supabase
+    .from('payroll_monthly_overrides')
+    .select('*')
+    .in('employee_id', employeeIds)
+    .eq('year', year)
+    .eq('month', month);
+  
+  const overridesMap: { [empId: string]: any } = {};
+  (data || []).forEach((o: any) => {
+    overridesMap[o.employee_id] = o;
+  });
+  return overridesMap;
+};
+
+// Upsert a monthly override for a specific employee
+const upsertMonthlyOverride = async (
+  employeeId: string, year: number, month: string,
+  updates: { base_salary?: number; hourly_rate?: number; allowances?: any[]; deductions?: any[] }
+) => {
+  // First try to get existing
+  const { data: existing } = await supabase
+    .from('payroll_monthly_overrides')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('year', year)
+    .eq('month', month)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from('payroll_monthly_overrides')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    return { error };
+  } else {
+    const { error } = await supabase
+      .from('payroll_monthly_overrides')
+      .insert({ employee_id: employeeId, year, month, ...updates });
+    return { error };
+  }
+};
 
 
 const PayrollProcessing = () => {
