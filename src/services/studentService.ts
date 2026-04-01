@@ -384,7 +384,6 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       trial_date: studentData.trial_date || null,
       trial_time: studentData.trial_time || null,
       referral_source: studentData.referral_source || null,
-      student_number: studentNumber,
       enrollment_date: new Date().toISOString().split('T')[0]
     };
     
