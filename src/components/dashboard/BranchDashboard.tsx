@@ -571,7 +571,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
       return { total, gradingPaid, ready, termPaid, totalTermStudents };
     },
-    enabled: !!branchId && !!currentTerm,
+    enabled: !!branchId && !!displayTerm,
   });
 
   const gradingListCount = gradingMetrics.total;
