@@ -139,19 +139,41 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   });
 
 
-  const { data: isReadyForGrading } = useQuery({
-    queryKey: ['student-ready-for-grading', student.id],
+  // Get current term for the student's branch
+  const { data: currentTermForGrading } = useQuery({
+    queryKey: ['current-term-for-grading', student.branch_id],
     queryFn: async () => {
+      if (!student.branch_id) return null;
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('term_calendars')
+        .select('id')
+        .eq('branch_id', student.branch_id)
+        .eq('is_active', true)
+        .lte('start_date', today)
+        .gte('end_date', today)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!student.branch_id,
+  });
+
+  const { data: isReadyForGrading } = useQuery({
+    queryKey: ['student-ready-for-grading', student.id, currentTermForGrading?.id],
+    queryFn: async () => {
+      if (!currentTermForGrading?.id) return false;
       const { data } = await supabase
         .from('grading_registrations')
         .select('id, ready_for_grading')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
+        .eq('term_id', currentTermForGrading.id)
         .limit(1)
         .maybeSingle();
       return !!data;
     },
-    enabled: !!student.id,
+    enabled: !!student.id && !!currentTermForGrading?.id,
   });
 
   // Check for paid grading registration
