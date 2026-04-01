@@ -1,44 +1,47 @@
 
 
-## Plan: Fix Student Update RLS for Invoice-Access Employees
+## Plan: Fix Withdrawal Request RLS for Invoice-Access Employees
 
 ### Problem
-The `staff_update_students` UPDATE policy on the `students` table only allows updates when `has_sales_access()` returns true (which checks `employee_branch_access.can_view_dashboard`). The user `ysn.gaonhaetaekwondo@gmail.com` only has `employee_invoice_access`, so updates are denied.
+The `student_withdrawal_requests` INSERT policy only allows `has_branch_access(branch_id)` (which checks `employee_branch_access`). The user `ysn.gaonhaetaekwondo@gmail.com` only has `employee_invoice_access`, so the insert is denied.
 
 ### Solution
-Add an `employee_invoice_access` check to the existing `staff_update_students` RLS policy, matching the pattern used for the INSERT policy.
+Update the INSERT and SELECT policies on `student_withdrawal_requests` to also allow employees with `employee_invoice_access` for the relevant branch.
 
 ### Database Migration
 
-Replace the `staff_update_students` policy with one that also permits updates when the user has `employee_invoice_access` for the student's branch:
-
 ```sql
-DROP POLICY IF EXISTS "staff_update_students" ON public.students;
-
-CREATE POLICY "staff_update_students" ON public.students
-FOR UPDATE TO authenticated
-USING (
-  get_current_user_role() = 'superadmin'
-  OR has_sales_access()
-  OR EXISTS (
-    SELECT 1 FROM employee_invoice_access eia
-    JOIN employees e ON eia.employee_id = e.id
-    WHERE e.email = auth.email()
-    AND eia.branch_id = students.branch_id
-  )
-)
+-- Fix INSERT policy
+DROP POLICY IF EXISTS "Branch staff can insert withdrawal requests" ON public.student_withdrawal_requests;
+CREATE POLICY "Branch staff can insert withdrawal requests" ON public.student_withdrawal_requests
+FOR INSERT TO authenticated
 WITH CHECK (
-  get_current_user_role() = 'superadmin'
-  OR has_sales_access()
+  get_current_user_role() IN ('admin', 'superadmin')
+  OR has_branch_access(branch_id)
   OR EXISTS (
     SELECT 1 FROM employee_invoice_access eia
     JOIN employees e ON eia.employee_id = e.id
     WHERE e.email = auth.email()
-    AND eia.branch_id = students.branch_id
+    AND eia.branch_id = student_withdrawal_requests.branch_id
+  )
+);
+
+-- Fix SELECT policy
+DROP POLICY IF EXISTS "Branch staff can view withdrawal requests" ON public.student_withdrawal_requests;
+CREATE POLICY "Branch staff can view withdrawal requests" ON public.student_withdrawal_requests
+FOR SELECT TO authenticated
+USING (
+  get_current_user_role() IN ('admin', 'superadmin')
+  OR has_branch_access(branch_id)
+  OR EXISTS (
+    SELECT 1 FROM employee_invoice_access eia
+    JOIN employees e ON eia.employee_id = e.id
+    WHERE e.email = auth.email()
+    AND eia.branch_id = student_withdrawal_requests.branch_id
   )
 );
 ```
 
 ### No code changes needed
-The `studentService.updateStudent()` function is correct — only the RLS policy is blocking the operation.
+The `studentWithdrawalRequestService.ts` logic is correct — only the RLS policies are blocking the operation.
 
