@@ -449,10 +449,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   // Fetch grading metrics: grading paid, ready for grading, term paid counts
   const { data: gradingMetrics = { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 } } = useQuery({
-    queryKey: ['grading-list-count', branchId, currentTerm?.id],
+    queryKey: ['grading-list-count', branchId, displayTerm?.id],
     queryFn: async () => {
-      if (!currentTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 };
-      
+      if (!displayTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 };
+      const termToUse = displayTerm;
       // Get lesson products first (needed for both grading metrics and total term students)
       const { data: lessonProducts } = await supabase
         .from('products')
