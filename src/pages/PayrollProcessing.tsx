@@ -160,8 +160,40 @@ const PayrollProcessing = () => {
       const employeeIds = employees.map(emp => emp.id);
       const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, period);
       setPayrollData(optimizedPayrollData);
-      setEmployeeAllowances(optimizedPayrollData?.allowances || {});
-      setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+      
+      // Load per-month overrides and merge
+      const { year: pYear, formatted: pMonth } = parsePeriod(period);
+      const overrides = await loadMonthlyOverrides(employeeIds, pYear, pMonth);
+      
+      const mergedAllowances = { ...(optimizedPayrollData?.allowances || {}) };
+      const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
+      
+      Object.entries(overrides).forEach(([empId, override]) => {
+        if (override.allowances && (override.allowances as any[]).length > 0) {
+          mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
+            id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
+          }));
+        }
+        if (override.deductions && (override.deductions as any[]).length > 0) {
+          mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
+            id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
+          }));
+        }
+        const empIdx = employees.findIndex(e => e.id === empId);
+        if (empIdx >= 0) {
+          if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
+          if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+        }
+      });
+      
+      setAllEmployees([...employees]);
+      setEmployeeAllowances(mergedAllowances);
+      setEmployeeDeductions(mergedDeductions);
+      
+      if (optimizedPayrollData) {
+        optimizedPayrollData.allowances = mergedAllowances;
+        optimizedPayrollData.deductions = mergedDeductions;
+      }
       
       // Refresh available employees in context
       await refreshAvailableEmployees();
