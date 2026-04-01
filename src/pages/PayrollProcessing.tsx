@@ -623,17 +623,17 @@ const PayrollProcessing = () => {
   };
 
   const handleSalarySave = async (newSalary: number) => {
-    // Update in database
-    const { error } = await supabase
-      .from('employees')
-      .update({
-        [editSalaryDialog.employeeType === 'Full-Time' ? 'base_salary' : 
-         editSalaryDialog.paymentType === 'Hourly' ? 'hourly_rate' : 'base_salary']: newSalary
-      })
-      .eq('id', editSalaryDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    const isHourly = editSalaryDialog.employeeType !== 'Full-Time' && editSalaryDialog.paymentType === 'Hourly';
+    
+    const updates = isHourly 
+      ? { hourly_rate: newSalary } 
+      : { base_salary: newSalary };
+    
+    const { error } = await upsertMonthlyOverride(editSalaryDialog.employeeId, year, month, updates);
 
     if (error) {
-      console.error('Error updating salary:', error);
+      console.error('Error updating salary override:', error);
       toast('Error updating salary');
       return;
     }
