@@ -69,7 +69,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
 import { Student } from '@/services/studentService';
@@ -398,6 +398,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
+  // Fetch most recent term as fallback (for grading metrics when no current term)
+  const { data: mostRecentTerm } = useQuery({
+    queryKey: ['most-recent-term', branchId],
+    queryFn: () => getMostRecentTerm(branchId),
+    enabled: !!branchId && !currentTerm,
+  });
+
+  // Use currentTerm if available, otherwise mostRecentTerm for grading metrics
+  const displayTerm = currentTerm || mostRecentTerm || null;
+
   // Fetch active students (students who have paid invoices this term)
   const { data: activeStudentIds = [] } = useQuery({
     queryKey: ['active-students-paid', branchId, currentTerm?.id],
@@ -439,10 +449,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
   // Fetch grading metrics: grading paid, ready for grading, term paid counts
   const { data: gradingMetrics = { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 } } = useQuery({
-    queryKey: ['grading-list-count', branchId, currentTerm?.id],
+    queryKey: ['grading-list-count', branchId, displayTerm?.id],
     queryFn: async () => {
-      if (!currentTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 };
-      
+      if (!displayTerm) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents: 0 };
+      const termToUse = displayTerm;
       // Get lesson products first (needed for both grading metrics and total term students)
       const { data: lessonProducts } = await supabase
         .from('products')
@@ -471,7 +481,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         const allTermStudentIds = new Set<string>();
         (allTermInvoiceItems || []).forEach(item => {
           const metadata = item.metadata as Record<string, any> | null;
-          if (metadata?.term_id === currentTerm.id) {
+          if (metadata?.term_id === termToUse.id) {
             allTermStudentIds.add((item.invoices as any).student_id);
           }
         });
@@ -549,7 +559,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         const termPaidStudentIds = new Set<string>();
         (invoiceItems || []).forEach(item => {
           const metadata = item.metadata as Record<string, any> | null;
-          if (metadata?.term_id === currentTerm.id) {
+          if (metadata?.term_id === termToUse.id) {
             const studentId = (item.invoices as any).student_id;
             if (allStudentIds.has(studentId)) {
               termPaidStudentIds.add(studentId);
@@ -561,7 +571,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
       return { total, gradingPaid, ready, termPaid, totalTermStudents };
     },
-    enabled: !!branchId && !!currentTerm,
+    enabled: !!branchId && !!displayTerm,
   });
 
   const gradingListCount = gradingMetrics.total;

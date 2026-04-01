@@ -459,6 +459,97 @@ export async function getActiveTermsForSelection(): Promise<Term[]> {
   }
 }
 
+// Get ALL terms for a branch (including past), ordered by start_date DESC
+export async function getAllTermsForBranch(branchId: string): Promise<Term[]> {
+  try {
+    const { data, error } = await supabase
+      .from('term_calendars')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('is_active', true)
+      .order('start_date', { ascending: false });
+
+    if (error) throw error;
+
+    const termData = data || [];
+
+    // Fetch branch name
+    const { data: branchData } = await supabase
+      .from('branches')
+      .select('id, name')
+      .eq('id', branchId)
+      .maybeSingle();
+
+    const branchName = branchData?.name || branchId;
+
+    // Fetch breaks
+    const termIds = termData.map(t => t.id);
+    let breaks: TermBreak[] = [];
+    if (termIds.length > 0) {
+      const { data: breaksData } = await supabase
+        .from('term_breaks')
+        .select('*')
+        .in('term_id', termIds)
+        .order('start_date');
+      breaks = breaksData || [];
+    }
+
+    return termData.map(term => ({
+      ...term,
+      branch_name: branchName,
+      grace_days: term.grace_days ?? 7,
+      breaks: breaks.filter(b => b.term_id === term.id)
+    }));
+  } catch (error) {
+    logger.error('Failed to get all terms for branch', error);
+    return [];
+  }
+}
+
+// Get the most recent term for a branch (current if exists, otherwise latest past)
+export async function getMostRecentTerm(branchId: string): Promise<Term | null> {
+  // First try current term
+  const current = await getCurrentTerm(branchId);
+  if (current) return current;
+
+  // Fall back to most recent past term
+  try {
+    const { data, error } = await supabase
+      .from('term_calendars')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('is_active', true)
+      .order('end_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const { data: branchData } = await supabase
+      .from('branches')
+      .select('name')
+      .eq('id', data.branch_id)
+      .maybeSingle();
+
+    const { data: breaks } = await supabase
+      .from('term_breaks')
+      .select('*')
+      .eq('term_id', data.id)
+      .order('start_date');
+
+    return {
+      ...data,
+      branch_name: branchData?.name || data.branch_id,
+      grace_days: data.grace_days ?? 7,
+      breaks: breaks || []
+    };
+  } catch (error) {
+    logger.error('Failed to get most recent term', error);
+    return null;
+  }
+}
+
 // Get available years for filter
 export async function getTermYears(): Promise<number[]> {
   try {
