@@ -103,7 +103,19 @@ const GradingListTab: React.FC = () => {
   // Fetch terms
   const { data: terms = [] } = useQuery<Term[]>({
     queryKey: ['terms-grading-list'],
-    queryFn: getActiveTermsForSelection
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('term_calendars')
+        .select('*')
+        .eq('is_active', true)
+        .order('start_date', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(t => ({
+        ...t,
+        branch_name: '',
+        breaks: [],
+      })) as Term[];
+    }
   });
 
   // Get terms for selected branch

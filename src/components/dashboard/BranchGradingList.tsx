@@ -384,6 +384,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
+            term_id: selectedTerm || null,
           } as const;
           operations.push(
             supabase

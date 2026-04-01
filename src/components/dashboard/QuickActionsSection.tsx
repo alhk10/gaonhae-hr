@@ -178,13 +178,15 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
 
   // Check for paid grading registration
   const { data: paidGrading } = useQuery({
-    queryKey: ['paid-grading-registration', student.id],
+    queryKey: ['paid-grading-registration', student.id, currentTermForGrading?.id],
     queryFn: async () => {
+      if (!currentTermForGrading?.id) return null;
       const { data } = await supabase
         .from('grading_registrations')
         .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title, branch_id)')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
+        .eq('term_id', currentTermForGrading.id)
         .not('invoice_item_id', 'is', null)
         .limit(1)
         .maybeSingle();

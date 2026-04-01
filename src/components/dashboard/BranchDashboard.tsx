@@ -488,39 +488,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         totalTermStudents = allTermStudentIds.size;
       }
 
-      // Get grading registrations with invoice info for this term's grading slots
+      // Get grading registrations filtered by term_id
       const { data: registrations } = await supabase
         .from('grading_registrations')
-        .select(`
-          id,
-          student_id,
-          invoice_item_id,
-          ready_for_grading,
-          grading_slots!inner (
-            branch_id
-          )
-        `)
-        .not('grading_slot_id', 'is', null);
+        .select('id, student_id, invoice_item_id, ready_for_grading')
+        .eq('term_id', termToUse.id);
 
       if (!registrations || registrations.length === 0) return { total: 0, gradingPaid: 0, ready: 0, termPaid: 0, totalTermStudents };
 
-      // Filter by branch
-      const branchRegs = registrations.filter(
-        r => (r.grading_slots as any)?.branch_id === branchId
-      );
-
       // Get unique students (total)
-      const allStudentIds = new Set(branchRegs.map(r => r.student_id));
+      const allStudentIds = new Set(registrations.map(r => r.student_id));
       const total = allStudentIds.size;
 
       // Count ready for grading (unique students)
       const readyStudentIds = new Set(
-        branchRegs.filter(r => r.ready_for_grading === true).map(r => r.student_id)
+        registrations.filter(r => r.ready_for_grading === true).map(r => r.student_id)
       );
       const ready = readyStudentIds.size;
 
       // Get invoice_item_ids to check grading payment status
-      const gradingItemIds = branchRegs
+      const gradingItemIds = registrations
         .filter(r => r.invoice_item_id)
         .map(r => r.invoice_item_id as string);
 
