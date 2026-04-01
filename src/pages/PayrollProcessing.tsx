@@ -504,8 +504,50 @@ const PayrollProcessing = () => {
           }
           
           setPayrollData(optimizedPayrollData);
-          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
-          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+          
+          // Load per-month overrides and merge with base data
+          const { year: periodYear, formatted: periodMonth } = parsePeriod(selectedPeriod);
+          const overrides = await loadMonthlyOverrides(employeeIds, periodYear, periodMonth);
+          
+          const mergedAllowances = { ...(optimizedPayrollData?.allowances || {}) };
+          const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
+          
+          Object.entries(overrides).forEach(([empId, override]) => {
+            if (override.allowances && (override.allowances as any[]).length > 0) {
+              mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
+                id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
+              }));
+            }
+            if (override.deductions && (override.deductions as any[]).length > 0) {
+              mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
+                id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
+              }));
+            }
+            // Apply salary/hourly rate overrides to optimizedPayrollData for calculation
+            if (override.base_salary != null) {
+              optimizedPayrollData.salaries = optimizedPayrollData.salaries || {};
+              optimizedPayrollData.salaries[empId] = { base_salary: override.base_salary };
+            }
+            if (override.hourly_rate != null) {
+              optimizedPayrollData.hourlyRates = optimizedPayrollData.hourlyRates || {};
+              optimizedPayrollData.hourlyRates[empId] = { hourly_rate: override.hourly_rate };
+            }
+            // Also update allEmployees local state for salary overrides
+            setAllEmployees(prev => prev.map(emp => {
+              if (emp.id !== empId) return emp;
+              const updated = { ...emp };
+              if (override.base_salary != null) updated.baseSalary = Number(override.base_salary);
+              if (override.hourly_rate != null) updated.hourlyRate = Number(override.hourly_rate);
+              return updated;
+            }));
+          });
+          
+          setEmployeeAllowances(mergedAllowances);
+          setEmployeeDeductions(mergedDeductions);
+          
+          // Also update optimizedPayrollData allowances/deductions for addEmployeesToPayroll
+          optimizedPayrollData.allowances = mergedAllowances;
+          optimizedPayrollData.deductions = mergedDeductions;
           
           // Convert claims data to expected format
           const claimsData: {[key: string]: Claim[]} = {};
