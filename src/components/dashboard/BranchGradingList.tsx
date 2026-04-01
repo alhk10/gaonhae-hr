@@ -137,7 +137,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     setPendingChanges({});
   }, [branchId, branchTerms]);
 
-  const selectedTermData = branchTerms.find(t => t.id === selectedTerm);
+  // Filter out future terms (only show current/past terms where start_date <= today)
+  const availableTerms = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return branchTerms.filter(t => t.start_date <= today);
+  }, [branchTerms]);
+
+  const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
   // Fetch students with invoices (all statuses except cancelled) for selected term
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
