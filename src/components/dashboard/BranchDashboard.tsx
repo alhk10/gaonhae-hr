@@ -428,23 +428,23 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
-  // Fetch outstanding invoice amount for current term
+  // Fetch outstanding invoice amount for current/display term
   const { data: outstandingAmount = 0 } = useQuery({
-    queryKey: ['outstanding-invoices', branchId, currentTerm?.id],
+    queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
     queryFn: async () => {
-      if (!currentTerm) return 0;
+      if (!displayTerm) return 0;
       
       const { data: unpaidInvoices } = await supabase
         .from('invoices')
         .select('balance_due')
         .eq('branch_id', branchId)
-        .in('status', ['unpaid', 'partial', 'draft', 'sent', 'overdue'])
-        .gte('issue_date', currentTerm.start_date)
-        .lte('issue_date', currentTerm.end_date);
+        .in('status', ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'])
+        .gte('issue_date', displayTerm.start_date)
+        .lte('issue_date', displayTerm.end_date);
       
       return (unpaidInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
     },
-    enabled: !!branchId && !!currentTerm,
+    enabled: !!branchId && !!displayTerm,
   });
 
   // Fetch grading metrics: grading paid, ready for grading, term paid counts
