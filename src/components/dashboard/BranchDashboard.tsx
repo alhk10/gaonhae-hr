@@ -559,7 +559,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         const termPaidStudentIds = new Set<string>();
         (invoiceItems || []).forEach(item => {
           const metadata = item.metadata as Record<string, any> | null;
-          if (metadata?.term_id === currentTerm.id) {
+          if (metadata?.term_id === termToUse.id) {
             const studentId = (item.invoices as any).student_id;
             if (allStudentIds.has(studentId)) {
               termPaidStudentIds.add(studentId);
