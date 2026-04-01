@@ -121,23 +121,29 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
+  // Filter out future terms (only show current/past terms where start_date <= today)
+  const availableTerms = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return branchTerms.filter(t => t.start_date <= today);
+  }, [branchTerms]);
+
   // Auto-select current term when branch changes
   React.useEffect(() => {
-    if (branchId && branchTerms.length > 0) {
+    if (branchId && availableTerms.length > 0) {
       const today = new Date().toISOString().split('T')[0];
-      const currentTerm = branchTerms.find(t => t.start_date <= today && t.end_date >= today);
+      const currentTerm = availableTerms.find(t => t.start_date <= today && t.end_date >= today);
       if (currentTerm) {
         setSelectedTerm(currentTerm.id);
-      } else if (branchTerms.length > 0) {
-        setSelectedTerm(branchTerms[0].id);
+      } else if (availableTerms.length > 0) {
+        setSelectedTerm(availableTerms[0].id);
       }
     } else {
       setSelectedTerm('');
     }
     setPendingChanges({});
-  }, [branchId, branchTerms]);
+  }, [branchId, availableTerms]);
 
-  const selectedTermData = branchTerms.find(t => t.id === selectedTerm);
+  const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
   // Fetch students with invoices (all statuses except cancelled) for selected term
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
@@ -446,7 +452,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
                   <SelectContent>
-                    {branchTerms.map(t => (
+                    {availableTerms.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
