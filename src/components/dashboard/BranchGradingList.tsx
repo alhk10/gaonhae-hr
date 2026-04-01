@@ -121,10 +121,16 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Filter out future terms (only show current/past terms where start_date <= today)
+  // Show past, current, and the next upcoming term (hide far-future terms)
   const availableTerms = React.useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    return branchTerms.filter(t => t.start_date <= today);
+    const pastAndCurrent = branchTerms.filter(t => t.start_date <= today);
+    // Find the nearest upcoming term (start_date > today, closest first)
+    const futureTerms = branchTerms
+      .filter(t => t.start_date > today)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+    const nextUpcoming = futureTerms.length > 0 ? [futureTerms[0]] : [];
+    return [...pastAndCurrent, ...nextUpcoming];
   }, [branchTerms]);
 
   // Auto-select current term when branch changes
