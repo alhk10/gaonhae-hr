@@ -398,6 +398,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
+  // Fetch most recent term as fallback (for grading metrics when no current term)
+  const { data: mostRecentTerm } = useQuery({
+    queryKey: ['most-recent-term', branchId],
+    queryFn: () => getMostRecentTerm(branchId),
+    enabled: !!branchId && !currentTerm,
+  });
+
+  // Use currentTerm if available, otherwise mostRecentTerm for grading metrics
+  const displayTerm = currentTerm || mostRecentTerm || null;
+
   // Fetch active students (students who have paid invoices this term)
   const { data: activeStudentIds = [] } = useQuery({
     queryKey: ['active-students-paid', branchId, currentTerm?.id],
