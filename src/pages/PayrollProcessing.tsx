@@ -655,28 +655,17 @@ const PayrollProcessing = () => {
   };
 
   const handleAllowancesSave = async (allowances: any[]) => {
-    // Delete existing allowances
-    await supabase
-      .from('allowances')
-      .delete()
-      .eq('employee_id', editAllowancesDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    
+    const { error } = await upsertMonthlyOverride(
+      editAllowancesDialog.employeeId, year, month,
+      { allowances: allowances.map(a => ({ name: a.name, amount: Number(a.amount), type: a.type || 'Fixed' })) }
+    );
 
-    // Insert new allowances
-    if (allowances.length > 0) {
-      const { error } = await supabase
-        .from('allowances')
-        .insert(allowances.map(a => ({
-          employee_id: editAllowancesDialog.employeeId,
-          name: a.name,
-          amount: a.amount,
-          type: a.type
-        })));
-
-      if (error) {
-        console.error('Error updating allowances:', error);
-        toast('Error updating allowances');
-        return;
-      }
+    if (error) {
+      console.error('Error updating allowances override:', error);
+      toast('Error updating allowances');
+      return;
     }
 
     // Update local state
