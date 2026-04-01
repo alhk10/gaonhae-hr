@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getActiveTermsForSelection, type Term } from '@/services/termCalendarService';
+import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { FileText, Loader2, User, Trash2, Eye, Save, Undo2, Pencil } from 'lucide-react';
