@@ -28,6 +28,60 @@ import { forceRefreshSession } from '@/services/sessionRefreshService';
 import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
+const parsePeriod = (period: string) => {
+  const [monthName, yearStr] = period.split(' ');
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const monthIndex = monthNames.indexOf(monthName) + 1;
+  return { year: parseInt(yearStr), monthName, monthIndex, formatted: `${yearStr}-${monthIndex.toString().padStart(2, '0')}` };
+};
+
+// Load monthly overrides from payroll_monthly_overrides table
+const loadMonthlyOverrides = async (employeeIds: string[], year: number, month: string) => {
+  const { data } = await supabase
+    .from('payroll_monthly_overrides')
+    .select('*')
+    .in('employee_id', employeeIds)
+    .eq('year', year)
+    .eq('month', month);
+  
+  const overridesMap: { [empId: string]: any } = {};
+  (data || []).forEach((o: any) => {
+    overridesMap[o.employee_id] = o;
+  });
+  return overridesMap;
+};
+
+// Upsert a monthly override for a specific employee
+const upsertMonthlyOverride = async (
+  employeeId: string, year: number, month: string,
+  updates: { base_salary?: number; hourly_rate?: number; allowances?: any[]; deductions?: any[] }
+) => {
+  // First try to get existing
+  const { data: existing } = await supabase
+    .from('payroll_monthly_overrides')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('year', year)
+    .eq('month', month)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from('payroll_monthly_overrides')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    return { error };
+  } else {
+    const { error } = await supabase
+      .from('payroll_monthly_overrides')
+      .insert({ employee_id: employeeId, year, month, ...updates });
+    return { error };
+  }
+};
 
 
 const PayrollProcessing = () => {
@@ -106,8 +160,40 @@ const PayrollProcessing = () => {
       const employeeIds = employees.map(emp => emp.id);
       const optimizedPayrollData = await getEmployeePayrollDataOptimized(employeeIds, period);
       setPayrollData(optimizedPayrollData);
-      setEmployeeAllowances(optimizedPayrollData?.allowances || {});
-      setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+      
+      // Load per-month overrides and merge
+      const { year: pYear, formatted: pMonth } = parsePeriod(period);
+      const overrides = await loadMonthlyOverrides(employeeIds, pYear, pMonth);
+      
+      const mergedAllowances = { ...(optimizedPayrollData?.allowances || {}) };
+      const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
+      
+      Object.entries(overrides).forEach(([empId, override]) => {
+        if (override.allowances && (override.allowances as any[]).length > 0) {
+          mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
+            id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
+          }));
+        }
+        if (override.deductions && (override.deductions as any[]).length > 0) {
+          mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
+            id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
+          }));
+        }
+        const empIdx = employees.findIndex(e => e.id === empId);
+        if (empIdx >= 0) {
+          if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
+          if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+        }
+      });
+      
+      setAllEmployees([...employees]);
+      setEmployeeAllowances(mergedAllowances);
+      setEmployeeDeductions(mergedDeductions);
+      
+      if (optimizedPayrollData) {
+        optimizedPayrollData.allowances = mergedAllowances;
+        optimizedPayrollData.deductions = mergedDeductions;
+      }
       
       // Refresh available employees in context
       await refreshAvailableEmployees();
@@ -450,8 +536,48 @@ const PayrollProcessing = () => {
           }
           
           setPayrollData(optimizedPayrollData);
-          setEmployeeAllowances(optimizedPayrollData?.allowances || {});
-          setEmployeeDeductions(optimizedPayrollData?.deductions || {});
+          
+          // Load per-month overrides and merge with base data
+          const { year: periodYear, formatted: periodMonth } = parsePeriod(selectedPeriod);
+          const overrides = await loadMonthlyOverrides(employeeIds, periodYear, periodMonth);
+          
+          const mergedAllowances = { ...(optimizedPayrollData?.allowances || {}) };
+          const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
+          
+          Object.entries(overrides).forEach(([empId, override]) => {
+            if (override.allowances && (override.allowances as any[]).length > 0) {
+              mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
+                id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
+              }));
+            }
+            if (override.deductions && (override.deductions as any[]).length > 0) {
+              mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
+                id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
+              }));
+            }
+            // Apply salary/hourly rate overrides to optimizedPayrollData for calculation
+            // Also update allEmployees local state for salary overrides
+            setAllEmployees(prev => prev.map(emp => {
+              if (emp.id !== empId) return emp;
+              const updated = { ...emp };
+              if (override.base_salary != null) updated.baseSalary = Number(override.base_salary);
+              if (override.hourly_rate != null) updated.hourlyRate = Number(override.hourly_rate);
+              return updated;
+            }));
+            // Also update the employees array used for addEmployeesToPayroll
+            const empIdx = employees.findIndex(e => e.id === empId);
+            if (empIdx >= 0) {
+              if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
+              if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+            }
+          });
+          
+          setEmployeeAllowances(mergedAllowances);
+          setEmployeeDeductions(mergedDeductions);
+          
+          // Also update optimizedPayrollData allowances/deductions for addEmployeesToPayroll
+          optimizedPayrollData.allowances = mergedAllowances;
+          optimizedPayrollData.deductions = mergedDeductions;
           
           // Convert claims data to expected format
           const claimsData: {[key: string]: Claim[]} = {};
@@ -569,17 +695,17 @@ const PayrollProcessing = () => {
   };
 
   const handleSalarySave = async (newSalary: number) => {
-    // Update in database
-    const { error } = await supabase
-      .from('employees')
-      .update({
-        [editSalaryDialog.employeeType === 'Full-Time' ? 'base_salary' : 
-         editSalaryDialog.paymentType === 'Hourly' ? 'hourly_rate' : 'base_salary']: newSalary
-      })
-      .eq('id', editSalaryDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    const isHourly = editSalaryDialog.employeeType !== 'Full-Time' && editSalaryDialog.paymentType === 'Hourly';
+    
+    const updates = isHourly 
+      ? { hourly_rate: newSalary } 
+      : { base_salary: newSalary };
+    
+    const { error } = await upsertMonthlyOverride(editSalaryDialog.employeeId, year, month, updates);
 
     if (error) {
-      console.error('Error updating salary:', error);
+      console.error('Error updating salary override:', error);
       toast('Error updating salary');
       return;
     }
@@ -601,28 +727,17 @@ const PayrollProcessing = () => {
   };
 
   const handleAllowancesSave = async (allowances: any[]) => {
-    // Delete existing allowances
-    await supabase
-      .from('allowances')
-      .delete()
-      .eq('employee_id', editAllowancesDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    
+    const { error } = await upsertMonthlyOverride(
+      editAllowancesDialog.employeeId, year, month,
+      { allowances: allowances.map(a => ({ name: a.name, amount: Number(a.amount), type: a.type || 'Fixed' })) }
+    );
 
-    // Insert new allowances
-    if (allowances.length > 0) {
-      const { error } = await supabase
-        .from('allowances')
-        .insert(allowances.map(a => ({
-          employee_id: editAllowancesDialog.employeeId,
-          name: a.name,
-          amount: a.amount,
-          type: a.type
-        })));
-
-      if (error) {
-        console.error('Error updating allowances:', error);
-        toast('Error updating allowances');
-        return;
-      }
+    if (error) {
+      console.error('Error updating allowances override:', error);
+      toast('Error updating allowances');
+      return;
     }
 
     // Update local state
@@ -633,28 +748,17 @@ const PayrollProcessing = () => {
   };
 
   const handleDeductionsSave = async (deductions: any[]) => {
-    // Delete existing deductions
-    await supabase
-      .from('deductions')
-      .delete()
-      .eq('employee_id', editDeductionsDialog.employeeId);
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    
+    const { error } = await upsertMonthlyOverride(
+      editDeductionsDialog.employeeId, year, month,
+      { deductions: deductions.map(d => ({ name: d.name, amount: Number(d.amount), type: d.type || 'Fixed' })) }
+    );
 
-    // Insert new deductions
-    if (deductions.length > 0) {
-      const { error } = await supabase
-        .from('deductions')
-        .insert(deductions.map(d => ({
-          employee_id: editDeductionsDialog.employeeId,
-          name: d.name,
-          amount: d.amount,
-          type: d.type
-        })));
-
-      if (error) {
-        console.error('Error updating deductions:', error);
-        toast('Error updating deductions');
-        return;
-      }
+    if (error) {
+      console.error('Error updating deductions override:', error);
+      toast('Error updating deductions');
+      return;
     }
 
     // Update local state
