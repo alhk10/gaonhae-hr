@@ -121,6 +121,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
+  // Filter out future terms (only show current/past terms where start_date <= today)
+  const availableTerms = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return branchTerms.filter(t => t.start_date <= today);
+  }, [branchTerms]);
+
   // Auto-select current term when branch changes
   React.useEffect(() => {
     if (branchId && availableTerms.length > 0) {
@@ -136,12 +142,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     }
     setPendingChanges({});
   }, [branchId, availableTerms]);
-
-  // Filter out future terms (only show current/past terms where start_date <= today)
-  const availableTerms = React.useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    return branchTerms.filter(t => t.start_date <= today);
-  }, [branchTerms]);
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
