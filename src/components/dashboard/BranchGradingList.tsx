@@ -452,7 +452,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
                   <SelectContent>
-                    {branchTerms.map(t => (
+                    {availableTerms.map(t => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
