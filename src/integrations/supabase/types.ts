@@ -5121,6 +5121,7 @@ export type Database = {
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
       generate_payment_number: { Args: never; Returns: string }
+      generate_student_number: { Args: never; Returns: string }
       get_admin_access_for_auth: {
         Args: { p_employee_id: string }
         Returns: {
