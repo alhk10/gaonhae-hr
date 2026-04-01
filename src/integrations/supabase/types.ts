@@ -1310,6 +1310,7 @@ export type Database = {
           result: string | null
           student_id: string
           target_belt: string
+          term_id: string | null
         }
         Insert: {
           certificate_ii_issued?: boolean | null
@@ -1325,6 +1326,7 @@ export type Database = {
           result?: string | null
           student_id: string
           target_belt: string
+          term_id?: string | null
         }
         Update: {
           certificate_ii_issued?: boolean | null
@@ -1340,6 +1342,7 @@ export type Database = {
           result?: string | null
           student_id?: string
           target_belt?: string
+          term_id?: string | null
         }
         Relationships: [
           {
@@ -1361,6 +1364,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_registrations_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "term_calendars"
             referencedColumns: ["id"]
           },
         ]
