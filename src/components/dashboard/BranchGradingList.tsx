@@ -114,17 +114,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Fetch terms
-  const { data: terms = [] } = useQuery<Term[]>({
-    queryKey: ['terms-grading-list'],
-    queryFn: getActiveTermsForSelection
+  // Fetch all terms for this branch (including past)
+  const { data: branchTerms = [] } = useQuery<Term[]>({
+    queryKey: ['terms-grading-list', branchId],
+    queryFn: () => getAllTermsForBranch(branchId),
+    enabled: !!branchId
   });
-
-  // Get terms for selected branch
-  const branchTerms = useMemo(() => {
-    if (!branchId) return [];
-    return terms.filter(t => t.branch_id === branchId);
-  }, [terms, branchId]);
 
   // Auto-select current term when branch changes
   React.useEffect(() => {
