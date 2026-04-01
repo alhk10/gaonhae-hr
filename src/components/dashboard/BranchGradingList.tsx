@@ -123,13 +123,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   // Auto-select current term when branch changes
   React.useEffect(() => {
-    if (branchId && branchTerms.length > 0) {
+    if (branchId && availableTerms.length > 0) {
       const today = new Date().toISOString().split('T')[0];
-      const currentTerm = branchTerms.find(t => t.start_date <= today && t.end_date >= today);
+      const currentTerm = availableTerms.find(t => t.start_date <= today && t.end_date >= today);
       if (currentTerm) {
         setSelectedTerm(currentTerm.id);
-      } else if (branchTerms.length > 0) {
-        setSelectedTerm(branchTerms[0].id);
+      } else if (availableTerms.length > 0) {
+        setSelectedTerm(availableTerms[0].id);
       }
     } else {
       setSelectedTerm('');
