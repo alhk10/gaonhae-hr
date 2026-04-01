@@ -135,7 +135,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       setSelectedTerm('');
     }
     setPendingChanges({});
-  }, [branchId, branchTerms]);
+  }, [branchId, availableTerms]);
 
   // Filter out future terms (only show current/past terms where start_date <= today)
   const availableTerms = React.useMemo(() => {
