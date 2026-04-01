@@ -524,14 +524,6 @@ const PayrollProcessing = () => {
               }));
             }
             // Apply salary/hourly rate overrides to optimizedPayrollData for calculation
-            if (override.base_salary != null) {
-              optimizedPayrollData.salaries = optimizedPayrollData.salaries || {};
-              optimizedPayrollData.salaries[empId] = { base_salary: override.base_salary };
-            }
-            if (override.hourly_rate != null) {
-              optimizedPayrollData.hourlyRates = optimizedPayrollData.hourlyRates || {};
-              optimizedPayrollData.hourlyRates[empId] = { hourly_rate: override.hourly_rate };
-            }
             // Also update allEmployees local state for salary overrides
             setAllEmployees(prev => prev.map(emp => {
               if (emp.id !== empId) return emp;
@@ -540,6 +532,12 @@ const PayrollProcessing = () => {
               if (override.hourly_rate != null) updated.hourlyRate = Number(override.hourly_rate);
               return updated;
             }));
+            // Also update the employees array used for addEmployeesToPayroll
+            const empIdx = employees.findIndex(e => e.id === empId);
+            if (empIdx >= 0) {
+              if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
+              if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+            }
           });
           
           setEmployeeAllowances(mergedAllowances);
