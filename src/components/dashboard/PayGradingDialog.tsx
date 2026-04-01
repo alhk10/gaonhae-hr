@@ -431,7 +431,8 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
 
       if (gradingInvoiceItems) {
         // Update the student's grading registration with invoice item, slot, and target belt
-        await supabase
+        // Use term_id filter to update only the correct term's registration
+        let updateQuery = supabase
           .from('grading_registrations')
           .update({ 
             invoice_item_id: gradingInvoiceItems.id,
@@ -441,6 +442,8 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
           .eq('student_id', studentId)
           .eq('ready_for_grading', true)
           .is('invoice_item_id', null);
+        
+        await updateQuery;
       }
 
       setIsUploading(true);

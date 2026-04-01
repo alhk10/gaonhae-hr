@@ -139,30 +139,54 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
   });
 
 
-  const { data: isReadyForGrading } = useQuery({
-    queryKey: ['student-ready-for-grading', student.id],
+  // Get current term for the student's branch
+  const { data: currentTermForGrading } = useQuery({
+    queryKey: ['current-term-for-grading', student.branch_id],
     queryFn: async () => {
+      if (!student.branch_id) return null;
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('term_calendars')
+        .select('id')
+        .eq('branch_id', student.branch_id)
+        .eq('is_active', true)
+        .lte('start_date', today)
+        .gte('end_date', today)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!student.branch_id,
+  });
+
+  const { data: isReadyForGrading } = useQuery({
+    queryKey: ['student-ready-for-grading', student.id, currentTermForGrading?.id],
+    queryFn: async () => {
+      if (!currentTermForGrading?.id) return false;
       const { data } = await supabase
         .from('grading_registrations')
         .select('id, ready_for_grading')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
+        .eq('term_id', currentTermForGrading.id)
         .limit(1)
         .maybeSingle();
       return !!data;
     },
-    enabled: !!student.id,
+    enabled: !!student.id && !!currentTermForGrading?.id,
   });
 
   // Check for paid grading registration
   const { data: paidGrading } = useQuery({
-    queryKey: ['paid-grading-registration', student.id],
+    queryKey: ['paid-grading-registration', student.id, currentTermForGrading?.id],
     queryFn: async () => {
+      if (!currentTermForGrading?.id) return null;
       const { data } = await supabase
         .from('grading_registrations')
         .select('id, current_belt, target_belt, grading_slot_id, grading_slots(grading_date, start_time, end_time, location, title, branch_id)')
         .eq('student_id', student.id)
         .eq('ready_for_grading', true)
+        .eq('term_id', currentTermForGrading.id)
         .not('invoice_item_id', 'is', null)
         .limit(1)
         .maybeSingle();
@@ -179,7 +203,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
       }
       return data;
     },
-    enabled: !!student.id,
+    enabled: !!student.id && !!currentTermForGrading?.id,
   });
 
   const canPaySchoolFees = hasBranch && availableTerms.length > 0;

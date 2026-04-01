@@ -103,7 +103,19 @@ const GradingListTab: React.FC = () => {
   // Fetch terms
   const { data: terms = [] } = useQuery<Term[]>({
     queryKey: ['terms-grading-list'],
-    queryFn: getActiveTermsForSelection
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('term_calendars')
+        .select('*')
+        .eq('is_active', true)
+        .order('start_date', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(t => ({
+        ...t,
+        branch_name: '',
+        breaks: [],
+      })) as Term[];
+    }
   });
 
   // Get terms for selected branch
@@ -191,7 +203,8 @@ const GradingListTab: React.FC = () => {
         supabase
           .from('grading_registrations')
           .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id')
-          .in('student_id', activeStudentIds),
+          .in('student_id', activeStudentIds)
+          .eq('term_id', selectedTerm),
         // Get attendance counts for the term date range
         selectedTermData ? supabase
           .from('class_attendance')
@@ -386,6 +399,7 @@ const GradingListTab: React.FC = () => {
             grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
+            term_id: selectedTerm || null,
           } as const;
           operations.push(
             supabase

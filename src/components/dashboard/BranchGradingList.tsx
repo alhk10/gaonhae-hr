@@ -195,7 +195,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         supabase
           .from('grading_registrations')
           .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id')
-          .in('student_id', activeStudentIds),
+          .in('student_id', activeStudentIds)
+          .eq('term_id', selectedTerm),
         selectedTermData ? supabase
           .from('class_attendance')
           .select('student_id')
@@ -383,6 +384,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
+            term_id: selectedTerm || null,
           } as const;
           operations.push(
             supabase
