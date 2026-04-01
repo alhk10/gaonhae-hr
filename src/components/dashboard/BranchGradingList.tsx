@@ -137,7 +137,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     setPendingChanges({});
   }, [branchId, branchTerms]);
 
-  const selectedTermData = terms.find(t => t.id === selectedTerm);
+  const selectedTermData = branchTerms.find(t => t.id === selectedTerm);
 
   // Fetch students with invoices (all statuses except cancelled) for selected term
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
