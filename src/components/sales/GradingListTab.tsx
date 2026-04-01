@@ -191,7 +191,8 @@ const GradingListTab: React.FC = () => {
         supabase
           .from('grading_registrations')
           .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id')
-          .in('student_id', activeStudentIds),
+          .in('student_id', activeStudentIds)
+          .eq('term_id', selectedTerm),
         // Get attendance counts for the term date range
         selectedTermData ? supabase
           .from('class_attendance')
