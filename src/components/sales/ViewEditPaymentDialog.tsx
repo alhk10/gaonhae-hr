@@ -3,7 +3,7 @@
  * Displays payment details and allows editing permitted fields
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,10 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { getPaymentById, updatePayment, type Payment } from '@/services/paymentService';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt, Upload } from 'lucide-react';
 
 interface ViewEditPaymentDialogProps {
   paymentId: string;
@@ -33,10 +35,16 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
   onPaymentUpdated,
   initialMode = 'view'
 }) => {
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [newProofFile, setNewProofFile] = useState<File | null>(null);
+  const [newProofPreview, setNewProofPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editData, setEditData] = useState({
     payment_method: '' as Payment['payment_method'],
     reference_number: '',
@@ -70,17 +78,59 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
     }
   };
 
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are allowed');
+      return;
+    }
+    setNewProofFile(file);
+    setNewProofPreview(URL.createObjectURL(file));
+  };
+
+  const uploadProofFile = async (): Promise<string | undefined> => {
+    if (!newProofFile || !payment) return undefined;
+    setUploading(true);
+    try {
+      const fileExt = newProofFile.name.split('.').pop();
+      const filePath = `${payment.id}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, newProofFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading proof:', error);
+      toast.error('Failed to upload proof of payment');
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!payment) return;
     
     setSaving(true);
     try {
+      let proofUrl: string | undefined;
+      if (newProofFile) {
+        proofUrl = await uploadProofFile();
+      }
+
       await updatePayment(payment.id, {
         payment_method: editData.payment_method,
         reference_number: editData.reference_number || undefined,
-        notes: editData.notes || undefined
+        notes: editData.notes || undefined,
+        ...(proofUrl ? { proof_of_payment_url: proofUrl } : {})
       });
 
+      setNewProofFile(null);
+      setNewProofPreview(null);
       toast.success('Payment updated successfully');
       setMode('view');
       loadPaymentData();
@@ -250,17 +300,48 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
             )}
           </div>
 
-          {payment.proof_of_payment_url && (
-            <div className="space-y-2">
-              <Label>Proof of Payment</Label>
+          <div className="space-y-2">
+            <Label>Proof of Payment</Label>
+            {mode === 'edit' && isSuperadmin ? (
+              <div className="space-y-2">
+                {(newProofPreview || payment.proof_of_payment_url) && (
+                  <img
+                    src={newProofPreview || payment.proof_of_payment_url || ''}
+                    alt="Proof of payment"
+                    className="max-h-32 rounded border object-contain"
+                  />
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProofFileChange}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {payment.proof_of_payment_url || newProofFile ? 'Replace Proof' : 'Upload Proof'}
+                </Button>
+                {newProofFile && (
+                  <p className="text-xs text-muted-foreground">{newProofFile.name}</p>
+                )}
+              </div>
+            ) : payment.proof_of_payment_url ? (
               <Button variant="outline" size="sm" asChild>
                 <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
                   <Receipt className="h-4 w-4 mr-2" />
                   View Attachment
                 </a>
               </Button>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No proof attached</p>
+            )}
+          </div>
 
           <Separator />
 
@@ -277,10 +358,10 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
             <Button variant="outline" onClick={() => setMode('view')}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleSave} disabled={saving || uploading}>
+              {(saving || uploading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
-              Save Changes
+              {uploading ? 'Uploading...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         )}
