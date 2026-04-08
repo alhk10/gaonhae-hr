@@ -3,7 +3,7 @@
  * Displays payment details and allows editing permitted fields
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,10 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { getPaymentById, updatePayment, type Payment } from '@/services/paymentService';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt } from 'lucide-react';
+import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt, Upload } from 'lucide-react';
 
 interface ViewEditPaymentDialogProps {
   paymentId: string;
