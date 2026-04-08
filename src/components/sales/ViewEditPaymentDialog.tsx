@@ -35,10 +35,16 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
   onPaymentUpdated,
   initialMode = 'view'
 }) => {
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [newProofFile, setNewProofFile] = useState<File | null>(null);
+  const [newProofPreview, setNewProofPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editData, setEditData] = useState({
     payment_method: '' as Payment['payment_method'],
     reference_number: '',
