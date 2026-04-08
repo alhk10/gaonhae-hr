@@ -300,17 +300,48 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
             )}
           </div>
 
-          {payment.proof_of_payment_url && (
-            <div className="space-y-2">
-              <Label>Proof of Payment</Label>
+          <div className="space-y-2">
+            <Label>Proof of Payment</Label>
+            {mode === 'edit' && isSuperadmin ? (
+              <div className="space-y-2">
+                {(newProofPreview || payment.proof_of_payment_url) && (
+                  <img
+                    src={newProofPreview || payment.proof_of_payment_url || ''}
+                    alt="Proof of payment"
+                    className="max-h-32 rounded border object-contain"
+                  />
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProofFileChange}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {payment.proof_of_payment_url || newProofFile ? 'Replace Proof' : 'Upload Proof'}
+                </Button>
+                {newProofFile && (
+                  <p className="text-xs text-muted-foreground">{newProofFile.name}</p>
+                )}
+              </div>
+            ) : payment.proof_of_payment_url ? (
               <Button variant="outline" size="sm" asChild>
                 <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
                   <Receipt className="h-4 w-4 mr-2" />
                   View Attachment
                 </a>
               </Button>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No proof attached</p>
+            )}
+          </div>
 
           <Separator />
 
