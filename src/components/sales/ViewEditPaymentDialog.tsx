@@ -358,10 +358,10 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
             <Button variant="outline" onClick={() => setMode('view')}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleSave} disabled={saving || uploading}>
+              {(saving || uploading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
-              Save Changes
+              {uploading ? 'Uploading...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         )}
