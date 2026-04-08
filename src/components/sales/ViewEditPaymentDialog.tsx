@@ -78,17 +78,59 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
     }
   };
 
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are allowed');
+      return;
+    }
+    setNewProofFile(file);
+    setNewProofPreview(URL.createObjectURL(file));
+  };
+
+  const uploadProofFile = async (): Promise<string | undefined> => {
+    if (!newProofFile || !payment) return undefined;
+    setUploading(true);
+    try {
+      const fileExt = newProofFile.name.split('.').pop();
+      const filePath = `${payment.id}/${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, newProofFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading proof:', error);
+      toast.error('Failed to upload proof of payment');
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!payment) return;
     
     setSaving(true);
     try {
+      let proofUrl: string | undefined;
+      if (newProofFile) {
+        proofUrl = await uploadProofFile();
+      }
+
       await updatePayment(payment.id, {
         payment_method: editData.payment_method,
         reference_number: editData.reference_number || undefined,
-        notes: editData.notes || undefined
+        notes: editData.notes || undefined,
+        ...(proofUrl ? { proof_of_payment_url: proofUrl } : {})
       });
 
+      setNewProofFile(null);
+      setNewProofPreview(null);
       toast.success('Payment updated successfully');
       setMode('view');
       loadPaymentData();
