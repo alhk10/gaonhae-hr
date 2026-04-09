@@ -118,6 +118,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [massEditSaving, setMassEditSaving] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
   const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
+  const [rejectingPayment, setRejectingPayment] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejectingPayment, setIsRejectingPayment] = useState(false);
 
   const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
     setMassEditData(prev => ({
