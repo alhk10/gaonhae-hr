@@ -2947,6 +2947,8 @@ export type Database = {
           reference_number: string | null
           updated_at: string
           updated_by: string | null
+          verification_rejection_reason: string | null
+          verification_status: string | null
           verified_at: string | null
           verified_by: string | null
         }
@@ -2966,6 +2968,8 @@ export type Database = {
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
+          verification_rejection_reason?: string | null
+          verification_status?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }
@@ -2985,6 +2989,8 @@ export type Database = {
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
+          verification_rejection_reason?: string | null
+          verification_status?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }
