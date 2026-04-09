@@ -646,7 +646,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const branchCurrency = branch?.currency || 'SGD';
 
   const unverifiedPayments = payments.filter(
-    (p: any) => !p.is_verified && p.proof_of_payment_url && p.payment_method !== 'cash'
+    (p: any) => !p.is_verified && p.proof_of_payment_url && p.payment_method !== 'cash' && (!p.verification_status || p.verification_status === 'pending')
   );
 
   const { data: pendingRegCount = 0 } = useQuery({
