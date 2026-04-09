@@ -1226,6 +1226,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button size="sm" variant="destructive" className="text-xs h-7" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Reject
+                      </Button>
                       <Button size="sm" className="text-xs h-7" onClick={() => handleVerifyPayment(payment)}>
                         <CheckCircle className="w-3 h-3 mr-1" />
                         Verify
