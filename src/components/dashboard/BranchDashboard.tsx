@@ -238,6 +238,54 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   }, [branchId, queryClient, user?.employeeId]);
 
+  const handleRejectPayment = useCallback(async () => {
+    if (!rejectingPayment || !rejectionReason.trim()) return;
+    setIsRejectingPayment(true);
+    try {
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update({
+          verification_status: 'rejected',
+          verification_rejection_reason: rejectionReason.trim(),
+          verified_by: user?.employeeId || null,
+          verified_at: new Date().toISOString(),
+        })
+        .eq('id', rejectingPayment.id);
+      if (paymentError) throw paymentError;
+
+      if (rejectingPayment.invoice_id) {
+        const { data: validPayments } = await supabase
+          .from('payments')
+          .select('amount, verification_status')
+          .eq('invoice_id', rejectingPayment.invoice_id)
+          .neq('id', rejectingPayment.id);
+
+        const totalPaid = (validPayments || [])
+          .filter((p: any) => p.verification_status !== 'rejected')
+          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const invoiceTotal = rejectingPayment.invoices?.total_amount || 0;
+        const balanceDue = Math.max(0, invoiceTotal - totalPaid);
+        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
+
+        await supabase
+          .from('invoices')
+          .update({ amount_paid: totalPaid, balance_due: balanceDue, status: newStatus })
+          .eq('id', rejectingPayment.invoice_id);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+      toast.success('Payment verification rejected');
+      setRejectingPayment(null);
+      setRejectionReason('');
+    } catch (error) {
+      toast.error('Failed to reject payment');
+    } finally {
+      setIsRejectingPayment(false);
+    }
+  }, [rejectingPayment, rejectionReason, branchId, queryClient, user?.employeeId]);
+
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
     try {
