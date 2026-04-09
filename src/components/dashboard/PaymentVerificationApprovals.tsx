@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ShieldCheck, CheckCircle, Pencil } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Pencil, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -18,6 +19,9 @@ const PaymentVerificationApprovals = () => {
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [editAmount, setEditAmount] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [rejectingPayment, setRejectingPayment] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
@@ -28,6 +32,7 @@ const PaymentVerificationApprovals = () => {
         .eq('is_verified', false)
         .not('proof_of_payment_url', 'is', null)
         .neq('payment_method', 'cash')
+        .or('verification_status.is.null,verification_status.eq.pending')
         .order('payment_date', { ascending: false });
 
       if (error) throw error;
@@ -52,6 +57,13 @@ const PaymentVerificationApprovals = () => {
     return map;
   }, [branches]);
 
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
+    queryClient.invalidateQueries({ queryKey: ['pending-verification-count'] });
+    queryClient.invalidateQueries({ queryKey: ['branch-payments'] });
+    queryClient.invalidateQueries({ queryKey: ['branch-invoices'] });
+  };
+
   const handleVerify = async (payment: any) => {
     try {
       const { error: paymentError } = await supabase
@@ -60,6 +72,7 @@ const PaymentVerificationApprovals = () => {
           is_verified: true,
           verified_by: user?.employeeId || null,
           verified_at: new Date().toISOString(),
+          verification_status: 'verified',
         })
         .eq('id', payment.id);
       if (paymentError) throw paymentError;
@@ -73,13 +86,63 @@ const PaymentVerificationApprovals = () => {
         if (invoiceError) throw invoiceError;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-verification-count'] });
-      queryClient.invalidateQueries({ queryKey: ['branch-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['branch-invoices'] });
+      invalidateQueries();
       toast.success('Payment verified successfully');
     } catch (error) {
       toast.error('Failed to verify payment');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingPayment) return;
+    if (!rejectionReason.trim()) {
+      toast.error('Please provide a reason for rejection');
+      return;
+    }
+
+    setIsRejecting(true);
+    try {
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update({
+          verification_status: 'rejected',
+          verification_rejection_reason: rejectionReason.trim(),
+          verified_by: user?.employeeId || null,
+          verified_at: new Date().toISOString(),
+        })
+        .eq('id', rejectingPayment.id);
+      if (paymentError) throw paymentError;
+
+      // Revert invoice status back to unpaid/partial since payment proof was rejected
+      if (rejectingPayment.invoice_id) {
+        // Recalculate invoice amounts excluding this rejected payment
+        const { data: validPayments } = await supabase
+          .from('payments')
+          .select('amount, verification_status')
+          .eq('invoice_id', rejectingPayment.invoice_id)
+          .neq('id', rejectingPayment.id);
+
+        const totalPaid = (validPayments || [])
+          .filter((p: any) => p.verification_status !== 'rejected')
+          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const invoiceTotal = rejectingPayment.invoices?.total_amount || 0;
+        const balanceDue = Math.max(0, invoiceTotal - totalPaid);
+        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
+
+        await supabase
+          .from('invoices')
+          .update({ amount_paid: totalPaid, balance_due: balanceDue, status: newStatus })
+          .eq('id', rejectingPayment.invoice_id);
+      }
+
+      invalidateQueries();
+      toast.success('Payment verification rejected');
+      setRejectingPayment(null);
+      setRejectionReason('');
+    } catch (error) {
+      toast.error('Failed to reject payment');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -121,10 +184,7 @@ const PaymentVerificationApprovals = () => {
           .eq('id', editingPayment.invoice_id);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-verification-count'] });
-      queryClient.invalidateQueries({ queryKey: ['branch-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['branch-invoices'] });
+      invalidateQueries();
       toast.success('Payment amount updated');
       setEditingPayment(null);
     } catch (error) {
@@ -189,6 +249,10 @@ const PaymentVerificationApprovals = () => {
                   <Pencil className="w-3 h-3 mr-1" />
                   Edit
                 </Button>
+                <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
+                  <XCircle className="w-3 h-3 mr-1" />
+                  Reject
+                </Button>
                 <Button size="sm" className="h-7 text-xs px-2" onClick={() => handleVerify(payment)}>
                   <CheckCircle className="w-3 h-3 mr-1" />
                   Verify
@@ -199,6 +263,7 @@ const PaymentVerificationApprovals = () => {
         </CardContent>
       </Card>
 
+      {/* Edit Amount Dialog */}
       <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -225,6 +290,39 @@ const PaymentVerificationApprovals = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingPayment(null)} disabled={isSaving}>Cancel</Button>
             <Button onClick={handleSaveAmount} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Payment Dialog */}
+      <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reject Payment Verification</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {rejectingPayment?.invoices?.invoice_number} — {rejectingPayment?.invoices?.students
+                ? `${rejectingPayment.invoices.students.first_name} ${rejectingPayment.invoices.students.last_name}`
+                : 'Unknown'}
+              {' '}· ${rejectingPayment?.amount?.toFixed(2)}
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="rejection-reason">Reason for Rejection *</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="e.g. Proof is blurry, amount doesn't match..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectingPayment(null); setRejectionReason(''); }} disabled={isRejecting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={isRejecting || !rejectionReason.trim()}>
+              {isRejecting ? 'Rejecting...' : 'Reject Payment'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
