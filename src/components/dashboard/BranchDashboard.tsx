@@ -212,6 +212,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           is_verified: true,
           verified_by: user?.employeeId || null,
           verified_at: verifiedAt,
+          verification_status: 'verified',
         })
         .eq('id', payment.id);
 
