@@ -1380,6 +1380,39 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
         }}
       />
+
+      {/* Reject Payment Dialog */}
+      <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reject Payment Verification</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {rejectingPayment?.invoices?.invoice_number} — {rejectingPayment?.invoices?.students
+                ? `${rejectingPayment.invoices.students.first_name} ${rejectingPayment.invoices.students.last_name}`
+                : 'Unknown'}
+              {' '}· ${rejectingPayment?.amount?.toFixed(2)}
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="branch-rejection-reason">Reason for Rejection *</Label>
+              <Textarea
+                id="branch-rejection-reason"
+                placeholder="e.g. Proof is blurry, amount doesn't match..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectingPayment(null); setRejectionReason(''); }} disabled={isRejectingPayment}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectPayment} disabled={isRejectingPayment || !rejectionReason.trim()}>
+              {isRejectingPayment ? 'Rejecting...' : 'Reject Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
