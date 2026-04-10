@@ -19,6 +19,8 @@ import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS, formatBeltLevel } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
+import { useQuery } from '@tanstack/react-query';
+import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
 
 interface EditStudentDialogProps {
   trigger: React.ReactNode;
@@ -92,8 +94,18 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     branch_id: '',
     registered_date: '',
     status: 'active',
-    notes: ''
+    notes: '',
+    allowed_class_types: [] as string[]
   });
+
+  // Fetch available class types for the student's branch
+  const { data: classTypeSettings = [] } = useQuery({
+    queryKey: ['branch-class-type-settings', formData.branch_id],
+    queryFn: () => getBranchClassTypeSettings(formData.branch_id),
+    enabled: !!formData.branch_id && open,
+  });
+
+  const availableClassTypeOptions = classTypeSettings.map(s => s.class_type);
 
   // Initialize form data when student changes or dialog opens
   useEffect(() => {
@@ -131,7 +143,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         branch_id: student.branch_id || '',
         registered_date: (student as any).registered_date || '',
         status: student.status || 'active',
-        notes: student.notes || ''
+        notes: student.notes || '',
+        allowed_class_types: (student as any).allowed_class_types || []
       });
     }
   }, [student, open]);
@@ -198,7 +211,10 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     setLoading(true);
     
     try {
-      await updateStudent(student.id, { ...formData, training_goals: formData.training_goals.join(', ') });
+      const updateData: any = { ...formData, training_goals: formData.training_goals.join(', ') };
+      // Send null if empty array so DB treats it as "no exceptions"
+      updateData.allowed_class_types = formData.allowed_class_types.length > 0 ? formData.allowed_class_types : null;
+      await updateStudent(student.id, updateData);
       
       toast.success('Student updated successfully');
       setOpen(false);
@@ -672,6 +688,22 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                   </Select>
                 </div>
               </div>
+
+              {/* Class Type Age Exceptions */}
+              {availableClassTypeOptions.length > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Class Type Exceptions (Age Override)</Label>
+                  <MultiSelect
+                    options={availableClassTypeOptions}
+                    values={formData.allowed_class_types}
+                    onValuesChange={(values) => setFormData(prev => ({ ...prev, allowed_class_types: values }))}
+                    placeholder="Select class types this student can access regardless of age"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Selected class types will bypass age restrictions for this student.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label htmlFor="notes" className="text-xs">Additional Notes</Label>

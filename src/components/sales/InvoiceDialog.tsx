@@ -151,12 +151,17 @@ const isGradingProductForBelt = (productName: string, studentBelt: string): bool
 const isProductAvailableForAge = (
   product: ProductWithVariants,
   studentAge: number,
-  classTypeAgeSettings: Array<{ class_type: string; min_age: number | null; max_age: number | null }>
+  classTypeAgeSettings: Array<{ class_type: string; min_age: number | null; max_age: number | null }>,
+  studentAllowedClassTypes?: string[]
 ): boolean => {
   if (!studentAge || studentAge <= 0) return true;
   if (!product.allowed_class_types || product.allowed_class_types.length === 0) return true;
   if (classTypeAgeSettings.length === 0) return true;
+  // If student has age exceptions that cover all of this product's class types, skip age check
+  if (studentAllowedClassTypes && product.allowed_class_types.every(ct => studentAllowedClassTypes.includes(ct))) return true;
   return product.allowed_class_types.some(classType => {
+    // Skip age check for class types the student has an exception for
+    if (studentAllowedClassTypes?.includes(classType)) return true;
     const setting = classTypeAgeSettings.find(s => s.class_type === classType);
     if (!setting) return true;
     return (setting.min_age === null || studentAge >= setting.min_age) && (setting.max_age === null || studentAge <= setting.max_age);
@@ -325,7 +330,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [saving, setSaving] = useState(false);
 
   // ─── Shared Data ────────────────────────────────────────────────
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string, allowed_class_types?: string[]}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [viewProducts, setViewProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number, category_name?: string, is_lesson?: boolean, is_active?: boolean, tax_rate?: number, available_sizes?: string[], available_variants?: any, allowed_class_types?: string[], lesson_days?: string[], lessons_per_week?: number}>>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
@@ -357,6 +362,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
   const [studentDob, setStudentDob] = useState<string | null>(null);
+  const [viewStudentAllowedClassTypes, setViewStudentAllowedClassTypes] = useState<string[] | undefined>(undefined);
 
   // Sub-dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -460,10 +466,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // Load term data and timetable times when invoice loads (view/edit)
   useEffect(() => {
     if (!invoice) return;
-    // Student DOB
+    // Student DOB and allowed_class_types
     (async () => {
-      const { data } = await supabase.from('students').select('date_of_birth').eq('id', invoice.student_id).maybeSingle();
+      const { data } = await supabase.from('students').select('date_of_birth, allowed_class_types').eq('id', invoice.student_id).maybeSingle();
       if (data?.date_of_birth) setStudentDob(data.date_of_birth);
+      if (data?.allowed_class_types) setViewStudentAllowedClassTypes(data.allowed_class_types as string[]);
     })();
     // Term data
     (async () => {
@@ -520,7 +527,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         branch_id: s.branch_id,
         status: s.status,
         current_belt: s.current_belt,
-        date_of_birth: s.date_of_birth
+        date_of_birth: s.date_of_birth,
+        allowed_class_types: (s as any).allowed_class_types || undefined
       })));
     } catch { toast.error('Failed to load students'); }
   };
@@ -619,6 +627,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const selectedStudent = students.find(s => s.id === formData.student_id);
   const studentBelt = selectedStudent?.current_belt || '';
+  const studentAllowedClassTypes = selectedStudent?.allowed_class_types;
 
   const handleInputChange = async (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -682,12 +691,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     for (const p of products) {
       if (p.category_id === GRADING_CATEGORY_ID) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
-      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
       if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings]);
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes]);
 
   // Auto-select product
   useEffect(() => {
@@ -1424,7 +1433,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
               <div className="space-y-1 md:space-y-2">
                 <h4 className="text-xs md:text-sm font-medium">Select Class Schedule</h4>
-                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} />
+                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} studentAllowedClassTypes={studentAllowedClassTypes} />
               </div>
             )}
 
@@ -1577,7 +1586,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                               if (!term) return null;
                               return (
                                 <div key={termId} className="space-y-1">
-                                  <ClassScheduleSelector branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={viewProducts.find(p => p.id === item.product_id)?.allowed_class_types} allowedDays={viewProducts.find(p => p.id === item.product_id)?.lesson_days} lessonsPerWeek={viewProducts.find(p => p.id === item.product_id)?.lessons_per_week} />
+                                  <ClassScheduleSelector branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={viewProducts.find(p => p.id === item.product_id)?.allowed_class_types} allowedDays={viewProducts.find(p => p.id === item.product_id)?.lesson_days} lessonsPerWeek={viewProducts.find(p => p.id === item.product_id)?.lessons_per_week} studentAllowedClassTypes={viewStudentAllowedClassTypes} />
                                 </div>
                               );
                             })}
