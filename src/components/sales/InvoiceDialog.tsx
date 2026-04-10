@@ -689,12 +689,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     for (const p of products) {
       if (p.category_id === GRADING_CATEGORY_ID) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
-      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings);
+      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
       if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings]);
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes]);
 
   // Auto-select product
   useEffect(() => {
