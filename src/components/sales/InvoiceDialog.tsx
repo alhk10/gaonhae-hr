@@ -1431,7 +1431,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
               <div className="space-y-1 md:space-y-2">
                 <h4 className="text-xs md:text-sm font-medium">Select Class Schedule</h4>
-                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} />
+                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} studentAllowedClassTypes={studentAllowedClassTypes} />
               </div>
             )}
 
