@@ -325,7 +325,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [saving, setSaving] = useState(false);
 
   // ─── Shared Data ────────────────────────────────────────────────
-  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string}>>([]);
+  const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string, allowed_class_types?: string[]}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   const [viewProducts, setViewProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number, category_name?: string, is_lesson?: boolean, is_active?: boolean, tax_rate?: number, available_sizes?: string[], available_variants?: any, allowed_class_types?: string[], lesson_days?: string[], lessons_per_week?: number}>>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
@@ -520,7 +520,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         branch_id: s.branch_id,
         status: s.status,
         current_belt: s.current_belt,
-        date_of_birth: s.date_of_birth
+        date_of_birth: s.date_of_birth,
+        allowed_class_types: (s as any).allowed_class_types || undefined
       })));
     } catch { toast.error('Failed to load students'); }
   };
