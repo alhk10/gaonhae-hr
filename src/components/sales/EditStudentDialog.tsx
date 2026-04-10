@@ -200,7 +200,10 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     setLoading(true);
     
     try {
-      await updateStudent(student.id, { ...formData, training_goals: formData.training_goals.join(', ') });
+      const updateData: any = { ...formData, training_goals: formData.training_goals.join(', ') };
+      // Send null if empty array so DB treats it as "no exceptions"
+      updateData.allowed_class_types = formData.allowed_class_types.length > 0 ? formData.allowed_class_types : null;
+      await updateStudent(student.id, updateData);
       
       toast.success('Student updated successfully');
       setOpen(false);
