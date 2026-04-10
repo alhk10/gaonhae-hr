@@ -692,6 +692,22 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                 </div>
               </div>
 
+              {/* Class Type Age Exceptions */}
+              {availableClassTypeOptions.length > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Class Type Exceptions (Age Override)</Label>
+                  <MultiSelect
+                    options={availableClassTypeOptions}
+                    values={formData.allowed_class_types}
+                    onValuesChange={(values) => setFormData(prev => ({ ...prev, allowed_class_types: values }))}
+                    placeholder="Select class types this student can access regardless of age"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Selected class types will bypass age restrictions for this student.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <Label htmlFor="notes" className="text-xs">Additional Notes</Label>
                 <Textarea
