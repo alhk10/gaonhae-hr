@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Calendar, Plus, Edit, Trash2, Gift } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, Plus, Edit, Trash2, Gift, Copy } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import {
@@ -14,6 +15,7 @@ import {
   addPublicHoliday,
   updatePublicHoliday,
   deletePublicHoliday,
+  copyHolidaysToYear,
   PublicHoliday
 } from '@/services/publicHolidayService';
 
@@ -23,6 +25,18 @@ const PublicHolidayManagement = () => {
   const [isEditHolidayOpen, setIsEditHolidayOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copying, setCopying] = useState(false);
+
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+
+  // Derive available years from data + ensure current year is always shown
+  const availableYears = Array.from(
+    new Set([...holidays.map(h => h.year), currentYear, currentYear - 1, currentYear + 1])
+  ).sort((a, b) => a - b);
+
+  const filteredHolidays = holidays.filter(h => h.year === selectedYear);
+  const mondayHolidays = filteredHolidays.filter(h => h.is_monday_holiday);
 
   useEffect(() => {
     loadHolidays();
@@ -31,10 +45,8 @@ const PublicHolidayManagement = () => {
   const loadHolidays = async () => {
     try {
       setLoading(true);
-      console.log('PublicHolidayManagement: Loading holidays...');
       const holidayData = await getPublicHolidays();
       setHolidays(holidayData);
-      console.log('PublicHolidayManagement: Loaded holidays:', holidayData.length);
     } catch (error) {
       console.error('Error loading holidays:', error);
       toast.error("Error loading public holidays");
@@ -109,6 +121,26 @@ const PublicHolidayManagement = () => {
     }
   };
 
+  const handleCopyToNextYear = async () => {
+    const targetYear = selectedYear + 1;
+    try {
+      setCopying(true);
+      const count = await copyHolidaysToYear(selectedYear, targetYear);
+      if (count === 0) {
+        toast.info(`No new holidays to copy. ${targetYear} already has all holidays from ${selectedYear}.`);
+      } else {
+        toast.success(`Copied ${count} holiday(s) to ${targetYear}. Please review dates for holidays that shift annually.`);
+        await loadHolidays();
+        setSelectedYear(targetYear);
+      }
+    } catch (error) {
+      console.error('Error copying holidays:', error);
+      toast.error("Error copying holidays to next year");
+    } finally {
+      setCopying(false);
+    }
+  };
+
   const openEditHoliday = (holiday: PublicHoliday) => {
     setEditingHoliday(holiday);
     setIsEditHolidayOpen(true);
@@ -117,10 +149,6 @@ const PublicHolidayManagement = () => {
   const getDayOfWeek = (dateString: string) => {
     return format(new Date(dateString), 'EEEE');
   };
-
-  const mondayHolidays = holidays.filter(h => h.is_monday_holiday);
-  const currentYear = new Date().getFullYear();
-  const currentYearHolidays = holidays.filter(h => h.year === currentYear);
 
   if (loading) {
     return (
@@ -134,7 +162,7 @@ const PublicHolidayManagement = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         </CardContent>
       </Card>
@@ -144,7 +172,7 @@ const PublicHolidayManagement = () => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <CardTitle className="flex items-center space-x-2">
               <Calendar className="w-5 h-5" />
@@ -158,41 +186,57 @@ const PublicHolidayManagement = () => {
               </span>
             </CardDescription>
           </div>
-          <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Holiday
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add Public Holiday</DialogTitle>
-                <DialogDescription>Add a new public holiday to the system.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddHoliday}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Holiday Name</Label>
-                    <Input name="name" placeholder="e.g., New Year's Day" required />
+          <div className="flex items-center gap-2">
+            <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={handleCopyToNextYear} disabled={copying || filteredHolidays.length === 0}>
+              <Copy className="w-4 h-4 mr-2" />
+              {copying ? 'Copying...' : `Copy to ${selectedYear + 1}`}
+            </Button>
+            <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Holiday
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Public Holiday</DialogTitle>
+                  <DialogDescription>Add a new public holiday to the system.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddHoliday}>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Holiday Name</Label>
+                      <Input name="name" placeholder="e.g., New Year's Day" required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="date">Date</Label>
+                      <Input name="date" type="date" required />
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Note: If this holiday falls on a Monday, all employees will automatically receive +1 annual leave day.
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input name="date" type="date" required />
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Note: If this holiday falls on a Monday, all employees will automatically receive +1 annual leave day.
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsAddHolidayOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Add Holiday</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsAddHolidayOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Add Holiday</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -202,9 +246,9 @@ const PublicHolidayManagement = () => {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Total Holidays {currentYear}</span>
+                <span className="text-sm font-medium text-blue-900">Total Holidays {selectedYear}</span>
               </div>
-              <p className="text-2xl font-bold text-blue-900">{currentYearHolidays.length}</p>
+              <p className="text-2xl font-bold text-blue-900">{filteredHolidays.length}</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center space-x-2">
@@ -222,6 +266,13 @@ const PublicHolidayManagement = () => {
             </div>
           </div>
 
+          {/* No holidays banner */}
+          {filteredHolidays.length === 0 && holidays.some(h => h.year === selectedYear - 1) && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+              No holidays configured for {selectedYear}. You can use the <strong>"Copy to {selectedYear}"</strong> button after selecting {selectedYear - 1} to quickly duplicate last year's holidays.
+            </div>
+          )}
+
           {/* Holidays Table */}
           <Table>
             <TableHeader>
@@ -229,13 +280,12 @@ const PublicHolidayManagement = () => {
                 <TableHead>Holiday Name</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Day of Week</TableHead>
-                <TableHead>Year</TableHead>
                 <TableHead>Monday Bonus</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {holidays.map((holiday) => (
+              {filteredHolidays.map((holiday) => (
                 <TableRow key={holiday.id}>
                   <TableCell className="font-medium">{holiday.name}</TableCell>
                   <TableCell>{format(new Date(holiday.date), 'dd/MM/yyyy')}</TableCell>
@@ -244,7 +294,6 @@ const PublicHolidayManagement = () => {
                       {getDayOfWeek(holiday.date)}
                     </span>
                   </TableCell>
-                  <TableCell>{holiday.year}</TableCell>
                   <TableCell>
                     {holiday.is_monday_holiday ? (
                       <div className="flex items-center space-x-1 text-green-600">
@@ -252,7 +301,7 @@ const PublicHolidayManagement = () => {
                         <span className="text-sm font-medium">+1 Leave Day</span>
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -271,10 +320,10 @@ const PublicHolidayManagement = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {holidays.length === 0 && (
+              {filteredHolidays.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    No public holidays configured. Add your first holiday to get started.
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No public holidays configured for {selectedYear}. Add your first holiday to get started.
                   </TableCell>
                 </TableRow>
               )}
