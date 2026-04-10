@@ -296,3 +296,57 @@ export const cleanupIneligibleMondayHolidayAdjustments = async (): Promise<void>
     throw error;
   }
 };
+
+// Copy holidays from one year to another
+export const copyHolidaysToYear = async (sourceYear: number, targetYear: number): Promise<number> => {
+  try {
+    logger.info('Copying holidays', { sourceYear, targetYear });
+
+    // Fetch source holidays
+    const { data: sourceHolidays, error: sourceError } = await supabase
+      .from('public_holidays')
+      .select('*')
+      .eq('year', sourceYear);
+
+    if (sourceError) throw sourceError;
+    if (!sourceHolidays || sourceHolidays.length === 0) return 0;
+
+    // Fetch existing target holidays to avoid duplicates
+    const { data: existingHolidays, error: existingError } = await supabase
+      .from('public_holidays')
+      .select('name')
+      .eq('year', targetYear);
+
+    if (existingError) throw existingError;
+
+    const existingNames = new Set((existingHolidays || []).map(h => h.name));
+
+    // Filter out duplicates and build new records
+    const newHolidays = sourceHolidays
+      .filter(h => !existingNames.has(h.name))
+      .map(h => {
+        const oldDate = new Date(h.date);
+        oldDate.setFullYear(targetYear);
+        const newDateStr = oldDate.toISOString().split('T')[0];
+        return {
+          name: h.name,
+          date: newDateStr,
+          year: targetYear,
+        };
+      });
+
+    if (newHolidays.length === 0) return 0;
+
+    const { error: insertError } = await supabase
+      .from('public_holidays')
+      .insert(newHolidays);
+
+    if (insertError) throw insertError;
+
+    logger.info(`Copied ${newHolidays.length} holidays from ${sourceYear} to ${targetYear}`);
+    return newHolidays.length;
+  } catch (error) {
+    logger.error('Error in copyHolidaysToYear', error);
+    throw error;
+  }
+};
