@@ -50,6 +50,8 @@ export interface Student {
   // Trial-specific fields
   trial_date?: string;
   trial_time?: string;
+  // Class type age exceptions
+  allowed_class_types?: string[];
 }
 
 export interface StudentEmergencyContact {
