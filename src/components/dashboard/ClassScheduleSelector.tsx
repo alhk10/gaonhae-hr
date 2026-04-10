@@ -116,7 +116,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
 
       return true;
     });
-  }, [allClasses, studentAge, allowedClassTypes, allowedDays, classTypeAgeSettings]);
+  }, [allClasses, studentAge, allowedClassTypes, allowedDays, classTypeAgeSettings, studentAllowedClassTypes]);
 
   // Determine operating days (days that have classes)
   const operatingDays = useMemo(() => {
