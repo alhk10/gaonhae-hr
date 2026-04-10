@@ -4610,6 +4610,7 @@ export type Database = {
       students: {
         Row: {
           address: string | null
+          allowed_class_types: string[] | null
           branch_id: string | null
           certificate_name: string | null
           created_at: string
@@ -4654,6 +4655,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          allowed_class_types?: string[] | null
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string
@@ -4698,6 +4700,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          allowed_class_types?: string[] | null
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string

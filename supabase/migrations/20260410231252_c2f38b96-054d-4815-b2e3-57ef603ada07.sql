@@ -1,0 +1,1 @@
+ALTER TABLE public.students ADD COLUMN allowed_class_types text[] DEFAULT NULL;
