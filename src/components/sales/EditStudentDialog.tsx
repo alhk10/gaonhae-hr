@@ -98,6 +98,18 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     allowed_class_types: [] as string[]
   });
 
+  // Fetch available class types for the student's branch
+  const { data: classTypeSettings = [] } = useQuery({
+    queryKey: ['branch-class-type-settings', formData.branch_id],
+    queryFn: () => getBranchClassTypeSettings(formData.branch_id),
+    enabled: !!formData.branch_id && open,
+  });
+
+  const availableClassTypeOptions = classTypeSettings.map(s => ({
+    value: s.class_type,
+    label: s.class_type,
+  }));
+
   // Initialize form data when student changes or dialog opens
   useEffect(() => {
     if (student && open) {
