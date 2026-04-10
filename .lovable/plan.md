@@ -1,56 +1,37 @@
 
 
-## Plan: Per-Month Payroll Data Storage
+## Plan: Add "Copy to Next Year" for Public Holidays
 
 ### Problem
-When editing salary, allowances, or deductions on the payroll processing page, changes are saved to the global `employees`, `allowances`, and `deductions` tables — affecting ALL months. When switching months, data is recalculated from these global tables rather than loading saved per-month values.
+The public holidays table only contains 2025 entries. May 1st 2026 is not in the database, so the class schedule selector correctly shows it as a regular day. The admin needs to add 2026 holidays, but doing so one-by-one is tedious since most holidays recur annually.
 
-### Current State
-- `payroll_records` table already stores per-month data in `payroll_data` JSONB (including allowances/deductions arrays)
-- `savePayrollToSupabase` correctly saves per-month snapshots
-- `getSavedPayrollForPeriod` correctly loads historical data
-- The problem: edits during payroll go to global tables, and fresh calculation always pulls from global tables
+### Solution
+Add a "Copy to Next Year" button in the Public Holiday Management settings that duplicates all holidays from the selected/current year to the next year, adjusting dates by +1 year. This lets the admin quickly populate 2026 holidays, then manually adjust any that shift (like Hari Raya).
 
-### Solution: Per-Month Override Storage
+### Changes
 
-#### 1. New Database Table — `payroll_monthly_overrides`
-Stores per-employee, per-month overrides for salary, allowances, and deductions separately from the global employee record.
+#### 1. `PublicHolidayManagement.tsx`
+- Add a year filter/selector to view holidays by year
+- Add a "Copy to [Next Year]" button that:
+  - Takes all holidays from the displayed year
+  - Creates new entries with dates shifted +1 year
+  - Skips duplicates (holidays already existing in the target year)
+  - Shows a toast with count of holidays copied
 
-```sql
-CREATE TABLE public.payroll_monthly_overrides (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id text NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  year integer NOT NULL,
-  month text NOT NULL,
-  base_salary numeric,
-  hourly_rate numeric,
-  allowances jsonb DEFAULT '[]',
-  deductions jsonb DEFAULT '[]',
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE(employee_id, year, month)
-);
-```
+#### 2. `publicHolidayService.ts`
+- Add `copyHolidaysToYear(sourceYear: number, targetYear: number)` function
+  - Fetches holidays for the source year
+  - Checks for existing holidays in target year to avoid duplicates
+  - Inserts new records with adjusted dates and `is_monday_holiday` recalculated based on new day-of-week
 
-#### 2. `PayrollProcessing.tsx` — Edit Handlers Save to Overrides Table
-- `handleSalarySave`: Instead of updating global `employees` table, upsert into `payroll_monthly_overrides` for the selected period
-- `handleAllowancesSave`: Instead of updating global `allowances` table, upsert the allowances array into `payroll_monthly_overrides`
-- `handleDeductionsSave`: Instead of updating global `deductions` table, upsert the deductions array into `payroll_monthly_overrides`
-
-#### 3. `PayrollProcessing.tsx` — Load Overrides When Switching Months
-- In `loadAllEmployeeData` (the main useEffect), after loading employee data, query `payroll_monthly_overrides` for the selected period
-- If overrides exist for an employee, merge them into `employeeAllowances`, `employeeDeductions`, and salary values before calculation
-- Historical saved data (from `payroll_records`) still takes precedence for finalized periods
-
-#### 4. Calculation Flow Update
-When calculating payroll for a month:
-1. Check `payroll_records` for finalized historical data → use as-is
-2. Check `payroll_monthly_overrides` for draft overrides → apply on top of base employee data
-3. Fall back to current global `allowances`/`deductions`/`employees` tables
+#### 3. `PublicHolidayManagement.tsx` — Year Display
+- Add year tabs or dropdown (2025, 2026, etc.) to filter the holiday list
+- Default to the current year (2026)
+- Show a prompt/banner when no holidays exist for the current year
 
 ### Technical Details
-- The overrides table uses a UNIQUE constraint on `(employee_id, year, month)` to ensure one override per employee per month
-- Allowances and deductions stored as JSONB arrays: `[{"name": "Transport", "amount": 200}]`
-- RLS policies mirror existing `payroll_records` policies
-- When payroll is finalized and saved to `payroll_records`, the override data is baked into the historical snapshot
+- The `year` column is auto-derived from the `date` column in the existing `addPublicHoliday` service
+- `is_monday_holiday` is determined by whether the new date falls on a Monday
+- The class schedule selector (`ClassScheduleSelector.tsx`) already filters holidays correctly — no changes needed there
+- Once 2026-05-01 is added to the database, the Fri May 1 slot will automatically be hidden from the schedule grid
 
