@@ -92,7 +92,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     branch_id: '',
     registered_date: '',
     status: 'active',
-    notes: ''
+    notes: '',
+    allowed_class_types: [] as string[]
   });
 
   // Initialize form data when student changes or dialog opens
