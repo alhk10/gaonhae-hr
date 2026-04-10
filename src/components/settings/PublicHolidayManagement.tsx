@@ -19,6 +19,8 @@ import {
   PublicHoliday
 } from '@/services/publicHolidayService';
 
+const COUNTRY_OPTIONS = ['Singapore', 'Australia'] as const;
+
 const PublicHolidayManagement = () => {
   const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
   const [isAddHolidayOpen, setIsAddHolidayOpen] = useState(false);
@@ -26,16 +28,23 @@ const PublicHolidayManagement = () => {
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
   const [loading, setLoading] = useState(true);
   const [copying, setCopying] = useState(false);
+  const [newCountry, setNewCountry] = useState<string>('Singapore');
+  const [editCountry, setEditCountry] = useState<string>('Singapore');
 
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedCountry, setSelectedCountry] = useState<string>('All');
 
   // Derive available years from data + ensure current year is always shown
   const availableYears = Array.from(
     new Set([...holidays.map(h => h.year), currentYear, currentYear - 1, currentYear + 1])
   ).sort((a, b) => a - b);
 
-  const filteredHolidays = holidays.filter(h => h.year === selectedYear);
+  const filteredHolidays = holidays.filter(h => {
+    if (h.year !== selectedYear) return false;
+    if (selectedCountry !== 'All' && h.country !== selectedCountry) return false;
+    return true;
+  });
   const mondayHolidays = filteredHolidays.filter(h => h.is_monday_holiday);
 
   useEffect(() => {
@@ -62,11 +71,13 @@ const PublicHolidayManagement = () => {
     try {
       const newHoliday = await addPublicHoliday({
         name: formData.get('name') as string,
-        date: formData.get('date') as string
+        date: formData.get('date') as string,
+        country: newCountry
       });
       
       setHolidays(prev => [...prev, newHoliday].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
       setIsAddHolidayOpen(false);
+      setNewCountry('Singapore');
       
       if (newHoliday.is_monday_holiday) {
         toast.success(`Holiday added successfully! Bonus leave day granted to all employees (Monday holiday).`);
@@ -89,7 +100,8 @@ const PublicHolidayManagement = () => {
       const updatedHoliday = await updatePublicHoliday({
         ...editingHoliday,
         name: formData.get('name') as string,
-        date: formData.get('date') as string
+        date: formData.get('date') as string,
+        country: editCountry
       });
       
       setHolidays(prev => prev.map(holiday => 
@@ -143,6 +155,7 @@ const PublicHolidayManagement = () => {
 
   const openEditHoliday = (holiday: PublicHoliday) => {
     setEditingHoliday(holiday);
+    setEditCountry(holiday.country || 'Singapore');
     setIsEditHolidayOpen(true);
   };
 
@@ -186,7 +199,18 @@ const PublicHolidayManagement = () => {
               </span>
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Countries</SelectItem>
+                {COUNTRY_OPTIONS.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
@@ -201,7 +225,7 @@ const PublicHolidayManagement = () => {
               <Copy className="w-4 h-4 mr-2" />
               {copying ? 'Copying...' : `Copy to ${selectedYear + 1}`}
             </Button>
-            <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
+            <Dialog open={isAddHolidayOpen} onOpenChange={(open) => { setIsAddHolidayOpen(open); if (!open) setNewCountry('Singapore'); }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -222,6 +246,19 @@ const PublicHolidayManagement = () => {
                     <div className="grid gap-2">
                       <Label htmlFor="date">Date</Label>
                       <Input name="date" type="date" required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Country</Label>
+                      <Select value={newCountry} onValueChange={setNewCountry}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRY_OPTIONS.map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Note: If this holiday falls on a Monday, all employees will automatically receive +1 annual leave day.
@@ -278,6 +315,7 @@ const PublicHolidayManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Holiday Name</TableHead>
+                <TableHead>Country</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Day of Week</TableHead>
                 <TableHead>Monday Bonus</TableHead>
@@ -288,6 +326,7 @@ const PublicHolidayManagement = () => {
               {filteredHolidays.map((holiday) => (
                 <TableRow key={holiday.id}>
                   <TableCell className="font-medium">{holiday.name}</TableCell>
+                  <TableCell>{holiday.country || 'Singapore'}</TableCell>
                   <TableCell>{format(new Date(holiday.date), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>
                     <span className={holiday.is_monday_holiday ? 'font-medium text-green-600' : ''}>
@@ -322,8 +361,8 @@ const PublicHolidayManagement = () => {
               ))}
               {filteredHolidays.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No public holidays configured for {selectedYear}. Add your first holiday to get started.
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No public holidays configured for {selectedYear}{selectedCountry !== 'All' ? ` (${selectedCountry})` : ''}. Add your first holiday to get started.
                   </TableCell>
                 </TableRow>
               )}
@@ -349,6 +388,19 @@ const PublicHolidayManagement = () => {
                 <div className="grid gap-2">
                   <Label htmlFor="date">Date</Label>
                   <Input name="date" type="date" defaultValue={editingHoliday.date} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Country</Label>
+                  <Select value={editCountry} onValueChange={setEditCountry}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_OPTIONS.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Note: If this holiday falls on a Monday, all employees will automatically receive +1 annual leave day.

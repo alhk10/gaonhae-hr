@@ -3440,6 +3440,7 @@ export type Database = {
       }
       public_holidays: {
         Row: {
+          country: string
           created_at: string | null
           date: string
           id: string
@@ -3449,6 +3450,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          country?: string
           created_at?: string | null
           date: string
           id?: string
@@ -3458,6 +3460,7 @@ export type Database = {
           year: number
         }
         Update: {
+          country?: string
           created_at?: string | null
           date?: string
           id?: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.public_holidays ADD COLUMN country text NOT NULL DEFAULT 'Singapore';

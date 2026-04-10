@@ -8,6 +8,7 @@ export interface PublicHoliday {
   date: string;
   is_monday_holiday: boolean;
   year: number;
+  country: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -56,7 +57,8 @@ export const addPublicHoliday = async (holiday: Omit<PublicHoliday, 'id' | 'is_m
       .insert({
         name: holiday.name,
         date: holiday.date,
-        year: year
+        year: year,
+        country: holiday.country || 'Singapore'
       })
       .select()
       .single();
@@ -93,7 +95,8 @@ export const updatePublicHoliday = async (holiday: PublicHoliday): Promise<Publi
       .update({
         name: holiday.name,
         date: holiday.date,
-        year: year
+        year: year,
+        country: holiday.country || 'Singapore'
       })
       .eq('id', holiday.id)
       .select()
@@ -332,6 +335,7 @@ export const copyHolidaysToYear = async (sourceYear: number, targetYear: number)
           name: h.name,
           date: newDateStr,
           year: targetYear,
+          country: h.country || 'Singapore',
         };
       });
 
