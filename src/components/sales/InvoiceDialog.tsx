@@ -1586,7 +1586,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                               if (!term) return null;
                               return (
                                 <div key={termId} className="space-y-1">
-                                  <ClassScheduleSelector branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={viewProducts.find(p => p.id === item.product_id)?.allowed_class_types} allowedDays={viewProducts.find(p => p.id === item.product_id)?.lesson_days} lessonsPerWeek={viewProducts.find(p => p.id === item.product_id)?.lessons_per_week} />
+                                  <ClassScheduleSelector branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={viewProducts.find(p => p.id === item.product_id)?.allowed_class_types} allowedDays={viewProducts.find(p => p.id === item.product_id)?.lesson_days} lessonsPerWeek={viewProducts.find(p => p.id === item.product_id)?.lessons_per_week} studentAllowedClassTypes={viewStudentAllowedClassTypes} />
                                 </div>
                               );
                             })}
