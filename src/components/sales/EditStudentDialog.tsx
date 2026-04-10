@@ -36,6 +36,18 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { branches, loading: branchesLoading } = useBranches();
+
+  // Fetch available class types for the student's branch
+  const { data: classTypeSettings = [] } = useQuery({
+    queryKey: ['branch-class-type-settings', formData.branch_id],
+    queryFn: () => getBranchClassTypeSettings(formData.branch_id),
+    enabled: !!formData.branch_id && open,
+  });
+
+  const availableClassTypeOptions = classTypeSettings.map(s => ({
+    value: s.class_type,
+    label: s.class_type,
+  }));
   
   // Use shared constants for nationalities and languages
 
