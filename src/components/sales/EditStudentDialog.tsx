@@ -19,6 +19,8 @@ import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
 import { BELT_LEVELS, formatBeltLevel } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
+import { useQuery } from '@tanstack/react-query';
+import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
 
 interface EditStudentDialogProps {
   trigger: React.ReactNode;
