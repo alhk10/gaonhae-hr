@@ -625,6 +625,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const selectedStudent = students.find(s => s.id === formData.student_id);
   const studentBelt = selectedStudent?.current_belt || '';
+  const studentAllowedClassTypes = selectedStudent?.allowed_class_types;
 
   const handleInputChange = async (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
