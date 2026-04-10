@@ -362,6 +362,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
   const [studentDob, setStudentDob] = useState<string | null>(null);
+  const [viewStudentAllowedClassTypes, setViewStudentAllowedClassTypes] = useState<string[] | undefined>(undefined);
 
   // Sub-dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -465,10 +466,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // Load term data and timetable times when invoice loads (view/edit)
   useEffect(() => {
     if (!invoice) return;
-    // Student DOB
+    // Student DOB and allowed_class_types
     (async () => {
-      const { data } = await supabase.from('students').select('date_of_birth').eq('id', invoice.student_id).maybeSingle();
+      const { data } = await supabase.from('students').select('date_of_birth, allowed_class_types').eq('id', invoice.student_id).maybeSingle();
       if (data?.date_of_birth) setStudentDob(data.date_of_birth);
+      if (data?.allowed_class_types) setViewStudentAllowedClassTypes(data.allowed_class_types as string[]);
     })();
     // Term data
     (async () => {
