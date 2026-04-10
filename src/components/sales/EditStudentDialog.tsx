@@ -105,10 +105,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     enabled: !!formData.branch_id && open,
   });
 
-  const availableClassTypeOptions = classTypeSettings.map(s => ({
-    value: s.class_type,
-    label: s.class_type,
-  }));
+  const availableClassTypeOptions = classTypeSettings.map(s => s.class_type);
 
   // Initialize form data when student changes or dialog opens
   useEffect(() => {
