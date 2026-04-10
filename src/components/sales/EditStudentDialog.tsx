@@ -132,7 +132,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         branch_id: student.branch_id || '',
         registered_date: (student as any).registered_date || '',
         status: student.status || 'active',
-        notes: student.notes || ''
+        notes: student.notes || '',
+        allowed_class_types: (student as any).allowed_class_types || []
       });
     }
   }, [student, open]);
