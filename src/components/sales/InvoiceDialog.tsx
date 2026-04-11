@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { hasClassTypeException } from '@/utils/classTypeEligibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
