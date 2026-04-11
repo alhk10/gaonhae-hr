@@ -1,76 +1,87 @@
 
-Problem I investigated:
-- This is not a data-entry issue. Live Supabase data shows Hannah, Ker You, and Qi Wei all already have `allowed_class_types = ['Kids']`.
-- Hannah is not missing because she was already added: she currently has no `class_attendance` rows and no `student_scheduled_classes` rows.
-- Yishun Kids slots still carry timetable ages like `age_from = 7`, while branch-level Kids settings are `min_age = 6`.
+Problem I confirmed step by step:
+- Mathew Praveen is not blocked by age. He is 34, active, in branch `yishun`, with belt `Green Tip`.
+- His verified invoice exists: `INV-2026-00212`.
+- But there is no linked `student_class_enrollments` row and no `student_scheduled_classes` row for him.
+- Attendance currently depends on two separate paths:
+  1. Auto-populate path: `invoice/enrollment -> student_class_enrollments -> student_scheduled_classes -> class_attendance`
+  2. Manual add path: `BranchWeeklyTimetable -> SlotAttendanceDialog -> getBranchStudentsForClass`
+- So the real issue is no longer just “age exception”. The attendance flow is inconsistent across invoice, enrollment, schedule, belt filtering, and UI refresh.
 
 Do I know what the issue is?
 - Yes.
 
 What is actually wrong:
-1. Attendance eligibility is still too brittle in `classAttendanceService.ts`.
-   - It only does a narrow, local age check.
-   - It does not fully mirror the same exception logic used elsewhere.
-   - It relies on exact class-type string matching instead of normalized matching.
-   - It does not use branch class type settings, so attendance can diverge from invoicing/scheduling.
+1. Invoice creation is not reliably producing the downstream lesson records needed for attendance.
+   - A student can have a valid paid/verified lesson invoice but still have no enrollment/scheduled classes.
+   - That breaks auto-population entirely.
 
-2. The UI is also stale after edits.
-   - `BranchDashboard.tsx` invalidates `branch-students`, then immediately reads old cache for `selectedStudent`.
-   - It does not invalidate the `branch-students-class` query used by the attendance dialog.
-   - This explains why saved exceptions may not show in Student Details and may not refresh the Add Students list reliably.
+2. Manual attendance eligibility is still brittle.
+   - `getBranchStudentsForClass` pushes belt filtering into SQL exact matching.
+   - That is not robust for all students because belt/class strings can drift by case/spacing/format.
+   - Attendance logic should use the same shared normalized rules approach already started for class type eligibility.
+
+3. The UI gives no reason when a student is excluded.
+   - “No matching students found” hides whether the student is filtered out by belt, age, branch, status, missing entitlement, or stale data.
 
 Implementation plan:
-1. Create one shared eligibility helper
-   - Add a shared utility for:
-     - normalized class type comparison (`trim + lowercase`)
-     - checking whether a student has an age exception
-     - evaluating final eligibility using:
-       - student exception first
-       - timetable age range
-       - branch class type age settings
-       - belt rules remain unchanged
-   - Use this helper everywhere age exceptions matter so logic cannot drift again.
+1. Trace and fix the invoice -> enrollment -> schedule relationship
+   - Review `InvoiceDialog.tsx`, `invoiceService.ts`, and `classEnrollmentService.ts`.
+   - Ensure lesson invoices reliably create or update:
+     - `student_class_enrollments`
+     - `student_scheduled_classes`
+   - Prevent “verified invoice but no attendance path” from happening again.
 
-2. Harden attendance filtering
-   - Refactor `src/services/classAttendanceService.ts` so `getBranchStudentsForClass(...)`:
-     - loads branch class type settings
-     - uses the shared helper
-     - keeps belt filtering separate
-     - only excludes students for clear reasons
-   - This will make attendance behavior consistent for all students and all slots, not just the currently failing cases.
+2. Harden attendance eligibility for all students
+   - Refactor `getBranchStudentsForClass` in `classAttendanceService.ts` so it no longer relies on brittle exact SQL belt matching.
+   - Fetch active branch students, then apply normalized filtering in code for:
+     - branch
+     - status
+     - belt
+     - age
+     - class type exception
+   - Reuse centralized helpers so attendance, invoicing, and scheduling cannot drift.
 
-3. Fix stale student detail state after save
-   - Update `EditStudentDialog.tsx` and `BranchDashboard.tsx` so the freshly updated student is pushed directly into state/cache instead of reading stale cache right after invalidation.
-   - Ensure `selectedStudent` updates immediately, so the Age Exceptions badges appear without reopening or hard refresh.
+3. Add a lesson-access fallback for manual attendance
+   - If a student has a valid lesson invoice/entitlement for the slot’s class type but no generated schedule rows yet, allow the student to still appear in Add Students when appropriate.
+   - This makes attendance resilient even if schedule generation lags or missed a record.
 
-4. Invalidate the right queries after student edits
-   - After saving a student, invalidate:
-     - `['branch-students', branchId]`
-     - all `['branch-students-class', ...]` queries for that branch
-   - This ensures the attendance Add Students list refreshes when an exception is added.
+4. Surface exclusion reasons in the attendance dialog
+   - Add internal diagnostics so excluded students can be categorized by reason:
+     - belt mismatch
+     - age restriction
+     - inactive status
+     - wrong branch
+     - no lesson entitlement/enrollment
+   - Show a clearer empty/search state so future issues are debuggable without repeated guesswork.
 
-5. Align other age-exception paths with the shared helper
-   - Update `ClassScheduleSelector.tsx`
-   - Update `InvoiceDialog.tsx`
-   - This removes duplicated logic and makes scheduling, invoicing, and attendance all evaluate exceptions the same way.
+5. Tighten refresh/invalidation across pages
+   - After student edits, invoice creation, or enrollment changes, invalidate the full chain:
+     - `branch-students`
+     - `branch-students-class`
+     - `scheduled-classes`
+     - `week-attendance`
+     - `slot-attendance`
+   - This keeps Student Details, timetable, and Add Students in sync.
 
-Files to update:
+Files I expect to update:
 - `src/services/classAttendanceService.ts`
-- `src/components/dashboard/BranchDashboard.tsx`
-- `src/components/sales/EditStudentDialog.tsx`
-- `src/components/dashboard/ClassScheduleSelector.tsx`
+- `src/services/classEnrollmentService.ts`
+- `src/services/invoiceService.ts`
+- `src/components/dashboard/SlotAttendanceDialog.tsx`
+- `src/components/dashboard/BranchWeeklyTimetable.tsx`
 - `src/components/sales/InvoiceDialog.tsx`
-- new shared helper file, e.g. `src/utils/classTypeEligibility.ts`
+- possibly shared utils for normalized belt/class eligibility
 
-Technical notes:
-- The root fix is not another small patch on one student.
-- I will replace duplicated age-exception checks with one normalized helper.
-- I will also fix React Query invalidation/state refresh so saved exceptions show immediately in both Student Details and Attendance.
+Robust coding changes:
+- Centralize normalized belt comparison just like class type normalization
+- Stop depending on exact string equality in SQL for attendance eligibility
+- Make attendance resilient when invoice data exists but schedule generation is missing
+- Add explicit diagnostics instead of silent exclusion
 
 QA I will do after implementation:
-- Verify Hannah appears in Kids attendance Add Students and can be added
-- Verify Ker You and Qi Wei also work
-- Verify a student without exception and below age is still blocked
-- Verify belt filtering still works
-- Verify Student Details shows Age Exceptions immediately after save
-- Verify the full flow end-to-end without page reload
+- Verify Mathew Praveen appears in Teens & Adults attendance and can be added
+- Verify Hannah, Ker You, and Qi Wei still work with class-type age exceptions
+- Verify a student with no valid eligibility is still correctly blocked
+- Verify invoice creation produces enrollment/scheduled lesson records where required
+- Verify timetable, attendance dialog, and student details refresh correctly without reload
