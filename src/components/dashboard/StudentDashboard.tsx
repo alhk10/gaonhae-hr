@@ -121,6 +121,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         .from('invoices')
         .select('*')
         .eq('student_id', studentId)
+        .gte('created_at', '2026-04-01')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
