@@ -111,23 +111,35 @@ export async function getBranchStudentsForClass(
 
     let students = data || [];
 
-    // Apply age filter if specified
-    if (ageFrom !== undefined || ageTo !== undefined) {
-      const today = new Date();
-      students = students.filter(student => {
-        // Check if student has an age exception for this class type
-        if (classType && student.allowed_class_types && Array.isArray(student.allowed_class_types) && student.allowed_class_types.includes(classType)) {
-          return true; // Skip age check for students with exception
-        }
+    // Apply age filter if specified, respecting student-level class type exceptions
+    // Also load branch class type settings for additional age constraints
+    if (ageFrom !== undefined || ageTo !== undefined || classType) {
+      let branchMinAge: number | null = null;
+      let branchMaxAge: number | null = null;
 
-        if (!student.date_of_birth) return true; // Include if no DOB set
-        
-        const dob = new Date(student.date_of_birth);
-        const age = Math.floor((today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-        
-        if (ageFrom !== undefined && age < ageFrom) return false;
-        if (ageTo !== undefined && age > ageTo) return false;
-        return true;
+      if (classType) {
+        try {
+          const branchSettings = await getBranchClassTypeSettings(branchId);
+          const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
+          if (typeSetting) {
+            branchMinAge = typeSetting.min_age;
+            branchMaxAge = typeSetting.max_age;
+          }
+        } catch (e) {
+          logger.warn('Failed to load branch class type settings for attendance filter', e);
+        }
+      }
+
+      students = students.filter(student => {
+        return isStudentEligibleForClass({
+          studentDob: student.date_of_birth,
+          studentAllowedClassTypes: student.allowed_class_types,
+          classType,
+          timetableAgeFrom: ageFrom,
+          timetableAgeTo: ageTo,
+          branchMinAge,
+          branchMaxAge,
+        });
       });
     }
 
