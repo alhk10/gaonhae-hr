@@ -6,6 +6,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { getCurrentTerm, Term } from './termCalendarService';
+import { getBranchClassTypeSettings } from './branchClassTypeSettingsService';
+import { isStudentEligibleForClass } from '@/utils/classTypeEligibility';
 import { createInvoice } from './invoiceService';
 
 export interface ClassAttendanceRecord {
