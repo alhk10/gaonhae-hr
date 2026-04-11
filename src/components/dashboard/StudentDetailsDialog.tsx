@@ -230,6 +230,16 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
                 <InfoRow label="Enrollment Date" value={formatDate(student.enrollment_date)} />
                 <InfoRow label="Previous Experience" value={student.previous_experience} />
                 <InfoRow label="Training Goals" value={student.training_goals} />
+                {student.allowed_class_types && student.allowed_class_types.length > 0 && (
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-sm text-muted-foreground">Age Exceptions</span>
+                    <div className="flex flex-wrap gap-1 justify-end max-w-[60%]">
+                      {student.allowed_class_types.map((ct: string) => (
+                        <Badge key={ct} variant="secondary" className="text-xs">{ct}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 

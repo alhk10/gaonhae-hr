@@ -85,12 +85,13 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
 
   // Fetch all branch students eligible for this class
   const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ['branch-students-class', branchId, slot?.beltLevels, slot?.ageFrom, slot?.ageTo],
+    queryKey: ['branch-students-class', branchId, slot?.beltLevels, slot?.ageFrom, slot?.ageTo, slot?.classType],
     queryFn: () => getBranchStudentsForClass(
       branchId,
       slot?.beltLevels,
       slot?.ageFrom,
-      slot?.ageTo
+      slot?.ageTo,
+      slot?.classType
     ),
     enabled: open && !!slot,
   });

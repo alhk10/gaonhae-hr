@@ -86,12 +86,13 @@ export async function getBranchStudentsForClass(
   branchId: string,
   beltLevels?: string[],
   ageFrom?: number,
-  ageTo?: number
+  ageTo?: number,
+  classType?: string
 ): Promise<StudentForAttendance[]> {
   try {
     let query = supabase
       .from('students')
-      .select('id, first_name, last_name, current_belt, date_of_birth, phone, status')
+      .select('id, first_name, last_name, current_belt, date_of_birth, phone, status, allowed_class_types')
       .eq('branch_id', branchId)
       .eq('status', 'active')
       .order('first_name');
@@ -111,6 +112,11 @@ export async function getBranchStudentsForClass(
     if (ageFrom !== undefined || ageTo !== undefined) {
       const today = new Date();
       students = students.filter(student => {
+        // Check if student has an age exception for this class type
+        if (classType && student.allowed_class_types && Array.isArray(student.allowed_class_types) && student.allowed_class_types.includes(classType)) {
+          return true; // Skip age check for students with exception
+        }
+
         if (!student.date_of_birth) return true; // Include if no DOB set
         
         const dob = new Date(student.date_of_birth);
