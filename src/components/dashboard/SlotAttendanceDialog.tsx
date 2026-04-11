@@ -97,6 +97,19 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
     enabled: open && !!slot,
   });
 
+  // Fetch diagnostics about excluded students (for debugging empty lists)
+  const { data: diagnostics } = useQuery({
+    queryKey: ['attendance-diagnostics', branchId, slot?.beltLevels, slot?.ageFrom, slot?.ageTo, slot?.classType],
+    queryFn: () => getExcludedStudentsDiagnostics(
+      branchId,
+      slot?.beltLevels,
+      slot?.ageFrom,
+      slot?.ageTo,
+      slot?.classType
+    ),
+    enabled: open && !!slot,
+  });
+
   // Get students not yet in attendance
   const studentsInAttendance = useMemo(() => {
     return new Set(attendance.map(a => a.student_id));
@@ -349,6 +362,18 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                   <div className="text-center py-8 text-muted-foreground">
                     {searchQuery ? (
                       <p>No matching students found.</p>
+                    ) : availableStudents.length === 0 && allStudents.length === 0 ? (
+                      <div className="space-y-2">
+                        <p>No eligible students found for this class.</p>
+                        {diagnostics && diagnostics.excluded > 0 && (
+                          <div className="text-xs text-left bg-muted/50 rounded p-3 space-y-1">
+                            <p className="font-medium">Diagnostics: {diagnostics.total} active students, {diagnostics.excluded} excluded:</p>
+                            {Object.entries(diagnostics.reasons).map(([reason, count]) => (
+                              <p key={reason}>• {reason}: {count as number} student{(count as number) > 1 ? 's' : ''}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <p>All eligible students are already in this class.</p>
                     )}
