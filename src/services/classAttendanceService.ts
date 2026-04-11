@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { getCurrentTerm, Term } from './termCalendarService';
 import { getBranchClassTypeSettings } from './branchClassTypeSettingsService';
-import { isStudentEligibleForClass } from '@/utils/classTypeEligibility';
+import { isStudentEligibleForClass, isBeltEligible, checkFullEligibility } from '@/utils/classTypeEligibility';
 import { createInvoice } from './invoiceService';
 
 export interface ClassAttendanceRecord {
@@ -83,7 +83,9 @@ export async function getSlotAttendance(
 }
 
 /**
- * Get branch students filtered by class criteria (belt levels, age range)
+ * Get branch students filtered by class criteria (belt levels, age range, class type).
+ * Uses client-side normalized filtering for robustness.
+ * Also includes students with valid entitlements for the class type as a fallback.
  */
 export async function getBranchStudentsForClass(
   branchId: string,
@@ -93,60 +95,152 @@ export async function getBranchStudentsForClass(
   classType?: string
 ): Promise<StudentForAttendance[]> {
   try {
-    let query = supabase
+    // Fetch ALL active students for this branch (no SQL belt filter — we normalize client-side)
+    const { data, error } = await supabase
       .from('students')
       .select('id, first_name, last_name, current_belt, date_of_birth, phone, status, allowed_class_types')
       .eq('branch_id', branchId)
       .eq('status', 'active')
       .order('first_name');
 
-    // Apply belt level filter if specified
-    if (beltLevels && beltLevels.length > 0) {
-      query = query.in('current_belt', beltLevels);
-    }
-
-    const { data, error } = await query;
-
     if (error) throw error;
 
     let students = data || [];
 
-    // Apply age filter if specified, respecting student-level class type exceptions
-    // Also load branch class type settings for additional age constraints
-    if (ageFrom !== undefined || ageTo !== undefined || classType) {
-      let branchMinAge: number | null = null;
-      let branchMaxAge: number | null = null;
+    // Load branch class type settings for age constraints
+    let branchMinAge: number | null = null;
+    let branchMaxAge: number | null = null;
 
-      if (classType) {
-        try {
-          const branchSettings = await getBranchClassTypeSettings(branchId);
-          const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
-          if (typeSetting) {
-            branchMinAge = typeSetting.min_age;
-            branchMaxAge = typeSetting.max_age;
-          }
-        } catch (e) {
-          logger.warn('Failed to load branch class type settings for attendance filter', e);
+    if (classType) {
+      try {
+        const branchSettings = await getBranchClassTypeSettings(branchId);
+        const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
+        if (typeSetting) {
+          branchMinAge = typeSetting.min_age;
+          branchMaxAge = typeSetting.max_age;
         }
+      } catch (e) {
+        logger.warn('Failed to load branch class type settings for attendance filter', e);
+      }
+    }
+
+    // Also fetch students with active entitlements for this branch as fallback
+    // (students who have valid lesson entitlements but may not have scheduled classes yet)
+    let entitlementStudentIds = new Set<string>();
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: entitlements } = await supabase
+        .from('entitlements')
+        .select('student_id')
+        .eq('is_active', true)
+        .eq('branch_scope', branchId)
+        .gt('sessions_remaining', 0)
+        .or(`valid_to.is.null,valid_to.gte.${today}`);
+
+      if (entitlements) {
+        entitlementStudentIds = new Set(entitlements.map(e => e.student_id));
+      }
+    } catch (e) {
+      logger.warn('Failed to load entitlements for attendance fallback', e);
+    }
+
+    // Apply client-side normalized filtering
+    students = students.filter(student => {
+      const hasEntitlement = entitlementStudentIds.has(student.id);
+
+      // Belt check (normalized)
+      if (!isBeltEligible(student.current_belt, beltLevels)) {
+        // If student has a valid entitlement, allow them despite belt mismatch
+        // (they may have enrolled via invoice for a different belt range)
+        if (!hasEntitlement) return false;
       }
 
-      students = students.filter(student => {
-        return isStudentEligibleForClass({
-          studentDob: student.date_of_birth,
-          studentAllowedClassTypes: student.allowed_class_types,
-          classType,
-          timetableAgeFrom: ageFrom,
-          timetableAgeTo: ageTo,
-          branchMinAge,
-          branchMaxAge,
-        });
+      // Age + class type exception check
+      const ageEligible = isStudentEligibleForClass({
+        studentDob: student.date_of_birth,
+        studentAllowedClassTypes: student.allowed_class_types,
+        classType,
+        timetableAgeFrom: ageFrom,
+        timetableAgeTo: ageTo,
+        branchMinAge,
+        branchMaxAge,
       });
-    }
+
+      if (!ageEligible && !hasEntitlement) return false;
+
+      return true;
+    });
 
     return students;
   } catch (error) {
     logger.error('Failed to get branch students for class', error);
     throw error;
+  }
+}
+
+/**
+ * Get diagnostic info about why students may be excluded from a class.
+ * Returns exclusion reasons for debugging.
+ */
+export async function getExcludedStudentsDiagnostics(
+  branchId: string,
+  beltLevels?: string[],
+  ageFrom?: number,
+  ageTo?: number,
+  classType?: string
+): Promise<{ total: number; excluded: number; reasons: Record<string, number> }> {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, current_belt, date_of_birth, status, allowed_class_types')
+      .eq('branch_id', branchId)
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    const students = data || [];
+    let branchMinAge: number | null = null;
+    let branchMaxAge: number | null = null;
+
+    if (classType) {
+      try {
+        const branchSettings = await getBranchClassTypeSettings(branchId);
+        const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
+        if (typeSetting) {
+          branchMinAge = typeSetting.min_age;
+          branchMaxAge = typeSetting.max_age;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    const reasons: Record<string, number> = {};
+    let excluded = 0;
+
+    for (const student of students) {
+      const result = checkFullEligibility({
+        studentDob: student.date_of_birth,
+        studentBelt: student.current_belt,
+        studentAllowedClassTypes: student.allowed_class_types,
+        classType,
+        timetableAgeFrom: ageFrom,
+        timetableAgeTo: ageTo,
+        branchMinAge,
+        branchMaxAge,
+        beltLevels,
+      });
+
+      if (!result.eligible) {
+        excluded++;
+        const reason = result.reason || 'Unknown';
+        const key = reason.startsWith('Belt') ? 'Belt mismatch' : reason;
+        reasons[key] = (reasons[key] || 0) + 1;
+      }
+    }
+
+    return { total: students.length, excluded, reasons };
+  } catch (error) {
+    logger.error('Failed to get excluded students diagnostics', error);
+    return { total: 0, excluded: 0, reasons: {} };
   }
 }
 

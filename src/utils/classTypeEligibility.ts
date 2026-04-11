@@ -40,6 +40,35 @@ export function hasClassTypeException(
  * @param branchClassTypeSettings - Branch-level min/max age settings for this class type
  * @returns true if the student is eligible
  */
+/**
+ * Normalize a belt level string for comparison (trim + lowercase).
+ */
+export function normalizeBelt(belt: string): string {
+  return belt.trim().toLowerCase();
+}
+
+/**
+ * Check if a student's belt matches any of the allowed belt levels.
+ * Uses normalized (case-insensitive, trimmed) comparison.
+ * Returns true if no belt levels are specified (no filter).
+ */
+export function isBeltEligible(
+  studentBelt: string | null | undefined,
+  allowedBelts: string[] | null | undefined
+): boolean {
+  if (!allowedBelts || allowedBelts.length === 0) return true;
+  if (!studentBelt) return false;
+  const normalized = normalizeBelt(studentBelt);
+  return allowedBelts.some(b => normalizeBelt(b) === normalized);
+}
+
+/**
+ * Determine if a student is eligible for a class based on age,
+ * considering their age exceptions, timetable-level age range,
+ * and branch class type settings.
+ *
+ * @returns true if the student is eligible
+ */
 export function isStudentEligibleForClass(options: {
   studentAge?: number;
   studentDob?: string | null;
@@ -84,4 +113,54 @@ export function isStudentEligibleForClass(options: {
   if (branchMaxAge !== undefined && branchMaxAge !== null && age > branchMaxAge) return false;
 
   return true;
+}
+
+/**
+ * Full eligibility check combining age, belt, and class type exception.
+ * Returns { eligible: boolean, reason?: string } for diagnostics.
+ */
+export function checkFullEligibility(options: {
+  studentDob?: string | null;
+  studentBelt?: string | null;
+  studentAllowedClassTypes?: string[] | null;
+  classType?: string;
+  timetableAgeFrom?: number | null;
+  timetableAgeTo?: number | null;
+  branchMinAge?: number | null;
+  branchMaxAge?: number | null;
+  beltLevels?: string[] | null;
+}): { eligible: boolean; reason?: string } {
+  const {
+    studentDob,
+    studentBelt,
+    studentAllowedClassTypes,
+    classType,
+    timetableAgeFrom,
+    timetableAgeTo,
+    branchMinAge,
+    branchMaxAge,
+    beltLevels,
+  } = options;
+
+  // Check belt eligibility first
+  if (!isBeltEligible(studentBelt, beltLevels)) {
+    return { eligible: false, reason: `Belt mismatch: ${studentBelt || 'none'} not in [${beltLevels?.join(', ')}]` };
+  }
+
+  // Check age eligibility (with class type exception)
+  const ageEligible = isStudentEligibleForClass({
+    studentDob,
+    studentAllowedClassTypes,
+    classType,
+    timetableAgeFrom,
+    timetableAgeTo,
+    branchMinAge,
+    branchMaxAge,
+  });
+
+  if (!ageEligible) {
+    return { eligible: false, reason: 'Age outside allowed range' };
+  }
+
+  return { eligible: true };
 }
