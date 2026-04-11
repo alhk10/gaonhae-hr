@@ -1,27 +1,23 @@
 
 
-## Plan: Fix Age Exception Not Working in Attendance & Student Details
+## Plan: Fix Age Exception Not Working in Attendance
 
 ### Problem
-Qi Wei has `allowed_class_types: ['Kids']` saved in the database, but:
-1. **Attendance Dialog**: The `getBranchStudentsForClass` function in `classAttendanceService.ts` filters by age range but doesn't check `allowed_class_types`, so Qi Wei (age 5) is excluded from Kids class (min_age 6).
-2. **Student Details Dialog**: `StudentDetailsDialog.tsx` doesn't display the `allowed_class_types` field at all.
+Despite `allowed_class_types: ['Kids']` being correctly saved in the database for students like Ker You Tan and Qi Wei, they still don't appear in the attendance "Add Students" list for Kids class slots.
+
+### Root Cause
+The `StudentForAttendance` interface in `classAttendanceService.ts` does not include the `allowed_class_types` field. While the Supabase query selects it and it exists at runtime, TypeScript's type checking may cause issues. More critically, the Supabase client may infer the return type from the table schema and the `.select()` call, but the explicit cast to `StudentForAttendance[]` loses the field's type information, potentially causing subtle issues.
 
 ### Changes
 
-#### 1. `src/services/classAttendanceService.ts` — `getBranchStudentsForClass`
-- Add `allowed_class_types` to the select query
-- Accept a new `classType` parameter
-- In the age filter, skip filtering for students whose `allowed_class_types` array includes the current `classType`
+#### 1. `src/services/classAttendanceService.ts`
+- Add `allowed_class_types?: string[] | null` to the `StudentForAttendance` interface
+- This ensures the field is properly typed and accessible in the age filter logic at line 116
 
-#### 2. `src/components/dashboard/SlotAttendanceDialog.tsx`
-- Pass `slot.classType` to `getBranchStudentsForClass` so it can check age exceptions
-- Update the query key to include `classType`
+#### 2. Verify the filter logic
+- The existing filter logic at lines 116-118 is correct in principle — just needs the type fix above
+- No changes needed to the filter logic itself
 
-#### 3. `src/components/dashboard/StudentDetailsDialog.tsx`
-- Display `allowed_class_types` in the Training Information section (e.g., as badges) when the student has class type exceptions set
-
-### Technical Details
-- The `getBranchStudentsForClass` age filter (lines 111-123) will add: if student's `allowed_class_types` includes the `classType` param, skip the age check
-- The student details dialog receives `student` as a prop — need to ensure `allowed_class_types` is included when the student object is fetched (check the parent component's query)
+### Why This Should Fix It
+The `StudentForAttendance` interface currently has 7 fields but the select query fetches 8 (including `allowed_class_types`). Adding the missing field to the interface ensures TypeScript properly recognizes and preserves the property throughout the data flow.
 
