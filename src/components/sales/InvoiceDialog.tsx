@@ -158,11 +158,11 @@ const isProductAvailableForAge = (
   if (!product.allowed_class_types || product.allowed_class_types.length === 0) return true;
   if (classTypeAgeSettings.length === 0) return true;
   // If student has age exceptions that cover all of this product's class types, skip age check
-  if (studentAllowedClassTypes && product.allowed_class_types.every(ct => studentAllowedClassTypes.includes(ct))) return true;
+  if (studentAllowedClassTypes && product.allowed_class_types.every(ct => hasClassTypeException(studentAllowedClassTypes, ct))) return true;
   return product.allowed_class_types.some(classType => {
-    // Skip age check for class types the student has an exception for
-    if (studentAllowedClassTypes?.includes(classType)) return true;
-    const setting = classTypeAgeSettings.find(s => s.class_type === classType);
+    // Skip age check for class types the student has an exception for (normalized)
+    if (hasClassTypeException(studentAllowedClassTypes, classType)) return true;
+    const setting = classTypeAgeSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
     if (!setting) return true;
     return (setting.min_age === null || studentAge >= setting.min_age) && (setting.max_age === null || studentAge <= setting.max_age);
   });

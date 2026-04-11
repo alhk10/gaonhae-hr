@@ -6,6 +6,7 @@ import { formatTime } from '@/services/branchTimetableService';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
 import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
+import { hasClassTypeException } from '@/utils/classTypeEligibility';
 
 import { toast } from 'sonner';
 import { getPublicHolidays } from '@/services/publicHolidayService';
@@ -83,8 +84,8 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     const settingsMap = new Map(classTypeAgeSettings.map(s => [s.class_type, s]));
 
     return allClasses.filter((cls: any) => {
-      // Check if student has an age exception for this class type
-      const hasAgeException = studentAllowedClassTypes?.includes(cls.class_type);
+      // Check if student has an age exception for this class type (normalized)
+      const hasAgeException = hasClassTypeException(studentAllowedClassTypes, cls.class_type);
 
       if (!hasAgeException) {
         // Filter by timetable-level age range
