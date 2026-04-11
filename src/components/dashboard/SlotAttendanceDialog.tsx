@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import {
   getSlotAttendance,
   getBranchStudentsForClass,
+  getExcludedStudentsDiagnostics,
   recordAttendance,
   addStudentToSlot,
   removeStudentFromSlot,
