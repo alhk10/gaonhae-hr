@@ -1045,11 +1045,19 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
             branchId={branchId}
             onStudentUpdated={async () => {
               await queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
-              // Refresh selectedStudent from the updated cache
+              // Also invalidate attendance student queries so Add Students list refreshes
+              await queryClient.invalidateQueries({ queryKey: ['branch-students-class'] });
+              // Refresh selectedStudent directly from the database to avoid stale cache
               if (selectedStudent) {
-                const updatedStudents = queryClient.getQueryData<Student[]>(['branch-students', branchId]);
-                const updated = updatedStudents?.find(s => s.id === selectedStudent.id);
-                if (updated) setSelectedStudent(updated);
+                try {
+                  const freshStudent = await getStudentById(selectedStudent.id);
+                  if (freshStudent) setSelectedStudent(freshStudent);
+                } catch (e) {
+                  // Fallback to cache if direct fetch fails
+                  const updatedStudents = queryClient.getQueryData<Student[]>(['branch-students', branchId]);
+                  const updated = updatedStudents?.find(s => s.id === selectedStudent.id);
+                  if (updated) setSelectedStudent(updated);
+                }
               }
             }}
             onViewInvoice={(invoiceId) => {
