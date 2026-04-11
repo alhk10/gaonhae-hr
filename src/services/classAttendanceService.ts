@@ -37,6 +37,7 @@ export interface StudentForAttendance {
   date_of_birth?: string;
   phone?: string;
   status: string;
+  allowed_class_types?: string[] | null;
 }
 
 // Ad-Hoc Lesson product for overage/ad-hoc invoices
