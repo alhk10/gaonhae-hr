@@ -197,6 +197,9 @@ const SortableCategoryRow = ({ category, isRevenue, editingCategory, setEditingC
   const [publishedReports, setPublishedReports] = useState<{ branch_id: string; month: number; year: number }[]>([]);
 
   const isSuperadmin = userrole === 'superadmin';
+  const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });
+  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates });
+  const sensors = useSensors(pointerSensor, keyboardSensor);
 
   useEffect(() => {
     const loadData = async () => {
