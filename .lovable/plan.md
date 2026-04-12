@@ -1,15 +1,27 @@
 
 
-## Plan: Hide Invoices Before 1 April 2026 in Student Portal
+## Plan: Add Drag-and-Drop Category Reordering
 
-### Change
-Filter the student portal invoice query to only return invoices created on or after 1 April 2026.
+### Problem
+Currently, reordering categories requires clicking tiny up/down arrows one position at a time -- tedious when you have many categories (like the 20+ revenue items shown).
 
-### File: `src/components/dashboard/StudentDashboard.tsx`
-- **Line 123**: Add `.gte('created_at', '2026-04-01')` to the Supabase query chain, right after `.eq('student_id', studentId)` and before `.order(...)`.
-- This ensures invoices dated before 1 April 2026 are excluded at the database level, so they won't appear in the Invoices tab or be counted in the tab label.
+### Solution
+Replace the up/down arrow buttons with drag-and-drop reordering using `@dnd-kit/core` + `@dnd-kit/sortable`. Each category row becomes a draggable item with a grip handle. Dropping saves the new order to the database in bulk.
+
+### File: `src/pages/BranchProfitLoss.tsx`
+
+1. **Install dependency**: Add `@dnd-kit/core` and `@dnd-kit/sortable` and `@dnd-kit/utilities`
+2. **Replace the category list** (lines 1842-1929) with a `SortableContext` wrapping sortable category rows
+3. **Add a drag handle** (grip icon) on each row instead of the up/down chevron buttons
+4. **Add `handleDragEnd`** handler that:
+   - Reorders the local array
+   - Assigns new sequential `sort_order` values
+   - Batch-updates all affected rows in `pl_categories` via Supabase
+5. **Remove** `handleReorderCategory` function and `ChevronUp`/`ChevronDown` imports (no longer needed)
 
 ### Impact
-- Only affects the Student Portal view -- branch dashboard invoice lists and invoice management pages are unchanged.
-- The tab count `Invoices (N)` will automatically reflect the filtered total.
+- Only affects the "Manage Revenue Categories" and "Manage Expense Categories" dialogs
+- Drag-and-drop makes reordering 10+ items much faster
+- Existing edit, delete, and add functionality unchanged
+- Sort order persists to database same as before
 
