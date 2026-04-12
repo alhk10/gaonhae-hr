@@ -72,8 +72,89 @@ const MONTHS = [
 
 const DEFAULT_REVENUE_CATEGORIES: PLCategory[] = [];
 const DEFAULT_EXPENSE_CATEGORIES: PLCategory[] = [];
+// Sortable category row component for drag-and-drop
+const SortableCategoryRow = ({ category, isRevenue, editingCategory, setEditingCategory, onSaveEdit, onDelete }: {
+  category: PLCategory;
+  isRevenue: boolean;
+  editingCategory: any;
+  setEditingCategory: (v: any) => void;
+  onSaveEdit: () => void;
+  onDelete: () => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
-const BranchProfitLoss = () => {
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center justify-between p-3 hover:bg-muted/50 bg-background">
+      {editingCategory?.id === category.id ? (
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            value={editingCategory.name}
+            onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+            className="h-8 flex-1"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveEdit();
+              if (e.key === 'Escape') setEditingCategory(null);
+            }}
+          />
+          {isRevenue && (
+            <Input
+              type="number"
+              value={editingCategory.cost_price}
+              onChange={(e) => setEditingCategory({ ...editingCategory, cost_price: e.target.value })}
+              className="h-8 w-28"
+              step="0.01"
+              placeholder="Cost Price"
+            />
+          )}
+          <Button size="icon" variant="ghost" onClick={onSaveEdit} className="h-8 w-8 text-green-600">
+            <Check className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => setEditingCategory(null)} className="h-8 w-8">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      ) : (
+        <>
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground touch-none">
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <span className="text-sm flex-1 ml-2">{category.name}</span>
+          {isRevenue && (
+            <span className="text-sm text-muted-foreground w-28 text-right">
+              {category.default_cost_price ? `S$${category.default_cost_price.toFixed(2)}` : '-'}
+            </span>
+          )}
+          <div className="flex gap-0.5 items-center">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setEditingCategory({
+                id: category.id,
+                name: category.name,
+                cost_price: category.default_cost_price?.toString() || ''
+              })}
+              className="h-8 w-8"
+            >
+              <Edit2 className="w-3 h-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="h-8 w-8 text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+
   const { user, userrole } = useAuth();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
@@ -531,7 +612,12 @@ const BranchProfitLoss = () => {
       console.error('Error reordering categories:', error);
       toast.error(error.message || "Error reordering categories");
       // Reload on failure
-      loadCategories();
+      // Revert by reloading from DB
+      const { data } = await supabase.from('pl_categories').select('*').order('sort_order').order('name');
+      if (data) {
+        setRevenueCategories(data.filter(c => c.type === 'revenue') as PLCategory[]);
+        setExpenseCategories(data.filter(c => c.type === 'expense') as PLCategory[]);
+      }
     }
   }, [showManageCategoriesDialog, revenueCategories, expenseCategories, user]);
   
