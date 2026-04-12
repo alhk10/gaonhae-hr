@@ -154,7 +154,7 @@ const SortableCategoryRow = ({ category, isRevenue, editingCategory, setEditingC
   );
 };
 
-
+const BranchProfitLoss = () => {
   const { user, userrole } = useAuth();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
