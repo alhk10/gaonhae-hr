@@ -1,27 +1,26 @@
 
 
-## Plan: Add Drag-and-Drop Category Reordering
+## Plan: Copy Previous Month Expenses
 
-### Problem
-Currently, reordering categories requires clicking tiny up/down arrows one position at a time -- tedious when you have many categories (like the 20+ revenue items shown).
+### What
+Add a "Copy Previous" button in the Expenses section header that copies all expense entries from the previous month into the current month.
 
-### Solution
-Replace the up/down arrow buttons with drag-and-drop reordering using `@dnd-kit/core` + `@dnd-kit/sortable`. Each category row becomes a draggable item with a grip handle. Dropping saves the new order to the database in bulk.
+### How
 
-### File: `src/pages/BranchProfitLoss.tsx`
+**File: `src/pages/BranchProfitLoss.tsx`**
 
-1. **Install dependency**: Add `@dnd-kit/core` and `@dnd-kit/sortable` and `@dnd-kit/utilities`
-2. **Replace the category list** (lines 1842-1929) with a `SortableContext` wrapping sortable category rows
-3. **Add a drag handle** (grip icon) on each row instead of the up/down chevron buttons
-4. **Add `handleDragEnd`** handler that:
-   - Reorders the local array
-   - Assigns new sequential `sort_order` values
-   - Batch-updates all affected rows in `pl_categories` via Supabase
-5. **Remove** `handleReorderCategory` function and `ChevronUp`/`ChevronDown` imports (no longer needed)
+1. **Add a `handleCopyPreviousExpenses` function** that:
+   - Calculates the previous month/year (e.g., April 2026 → March 2026)
+   - Queries `branch_profit_loss_entries` for all expense entries from that previous month/branch
+   - If none found, shows a toast: "No expenses found for [previous month]"
+   - Otherwise, shows a confirmation dialog with the count
+   - On confirm, bulk-inserts all entries into the current month (new IDs, same category/subcategory/description/amount/share_percentage, updated month/year/created_by)
+   - Refreshes local state
 
-### Impact
-- Only affects the "Manage Revenue Categories" and "Manage Expense Categories" dialogs
-- Drag-and-drop makes reordering 10+ items much faster
-- Existing edit, delete, and add functionality unchanged
-- Sort order persists to database same as before
+2. **Add confirmation dialog** using the existing `Dialog` component -- simple "Copy N expense entries from [Month Year]?" with Cancel/Copy buttons
+
+3. **Add "Copy Previous" button** next to the existing Categories and Add buttons in the Expenses card header (line 1745-1754), with a `Copy` icon from lucide-react. Only visible to superadmins.
+
+### UI
+The button row in the Expenses header will become: `Categories | Copy Previous | + Add`
 
