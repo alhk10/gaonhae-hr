@@ -1856,6 +1856,10 @@ const BranchProfitLoss = () => {
                           <Settings className="w-4 h-4" />
                           Categories
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCopyPreviousExpenses} className="gap-1">
+                          <Copy className="w-4 h-4" />
+                          Copy Previous
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => startAddingEntry('expense')} className="gap-1" disabled={isAdding !== null}>
                           <Plus className="w-4 h-4" />
                           Add
@@ -2041,6 +2045,24 @@ const BranchProfitLoss = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowManageCategoriesDialog(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Copy Previous Expenses Confirmation Dialog */}
+        <Dialog open={showCopyExpensesDialog} onOpenChange={setShowCopyExpensesDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Copy Previous Month Expenses</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Copy <strong>{copyExpensesCount}</strong> expense entries from <strong>{copyExpensesMonth}</strong> into the current month?
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCopyExpensesDialog(false)} disabled={isCopying}>Cancel</Button>
+              <Button onClick={confirmCopyExpenses} disabled={isCopying}>
+                {isCopying ? 'Copying...' : 'Copy'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
