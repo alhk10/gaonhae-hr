@@ -444,8 +444,113 @@ const BranchProfitLoss = () => {
       setIsPublishing(false);
     }
   };
+
+  // Handle copy previous month expenses
+  const handleCopyPreviousExpenses = async () => {
+    if (!selectedBranch) {
+      toast.error('Please select a branch first');
+      return;
+    }
+
+    const prevMonth = parseInt(selectedMonth) - 1;
+    const prevYear = prevMonth === 0 ? parseInt(selectedYear) - 1 : parseInt(selectedYear);
+    const actualPrevMonth = prevMonth === 0 ? 12 : prevMonth;
+    const prevMonthName = MONTHS[actualPrevMonth - 1];
+
+    try {
+      const { data, error } = await supabase
+        .from('branch_profit_loss_entries')
+        .select('*')
+        .eq('branch_id', selectedBranch)
+        .eq('month', actualPrevMonth)
+        .eq('year', prevYear)
+        .eq('type', 'expense');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error(`No expenses found for ${prevMonthName} ${prevYear}`);
+        return;
+      }
+
+      setCopyExpensesCount(data.length);
+      setCopyExpensesMonth(`${prevMonthName} ${prevYear}`);
+      setShowCopyExpensesDialog(true);
+    } catch (error: any) {
+      console.error('Error fetching previous expenses:', error);
+      toast.error('Failed to fetch previous month expenses');
+    }
+  };
+
+  const confirmCopyExpenses = async () => {
+    setIsCopying(true);
+    try {
+      const prevMonth = parseInt(selectedMonth) - 1;
+      const prevYear = prevMonth === 0 ? parseInt(selectedYear) - 1 : parseInt(selectedYear);
+      const actualPrevMonth = prevMonth === 0 ? 12 : prevMonth;
+
+      const { data: prevEntries, error: fetchError } = await supabase
+        .from('branch_profit_loss_entries')
+        .select('*')
+        .eq('branch_id', selectedBranch)
+        .eq('month', actualPrevMonth)
+        .eq('year', prevYear)
+        .eq('type', 'expense');
+
+      if (fetchError) throw fetchError;
+      if (!prevEntries || prevEntries.length === 0) return;
+
+      const newEntries = prevEntries.map(entry => ({
+        branch_id: selectedBranch,
+        month: parseInt(selectedMonth),
+        year: parseInt(selectedYear),
+        category: entry.category,
+        subcategory: entry.subcategory,
+        description: entry.description,
+        cost_price: entry.cost_price,
+        quantity: entry.quantity,
+        sales_amount: entry.sales_amount,
+        discount_percentage: entry.discount_percentage,
+        amount: entry.amount,
+        share_percentage: entry.share_percentage,
+        type: 'expense',
+        created_by: user?.email
+      }));
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('branch_profit_loss_entries')
+        .insert(newEntries)
+        .select();
+
+      if (insertError) throw insertError;
+
+      if (inserted) {
+        const mappedEntries = inserted.map(item => ({
+          id: item.id,
+          category: item.category,
+          subcategory: item.subcategory,
+          description: item.description || '',
+          cost_price: item.cost_price ? Number(item.cost_price) : null,
+          quantity: Number(item.quantity) || 1,
+          sales_amount: item.sales_amount ? Number(item.sales_amount) : null,
+          discount_percentage: item.discount_percentage ? Number(item.discount_percentage) : null,
+          amount: Number(item.amount),
+          share_percentage: Number(item.share_percentage) || 100,
+          type: 'expense' as const
+        }));
+        setProfitLossData(prev => [...prev, ...mappedEntries]);
+      }
+
+      toast.success(`Copied ${inserted?.length || 0} expense entries from ${copyExpensesMonth}`);
+      setShowCopyExpensesDialog(false);
+    } catch (error: any) {
+      console.error('Error copying expenses:', error);
+      toast.error('Failed to copy expenses');
+    } finally {
+      setIsCopying(false);
+    }
+  };
   
-  // Get default share percentage from branch share config
   const getDefaultSharePercentage = () => {
     if (branchDefaultShare !== null) {
       return branchDefaultShare.toString();
