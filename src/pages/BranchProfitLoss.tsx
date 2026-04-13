@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableCategorySelect } from '@/components/ui/searchable-category-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, GripVertical, Send, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Building2, Calendar, Download, FileSpreadsheet, Percent, User, Plus, Edit2, Trash2, Save, X, Check, PlusCircle, Settings, GripVertical, Send, CheckCircle, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -195,6 +195,10 @@ const BranchProfitLoss = () => {
   });
 
   const [publishedReports, setPublishedReports] = useState<{ branch_id: string; month: number; year: number }[]>([]);
+  const [showCopyExpensesDialog, setShowCopyExpensesDialog] = useState(false);
+  const [copyExpensesCount, setCopyExpensesCount] = useState(0);
+  const [copyExpensesMonth, setCopyExpensesMonth] = useState('');
+  const [isCopying, setIsCopying] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });
