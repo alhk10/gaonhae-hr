@@ -22,6 +22,7 @@ export const trainingGoalOptions = [
 
 export const countryCodes = [
   { code: '+65', country: 'SG', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+61', country: 'AU', flag: '🇦🇺', name: 'Australia' },
   { code: '+60', country: 'MY', flag: '🇲🇾', name: 'Malaysia' },
   { code: '+62', country: 'ID', flag: '🇮🇩', name: 'Indonesia' },
   { code: '+86', country: 'CN', flag: '🇨🇳', name: 'China' },
@@ -33,7 +34,6 @@ export const countryCodes = [
   { code: '+82', country: 'KR', flag: '🇰🇷', name: 'South Korea' },
   { code: '+1', country: 'US', flag: '🇺🇸', name: 'United States' },
   { code: '+44', country: 'GB', flag: '🇬🇧', name: 'United Kingdom' },
-  { code: '+61', country: 'AU', flag: '🇦🇺', name: 'Australia' },
   { code: '+64', country: 'NZ', flag: '🇳🇿', name: 'New Zealand' },
   { code: '+49', country: 'DE', flag: '🇩🇪', name: 'Germany' },
   { code: '+33', country: 'FR', flag: '🇫🇷', name: 'France' },
