@@ -22,6 +22,7 @@ export const trainingGoalOptions = [
 
 export const countryCodes = [
   { code: '+65', country: 'SG', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+61', country: 'AU', flag: '🇦🇺', name: 'Australia' },
   { code: '+60', country: 'MY', flag: '🇲🇾', name: 'Malaysia' },
   { code: '+62', country: 'ID', flag: '🇮🇩', name: 'Indonesia' },
   { code: '+86', country: 'CN', flag: '🇨🇳', name: 'China' },
