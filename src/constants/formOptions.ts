@@ -34,7 +34,6 @@ export const countryCodes = [
   { code: '+82', country: 'KR', flag: '🇰🇷', name: 'South Korea' },
   { code: '+1', country: 'US', flag: '🇺🇸', name: 'United States' },
   { code: '+44', country: 'GB', flag: '🇬🇧', name: 'United Kingdom' },
-  { code: '+61', country: 'AU', flag: '🇦🇺', name: 'Australia' },
   { code: '+64', country: 'NZ', flag: '🇳🇿', name: 'New Zealand' },
   { code: '+49', country: 'DE', flag: '🇩🇪', name: 'Germany' },
   { code: '+33', country: 'FR', flag: '🇫🇷', name: 'France' },
