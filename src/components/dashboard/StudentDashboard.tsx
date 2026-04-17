@@ -678,7 +678,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       // Format date helpers (same as admin page)
       const formatShortDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);          return formatDate(date));
+          return formatDate(dateStr);
         } catch {
           return dateStr;
         }
@@ -686,7 +686,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       const formatFullDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);          return formatDate(date));
+          return formatDate(dateStr);
         } catch {
           return dateStr;
         }

@@ -163,7 +163,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   // Generate default title based on selected values
   const generateDefaultTitle = (branchId: string, date: string, time: string, belts: string[]) => {
     const branchName = branches.find(b => b.id === branchId)?.name || '';
-    const dateStr =formatDate( date ? new Date(date)) : '';
+    const dateStr = date ? formatDate(date + 'T00:00:00') : '';
     const timeStr = time ? time.slice(0, 5) : '';
     const beltStr = belts.length > 0 ? belts.slice(0, 3).join(', ') + (belts.length > 3 ? '...' : '') : '';
     

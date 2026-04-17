@@ -254,7 +254,7 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
 
   const formatDateSGT = (dateString: string | null) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);    return formatDate(date));
+    return formatDate(dateString);
   };
 
   const getClaimTypeIcon = (typeName: string) => {

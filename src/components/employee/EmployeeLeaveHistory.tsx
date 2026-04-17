@@ -229,8 +229,8 @@ const EmployeeLeaveHistory: React.FC<EmployeeLeaveHistoryProps> = ({
                                   <div>
                                     <label className="text-sm font-medium">Reviewed Date</label>
                                     <p className="text-sm text-muted-foreground">
-                                      {formatDate(selectedLeave.reviewed_date 
-                                        ? new Date(selectedLeave.reviewed_date))
+                                      {selectedLeave.reviewed_date 
+                                        ? formatDate(selectedLeave.reviewed_date)
                                         : 'N/A'
                                       }
                                     </p>

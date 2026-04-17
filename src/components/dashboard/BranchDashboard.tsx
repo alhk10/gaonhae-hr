@@ -327,8 +327,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         gradingData?.forEach(s => { gradingMap[s.id] = s; });
       }
 
-      const fmtShort = (d: string) => { try {formatDate( return new Date(d)); } catch { return d; } };
-      const fmtFull = (d: string) => { try {formatDate( return new Date(d)); } catch { return d; } };
+      const fmtShort = (d: string) => { try { return formatDate(d); } catch { return d; } };
+      const fmtFull = (d: string) => { try { return formatDate(d); } catch { return d; } };
 
       const sourceInvoice = fullInvoice ?? invoice;
 

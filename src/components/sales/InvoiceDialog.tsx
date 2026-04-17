@@ -1208,7 +1208,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (status === 'verified') return 'Verified';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
-  const formatDate = (dateString?: string) =>formatDate( dateString ? new Date(dateString)) : '-';
+  const formatDateLocal = (dateString?: string) => dateString ? formatDate(dateString) : '-';
 
   // Render class slot badges
   const renderClassSlotBadges = (classSlots: string[]) => (

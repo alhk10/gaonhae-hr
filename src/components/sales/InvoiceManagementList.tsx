@@ -337,7 +337,7 @@ const InvoiceManagementList: React.FC = () => {
     // Format date helper
     const formatShortDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);        return formatDate(date));
+        return formatDate(dateStr);
       } catch {
         return dateStr;
       }
@@ -345,7 +345,7 @@ const InvoiceManagementList: React.FC = () => {
 
     const formatFullDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);        return formatDate(date));
+        return formatDate(dateStr);
       } catch {
         return dateStr;
       }

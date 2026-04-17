@@ -57,8 +57,8 @@ const createEmptyRow = (): BulkRow => ({
 });
 
 const generateTitle = (branchName: string, date: string, time: string, belts: string[]): string => {
-  const dateStr =formatDate( date
-    ? new Date(date + 'T00:00:00'))
+  const dateStr = date
+    ? formatDate(date + 'T00:00:00')
     : '';
   const timeStr = time ? time.slice(0, 5) : '';
   const beltStr = belts.length > 0

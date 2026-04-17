@@ -400,8 +400,8 @@ const LeaveEncashmentManager = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {formatDate(record.processed_date 
-                            ? new Date(record.processed_date))
+                          {record.processed_date 
+                            ? formatDate(record.processed_date)
                             : '-'
                           }
                         </TableCell>
