@@ -18,6 +18,7 @@ import { isWithinBranchRange } from '@/services/geolocationService';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationOptIn } from '@/components/notifications/NotificationOptIn';
 import AttendanceManagementContent from '@/components/attendance/AttendanceManagementContent';
+import { formatDate } from '@/utils/dateFormat';
 
 interface AttendanceRecord {
   id: number;
@@ -505,11 +506,7 @@ const MyAttendance = () => {
                         {filteredData.map((record) => (
                           <TableRow key={record.id}>
                             <TableCell>
-                              {new Date(record.date).toLocaleDateString('en-SG', { 
-                                weekday: 'short', 
-                                day: '2-digit', 
-                                month: 'short' 
-                              })}
+                              {formatDate(new Date(record.date))}
                             </TableCell>
                             <TableCell>{record.check_in || '-'}</TableCell>
                             <TableCell>{record.check_out || '-'}</TableCell>

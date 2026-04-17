@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   FolderPlus, 
   Search, 
   Edit, 
@@ -130,12 +131,8 @@ const ProductCategoriesDialog: React.FC<ProductCategoriesDialogProps> = ({ open,
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   return (

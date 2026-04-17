@@ -11,6 +11,7 @@ import { Trash2, Plus, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '@/utils/dateFormat';
 
 interface LocationException {
   id: string;
@@ -239,11 +240,11 @@ const LocationExceptionManager: React.FC<LocationExceptionManagerProps> = ({
                 <p className="text-sm text-gray-600">{exception.reason}</p>
                 
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
-                  <span>Created: {new Date(exception.created_at).toLocaleDateString()}</span>
+                  <span>Created: {formatDate(new Date(exception.created_at))}</span>
                   {exception.expires_at && (
                     <span className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>Expires: {new Date(exception.expires_at).toLocaleDateString()}</span>
+                      <span>Expires: {formatDate(new Date(exception.expires_at))}</span>
                     </span>
                   )}
                 </div>

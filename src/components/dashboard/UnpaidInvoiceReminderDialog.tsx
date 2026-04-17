@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -74,8 +75,8 @@ const UnpaidInvoiceReminderDialog: React.FC<UnpaidInvoiceReminderDialogProps> = 
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {invoice.due_date
-                      ? `Due: ${format(new Date(invoice.due_date), 'dd MMM yyyy')}`
-                      : `Issued: ${format(new Date(invoice.created_at), 'dd MMM yyyy')}`}
+                      ? `Due: ${formatDate(new Date(invoice.due_date))}`
+                      : `Issued: ${formatDate(new Date(invoice.created_at))}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Plus, Settings, Users, ArrowLeftRight, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { formatDate } from '@/utils/dateFormat';
 
 const CasualEmployeesBooking = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -47,7 +48,7 @@ const CasualEmployeesBooking = () => {
       weekDates.push({
         dayName: days[i],
         date: date.toISOString().split('T')[0],
-        displayDate: date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
+        displayDate:formatDate( date)
       });
     }
     
@@ -68,7 +69,7 @@ const CasualEmployeesBooking = () => {
 
     setBookings(prev => [...prev, newBooking]);
     setIsBookingDialogOpen(false);
-    toast(`Booked ${newBooking.employee} for ${new Date(newBooking.date).toLocaleDateString()}`);
+    toast(`Booked ${newBooking.employee} for ${formatDate(new Date(newBooking.date))}`);
   };
 
   const handleQuickBooking = (date, timeSlot) => {
@@ -80,7 +81,7 @@ const CasualEmployeesBooking = () => {
     };
 
     setBookings(prev => [...prev, newBooking]);
-    toast(`Quick booked ${newBooking.employee} for ${new Date(date).toLocaleDateString()}`);
+    toast(`Quick booked ${newBooking.employee} for ${formatDate(new Date(date))}`);
   };
 
   const handleSwap = (bookingId) => {

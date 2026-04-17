@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getEmployees } from '@/services/employeeService';
 import { logSecurityEvent } from '@/services/securityService';
 import { EmployeeProfile } from '@/types/employee';
+import { formatDate } from '@/utils/dateFormat';
 
 interface SuperadminUser {
   id: string;
@@ -311,7 +312,7 @@ const SuperadminManager: React.FC = () => {
               <TableRow key={superadmin.id}>
                 <TableCell className="font-medium">{superadmin.employee_name}</TableCell>
                 <TableCell>{superadmin.employee_email}</TableCell>
-                <TableCell>{new Date(superadmin.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>{formatDate(new Date(superadmin.created_at))}</TableCell>
                 <TableCell className="max-w-xs truncate">{superadmin.notes}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${

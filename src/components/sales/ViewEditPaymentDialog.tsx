@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt, Upload } from 'lucide-react';
+import { formatDate } from '@/utils/dateFormat';
 
 interface ViewEditPaymentDialogProps {
   paymentId: string;
@@ -154,8 +155,8 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
     return methods[method] || method;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   if (loading) {

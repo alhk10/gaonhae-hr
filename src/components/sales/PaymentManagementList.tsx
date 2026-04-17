@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -156,8 +157,8 @@ const PaymentManagementList: React.FC = () => {
   };
 
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   const clearFilters = () => {

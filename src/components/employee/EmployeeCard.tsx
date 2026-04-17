@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   Mail, 
   Phone, 
   Calendar, 
@@ -148,7 +149,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({
               {employee.joinDate && (
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                  <span>Joined: {new Date(employee.joinDate).toLocaleDateString()}</span>
+                  <span>Joined: {formatDate(new Date(employee.joinDate))}</span>
                 </div>
               )}
 

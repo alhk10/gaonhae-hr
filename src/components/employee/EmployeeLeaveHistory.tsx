@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Calendar, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { formatDate } from '@/utils/dateFormat';
 
 interface LeaveRequest {
   id: number;
@@ -147,8 +148,8 @@ const EmployeeLeaveHistory: React.FC<EmployeeLeaveHistoryProps> = ({
                   <TableRow key={leave.id}>
                     <TableCell className="font-medium">{leave.type}</TableCell>
                     <TableCell>
-                      {new Date(leave.start_date).toLocaleDateString()} - {' '}
-                      {new Date(leave.end_date).toLocaleDateString()}
+                      {formatDate(new Date(leave.start_date))} - {' '}
+                      {formatDate(new Date(leave.end_date))}
                     </TableCell>
                     <TableCell>{leave.days_requested}</TableCell>
                     <TableCell>
@@ -189,19 +190,19 @@ const EmployeeLeaveHistory: React.FC<EmployeeLeaveHistoryProps> = ({
                                 <div>
                                   <label className="text-sm font-medium">Start Date</label>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(selectedLeave.start_date).toLocaleDateString()}
+                                    {formatDate(new Date(selectedLeave.start_date))}
                                   </p>
                                 </div>
                                 <div>
                                   <label className="text-sm font-medium">End Date</label>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(selectedLeave.end_date).toLocaleDateString()}
+                                    {formatDate(new Date(selectedLeave.end_date))}
                                   </p>
                                 </div>
                                 <div>
                                   <label className="text-sm font-medium">Applied Date</label>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(selectedLeave.applied_date).toLocaleDateString()}
+                                    {formatDate(new Date(selectedLeave.applied_date))}
                                   </p>
                                 </div>
                                 <div>
@@ -228,8 +229,8 @@ const EmployeeLeaveHistory: React.FC<EmployeeLeaveHistoryProps> = ({
                                   <div>
                                     <label className="text-sm font-medium">Reviewed Date</label>
                                     <p className="text-sm text-muted-foreground">
-                                      {selectedLeave.reviewed_date 
-                                        ? new Date(selectedLeave.reviewed_date).toLocaleDateString()
+                                      {formatDate(selectedLeave.reviewed_date 
+                                        ? new Date(selectedLeave.reviewed_date))
                                         : 'N/A'
                                       }
                                     </p>

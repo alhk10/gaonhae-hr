@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { getClaims, updateClaimStatus, updateClaim } from '@/services/claimsService';
 import { getClaimTypes } from '@/services/claimTypesService';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatDate } from '@/utils/dateFormat';
 
 const ClaimsApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -118,12 +119,8 @@ const ClaimsApprovals: React.FC = () => {
     setEditingId(null);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   if (error) {

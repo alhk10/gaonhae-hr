@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { X, Calendar, Trash2, DollarSign, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { isFromNovember2024 } from '@/utils/slotPayCalculation';
+import { formatMonthShort } from '@/utils/dateFormat';
 
 interface SelectedDatesManagerProps {
   selectedDates: Date[];
@@ -89,7 +90,7 @@ const SelectedDatesManager: React.FC<SelectedDatesManagerProps> = ({
                       style={{ backgroundColor: convertTailwindColorToHex(branchColor) }}
                     ></div>
                     <span className="font-medium truncate">
-                      {format(date, 'MMM dd')}
+                      {formatMonthShort(date)}
                     </span>
                     <Badge variant="outline" className="text-xs px-1 py-0">
                       {format(date, 'EEE')}

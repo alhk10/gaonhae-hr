@@ -21,6 +21,7 @@ import { applyForLeaveWithValidation, calculateEmployeeLeaveEntitlement } from '
 import EmployeeLeaveInfo from '@/components/leave/EmployeeLeaveInfo';
 import MedicalCertificateUpload from '@/components/leave/MedicalCertificateUpload';
 import LeaveManagementContent from '@/components/leave/LeaveManagementContent';
+import { formatDate } from '@/utils/dateFormat';
 
 const ApplyLeave = () => {
   const { user, userrole } = useAuth();
@@ -146,7 +147,7 @@ const ApplyLeave = () => {
       summary += ` + 14 medical leave days.`;
       
       if (joinYear === currentYear) {
-        summary += ` (Pro-rated from your join date in ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })})`;
+        summary += ` (Pro-rated from your join date in ${formatDate(new Date(joinDate))})`;
       }
       
       return summary;

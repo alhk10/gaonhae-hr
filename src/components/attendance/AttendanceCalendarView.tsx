@@ -19,6 +19,7 @@ import { getEmployees } from '@/services/employeeService';
 import { getBranches, type Branch } from '@/services/settingsService';
 import { useAuth } from '@/contexts/AuthContext';
 import BulkAttendanceDialog from './BulkAttendanceDialog';
+import { formatDate } from '@/utils/dateFormat';
 
 const localizer = dateFnsLocalizer({
   format,
@@ -365,7 +366,7 @@ const AttendanceCalendarView = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Date</p>
-                  <p className="text-sm">{new Date(selectedRecord.date).toLocaleDateString()}</p>
+                  <p className="text-sm">{formatDate(new Date(selectedRecord.date))}</p>
                 </div>
               </div>
               

@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -255,8 +256,8 @@ const InvoiceManagementList: React.FC = () => {
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-SG');
+    if (!dateString) return '-';formatDate(
+    return new Date(dateString));
   };
 
   // Prepare invoice data for PDF generation
@@ -342,8 +343,8 @@ const InvoiceManagementList: React.FC = () => {
     // Format date helper
     const formatShortDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const date = new Date(dateStr);formatDate(
+        return date);
       } catch {
         return dateStr;
       }
@@ -351,8 +352,8 @@ const InvoiceManagementList: React.FC = () => {
 
     const formatFullDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const date = new Date(dateStr);formatDate(
+        return date);
       } catch {
         return dateStr;
       }

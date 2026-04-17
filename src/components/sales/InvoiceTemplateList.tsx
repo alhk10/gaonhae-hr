@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   getInvoiceTemplates, 
   createInvoiceTemplate, 
   updateInvoiceTemplate,
@@ -211,8 +212,8 @@ const InvoiceTemplateList: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   const getCountryLabel = (code?: string) => {

@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type GradingSlot } from '@/services/gradingService';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { BELT_LEVELS } from '@/constants/beltLevels';
+import { formatDate } from '@/utils/dateFormat';
 
 interface GradingSlotDialogProps {
   trigger: React.ReactNode;
@@ -162,7 +163,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   // Generate default title based on selected values
   const generateDefaultTitle = (branchId: string, date: string, time: string, belts: string[]) => {
     const branchName = branches.find(b => b.id === branchId)?.name || '';
-    const dateStr = date ? new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    const dateStr =formatDate( date ? new Date(date)) : '';
     const timeStr = time ? time.slice(0, 5) : '';
     const beltStr = belts.length > 0 ? belts.slice(0, 3).join(', ') + (belts.length > 3 ? '...' : '') : '';
     

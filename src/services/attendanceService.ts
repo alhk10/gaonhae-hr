@@ -3,6 +3,7 @@ import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } f
 import { getAllSlotBookings } from './slotBookingService';
 import { getEmployeeById } from './employeeService';
 import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormat';
 
 export interface AttendanceRecord {
   id: number;
@@ -182,7 +183,7 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
     hour: '2-digit',
     minute: '2-digit'
   });
-  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const dayOfWeek =formatDate( new Date());
 
   try {
     // Check if employee is casual and validate slot booking for clock in

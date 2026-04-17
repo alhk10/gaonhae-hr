@@ -40,6 +40,7 @@ import { AdminAccessPermissions, EmployeePageAccessPermissions, EmployeeQualific
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatDate } from '@/utils/dateFormat';
 
 const CasualEmployeeDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -699,11 +700,7 @@ const CasualEmployeeDetails = () => {
                               return (
                                 <TableRow key={booking.id}>
                                   <TableCell className="font-medium">
-                                    {new Date(booking.date).toLocaleDateString('en-SG', { 
-                                      day: '2-digit', 
-                                      month: 'short', 
-                                      year: 'numeric' 
-                                    })}
+                                    {formatDate(new Date(booking.date))}
                                   </TableCell>
                                   <TableCell>
                                     {clockIn ? clockIn.toLocaleTimeString('en-SG', { 

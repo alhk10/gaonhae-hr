@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -321,7 +322,7 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                                   <div key={inv.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-background border">
                                     <div className="flex items-center gap-2">
                                       <span className="font-mono font-medium">{inv.invoice_number}</span>
-                                      <span className="text-muted-foreground">{inv.issue_date ? format(new Date(inv.issue_date), 'dd MMM yyyy') : '-'}</span>
+                                      <span className="text-muted-foreground">{inv.issue_date ? formatDate(new Date(inv.issue_date)) : '-'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <span className="font-medium">${Number(inv.total_amount).toFixed(2)}</span>

@@ -14,6 +14,7 @@ import { Plus, Calendar, Edit, Trash2, GraduationCap, Clock, AlertCircle, X, Cop
 import { format, parseISO, addDays } from 'date-fns';
 import { useBranches } from '@/hooks/useBranches';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Term,
   TermBreak,
   getTerms,
@@ -340,7 +341,7 @@ export function TermCalendarManagement() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), 'd MMM yyyy');
+      return formatDate(parseISO(dateStr));
     } catch {
       return dateStr;
     }
@@ -434,7 +435,7 @@ export function TermCalendarManagement() {
                           <span className="mx-2">•</span>
                           {term.total_weeks || '?'} weeks
                           <span className="mx-2">•</span>
-                          Valid until: {format(validityEnd, 'd MMM yyyy')}
+                          Valid until: {formatDate(validityEnd)}
                         </div>
                         {term.breaks && term.breaks.length > 0 && (
                           <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
@@ -595,7 +596,7 @@ export function TermCalendarManagement() {
                 {getValidityEndDate() && (
                   <div className="flex justify-between">
                     <span>Validity Ends:</span>
-                    <span className="font-medium">{format(getValidityEndDate()!, 'd MMM yyyy')}</span>
+                    <span className="font-medium">{formatDate(getValidityEndDate()!)}</span>
                   </div>
                 )}
               </div>

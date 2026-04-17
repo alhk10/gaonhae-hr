@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   BarChart, 
   Bar, 
   LineChart, 
@@ -78,8 +79,8 @@ const SalesAnalytics: React.FC = () => {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];

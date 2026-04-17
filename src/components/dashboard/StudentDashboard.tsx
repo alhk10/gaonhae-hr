@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   GraduationCap, 
   DollarSign, 
   Calendar, 
@@ -677,8 +678,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       // Format date helpers (same as admin page)
       const formatShortDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const date = new Date(dateStr);formatDate(
+          return date);
         } catch {
           return dateStr;
         }
@@ -686,8 +687,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       const formatFullDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          const date = new Date(dateStr);formatDate(
+          return date);
         } catch {
           return dateStr;
         }
@@ -897,7 +898,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Enrolled Since</span>
                   <span className="font-medium">
-                    {student.enrollment_date ? format(new Date(student.enrollment_date), 'dd MMM yyyy') : 'N/A'}
+                    {student.enrollment_date ? formatDate(new Date(student.enrollment_date)) : 'N/A'}
                   </span>
                 </div>
               </CardContent>
@@ -920,7 +921,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                           <div>
                             <p className="font-medium text-sm">{invoice.invoice_number}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                              {formatDate(new Date(invoice.created_at))}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1134,7 +1135,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-sm">{invoice.invoice_number}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                                  {formatDate(new Date(invoice.created_at))}
                                 </p>
                               </div>
                               <div className="text-right flex-shrink-0 ml-2">
@@ -1180,7 +1181,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                             <div className="min-w-0">
                               <p className="font-medium truncate">{invoice.invoice_number}</p>
                               <p className="text-sm text-muted-foreground">
-                                {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                                {formatDate(new Date(invoice.created_at))}
                               </p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">

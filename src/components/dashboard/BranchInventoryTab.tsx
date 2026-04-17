@@ -13,6 +13,7 @@ import { getTransferRequestsByBranch } from '@/services/inventoryTransferService
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
+import { formatDate } from '@/utils/dateFormat';
 
 interface BranchInventoryTabProps {
   branchId: string;
@@ -403,7 +404,7 @@ const BranchInventoryTab: React.FC<BranchInventoryTabProps> = ({ branchId }) => 
                     {req.reason && <p className="text-xs text-muted-foreground mt-1">{req.reason}</p>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(new Date(req.created_at))}</span>
                     {getStatusBadge(req.status)}
                   </div>
                 </div>

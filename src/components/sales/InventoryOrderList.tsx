@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   getInventoryOrders, 
   approveInventoryOrder, 
   rejectInventoryOrder,
@@ -187,7 +188,7 @@ const InventoryOrderList: React.FC<InventoryOrderListProps> = ({
                   <TableCell className="text-right font-medium">${order.total_cost.toFixed(2)}</TableCell>
                   <TableCell className="text-sm">{order.requested_by_email || order.requested_by}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(order.created_at), 'MMM d, yyyy')}
+                    {formatDate(new Date(order.created_at))}
                   </TableCell>
                   <TableCell>{renderStatusBadge(order.status)}</TableCell>
                   {(showApprovalActions && isSuperadmin) && (

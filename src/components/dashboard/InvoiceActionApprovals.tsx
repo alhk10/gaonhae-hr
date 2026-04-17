@@ -13,6 +13,7 @@ import { getPendingActionRequests, approveActionRequest, rejectActionRequest, ty
 import { cancelInvoice } from '@/services/invoiceService';
 import { refundLineItem } from '@/services/invoiceRefundService';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 
 const InvoiceActionApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -128,7 +129,7 @@ const InvoiceActionApprovals: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {request.student_name} · {request.requested_by_email} · {format(new Date(request.created_at), 'dd MMM yyyy')}
+                  {request.student_name} · {request.requested_by_email} · {formatDate(new Date(request.created_at))}
                 </div>
                 {request.action_type === 'item_refund' && (request.request_data as any)?.reason && (
                   <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
@@ -161,7 +162,7 @@ const InvoiceActionApprovals: React.FC = () => {
                     <TableCell className="font-medium">{request.invoice_number}</TableCell>
                     <TableCell>{request.student_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{request.requested_by_email}</TableCell>
-                    <TableCell className="text-sm">{format(new Date(request.created_at), 'dd MMM yyyy')}</TableCell>
+                    <TableCell className="text-sm">{formatDate(new Date(request.created_at))}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="default" onClick={() => handleApprove(request)} disabled={processingId === request.id}>

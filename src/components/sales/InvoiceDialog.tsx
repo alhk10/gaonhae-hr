@@ -43,6 +43,7 @@ import { differenceInYears, differenceInMonths, format, parseISO } from 'date-fn
 import { formatCurrency } from '@/utils/currencyUtils';
 import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
+import { formatDate } from '@/utils/dateFormat';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
@@ -1207,7 +1208,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (status === 'verified') return 'Verified';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
-  const formatDate = (dateString?: string) => dateString ? new Date(dateString).toLocaleDateString('en-SG') : '-';
+  const formatDate = (dateString?: string) =>formatDate( dateString ? new Date(dateString)) : '-';
 
   // Render class slot badges
   const renderClassSlotBadges = (classSlots: string[]) => (
@@ -1382,7 +1383,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                     {selectedCategory?.name === 'Classes' && branchTerms.length > 0 ? (
                       <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select>
                     ) : newItem.category_id === GRADING_CATEGORY_ID && getFilteredGradingSlots().length > 0 ? (
-                      <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${new Date(s.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>)}</SelectContent></Select>
+                      <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select>
                     ) : null}
                   </div>
                 )}
@@ -1421,7 +1422,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                   <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
                   <TableCell className="px-2">{sizeOptions.length > 0 ? <Select value={newItem.size_variant} onValueChange={(v) => handleNewItemChange('size_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Size" /></SelectTrigger><SelectContent>{sizeOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select> : showSizeInput ? <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs w-16 px-1" /> : <span className="text-muted-foreground">-</span>}</TableCell>
                   <TableCell className="px-2">{colorOptions.length > 0 ? <Select value={newItem.color_variant} onValueChange={(v) => handleNewItemChange('color_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Color" /></SelectTrigger><SelectContent>{colorOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${new Date(s.grading_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No slots</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
+                  <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No slots</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
                   <TableCell className="px-2 text-muted-foreground">-</TableCell>
                   <TableCell className="px-1"><Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id}><Plus className="h-3.5 w-3.5" /></Button></TableCell>
                 </TableRow>

@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { addAttendanceRecord } from '@/services/attendanceService';
 import { getEmployees } from '@/services/employeeService';
 import { getBranches } from '@/services/settingsService';
+import { formatDate } from '@/utils/dateFormat';
 
 interface BulkAttendanceDialogProps {
   isOpen: boolean;
@@ -191,7 +192,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
             <span>Add Bulk Attendance</span>
           </DialogTitle>
           <DialogDescription>
-            Add attendance records for multiple employees at once for {format(selectedDate, 'PPP')}
+            Add attendance records for multiple employees at once for {formatDate(selectedDate)}
           </DialogDescription>
         </DialogHeader>
 
@@ -201,7 +202,7 @@ const BulkAttendanceDialog: React.FC<BulkAttendanceDialogProps> = ({
               <Label htmlFor="date">Date</Label>
               <Input
                 id="date"
-                value={format(selectedDate, 'dd/MM/yyyy')}
+                value={formatDate(selectedDate)}
                 disabled
                 className="bg-gray-50"
               />

@@ -15,6 +15,7 @@ import { getEmployeeById } from '@/services/employeeService';
 import { EmployeeQualifications } from '@/types/employee';
 import { calculateSlotPay, getPayBreakdown, isFromNovember2024 } from '@/utils/slotPayCalculation';
 import {
+import { formatDate, formatMonthShort } from '@/utils/dateFormat';
   getBranches,
   addSlotBooking,
   getEmployeeSlotBookings,
@@ -377,7 +378,7 @@ const SlotBooking = () => {
     if (employeeBookingDates.has(dateString)) return true;
     
     // Check if branch has 0 slots available for this day
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+    const dayName =formatDate( date).toLowerCase() as keyof WeeklySlotConfig;
     const branchConfig = weeklySlotConfig[selectedBranch];
     const totalSlots = branchConfig ? branchConfig[dayName] : 0;
     
@@ -406,7 +407,7 @@ const SlotBooking = () => {
         const existingBooking = employeeBookings.find(b => b.date === dateString);
         const branchName = existingBooking?.branchName || 'unknown branch';
         const status = existingBooking?.status || 'unknown status';
-        toast.error(`You already have a ${status} booking for ${format(date, 'PPP')} at ${branchName}. Contact admin if you need to modify this booking.`);
+        toast.error(`You already have a ${status} booking for ${formatDate(date)} at ${branchName}. Contact admin if you need to modify this booking.`);
       } else {
         toast.error("This date is not available for booking");
       }
@@ -428,7 +429,7 @@ const SlotBooking = () => {
         // Get existing booking details for better error message
         const existingBooking = employeeBookings.find(b => b.date === dateString);
         if (existingBooking) {
-          toast.error(`You already have a ${existingBooking.status} booking for ${format(date, 'PPP')} at ${existingBooking.branchName}. Contact admin if you need to modify this booking.`);
+          toast.error(`You already have a ${existingBooking.status} booking for ${formatDate(date)} at ${existingBooking.branchName}. Contact admin if you need to modify this booking.`);
         } else {
           toast.error("You already have a booking on this date. Double bookings are not allowed.");
         }
@@ -444,7 +445,7 @@ const SlotBooking = () => {
     try {
       const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const dayName =formatDate( date);
       
       const availableSlots = await getAvailableSlotsForDate(dateString, selectedBranch);
       
@@ -460,16 +461,16 @@ const SlotBooking = () => {
             toast.error(`${currentBranch?.name} doesn't operate on ${dayName}s. Please select a different day.`);
           }
         } else {
-          toast.error(`All ${totalSlots} slots are booked for ${currentBranch?.name} on ${format(date, 'PPP')}. Please select a different date.`);
+          toast.error(`All ${totalSlots} slots are booked for ${currentBranch?.name} on ${formatDate(date)}. Please select a different date.`);
         }
         return;
       }
       
       // Show available slots info for confirmation
       if (availableSlots === 1) {
-        toast.info(`⚠️ Only 1 slot remaining for ${currentBranch?.name} on ${format(date, 'PPP')}`);
+        toast.info(`⚠️ Only 1 slot remaining for ${currentBranch?.name} on ${formatDate(date)}`);
       } else if (availableSlots <= 3) {
-        toast.info(`${availableSlots} slots available for ${currentBranch?.name} on ${format(date, 'PPP')}`);
+        toast.info(`${availableSlots} slots available for ${currentBranch?.name} on ${formatDate(date)}`);
       }
       
     } catch (error) {
@@ -566,7 +567,7 @@ const SlotBooking = () => {
       
       if (failed.length > 0) {
         failed.forEach(failure => {
-          toast.error(`❌ Failed to book ${format(new Date(failure.date), 'MMM dd')}: ${failure.error}`);
+          toast.error(`❌ Failed to book ${formatMonthShort(new Date(failure.date))}: ${failure.error}`);
         });
         
         // If some bookings failed, suggest contacting admin
@@ -781,7 +782,7 @@ const SlotBooking = () => {
                             ></div>
                             <div>
                               <p className={`font-medium ${isMobile ? 'text-sm' : 'text-sm'}`}>{booking.branchName}</p>
-                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{format(new Date(booking.date), 'PPP')}</p>
+                              <p className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>{formatDate(new Date(booking.date))}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -848,7 +849,7 @@ const SlotBooking = () => {
             <DialogDescription>
               {selectedPayBreakdown && (
                 <>
-                  {selectedPayBreakdown.branchName} - {format(new Date(selectedPayBreakdown.date), 'PPP')}
+                  {selectedPayBreakdown.branchName} - {formatDate(new Date(selectedPayBreakdown.date))}
                 </>
               )}
             </DialogDescription>

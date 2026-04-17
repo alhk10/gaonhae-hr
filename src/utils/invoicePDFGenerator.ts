@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
+import { formatDate, formatDateTime } from '@/utils/dateFormat';
 
 export interface InvoiceItem {
   id: string;
@@ -108,7 +109,7 @@ const formatCurrency = (amount: number): string => {
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return '-';
   try {
-    return format(new Date(dateString), 'dd MMM yyyy');
+    return formatDate(new Date(dateString));
   } catch {
     return dateString;
   }
@@ -478,7 +479,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setTextColor(128, 128, 128);
   const footerText = invoice.template?.footer_text?.trim() || 'Thank you for your business!';
   doc.text(footerText, pageWidth / 2, footerY, { align: 'center' });
-  doc.text(`Generated on ${format(new Date(), 'dd MMM yyyy HH:mm')}`, pageWidth / 2, footerY + 5, { align: 'center' });
+  doc.text(`Generated on ${formatDateTime(new Date())}`, pageWidth / 2, footerY + 5, { align: 'center' });
 
   return doc;
 };

@@ -11,6 +11,7 @@ import { History, User, Calendar, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { StudentChangeLog as ChangeLogType, formatFieldName, formatAction } from '@/services/studentChangeLogService';
 import { formatBeltLevel } from '@/constants/beltLevels';
+import { formatDateTime } from '@/utils/dateFormat';
 
 interface StudentChangeLogProps {
   changeLogs: ChangeLogType[];
@@ -146,7 +147,7 @@ export const StudentChangeLog: React.FC<StudentChangeLogProps> = ({ changeLogs, 
                         </Badge>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {format(new Date(log.created_at), 'MMM d, yyyy h:mm a')}
+                          {formatDateTime(new Date(log.created_at))}
                         </span>
                       </div>
                       

@@ -27,6 +27,7 @@ import { supabase as authService } from '@/integrations/supabase/client';
 import { forceRefreshSession } from '@/services/sessionRefreshService';
 import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatDate } from '@/utils/dateFormat';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
 const parsePeriod = (period: string) => {
@@ -1900,7 +1901,7 @@ const PayrollProcessing = () => {
               </div>
               {periodStatus?.finalizedBy && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Finalized by {periodStatus.finalizedBy} on {new Date(periodStatus.finalizedAt || '').toLocaleDateString()}
+                  Finalized by {periodStatus.finalizedBy} on {formatDate(new Date(periodStatus.finalizedAt || ''))}
                 </p>
               )}
             </div>

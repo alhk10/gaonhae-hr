@@ -18,6 +18,7 @@ import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ClaimsManagementContent from '@/components/claim/ClaimsManagementContent';
 import PartnerClaimContent from '@/components/claim/PartnerClaimContent';
+import { formatDate } from '@/utils/dateFormat';
 
 
 const SubmitClaim = () => {
@@ -518,7 +519,7 @@ const SubmitClaim = () => {
                           {claims.map((claim) => (
                             <TableRow key={claim.id}>
                               <TableCell className={isMobile ? 'text-xs' : ''}>
-                                {new Date(claim.date).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {formatDate(new Date(claim.date))}
                               </TableCell>
                               <TableCell className={isMobile ? 'text-xs' : ''}>{claim.type}</TableCell>
                               <TableCell className={isMobile ? 'text-xs' : ''}>{formatAmount(claim.amount)}</TableCell>

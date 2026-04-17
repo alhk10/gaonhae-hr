@@ -23,6 +23,7 @@ import { FileText, Loader2, User, Trash2, Eye, Save, Undo2, Pencil } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import GradingStudentDetailDialog from '@/components/sales/GradingStudentDetailDialog';
+import { formatDate } from '@/utils/dateFormat';
 
 interface GradingListStudent {
   student_id: string;
@@ -436,10 +437,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     const effectiveSlotId = getEffectiveSlot(student);
     const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
     if (effectiveSlot) {
-      return `${effectiveSlot.title || 'Slot'} - ${effectiveSlot.grading_date ? format(new Date(effectiveSlot.grading_date), 'dd MMM yyyy') : ''}`;
+      return `${effectiveSlot.title || 'Slot'} - ${effectiveSlot.grading_date ? formatDate(new Date(effectiveSlot.grading_date)) : ''}`;
     }
     if (student.grading_slot_title || student.grading_slot_date) {
-      return `${student.grading_slot_title || 'Slot'} - ${student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}`;
+      return `${student.grading_slot_title || 'Slot'} - ${student.grading_slot_date ? formatDate(new Date(student.grading_slot_date)) : ''}`;
     }
     return null;
   };
@@ -610,7 +611,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                                   <SelectItem value="none">Not Assigned</SelectItem>
                                   {availableSlots.map(slot => (
                                     <SelectItem key={slot.id} value={slot.id}>
-                                      {slot.title || 'Slot'} - {slot.grading_date ? format(new Date(slot.grading_date), 'dd MMM yyyy') : ''}
+                                      {slot.title || 'Slot'} - {slot.grading_date ? formatDate(new Date(slot.grading_date)) : ''}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -618,11 +619,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             ) : (
                               effectiveSlot ? (
                                 <span className="text-sm">
-                                  {effectiveSlot.title || 'Slot'} - {effectiveSlot.grading_date ? format(new Date(effectiveSlot.grading_date), 'dd MMM yyyy') : ''}
+                                  {effectiveSlot.title || 'Slot'} - {effectiveSlot.grading_date ? formatDate(new Date(effectiveSlot.grading_date)) : ''}
                                 </span>
                               ) : student.grading_slot_title || student.grading_slot_date ? (
                                 <span className="text-sm">
-                                  {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? format(new Date(student.grading_slot_date), 'dd MMM yyyy') : ''}
+                                  {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? formatDate(new Date(student.grading_slot_date)) : ''}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground text-sm">Not Assigned</span>

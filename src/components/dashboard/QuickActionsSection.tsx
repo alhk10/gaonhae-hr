@@ -12,6 +12,7 @@ import { getGradingSlots } from '@/services/gradingService';
 import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
 
 import { useIsMobile } from '@/hooks/use-mobile';
+import { formatDate } from '@/utils/dateFormat';
 
 interface QuickActionsSectionProps {
   studentId: string;
@@ -264,7 +265,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                     <div className="text-sm text-muted-foreground mb-1 space-y-0.5">
                       <p>
                         {(paidGrading as any).grading_slots.branch_name && `${(paidGrading as any).grading_slots.branch_name} • `}
-                        {format(new Date((paidGrading as any).grading_slots.grading_date), 'dd MMM yyyy')}
+                        {formatDate(new Date((paidGrading as any).grading_slots.grading_date))}
                         {(paidGrading as any).grading_slots.start_time && ` • ${(paidGrading as any).grading_slots.start_time.slice(0, 5)}`}
                       </p>
                     </div>

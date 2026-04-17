@@ -11,6 +11,7 @@ import { Building2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 
 interface Branch {
   id: string;
@@ -292,10 +293,10 @@ const PartnerBranchSharesManager: React.FC<PartnerBranchSharesManagerProps> = ({
                           {share.share_percentage}%
                         </Badge>
                       </TableCell>
-                      <TableCell>{format(new Date(share.effective_from), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{formatDate(new Date(share.effective_from))}</TableCell>
                       <TableCell>
                         {share.effective_to 
-                          ? format(new Date(share.effective_to), 'MMM d, yyyy')
+                          ? formatDate(new Date(share.effective_to))
                           : <Badge variant="outline" className="text-green-600 border-green-300">Active</Badge>
                         }
                       </TableCell>

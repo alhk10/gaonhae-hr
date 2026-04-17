@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase, Plus, Pencil, Trash2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Command,
   CommandEmpty,
   CommandGroup,
@@ -69,7 +70,7 @@ interface Employee {
 const formatDate = (dateStr: string | null): string => {
   if (!dateStr) return 'N/A';
   try {
-    return format(new Date(dateStr), 'dd/MM/yyyy');
+    return formatDate(new Date(dateStr));
   } catch {
     return dateStr;
   }

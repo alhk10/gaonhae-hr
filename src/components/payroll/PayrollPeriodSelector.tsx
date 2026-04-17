@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { forceRefreshSession } from '@/services/sessionRefreshService';
+import { formatDate } from '@/utils/dateFormat';
 
 interface PayrollPeriodSelectorProps {
   selectedPeriod: string;
@@ -354,7 +355,7 @@ const PayrollPeriodSelector: React.FC<PayrollPeriodSelectorProps> = ({
 
           <div className="flex items-center text-sm text-gray-500">
             <Clock className="w-3 h-3 mr-1" />
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: {formatDate(new Date())}
           </div>
         </div>
 

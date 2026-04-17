@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -218,12 +219,8 @@ const ApplyLeaveDialog: React.FC<ApplyLeaveDialogProps> = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+  const formatDate = (dateString: string) => {formatDate(
+    return new Date(dateString));
   };
 
   const pendingLeave = leaveRequests.filter(l => l.status === 'Pending');

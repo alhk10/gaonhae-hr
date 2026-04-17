@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   Clock, 
   Users, 
   Calendar, 
@@ -360,7 +361,7 @@ const AttendanceManagementContent = () => {
                             <div>
                               <h3 className="font-semibold">{record.employeeName}</h3>
                               <p className="text-sm text-gray-600">
-                                {new Date(record.date).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })} • {record.hoursWorked?.toFixed(1) || 0}h worked
+                                {formatDate(new Date(record.date))} • {record.hoursWorked?.toFixed(1) || 0}h worked
                               </p>
                             </div>
                           </div>

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   getInventoryOrders, 
   approveInventoryOrder, 
   rejectInventoryOrder,
@@ -134,7 +135,7 @@ const InventoryOrderApprovals: React.FC = () => {
                   <div className="text-left sm:text-right">
                     <p className="font-bold text-sm">${order.total_cost.toFixed(2)}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(order.created_at), 'MMM d, yyyy')}
+                      {formatDate(new Date(order.created_at))}
                     </p>
                   </div>
                   <div className="flex gap-1">

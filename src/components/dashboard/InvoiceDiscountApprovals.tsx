@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import {
+import { formatDateTime } from '@/utils/dateFormat';
   getPendingDiscountApprovals,
   approveDiscountApproval,
   rejectDiscountApproval,
@@ -96,7 +97,7 @@ const ApprovalCard: React.FC<{
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            By {req.requested_by_email || 'Unknown'} · {new Date(req.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            By {req.requested_by_email || 'Unknown'} · {formatDateTime(new Date(req.created_at))}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">

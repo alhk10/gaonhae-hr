@@ -13,6 +13,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMont
 import { toast } from 'sonner';
 import { createEditRequest } from '@/services/slotBookingEditRequestService';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDate } from '@/utils/dateFormat';
 
 interface BranchCasualScheduleProps {
   branchId: string;
@@ -282,7 +283,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
               </DialogTitle>
               <DialogDescription>
                 {selectedBooking &&
-                  `Review booking for ${selectedBooking.employee_name} on ${format(new Date(selectedBooking.date), 'dd/MM/yyyy')}`
+                  `Review booking for ${selectedBooking.employee_name} on ${formatDate(new Date(selectedBooking.date))}`
                 }
               </DialogDescription>
             </DialogHeader>
@@ -300,7 +301,7 @@ const BranchCasualSchedule: React.FC<BranchCasualScheduleProps> = ({ branchId })
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Date:</span>
-                    <span>{format(new Date(selectedBooking.date), 'dd/MM/yyyy')}</span>
+                    <span>{formatDate(new Date(selectedBooking.date))}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Status:</span>

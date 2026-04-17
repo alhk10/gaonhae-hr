@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Ticket, Calendar, Award, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { StudentEntitlement } from '@/services/studentService';
 import { format, isAfter, isBefore } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 
 interface StudentEntitlementsProps {
   entitlements: StudentEntitlement[];
@@ -176,9 +177,9 @@ export const StudentEntitlements: React.FC<StudentEntitlementsProps> = ({
                           {entitlement.source_type.replace('_', ' ')} Package
                         </h3>
                         <div className="text-sm text-muted-foreground">
-                          {format(new Date(entitlement.valid_from), 'MMM dd, yyyy')}
+                          {formatDate(new Date(entitlement.valid_from))}
                           {entitlement.valid_to && (
-                            <span> - {format(new Date(entitlement.valid_to), 'MMM dd, yyyy')}</span>
+                            <span> - {formatDate(new Date(entitlement.valid_to))}</span>
                           )}
                         </div>
                       </div>

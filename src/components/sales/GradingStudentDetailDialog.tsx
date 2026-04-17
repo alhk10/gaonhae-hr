@@ -6,6 +6,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -241,7 +242,7 @@ const GradingStudentDetailDialog: React.FC<GradingStudentDetailDialogProps> = ({
                         <div className="grid grid-cols-3 gap-2 text-xs">
                           <div>
                             <span className="text-muted-foreground">Date: </span>
-                            <span>{invoice.issue_date ? format(new Date(invoice.issue_date), 'dd MMM yyyy') : '-'}</span>
+                            <span>{invoice.issue_date ? formatDate(new Date(invoice.issue_date)) : '-'}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Total: </span>

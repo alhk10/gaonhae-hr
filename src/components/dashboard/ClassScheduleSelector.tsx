@@ -10,6 +10,7 @@ import { hasClassTypeException } from '@/utils/classTypeEligibility';
 
 import { toast } from 'sonner';
 import { getPublicHolidays } from '@/services/publicHolidayService';
+import { formatMonthShort } from '@/utils/dateFormat';
 
 interface ClassScheduleSelectorProps {
   branchId: string;
@@ -290,7 +291,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
                 <td className="px-1 py-1.5 bg-muted/30 w-10">
                   <div className="flex items-center justify-center [writing-mode:vertical-lr] rotate-180">
                     <span className="text-xs font-semibold whitespace-nowrap">Wk {week.weekNumber}</span>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-0.5">({format(week.startDate, 'd MMM')})</span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-0.5">({formatMonthShort(week.startDate)})</span>
                   </div>
                 </td>
                 {operatingDays.map(dayInfo => {

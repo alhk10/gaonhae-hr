@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Calendar, AlertTriangle, CheckCircle, Trash2, DollarSign, TrendingUp, Banknote } from 'lucide-react';
 import { 
+import { formatDate } from '@/utils/dateFormat';
   getEligibleEmployeesForLeave, 
   calculateEmployeeLeaveEntitlement,
   cleanupIneligibleLeaveData,
@@ -392,7 +393,7 @@ const EnhancedLeaveSummary = () => {
                         </div>
                         {employee.joinDate && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Joined: {new Date(employee.joinDate).toLocaleDateString()}
+                            Joined: {formatDate(new Date(employee.joinDate))}
                           </p>
                         )}
                       </div>

@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormat';
 
 export type SlotBooking = {
   id: string;
@@ -488,7 +489,7 @@ export const getAvailableSlotsForDate = async (date: string, branchId: string): 
   try {
     logger.debug(`Getting available slots for ${branchId} on ${date}`);
     
-    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+    const dayName =formatDate( new Date(date)).toLowerCase() as keyof WeeklySlotConfig;
     
     const { data: configData, error: configError } = await supabase
       .from('weekly_slot_config')

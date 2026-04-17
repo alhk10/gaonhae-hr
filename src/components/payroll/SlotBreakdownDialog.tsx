@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { updateAttendanceRecord, addAttendanceRecord } from "@/services/attendanceService";
 import { toast } from "sonner";
+import { formatDate } from '@/utils/dateFormat';
 
 export interface SlotBreakdownItem {
   date: string;
@@ -247,7 +248,7 @@ export function SlotBreakdownDialog({
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {format(new Date(item.date), "dd MMM yyyy")}
+                          {formatDate(new Date(item.date))}
                           {!item.hasAttendance && editingIndex !== index && (
                             <Badge variant="outline" className="text-xs border-dashed text-muted-foreground">No attendance</Badge>
                           )}

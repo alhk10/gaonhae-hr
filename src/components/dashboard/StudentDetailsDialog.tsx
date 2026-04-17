@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+import { formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -93,7 +94,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Not set';
     try {
-      return format(new Date(dateStr), 'dd MMM yyyy');
+      return formatDate(new Date(dateStr));
     } catch {
       return dateStr;
     }

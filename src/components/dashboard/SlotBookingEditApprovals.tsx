@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import {
+import { formatDateTime } from '@/utils/dateFormat';
   getPendingEditRequests,
   approveEditRequest,
   rejectEditRequest,
@@ -58,11 +59,8 @@ const SlotBookingEditApprovals: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('en-SG', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
+  const formatDate = (dateString: string) =>formatDateTime(
+    new Date(dateString));
 
   // Hide when empty and not loading
   if (!isLoading && !error && requests.length === 0) {

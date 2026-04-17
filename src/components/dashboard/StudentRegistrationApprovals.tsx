@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDate } from '@/utils/dateFormat';
 
 interface StudentRegistrationApprovalsProps {
   branchId?: string;
@@ -174,7 +175,7 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
                     {reg.phone && <span>{reg.phone}</span>}
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {format(new Date(reg.created_at), 'dd MMM yyyy')}
+                      {formatDate(new Date(reg.created_at))}
                     </span>
                   </div>
                 </div>

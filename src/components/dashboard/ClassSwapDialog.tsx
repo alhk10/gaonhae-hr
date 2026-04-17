@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+import { formatMonthShort, formatDate } from '@/utils/dateFormat';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -282,7 +283,7 @@ export function ClassSwapDialog({
             <>
               <div className="space-y-4">
                 <div className="text-sm text-muted-foreground">
-                  Swap from: <strong>{format(parseISO(scheduledClass.scheduled_date), 'MMM d')} at {formatTime(scheduledClass.start_time)}</strong>
+                  Swap from: <strong>{formatMonthShort(parseISO(scheduledClass.scheduled_date))} at {formatTime(scheduledClass.start_time)}</strong>
                 </div>
 
                 {/* New Date */}
@@ -298,7 +299,7 @@ export function ClassSwapDialog({
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newDate ? format(newDate, 'PPP') : 'Select new date'}
+                        {newDate ? formatDate(newDate) : 'Select new date'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

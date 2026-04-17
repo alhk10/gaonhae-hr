@@ -8,6 +8,7 @@ import { Eye, Download, Lock, Unlock, Trash2, AlertTriangle, Calendar, DollarSig
 import { PayrollRecord } from '@/services/payrollService';
 import { formatCurrency } from '@/utils/payrollCalculations';
 import { toast } from '@/components/ui/sonner';
+import { formatDate } from '@/utils/dateFormat';
 
 interface PayrollHistoryActionsProps {
   record: PayrollRecord;
@@ -101,7 +102,7 @@ const PayrollHistoryActions: React.FC<PayrollHistoryActionsProps> = ({
               </Badge>
               <Badge variant="outline">
                 <Calendar className="w-3 h-3 mr-1" />
-                {new Date(record.updatedAt).toLocaleDateString()}
+                {formatDate(new Date(record.updatedAt))}
               </Badge>
             </div>
 

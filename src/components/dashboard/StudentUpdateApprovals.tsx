@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, Eye, User, Clock, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
+import { formatDateTime } from '@/utils/dateFormat';
   getPendingRequestsByBranch, 
   getAllPendingRequests,
   approveRequest, 
@@ -167,7 +168,7 @@ const StudentUpdateApprovals: React.FC<StudentUpdateApprovalsProps> = ({ branchI
                     </p>
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      Requested {format(new Date(request.requested_at), 'MMM d, yyyy HH:mm')}
+                      Requested {formatDateTime(new Date(request.requested_at))}
                     </p>
                   </div>
                 </div>

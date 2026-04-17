@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import { isEligibleForLeave, getEmployeeEligibilityMessage } from '@/utils/employeeEligibility';
+import { formatDate } from '@/utils/dateFormat';
 
 interface EmployeeLeaveInfoProps {
   employee: {
@@ -78,7 +79,7 @@ const EmployeeLeaveInfo: React.FC<EmployeeLeaveInfoProps> = ({
             
             {employee.joinDate && isEligible && (
               <div className="text-xs text-gray-500">
-                <p>Join Date: {new Date(employee.joinDate).toLocaleDateString()}</p>
+                <p>Join Date: {formatDate(new Date(employee.joinDate))}</p>
                 <p>Annual leave is pro-rated based on join date</p>
               </div>
             )}

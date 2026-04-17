@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ShieldCheck, CheckCircle, Pencil, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatDate } from '@/utils/dateFormat';
 
 const PaymentVerificationApprovals = () => {
   const { user } = useAuth();
@@ -235,7 +236,7 @@ const PaymentVerificationApprovals = () => {
                     ? `${payment.invoices.students.first_name} ${payment.invoices.students.last_name}`
                     : 'Unknown'}{' '}
                   · ${payment.amount?.toFixed(2)} ·{' '}
-                  {format(new Date(payment.payment_date), 'dd MMM yyyy')} ·{' '}
+                  {formatDate(new Date(payment.payment_date))} ·{' '}
                   <span className="capitalize">
                     {payment.payment_method?.replace('_', ' ')}
                   </span>
