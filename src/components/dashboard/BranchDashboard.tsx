@@ -677,6 +677,27 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['pending-registrations'] });
     };
 
+    const invalidateApprovalCounts = () => {
+      // Refreshes the Approvals tab badge by invalidating every contributing query
+      queryClient.invalidateQueries({ queryKey: ['pending-requests', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
+      invalidateRegistrations();
+      // Approval list query keys (so open lists also refresh)
+      queryClient.invalidateQueries({ queryKey: ['pending-withdrawal-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-invoice-deletions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-payment-deletions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-invoice-actions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-discount-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-slot-booking-edits'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-slot-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-grading-deletions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-stock-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-inventory-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-claims-approvals'] });
+    };
+
     const channel = supabase
       .channel(`branch-data-${branchId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `branch_id=eq.${branchId}` }, () => {
@@ -684,12 +705,52 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
         invalidateAllBranchData();
+        invalidateApprovalCounts();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
         queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_registrations', filter: `branch_id=eq.${branchId}` }, () => {
         invalidateRegistrations();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_update_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_withdrawal_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_deletion_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_deletion_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_action_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_discount_approval_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'slot_booking_edit_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'slot_bookings_new' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'grading_deletion_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_transfer_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_orders' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
+        invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, () => {
+        invalidateApprovalCounts();
       })
       .subscribe();
 
