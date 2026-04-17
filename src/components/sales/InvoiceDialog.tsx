@@ -1117,7 +1117,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       await supabase.from('invoices').update(invoiceUpdate).eq('id', invoice.id);
       if (dateChanged) {
         try {
-          await logInvoiceChange(invoice.id, 'updated', user?.email || null, { issue_date: { old: invoice.issue_date, new: editIssueDate } }, 'issue_date', invoice.issue_date || null, editIssueDate);
+          await logInvoiceChange({
+            invoice_id: invoice.id,
+            action: 'updated',
+            field_name: 'issue_date',
+            old_value: invoice.issue_date || undefined,
+            new_value: editIssueDate,
+            changes: { issue_date: { old: invoice.issue_date, new: editIssueDate } },
+          });
         } catch { /* non-fatal */ }
       }
 
