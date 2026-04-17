@@ -171,6 +171,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       referral_source: '',
       status: 'trial'
     });
+    setBeltManuallySet(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

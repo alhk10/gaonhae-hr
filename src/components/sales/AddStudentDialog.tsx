@@ -231,6 +231,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         status: 'active',
         notes: ''
       });
+      setBeltManuallySet(false);
       
       if (onStudentAdded) {
         onStudentAdded();
