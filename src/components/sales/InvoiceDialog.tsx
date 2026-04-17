@@ -44,6 +44,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate } from '@/utils/dateFormat';
+import { DatePicker } from '@/components/ui/date-picker';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
