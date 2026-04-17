@@ -668,8 +668,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
   }, [queryClient, branchId]);
 
-  // Realtime subscription for invoice/payment changes to auto-refresh all metrics
+  // Realtime subscription for invoice/payment/registration changes to auto-refresh all metrics
   useEffect(() => {
+    const invalidateRegistrations = () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-registrations-count', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-registrations', branchId, false] });
+      queryClient.invalidateQueries({ queryKey: ['pending-registrations'] });
+    };
+
     const channel = supabase
       .channel(`branch-data-${branchId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `branch_id=eq.${branchId}` }, () => {
@@ -681,6 +687,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
         queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_registrations', filter: `branch_id=eq.${branchId}` }, () => {
+        invalidateRegistrations();
+      })
       .subscribe();
 
     return () => {
@@ -688,14 +697,23 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     };
   }, [branchId, queryClient, invalidateAllBranchData]);
 
+  // Auto-switch to Approvals tab on first load OR when approvals first appear (e.g. realtime insert)
+  const prevHasApprovalsRef = useRef(false);
   useEffect(() => {
-    if (!hasSetInitialTab.current && hasApprovals) {
-      setActiveTab('approvals');
+    if (!hasSetInitialTab.current) {
+      if (hasApprovals) {
+        setActiveTab('approvals');
+      }
       hasSetInitialTab.current = true;
-    } else if (!hasSetInitialTab.current && pendingRequests !== undefined) {
-      hasSetInitialTab.current = true;
+      prevHasApprovalsRef.current = hasApprovals;
+      return;
     }
-  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals]);
+    // After initial mount: if approvals transition from 0 -> >0 and user hasn't navigated away from default tab, switch
+    if (!prevHasApprovalsRef.current && hasApprovals && activeTab === 'timetable') {
+      setActiveTab('approvals');
+    }
+    prevHasApprovalsRef.current = hasApprovals;
+  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals, activeTab]);
 
   const filteredStudents = students.filter(student => {
     // Always exclude withdrawn students
