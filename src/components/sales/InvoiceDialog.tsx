@@ -1094,7 +1094,32 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         await supabase.from('invoice_items').insert({ invoice_id: invoice.id, product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, tax_rate: item.tax_rate, tax_amount: item.tax_amount, total_amount: item.total_amount, size_variant: item.size_variant || null, metadata: Object.keys(metadata).length > 0 ? metadata : null });
       }
 
-      await supabase.from('invoices').update({ notes: formData.notes || invoice.notes, subtotal: editTotals.subtotal, tax_amount: editTotals.tax, total_amount: editTotals.total, balance_due: editTotals.balanceDue, updated_at: new Date().toISOString() }).eq('id', invoice.id);
+      // Build invoice update — superadmin can change issue_date (and due_date follows)
+      const invoiceUpdate: Record<string, any> = {
+        notes: formData.notes || invoice.notes,
+        subtotal: editTotals.subtotal,
+        tax_amount: editTotals.tax,
+        total_amount: editTotals.total,
+        balance_due: editTotals.balanceDue,
+        updated_at: new Date().toISOString(),
+      };
+      let dateChanged = false;
+      if (isSuperadmin && editIssueDate && editIssueDate !== (invoice.issue_date || '')) {
+        const terms = invoice.payment_terms_days ?? 30;
+        const newIssue = new Date(editIssueDate + 'T00:00:00');
+        const newDue = new Date(newIssue);
+        newDue.setDate(newDue.getDate() + terms);
+        const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        invoiceUpdate.issue_date = editIssueDate;
+        invoiceUpdate.due_date = toISO(newDue);
+        dateChanged = true;
+      }
+      await supabase.from('invoices').update(invoiceUpdate).eq('id', invoice.id);
+      if (dateChanged) {
+        try {
+          await logInvoiceChange(invoice.id, 'updated', user?.email || null, { issue_date: { old: invoice.issue_date, new: editIssueDate } }, 'issue_date', invoice.issue_date || null, editIssueDate);
+        } catch { /* non-fatal */ }
+      }
 
       // Sync class slots
       for (const [itemId, slots] of Object.entries(editingClassSlots)) {
