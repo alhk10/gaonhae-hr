@@ -1305,7 +1305,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Invoice Details */}
           <div className="space-y-2 md:space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+            <div className={cn("grid grid-cols-1 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs md:text-sm">Branch</Label>
@@ -1330,6 +1330,23 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                   if (student?.branch_id && !formData.branch_id) handleInputChange('branch_id', student.branch_id);
                 }} />
               </div>
+              {isSuperadmin && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs md:text-sm">Invoice Date</Label>
+                    <Badge variant="secondary" className="text-[10px]">Superadmin</Badge>
+                  </div>
+                  <DatePicker
+                    selected={formData.issue_date ? new Date(formData.issue_date + 'T00:00:00') : undefined}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      setFormData(prev => ({ ...prev, issue_date: iso }));
+                    }}
+                    className="h-8 md:h-10 text-xs md:text-sm"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -1486,7 +1503,19 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Date</span>
-              <div className="font-medium">{formatDate(invoice.issue_date)}</div>
+              {mode === 'edit' && isSuperadmin ? (
+                <DatePicker
+                  selected={editIssueDate ? new Date(editIssueDate + 'T00:00:00') : undefined}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    setEditIssueDate(iso);
+                  }}
+                  className="h-7 text-xs mt-0.5"
+                />
+              ) : (
+                <div className="font-medium">{formatDate(invoice.issue_date)}</div>
+              )}
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Total</span>
