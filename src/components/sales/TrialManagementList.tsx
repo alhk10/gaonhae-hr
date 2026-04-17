@@ -14,10 +14,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Search, MoreVertical, Eye, UserCheck, X, Calendar, Clock, Phone, Building2 } from 'lucide-react';
-import { format, parseISO, isAfter, isBefore, isToday } from 'date-fns';
+import { parseISO, isAfter, isBefore, isToday } from 'date-fns';
 import { useBranches } from '@/hooks/useBranches';
 import { useNavigate } from 'react-router-dom';
 import { getTrials, convertTrialToStudent, updateStudent } from '@/services/studentService';
+import { formatDate } from '@/utils/dateFormat';
 
 const TrialManagementList: React.FC = () => {
   const navigate = useNavigate();
@@ -183,7 +184,7 @@ const TrialManagementList: React.FC = () => {
                       <div>
                         <p className="font-medium">{trial.display_name || `${trial.first_name} ${trial.last_name}`}</p>
                         <p className="text-sm text-muted-foreground">
-                          DOB: {trial.date_of_birth ? format(parseISO(trial.date_of_birth), 'dd MMM yyyy') : 'N/A'}
+                          DOB: {trial.date_of_birth ? formatDate(parseISO(trial.date_of_birth)) : 'N/A'}
                         </p>
                       </div>
                     </TableCell>
@@ -204,7 +205,7 @@ const TrialManagementList: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span>
-                            {trial.trial_date ? format(parseISO(trial.trial_date), 'dd MMM yyyy') : 'Not scheduled'}
+                            {trial.trial_date ? formatDate(parseISO(trial.trial_date)) : 'Not scheduled'}
                           </span>
                         </div>
                         {trial.trial_time && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -185,7 +186,7 @@ const SlotBookingDialog: React.FC<SlotBookingDialogProps> = ({
     const dateString = format(date, 'yyyy-MM-dd');
     if (employeeBookingDates.has(dateString)) return true;
     
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+    const dayName =formatDate( date).toLowerCase() as keyof WeeklySlotConfig;
     const branchConfig = weeklySlotConfig[selectedBranch];
     const totalSlots = branchConfig ? branchConfig[dayName] : 0;
     

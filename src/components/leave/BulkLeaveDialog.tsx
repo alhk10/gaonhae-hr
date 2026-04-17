@@ -13,6 +13,7 @@ import { format, eachDayOfInterval, differenceInCalendarDays } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/utils/dateFormat';
 
 interface BulkLeaveDialogProps {
   isOpen: boolean;
@@ -188,7 +189,7 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
                     )}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "dd/MM/yyyy") : "Select date"}
+                    {fromDate ? formatDate(fromDate) : "Select date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -219,7 +220,7 @@ const BulkLeaveDialog: React.FC<BulkLeaveDialogProps> = ({
                     )}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "dd/MM/yyyy") : "Select date"}
+                    {toDate ? formatDate(toDate) : "Select date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

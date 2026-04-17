@@ -9,6 +9,7 @@ import { Product } from '@/services/productService';
 import { getProductBranchPrices, type BranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { COUNTRY_TAX_RATES, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_RATE, DEFAULT_TAX_INCLUDED } from '@/config/constants';
+import { formatDate } from '@/utils/dateFormat';
 
 const getCountryDefaultTax = (country: string): number => {
   return COUNTRY_TAX_RATES[country] ?? DEFAULT_TAX_RATE;
@@ -54,15 +55,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   };
 
   if (!product) return null;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   // Group branch prices by currency
   const groupedBranchPrices = branchPrices.reduce((acc, bp) => {
     const currency = bp.branch_currency;

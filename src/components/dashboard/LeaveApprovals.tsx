@@ -13,6 +13,7 @@ import { Check, X, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getAllLeaveRequests, updateLeaveStatus } from '@/services/leaveService';
+import { formatDate } from '@/utils/dateFormat';
 
 const LeaveApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -64,15 +65,6 @@ const LeaveApprovals: React.FC = () => {
       rejectMutation.mutate(leaveId);
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   if (error) {
     return (
       <Card>

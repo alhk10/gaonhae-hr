@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Plus, Edit, Trash2, Gift, Copy } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 import {
   getPublicHolidays,
   addPublicHoliday,
@@ -327,7 +328,7 @@ const PublicHolidayManagement = () => {
                 <TableRow key={holiday.id}>
                   <TableCell className="font-medium">{holiday.name}</TableCell>
                   <TableCell>{holiday.country || 'Singapore'}</TableCell>
-                  <TableCell>{format(new Date(holiday.date), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{formatDate(new Date(holiday.date))}</TableCell>
                   <TableCell>
                     <span className={holiday.is_monday_holiday ? 'font-medium text-green-600' : ''}>
                       {getDayOfWeek(holiday.date)}

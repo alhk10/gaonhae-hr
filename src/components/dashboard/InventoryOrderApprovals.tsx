@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   getInventoryOrders, 
   approveInventoryOrder, 
@@ -16,7 +17,7 @@ import {
   InventoryOrder 
 } from '@/services/inventoryOrderService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Check, X, Package, ShoppingCart } from 'lucide-react';
 import {
   AlertDialog,
@@ -134,7 +135,7 @@ const InventoryOrderApprovals: React.FC = () => {
                   <div className="text-left sm:text-right">
                     <p className="font-bold text-sm">${order.total_cost.toFixed(2)}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(order.created_at), 'MMM d, yyyy')}
+                      {formatDate(new Date(order.created_at))}
                     </p>
                   </div>
                   <div className="flex gap-1">

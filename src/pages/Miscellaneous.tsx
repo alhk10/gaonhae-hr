@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Check, ChevronsUpDown, Download, Printer, FileCheck, GraduationCap, Briefcase, Plus, Pencil, Trash2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Command,
   CommandEmpty,
@@ -65,15 +66,6 @@ interface Employee {
   address: string | null;
   phone: string | null;
 }
-
-const formatDate = (dateStr: string | null): string => {
-  if (!dateStr) return 'N/A';
-  try {
-    return format(new Date(dateStr), 'dd/MM/yyyy');
-  } catch {
-    return dateStr;
-  }
-};
 
 const formatCurrency = (amount: number | null): string => {
   if (amount === null || amount === undefined) return 'N/A';

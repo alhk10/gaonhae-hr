@@ -11,6 +11,7 @@ import { getCasualEmployees } from '@/services/employeeService';
 import { updateSlotBookingEmployee } from '@/services/slotBookingService';
 import { EmployeeProfile } from '@/types/employee';
 import { SlotBooking } from '@/services/slotBookingService';
+import { formatDate } from '@/utils/dateFormat';
 
 interface SwapEmployeeDialogProps {
   isOpen: boolean;
@@ -105,7 +106,7 @@ const SwapEmployeeDialog: React.FC<SwapEmployeeDialogProps> = ({
               <div className="space-y-1 text-sm">
                 <p><strong>Employee:</strong> {booking.employeeName}</p>
                 <p><strong>Branch:</strong> {booking.branchName}</p>
-                <p><strong>Date:</strong> {new Date(booking.date).toLocaleDateString()}</p>
+                <p><strong>Date:</strong> {formatDate(new Date(booking.date))}</p>
                 <Badge variant="secondary">{booking.status}</Badge>
               </div>
             </div>
@@ -141,7 +142,7 @@ const SwapEmployeeDialog: React.FC<SwapEmployeeDialogProps> = ({
                 <div className="space-y-1 text-sm">
                   <p><strong>Employee:</strong> {selectedEmployee.display_name || selectedEmployee.name}</p>
                   <p><strong>Branch:</strong> {booking.branchName}</p>
-                  <p><strong>Date:</strong> {new Date(booking.date).toLocaleDateString()}</p>
+                  <p><strong>Date:</strong> {formatDate(new Date(booking.date))}</p>
                   <Badge variant="secondary">{booking.status}</Badge>
                 </div>
               </div>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { 
   Search, 
   CheckCircle,
@@ -326,8 +327,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         gradingData?.forEach(s => { gradingMap[s.id] = s; });
       }
 
-      const fmtShort = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); } catch { return d; } };
-      const fmtFull = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; } };
+      const fmtShort = (d: string) => { try { return formatDate(d); } catch { return d; } };
+      const fmtFull = (d: string) => { try { return formatDate(d); } catch { return d; } };
 
       const sourceInvoice = fullInvoice ?? invoice;
 
@@ -1211,7 +1212,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                               <span>{invoice.invoice_number}</span>
                               <span>·</span>
-                              <span>{format(new Date(invoice.created_at), 'dd MMM yyyy')}</span>
+                              <span>{formatDate(new Date(invoice.created_at))}</span>
                             </div>
                           </div>
                         );
@@ -1251,7 +1252,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       <p className="font-medium text-sm">{payment.invoices?.invoice_number || 'N/A'}</p>
                       <p className="text-xs text-muted-foreground">
                         {payment.invoices?.students ? `${payment.invoices.students.first_name} ${payment.invoices.students.last_name}` : 'Unknown'}{' '}
-                        · ${payment.amount?.toFixed(2)} · {format(new Date(payment.payment_date), 'dd MMM yyyy')} ·{' '}
+                        · ${payment.amount?.toFixed(2)} · {formatDate(new Date(payment.payment_date))} ·{' '}
                         <span className="capitalize">{payment.payment_method?.replace('_', ' ')}</span>
                       </p>
                     </div>
@@ -1284,7 +1285,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                           <div>
                             <p className="font-medium">{request.student_name}</p>
                             <p className="text-sm text-muted-foreground">
-                              Requested {format(new Date(request.requested_at), 'dd MMM yyyy HH:mm')}
+                              Requested {formatDateTime(new Date(request.requested_at))}
                             </p>
                             <div className="mt-2">
                               <p className="text-sm font-medium">Requested Changes:</p>

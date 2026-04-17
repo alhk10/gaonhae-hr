@@ -18,6 +18,7 @@ import { getEmployees } from '@/services/employeeService';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { formatDate } from '@/utils/dateFormat';
 
 interface Branch {
   id: string;
@@ -1010,7 +1011,7 @@ const BranchProfitLoss = () => {
     // Footer
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, pageHeight - 10);
+    doc.text(`Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString()}`, margin, pageHeight - 10);
 
     // Save PDF
     const filename = `PL_${branchName.replace(/\s+/g, '_')}_${MONTHS[parseInt(selectedMonth) - 1]}_${selectedYear}.pdf`;

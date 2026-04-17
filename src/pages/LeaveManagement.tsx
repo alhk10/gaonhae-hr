@@ -14,6 +14,7 @@ import BulkLeaveDialog from '@/components/leave/BulkLeaveDialog';
 import LeaveCalendarView from '@/components/leave/LeaveCalendarView';
 import EnhancedLeaveSummary from '@/components/leave/EnhancedLeaveSummary';
 import LeaveSettings from '@/components/leave/LeaveSettings';
+import { formatDate } from '@/utils/dateFormat';
 
 interface LeaveRequestWithEmployee {
   id: number;
@@ -292,7 +293,7 @@ const LeaveManagement = () => {
                               </div>
                               <div className="mt-2">
                                 <p className="text-sm text-gray-600">
-                                  {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
+                                  {formatDate(new Date(request.startDate))} - {formatDate(new Date(request.endDate))}
                                 </p>
                                 {request.reason && (
                                   <p className="text-sm text-gray-500 mt-1">

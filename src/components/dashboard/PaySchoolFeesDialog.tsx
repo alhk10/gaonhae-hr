@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatDate, formatMonthShort } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
+import { parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
@@ -648,7 +649,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
           student_id: studentId,
           branch_id: student.branch_id,
           payment_terms_days: 7,
-          internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedGradingSlot.grading_date), 'dd MMM yyyy')}`,
+          internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${formatDate(parseISO(selectedGradingSlot.grading_date))}`,
           items: [{
             product_id: gradingProduct.id,
             description: gradingProduct.name,
@@ -783,7 +784,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         const isCurrentTerm = currentTermForRemaining?.id === term.id;
                         return (
                           <SelectItem key={term.id} value={term.id}>
-                            {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
+                            {term.name} ({formatMonthShort(parseISO(term.start_date))} - {formatDate(parseISO(term.end_date))})
                             {index === 0 && !isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
                             {isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Full Term</Badge>}
                           </SelectItem>

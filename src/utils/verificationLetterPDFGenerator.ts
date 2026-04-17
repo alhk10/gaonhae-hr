@@ -180,7 +180,7 @@ const addLetterhead = async (doc: jsPDF, logoData: { data: string; width: number
 const formatDate = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
-    return format(new Date(dateStr), 'd MMMM yyyy');
+    return format(new Date(dateStr), 'dd/MM/yyyy');
   } catch {
     return dateStr;
   }
@@ -597,7 +597,7 @@ export const generateStudentVerificationLetter = async (data: StudentData): Prom
 
   const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const studentPlaceholders: StudentPlaceholders = {
     fullName,
@@ -687,7 +687,7 @@ export const generateEmploymentVerificationLetter = async (data: EmployeeData): 
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const employeePlaceholders: EmployeePlaceholders = {
     fullName: data.name,
@@ -759,7 +759,7 @@ export const printStudentVerificationLetter = async (data: StudentData): Promise
 
   const templates = getLetterTemplates();
   const fullName = `${data.firstName} ${data.lastName}`.trim();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const studentPlaceholders: StudentPlaceholders = {
     fullName,
@@ -841,7 +841,7 @@ export const printEmploymentVerificationLetter = async (data: EmployeeData): Pro
   await addLetterhead(doc, logoImg);
 
   const templates = getLetterTemplates();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const employeePlaceholders: EmployeePlaceholders = {
     fullName: data.name,
@@ -909,7 +909,7 @@ export const generateStudentVerificationLetterWithTemplate = async (
   await addLetterhead(doc, logoImg);
 
   const fullName = `${data.firstName} ${data.lastName}`.trim();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const studentPlaceholders: StudentPlaceholders = {
     fullName,
@@ -1024,7 +1024,7 @@ export const printStudentVerificationLetterWithTemplate = async (
   await addLetterhead(doc, logoImg);
 
   const fullName = `${data.firstName} ${data.lastName}`.trim();
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const studentPlaceholders: StudentPlaceholders = {
     fullName,
@@ -1138,7 +1138,7 @@ export const generateEmployeeVerificationLetterWithTemplate = async (
   const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const employeePlaceholders: EmployeePlaceholders = {
     fullName: data.name,
@@ -1256,7 +1256,7 @@ export const printEmployeeVerificationLetterWithTemplate = async (
   const logoImg = await loadImageAsDataUrl('/images/company-logo.jpg');
   await addLetterhead(doc, logoImg);
 
-  const currentDate = format(new Date(), 'dd MMMM yyyy');
+  const currentDate = format(new Date(), 'dd/MM/yyyy');
   
   const employeePlaceholders: EmployeePlaceholders = {
     fullName: data.name,

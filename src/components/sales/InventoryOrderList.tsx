@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   getInventoryOrders, 
   approveInventoryOrder, 
@@ -17,7 +18,7 @@ import {
   InventoryOrder 
 } from '@/services/inventoryOrderService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Check, X, Clock, Package, AlertCircle } from 'lucide-react';
 import {
   AlertDialog,
@@ -187,7 +188,7 @@ const InventoryOrderList: React.FC<InventoryOrderListProps> = ({
                   <TableCell className="text-right font-medium">${order.total_cost.toFixed(2)}</TableCell>
                   <TableCell className="text-sm">{order.requested_by_email || order.requested_by}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(order.created_at), 'MMM d, yyyy')}
+                    {formatDate(new Date(order.created_at))}
                   </TableCell>
                   <TableCell>{renderStatusBadge(order.status)}</TableCell>
                   {(showApprovalActions && isSuperadmin) && (

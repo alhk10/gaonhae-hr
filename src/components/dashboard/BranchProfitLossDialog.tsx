@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { formatDate } from '@/utils/dateFormat';
 
 interface Branch {
   id: string;
@@ -388,7 +389,7 @@ const BranchProfitLossDialog: React.FC<BranchProfitLossDialogProps> = ({
       // Footer
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, pageHeight - 10);
+      doc.text(`Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString()}`, margin, pageHeight - 10);
 
       // Save PDF
       const filename = `PL_${branchName.replace(/\s+/g, '_')}_${MONTHS[selectedReport.month - 1]}_${selectedReport.year}.pdf`;

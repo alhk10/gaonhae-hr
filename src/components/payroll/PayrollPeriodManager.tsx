@@ -7,6 +7,7 @@ import { Calendar, ChevronLeft, ChevronRight, Clock, AlertCircle } from 'lucide-
 import { usePayroll } from '@/contexts/PayrollContext';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatDate } from '@/utils/dateFormat';
 
 const PayrollPeriodManager: React.FC = () => {
   const { payrollState, setCurrentPeriod, loadPayrollFromSupabase, isLoading } = usePayroll();
@@ -137,7 +138,7 @@ const PayrollPeriodManager: React.FC = () => {
 
           <div className="flex items-center text-sm text-gray-500">
             <Clock className="w-3 h-3 mr-1" />
-            Last updated: {payrollState.lastUpdated.toLocaleDateString()}
+            Last updated: {formatDate(payrollState.lastUpdated)}
           </div>
         </div>
 

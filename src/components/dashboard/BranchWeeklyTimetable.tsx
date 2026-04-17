@@ -14,6 +14,7 @@ import { getGradingSlotsForWeek, GradingSlotWithRegistrations } from '@/services
 import { getAttendanceForWeek } from '@/services/classAttendanceService';
 import { getClassTypeBadgeClasses } from '@/utils/classTypeColors';
 import SlotAttendanceDialog from './SlotAttendanceDialog';
+import { formatMonthShort, formatDate } from '@/utils/dateFormat';
 
 interface BranchWeeklyTimetableProps {
   branchId: string;
@@ -304,7 +305,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
             </Button>
           </div>
           <h3 className="text-lg font-semibold">
-            Week of {format(currentWeekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+            Week of {formatMonthShort(currentWeekStart)} - {formatDate(weekEnd)}
           </h3>
         </div>
 
@@ -433,7 +434,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
             </Button>
             <div className="text-center">
               <span className="text-sm font-semibold">
-                {WEEKDAYS[mobileDate.getDay()]?.short || format(mobileDate, 'EEE')}, {format(mobileDate, 'd MMM yyyy')}
+                {WEEKDAYS[mobileDate.getDay()]?.short || format(mobileDate, 'EEE')}, {formatDate(mobileDate)}
               </span>
               {mobileDayIsToday && (
                 <Badge variant="default" className="ml-2 text-[10px] px-1.5 py-0">Today</Badge>

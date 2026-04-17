@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatMonthShort, formatDate } from '@/utils/dateFormat';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -171,7 +172,7 @@ export function ClassWeeklyPlanner() {
         </div>
         
         <p className="text-sm text-muted-foreground mt-1">
-          Week of {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+          Week of {formatMonthShort(weekStart)} - {formatDate(weekEnd)}
         </p>
       </CardHeader>
 

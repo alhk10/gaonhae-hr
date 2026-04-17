@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, Eye, User, Clock, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDateTime } from '@/utils/dateFormat';
 import { 
   getPendingRequestsByBranch, 
   getAllPendingRequests,
@@ -16,7 +17,7 @@ import {
   StudentUpdateRequestWithDetails 
 } from '@/services/studentUpdateRequestService';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 interface StudentUpdateApprovalsProps {
@@ -167,7 +168,7 @@ const StudentUpdateApprovals: React.FC<StudentUpdateApprovalsProps> = ({ branchI
                     </p>
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      Requested {format(new Date(request.requested_at), 'MMM d, yyyy HH:mm')}
+                      Requested {formatDateTime(new Date(request.requested_at))}
                     </p>
                   </div>
                 </div>

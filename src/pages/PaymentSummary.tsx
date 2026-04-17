@@ -18,6 +18,7 @@ import PayrollEditDialog from '@/components/payroll/PayrollEditDialog';
 import PayrollHistoryActions from '@/components/payroll/PayrollHistoryActions';
 import { getEmployees } from '@/services/employeeService';
 import { getAllPayrollRecords, savePayrollRecord, getEmployeePayrollData, deletePayrollRecord, updatePayrollLockStatus, type PayrollRecord } from '@/services/payrollService';
+import { formatDate } from '@/utils/dateFormat';
 
 interface EmployeeOption {
   id: string;
@@ -447,7 +448,7 @@ const PaymentSummary = () => {
                             S${payroll.payrollData?.totalCPF?.toLocaleString() || '0'}
                           </TableCell>
                           <TableCell>
-                            {new Date(payroll.createdAt).toLocaleDateString()}
+                            {formatDate(new Date(payroll.createdAt))}
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">

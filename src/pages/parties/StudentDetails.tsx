@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Phone, AlertTriangle, Receipt, Award, FileText, Edit, DollarSign, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDate } from '@/utils/dateFormat';
 
 // Components
 import { StudentEmergencyContacts } from '@/components/sales/StudentEmergencyContacts';
@@ -392,7 +393,7 @@ const StudentDetails: React.FC = () => {
                     {creditHistory.map(c => (
                       <TableRow key={c.id}>
                         <TableCell className="text-sm">
-                          {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {formatDate(new Date(c.created_at))}
                         </TableCell>
                         <TableCell>
                           <Badge variant={c.type === 'overpayment' ? 'default' : c.type === 'credit_applied' ? 'outline' : c.type === 'refund' ? 'destructive' : 'secondary'}>

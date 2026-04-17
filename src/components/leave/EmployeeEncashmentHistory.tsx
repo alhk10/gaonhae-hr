@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Calendar, Clock } from 'lucide-react';
 import { getEmployeeEncashmentRecords, type LeaveEncashmentRecord } from '@/services/leaveEncashmentService';
+import { formatDate } from '@/utils/dateFormat';
 
 interface EmployeeEncashmentHistoryProps {
   employeeId: string;
@@ -110,7 +111,7 @@ const EmployeeEncashmentHistory: React.FC<EmployeeEncashmentHistoryProps> = ({ e
                       {record.processed_date ? (
                         <div className="flex items-center">
                           <Clock className="w-3 h-3 mr-1 text-gray-500" />
-                          {new Date(record.processed_date).toLocaleDateString()}
+                          {formatDate(new Date(record.processed_date))}
                         </div>
                       ) : (
                         '-'

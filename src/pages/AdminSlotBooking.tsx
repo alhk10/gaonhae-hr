@@ -26,6 +26,7 @@ import { SlotTimingSettingsTab } from '@/components/slot-booking/SlotTimingSetti
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isFromNovember2024, clearPricingCache } from '@/utils/slotPayCalculation';
 import { updatePricingConfig, SlotPricingConfig, SlotTimingConfig } from '@/services/slotPricingService';
+import { formatDate } from '@/utils/dateFormat';
 import {
   getBranches,
   getAllSlotBookings,
@@ -334,7 +335,7 @@ const AdminSlotBooking = () => {
       
       // Check if target branch has available slots for the date
       const bookingDate = selectedBookingForApproval.date;
-      const dayOfWeek = new Date(bookingDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
+      const dayOfWeek =formatDate( new Date(bookingDate)).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
       const totalSlots = currentWeeklySlots[selectedBranchForUpdate]?.[dayOfWeek] || 0;
       const existingBookings = allBookings.filter(b => 
         b.date === bookingDate && 
@@ -345,7 +346,7 @@ const AdminSlotBooking = () => {
       );
 
       if (existingBookings.length >= totalSlots) {
-        toast.error(`Target branch "${targetBranch.name}" is at full capacity for ${format(new Date(bookingDate), 'MMM dd, yyyy')}`);
+        toast.error(`Target branch "${targetBranch.name}" is at full capacity for ${formatDate(new Date(bookingDate))}`);
         return;
       }
 
@@ -712,7 +713,7 @@ const AdminSlotBooking = () => {
                                       <div>
                                         <p className="font-medium">{booking.employeeName}</p>
                                         <p className="text-sm text-gray-600">
-                                          {booking.branchName} • {format(new Date(booking.date), 'MMM dd, yyyy')}
+                                          {booking.branchName} • {formatDate(new Date(booking.date))}
                                         </p>
                                         {booking.notes && (
                                           <p className="text-sm text-gray-500 mt-1">{booking.notes}</p>
@@ -1098,7 +1099,7 @@ const AdminSlotBooking = () => {
                   </DialogTitle>
                   <DialogDescription>
                     {selectedBookingForApproval && 
-                      `Review booking for ${selectedBookingForApproval.employeeName} on ${format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}`
+                      `Review booking for ${selectedBookingForApproval.employeeName} on ${formatDate(new Date(selectedBookingForApproval.date))}`
                     }
                   </DialogDescription>
                 </DialogHeader>
@@ -1114,7 +1115,7 @@ const AdminSlotBooking = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Date:</span>
-                      <span>{selectedBookingForApproval && format(new Date(selectedBookingForApproval.date), 'dd/MM/yyyy')}</span>
+                      <span>{selectedBookingForApproval && formatDate(new Date(selectedBookingForApproval.date))}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Status:</span>
@@ -1275,7 +1276,7 @@ const AdminSlotBooking = () => {
                   <div className="space-y-2">
                     <p><strong>Employee:</strong> {selectedBookingForCancel?.employeeName}</p>
                     <p><strong>Branch:</strong> {selectedBookingForCancel?.branchName}</p>
-                    <p><strong>Date:</strong> {selectedBookingForCancel && format(new Date(selectedBookingForCancel.date), 'dd/MM/yyyy')}</p>
+                    <p><strong>Date:</strong> {selectedBookingForCancel && formatDate(new Date(selectedBookingForCancel.date))}</p>
                     <p><strong>Current Status:</strong> <Badge variant="secondary">{selectedBookingForCancel?.status}</Badge></p>
                   </div>
                   <p className="text-sm text-red-600 mt-3">This action cannot be undone.</p>

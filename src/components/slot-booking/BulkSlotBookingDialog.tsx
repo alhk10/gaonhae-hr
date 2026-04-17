@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin, AlertTriangle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   getBranches, 
   addAdminSlotBooking,
@@ -202,8 +203,8 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
       // Show results
       if (successCount > 0) {
         const successMessage = overrideSlotLimit && selectedEmployees.length > availableSlots
-          ? `Successfully created ${successCount} auto-approved slot bookings for ${format(editableDate, 'PPP')} (slot limit overridden)`
-          : `Successfully created ${successCount} auto-approved slot bookings for ${format(editableDate, 'PPP')}`;
+          ? `Successfully created ${successCount} auto-approved slot bookings for ${formatDate(editableDate)} (slot limit overridden)`
+          : `Successfully created ${successCount} auto-approved slot bookings for ${formatDate(editableDate)}`;
 
         toast.success(successMessage);
         
@@ -242,7 +243,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   };
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  const dayName = editableDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as keyof WeeklySlotConfig;
+  const dayName =formatDate( editableDate).toLowerCase() as keyof WeeklySlotConfig;
   const totalSlotsForDay = weeklyConfig[selectedBranch]?.[dayName] || 0;
 
   const isOverbooking = selectedEmployees.length > availableSlots;
@@ -265,7 +266,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
               <Input
                 id="date"
                 type={overrideSlotLimit && canOverrideSlots ? "date" : "text"}
-                value={overrideSlotLimit && canOverrideSlots ? format(editableDate, 'yyyy-MM-dd') : format(editableDate, 'dd/MM/yyyy')}
+                value={overrideSlotLimit && canOverrideSlots ? format(editableDate, 'yyyy-MM-dd') : formatDate(editableDate)}
                 onChange={handleDateChange}
                 disabled={!overrideSlotLimit || !canOverrideSlots}
                 className={!overrideSlotLimit || !canOverrideSlots ? "bg-gray-50" : ""}

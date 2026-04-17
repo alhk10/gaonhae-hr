@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDate } from '@/utils/dateFormat';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -253,13 +254,7 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
 
   const formatDateSGT = (dateString: string | null) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-SG', { 
-      timeZone: 'Asia/Singapore',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return formatDate(dateString);
   };
 
   const getClaimTypeIcon = (typeName: string) => {

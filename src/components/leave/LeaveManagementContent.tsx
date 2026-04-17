@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   Clock, 
   Users, 
@@ -253,9 +254,9 @@ const LeaveManagementContent = () => {
                           </div>
                           <div className="mt-2 text-sm text-gray-600">
                             <p>
-                              {new Date(request.startDate).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })} 
+                              {formatDate(new Date(request.startDate))} 
                               {' → '}
-                              {new Date(request.endDate).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {formatDate(new Date(request.endDate))}
                             </p>
                           </div>
                         </div>

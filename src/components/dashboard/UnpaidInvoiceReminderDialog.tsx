@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CreditCard, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -74,8 +75,8 @@ const UnpaidInvoiceReminderDialog: React.FC<UnpaidInvoiceReminderDialogProps> = 
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {invoice.due_date
-                      ? `Due: ${format(new Date(invoice.due_date), 'dd MMM yyyy')}`
-                      : `Issued: ${format(new Date(invoice.created_at), 'dd MMM yyyy')}`}
+                      ? `Due: ${formatDate(new Date(invoice.due_date))}`
+                      : `Issued: ${formatDate(new Date(invoice.created_at))}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

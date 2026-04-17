@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -154,12 +155,6 @@ const PaymentManagementList: React.FC = () => {
     };
     return methods[method] || method;
   };
-
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
-  };
-
   const clearFilters = () => {
     setSearchQuery('');
     setMethodFilter('all');

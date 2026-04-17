@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   ClipboardList,
   Eye
 } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { Student } from '@/services/studentService';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
 import { useQuery } from '@tanstack/react-query';
@@ -90,14 +91,6 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
 
   if (!student) return null;
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Not set';
-    try {
-      return format(new Date(dateStr), 'dd MMM yyyy');
-    } catch {
-      return dateStr;
-    }
-  };
 
   const calculateAge = (dob?: string) => {
     if (!dob) return null;

@@ -3,6 +3,7 @@ import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } f
 import { getAllSlotBookings } from './slotBookingService';
 import { getEmployeeById } from './employeeService';
 import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormat';
 
 export interface AttendanceRecord {
   id: number;

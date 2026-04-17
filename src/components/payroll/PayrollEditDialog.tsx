@@ -19,6 +19,7 @@ import { PayrollRecord, savePayrollRecord } from '@/services/payrollService';
 import { cn } from '@/lib/utils';
 import EditAllowancesDialog from './EditAllowancesDialog';
 import EditDeductionsDialog from './EditDeductionsDialog';
+import { formatDate } from '@/utils/dateFormat';
 
 interface PayrollEditDialogProps {
   payroll: PayrollRecord | null;
@@ -472,7 +473,7 @@ const PayrollEditDialog = ({ payroll, isOpen, onClose, onSave }: PayrollEditDial
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {payrollDate ? format(payrollDate, 'MMMM dd, yyyy') : <span>Pick a date</span>}
+                    {payrollDate ? formatDate(payrollDate) : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

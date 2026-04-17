@@ -7,6 +7,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   Receipt, 
   DollarSign, 
@@ -18,7 +19,7 @@ import {
   Eye,
   Download
 } from 'lucide-react';
-import { format } from 'date-fns';
+
 
 interface Invoice {
   id: string;
@@ -201,10 +202,10 @@ export const StudentInvoices: React.FC<StudentInvoicesProps> = ({
                         Invoice #{invoice.invoice_number}
                       </h3>
                       <div className="text-sm text-muted-foreground">
-                        Issued: {format(new Date(invoice.issue_date), 'MMM dd, yyyy')}
+                        Issued: {formatDate(new Date(invoice.issue_date))}
                         {invoice.due_date && (
                           <span className="ml-2">
-                            • Due: {format(new Date(invoice.due_date), 'MMM dd, yyyy')}
+                            • Due: {formatDate(new Date(invoice.due_date))}
                           </span>
                         )}
                       </div>
@@ -261,7 +262,7 @@ export const StudentInvoices: React.FC<StudentInvoicesProps> = ({
                       {invoice.payments.slice(0, 2).map((payment) => (
                         <div key={payment.id} className="flex justify-between text-sm">
                           <span className="text-green-700">
-                            {format(new Date(payment.payment_date), 'MMM dd, yyyy')} • {payment.payment_method}
+                            {formatDate(new Date(payment.payment_date))} • {payment.payment_method}
                           </span>
                           <span className="text-green-800 font-medium">
                             ${Number(payment.amount).toFixed(2)}

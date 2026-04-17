@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   BarChart, 
   Bar, 
@@ -77,11 +78,6 @@ const SalesAnalytics: React.FC = () => {
       currency: 'SGD'
     }).format(amount);
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG');
-  };
-
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   if (loading) {

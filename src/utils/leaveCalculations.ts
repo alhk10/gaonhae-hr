@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { isEligibleForLeave } from './employeeEligibility';
+import { formatDate } from '@/utils/dateFormat';
 
 // Interface for database function results
 interface LeaveEntitlementResult {
@@ -211,7 +212,7 @@ export const getLeaveEntitlementSummary = async (employeeId: string, joinDate: s
     summary += ` + 14 medical leave days.`;
     
     if (joinYear === currentYear) {
-      summary += ` (Pro-rated from your join date in ${new Date(joinDate).toLocaleDateString('en-GB', { month: 'long' })})`;
+      summary += ` (Pro-rated from your join date in ${formatDate(new Date(joinDate))})`;
     }
     
     return summary;

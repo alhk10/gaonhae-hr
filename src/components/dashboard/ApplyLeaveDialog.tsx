@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -217,15 +218,6 @@ const ApplyLeaveDialog: React.FC<ApplyLeaveDialogProps> = ({
         return <Badge variant="outline">{status}</Badge>;
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
   const pendingLeave = leaveRequests.filter(l => l.status === 'Pending');
   const currentYear = new Date().getFullYear();
   const yearLeave = leaveRequests.filter(l => 

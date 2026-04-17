@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Check, X, UserMinus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '@/utils/dateFormat';
 import {
   getPendingWithdrawalRequests,
   approveWithdrawalRequest,
   rejectWithdrawalRequest,
 } from '@/services/studentWithdrawalRequestService';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 const StudentWithdrawalApprovals: React.FC = () => {
@@ -72,7 +73,7 @@ const StudentWithdrawalApprovals: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{req.student_name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Branch: {req.branch_id} · By: {req.requested_by} · {format(new Date(req.created_at), 'dd MMM yyyy')}
+                  Branch: {req.branch_id} · By: {req.requested_by} · {formatDate(new Date(req.created_at))}
                 </p>
               </div>
               <div className="flex gap-1 shrink-0">

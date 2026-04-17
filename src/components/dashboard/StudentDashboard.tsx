@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   GraduationCap, 
   DollarSign, 
@@ -27,7 +28,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
 
@@ -677,8 +678,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       // Format date helpers (same as admin page)
       const formatShortDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          return formatDate(dateStr);
         } catch {
           return dateStr;
         }
@@ -686,8 +686,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       const formatFullDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);
-          return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          return formatDate(dateStr);
         } catch {
           return dateStr;
         }
@@ -897,7 +896,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Enrolled Since</span>
                   <span className="font-medium">
-                    {student.enrollment_date ? format(new Date(student.enrollment_date), 'dd MMM yyyy') : 'N/A'}
+                    {student.enrollment_date ? formatDate(new Date(student.enrollment_date)) : 'N/A'}
                   </span>
                 </div>
               </CardContent>
@@ -920,7 +919,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                           <div>
                             <p className="font-medium text-sm">{invoice.invoice_number}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                              {formatDate(new Date(invoice.created_at))}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1134,7 +1133,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-sm">{invoice.invoice_number}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                                  {formatDate(new Date(invoice.created_at))}
                                 </p>
                               </div>
                               <div className="text-right flex-shrink-0 ml-2">
@@ -1180,7 +1179,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
                             <div className="min-w-0">
                               <p className="font-medium truncate">{invoice.invoice_number}</p>
                               <p className="text-sm text-muted-foreground">
-                                {format(new Date(invoice.created_at), 'dd MMM yyyy')}
+                                {formatDate(new Date(invoice.created_at))}
                               </p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">

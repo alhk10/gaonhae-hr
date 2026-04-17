@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar, Clock, MapPin, DollarSign } from 'lucide-react';
 import { getEmployeeSlotBookings } from '@/services/slotBookingService';
 import { format } from 'date-fns';
+import { formatDate } from '@/utils/dateFormat';
 
 interface SlotBookingHistoryProps {
   employeeId: string;
@@ -39,13 +40,6 @@ const SlotBookingHistory: React.FC<SlotBookingHistoryProps> = ({ employeeId, emp
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'dd MMM yyyy');
-    } catch {
-      return dateString;
-    }
-  };
 
   const formatTime = (timeString: string | null) => {
     if (!timeString) return '-';

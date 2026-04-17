@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   DollarSign, 
   Calendar, 
@@ -400,7 +401,7 @@ const LeaveEncashmentManager = () => {
                         </TableCell>
                         <TableCell>
                           {record.processed_date 
-                            ? new Date(record.processed_date).toLocaleDateString()
+                            ? formatDate(record.processed_date)
                             : '-'
                           }
                         </TableCell>

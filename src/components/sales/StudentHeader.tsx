@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CalendarDays, Phone, Mail, MapPin, Award, Clock, MessageCircle } from 'lucide-react';
 import { Student } from '@/services/studentService';
-import { format } from 'date-fns';
+
+import { formatDate } from '@/utils/dateFormat';
 
 interface StudentHeaderProps {
   student: Student;
@@ -105,7 +106,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
               
               <div className="flex items-center gap-2 text-muted-foreground">
                 <CalendarDays className="w-4 h-4" />
-                <span>Enrolled: {format(new Date(student.enrollment_date), 'MMM dd, yyyy')}</span>
+                <span>Enrolled: {formatDate(new Date(student.enrollment_date))}</span>
               </div>
               
               {student.address && (

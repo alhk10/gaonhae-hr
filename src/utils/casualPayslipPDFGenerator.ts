@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { formatDate } from '@/utils/dateFormat';
 
 interface SlotEntry {
   date: string;
@@ -66,10 +67,9 @@ const formatTime = (timeStr: string | null): string => {
 };
 
 // Helper to format date
-const formatDate = (dateStr: string): string => {
+const formatDateLocal = (dateStr: string): string => {
   try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' });
+    return formatDate(dateStr);
   } catch {
     return dateStr;
   }

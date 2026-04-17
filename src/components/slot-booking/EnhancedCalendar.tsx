@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/utils/dateFormat';
 
 interface EnhancedCalendarProps {
   selectedDates: Date[];
@@ -37,7 +38,7 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   const getSlotAvailability = (date: Date) => {
     if (!currentBranch || !weeklySlotConfig) return 0;
     
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const dayName =formatDate( date).toLowerCase();
     const config = weeklySlotConfig[currentBranch.id];
     
     if (!config) return 0;

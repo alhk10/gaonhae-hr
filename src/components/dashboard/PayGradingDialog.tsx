@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatDate, formatMonthShort } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, subDays, differenceInYears, differenceInMonths } from 'date-fns';
+import { parseISO, subDays, differenceInYears, differenceInMonths } from 'date-fns';
 import { GradingSlot } from '@/services/gradingService';
 import { createInvoice } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';
@@ -406,7 +407,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         student_id: studentId,
         branch_id: student.branch_id,
         payment_terms_days: 7,
-        internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${format(parseISO(selectedSlot.grading_date), 'dd MMM yyyy')}`,
+        internal_notes: `Grading registration: ${formatBeltLevel(student.current_belt)} → ${formatBeltLevel(nextBelt)} on ${formatDate(parseISO(selectedSlot.grading_date))}`,
         items: [{
           product_id: gradingProduct.id,
           description: gradingProduct.name,
@@ -653,7 +654,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                                   const isCurrentTerm = currentTermForRemaining?.id === term.id;
                                   return (
                                     <SelectItem key={term.id} value={term.id}>
-                                      {term.name} ({format(parseISO(term.start_date), 'dd MMM')} - {format(parseISO(term.end_date), 'dd MMM yyyy')})
+                                      {term.name} ({formatMonthShort(parseISO(term.start_date))} - {formatDate(parseISO(term.end_date))})
                                       {index === 0 && !isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Next</Badge>}
                                       {isCurrentTerm && <Badge variant="secondary" className="ml-2 text-xs">Full Term</Badge>}
                                     </SelectItem>
@@ -716,7 +717,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Date</span>
                     <span className="font-medium">
-                      {format(parseISO(selectedSlot.grading_date), 'dd MMM yyyy')}
+                      {formatDate(parseISO(selectedSlot.grading_date))}
                     </span>
                   </div>
                   {selectedSlot.start_time && (

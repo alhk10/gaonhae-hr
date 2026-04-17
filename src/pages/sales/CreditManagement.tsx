@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { DollarSign, Search, Plus, Minus, History, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDate } from '@/utils/dateFormat';
 import {
   getAllStudentCredits,
   getStudentCreditHistory,
@@ -216,7 +217,7 @@ const CreditManagement: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {summary.last_transaction_date
-                            ? new Date(summary.last_transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            ? formatDate(summary.last_transaction_date)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right">
@@ -270,7 +271,7 @@ const CreditManagement: React.FC = () => {
                       {creditHistory.map(c => (
                         <TableRow key={c.id}>
                           <TableCell className="text-xs">
-                            {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            {formatDate(new Date(c.created_at))}
                           </TableCell>
                           <TableCell>{getTypeBadge(c.type)}</TableCell>
                           <TableCell className={`text-right font-medium ${c.amount >= 0 ? 'text-green-600' : 'text-destructive'}`}>

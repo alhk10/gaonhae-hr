@@ -13,6 +13,7 @@ import { CalendarDays, Check, X, User, Calendar as CalendarIcon, Clock, Plus } f
 import { getAllLeaveRequests, updateLeaveStatus, type LeaveRequest } from '@/services/leaveService';
 import { useAuth } from '@/contexts/AuthContext';
 import BulkLeaveDialog from './BulkLeaveDialog';
+import { formatDate } from '@/utils/dateFormat';
 
 const localizer = dateFnsLocalizer({
   format,
@@ -212,11 +213,11 @@ const LeaveCalendarView = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Start Date</p>
-                  <p className="text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()}</p>
+                  <p className="text-sm">{formatDate(new Date(selectedLeave.startDate))}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">End Date</p>
-                  <p className="text-sm">{new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                  <p className="text-sm">{formatDate(new Date(selectedLeave.endDate))}</p>
                 </div>
               </div>
               
@@ -243,7 +244,7 @@ const LeaveCalendarView = () => {
                 <p className="text-sm font-medium text-gray-500">Applied On</p>
                 <div className="flex items-center space-x-1">
                   <CalendarIcon className="w-4 h-4 text-gray-400" />
-                  <p className="text-sm">{new Date(selectedLeave.appliedOn).toLocaleDateString()}</p>
+                  <p className="text-sm">{formatDate(new Date(selectedLeave.appliedOn))}</p>
                 </div>
               </div>
               

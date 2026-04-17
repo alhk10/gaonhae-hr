@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { KeyRound, Shield, ShieldOff, Loader2, Mail, AlertCircle } from 'lucide-react';
+import { formatDate } from '@/utils/dateFormat';
 import { 
   getStudentAuthByStudentId, 
   enablePortalAccess, 
@@ -165,7 +166,7 @@ const StudentPortalAccessManager: React.FC<StudentPortalAccessManagerProps> = ({
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Access Created</label>
                 <p className="text-foreground">
-                  {new Date(portalAuth.created_at).toLocaleDateString()}
+                  {formatDate(new Date(portalAuth.created_at))}
                 </p>
               </div>
               

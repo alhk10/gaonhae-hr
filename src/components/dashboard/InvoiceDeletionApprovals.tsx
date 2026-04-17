@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Check, X, FileText, AlertCircle, Eye } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { formatDate } from '@/utils/dateFormat';
 import {
   getPendingInvoiceDeletionRequests,
   approveInvoiceDeletionRequest,
@@ -62,13 +63,6 @@ const InvoiceDeletionApprovals: React.FC = () => {
       rejectMutation.mutate(requestId);
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-SG', {
-      year: 'numeric', month: 'short', day: 'numeric'
-    });
-  };
-
   if (error) {
     return (
       <Card>

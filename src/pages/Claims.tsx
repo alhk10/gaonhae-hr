@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+import { formatDate } from '@/utils/dateFormat';
 import {
   Card,
   CardContent,
@@ -245,7 +246,7 @@ const Claims = () => {
                           <TableCell>{claim.employee}</TableCell>
                           <TableCell>{claim.type}</TableCell>
                           <TableCell>S${claim.amount.toLocaleString()}</TableCell>
-                          <TableCell>{new Date(claim.date).toLocaleDateString()}</TableCell>
+                          <TableCell>{formatDate(new Date(claim.date))}</TableCell>
                           <TableCell>
                             <Badge variant={claim.status === 'Approved' ? 'default' : claim.status === 'Rejected' ? 'destructive' : 'secondary'}>
                               {claim.status}

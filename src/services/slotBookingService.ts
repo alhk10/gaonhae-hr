@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+
 import { logger } from '@/utils/logger';
+import { formatDate } from '@/utils/dateFormat';
 
 export type SlotBooking = {
   id: string;

@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Receipt, Eye } from 'lucide-react';
 import { getEmployeeClaims, Claim } from '@/services/claimsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { formatDate } from '@/utils/dateFormat';
 
 interface EmployeeClaimHistoryProps {
   employeeId: string;
@@ -124,7 +125,7 @@ const EmployeeClaimHistory: React.FC<EmployeeClaimHistoryProps> = ({
                 {claims.slice(0, 10).map((claim) => (
                   <TableRow key={claim.id}>
                     <TableCell className="font-medium">
-                      {new Date(claim.date).toLocaleDateString()}
+                      {formatDate(new Date(claim.date))}
                     </TableCell>
                     <TableCell>{claim.type}</TableCell>
                     <TableCell>${claim.amount.toFixed(2)}</TableCell>
@@ -154,7 +155,7 @@ const EmployeeClaimHistory: React.FC<EmployeeClaimHistoryProps> = ({
                                 <div>
                                   <label className="text-sm font-medium">Date</label>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(selectedClaim.date).toLocaleDateString()}
+                                    {formatDate(new Date(selectedClaim.date))}
                                   </p>
                                 </div>
                                 <div>

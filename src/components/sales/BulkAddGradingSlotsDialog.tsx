@@ -17,6 +17,7 @@ import { createGradingSlot } from '@/services/gradingService';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { Plus, Trash2, Copy, Loader2, ChevronDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { formatDate } from '@/utils/dateFormat';
 
 interface Branch {
   id: string;
@@ -57,7 +58,7 @@ const createEmptyRow = (): BulkRow => ({
 
 const generateTitle = (branchName: string, date: string, time: string, belts: string[]): string => {
   const dateStr = date
-    ? new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    ? formatDate(date + 'T00:00:00')
     : '';
   const timeStr = time ? time.slice(0, 5) : '';
   const beltStr = belts.length > 0

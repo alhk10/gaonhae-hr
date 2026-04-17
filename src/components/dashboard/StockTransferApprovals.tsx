@@ -6,8 +6,9 @@ import { CheckCircle, XCircle, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPendingTransferRequests, approveTransferRequest, rejectTransferRequest } from '@/services/inventoryTransferService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/utils/dateFormat';
 
 const StockTransferApprovals: React.FC = () => {
   const { user } = useAuth();
@@ -69,7 +70,7 @@ const StockTransferApprovals: React.FC = () => {
                   </p>
                   {req.reason && <p className="text-xs text-muted-foreground">{req.reason}</p>}
                   <p className="text-xs text-muted-foreground">
-                    By {req.requested_by} • {format(new Date(req.created_at), 'dd MMM yyyy')}
+                    By {req.requested_by} • {formatDate(new Date(req.created_at))}
                   </p>
                 </div>
                 <div className="flex gap-2">

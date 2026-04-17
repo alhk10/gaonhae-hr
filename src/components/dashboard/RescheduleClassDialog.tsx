@@ -12,6 +12,7 @@ import { swapScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { formatDate } from '@/utils/dateFormat';
 
 interface ScheduledClassInfo {
   id: string;
@@ -163,8 +164,8 @@ const RescheduleClassDialog: React.FC<RescheduleClassDialogProps> = ({
           </DialogTitle>
           <DialogDescription>
             {mode === 'makeup'
-              ? `Schedule a make-up for your missed ${scheduledClass.class_type} class on ${format(new Date(scheduledClass.scheduled_date), 'dd MMM yyyy')}`
-              : `Move your ${scheduledClass.class_type} class from ${format(new Date(scheduledClass.scheduled_date), 'dd MMM yyyy')} to a new date`
+              ? `Schedule a make-up for your missed ${scheduledClass.class_type} class on ${formatDate(new Date(scheduledClass.scheduled_date))}`
+              : `Move your ${scheduledClass.class_type} class from ${formatDate(new Date(scheduledClass.scheduled_date))} to a new date`
             }
           </DialogDescription>
         </DialogHeader>
