@@ -33,6 +33,9 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
   onStudentAdded
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
+  // Tracks whether the user has manually picked a belt — once they do, we stop
+  // auto-defaulting based on country/DOB.
+  const [beltManuallySet, setBeltManuallySet] = useState(false);
   
   // Support both controlled and uncontrolled modes
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -105,10 +108,30 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     notes: ''
   });
 
+  // Resolve country-aware belt list based on the selected primary branch.
+  const selectedBranch = branches.find(b => b.id === formData.branch_id);
+  const branchCountry = selectedBranch?.country ?? null;
+  const beltLevelOptions = getBeltLevelsForCountry(branchCountry);
+
+  // Auto-default the current belt whenever branch + DOB are present and the
+  // user hasn't manually overridden the belt yet. SG <5 → Foundation 1,
+  // AU <5 → Foundation, ≥5 → White, otherwise leave blank.
+  useEffect(() => {
+    if (beltManuallySet) return;
+    const proposed = getDefaultBeltForNewStudent(branchCountry, formData.date_of_birth);
+    if (proposed && proposed !== formData.current_belt) {
+      setFormData(prev => ({ ...prev, current_belt: proposed }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchCountry, formData.date_of_birth, beltManuallySet]);
+
   // Fields that should auto-uppercase
   const uppercaseFields = ['first_name', 'last_name', 'certificate_name', 'display_name', 'preferred_name', 'nric_passport', 'passport_no', 'address', 'emergency_contact_name', 'emergency_contact_2_name'];
 
   const handleInputChange = (field: string, value: string) => {
+    if (field === 'current_belt') {
+      setBeltManuallySet(true);
+    }
     // Auto-uppercase specific fields
     const processedValue = uppercaseFields.includes(field) ? value.toUpperCase() : value;
     
