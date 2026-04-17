@@ -967,6 +967,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         student_id: formData.student_id, branch_id: formData.branch_id || undefined,
         payment_terms_days: 30, notes: formData.notes || undefined,
         tax_included: taxIncluded !== null ? taxIncluded : undefined,
+        ...(isSuperadmin && formData.issue_date ? { issue_date: formData.issue_date } : {}),
         items: invoiceItems
       };
 
