@@ -16,7 +16,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
-import { BELT_LEVELS } from '@/constants/beltLevels';
+import { getBeltLevelsForCountry, getDefaultBeltForNewStudent } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 
 interface AddStudentDialogProps {

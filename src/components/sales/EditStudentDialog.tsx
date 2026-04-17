@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
-import { BELT_LEVELS, formatBeltLevel } from '@/constants/beltLevels';
+import { getBeltLevelsForCountry, formatBeltLevel } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 import { useQuery } from '@tanstack/react-query';
 import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';

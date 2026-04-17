@@ -14,7 +14,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'sonner';
 import { UserPlus, Calendar, Phone, User, Clock, AlertCircle } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
-import { BELT_LEVELS } from '@/constants/beltLevels';
+import { getBeltLevelsForCountry, getDefaultBeltForNewStudent } from '@/constants/beltLevels';
 import { relationshipOptions } from '@/constants/formOptions';
 
 interface AddTrialDialogProps {
