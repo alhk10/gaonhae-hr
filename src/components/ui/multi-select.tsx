@@ -126,6 +126,27 @@ export function MultiSelect({
             placeholder={searchPlaceholder} 
             value={searchValue}
             onValueChange={setSearchValue}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && !e.shiftKey) {
+                const highlighted = (e.currentTarget
+                  .closest('[cmdk-root]') as HTMLElement | null)
+                  ?.querySelector('[cmdk-item][data-selected="true"]') as HTMLElement | null;
+                const value = highlighted?.getAttribute('data-value');
+                if (value) {
+                  e.preventDefault();
+                  // Match against original option casing; fall back to add-new for custom entries
+                  const match = options.find((o) => o.toLowerCase() === value.toLowerCase());
+                  if (match) {
+                    handleSelect(match);
+                  } else if (showAddOption) {
+                    handleAddNew();
+                  }
+                } else if (showAddOption) {
+                  e.preventDefault();
+                  handleAddNew();
+                }
+              }
+            }}
           />
           <CommandList>
             <CommandEmpty>
