@@ -14,7 +14,8 @@ import { getPendingRegistrations, approveRegistration, rejectRegistration } from
 import { toast } from 'sonner';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { BELT_LEVELS_ARRAY, getBeltLevelsForCountry, getDefaultBeltForNewStudent } from '@/constants/beltLevels';
+import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/utils/dateFormat';
 
@@ -49,6 +50,7 @@ const EDITABLE_FIELDS: { key: string; label: string; type?: 'text' | 'select' | 
 const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> = ({ branchId, showAll = false }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { branches } = useBranches();
   const [selectedReg, setSelectedReg] = useState<any>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -56,6 +58,17 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [selectedBelt, setSelectedBelt] = useState<string>('none');
+
+  // Resolve country for the registration's branch so the belt selector renders
+  // the right list (SG: Foundation 1/2/3 …, AU: single Foundation …).
+  const regBranch = selectedReg ? branches.find(b => b.id === selectedReg.branch_id) : undefined;
+  const regCountry = regBranch?.country ?? null;
+  const regBeltOptions = getBeltLevelsForCountry(regCountry);
+  // Keep the existing belt visible even if it's not in the country-specific list
+  // (legacy data fallback).
+  const beltOptionsForReg = selectedBelt && selectedBelt !== 'none' && !regBeltOptions.includes(selectedBelt)
+    ? [selectedBelt, ...regBeltOptions]
+    : regBeltOptions;
 
   const { data: pendingRegistrations = [], isLoading } = useQuery({
     queryKey: ['pending-registrations', branchId, showAll],
@@ -94,9 +107,18 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
     if (selectedReg) {
       setEditValues({});
       setEditingField(null);
-      setSelectedBelt(selectedReg.current_belt || 'none');
+      // If the registration already has a belt, use it.
+      // Otherwise, prefill with the country + DOB-derived default
+      // (still editable; "No Belt" remains an option).
+      if (selectedReg.current_belt) {
+        setSelectedBelt(selectedReg.current_belt);
+      } else {
+        const branch = branches.find(b => b.id === selectedReg.branch_id);
+        const proposed = getDefaultBeltForNewStudent(branch?.country ?? null, selectedReg.date_of_birth);
+        setSelectedBelt(proposed || 'none');
+      }
     }
-  }, [selectedReg]);
+  }, [selectedReg, branches]);
 
   const approveMutation = useMutation({
     mutationFn: ({ id, overrides }: { id: string; overrides: Record<string, any> }) =>
@@ -215,7 +237,7 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No Belt</SelectItem>
-                      {BELT_LEVELS_ARRAY.map(belt => (
+                      {beltOptionsForReg.map(belt => (
                         <SelectItem key={belt} value={belt}>{belt}</SelectItem>
                       ))}
                     </SelectContent>
