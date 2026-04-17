@@ -339,13 +339,6 @@ export function TermCalendarManagement() {
     return addDays(parseISO(termForm.end_date), graceDays);
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return formatDate(parseISO(dateStr));
-    } catch {
-      return dateStr;
-    }
-  };
 
   const groupedTerms = terms.reduce((acc, term) => {
     const key = term.branch_id;

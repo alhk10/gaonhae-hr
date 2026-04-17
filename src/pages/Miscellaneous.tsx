@@ -67,7 +67,6 @@ interface Employee {
   phone: string | null;
 }
 
-const formatDate = (dateStr: string | null): string => {
   if (!dateStr) return 'N/A';
   try {
     return formatDate(new Date(dateStr));

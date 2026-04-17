@@ -40,13 +40,6 @@ const SlotBookingHistory: React.FC<SlotBookingHistoryProps> = ({ employeeId, emp
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return formatDate(new Date(dateString));
-    } catch {
-      return dateString;
-    }
-  };
 
   const formatTime = (timeString: string | null) => {
     if (!timeString) return '-';

@@ -91,14 +91,6 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
 
   if (!student) return null;
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Not set';
-    try {
-      return formatDate(new Date(dateStr));
-    } catch {
-      return dateStr;
-    }
-  };
 
   const calculateAge = (dob?: string) => {
     if (!dob) return null;
