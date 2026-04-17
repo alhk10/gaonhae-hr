@@ -353,7 +353,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null);
   const taxManuallySet = useRef(false);
 
-  const [formData, setFormData] = useState({ student_id: '', branch_id: '', notes: '' });
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [formData, setFormData] = useState({ student_id: '', branch_id: '', notes: '', issue_date: todayISO() });
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [newItem, setNewItem] = useState({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
 
