@@ -468,6 +468,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         if (metadata?.selected_class_slots) slots[item.id] = [...metadata.selected_class_slots];
       });
       setEditingClassSlots(slots);
+      setEditIssueDate(invoice.issue_date || '');
     }
   }, [mode, invoice, viewProducts]);
 
