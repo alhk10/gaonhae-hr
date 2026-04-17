@@ -322,8 +322,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
       {sidebarOpen && (
         <div className="fixed inset-0 z-[55]">
           <div className="fixed inset-0 bg-black bg-opacity-25" onClick={closeSidebar} />
-          <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg">
-            <div className="p-6 pt-20">
+          <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-6 pt-20">
               <nav className="space-y-1">
                 {menuItems.map((item) => (
                   <Button
