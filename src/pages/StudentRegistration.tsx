@@ -15,6 +15,7 @@ import { submitStudentRegistration } from '@/services/studentRegistrationService
 import { supabase } from '@/integrations/supabase/client';
 import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
+import { getDefaultBeltForNewStudent } from '@/constants/beltLevels';
 
 const referralSourceOptions = [
   { value: 'family_friends', label: 'Family & Friends' },
@@ -205,12 +206,22 @@ const StudentRegistration = () => {
         signatureUrl = urlData.publicUrl;
       }
 
+      // Compute the default belt based on the selected branch's country + DOB
+      // so the registration is created with a sensible starting belt
+      // (admins can still override during approval).
+      const selectedBranch = branches.find(b => b.id === formData.branch_id);
+      const defaultBelt = getDefaultBeltForNewStudent(
+        selectedBranch?.country ?? null,
+        formData.date_of_birth,
+      );
+
       await submitStudentRegistration({
         ...formData,
         training_goals: formData.training_goals.join(', '),
         gender: formData.gender || undefined,
         date_of_birth: formData.date_of_birth || undefined,
         signature_url: signatureUrl,
+        current_belt: defaultBelt || undefined,
       });
       setSubmitted(true);
       toast.success('Registration submitted successfully!');
