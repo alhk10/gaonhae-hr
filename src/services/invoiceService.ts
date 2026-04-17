@@ -76,6 +76,7 @@ export interface CreateInvoiceData {
   notes?: string;
   internal_notes?: string;
   tax_included?: boolean;
+  issue_date?: string; // YYYY-MM-DD; superadmin override (defaults to today)
   items: Array<{
     product_id: string;
     description: string;
@@ -271,8 +272,10 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     const totalAmount = subtotal + taxAmount;
     const balanceDue = totalAmount;
 
-    // Calculate due date
-    const issueDate = new Date();
+    // Calculate due date — honour superadmin-supplied issue_date if provided
+    const issueDate = invoiceData.issue_date
+      ? new Date(invoiceData.issue_date + 'T00:00:00')
+      : new Date();
     const dueDate = new Date(issueDate);
     dueDate.setDate(dueDate.getDate() + (invoiceData.payment_terms_days || 30));
 
