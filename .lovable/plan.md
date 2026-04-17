@@ -1,68 +1,48 @@
 
-## Plan: Fix "Failed to save class" — migrate legacy belt names
 
-### Root cause
-Existing rows in `branch_timetables.belt_levels` (and `grading_slots.belt_levels`) contain legacy belt names: `Dan 1…Dan 5` and `Poom 1…Poom 4`. The DB CHECK constraint `is_valid_belt_level_array` only accepts the modern names (`1st Dan…5th Dan`, `1st Poom…4th Poom`).
+## Plan: Superadmin can view & edit invoice date
 
-When a superadmin opens an existing class to edit and submits, the UPDATE re-writes `belt_levels` — and the legacy values fail the constraint, so Supabase rejects the row → frontend shows toast "Failed to save class".
+### Current behavior
+- `invoiceService.createInvoice` hardcodes `issue_date` to today (`new Date().toISOString().split('T')[0]`) and recomputes `due_date = issue_date + payment_terms_days`.
+- The **Create Invoice** dialog (`InvoiceDialog.tsx`, create mode) has no date input — it only collects Branch + Student + Items.
+- The **View / Edit** mode shows the date as read-only text in the summary tile (line 1482) and never updates `issue_date` on save (only `notes`, totals, items).
+- All other roles must keep the auto-today behaviour (no surprises for staff).
 
-The dialog also displays the stale names in the "Selected:" hint while the checkbox list shows modern names, so the user has no way to clean them up by hand.
+### Target behavior
+- Only when `userrole === 'superadmin'`:
+  - **Create mode**: a new `Invoice Date` field appears next to Branch/Student. Defaults to today. Submitting passes the picked date to the service.
+  - **Edit mode**: the read-only "Date" tile becomes an editable date input. Saving updates `invoices.issue_date` (and recalculates `due_date = new issue_date + payment_terms_days`).
+- For non-superadmins: no UI change, behaviour identical to today.
 
-### Verification done
-- Queried `pg_constraint` → confirmed CHECK uses `is_valid_belt_level_array`.
-- Queried distinct belt values → 9 legacy variants present in `branch_timetables` (every weekday × Teens & Adults rows, plus Foundation 1/2/3 mixed in) and a handful in `grading_slots`.
-- `students.current_belt`, `student_registrations`, `grading_registrations`, `student_grading_history`, `products.*`, `notices.target_belt_levels`, `price_rules.*` — all clean (no legacy values).
+### Implementation
 
-### Fix (single SQL migration)
+**1. `src/services/invoiceService.ts`**
+- Add `issue_date?: string` to `CreateInvoiceData`.
+- In `createInvoice`: if `invoiceData.issue_date` is provided, parse it as the issue date; otherwise fall back to today. Recalculate `due_date` from that issue date + payment terms.
 
-Run a one-shot data migration that rewrites the legacy names in the two affected tables:
+**2. `src/components/sales/InvoiceDialog.tsx`**
+- Extend `formData` with `issue_date: string` (default today, format `YYYY-MM-DD`).
+- **Create mode (around line 1300-1326)**: change the grid to 3 columns on md when superadmin (or keep 2 cols and add a new row). Render a third field labelled `Invoice Date` using a date input (consistent with project's date helpers — display via `formatDate` for previews but a native `type="date"` for picking is acceptable since this is admin-only and not user-facing presentation; alternatively reuse `<DatePicker>` from `@/components/ui/date-picker` to keep DD/MM/YYYY display and avoid the native-input ban). Field only renders when `isSuperadmin`.
+- In `handleSubmit` (around line 960): pass `issue_date: formData.issue_date` into `createInvoice` when `isSuperadmin`.
+- Reset `issue_date` to today in `resetForm`.
+- **Edit mode (around line 1480-1483)**: replace the static `Date` tile with an inline `DatePicker` when `mode === 'edit' && isSuperadmin`; otherwise keep the existing read-only display.
+- Track edited date in local state (e.g., `editIssueDate`), prefilled from `invoice.issue_date` on load.
+- In the edit-save block (line 1089), when `isSuperadmin`, include `issue_date: editIssueDate` and recompute `due_date` from `editIssueDate + (invoice.payment_terms_days ?? 30)` in the same `update` call.
+- Log the date change via existing `logInvoiceChange` so the change history shows the edit.
 
-```sql
--- Map: 'Dan N' -> 'Nth Dan', 'Poom N' -> 'Nth Poom'
-UPDATE public.branch_timetables
-SET belt_levels = (
-  SELECT ARRAY_AGG(
-    CASE b
-      WHEN 'Dan 1' THEN '1st Dan' WHEN 'Dan 2' THEN '2nd Dan'
-      WHEN 'Dan 3' THEN '3rd Dan' WHEN 'Dan 4' THEN '4th Dan'
-      WHEN 'Dan 5' THEN '5th Dan'
-      WHEN 'Poom 1' THEN '1st Poom' WHEN 'Poom 2' THEN '2nd Poom'
-      WHEN 'Poom 3' THEN '3rd Poom' WHEN 'Poom 4' THEN '4th Poom'
-      ELSE b
-    END
-  )
-  FROM unnest(belt_levels) AS b
-)
-WHERE belt_levels && ARRAY['Dan 1','Dan 2','Dan 3','Dan 4','Dan 5','Poom 1','Poom 2','Poom 3','Poom 4'];
+**3. Date-format compliance**
+- Per project memory, all user-facing dates display as DD/MM/YYYY via `@/utils/dateFormat`. The picker UI uses the existing shadcn `DatePicker` (calendar popover) so the displayed date follows DD/MM/YYYY. Internally the value is stored as ISO `YYYY-MM-DD` (DB format) — no native `<input type="date">`.
 
--- Same fix for grading_slots
-UPDATE public.grading_slots
-SET belt_levels = (
-  SELECT ARRAY_AGG(
-    CASE b
-      WHEN 'Dan 1' THEN '1st Dan' WHEN 'Dan 2' THEN '2nd Dan'
-      WHEN 'Dan 3' THEN '3rd Dan' WHEN 'Dan 4' THEN '4th Dan'
-      WHEN 'Dan 5' THEN '5th Dan'
-      WHEN 'Poom 1' THEN '1st Poom' WHEN 'Poom 2' THEN '2nd Poom'
-      WHEN 'Poom 3' THEN '3rd Poom' WHEN 'Poom 4' THEN '4th Poom'
-      ELSE b
-    END
-  )
-  FROM unnest(belt_levels) AS b
-)
-WHERE belt_levels && ARRAY['Dan 1','Dan 2','Dan 3','Dan 4','Dan 5','Poom 1','Poom 2','Poom 3','Poom 4'];
-```
+**4. Approval flow interaction**
+- Editing a paid/verified invoice still routes through `handleSaveWithApproval`. When non-superadmin (current path), no date field is shown — unchanged.
+- For superadmin direct edits on paid/verified invoices, the date update is applied immediately alongside other changes (consistent with existing superadmin-bypasses-approval pattern).
 
-### Frontend
-No code change needed — the dialog already reads `BELT_LEVELS` (modern names). After the migration, existing rows will load with the correct checkboxes pre-ticked and saving will pass the CHECK constraint.
-
-Optional hardening: surface the actual Supabase error message in the toast (`toast.error(\`Failed to save class: \${error.message}\`)`) so future constraint violations are easier to diagnose. This is a one-line tweak in `BranchClassScheduleManagement.tsx` — included.
-
-### Verification after apply
-- Re-run distinct-belt query → no `Dan N` / `Poom N` values remain.
-- Open the failing Tuesday Teens & Adults class → save without changes → succeeds.
-- Toggling belts on/off persists correctly.
+### Verification
+- Login as superadmin → Branch dashboard → Create Invoice → confirm `Invoice Date` field appears, defaults to today, accepts past/future dates, persists to `invoices.issue_date`.
+- Open existing invoice → Edit → date tile is editable → change date → Save → invoice list shows new issue date and due date shifts accordingly; change log records "Issue date changed".
+- Login as branch staff (non-superadmin) → Create/Edit invoice → no date field visible, behaviour unchanged.
 
 ### Out of scope
-- Renaming any other tables (none affected).
-- Changing the constraint itself (current modern naming stays canonical).
+- Editing `due_date` independently (it always tracks `issue_date + payment_terms_days`).
+- Bulk date edits.
+
