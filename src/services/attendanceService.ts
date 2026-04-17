@@ -183,7 +183,7 @@ export const updateClockInOut = async (employeeId: string, action: 'in' | 'out',
     hour: '2-digit',
     minute: '2-digit'
   });
-  const dayOfWeek =formatDate( new Date());
+  const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
   try {
     // Check if employee is casual and validate slot booking for clock in
