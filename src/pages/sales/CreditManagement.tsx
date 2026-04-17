@@ -216,8 +216,8 @@ const CreditManagement: React.FC = () => {
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {formatDate(summary.last_transaction_date
-                            ? new Date(summary.last_transaction_date))
+                          {summary.last_transaction_date
+                            ? formatDate(summary.last_transaction_date)
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right">
