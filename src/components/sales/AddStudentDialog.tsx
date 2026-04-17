@@ -3,7 +3,7 @@
  * Modal form for creating new students
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
