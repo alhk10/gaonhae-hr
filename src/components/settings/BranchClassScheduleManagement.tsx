@@ -168,8 +168,8 @@ export function BranchClassScheduleManagement() {
         );
       }
       loadData();
-    } catch (error) {
-      toast.error('Failed to save class');
+    } catch (error: any) {
+      toast.error(`Failed to save class: ${error?.message || 'Unknown error'}`);
       throw error;
     }
   };
