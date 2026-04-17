@@ -1,26 +1,32 @@
 
 
-## Plan: Copy Previous Month Expenses
+## Plan: Make registration approvals appear immediately on Branch Dashboard
 
-### What
-Add a "Copy Previous" button in the Expenses section header that copies all expense entries from the previous month into the current month.
+### Root cause (confirmed)
+1. **No realtime subscription for `student_registrations`.** The realtime publication doesn't include this table, and `BranchDashboard.tsx` only subscribes to changes on `invoices`, `payments`, and `student_scheduled_classes`. So when Jonas's registration is inserted, no event reaches the open dashboard.
+2. **No automatic refetch.** `pending-registrations-count` and `pending-registrations` queries have default React Query staleness — the count only updates on remount, manual refetch, or window focus.
+3. **Auto-switch to Approvals tab only runs once.** The `hasSetInitialTab` ref guards the effect, so even after data refreshes the tab won't switch to Approvals.
 
-### How
+### Changes
 
-**File: `src/pages/BranchProfitLoss.tsx`**
+**1. Database migration — enable realtime on `student_registrations`**
+```sql
+ALTER TABLE public.student_registrations REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.student_registrations;
+```
 
-1. **Add a `handleCopyPreviousExpenses` function** that:
-   - Calculates the previous month/year (e.g., April 2026 → March 2026)
-   - Queries `branch_profit_loss_entries` for all expense entries from that previous month/branch
-   - If none found, shows a toast: "No expenses found for [previous month]"
-   - Otherwise, shows a confirmation dialog with the count
-   - On confirm, bulk-inserts all entries into the current month (new IDs, same category/subcategory/description/amount/share_percentage, updated month/year/created_by)
-   - Refreshes local state
+**2. `src/components/dashboard/BranchDashboard.tsx`**
+Add `student_registrations` to the realtime channel (filtered by `branch_id`). On any insert/update/delete, invalidate:
+- `['pending-registrations-count', branchId]`
+- `['pending-registrations', branchId, false]`
 
-2. **Add confirmation dialog** using the existing `Dialog` component -- simple "Copy N expense entries from [Month Year]?" with Cancel/Copy buttons
+Also relax the auto-tab-switch guard so that when `pendingRegCount` (or other approval counts) transitions from 0 to >0 while the user is still on the default tab, the Approvals tab badge updates and (optionally) the tab auto-activates the first time approvals appear.
 
-3. **Add "Copy Previous" button** next to the existing Categories and Add buttons in the Expenses card header (line 1745-1754), with a `Copy` icon from lucide-react. Only visible to superadmins.
+**3. `src/components/dashboard/StudentRegistrationApprovals.tsx`**
+Mirror the same realtime listener inside this component (scoped to its `branchId`/`showAll` mode) so the list itself updates without remount. Also covers the SuperadminDashboard case.
 
-### UI
-The button row in the Expenses header will become: `Categories | Copy Previous | + Add`
+### Result
+- New registration submissions appear in the Branch Dashboard's Approvals tab within ~1 second.
+- The Approvals tab badge count updates live.
+- Works for both branch-scoped and superadmin (showAll) views.
 
