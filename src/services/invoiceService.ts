@@ -76,6 +76,7 @@ export interface CreateInvoiceData {
   notes?: string;
   internal_notes?: string;
   tax_included?: boolean;
+  issue_date?: string; // YYYY-MM-DD; superadmin override (defaults to today)
   items: Array<{
     product_id: string;
     description: string;
@@ -271,8 +272,15 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     const totalAmount = subtotal + taxAmount;
     const balanceDue = totalAmount;
 
-    // Calculate due date
-    const issueDate = new Date();
+    // Calculate dates — honour superadmin-supplied issue_date if provided
+    const toISODateLocal = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const issueDateStr = invoiceData.issue_date || toISODateLocal(new Date());
+    const issueDate = new Date(issueDateStr + 'T00:00:00');
     const dueDate = new Date(issueDate);
     dueDate.setDate(dueDate.getDate() + (invoiceData.payment_terms_days || 30));
 
@@ -289,8 +297,8 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         amount_paid: 0,
         balance_due: balanceDue,
         status: 'draft',
-        issue_date: issueDate.toISOString().split('T')[0],
-        due_date: dueDate.toISOString().split('T')[0],
+        issue_date: issueDateStr,
+        due_date: toISODateLocal(dueDate),
         payment_terms_days: invoiceData.payment_terms_days || 30,
         branch_id: invoiceData.branch_id,
         notes: invoiceData.notes,

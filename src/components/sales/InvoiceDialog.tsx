@@ -44,6 +44,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate } from '@/utils/dateFormat';
+import { DatePicker } from '@/components/ui/date-picker';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
@@ -352,7 +353,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null);
   const taxManuallySet = useRef(false);
 
-  const [formData, setFormData] = useState({ student_id: '', branch_id: '', notes: '' });
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [formData, setFormData] = useState({ student_id: '', branch_id: '', notes: '', issue_date: todayISO() });
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [newItem, setNewItem] = useState({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
 
@@ -365,6 +370,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [viewStudentAllowedClassTypes, setViewStudentAllowedClassTypes] = useState<string[] | undefined>(undefined);
+  const [editIssueDate, setEditIssueDate] = useState<string>(''); // YYYY-MM-DD, superadmin edits
 
   // Sub-dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -462,6 +468,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         if (metadata?.selected_class_slots) slots[item.id] = [...metadata.selected_class_slots];
       });
       setEditingClassSlots(slots);
+      setEditIssueDate(invoice.issue_date || '');
     }
   }, [mode, invoice, viewProducts]);
 
@@ -961,6 +968,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         student_id: formData.student_id, branch_id: formData.branch_id || undefined,
         payment_terms_days: 30, notes: formData.notes || undefined,
         tax_included: taxIncluded !== null ? taxIncluded : undefined,
+        ...(isSuperadmin && formData.issue_date ? { issue_date: formData.issue_date } : {}),
         items: invoiceItems
       };
 
@@ -1004,7 +1012,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   const resetForm = () => {
-    setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '' });
+    setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
   };
@@ -1086,7 +1094,39 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         await supabase.from('invoice_items').insert({ invoice_id: invoice.id, product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, tax_rate: item.tax_rate, tax_amount: item.tax_amount, total_amount: item.total_amount, size_variant: item.size_variant || null, metadata: Object.keys(metadata).length > 0 ? metadata : null });
       }
 
-      await supabase.from('invoices').update({ notes: formData.notes || invoice.notes, subtotal: editTotals.subtotal, tax_amount: editTotals.tax, total_amount: editTotals.total, balance_due: editTotals.balanceDue, updated_at: new Date().toISOString() }).eq('id', invoice.id);
+      // Build invoice update — superadmin can change issue_date (and due_date follows)
+      const invoiceUpdate: Record<string, any> = {
+        notes: formData.notes || invoice.notes,
+        subtotal: editTotals.subtotal,
+        tax_amount: editTotals.tax,
+        total_amount: editTotals.total,
+        balance_due: editTotals.balanceDue,
+        updated_at: new Date().toISOString(),
+      };
+      let dateChanged = false;
+      if (isSuperadmin && editIssueDate && editIssueDate !== (invoice.issue_date || '')) {
+        const terms = invoice.payment_terms_days ?? 30;
+        const newIssue = new Date(editIssueDate + 'T00:00:00');
+        const newDue = new Date(newIssue);
+        newDue.setDate(newDue.getDate() + terms);
+        const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        invoiceUpdate.issue_date = editIssueDate;
+        invoiceUpdate.due_date = toISO(newDue);
+        dateChanged = true;
+      }
+      await supabase.from('invoices').update(invoiceUpdate).eq('id', invoice.id);
+      if (dateChanged) {
+        try {
+          await logInvoiceChange({
+            invoice_id: invoice.id,
+            action: 'field_updated',
+            field_name: 'issue_date',
+            old_value: invoice.issue_date || undefined,
+            new_value: editIssueDate,
+            changes: { issue_date: { old: invoice.issue_date, new: editIssueDate } },
+          });
+        } catch { /* non-fatal */ }
+      }
 
       // Sync class slots
       for (const [itemId, slots] of Object.entries(editingClassSlots)) {
@@ -1298,7 +1338,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Invoice Details */}
           <div className="space-y-2 md:space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+            <div className={cn("grid grid-cols-1 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs md:text-sm">Branch</Label>
@@ -1323,6 +1363,23 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                   if (student?.branch_id && !formData.branch_id) handleInputChange('branch_id', student.branch_id);
                 }} />
               </div>
+              {isSuperadmin && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs md:text-sm">Invoice Date</Label>
+                    <Badge variant="secondary" className="text-[10px]">Superadmin</Badge>
+                  </div>
+                  <DatePicker
+                    selected={formData.issue_date ? new Date(formData.issue_date + 'T00:00:00') : undefined}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      setFormData(prev => ({ ...prev, issue_date: iso }));
+                    }}
+                    className="h-8 md:h-10 text-xs md:text-sm"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -1479,7 +1536,19 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Date</span>
-              <div className="font-medium">{formatDate(invoice.issue_date)}</div>
+              {mode === 'edit' && isSuperadmin ? (
+                <DatePicker
+                  selected={editIssueDate ? new Date(editIssueDate + 'T00:00:00') : undefined}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    setEditIssueDate(iso);
+                  }}
+                  className="h-7 text-xs mt-0.5"
+                />
+              ) : (
+                <div className="font-medium">{formatDate(invoice.issue_date)}</div>
+              )}
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Total</span>
