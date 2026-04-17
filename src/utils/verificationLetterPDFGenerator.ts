@@ -180,7 +180,7 @@ const addLetterhead = async (doc: jsPDF, logoData: { data: string; width: number
 const formatDate = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
-    return format(new Date(dateStr), 'd MMMM yyyy');
+    return format(new Date(dateStr), 'dd/MM/yyyy');
   } catch {
     return dateStr;
   }

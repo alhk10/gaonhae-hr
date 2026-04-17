@@ -83,12 +83,12 @@ serve(async (req) => {
         continue;
       }
 
-      // Format date
+      // Format date (DD/MM/YYYY)
       const gradingDate = new Date(slot.grading_date);
-      const formattedDate = gradingDate.toLocaleDateString('en-SG', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
+      const formattedDate = gradingDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
       });
 
       const branchName = branchMap[slot.branch_id] || slot.branch_id;

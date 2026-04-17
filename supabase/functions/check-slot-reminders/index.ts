@@ -87,12 +87,12 @@ serve(async (req) => {
         continue;
       }
 
-      // Format the date nicely
+      // Format the date nicely (DD/MM/YYYY)
       const dateObj = new Date(slot.date);
-      const formattedDate = dateObj.toLocaleDateString('en-SG', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
+      const formattedDate = dateObj.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
       });
 
       // Send push notification
