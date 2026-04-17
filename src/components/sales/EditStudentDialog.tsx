@@ -98,6 +98,16 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     allowed_class_types: [] as string[]
   });
 
+  // Resolve country-aware belt list based on the student's primary branch.
+  const selectedBranch = branches.find(b => b.id === formData.branch_id);
+  const branchCountry = selectedBranch?.country ?? null;
+  // Always include the student's existing belt as a fallback so legacy values
+  // (e.g. an Australian student stored as "Foundation 1") remain selectable.
+  const baseBeltList = getBeltLevelsForCountry(branchCountry);
+  const beltLevelOptions = formData.current_belt && !baseBeltList.includes(formData.current_belt)
+    ? [formData.current_belt, ...baseBeltList]
+    : baseBeltList;
+
   // Fetch available class types for the student's branch
   const { data: classTypeSettings = [] } = useQuery({
     queryKey: ['branch-class-type-settings', formData.branch_id],
