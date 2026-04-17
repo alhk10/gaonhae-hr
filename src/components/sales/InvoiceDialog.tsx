@@ -1119,7 +1119,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         try {
           await logInvoiceChange({
             invoice_id: invoice.id,
-            action: 'updated',
+            action: 'field_updated',
             field_name: 'issue_date',
             old_value: invoice.issue_date || undefined,
             new_value: editIssueDate,
