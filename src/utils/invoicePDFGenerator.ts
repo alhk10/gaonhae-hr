@@ -106,14 +106,6 @@ const formatCurrency = (amount: number): string => {
   return `$${amount.toFixed(2)}`;
 };
 
-const formatDate = (dateString: string | null): string => {
-  if (!dateString) return '-';
-  try {
-    return formatDate(new Date(dateString));
-  } catch {
-    return dateString;
-  }
-};
 
 const normalizeInvoiceStatus = (status: string | null | undefined): string => {
   if (!status) return 'unpaid';

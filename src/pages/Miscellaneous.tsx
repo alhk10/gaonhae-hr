@@ -67,14 +67,6 @@ interface Employee {
   phone: string | null;
 }
 
-  if (!dateStr) return 'N/A';
-  try {
-    return formatDate(new Date(dateStr));
-  } catch {
-    return dateStr;
-  }
-};
-
 const formatCurrency = (amount: number | null): string => {
   if (amount === null || amount === undefined) return 'N/A';
   return new Intl.NumberFormat('en-SG', {
