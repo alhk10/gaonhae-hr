@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Clock, DollarSign, Pencil, Check, X, Award, Plus } from "lucide-react";
-import { format } from "date-fns";
+
 import { useState } from "react";
 import { updateAttendanceRecord, addAttendanceRecord } from "@/services/attendanceService";
 import { toast } from "sonner";

@@ -14,8 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getEmployeeById } from '@/services/employeeService';
 import { EmployeeQualifications } from '@/types/employee';
 import { calculateSlotPay, getPayBreakdown, isFromNovember2024 } from '@/utils/slotPayCalculation';
-import {
 import { formatDate, formatMonthShort } from '@/utils/dateFormat';
+import {
   getBranches,
   addSlotBooking,
   getEmployeeSlotBookings,

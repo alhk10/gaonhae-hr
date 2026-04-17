@@ -14,8 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -254,12 +254,6 @@ const InvoiceManagementList: React.FC = () => {
     if (status === 'partially_paid') return 'Partially Paid';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';formatDate(
-    return new Date(dateString));
-  };
-
   // Prepare invoice data for PDF generation
   const prepareInvoiceDataForPDF = async (invoice: Invoice): Promise<InvoiceData> => {
     // Get full invoice details with items
@@ -343,8 +337,7 @@ const InvoiceManagementList: React.FC = () => {
     // Format date helper
     const formatShortDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);formatDate(
-        return date);
+        const date = new Date(dateStr);        return formatDate(date));
       } catch {
         return dateStr;
       }
@@ -352,8 +345,7 @@ const InvoiceManagementList: React.FC = () => {
 
     const formatFullDate = (dateStr: string) => {
       try {
-        const date = new Date(dateStr);formatDate(
-        return date);
+        const date = new Date(dateStr);        return formatDate(date));
       } catch {
         return dateStr;
       }

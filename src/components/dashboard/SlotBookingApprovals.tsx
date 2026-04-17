@@ -84,11 +84,6 @@ const SlotBookingApprovals: React.FC = () => {
       approveAllMutation.mutate();
     }
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   if (error) {
     return (
       <Card>

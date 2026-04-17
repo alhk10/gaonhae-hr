@@ -11,10 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Plus, Calendar, Edit, Trash2, GraduationCap, Clock, AlertCircle, X, Copy } from 'lucide-react';
-import { format, parseISO, addDays } from 'date-fns';
+import { parseISO, addDays } from 'date-fns';
 import { useBranches } from '@/hooks/useBranches';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   Term,
   TermBreak,
   getTerms,

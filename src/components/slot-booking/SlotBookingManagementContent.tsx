@@ -24,8 +24,8 @@ import { SlotTimingSettingsTab } from '@/components/slot-booking/SlotTimingSetti
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isFromNovember2024, clearPricingCache } from '@/utils/slotPayCalculation';
 import { updatePricingConfig, SlotPricingConfig, SlotTimingConfig } from '@/services/slotPricingService';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   getBranches,
   getAllSlotBookings,
   updateSlotBookingStatus,

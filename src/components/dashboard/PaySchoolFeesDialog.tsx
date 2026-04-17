@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
 import { formatDate, formatMonthShort } from '@/utils/dateFormat';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,7 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
+import { parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
 import { createPayment } from '@/services/paymentService';

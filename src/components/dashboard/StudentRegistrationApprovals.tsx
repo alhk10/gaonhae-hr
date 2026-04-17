@@ -12,7 +12,7 @@ import { Check, X, Eye, UserPlus, Clock, Pencil } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPendingRegistrations, approveRegistration, rejectRegistration } from '@/services/studentRegistrationService';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 import { supabase } from '@/integrations/supabase/client';

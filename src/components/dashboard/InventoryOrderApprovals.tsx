@@ -9,15 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   getInventoryOrders, 
   approveInventoryOrder, 
   rejectInventoryOrder,
   InventoryOrder 
 } from '@/services/inventoryOrderService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Check, X, Package, ShoppingCart } from 'lucide-react';
 import {
   AlertDialog,

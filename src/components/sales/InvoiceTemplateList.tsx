@@ -15,8 +15,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   getInvoiceTemplates, 
   createInvoiceTemplate, 
   updateInvoiceTemplate,
@@ -211,11 +211,6 @@ const InvoiceTemplateList: React.FC = () => {
       toast.error('Failed to delete template');
     }
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   const getCountryLabel = (code?: string) => {
     return COUNTRY_OPTIONS.find(c => c.value === code)?.label || code || '-';
   };

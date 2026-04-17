@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Search, MoreVertical, Eye, UserCheck, X, Calendar, Clock, Phone, Building2 } from 'lucide-react';
-import { format, parseISO, isAfter, isBefore, isToday } from 'date-fns';
+import { parseISO, isAfter, isBefore, isToday } from 'date-fns';
 import { useBranches } from '@/hooks/useBranches';
 import { useNavigate } from 'react-router-dom';
 import { getTrials, convertTrialToStudent, updateStudent } from '@/services/studentService';

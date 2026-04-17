@@ -1,6 +1,6 @@
 import React from 'react';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,7 +10,7 @@ import { formatDate } from '@/utils/dateFormat';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CreditCard, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQueryClient } from '@tanstack/react-query';
 

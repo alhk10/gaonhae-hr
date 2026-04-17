@@ -6,7 +6,7 @@ import { CheckCircle, XCircle, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPendingTransferRequests, approveTransferRequest, rejectTransferRequest } from '@/services/inventoryTransferService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/utils/dateFormat';
 

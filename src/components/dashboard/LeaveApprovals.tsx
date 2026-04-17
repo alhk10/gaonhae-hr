@@ -65,11 +65,6 @@ const LeaveApprovals: React.FC = () => {
       rejectMutation.mutate(leaveId);
     }
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   if (error) {
     return (
       <Card>

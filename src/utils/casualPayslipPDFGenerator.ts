@@ -69,8 +69,7 @@ const formatTime = (timeStr: string | null): string => {
 // Helper to format date
 const formatDate = (dateStr: string): string => {
   try {
-    const date = new Date(dateStr);formatDate(
-    return date);
+    const date = new Date(dateStr);    return formatDate(date));
   } catch {
     return dateStr;
   }

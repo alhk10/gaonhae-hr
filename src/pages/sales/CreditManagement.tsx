@@ -18,8 +18,8 @@ import { toast } from 'sonner';
 import { DollarSign, Search, Plus, Minus, History, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   getAllStudentCredits,
   getStudentCreditHistory,
   addManualCredit,

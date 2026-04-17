@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { InventoryAdjustmentDialog } from '@/components/sales/InventoryAdjustmentDialog';
 import StockTransferRequestDialog from './StockTransferRequestDialog';
 import { getTransferRequestsByBranch } from '@/services/inventoryTransferService';
-import { format } from 'date-fns';
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';

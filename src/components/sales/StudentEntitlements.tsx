@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Ticket, Calendar, Award, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { StudentEntitlement } from '@/services/studentService';
-import { format, isAfter, isBefore } from 'date-fns';
+import { isAfter, isBefore } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
 
 interface StudentEntitlementsProps {

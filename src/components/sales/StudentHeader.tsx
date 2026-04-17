@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CalendarDays, Phone, Mail, MapPin, Award, Clock, MessageCircle } from 'lucide-react';
 import { Student } from '@/services/studentService';
-import { format } from 'date-fns';
+
 import { formatDate } from '@/utils/dateFormat';
 
 interface StudentHeaderProps {

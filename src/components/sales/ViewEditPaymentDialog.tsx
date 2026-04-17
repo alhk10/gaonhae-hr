@@ -154,11 +154,6 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
     };
     return methods[method] || method;
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>

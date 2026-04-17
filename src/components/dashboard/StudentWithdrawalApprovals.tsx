@@ -7,14 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Check, X, UserMinus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   getPendingWithdrawalRequests,
   approveWithdrawalRequest,
   rejectWithdrawalRequest,
 } from '@/services/studentWithdrawalRequestService';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 const StudentWithdrawalApprovals: React.FC = () => {

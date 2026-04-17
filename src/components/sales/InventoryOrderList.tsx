@@ -10,15 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   getInventoryOrders, 
   approveInventoryOrder, 
   rejectInventoryOrder,
   InventoryOrder 
 } from '@/services/inventoryOrderService';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+
 import { Check, X, Clock, Package, AlertCircle } from 'lucide-react';
 import {
   AlertDialog,

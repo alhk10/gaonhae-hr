@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   GraduationCap, 
   DollarSign, 
   Calendar, 
@@ -28,7 +28,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+
 import { toast } from 'sonner';
 import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdateRequestService';
 
@@ -678,8 +678,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       // Format date helpers (same as admin page)
       const formatShortDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);formatDate(
-          return date);
+          const date = new Date(dateStr);          return formatDate(date));
         } catch {
           return dateStr;
         }
@@ -687,8 +686,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       const formatFullDate = (dateStr: string) => {
         try {
-          const date = new Date(dateStr);formatDate(
-          return date);
+          const date = new Date(dateStr);          return formatDate(date));
         } catch {
           return dateStr;
         }

@@ -12,8 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin, AlertTriangle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   getBranches, 
   addAdminSlotBooking,
   getAvailableSlotsForDate, 

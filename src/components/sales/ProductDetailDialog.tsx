@@ -55,11 +55,6 @@ export const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
   };
 
   if (!product) return null;
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   // Group branch prices by currency
   const groupedBranchPrices = branchPrices.reduce((acc, bp) => {
     const currency = bp.branch_currency;

@@ -11,8 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { 
 import { formatDate } from '@/utils/dateFormat';
+import { 
   FolderPlus, 
   Search, 
   Edit, 
@@ -126,11 +126,6 @@ const ProductCategoriesManager: React.FC = () => {
       toast.error('Failed to delete category');
     }
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   return (
     <Card>
       <CardHeader>

@@ -13,8 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
 import { formatDate } from '@/utils/dateFormat';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -155,12 +155,6 @@ const PaymentManagementList: React.FC = () => {
     };
     return methods[method] || method;
   };
-
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   const clearFilters = () => {
     setSearchQuery('');
     setMethodFilter('all');

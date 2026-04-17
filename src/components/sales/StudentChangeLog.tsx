@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, User, Calendar, ArrowRight } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { StudentChangeLog as ChangeLogType, formatFieldName, formatAction } from '@/services/studentChangeLogService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { formatDateTime } from '@/utils/dateFormat';

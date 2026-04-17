@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, Eye, User, Clock, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
 import { formatDateTime } from '@/utils/dateFormat';
+import { 
   getPendingRequestsByBranch, 
   getAllPendingRequests,
   approveRequest, 
@@ -17,7 +17,7 @@ import { formatDateTime } from '@/utils/dateFormat';
   StudentUpdateRequestWithDetails 
 } from '@/services/studentUpdateRequestService';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 interface StudentUpdateApprovalsProps {

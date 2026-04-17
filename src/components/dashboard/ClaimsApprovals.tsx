@@ -118,11 +118,6 @@ const ClaimsApprovals: React.FC = () => {
   const cancelEdit = () => {
     setEditingId(null);
   };
-
-  const formatDate = (dateString: string) => {formatDate(
-    return new Date(dateString));
-  };
-
   if (error) {
     return (
       <Card>
