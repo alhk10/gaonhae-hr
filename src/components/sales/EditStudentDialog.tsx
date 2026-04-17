@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
-import { BELT_LEVELS, formatBeltLevel } from '@/constants/beltLevels';
+import { getBeltLevelsForCountry, formatBeltLevel } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 import { useQuery } from '@tanstack/react-query';
 import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
@@ -97,6 +97,16 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     notes: '',
     allowed_class_types: [] as string[]
   });
+
+  // Resolve country-aware belt list based on the student's primary branch.
+  const selectedBranch = branches.find(b => b.id === formData.branch_id);
+  const branchCountry = selectedBranch?.country ?? null;
+  // Always include the student's existing belt as a fallback so legacy values
+  // (e.g. an Australian student stored as "Foundation 1") remain selectable.
+  const baseBeltList = getBeltLevelsForCountry(branchCountry);
+  const beltLevelOptions = formData.current_belt && !baseBeltList.includes(formData.current_belt)
+    ? [formData.current_belt, ...baseBeltList]
+    : baseBeltList;
 
   // Fetch available class types for the student's branch
   const { data: classTypeSettings = [] } = useQuery({
@@ -577,7 +587,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                       <SelectValue placeholder="Select belt level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {BELT_LEVELS.map((belt) => (
+                      {beltLevelOptions.map((belt) => (
                         <SelectItem key={belt} value={belt}>
                           {belt}
                         </SelectItem>

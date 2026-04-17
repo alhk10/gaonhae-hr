@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Branch {
   id: string;
   name: string;
+  country?: string | null;
 }
 
 export function useBranches() {
@@ -21,7 +22,7 @@ export function useBranches() {
         setLoading(true);
         const { data, error } = await supabase
           .from('branches')
-          .select('id, name')
+          .select('id, name, country')
           .not('name', 'in', '("Competition","Headquarters")')
           .order('name');
 
