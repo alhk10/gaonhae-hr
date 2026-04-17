@@ -370,6 +370,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [timetableTimeMap, setTimetableTimeMap] = useState<Record<string, { start_time: string; end_time: string }>>({});
   const [studentDob, setStudentDob] = useState<string | null>(null);
   const [viewStudentAllowedClassTypes, setViewStudentAllowedClassTypes] = useState<string[] | undefined>(undefined);
+  const [editIssueDate, setEditIssueDate] = useState<string>(''); // YYYY-MM-DD, superadmin edits
 
   // Sub-dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -1009,7 +1010,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   const resetForm = () => {
-    setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '' });
+    setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
   };
