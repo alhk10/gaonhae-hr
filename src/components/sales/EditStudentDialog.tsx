@@ -577,7 +577,7 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                       <SelectValue placeholder="Select belt level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {BELT_LEVELS.map((belt) => (
+                      {beltLevelOptions.map((belt) => (
                         <SelectItem key={belt} value={belt}>
                           {belt}
                         </SelectItem>
