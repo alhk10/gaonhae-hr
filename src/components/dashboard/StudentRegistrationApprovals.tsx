@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StudentRegistrationApprovalsProps {
   branchId?: string;
@@ -60,6 +61,32 @@ const StudentRegistrationApprovals: React.FC<StudentRegistrationApprovalsProps> 
     queryFn: () => getPendingRegistrations(showAll ? undefined : branchId),
     enabled: !!branchId || showAll,
   });
+
+  // Realtime: refresh list when student_registrations changes
+  useEffect(() => {
+    const channelName = showAll
+      ? 'student-registrations-all'
+      : `student-registrations-${branchId || 'none'}`;
+    const filter = showAll || !branchId ? undefined : `branch_id=eq.${branchId}`;
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        filter
+          ? { event: '*', schema: 'public', table: 'student_registrations', filter }
+          : { event: '*', schema: 'public', table: 'student_registrations' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['pending-registrations', branchId, showAll] });
+          queryClient.invalidateQueries({ queryKey: ['pending-registrations-count', branchId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [branchId, showAll, queryClient]);
 
   // Reset edit state when selecting a registration
   useEffect(() => {
