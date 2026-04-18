@@ -251,11 +251,15 @@ const ProductSearchSelect: React.FC<{
           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0">
+      <PopoverContent className="w-72 p-0 max-h-[60vh] overflow-hidden">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search product..." value={search} onValueChange={setSearch} />
-          <CommandList>
-            <CommandEmpty>No product found.</CommandEmpty>
+          <CommandList
+            className="max-h-[300px] overflow-y-auto overscroll-contain"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
+            <CommandEmpty>No products available for this branch.</CommandEmpty>
             <CommandGroup>
               {filtered.map((product) => (
                 <CommandItem key={product.id} value={product.id} onSelect={() => { onValueChange(product.id); setOpen(false); setSearch(''); }}>
