@@ -239,9 +239,15 @@ const ProductSearchSelect: React.FC<{
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
-  const filtered = search.trim()
+  const baseFiltered = search.trim()
     ? products.filter(p => fuzzyMatch(p.name, search.trim()) || fuzzyMatch(p.sku, search.trim()) || p.allowed_class_types?.some(ct => fuzzyMatch(ct, search.trim())))
     : products;
+  // Eligible items first, exception items at the bottom
+  const filtered = [...baseFiltered].sort((a, b) => {
+    const aEx = outOfCriteriaIds?.has(a.id) ? 1 : 0;
+    const bEx = outOfCriteriaIds?.has(b.id) ? 1 : 0;
+    return aEx - bEx;
+  });
 
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
