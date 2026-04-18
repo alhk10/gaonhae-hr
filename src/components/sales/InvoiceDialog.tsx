@@ -349,6 +349,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
+  const [branchAvailableProductIds, setBranchAvailableProductIds] = useState<Set<string> | null>(null);
   const { accessibleBranches, isSuperadmin: isSuperadminAccess, canCreate } = useInvoiceAccess();
 
   // ─── Create Mode State ──────────────────────────────────────────
