@@ -1,48 +1,51 @@
 
 
-## Plan: Superadmin can view & edit invoice date
+## Plan: Fix dropdown scroll + tighten product filtering by branch & student
 
-### Current behavior
-- `invoiceService.createInvoice` hardcodes `issue_date` to today (`new Date().toISOString().split('T')[0]`) and recomputes `due_date = issue_date + payment_terms_days`.
-- The **Create Invoice** dialog (`InvoiceDialog.tsx`, create mode) has no date input — it only collects Branch + Student + Items.
-- The **View / Edit** mode shows the date as read-only text in the summary tile (line 1482) and never updates `issue_date` on save (only `notes`, totals, items).
-- All other roles must keep the auto-today behaviour (no surprises for staff).
+### Issues observed in screenshot
+1. **Dropdown not scrollable** — the product popover in `Create New Invoice` shows the list extending below the visible area without a working scrollbar. CommandList already has `max-h-[300px] overflow-y-auto`, but inside the dialog (`overflow-y-auto`) the wheel events bubble to the dialog instead of scrolling the dropdown list.
+2. **Too many irrelevant products** — for student LUCAS HOANG (Morley, Foundation belt), the dropdown shows every "Black Tip & Above" product flagged `(exception)`. Many of these products are not sold at Morley at all — they're showing because the current filter only hides products with an explicit `price_rules` row marked `is_active=false`. Products with no price_rule at all leak through.
+3. **Exception items leak across branches** — the out-of-criteria (red `(exception)`) list should only contain products actually available at the selected branch; right now it's drawn from the full product universe.
 
-### Target behavior
-- Only when `userrole === 'superadmin'`:
-  - **Create mode**: a new `Invoice Date` field appears next to Branch/Student. Defaults to today. Submitting passes the picked date to the service.
-  - **Edit mode**: the read-only "Date" tile becomes an editable date input. Saving updates `invoices.issue_date` (and recalculates `due_date = new issue_date + payment_terms_days`).
-- For non-superadmins: no UI change, behaviour identical to today.
+### Fix
 
-### Implementation
+**1. `src/components/sales/InvoiceDialog.tsx` — Popover/CommandList scroll behavior**
+- Bump the inner scroll container so the wheel/touch reliably scrolls the list:
+  - Change `<PopoverContent className="w-64 p-0">` to `w-72 p-0 max-h-[60vh] overflow-hidden` and add `onWheel={(e) => e.stopPropagation()}` on `CommandList`.
+  - Set `<CommandList className="max-h-[300px] overflow-y-auto overscroll-contain">` so wheel events stay inside the popover instead of being captured by the dialog scroller.
+- Apply the same to the edit-mode product popover (line ~1590).
 
-**1. `src/services/invoiceService.ts`**
-- Add `issue_date?: string` to `CreateInvoiceData`.
-- In `createInvoice`: if `invoiceData.issue_date` is provided, parse it as the issue date; otherwise fall back to today. Recalculate `due_date` from that issue date + payment terms.
+**2. Branch availability filter (relate products to branch)**
+- Add a new `branchAvailableProductIds` set, computed once per branch:
+  - Source A: products with at least one **active** `price_rules` row for this `branch_id` (branch-specific availability).
+  - Source B: products with `branch_id IS NULL` rules (globally available) and **no** inactive override for this branch.
+  - Source C: if no price rules exist at all for a product, treat it as globally available (matches today's behaviour for catalogue items without per-branch overrides).
+- Replace the current `notHidden = !hiddenProductIds.has(p.id)` check in `filteredProducts` with `availableInBranch = branchAvailableProductIds.has(p.id)`.
 
-**2. `src/components/sales/InvoiceDialog.tsx`**
-- Extend `formData` with `issue_date: string` (default today, format `YYYY-MM-DD`).
-- **Create mode (around line 1300-1326)**: change the grid to 3 columns on md when superadmin (or keep 2 cols and add a new row). Render a third field labelled `Invoice Date` using a date input (consistent with project's date helpers — display via `formatDate` for previews but a native `type="date"` for picking is acceptable since this is admin-only and not user-facing presentation; alternatively reuse `<DatePicker>` from `@/components/ui/date-picker` to keep DD/MM/YYYY display and avoid the native-input ban). Field only renders when `isSuperadmin`.
-- In `handleSubmit` (around line 960): pass `issue_date: formData.issue_date` into `createInvoice` when `isSuperadmin`.
-- Reset `issue_date` to today in `resetForm`.
-- **Edit mode (around line 1480-1483)**: replace the static `Date` tile with an inline `DatePicker` when `mode === 'edit' && isSuperadmin`; otherwise keep the existing read-only display.
-- Track edited date in local state (e.g., `editIssueDate`), prefilled from `invoice.issue_date` on load.
-- In the edit-save block (line 1089), when `isSuperadmin`, include `issue_date: editIssueDate` and recompute `due_date` from `editIssueDate + (invoice.payment_terms_days ?? 30)` in the same `update` call.
-- Log the date change via existing `logInvoiceChange` so the change history shows the edit.
+**3. Student-relevance ordering inside that branch list**
+- Keep `outOfCriteriaProductIds` logic but compute it **only over the branch-available pool**, not over all products. This means:
+  - Students see relevant (eligible) products at the top.
+  - Exception (red `(exception)`) products only appear if they're actually sold at this branch.
+- Sort `filteredProducts` so eligible items come first, then exception items grouped at the bottom (still selectable, still flagged `(exception)`, still triggers superadmin approval flow already in place at line 975-989). No behaviour change for grading category (already filtered by belt transition).
 
-**3. Date-format compliance**
-- Per project memory, all user-facing dates display as DD/MM/YYYY via `@/utils/dateFormat`. The picker UI uses the existing shadcn `DatePicker` (calendar popover) so the displayed date follows DD/MM/YYYY. Internally the value is stored as ISO `YYYY-MM-DD` (DB format) — no native `<input type="date">`.
+**4. Empty-state messaging**
+- If branch+student combination yields zero eligible products and zero exceptions, show a clearer `CommandEmpty`: "No products available for this branch."
 
-**4. Approval flow interaction**
-- Editing a paid/verified invoice still routes through `handleSaveWithApproval`. When non-superadmin (current path), no date field is shown — unchanged.
-- For superadmin direct edits on paid/verified invoices, the date update is applied immediately alongside other changes (consistent with existing superadmin-bypasses-approval pattern).
+### Files touched
+- `src/components/sales/InvoiceDialog.tsx` — only file changed.
+  - `ProductSearchSelect` component (popover sizing, scroll containment, sort by eligibility).
+  - `filteredProducts` memo (branch-availability filter).
+  - `outOfCriteriaProductIds` memo (compute against branch pool only).
+  - Add a small helper `useBranchAvailableProducts(branchId, products)` that fetches `price_rules` once and returns the allowed set.
 
-### Verification
-- Login as superadmin → Branch dashboard → Create Invoice → confirm `Invoice Date` field appears, defaults to today, accepts past/future dates, persists to `invoices.issue_date`.
-- Open existing invoice → Edit → date tile is editable → change date → Save → invoice list shows new issue date and due date shifts accordingly; change log records "Issue date changed".
-- Login as branch staff (non-superadmin) → Create/Edit invoice → no date field visible, behaviour unchanged.
+### Verification (after default mode applies the changes)
+- Open Create Invoice in Morley → student LUCAS HOANG → product dropdown:
+  - List scrolls smoothly with mouse wheel and touch inside the popover.
+  - Eligible products (Foundation/everyone) appear first; "Black Tip & Above" only appears at the bottom marked `(exception)` and only if Morley actually sells them.
+  - Switching to a different branch refreshes the list to that branch's catalogue.
+- Existing approval flow (`needsExceptionApproval` for non-superadmins) continues to fire when an `(exception)` item is selected.
 
 ### Out of scope
-- Editing `due_date` independently (it always tracks `issue_date + payment_terms_days`).
-- Bulk date edits.
+- Changing the underlying `price_rules` data model.
+- Changing the (exception) approval threshold or workflow.
 
