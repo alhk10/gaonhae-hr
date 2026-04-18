@@ -432,18 +432,55 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   }, [availableBranches.length, formData.branch_id]);
 
-  // Fetch hidden products
+  // Fetch hidden products + branch-available products
   useEffect(() => {
     const branchId = isCreateMode ? formData.branch_id : invoice?.branch_id;
-    if (!branchId) { setHiddenProductIds(new Set()); return; }
+    if (!branchId) {
+      setHiddenProductIds(new Set());
+      setBranchAvailableProductIds(null);
+      return;
+    }
     (async () => {
       try {
-        const { data, error } = await supabase.from('price_rules').select('product_id').eq('branch_id', branchId).eq('is_active', false);
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id, branch_id, is_active');
         if (error) throw error;
-        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
-      } catch { setHiddenProductIds(new Set()); }
+        const rules = data || [];
+
+        // Hidden = explicit inactive override at this branch
+        const hidden = new Set<string>(
+          rules.filter(r => r.branch_id === branchId && r.is_active === false).map(r => r.product_id)
+        );
+        setHiddenProductIds(hidden);
+
+        // Branch-available logic:
+        // - product has active rule for this branch => available
+        // - product has any global (branch_id IS NULL) active rule and not explicitly hidden at this branch => available
+        // - product has NO price_rules at all => available (legacy/global)
+        const productIdsWithAnyRule = new Set<string>(rules.map(r => r.product_id));
+        const branchActiveProductIds = new Set<string>(
+          rules.filter(r => r.branch_id === branchId && r.is_active === true).map(r => r.product_id)
+        );
+        const globalActiveProductIds = new Set<string>(
+          rules.filter(r => r.branch_id === null && r.is_active === true).map(r => r.product_id)
+        );
+
+        const available = new Set<string>();
+        for (const p of products) {
+          if (hidden.has(p.id)) continue;
+          if (branchActiveProductIds.has(p.id)) { available.add(p.id); continue; }
+          if (globalActiveProductIds.has(p.id)) { available.add(p.id); continue; }
+          if (!productIdsWithAnyRule.has(p.id)) { available.add(p.id); continue; }
+          // else: has rules, but none active for this branch / globally → not available here
+        }
+        setBranchAvailableProductIds(available);
+      } catch {
+        setHiddenProductIds(new Set());
+        setBranchAvailableProductIds(null);
+      }
     })();
-  }, [formData.branch_id, invoice?.branch_id]);
+  }, [formData.branch_id, invoice?.branch_id, products]);
 
   // When entering edit mode, initialize from invoice
   useEffect(() => {
