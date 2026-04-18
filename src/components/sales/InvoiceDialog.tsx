@@ -1642,9 +1642,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                                   <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[280px] p-0" align="start">
-                                <Command><CommandInput placeholder="Search products..." /><CommandList><CommandEmpty>No product found.</CommandEmpty><CommandGroup>
-                                  {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id)).map(p => (
+                              <PopoverContent className="w-[280px] p-0 max-h-[60vh] overflow-hidden" align="start">
+                                <Command><CommandInput placeholder="Search products..." /><CommandList
+                                  className="max-h-[300px] overflow-y-auto overscroll-contain"
+                                  onWheel={(e) => e.stopPropagation()}
+                                  onTouchMove={(e) => e.stopPropagation()}
+                                ><CommandEmpty>No products available for this branch.</CommandEmpty><CommandGroup>
+                                  {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id) && (!branchAvailableProductIds || branchAvailableProductIds.has(p.id))).map(p => (
                                     <CommandItem key={p.id} value={p.name} onSelect={() => handleEditProductChange(item.id, p.id)}>
                                       <Check className={cn("mr-2 h-3 w-3", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
                                       <span className="text-xs">{p.name}</span>
