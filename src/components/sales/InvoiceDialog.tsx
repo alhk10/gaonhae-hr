@@ -737,9 +737,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
     const notHidden = !hiddenProductIds.has(p.id);
+    const branchId = isCreateMode ? formData.branch_id : invoice?.branch_id;
+    // If we have branch context AND availability data loaded, restrict to branch pool.
+    const availableInBranch = !branchId || branchAvailableProductIds === null
+      ? true
+      : branchAvailableProductIds.has(p.id);
     const isGrading = p.category_id === GRADING_CATEGORY_ID;
     const matchesGrading = !isGrading || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
-    return matchesCategory && matchesGrading && notHidden;
+    return matchesCategory && matchesGrading && notHidden && availableInBranch;
   });
 
   const outOfCriteriaProductIds = useMemo(() => {
@@ -747,13 +752,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const ids = new Set<string>();
     for (const p of products) {
       if (p.category_id === GRADING_CATEGORY_ID) continue;
+      // Only consider products available at the current branch (if known)
+      if (branchAvailableProductIds && !branchAvailableProductIds.has(p.id)) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
       const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
       if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes]);
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes, branchAvailableProductIds]);
 
   // Auto-select product
   useEffect(() => {
