@@ -239,9 +239,15 @@ const ProductSearchSelect: React.FC<{
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
-  const filtered = search.trim()
+  const baseFiltered = search.trim()
     ? products.filter(p => fuzzyMatch(p.name, search.trim()) || fuzzyMatch(p.sku, search.trim()) || p.allowed_class_types?.some(ct => fuzzyMatch(ct, search.trim())))
     : products;
+  // Eligible items first, exception items at the bottom
+  const filtered = [...baseFiltered].sort((a, b) => {
+    const aEx = outOfCriteriaIds?.has(a.id) ? 1 : 0;
+    const bEx = outOfCriteriaIds?.has(b.id) ? 1 : 0;
+    return aEx - bEx;
+  });
 
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
@@ -251,11 +257,15 @@ const ProductSearchSelect: React.FC<{
           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0">
+      <PopoverContent className="w-72 p-0 max-h-[60vh] overflow-hidden">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search product..." value={search} onValueChange={setSearch} />
-          <CommandList>
-            <CommandEmpty>No product found.</CommandEmpty>
+          <CommandList
+            className="max-h-[300px] overflow-y-auto overscroll-contain"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
+            <CommandEmpty>No products available for this branch.</CommandEmpty>
             <CommandGroup>
               {filtered.map((product) => (
                 <CommandItem key={product.id} value={product.id} onSelect={() => { onValueChange(product.id); setOpen(false); setSearch(''); }}>
@@ -339,6 +349,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [hiddenProductIds, setHiddenProductIds] = useState<Set<string>>(new Set());
+  const [branchAvailableProductIds, setBranchAvailableProductIds] = useState<Set<string> | null>(null);
   const { accessibleBranches, isSuperadmin: isSuperadminAccess, canCreate } = useInvoiceAccess();
 
   // ─── Create Mode State ──────────────────────────────────────────
@@ -421,18 +432,55 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   }, [availableBranches.length, formData.branch_id]);
 
-  // Fetch hidden products
+  // Fetch hidden products + branch-available products
   useEffect(() => {
     const branchId = isCreateMode ? formData.branch_id : invoice?.branch_id;
-    if (!branchId) { setHiddenProductIds(new Set()); return; }
+    if (!branchId) {
+      setHiddenProductIds(new Set());
+      setBranchAvailableProductIds(null);
+      return;
+    }
     (async () => {
       try {
-        const { data, error } = await supabase.from('price_rules').select('product_id').eq('branch_id', branchId).eq('is_active', false);
+        const { data, error } = await supabase
+          .from('price_rules')
+          .select('product_id, branch_id, is_active');
         if (error) throw error;
-        setHiddenProductIds(new Set((data || []).map(r => r.product_id)));
-      } catch { setHiddenProductIds(new Set()); }
+        const rules = data || [];
+
+        // Hidden = explicit inactive override at this branch
+        const hidden = new Set<string>(
+          rules.filter(r => r.branch_id === branchId && r.is_active === false).map(r => r.product_id)
+        );
+        setHiddenProductIds(hidden);
+
+        // Branch-available logic:
+        // - product has active rule for this branch => available
+        // - product has any global (branch_id IS NULL) active rule and not explicitly hidden at this branch => available
+        // - product has NO price_rules at all => available (legacy/global)
+        const productIdsWithAnyRule = new Set<string>(rules.map(r => r.product_id));
+        const branchActiveProductIds = new Set<string>(
+          rules.filter(r => r.branch_id === branchId && r.is_active === true).map(r => r.product_id)
+        );
+        const globalActiveProductIds = new Set<string>(
+          rules.filter(r => r.branch_id === null && r.is_active === true).map(r => r.product_id)
+        );
+
+        const available = new Set<string>();
+        for (const p of products) {
+          if (hidden.has(p.id)) continue;
+          if (branchActiveProductIds.has(p.id)) { available.add(p.id); continue; }
+          if (globalActiveProductIds.has(p.id)) { available.add(p.id); continue; }
+          if (!productIdsWithAnyRule.has(p.id)) { available.add(p.id); continue; }
+          // else: has rules, but none active for this branch / globally → not available here
+        }
+        setBranchAvailableProductIds(available);
+      } catch {
+        setHiddenProductIds(new Set());
+        setBranchAvailableProductIds(null);
+      }
     })();
-  }, [formData.branch_id, invoice?.branch_id]);
+  }, [formData.branch_id, invoice?.branch_id, products]);
 
   // When entering edit mode, initialize from invoice
   useEffect(() => {
@@ -689,9 +737,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const filteredProducts = products.filter(p => {
     const matchesCategory = !newItem.category_id || p.category_id === newItem.category_id;
     const notHidden = !hiddenProductIds.has(p.id);
+    const branchId = isCreateMode ? formData.branch_id : invoice?.branch_id;
+    // If we have branch context AND availability data loaded, restrict to branch pool.
+    const availableInBranch = !branchId || branchAvailableProductIds === null
+      ? true
+      : branchAvailableProductIds.has(p.id);
     const isGrading = p.category_id === GRADING_CATEGORY_ID;
     const matchesGrading = !isGrading || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
-    return matchesCategory && matchesGrading && notHidden;
+    return matchesCategory && matchesGrading && notHidden && availableInBranch;
   });
 
   const outOfCriteriaProductIds = useMemo(() => {
@@ -699,13 +752,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const ids = new Set<string>();
     for (const p of products) {
       if (p.category_id === GRADING_CATEGORY_ID) continue;
+      // Only consider products available at the current branch (if known)
+      if (branchAvailableProductIds && !branchAvailableProductIds.has(p.id)) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
       const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
       if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes]);
+  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes, branchAvailableProductIds]);
 
   // Auto-select product
   useEffect(() => {
@@ -1587,9 +1642,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                                   <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[280px] p-0" align="start">
-                                <Command><CommandInput placeholder="Search products..." /><CommandList><CommandEmpty>No product found.</CommandEmpty><CommandGroup>
-                                  {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id)).map(p => (
+                              <PopoverContent className="w-[280px] p-0 max-h-[60vh] overflow-hidden" align="start">
+                                <Command><CommandInput placeholder="Search products..." /><CommandList
+                                  className="max-h-[300px] overflow-y-auto overscroll-contain"
+                                  onWheel={(e) => e.stopPropagation()}
+                                  onTouchMove={(e) => e.stopPropagation()}
+                                ><CommandEmpty>No products available for this branch.</CommandEmpty><CommandGroup>
+                                  {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id) && (!branchAvailableProductIds || branchAvailableProductIds.has(p.id))).map(p => (
                                     <CommandItem key={p.id} value={p.name} onSelect={() => handleEditProductChange(item.id, p.id)}>
                                       <Check className={cn("mr-2 h-3 w-3", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
                                       <span className="text-xs">{p.name}</span>
