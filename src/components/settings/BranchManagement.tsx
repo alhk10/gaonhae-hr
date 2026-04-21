@@ -636,6 +636,17 @@ const BranchManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Branch Setup Dialog (multi-tab per-branch hub) */}
+      <BranchSetupDialog
+        branch={setupBranch}
+        open={isSetupOpen}
+        onOpenChange={(o) => {
+          setIsSetupOpen(o);
+          if (!o) setSetupBranch(null);
+        }}
+        onSaved={loadBranches}
+      />
     </div>
   );
 };
