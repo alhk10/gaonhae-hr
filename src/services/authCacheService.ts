@@ -40,6 +40,7 @@ export interface CachedPageAccess {
   myAttendance: boolean;
   slotBookingEmployee: boolean;
   cctvMonitoring: boolean;
+  socialMedia: boolean;
   cachedAt: number;
 }
 
