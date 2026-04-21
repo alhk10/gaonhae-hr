@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { upsertBranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   branchId: string;
@@ -21,6 +22,8 @@ interface ProductRow {
   name: string;
   sku: string;
   base_price: number;
+  category_id: string | null;
+  category_name: string | null;
   is_visible: boolean;
   price_override: number | null;
   rule_id?: string;
@@ -28,6 +31,11 @@ interface ProductRow {
   editVisible: boolean;
   editPrice: string;
   dirty: boolean;
+}
+
+interface CategoryOption {
+  id: string;
+  name: string;
 }
 
 export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, branchCurrency }) => {
