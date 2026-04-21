@@ -94,6 +94,11 @@ const ApprovalCard: React.FC<{
                   Exception product
                 </Badge>
               )}
+              {req.approval_reason.includes('paid term invoice') && (
+                <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                  Grading prerequisite
+                </Badge>
+              )}
             </div>
           )}
           <p className="text-xs text-muted-foreground">
