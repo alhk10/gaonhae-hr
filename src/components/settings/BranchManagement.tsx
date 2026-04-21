@@ -24,9 +24,11 @@ import {
   Palette,
   Save,
   X,
-  CreditCard
+  CreditCard,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { getBranches, saveBranch, updateBranch, deleteBranch, type Branch } from '@/services/settingsService';
+import { BranchSetupDialog } from './BranchSetupDialog';
 
 const BranchManagement: React.FC = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -34,6 +36,8 @@ const BranchManagement: React.FC = () => {
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [setupBranch, setSetupBranch] = useState<Branch | null>(null);
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -458,7 +462,19 @@ const BranchManagement: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => {
+                              setSetupBranch(branch);
+                              setIsSetupOpen(true);
+                            }}
+                            title="Branch Setup"
+                          >
+                            <SettingsIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleEditBranch(branch)}
+                            title="Edit basic info"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -620,6 +636,17 @@ const BranchManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Branch Setup Dialog (multi-tab per-branch hub) */}
+      <BranchSetupDialog
+        branch={setupBranch}
+        open={isSetupOpen}
+        onOpenChange={(o) => {
+          setIsSetupOpen(o);
+          if (!o) setSetupBranch(null);
+        }}
+        onSaved={loadBranches}
+      />
     </div>
   );
 };
