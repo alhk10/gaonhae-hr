@@ -1058,14 +1058,37 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   // ─── Edit Mode Logic ───────────────────────────────────────────
+  // Tax-inclusive flag for edit mode (derived from invoice's branch country)
+  const editIsTaxInclusive = useMemo(() => {
+    if (!invoice?.branch_id) return DEFAULT_TAX_INCLUDED;
+    const b = branches.find(br => br.id === invoice.branch_id);
+    const country = b?.country || null;
+    return country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+  }, [invoice?.branch_id, branches]);
+
   const recalcItem = (item: EditableItem): EditableItem => {
     const gross = item.quantity * item.unit_price;
     const discountAmt = item.discount_type === 'percentage' ? gross * ((item.discount_value || 0) / 100) : (item.discount_value || 0);
     const net = Math.max(0, gross - discountAmt);
-    return { ...item, tax_amount: net * item.tax_rate, total_amount: net };
+    if (editIsTaxInclusive) {
+      // unit_price is tax-inclusive: net IS the line total; tax is embedded
+      const lineSubtotal = net / (1 + item.tax_rate);
+      const lineTax = net - lineSubtotal;
+      return { ...item, tax_amount: lineTax, total_amount: net };
+    }
+    // Tax-exclusive: net is subtotal, tax added on top
+    return { ...item, tax_amount: net * item.tax_rate, total_amount: net + net * item.tax_rate };
   };
 
   const editTotals = useMemo(() => {
+    if (editIsTaxInclusive) {
+      // Inclusive: total_amount already includes tax
+      const total = editItems.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+      const tax = editItems.reduce((sum, i) => sum + (i.tax_amount || 0), 0);
+      const subtotal = total - tax;
+      return { subtotal, tax, total, balanceDue: total - (invoice?.amount_paid || 0) };
+    }
+    // Exclusive: subtotal is net of items, tax added on top
     const subtotal = editItems.reduce((sum, i) => {
       const gross = i.quantity * i.unit_price;
       const disc = i.discount_type === 'percentage' ? gross * ((i.discount_value || 0) / 100) : (i.discount_value || 0);
@@ -1074,7 +1097,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const tax = editItems.reduce((sum, i) => sum + i.tax_amount, 0);
     const total = subtotal + tax;
     return { subtotal, tax, total, balanceDue: total - (invoice?.amount_paid || 0) };
-  }, [editItems, invoice?.amount_paid]);
+  }, [editItems, invoice?.amount_paid, editIsTaxInclusive]);
 
   const handleAddEditItem = () => {
     setEditItems(prev => [...prev, { id: `new_${Date.now()}`, isNew: true, product_id: '', product_name: '', description: '', quantity: 1, unit_price: 0, tax_rate: 0, tax_amount: 0, total_amount: 0 }]);
