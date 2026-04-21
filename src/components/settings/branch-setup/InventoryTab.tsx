@@ -306,7 +306,7 @@ export const InventoryTab: React.FC<Props> = ({ branchId, branchName }) => {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.flatMap((g) => {
+              (filtered.flatMap((g): React.ReactNode[] => {
                 const isOpen = !!expanded[g.product_id];
                 const groupTotal = g.variants.reduce(
                   (acc, v) => acc + (parseInt(v.edit_qty || '0', 10) || 0),
