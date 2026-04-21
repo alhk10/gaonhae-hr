@@ -593,7 +593,7 @@ const GradingListTab: React.FC = () => {
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No active students found with paid class invoices for this term.
+              No grading registrations for this term yet.
             </div>
           ) : (
             <div className="overflow-x-auto">
