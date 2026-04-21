@@ -1,64 +1,78 @@
 
 
-## Plan: Retire Class Type Age Settings (superseded by per-student exceptions + timetable age range)
+## Plan: Add "Branch Setup" button to Branch Dashboard header (superadmin only)
 
-Branch-level `branch_class_type_settings` (the dialog shown in the screenshot) is now redundant. Age eligibility is already enforced by:
-- The **timetable slot's** own `age_from`/`age_to` (per-class definition)
-- The **product's** `min_age`/`max_age`
-- The student's **`allowed_class_types`** array (per-student exceptions)
+Mirror the same multi-tab Branch Setup hub from **Settings → Branches → Branch Setup** so superadmins can manage branch configuration without navigating away from the Branch Dashboard.
 
-We will remove the branch-level layer entirely.
+### Changes
 
-### Code removals
+**File: `src/components/dashboard/BranchDashboard.tsx`**
 
-**Delete files**
-- `src/components/dashboard/BranchClassTypeAgeSettings.tsx`
-- `src/services/branchClassTypeSettingsService.ts`
+1. **Import the existing dialog** (no duplication):
+   ```ts
+   import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
+   ```
 
-**`src/components/dashboard/BranchDashboard.tsx`**
-- Remove import of `BranchClassTypeAgeSettings`.
-- Remove `classTypeSettingsOpen` state and the `<BranchClassTypeAgeSettings />` render.
-- Remove the header "Settings" button that opened the dialog (lines 911–914) — no replacement; the simplified header just shows the branch name.
+2. **Add state** near other dialog state:
+   ```ts
+   const [branchSetupOpen, setBranchSetupOpen] = useState(false);
+   ```
 
-**`src/components/sales/InvoiceDialog.tsx`**
-- Remove `classTypeAgeSettings` state, `loadClassTypeAgeSettings`, and both call sites (initial mount with `lockedBranchId` and on branch change).
-- Drop the `classTypeAgeSettings` parameter from `isProductAvailableForAge` and stop calling that helper. Product age eligibility now uses only `product.min_age`/`product.max_age` (the existing `productAgeOk` line is sufficient).
-- Remove `classTypeAgeSettings` from the dependency array of the disabled-products `useMemo`.
+3. **Update header (lines 907–911)** to add a superadmin-only button beside the title:
+   ```tsx
+   <div className="flex items-center justify-between">
+     <h2 className="text-lg sm:text-2xl font-bold text-foreground">
+       {branch?.name || 'Loading...'} Dashboard
+     </h2>
+     {userrole === 'superadmin' && branch && (
+       <Button
+         variant="outline"
+         size="sm"
+         onClick={() => setBranchSetupOpen(true)}
+         className="gap-1.5"
+       >
+         <Settings className="w-4 h-4" />
+         <span className="hidden sm:inline">Branch Setup</span>
+       </Button>
+     )}
+   </div>
+   ```
+   `Settings` icon is already imported (line 25); `Button` is already imported.
 
-**`src/components/dashboard/ClassScheduleSelector.tsx`**
-- Remove import of `getBranchClassTypeSettings` and the `classTypeAgeSettings` query.
-- In `eligibleClasses`, drop the "branch class type age settings" branch (lines 99–105); keep the timetable-level `age_from`/`age_to` check and the `hasClassTypeException` short-circuit.
+4. **Render the dialog** at the bottom of the component (next to other dialogs):
+   ```tsx
+   <BranchSetupDialog
+     branch={branch as any}
+     open={branchSetupOpen}
+     onOpenChange={setBranchSetupOpen}
+     onSaved={() => {
+       queryClient.invalidateQueries({ queryKey: ['branch', branchId] });
+     }}
+   />
+   ```
+   The `branch` from `useQuery` is `select('*')` from `branches` and matches the `Branch` interface used by `BranchSetupDialog` (id, name, country, currency, etc.). On save, we invalidate the branch query so updated name/country/currency reflects in the header immediately.
 
-**`src/services/classAttendanceService.ts`**
-- Remove the import of `getBranchClassTypeSettings`.
-- In both `getBranchStudentsForClass` and `getExcludedStudentsDiagnostics`: delete the `branchMinAge`/`branchMaxAge` lookup blocks and stop passing those props into `isStudentEligibleForClass` / `checkFullEligibility`.
+### What the button opens
 
-**`src/utils/classTypeEligibility.ts`**
-- Remove `branchMinAge` / `branchMaxAge` from `isStudentEligibleForClass` and `checkFullEligibility` signatures and from their internal age checks. Update JSDoc.
+The exact same `BranchSetupDialog` shown in **Settings → Branches**, with all 7 tabs:
+- General, Operating Hours, Class Timetable, Products & Pricing, Inventory, Employee Access, CCTV Cameras
 
-**`src/components/sales/EditStudentDialog.tsx`**
-- Stop sourcing the "Class Type Exceptions" multi-select options from the deleted settings table. Switch to the static `CLASS_TYPES` list from `@/services/branchTimetableService` so age-exception checkboxes still render for every supported class type.
-- Remove the `useQuery(['branch-class-type-settings', ...])` block and the `getBranchClassTypeSettings` import.
+No changes to the dialog itself — single source of truth.
 
-### Database migration
+### Access control
 
-New migration `drop_branch_class_type_settings.sql`:
-```sql
-DROP TABLE IF EXISTS public.branch_class_type_settings CASCADE;
-```
-(`CASCADE` cleans the trigger and policies. `src/integrations/supabase/types.ts` will regenerate automatically.)
+- Button only renders when `userrole === 'superadmin'`. Non-superadmin staff (managers, partners, employees) will not see it.
+- Matches existing superadmin-only patterns (e.g., delete-without-approval, mass edit).
 
 ### Verification
 
-- Open any Branch Dashboard → no "Settings" button in the header, no dialog opens. Page loads without errors.
-- Edit Student → "Class Type Exceptions (Age Override)" still lists all 10 class types from `CLASS_TYPES`. Saving exceptions still writes to `students.allowed_class_types`.
-- Create Invoice for a student → product disabling still respects `product.min_age/max_age` and student belt; products no longer disabled by the removed branch setting.
-- Slot Attendance → "Add Students" eligibility filter still excludes by belt + timetable age range + per-student exceptions.
-- Class Schedule Selector (used in invoice/portal slot-pick) → eligible classes still respect the timetable slot's `age_from/age_to` and per-student exceptions.
-- Supabase: `branch_class_type_settings` table is gone; no orphan references in `types.ts`.
+- Login as **superadmin**, open any branch dashboard → "Branch Setup" button appears top-right of header → clicking opens the same multi-tab dialog as Settings → Branches → Branch Setup (gear icon).
+- Login as **manager / partner / employee** with branch access → no button visible.
+- Edit branch name in the General tab → save → header title updates after dialog closes (via `onSaved` invalidation).
+- Mobile (<640px) → button shows icon only (label hidden) to fit the header.
 
 ### Out of scope
 
-- Migrating any existing rows in `branch_class_type_settings` into per-student `allowed_class_types`. (User confirmed exceptions supersede it; existing rows are dropped with the table.)
-- Changing the timetable slot `age_from`/`age_to` UI or the product `min_age`/`max_age` UI — both stay as the remaining age controls.
+- Changing the dialog's content, tabs, or per-tab logic.
+- Adding the button to non-superadmin roles (can be revisited if needed).
 
