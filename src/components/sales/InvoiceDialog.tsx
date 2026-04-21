@@ -408,6 +408,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       setMode(initialMode);
       loadInvoiceData();
       loadViewProducts();
+      // Load branches so edit-mode tax-inclusive detection works
+      if (branches.length === 0) loadBranches();
     }
   }, [dialogOpen]);
 
