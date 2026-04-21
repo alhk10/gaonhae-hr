@@ -1,67 +1,110 @@
 
 
-## Plan: Per-Branch Setup Hub under Settings → Branches
+## Plan: CCTV Monitoring page
 
-Today, branch-related configuration is scattered:
-- **Branches** tab — only basic fields (name, address, country, currency, color, Stripe).
-- **Timetable** tab — operating hours + class schedule, branch-by-branch.
-- **Branch Access** tab — employee access mapping.
-- **Sales module** (separate page) — Products (with branch-specific price overrides via `BranchPricingManager`), Inventory (with branch quantity columns via `InventoryListTab`).
+A new authenticated page that displays a grid of branch cards, each playing a live HLS video stream proxied from a self-hosted MediaMTX server. RTSP camera URLs are stored in the database and never leave the server — the frontend only sees relay URLs like `https://media.gaonhae.app/<token>/index.m3u8`.
 
-We'll add a unified **Branch Setup** flow under the existing **Branches** tab that lets a superadmin click into a single branch and manage everything for it in one place — without removing the existing global pages.
+### Important: required infrastructure (out of Lovable's reach)
 
-### New UX
+Live RTSP-to-HLS conversion requires a server you control running MediaMTX (or equivalent). **Lovable cannot host this.** You'll need:
 
-In `src/components/settings/BranchManagement.tsx`:
+1. A small VPS (1 vCPU, 1 GB RAM is enough for ~10 cameras) reachable from each branch's router.
+2. MediaMTX installed (single binary, free, open-source) listening on:
+   - `:8554` for RTSP ingest (cameras push, or it pulls)
+   - `:8888` for HLS playback
+   - `:8889` for WebRTC playback (optional, low-latency)
+3. Each branch camera/NVR configured to either be reachable by MediaMTX (pull mode) or to push to MediaMTX (push mode — more reliable behind NAT).
+4. A TLS hostname pointed at MediaMTX (e.g. `media.gaonhae.app`) so browsers can play it from HTTPS pages.
 
-1. Each row in the **Branch Directory** table gets a new action button: **`Setup`** (gear icon) next to Edit / Delete.
-2. Clicking **Setup** opens a large dialog `BranchSetupDialog` (full-screen on mobile, `max-w-[1400px]` on desktop, same shell pattern we standardised in `InvoiceDialog`).
-3. The dialog contains a `Tabs` component scoped to that one branch:
+The plan below builds everything around that — once the server exists, paths are configured per-branch via the new admin UI and streams Just Work.
 
-```text
-[General] [Operating Hours] [Class Timetable] [Products & Pricing] [Inventory] [Employee Access]
-```
+### New tables (Supabase)
 
-### Tab contents (each pre-filtered to the selected branch)
+- `cctv_cameras`
+  - `id uuid pk`, `branch_id text fk → branches.id`, `name text`, `mediamtx_path text` (e.g. `balmoral-front`), `supports_playback bool default false`, `is_active bool default true`, `display_order int default 0`, `created_at`, `updated_at`.
+  - **No raw RTSP URL stored client-side.** Raw RTSP credentials live in MediaMTX's own config on the VPS (or in a private `cctv_camera_secrets` table only readable by service role).
+- `cctv_camera_secrets` (optional, server-only)
+  - `id uuid pk`, `camera_id uuid fk`, `rtsp_url text`, `username text`, `password text`. RLS: deny all to authenticated; only service_role can read. Used by the edge function below to render MediaMTX config or to mint signed playback tokens.
+- RLS on `cctv_cameras`:
+  - SELECT: superadmin OR `has_branch_access(branch_id)` (existing function).
+  - INSERT/UPDATE/DELETE: superadmin only.
 
-- **General** — re-uses the existing edit form fields (name, address, country, currency, colour, Stripe ID). Save reuses `updateBranch`.
-- **Operating Hours** — extracts the per-branch editor already used in `BranchTimetableManagement` into a small `<BranchOperatingHoursEditor branchId>` component (weekday open/close/notes, save via `saveBranchOperatingSchedule`). Existing Timetable tab keeps its multi-branch view; the new component is a reuse, not a rewrite.
-- **Class Timetable** — extracts the per-branch class schedule editor (currently inside `BranchClassScheduleManagement`'s accordion) into `<BranchClassScheduleEditor branchId>`. Add / edit / delete recurring classes for this branch only, reusing `getClassSchedules` / `createClassSchedule` / `updateClassSchedule` / `deleteClassSchedule` filtered by `branchId`.
-- **Products & Pricing** — table of all `products` (excluding inactive), with two per-branch controls per row:
-  - **Visible at this branch** toggle (writes to `price_rules` with `is_active=false` to hide, removes the row to show — matches the corrected availability semantics from the previous fix).
-  - **Branch price override** input (writes `price_rules.price_override` for `branch_id = current`; blank = use product base price). Reuses `priceRulesService` patterns already used by `BranchPricingManager`.
-- **Inventory** — branch-scoped inventory editor: lists all inventory items at the branch's `inventory_locations` row, grouped by product → variant, with editable on-hand quantities (single-column instead of all-branch matrix). Save path reuses the same upsert into `inventory_items` used by `InventoryListTab`'s edit-mode logic.
-- **Employee Access** — list of employees with `employee_branch_access` rows for this branch, with the same per-row toggles that `BranchAccessManagement` already exposes (view dashboard, manage students, etc.), filtered to this branch.
+### Edge function: `cctv-stream-token`
 
-### What this avoids
+- Input: `{ camera_id }`.
+- Verifies caller is authenticated and has branch access to that camera's `branch_id` (reuses `has_branch_access`).
+- Returns a short-lived signed URL: `https://media.gaonhae.app/<mediamtx_path>/index.m3u8?jwt=…` (HMAC-signed, 5-minute TTL). MediaMTX is configured with the matching shared secret in its `authJWTJWKS`/`authInternalUsers` block to validate the JWT before serving the segment.
+- Same pattern for WebRTC: returns `https://media.gaonhae.app/<mediamtx_path>/whep?jwt=…`.
 
-- No schema changes — every tab uses existing tables (`branches`, `branch_operating_hours`, `class_schedules`, `products`, `price_rules`, `inventory_items`, `inventory_locations`, `employee_branch_access`).
-- No duplicated logic — extract small per-branch sub-components from existing managers and embed in the new dialog. The existing global tabs (Timetable, Branch Access, Sales → Products / Inventory) remain unchanged.
-- No new permissions — entire dialog gated by superadmin (same as the `Settings` page).
+This is what hides the raw RTSP URL — the browser only ever sees a per-session signed HLS URL.
 
-### File changes
+### Permissions
 
-- New: `src/components/settings/BranchSetupDialog.tsx` — tabbed dialog shell.
-- New: `src/components/settings/branch-setup/GeneralTab.tsx` — reuses existing edit form.
-- New: `src/components/settings/branch-setup/OperatingHoursTab.tsx` — extracted single-branch editor.
-- New: `src/components/settings/branch-setup/ClassTimetableTab.tsx` — extracted single-branch class editor.
-- New: `src/components/settings/branch-setup/ProductsPricingTab.tsx` — per-branch visibility + price overrides.
-- New: `src/components/settings/branch-setup/InventoryTab.tsx` — per-branch on-hand quantity editor.
-- New: `src/components/settings/branch-setup/EmployeeAccessTab.tsx` — per-branch access toggles.
-- Modify: `src/components/settings/BranchManagement.tsx` — add `Setup` button in row actions, mount `BranchSetupDialog`.
+- New permission key `cctv_monitoring` added to `employee_page_access` (boolean, default false).
+- Auto-granted to superadmin. Toggleable per employee in the existing **Settings → Employee Access** UI (one-line addition).
+- Route gated with `<PageAccessGuard requiredPermission="cctv_monitoring">`.
 
-### Verification
+### Frontend
 
-- Settings → Branches → click `Setup` on **Morley** → dialog opens with 6 tabs, all data pre-filtered to Morley.
-- Operating Hours: edit Mon close time → save → reflected in main Timetable tab and on Branch Dashboard.
-- Class Timetable: add a Tue 5pm class → save → appears on Morley weekly timetable.
-- Products & Pricing: hide "1x Week" at Morley → returns to Create Invoice → Morley → "1x Week" no longer shown. Re-enable → reappears.
-- Inventory: bump uniform L stock by 5 → matches in main Inventory list filtered to Morley.
-- Employee Access: grant employee X dashboard access for Morley → reflected in main Branch Access tab.
+- Route: `/cctv` → `src/pages/CctvMonitoring.tsx`.
+- Sidebar entry "CCTV Monitoring" (icon `Video` from lucide-react), shown when permission is granted.
+- Page layout:
+  - Header with branch filter (uses `useBranchAccess` so non-superadmins only see their branches).
+  - Responsive grid: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` of `<CameraCard>`.
+  - Each card:
+    - Branch name + camera name.
+    - Camera selector dropdown if branch has >1 camera.
+    - HLS player using `hls.js` (already-supported pattern: native `<video>` on Safari/iOS, `hls.js` elsewhere).
+    - Auto-reconnect: on `ERROR_FATAL` event re-fetch a fresh signed URL via `cctv-stream-token` and call `hls.loadSource()` again, exponential backoff (1s, 2s, 5s, max 30s).
+    - "Live" indicator dot + last-frame-received timestamp.
+    - Optional "Playback" button (only when `supports_playback=true`) — opens a date/time picker that requests a VOD URL from the same edge function (MediaMTX `playback` endpoint).
+- Mobile: cards stack 1 column, video uses `aspect-video`, controls remain reachable.
+
+### Admin UI
+
+- New tab in **Settings → Branches → Branch Setup dialog** called **"CCTV Cameras"** (re-uses the existing per-branch setup hub built last task).
+  - Lists this branch's cameras with edit/delete.
+  - "Add camera" form: Name, MediaMTX path, Supports playback toggle, Active toggle, Display order.
+  - For superadmin only: separate collapsible "Stream credentials (server-only)" panel that writes to `cctv_camera_secrets`.
+
+### What stays the same
+
+- No changes to existing auth, sidebar render, branch access service, or other settings tabs.
+- No new third-party SaaS — `hls.js` is a small open-source npm dep, MediaMTX is self-hosted.
+
+### Files
+
+- New: `src/pages/CctvMonitoring.tsx`
+- New: `src/components/cctv/CameraCard.tsx`
+- New: `src/components/cctv/HlsPlayer.tsx`
+- New: `src/components/cctv/PlaybackDialog.tsx`
+- New: `src/components/settings/branch-setup/CctvCamerasTab.tsx`
+- New: `src/services/cctvService.ts`
+- New: `supabase/functions/cctv-stream-token/index.ts`
+- Modify: `src/App.tsx` (add `/cctv` route)
+- Modify: `src/components/layout/Sidebar.tsx` (add menu item)
+- Modify: `src/components/settings/BranchSetupDialog.tsx` (add tab)
+- Modify: `src/types/employee.ts` (add `cctvMonitoring` to `EmployeePageAccessPermissions`)
+- Migration: create the two tables + RLS, add `cctv_monitoring` boolean column to `employee_page_access`.
+
+### What you (the user) need to provide before this works
+
+1. A VPS with MediaMTX installed and a TLS hostname (we'll add a setup README to the repo).
+2. A shared HMAC secret saved in Supabase secrets as `MEDIAMTX_JWT_SECRET` and in MediaMTX's config.
+3. The MediaMTX base URL saved as `MEDIAMTX_BASE_URL` (e.g. `https://media.gaonhae.app`).
+4. Per-camera RTSP URL + credentials, entered once via the new Branch Setup → CCTV Cameras tab.
+
+### Verification (after VPS is up)
+
+- Add a test camera at Morley with `mediamtx_path = morley-test`, RTSP `rtsp://user:pass@10.0.0.20/stream1`.
+- Visit `/cctv` as superadmin → grid shows Morley card with live video within 2-3 seconds.
+- Disconnect camera Ethernet → "Reconnecting…" overlay appears, retries automatically.
+- Log in as a Morley-only employee with `cctv_monitoring=true` → sees only Morley cameras; cannot see Balmoral.
+- Network tab: HLS URL contains `?jwt=…`; raw RTSP URL never appears in any client request.
 
 ### Out of scope
 
-- Bulk copy/duplicate setup from one branch to another.
-- Reorganising the existing global tabs (Timetable / Branch Access / Sales) — they stay as today.
-- Auditing `price_rules` semantics beyond the visibility/override toggles already used.
+- VPS provisioning, MediaMTX install scripts, NAT/router setup at branches.
+- Recording-to-cloud, motion alerts, AI analytics — purely live + on-camera playback.
+- Multi-tenant access beyond existing branch-access model.
 
