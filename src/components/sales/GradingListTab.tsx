@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveTermsForSelection, type Term } from '@/services/termCalendarService';
-import { formatBeltLevel } from '@/constants/beltLevels';
+import { formatBeltLevel, compareBeltLevels } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { FileText, Loader2, User, Trash2, Eye, Save, Undo2, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -363,7 +363,14 @@ const GradingListTab: React.FC = () => {
       }
 
       const result = Array.from(studentResultMap.values());
-      result.sort((a, b) => a.student_name.localeCompare(b.student_name));
+      result.sort((a, b) => {
+        const aHas = a.current_belt ? 0 : 1;
+        const bHas = b.current_belt ? 0 : 1;
+        if (aHas !== bHas) return aHas - bHas;
+        const beltCmp = compareBeltLevels(a.current_belt || '', b.current_belt || '');
+        if (beltCmp !== 0) return beltCmp;
+        return a.student_name.localeCompare(b.student_name);
+      });
       return result;
     },
     enabled: !!selectedBranch && !!selectedTerm
