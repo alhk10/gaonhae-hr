@@ -1,78 +1,73 @@
 
 
-## Plan: Add "Create Invoice" button in the Students tab Actions column
+## Plan: Superadmin direct withdrawal with confirmation; others continue via approval
 
 ### Current behavior
 
-In `src/components/dashboard/BranchDashboard.tsx` (Students tab, lines 1145–1173), each non-withdrawn student row shows only a single "Withdraw" button in the Actions column. To create an invoice for a specific student, staff currently switch to the Invoice & Payment tab and re-pick the student.
+In `src/components/dashboard/BranchDashboard.tsx` (lines 1164–1186), every user — including superadmin — clicks **Withdraw**, gets a native `confirm()`, and the action calls `createWithdrawalRequest(...)` which inserts a `pending` row in `student_withdrawal_requests`. Superadmin must then go to the Approvals tab and approve their own request to actually withdraw the student.
 
 ### Change
 
-Add a second small action — **Create Invoice** — beside the Withdraw button on every non-withdrawn student row. Clicking it opens the existing `InvoiceDialog` in `create` mode with the student pre-selected and the branch locked to the current `branchId`.
+Branch on `user?.role === 'superadmin'`:
+
+- **Superadmin** → an `AlertDialog` confirmation ("Withdraw STUDENT NAME? This will set their status to 'withdrawn' immediately."). On confirm, directly update `students.status = 'withdrawn'` (skip the request table entirely). Toast success and refresh the student list.
+- **All other roles** → unchanged behaviour: `createWithdrawalRequest(...)` queues a pending request for superadmin approval (existing `withdrawal-approval-workflow` rule preserved).
 
 ### Implementation
 
-#### 1. Extend `InvoiceDialog` to accept a pre-selected student (`src/components/sales/InvoiceDialog.tsx`)
+#### 1. New service helper — `src/services/studentWithdrawalRequestService.ts`
 
-- Add an optional prop `prefilledStudentId?: string` to `InvoiceDialogProps` (lines 51–60).
-- Where the create-mode form initializes its student selection state, if `mode === 'create'` and `prefilledStudentId` is provided, set it as the initially selected student id (using the same code path the existing student picker uses on selection — fetch student by id if needed for the display label).
-- No behavioural change for any existing caller (prop is optional and defaults to undefined).
+Add `directWithdrawStudent(studentId: string)`:
+- Updates `students` row: `status = 'withdrawn'`.
+- Throws on error.
+- Intended for superadmin-only callers (the gate is enforced client-side; RLS already permits superadmin updates).
 
-#### 2. Add per-row "Create Invoice" trigger (`src/components/dashboard/BranchDashboard.tsx`)
+#### 2. Replace native confirm with `AlertDialog` in `BranchDashboard.tsx`
 
-- Add a new state pair near the other invoice dialog state (lines 109–113):
+- Add state near the existing dialog state:
   ```ts
-  const [createInvoiceForStudentId, setCreateInvoiceForStudentId] = useState<string | null>(null);
-  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState<{ id: string; name: string } | null>(null);
   ```
-- In the Actions cell (lines 1145–1173), inside the same `<TableCell>`, add a small ghost button before the existing Withdraw button:
-  - Icon: `FileText` (already imported), label "Invoice", classes `h-6 text-[10px]`, separated from Withdraw with a small gap.
-  - `onClick` (with `e.stopPropagation()` to avoid opening the StudentDetails dialog): set `createInvoiceForStudentId = student.id` and `createInvoiceOpen = true`.
-- Render a single controlled `InvoiceDialog` once, near the existing view/edit `InvoiceDialog` (around line 1480):
-  ```tsx
-  {createInvoiceForStudentId && (
-    <InvoiceDialog
-      mode="create"
-      branchId={branchId}
-      prefilledStudentId={createInvoiceForStudentId}
-      open={createInvoiceOpen}
-      onOpenChange={(open) => {
-        setCreateInvoiceOpen(open);
-        if (!open) setCreateInvoiceForStudentId(null);
-      }}
-      onInvoiceCreated={() => {
-        queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
-        queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
-      }}
-    />
-  )}
-  ```
-- The cell remains hidden in `massEditMode` (the existing `{!massEditMode && (…)}` wrapper covers both buttons).
+- The Withdraw button (lines 1164–1186) now just sets `withdrawTarget` (no `confirm()`, no inline async logic).
+- Render one `<AlertDialog>` near the other dialogs (around line 1480) controlled by `withdrawTarget !== null`:
+  - **Superadmin copy**: "Withdraw {name}? This will mark the student as withdrawn immediately. This action requires no further approval."
+  - **Non-superadmin copy**: "Submit a withdrawal request for {name}? A superadmin must approve before the student is withdrawn."
+  - Confirm button label: "Withdraw" (superadmin) / "Submit Request" (others), styled `bg-destructive`.
+  - On confirm:
+    - Superadmin → `await directWithdrawStudent(withdrawTarget.id)` → toast "STUDENT NAME withdrawn" → invalidate `branch-students` (and `pending-withdrawal-requests` for safety).
+    - Non-superadmin → existing `createWithdrawalRequest(...)` call → toast "Withdrawal request submitted for superadmin approval".
+  - Close dialog by setting `withdrawTarget = null`.
+
+#### 3. No other surface changes
+
+- `StudentWithdrawalApprovals.tsx` (Approvals tab) is untouched — it keeps handling pending requests from non-superadmin users.
+- `getPendingWithdrawalRequestsCount` badge unaffected — superadmin direct-withdrawals never create a request row.
+- The "A withdrawal request is already pending" toast in the screenshot only triggers on the request path; superadmin direct flow bypasses it (intentional — superadmin is the authority and can withdraw immediately even if a stale pending request exists; they can separately reject the pending request from the Approvals tab if desired).
+- Mass Edit mode → Actions cell still hidden (no regression).
+- Withdrawn students remain filtered out of the list (no regression).
 
 ### Behavioural rules preserved
 
-- Branch is locked because `branchId` is passed (existing `invoice-branch-context-restrictions` rule applies — price rules, in-context products, locked branch).
-- The button is not shown for `status === 'withdrawn'` rows (they are filtered out of the list anyway).
-- Student row click still opens the Student Details dialog because `e.stopPropagation()` is called on the new button.
-- No existing caller of `InvoiceDialog` needs changes (new prop is optional).
+- Memory `withdrawal-approval-workflow`: still enforced for non-superadmin.
+- Memory `student-status-constraints`: only writes `'withdrawn'` (allowed value).
+- Branch context unchanged; no RLS / migration work.
 
 ### Verification
 
-1. Morley → Students tab → ALEX NOH row shows two buttons: **Invoice** and **Withdraw**.
-2. Click **Invoice** → Create Invoice dialog opens with ALEX NOH pre-selected, branch locked to Morley.
-3. Closing or saving the dialog returns focus to the list; on save, the Invoice & Payment list refreshes (queries invalidated).
-4. Mass Edit mode → Actions column hidden as today (no regression).
-5. Withdrawn students do not appear in the list (no regression).
-6. Existing **Create Invoice** button at the top of the Invoice & Payment tab continues to work unchanged (opens with no pre-selected student).
+1. As **superadmin** on Morley → Students → click **Withdraw** on ARIANA ZHENG → AlertDialog appears with superadmin copy → click **Withdraw** → ARIANA disappears from the list immediately; no entry added to Approvals tab.
+2. As **non-superadmin staff** on Morley → click **Withdraw** on any student → AlertDialog appears with request copy → click **Submit Request** → toast "submitted for superadmin approval" → student remains in the list; row appears in Superadmin Approvals tab.
+3. Cancel button on either variant closes the dialog with no state change.
+4. Mass Edit mode → Actions column hidden as today.
+5. Withdrawn students still excluded from the list.
 
 ### Files affected
 
-- `src/components/sales/InvoiceDialog.tsx` — add optional `prefilledStudentId` prop and apply it in create mode initialization.
-- `src/components/dashboard/BranchDashboard.tsx` — new state, per-row Invoice button, controlled `InvoiceDialog` instance.
+- `src/services/studentWithdrawalRequestService.ts` — add `directWithdrawStudent`.
+- `src/components/dashboard/BranchDashboard.tsx` — replace native confirm with role-aware `AlertDialog`; route superadmin to direct update, others to existing request flow.
 
 ### Out of scope
 
-- Bulk-invoice from Mass Edit selection.
-- Pre-selecting a product/term per student.
-- Any change to the Invoice & Payment tab's existing "Create Invoice" button or to other dashboards (Sales/StudentManagementList already have their own create flows).
+- Bulk withdrawal from Mass Edit selection.
+- A "Reactivate withdrawn student" flow.
+- Changes to the Approvals tab UI or to the existing approve/reject service functions.
 
