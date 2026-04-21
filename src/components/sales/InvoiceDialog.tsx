@@ -1352,7 +1352,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   }
 
   const dialogContent = (
-    <DialogContent ref={dialogContentRef} className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto p-3 sm:p-6 top-[5%] translate-y-0">
+    <DialogContent ref={dialogContentRef} className="w-[98vw] sm:w-[95vw] max-w-[1400px] max-h-[95vh] sm:max-h-[90vh] min-h-[60vh] overflow-y-auto p-3 sm:p-6 top-[2%] sm:top-[5%] translate-y-0 flex flex-col">
       {/* ─── HEADER ─── */}
       <DialogHeader className="pb-2">
         {isCreateMode ? (
@@ -1396,7 +1396,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Invoice Details */}
           <div className="space-y-2 md:space-y-4">
-            <div className={cn("grid grid-cols-1 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
+            <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs md:text-sm">Branch</Label>
@@ -1506,43 +1506,45 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             </div>
 
             {/* Desktop table */}
-            <Table className="hidden md:table text-xs">
-              <TableHeader><TableRow>
-                <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {items.map((item, index) => {
-                  const ip = products.find(p => p.id === item.product_id);
-                  const ic = categories.find(c => c.id === ip?.category_id);
-                  return (
-                    <TableRow key={index}>
-                      <TableCell className="px-2 text-muted-foreground">{ic?.name || '-'}</TableCell>
-                      <TableCell className="px-2 font-medium">{item.product_name}</TableCell>
-                      <TableCell className="px-2"><Input type="number" min="1" value={item.quantity || ''} onChange={(e) => updateItemQuantity(index, e.target.value)} onBlur={() => finalizeItemQuantity(index)} className="w-12 h-7 text-xs px-1" /></TableCell>
-                      <TableCell className="px-2"><Input type="number" min="0" step="0.01" value={item.unit_price || ''} onChange={(e) => updateItemPrice(index, e.target.value)} onBlur={() => finalizeItemPrice(index)} className="w-14 h-7 text-xs px-1" /></TableCell>
-                      <TableCell className="px-2"><LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} /></TableCell>
-                      <TableCell className="px-2">{item.size_variant || '-'}</TableCell>
-                      <TableCell className="px-2">{item.color_variant || '-'}</TableCell>
-                      <TableCell className="px-2">{item.term_name || item.grading_slot_title || '-'}</TableCell>
-                      <TableCell className="px-2 font-medium text-right">${item.total.toFixed(2)}</TableCell>
-                      <TableCell className="px-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
-                    </TableRow>
-                  );
-                })}
-                <TableRow className="bg-muted/30">
-                  <TableCell className="px-2"><Select value={newItem.category_id || '__all__'} onValueChange={(val) => handleCategoryChange(val === '__all__' ? '' : val)}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></TableCell>
-                  <TableCell className="px-2"><ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentRef.current} /></TableCell>
-                  <TableCell className="px-2"><Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="w-12 h-7 text-xs px-1" /></TableCell>
-                  <TableCell className="px-2"><Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const p = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(p) ? 0 : p)); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`} /></TableCell>
-                  <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
-                  <TableCell className="px-2">{sizeOptions.length > 0 ? <Select value={newItem.size_variant} onValueChange={(v) => handleNewItemChange('size_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Size" /></SelectTrigger><SelectContent>{sizeOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select> : showSizeInput ? <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs w-16 px-1" /> : <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell className="px-2">{colorOptions.length > 0 ? <Select value={newItem.color_variant} onValueChange={(v) => handleNewItemChange('color_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Color" /></SelectTrigger><SelectContent>{colorOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No slots</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell className="px-2 text-muted-foreground">-</TableCell>
-                  <TableCell className="px-1"><Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id}><Plus className="h-3.5 w-3.5" /></Button></TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <div className="hidden md:block overflow-x-auto">
+              <Table className="text-xs min-w-[900px]">
+                <TableHeader><TableRow>
+                  <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {items.map((item, index) => {
+                    const ip = products.find(p => p.id === item.product_id);
+                    const ic = categories.find(c => c.id === ip?.category_id);
+                    return (
+                      <TableRow key={index}>
+                        <TableCell className="px-2 text-muted-foreground">{ic?.name || '-'}</TableCell>
+                        <TableCell className="px-2 font-medium">{item.product_name}</TableCell>
+                        <TableCell className="px-2"><Input type="number" min="1" value={item.quantity || ''} onChange={(e) => updateItemQuantity(index, e.target.value)} onBlur={() => finalizeItemQuantity(index)} className="w-12 h-7 text-xs px-1" /></TableCell>
+                        <TableCell className="px-2"><Input type="number" min="0" step="0.01" value={item.unit_price || ''} onChange={(e) => updateItemPrice(index, e.target.value)} onBlur={() => finalizeItemPrice(index)} className="w-14 h-7 text-xs px-1" /></TableCell>
+                        <TableCell className="px-2"><LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => updateItemDiscount(index, type, value)} /></TableCell>
+                        <TableCell className="px-2">{item.size_variant || '-'}</TableCell>
+                        <TableCell className="px-2">{item.color_variant || '-'}</TableCell>
+                        <TableCell className="px-2">{item.term_name || item.grading_slot_title || '-'}</TableCell>
+                        <TableCell className="px-2 font-medium text-right">${item.total.toFixed(2)}</TableCell>
+                        <TableCell className="px-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="px-2"><Select value={newItem.category_id || '__all__'} onValueChange={(val) => handleCategoryChange(val === '__all__' ? '' : val)}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></TableCell>
+                    <TableCell className="px-2"><ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentRef.current} /></TableCell>
+                    <TableCell className="px-2"><Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="w-12 h-7 text-xs px-1" /></TableCell>
+                    <TableCell className="px-2"><Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const p = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(p) ? 0 : p)); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`} /></TableCell>
+                    <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
+                    <TableCell className="px-2">{sizeOptions.length > 0 ? <Select value={newItem.size_variant} onValueChange={(v) => handleNewItemChange('size_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Size" /></SelectTrigger><SelectContent>{sizeOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select> : showSizeInput ? <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs w-16 px-1" /> : <span className="text-muted-foreground">-</span>}</TableCell>
+                    <TableCell className="px-2">{colorOptions.length > 0 ? <Select value={newItem.color_variant} onValueChange={(v) => handleNewItemChange('color_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Color" /></SelectTrigger><SelectContent>{colorOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground">-</span>}</TableCell>
+                    <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No slots</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
+                    <TableCell className="px-2 text-muted-foreground">-</TableCell>
+                    <TableCell className="px-1"><Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id}><Plus className="h-3.5 w-3.5" /></Button></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
 
             {termError && selectedCategory?.name === 'Classes' && <p className="text-xs text-destructive">{termError}</p>}
 
