@@ -150,7 +150,8 @@ export const getUserPageAccess = async (employeeId: string) => {
   const defaultAccess = {
     profile: true, applyLeave: true, submitClaim: true,
     payslips: true, myAttendance: true, slotBookingEmployee: true,
-    cctvMonitoring: false
+    cctvMonitoring: false,
+    socialMedia: false
   };
 
   try {

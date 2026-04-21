@@ -291,7 +291,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
               payslips: true,
               myAttendance: true,
               slotBookingEmployee: true,
-              cctvMonitoring: false
+              cctvMonitoring: false,
+              socialMedia: false
             }
           };
           logger.debug('Employee fetched successfully', { id: employee.employeeId });
@@ -590,7 +591,8 @@ export const PayrollProvider: React.FC<{ children: React.ReactNode }> = ({ child
           payslips: true,
           myAttendance: true,
           slotBookingEmployee: true,
-          cctvMonitoring: false
+          cctvMonitoring: false,
+          socialMedia: false
         }
        })) || [];
 
