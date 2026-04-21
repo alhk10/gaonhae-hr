@@ -27,7 +27,8 @@ import {
   Loader2,
   Users,
   Save,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
