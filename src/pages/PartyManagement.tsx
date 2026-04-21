@@ -67,7 +67,8 @@ const PartyManagement = () => {
     submitClaim: true,
     payslips: true,
     myAttendance: true,
-    slotBookingEmployee: true
+    slotBookingEmployee: true,
+    cctvMonitoring: false
   });
 
   // Student search state
@@ -235,7 +236,8 @@ const PartyManagement = () => {
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
+      cctvMonitoring: false
     });
   };
 

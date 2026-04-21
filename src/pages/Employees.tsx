@@ -52,7 +52,8 @@ const Employees = () => {
     submitClaim: true,
     payslips: true,
     myAttendance: true,
-    slotBookingEmployee: true
+    slotBookingEmployee: true,
+    cctvMonitoring: false
   });
 
   const { data: employees = [], isLoading, error } = useQuery({
@@ -185,7 +186,8 @@ const Employees = () => {
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
+      cctvMonitoring: false
     });
   };
 

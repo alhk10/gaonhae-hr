@@ -27,6 +27,7 @@ interface ExtendedAdminAccessPermissions {
   payslips: boolean;
   myAttendance: boolean;
   slotBookingEmployee: boolean;
+  cctvMonitoring: boolean;
 }
 
 interface EmployeeModuleSettingsProps {
@@ -62,7 +63,8 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims' },
     { key: 'payslips', label: 'Payslips', description: 'View and download payslips' },
     { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records' },
-    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' }
+    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' },
+    { key: 'cctvMonitoring', label: 'CCTV Monitoring', description: 'View live CCTV streams for accessible branches' }
   ];
 
   // Filter employees: only current (non-resigned) employees, then by type
@@ -99,7 +101,8 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           submitClaim: emp.pageAccess?.submitClaim !== false,
           payslips: emp.pageAccess?.payslips !== false,
           myAttendance: emp.pageAccess?.myAttendance !== false,
-          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false
+          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false,
+          cctvMonitoring: emp.pageAccess?.cctvMonitoring === true
         };
       });
       
@@ -149,7 +152,8 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           submitClaim: permissions.submitClaim,
           payslips: permissions.payslips,
           myAttendance: permissions.myAttendance,
-          slotBookingEmployee: permissions.slotBookingEmployee
+          slotBookingEmployee: permissions.slotBookingEmployee,
+          cctvMonitoring: permissions.cctvMonitoring
         };
         
         console.log('EmployeeModuleSettings: Saving admin permissions:', adminPermissions);

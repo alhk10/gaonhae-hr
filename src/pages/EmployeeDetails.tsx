@@ -57,7 +57,8 @@ const EmployeeDetails = () => {
     submitClaim: true,
     payslips: true,
     myAttendance: true,
-    slotBookingEmployee: true
+    slotBookingEmployee: true,
+    cctvMonitoring: false
   });
   const [qualifications, setQualifications] = useState<EmployeeQualifications>({});
 
@@ -124,7 +125,8 @@ const EmployeeDetails = () => {
         submitClaim: true,
         payslips: true,
         myAttendance: true,
-        slotBookingEmployee: true
+        slotBookingEmployee: true,
+        cctvMonitoring: false
       });
       setQualifications(employee.qualifications || {});
       

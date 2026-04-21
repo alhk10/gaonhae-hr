@@ -39,6 +39,7 @@ export interface CachedPageAccess {
   payslips: boolean;
   myAttendance: boolean;
   slotBookingEmployee: boolean;
+  cctvMonitoring: boolean;
   cachedAt: number;
 }
 

@@ -94,14 +94,16 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           submitClaim: pageAccess.submit_claim ?? true,
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
-          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
+          cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
           applyLeave: true,
           submitClaim: true,
           payslips: true,
           myAttendance: true,
-          slotBookingEmployee: true
+          slotBookingEmployee: true,
+          cctvMonitoring: false
         }
       };
     });
@@ -215,14 +217,16 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           submitClaim: pageAccess.submit_claim ?? true,
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
-          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
+          cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
           applyLeave: true,
           submitClaim: true,
           payslips: true,
           myAttendance: true,
-          slotBookingEmployee: true
+          slotBookingEmployee: true,
+          cctvMonitoring: false
         }
       };
     });
@@ -329,14 +333,16 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         submitClaim: pageAccess.submit_claim ?? true,
         payslips: pageAccess.payslips ?? true,
         myAttendance: pageAccess.my_attendance ?? true,
-        slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+        slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
+        cctvMonitoring: pageAccess.cctv_monitoring ?? false
       } : {
         profile: true,
         applyLeave: true,
         submitClaim: true,
         payslips: true,
         myAttendance: true,
-        slotBookingEmployee: true
+        slotBookingEmployee: true,
+        cctvMonitoring: false
       }
     };
   }) || [];
@@ -446,14 +452,16 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       submitClaim: pageAccess.submit_claim ?? true,
       payslips: pageAccess.payslips ?? true,
       myAttendance: pageAccess.my_attendance ?? true,
-      slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+      slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
+      cctvMonitoring: pageAccess.cctv_monitoring ?? false
     } : {
       profile: true,
       applyLeave: true,
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
+      cctvMonitoring: false
     }
   };
 };
@@ -744,7 +752,8 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
     submit_claim: pageAccess.submitClaim,
     payslips: pageAccess.payslips,
     my_attendance: pageAccess.myAttendance,
-    slot_booking_employee: pageAccess.slotBookingEmployee
+    slot_booking_employee: pageAccess.slotBookingEmployee,
+    cctv_monitoring: pageAccess.cctvMonitoring
   };
 
   if (existingAccess) {
