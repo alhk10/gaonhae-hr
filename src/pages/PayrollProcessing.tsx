@@ -184,6 +184,13 @@ const PayrollProcessing = () => {
         if (empIdx >= 0) {
           if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
           if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+          // Sync override allowances/deductions onto employee object so calculators see the same source of truth
+          if (mergedAllowances[empId]) {
+            employees[empIdx] = { ...employees[empIdx], allowances: mergedAllowances[empId] as any };
+          }
+          if (mergedDeductions[empId]) {
+            employees[empIdx] = { ...employees[empIdx], deductions: mergedDeductions[empId] as any };
+          }
         }
       });
       
@@ -871,13 +878,21 @@ const PayrollProcessing = () => {
             calculationMethod: casualPayroll.slotBookingMetadata?.calculationMethod || 'legacy_rates',
           };
         } else if (fullTimePayroll) {
+          // Recompute using merged override allowances/deductions so the saved snapshot
+          // matches the values displayed on the Processing/Payment screens
+          const effectiveEmployee = {
+            ...employee,
+            allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
+            deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+          };
+          const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
           payrollDataToSave = {
             ...payrollDataToSave,
-            grossSalary: fullTimePayroll.grossPay || 0,
-            employeeCPF: fullTimePayroll.cpfEmployee || 0,
-            employerCPF: fullTimePayroll.cpfEmployer || 0,
-            totalCPF: (fullTimePayroll.cpfEmployee || 0) + (fullTimePayroll.cpfEmployer || 0),
-            netSalary: fullTimePayroll.netPay || 0,
+            grossSalary: recalc.grossSalary,
+            employeeCPF: recalc.employeeCPF,
+            employerCPF: recalc.employerCPF,
+            totalCPF: recalc.totalCPF,
+            netSalary: recalc.netSalary,
           };
         }
 
@@ -1123,8 +1138,16 @@ const PayrollProcessing = () => {
                         const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
                         const cpfCalc = calculateCPF(employee.baseSalary || 0, employee.residencyStatus || 'Singapore Citizen', employeeAge);
                         
+                        // Build effective employee with merged override allowances/deductions
+                        // so Net Pay matches the displayed Allowances/Deductions columns
+                        const effectiveEmployee = {
+                          ...employee,
+                          allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
+                          deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+                        };
+                        
                         // Calculate net pay using proper payroll calculation
-                        const payrollCalc = calculateFullTimePayroll(employee, approvedClaims, 0);
+                        const payrollCalc = calculateFullTimePayroll(effectiveEmployee, approvedClaims, 0);
                         const netPay = payrollCalc.netSalary;
                         
                         return (
@@ -1547,8 +1570,24 @@ const PayrollProcessing = () => {
         const empId = emp.employeeId || emp.id;
         const employeeInfo = allEmployees.find(e => e.id === empId);
         const approvedClaims = getApprovedClaimsTotal(empId);
-        const netPay = emp.netPay || 0;
-        const grossSalary = emp.grossPay || employeeInfo?.baseSalary || 0;
+        
+        // Recompute using merged override allowances/deductions for consistency with Processing step
+        const effectiveEmployee = employeeInfo ? {
+          ...employeeInfo,
+          allowances: (employeeAllowances[empId] && employeeAllowances[empId].length > 0)
+            ? (employeeAllowances[empId] as any)
+            : (employeeInfo.allowances || []),
+          deductions: (employeeDeductions[empId] && employeeDeductions[empId].length > 0)
+            ? (employeeDeductions[empId] as any)
+            : (employeeInfo.deductions || []),
+        } : null;
+        
+        const recalculated = effectiveEmployee
+          ? calculateFullTimePayroll(effectiveEmployee as any, 0, 0)
+          : null;
+        
+        const netPay = recalculated ? recalculated.netSalary : (emp.netPay || 0);
+        const grossSalary = recalculated ? recalculated.grossSalary : (emp.grossPay || employeeInfo?.baseSalary || 0);
         return {
           id: empId,
           employeeId: empId,
