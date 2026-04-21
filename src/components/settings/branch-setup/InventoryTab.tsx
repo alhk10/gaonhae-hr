@@ -394,7 +394,7 @@ export const InventoryTab: React.FC<Props> = ({ branchId, branchName }) => {
                   }
                 }
                 return rows;
-              })
+              }))
             )}
           </TableBody>
         </Table>
