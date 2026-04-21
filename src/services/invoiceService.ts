@@ -685,7 +685,7 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     // Get invoice items to find linked enrollments
     const { data: invoiceItems, error: invoiceItemsFetchError } = await supabase
       .from('invoice_items')
-      .select('id')
+      .select('id, metadata')
       .eq('invoice_id', invoiceId);
 
     if (invoiceItemsFetchError) {
@@ -693,6 +693,13 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     }
 
     const itemIds = (invoiceItems || []).map(item => item.id);
+    // Capture term_ids from item metadata for orphan grading_registration cleanup
+    const itemTermIds = new Set<string>();
+    (invoiceItems || []).forEach((it: any) => {
+      const md = it.metadata as Record<string, any> | null;
+      const tid = md?.term_id || md?.term_ids?.[0];
+      if (tid) itemTermIds.add(tid);
+    });
 
     // Thorough cleanup of all related data in FK-safe order
     if (itemIds.length > 0) {
@@ -704,6 +711,23 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
 
       if (gradingRegistrationsDeleteError) {
         throw new Error(`Failed to delete grading registrations: ${gradingRegistrationsDeleteError.message}`);
+      }
+
+      // 1b. Delete auto-created grading_registrations (invoice_item_id IS NULL)
+      // for this student+term that have no result and no linked grading invoice item.
+      if (invoice?.student_id && itemTermIds.size > 0) {
+        const { error: autoRegDeleteError } = await supabase
+          .from('grading_registrations')
+          .delete()
+          .eq('student_id', invoice.student_id)
+          .in('term_id', Array.from(itemTermIds))
+          .is('invoice_item_id', null)
+          .is('result', null);
+
+        if (autoRegDeleteError) {
+          logger.error('Failed to delete auto-created grading registrations (non-fatal)', autoRegDeleteError);
+          // Non-fatal — proceed with rest of cleanup
+        }
       }
 
       // 2. Get entitlement IDs linked to these invoice items
