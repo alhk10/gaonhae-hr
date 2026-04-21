@@ -88,7 +88,7 @@ import { getPendingRegistrationsCount } from '@/services/studentRegistrationServ
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { normalizePartyData } from '@/utils/partyUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createWithdrawalRequest } from '@/services/studentWithdrawalRequestService';
+import { createWithdrawalRequest, directWithdrawStudent } from '@/services/studentWithdrawalRequestService';
 import { UserMinus } from 'lucide-react';
 
 interface BranchDashboardProps {
@@ -115,6 +115,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<{ id: string; name: string } | null>(null);
   const [branchSetupOpen, setBranchSetupOpen] = useState(false);
   
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
@@ -1165,20 +1166,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                       variant="ghost"
                                       size="sm"
                                       className="h-6 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
-                                      onClick={async (e) => {
+                                      onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!confirm(`Submit withdrawal request for ${student.display_name || student.first_name}?`)) return;
-                                        try {
-                                          await createWithdrawalRequest(
-                                            student.id,
-                                            student.display_name || `${student.first_name} ${student.last_name}`,
-                                            branchId,
-                                            user?.email || ''
-                                          );
-                                          toast.success('Withdrawal request submitted for superadmin approval');
-                                        } catch (err: any) {
-                                          toast.error(err.message || 'Failed to submit withdrawal request');
-                                        }
+                                        setWithdrawTarget({
+                                          id: student.id,
+                                          name: student.display_name || `${student.first_name} ${student.last_name}`,
+                                        });
                                       }}
                                     >
                                       <UserMinus className="w-3 h-3 mr-0.5" />
@@ -1531,6 +1524,54 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           initialMode={paymentDialogMode}
         />
       )}
+
+      {/* Withdraw Confirmation */}
+      <AlertDialog open={!!withdrawTarget} onOpenChange={(open) => { if (!open) setWithdrawTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userrole === 'superadmin' ? `Withdraw ${withdrawTarget?.name}?` : `Request withdrawal for ${withdrawTarget?.name}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userrole === 'superadmin'
+                ? `This will mark ${withdrawTarget?.name} as withdrawn immediately. This action requires no further approval.`
+                : `Submit a withdrawal request for ${withdrawTarget?.name}? A superadmin must approve before the student is withdrawn.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!withdrawTarget) return;
+                const target = withdrawTarget;
+                try {
+                  if (userrole === 'superadmin') {
+                    await directWithdrawStudent(target.id);
+                    toast.success(`${target.name} withdrawn`);
+                    queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+                    queryClient.invalidateQueries({ queryKey: ['pending-withdrawal-requests'] });
+                  } else {
+                    await createWithdrawalRequest(
+                      target.id,
+                      target.name,
+                      branchId,
+                      user?.email || ''
+                    );
+                    toast.success('Withdrawal request submitted for superadmin approval');
+                  }
+                } catch (err: any) {
+                  toast.error(err.message || 'Failed to withdraw student');
+                } finally {
+                  setWithdrawTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {userrole === 'superadmin' ? 'Withdraw' : 'Submit Request'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

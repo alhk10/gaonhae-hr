@@ -82,6 +82,15 @@ export const approveWithdrawalRequest = async (requestId: string, reviewedBy: st
   if (error) throw error;
 };
 
+export const directWithdrawStudent = async (studentId: string) => {
+  const { error } = await supabase
+    .from('students')
+    .update({ status: 'withdrawn' } as any)
+    .eq('id', studentId);
+
+  if (error) throw error;
+};
+
 export const rejectWithdrawalRequest = async (requestId: string, reviewedBy: string, notes?: string) => {
   const { error } = await supabase
     .from('student_withdrawal_requests' as any)
