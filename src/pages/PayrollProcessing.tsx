@@ -1562,8 +1562,24 @@ const PayrollProcessing = () => {
         const empId = emp.employeeId || emp.id;
         const employeeInfo = allEmployees.find(e => e.id === empId);
         const approvedClaims = getApprovedClaimsTotal(empId);
-        const netPay = emp.netPay || 0;
-        const grossSalary = emp.grossPay || employeeInfo?.baseSalary || 0;
+        
+        // Recompute using merged override allowances/deductions for consistency with Processing step
+        const effectiveEmployee = employeeInfo ? {
+          ...employeeInfo,
+          allowances: (employeeAllowances[empId] && employeeAllowances[empId].length > 0)
+            ? (employeeAllowances[empId] as any)
+            : (employeeInfo.allowances || []),
+          deductions: (employeeDeductions[empId] && employeeDeductions[empId].length > 0)
+            ? (employeeDeductions[empId] as any)
+            : (employeeInfo.deductions || []),
+        } : null;
+        
+        const recalculated = effectiveEmployee
+          ? calculateFullTimePayroll(effectiveEmployee as any, 0, 0)
+          : null;
+        
+        const netPay = recalculated ? recalculated.netSalary : (emp.netPay || 0);
+        const grossSalary = recalculated ? recalculated.grossSalary : (emp.grossPay || employeeInfo?.baseSalary || 0);
         return {
           id: empId,
           employeeId: empId,
