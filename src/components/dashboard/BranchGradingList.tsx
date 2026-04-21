@@ -122,33 +122,61 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Show past, current, and the next upcoming term (hide far-future terms)
+  // Fetch term_ids that have at least one lesson invoice for this branch
+  const { data: invoicedTermIds = [] } = useQuery<string[]>({
+    queryKey: ['grading-list-invoiced-terms', branchId],
+    queryFn: async () => {
+      if (!branchId) return [];
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
+      if (lessonProductIds.length === 0) return [];
+
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select(`metadata, invoices!inner(branch_id, status)`)
+        .in('product_id', lessonProductIds)
+        .eq('invoices.branch_id', branchId)
+        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+
+      const termIds = new Set<string>();
+      (items || []).forEach((it: any) => {
+        const md = it.metadata as Record<string, any> | null;
+        const tid = md?.term_id || md?.term_ids?.[0];
+        if (tid) termIds.add(tid);
+      });
+      return Array.from(termIds);
+    },
+    enabled: !!branchId
+  });
+
+  // Show past + current + every future term that has at least one lesson invoice
   const availableTerms = React.useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const pastAndCurrent = branchTerms.filter(t => t.start_date <= today);
-    // Find the nearest upcoming term (start_date > today, closest first)
-    const futureTerms = branchTerms
-      .filter(t => t.start_date > today)
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
-    const nextUpcoming = futureTerms.length > 0 ? [futureTerms[0]] : [];
-    return [...pastAndCurrent, ...nextUpcoming];
-  }, [branchTerms]);
+    const invoicedSet = new Set(invoicedTermIds);
+    const filtered = branchTerms.filter(t => t.start_date <= today || invoicedSet.has(t.id));
+    return [...filtered].sort((a, b) => b.start_date.localeCompare(a.start_date));
+  }, [branchTerms, invoicedTermIds]);
 
-  // Auto-select current term when branch changes
+  // Auto-select: prefer current term, else most recent term with invoices, else most recent past term
   React.useEffect(() => {
     if (branchId && availableTerms.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const currentTerm = availableTerms.find(t => t.start_date <= today && t.end_date >= today);
       if (currentTerm) {
         setSelectedTerm(currentTerm.id);
-      } else if (availableTerms.length > 0) {
-        setSelectedTerm(availableTerms[0].id);
+      } else {
+        const invoicedSet = new Set(invoicedTermIds);
+        const mostRecentWithInvoices = availableTerms.find(t => invoicedSet.has(t.id));
+        setSelectedTerm(mostRecentWithInvoices?.id || availableTerms[0].id);
       }
     } else {
       setSelectedTerm('');
     }
     setPendingChanges({});
-  }, [branchId, availableTerms]);
+  }, [branchId, availableTerms, invoicedTermIds]);
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
