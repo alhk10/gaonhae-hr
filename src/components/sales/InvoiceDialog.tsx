@@ -385,14 +385,20 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const isCancelled = invoice?.status === 'cancelled';
 
   // ─── Effects ────────────────────────────────────────────────────
+  // Preload reference data once when component mounts (create mode only)
+  useEffect(() => {
+    if (!isCreateMode) return;
+    loadStudents();
+    loadProducts();
+    loadBranches();
+    loadCategories();
+    loadGradingSlots();
+  }, [isCreateMode]);
+
+  // On dialog open: just apply locked branch + load view data for view/edit
   useEffect(() => {
     if (!dialogOpen) return;
     if (isCreateMode) {
-      loadStudents();
-      loadProducts();
-      loadBranches();
-      loadCategories();
-      loadGradingSlots();
       if (lockedBranchId) {
         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
         loadBranchTerms(lockedBranchId);
