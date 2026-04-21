@@ -362,7 +362,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [termError, setTermError] = useState<string | null>(null);
   const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
   const [gradingSlotsLoading, setGradingSlotsLoading] = useState(false);
-  const [classTypeAgeSettings, setClassTypeAgeSettings] = useState<Array<{ class_type: string; min_age: number | null; max_age: number | null }>>([]);
+  
   const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null);
   const taxManuallySet = useRef(false);
   const dialogContentRef = useRef<HTMLDivElement | null>(null);
@@ -415,7 +415,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       if (lockedBranchId) {
         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
         loadBranchTerms(lockedBranchId);
-        loadClassTypeAgeSettings(lockedBranchId);
       }
     } else {
       setMode(initialMode);
@@ -697,7 +696,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (field === 'branch_id') {
       setSelectedClassSlots([]);
       loadBranchTerms(value);
-      loadClassTypeAgeSettings(value);
       if (!taxManuallySet.current) {
         const selectedBranch = branches.find(b => b.id === value);
         const country = selectedBranch?.country || null;
@@ -761,12 +759,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       // Only consider products available at the current branch (if known)
       if (branchAvailableProductIds && !branchAvailableProductIds.has(p.id)) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
-      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
-      if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
+      if (!beltOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes, branchAvailableProductIds]);
+  }, [products, formData.student_id, studentBelt, studentAge, branchAvailableProductIds]);
 
   // Auto-select product
   useEffect(() => {
