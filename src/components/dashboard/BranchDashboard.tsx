@@ -623,6 +623,48 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const gradingTermPaidCount = gradingMetrics.termPaid;
   const totalTermStudents = gradingMetrics.totalTermStudents;
 
+  // Fetch IDs of students who have a paid/verified lesson invoice for the displayTerm
+  const { data: paidTermStudentIdsArr = [] } = useQuery({
+    queryKey: ['paid-term-student-ids', branchId, displayTerm?.id],
+    queryFn: async () => {
+      if (!displayTerm) return [] as string[];
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
+      if (lessonProductIds.length === 0) return [] as string[];
+
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select(`
+          metadata,
+          invoices!inner (
+            student_id,
+            branch_id,
+            status
+          )
+        `)
+        .in('product_id', lessonProductIds)
+        .eq('invoices.branch_id', branchId)
+        .in('invoices.status', ['paid', 'verified']);
+
+      const ids = new Set<string>();
+      (invoiceItems || []).forEach(item => {
+        const metadata = item.metadata as Record<string, any> | null;
+        if (metadata?.term_id === displayTerm.id) {
+          ids.add((item.invoices as any).student_id);
+        }
+      });
+      return Array.from(ids);
+    },
+    enabled: !!branchId && !!displayTerm,
+  });
+  const paidTermStudentIds = React.useMemo(
+    () => new Set(paidTermStudentIdsArr),
+    [paidTermStudentIdsArr]
+  );
+
   // Check if casual employees have bookings this month
   const { data: hasCasualBookings = false } = useQuery({
     queryKey: ['casual-bookings-exists', branchId],
