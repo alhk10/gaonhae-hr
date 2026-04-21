@@ -410,6 +410,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       loadViewProducts();
       // Load branches so edit-mode tax-inclusive detection works
       if (branches.length === 0) loadBranches();
+      // Load grading slots so the slot dropdown populates in edit/adjust mode
+      if (gradingSlots.length === 0) loadGradingSlots();
     }
   }, [dialogOpen]);
 
