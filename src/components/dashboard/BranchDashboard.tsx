@@ -1147,29 +1147,44 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                             {!massEditMode && (
                               <TableCell className="py-1 px-1.5">
                                 {student.status !== 'withdrawn' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (!confirm(`Submit withdrawal request for ${student.display_name || student.first_name}?`)) return;
-                                      try {
-                                        await createWithdrawalRequest(
-                                          student.id,
-                                          student.display_name || `${student.first_name} ${student.last_name}`,
-                                          branchId,
-                                          user?.email || ''
-                                        );
-                                        toast.success('Withdrawal request submitted for superadmin approval');
-                                      } catch (err: any) {
-                                        toast.error(err.message || 'Failed to submit withdrawal request');
-                                      }
-                                    }}
-                                  >
-                                    <UserMinus className="w-3 h-3 mr-0.5" />
-                                    Withdraw
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 text-[10px]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCreateInvoiceForStudentId(student.id);
+                                        setCreateInvoiceOpen(true);
+                                      }}
+                                    >
+                                      <FileText className="w-3 h-3 mr-0.5" />
+                                      Invoice
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!confirm(`Submit withdrawal request for ${student.display_name || student.first_name}?`)) return;
+                                        try {
+                                          await createWithdrawalRequest(
+                                            student.id,
+                                            student.display_name || `${student.first_name} ${student.last_name}`,
+                                            branchId,
+                                            user?.email || ''
+                                          );
+                                          toast.success('Withdrawal request submitted for superadmin approval');
+                                        } catch (err: any) {
+                                          toast.error(err.message || 'Failed to submit withdrawal request');
+                                        }
+                                      }}
+                                    >
+                                      <UserMinus className="w-3 h-3 mr-0.5" />
+                                      Withdraw
+                                    </Button>
+                                  </div>
                                 )}
                               </TableCell>
                             )}
