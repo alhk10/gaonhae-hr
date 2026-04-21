@@ -538,6 +538,88 @@ export type Database = {
         }
         Relationships: []
       }
+      cctv_camera_secrets: {
+        Row: {
+          camera_id: string
+          created_at: string
+          id: string
+          password: string | null
+          rtsp_url: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          camera_id: string
+          created_at?: string
+          id?: string
+          password?: string | null
+          rtsp_url: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          camera_id?: string
+          created_at?: string
+          id?: string
+          password?: string | null
+          rtsp_url?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cctv_camera_secrets_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: true
+            referencedRelation: "cctv_cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cctv_cameras: {
+        Row: {
+          branch_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          mediamtx_path: string
+          name: string
+          supports_playback: boolean
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          mediamtx_path: string
+          name: string
+          supports_playback?: boolean
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          mediamtx_path?: string
+          name?: string
+          supports_playback?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cctv_cameras_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificates: {
         Row: {
           employee_id: string | null
@@ -1002,6 +1084,7 @@ export type Database = {
       employee_page_access: {
         Row: {
           apply_leave: boolean | null
+          cctv_monitoring: boolean | null
           created_at: string | null
           employee_id: string | null
           id: number
@@ -1013,6 +1096,7 @@ export type Database = {
         }
         Insert: {
           apply_leave?: boolean | null
+          cctv_monitoring?: boolean | null
           created_at?: string | null
           employee_id?: string | null
           id?: number
@@ -1024,6 +1108,7 @@ export type Database = {
         }
         Update: {
           apply_leave?: boolean | null
+          cctv_monitoring?: boolean | null
           created_at?: string | null
           employee_id?: string | null
           id?: number
