@@ -15,7 +15,7 @@ import {
 } from '@/services/socialMediaService';
 import { PostStatusBadge } from '@/components/social/PostStatusBadge';
 import { PostEditorDialog } from '@/components/social/PostEditorDialog';
-import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
+import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Plus, Calendar as CalIcon, CheckCircle, XCircle, Instagram } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
