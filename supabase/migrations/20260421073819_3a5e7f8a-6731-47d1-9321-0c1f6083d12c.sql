@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.branch_class_type_settings CASCADE;

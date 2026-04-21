@@ -64,8 +64,7 @@ export function isBeltEligible(
 
 /**
  * Determine if a student is eligible for a class based on age,
- * considering their age exceptions, timetable-level age range,
- * and branch class type settings.
+ * considering their age exceptions and the timetable slot's age range.
  *
  * @returns true if the student is eligible
  */
@@ -76,8 +75,6 @@ export function isStudentEligibleForClass(options: {
   classType?: string;
   timetableAgeFrom?: number | null;
   timetableAgeTo?: number | null;
-  branchMinAge?: number | null;
-  branchMaxAge?: number | null;
 }): boolean {
   const {
     studentAge: providedAge,
@@ -86,8 +83,6 @@ export function isStudentEligibleForClass(options: {
     classType,
     timetableAgeFrom,
     timetableAgeTo,
-    branchMinAge,
-    branchMaxAge,
   } = options;
 
   // If student has an age exception for this class type, skip all age checks
@@ -108,10 +103,6 @@ export function isStudentEligibleForClass(options: {
   if (timetableAgeFrom !== undefined && timetableAgeFrom !== null && age < timetableAgeFrom) return false;
   if (timetableAgeTo !== undefined && timetableAgeTo !== null && age > timetableAgeTo) return false;
 
-  // Check branch class type age settings
-  if (branchMinAge !== undefined && branchMinAge !== null && age < branchMinAge) return false;
-  if (branchMaxAge !== undefined && branchMaxAge !== null && age > branchMaxAge) return false;
-
   return true;
 }
 
@@ -126,8 +117,6 @@ export function checkFullEligibility(options: {
   classType?: string;
   timetableAgeFrom?: number | null;
   timetableAgeTo?: number | null;
-  branchMinAge?: number | null;
-  branchMaxAge?: number | null;
   beltLevels?: string[] | null;
 }): { eligible: boolean; reason?: string } {
   const {
@@ -137,8 +126,6 @@ export function checkFullEligibility(options: {
     classType,
     timetableAgeFrom,
     timetableAgeTo,
-    branchMinAge,
-    branchMaxAge,
     beltLevels,
   } = options;
 
@@ -154,8 +141,6 @@ export function checkFullEligibility(options: {
     classType,
     timetableAgeFrom,
     timetableAgeTo,
-    branchMinAge,
-    branchMaxAge,
   });
 
   if (!ageEligible) {

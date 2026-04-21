@@ -19,8 +19,7 @@ import { Student, updateStudent } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
 import { getBeltLevelsForCountry, formatBeltLevel } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
-import { useQuery } from '@tanstack/react-query';
-import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
+import { CLASS_TYPES } from '@/services/branchTimetableService';
 
 interface EditStudentDialogProps {
   trigger: React.ReactNode;
@@ -108,14 +107,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     ? [formData.current_belt, ...baseBeltList]
     : baseBeltList;
 
-  // Fetch available class types for the student's branch
-  const { data: classTypeSettings = [] } = useQuery({
-    queryKey: ['branch-class-type-settings', formData.branch_id],
-    queryFn: () => getBranchClassTypeSettings(formData.branch_id),
-    enabled: !!formData.branch_id && open,
-  });
-
-  const availableClassTypeOptions = classTypeSettings.map(s => s.class_type);
+  // Class type exception options sourced from the static class type list
+  const availableClassTypeOptions = CLASS_TYPES;
 
   // Initialize form data when student changes or dialog opens
   useEffect(() => {

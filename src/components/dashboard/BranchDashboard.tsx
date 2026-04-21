@@ -75,7 +75,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getCurrentTerm, getMostRecentTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
-import BranchClassTypeAgeSettings from './BranchClassTypeAgeSettings';
+
 import { Student } from '@/services/studentService';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
@@ -112,7 +112,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
-  const [classTypeSettingsOpen, setClassTypeSettingsOpen] = useState(false);
+  
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
@@ -908,19 +908,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <h2 className="text-lg sm:text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
-        <Button variant="outline" size="sm" onClick={() => setClassTypeSettingsOpen(true)}>
-          <Settings className="w-4 h-4 mr-2" />
-          Settings
-        </Button>
       </div>
-
-      {/* Class Type Age Settings Dialog */}
-      <BranchClassTypeAgeSettings
-        open={classTypeSettingsOpen}
-        onOpenChange={setClassTypeSettingsOpen}
-        branchId={branchId}
-        branchName={branch?.name || ''}
-      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

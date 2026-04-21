@@ -151,26 +151,6 @@ const isGradingProductForBelt = (productName: string, studentBelt: string): bool
   return normalizeBelt(parts[0]) === normalizedBelt;
 };
 
-const isProductAvailableForAge = (
-  product: ProductWithVariants,
-  studentAge: number,
-  classTypeAgeSettings: Array<{ class_type: string; min_age: number | null; max_age: number | null }>,
-  studentAllowedClassTypes?: string[]
-): boolean => {
-  if (!studentAge || studentAge <= 0) return true;
-  if (!product.allowed_class_types || product.allowed_class_types.length === 0) return true;
-  if (classTypeAgeSettings.length === 0) return true;
-  // If student has age exceptions that cover all of this product's class types, skip age check
-  if (studentAllowedClassTypes && product.allowed_class_types.every(ct => hasClassTypeException(studentAllowedClassTypes, ct))) return true;
-  return product.allowed_class_types.some(classType => {
-    // Skip age check for class types the student has an exception for (normalized)
-    if (hasClassTypeException(studentAllowedClassTypes, classType)) return true;
-    const setting = classTypeAgeSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
-    if (!setting) return true;
-    return (setting.min_age === null || studentAge >= setting.min_age) && (setting.max_age === null || studentAge <= setting.max_age);
-  });
-};
-
 const fuzzyMatch = (target: string, query: string): boolean => {
   const t = target.toLowerCase();
   const q = query.toLowerCase();
@@ -362,7 +342,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [termError, setTermError] = useState<string | null>(null);
   const [gradingSlots, setGradingSlots] = useState<GradingSlot[]>([]);
   const [gradingSlotsLoading, setGradingSlotsLoading] = useState(false);
-  const [classTypeAgeSettings, setClassTypeAgeSettings] = useState<Array<{ class_type: string; min_age: number | null; max_age: number | null }>>([]);
+  
   const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null);
   const taxManuallySet = useRef(false);
   const dialogContentRef = useRef<HTMLDivElement | null>(null);
@@ -415,7 +395,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       if (lockedBranchId) {
         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
         loadBranchTerms(lockedBranchId);
-        loadClassTypeAgeSettings(lockedBranchId);
       }
     } else {
       setMode(initialMode);
@@ -651,14 +630,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   };
 
-  const loadClassTypeAgeSettings = async (branchId: string) => {
-    if (!branchId) { setClassTypeAgeSettings([]); return; }
-    try {
-      const { data, error } = await supabase.from('branch_class_type_settings').select('class_type, min_age, max_age').eq('branch_id', branchId);
-      if (error) throw error;
-      setClassTypeAgeSettings(data || []);
-    } catch { setClassTypeAgeSettings([]); }
-  };
 
   const loadInvoiceData = async () => {
     if (!invoiceId) return;
@@ -697,7 +668,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (field === 'branch_id') {
       setSelectedClassSlots([]);
       loadBranchTerms(value);
-      loadClassTypeAgeSettings(value);
       if (!taxManuallySet.current) {
         const selectedBranch = branches.find(b => b.id === value);
         const country = selectedBranch?.country || null;
@@ -761,12 +731,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       // Only consider products available at the current branch (if known)
       if (branchAvailableProductIds && !branchAvailableProductIds.has(p.id)) continue;
       const beltOk = isProductAvailableForBelt(p, studentBelt);
-      const branchAgeOk = isProductAvailableForAge(p, studentAge, classTypeAgeSettings, studentAllowedClassTypes);
       const productAgeOk = studentAge <= 0 || ((p.min_age == null || studentAge >= p.min_age) && (p.max_age == null || studentAge <= p.max_age));
-      if (!beltOk || !branchAgeOk || !productAgeOk) ids.add(p.id);
+      if (!beltOk || !productAgeOk) ids.add(p.id);
     }
     return ids;
-  }, [products, formData.student_id, studentBelt, studentAge, classTypeAgeSettings, studentAllowedClassTypes, branchAvailableProductIds]);
+  }, [products, formData.student_id, studentBelt, studentAge, branchAvailableProductIds]);
 
   // Auto-select product
   useEffect(() => {

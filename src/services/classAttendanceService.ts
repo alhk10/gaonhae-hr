@@ -6,7 +6,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { getCurrentTerm, Term } from './termCalendarService';
-import { getBranchClassTypeSettings } from './branchClassTypeSettingsService';
 import { isStudentEligibleForClass, isBeltEligible, checkFullEligibility } from '@/utils/classTypeEligibility';
 import { createInvoice } from './invoiceService';
 
@@ -107,23 +106,6 @@ export async function getBranchStudentsForClass(
 
     let students = data || [];
 
-    // Load branch class type settings for age constraints
-    let branchMinAge: number | null = null;
-    let branchMaxAge: number | null = null;
-
-    if (classType) {
-      try {
-        const branchSettings = await getBranchClassTypeSettings(branchId);
-        const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
-        if (typeSetting) {
-          branchMinAge = typeSetting.min_age;
-          branchMaxAge = typeSetting.max_age;
-        }
-      } catch (e) {
-        logger.warn('Failed to load branch class type settings for attendance filter', e);
-      }
-    }
-
     // Also fetch students with active entitlements for this branch as fallback
     // (students who have valid lesson entitlements but may not have scheduled classes yet)
     let entitlementStudentIds = new Set<string>();
@@ -162,8 +144,6 @@ export async function getBranchStudentsForClass(
         classType,
         timetableAgeFrom: ageFrom,
         timetableAgeTo: ageTo,
-        branchMinAge,
-        branchMaxAge,
       });
 
       if (!ageEligible && !hasEntitlement) return false;
@@ -199,19 +179,6 @@ export async function getExcludedStudentsDiagnostics(
     if (error) throw error;
 
     const students = data || [];
-    let branchMinAge: number | null = null;
-    let branchMaxAge: number | null = null;
-
-    if (classType) {
-      try {
-        const branchSettings = await getBranchClassTypeSettings(branchId);
-        const typeSetting = branchSettings.find(s => s.class_type.trim().toLowerCase() === classType.trim().toLowerCase());
-        if (typeSetting) {
-          branchMinAge = typeSetting.min_age;
-          branchMaxAge = typeSetting.max_age;
-        }
-      } catch (e) { /* ignore */ }
-    }
 
     const reasons: Record<string, number> = {};
     let excluded = 0;
@@ -224,8 +191,6 @@ export async function getExcludedStudentsDiagnostics(
         classType,
         timetableAgeFrom: ageFrom,
         timetableAgeTo: ageTo,
-        branchMinAge,
-        branchMaxAge,
         beltLevels,
       });
 

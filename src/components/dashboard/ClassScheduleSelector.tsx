@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatTime } from '@/services/branchTimetableService';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Term } from '@/services/termCalendarService';
-import { getBranchClassTypeSettings } from '@/services/branchClassTypeSettingsService';
 import { hasClassTypeException } from '@/utils/classTypeEligibility';
 
 import { toast } from 'sonner';
@@ -73,17 +72,8 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
     queryFn: getPublicHolidays,
   });
 
-  // Fetch branch class type age settings
-  const { data: classTypeAgeSettings = [] } = useQuery({
-    queryKey: ['branch-class-type-settings', branchId],
-    queryFn: () => getBranchClassTypeSettings(branchId),
-    enabled: !!branchId,
-  });
-
-  // Filter classes based on student's age (timetable-level and branch class type settings)
+  // Filter classes based on student's age (timetable-level only; per-student exceptions override)
   const eligibleClasses = useMemo(() => {
-    const settingsMap = new Map(classTypeAgeSettings.map(s => [s.class_type, s]));
-
     return allClasses.filter((cls: any) => {
       // Check if student has an age exception for this class type (normalized)
       const hasAgeException = hasClassTypeException(studentAllowedClassTypes, cls.class_type);
@@ -93,14 +83,6 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
         if (cls.age_from || cls.age_to) {
           const minAge = cls.age_from || 0;
           const maxAge = cls.age_to || 100;
-          if (studentAge < minAge || studentAge > maxAge) return false;
-        }
-
-        // Filter by branch class type age settings
-        const typeSetting = settingsMap.get(cls.class_type);
-        if (typeSetting) {
-          const minAge = typeSetting.min_age ?? 0;
-          const maxAge = typeSetting.max_age ?? 100;
           if (studentAge < minAge || studentAge > maxAge) return false;
         }
       }
@@ -118,7 +100,7 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
 
       return true;
     });
-  }, [allClasses, studentAge, allowedClassTypes, allowedDays, classTypeAgeSettings, studentAllowedClassTypes]);
+  }, [allClasses, studentAge, allowedClassTypes, allowedDays, studentAllowedClassTypes]);
 
   // Determine operating days (days that have classes)
   const operatingDays = useMemo(() => {
