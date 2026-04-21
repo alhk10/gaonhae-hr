@@ -1503,6 +1503,24 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         />
       )}
 
+      {/* Per-row Create Invoice Dialog */}
+      {createInvoiceForStudentId && (
+        <InvoiceDialog
+          mode="create"
+          branchId={branchId}
+          prefilledStudentId={createInvoiceForStudentId}
+          open={createInvoiceOpen}
+          onOpenChange={(open) => {
+            setCreateInvoiceOpen(open);
+            if (!open) setCreateInvoiceForStudentId(null);
+          }}
+          onInvoiceCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+            queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+          }}
+        />
+      )}
+
       {/* Payment View/Edit Dialog */}
       {selectedPaymentId && (
         <ViewEditPaymentDialog
