@@ -346,6 +346,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [taxIncluded, setTaxIncluded] = useState<boolean | null>(null);
   const taxManuallySet = useRef(false);
   const dialogContentRef = useRef<HTMLDivElement | null>(null);
+  const [dialogContentEl, setDialogContentEl] = useState<HTMLElement | null>(null);
 
   const todayISO = () => {
     const d = new Date();
