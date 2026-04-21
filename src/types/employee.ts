@@ -17,6 +17,7 @@ export interface EmployeePageAccessPermissions {
   myAttendance: boolean;
   slotBookingEmployee: boolean;
   cctvMonitoring: boolean;
+  socialMedia: boolean;
 }
 
 export interface ExtendedAdminAccessPermissions extends AdminAccessPermissions {
@@ -27,6 +28,7 @@ export interface ExtendedAdminAccessPermissions extends AdminAccessPermissions {
   myAttendance: boolean;
   slotBookingEmployee: boolean;
   cctvMonitoring: boolean;
+  socialMedia: boolean;
 }
 
 export interface EmployeeAllowance {
