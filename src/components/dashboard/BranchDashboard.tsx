@@ -909,6 +909,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <h2 className="text-lg sm:text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
+        {userrole === 'superadmin' && branch && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBranchSetupOpen(true)}
+            className="gap-1.5"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Branch Setup</span>
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
