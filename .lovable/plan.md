@@ -1,65 +1,49 @@
 
 
-## Plan: Add "Unpaid Class Fees (Current Term)" filter to Students tab
+## Plan: Fix product availability logic so "1x Week" appears at Morley
 
-### Where
-`src/components/dashboard/BranchDashboard.tsx` — Students tab Filter dropdown (around line 920-936) and the `filteredStudents` filter logic (line 780-803).
+### Root cause
+In `src/components/sales/InvoiceDialog.tsx` (lines 460–479), branch availability is computed as: a product is available only if it has an active `price_rule` for the branch, OR a global active rule, OR no rules at all. In this database, `price_rules` are used purely as **per-branch price overrides** (262 active rules across SG branches, 0 global rules). Australian branches like Morley never have `price_rules`. Three products ("1x Week" included) have all-inactive rules (used to disable them at SG branches), and our code interprets "has rules but no active match" as "not sold at this branch", so it hides them everywhere — including Morley where they should appear.
 
-### New filter option
-Add a new menu item below the existing four:
-- **Active + Inactive**
-- Active Only
-- Inactive Only
-- Trial
-- **Unpaid Class Fees (Current Term)** ← new
+### Correct semantics
+- `products.is_active` is the master availability switch.
+- A `price_rules` row with `is_active = false` for branch X means "explicitly hidden at branch X".
+- A `price_rules` row with `is_active = true` for branch X means "sold at branch X with price override" — it does **not** restrict availability elsewhere.
+- Default: a product is available at every branch unless explicitly hidden.
 
-When selected, the table shows only **non-withdrawn** students at this branch who:
-- Have **no paid/verified lesson invoice** for the current term, and
-- Are **not trial** students (trial students don't owe class fees).
+### Fix (single file: `src/components/sales/InvoiceDialog.tsx`)
 
-This mirrors the existing "termPaid" logic already used for the Grading metric (line 584-613) — same definition of "lesson invoice for current term" (products with `is_lesson=true`, matched via `invoice_items.metadata.term_id`, branch-scoped, status `paid` or `verified`).
+Replace the `branchAvailableProductIds` computation (lines 460–480) with the simpler, correct rule:
 
-### Implementation
+```ts
+const available = new Set<string>();
+for (const p of products) {
+  if (hidden.has(p.id)) continue;   // explicit per-branch hide
+  available.add(p.id);               // everything else is available
+}
+setBranchAvailableProductIds(available);
+```
 
-**1. New query — `paidTermStudentIds`** (only fetches when filter active or always, cached by `displayTerm.id`):
-- Same shape as the existing `gradingMetrics` query but returns just the `Set<string>` of student IDs with a paid/verified lesson invoice for `displayTerm`.
-- Source of truth: `invoice_items` where `product_id IN (lesson products)`, joined to `invoices` where `branch_id = branchId` and `status IN ('paid','verified')`, filtered in JS by `metadata.term_id === displayTerm.id`.
-- Memoize as a `Set` for O(1) lookup.
+This means:
+- "1x Week" at Morley → not in `hidden` (no Morley rule) → **available** ✓
+- "1x Week" at Balmoral → has `is_active=false` Balmoral rule → **hidden** ✓
+- Any other product never restricted at the branch → available ✓
+- Existing "out-of-criteria" / `(exception)` sorting and superadmin-approval flow remain unchanged.
 
-**2. Extend `filteredStudents` (line 780-803)**:
-- Add a new branch:
-  ```ts
-  } else if (statusFilter === 'unpaid_term') {
-    matchesStatus =
-      (studentStatus === 'active' || studentStatus === 'inactive') &&
-      !!displayTerm &&
-      !paidTermStudentIds.has(student.id);
-  }
-  ```
-- Excludes trial and withdrawn (withdrawn already excluded at top of filter).
-
-**3. Filter dropdown UI (line 922-936)**:
-- Add `<DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>Unpaid Class Fees (Current Term)</DropdownMenuItem>`.
-- Update the badge logic (line 914-918) so the active filter shows label `Unpaid Term` when `statusFilter === 'unpaid_term'`.
-
-**4. Empty-state copy**:
-- If `displayTerm` is missing (no term defined for branch), the filter resolves to "no students" — show the existing empty row but with helper text "No active term configured for this branch" so it isn't mistaken for a bug.
-
-### Term used
-`displayTerm = currentTerm || mostRecentTerm` — same fallback used elsewhere in this dashboard (line 465). Keeps behaviour consistent with the Grading and Outstanding tiles.
+The exception-sorting logic (line 757–765) keeps using `branchAvailableProductIds`, so eligible items still surface above out-of-criteria ones.
 
 ### What stays the same
-- All other filters, search, mass-edit, withdraw actions, columns.
-- No DB changes, no schema migration, no RLS changes (re-uses tables already accessible: `products`, `invoice_items`, `invoices`).
-- No new permissions — same visibility rules as current Students tab.
+- `hiddenProductIds` (explicit hides) still applied.
+- Belt / age / class-type / grading-belt filters unchanged.
+- Approval workflow for selecting exception items unchanged.
+- Edit-mode product popover (line 1656) reuses the same set.
 
 ### Verification
-- Switch filter → table shows only active/inactive students missing a paid/verified term invoice for current term.
-- Issue & pay an invoice for one of those students → student disappears from the list (after refetch via existing realtime invalidation on `invoices`).
-- Trial students never appear under this filter.
-- Branch with no current term → empty list with explanatory message.
+- Open Create Invoice → Morley → JIHO SONG → product dropdown contains "1x Week" near the top of `Classes` (no exception flag, since age/belt match).
+- Same dialog at a SG branch where "1x Week" has an `is_active=false` rule (Balmoral, Yishun, etc.) → "1x Week" does **not** appear (hidden as intended).
+- Other products (e.g. branch-specific term packages) continue to appear at every branch unless explicitly disabled.
 
 ### Out of scope
-- Bulk-actions on the filtered list (e.g., bulk reminder send) — can be a follow-up.
-- Splitting "draft/sent" vs "overdue" — current definition is "no paid/verified lesson invoice for the term" which covers all unpaid states uniformly.
+- Migrating price_rules to a positive-availability model.
+- Adding a UI to manage per-branch product visibility.
 
