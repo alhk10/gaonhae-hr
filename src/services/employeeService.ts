@@ -752,7 +752,8 @@ export const updateEmployeePageAccess = async (employeeId: string, pageAccess: E
     submit_claim: pageAccess.submitClaim,
     payslips: pageAccess.payslips,
     my_attendance: pageAccess.myAttendance,
-    slot_booking_employee: pageAccess.slotBookingEmployee
+    slot_booking_employee: pageAccess.slotBookingEmployee,
+    cctv_monitoring: pageAccess.cctvMonitoring
   };
 
   if (existingAccess) {

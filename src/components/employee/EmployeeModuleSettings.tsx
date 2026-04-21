@@ -63,7 +63,8 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
     { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims' },
     { key: 'payslips', label: 'Payslips', description: 'View and download payslips' },
     { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records' },
-    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' }
+    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book appointment slots' },
+    { key: 'cctvMonitoring', label: 'CCTV Monitoring', description: 'View live CCTV streams for accessible branches' }
   ];
 
   // Filter employees: only current (non-resigned) employees, then by type

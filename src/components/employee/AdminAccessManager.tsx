@@ -35,7 +35,8 @@ const AdminAccessManager: React.FC<AdminAccessManagerProps> = ({
     { key: 'submitClaim', label: 'Submit Claim', description: 'Submit expense claims and reimbursements' },
     { key: 'payslips', label: 'Payslips', description: 'View and download payslips and salary details' },
     { key: 'myAttendance', label: 'My Attendance', description: 'View personal attendance records and history' },
-    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book and manage personal appointment slots' }
+    { key: 'slotBookingEmployee', label: 'Slot Booking', description: 'Book and manage personal appointment slots' },
+    { key: 'cctvMonitoring', label: 'CCTV Monitoring', description: 'View live CCTV streams for accessible branches' }
   ];
 
   const handleAdminPermissionChange = (permissionKey: string, checked: boolean) => {
