@@ -1130,8 +1130,16 @@ const PayrollProcessing = () => {
                         const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
                         const cpfCalc = calculateCPF(employee.baseSalary || 0, employee.residencyStatus || 'Singapore Citizen', employeeAge);
                         
+                        // Build effective employee with merged override allowances/deductions
+                        // so Net Pay matches the displayed Allowances/Deductions columns
+                        const effectiveEmployee = {
+                          ...employee,
+                          allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
+                          deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+                        };
+                        
                         // Calculate net pay using proper payroll calculation
-                        const payrollCalc = calculateFullTimePayroll(employee, approvedClaims, 0);
+                        const payrollCalc = calculateFullTimePayroll(effectiveEmployee, approvedClaims, 0);
                         const netPay = payrollCalc.netSalary;
                         
                         return (
