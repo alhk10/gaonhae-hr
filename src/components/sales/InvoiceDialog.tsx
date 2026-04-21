@@ -1381,10 +1381,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                   <Label className="text-xs md:text-sm">Branch</Label>
                   {lockedBranchId && <Badge variant="secondary" className="text-[10px]">Locked</Badge>}
                 </div>
-                <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)} disabled={!!lockedBranchId}>
-                  <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm"><SelectValue placeholder="Select branch" /></SelectTrigger>
-                  <SelectContent>{availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-                </Select>
+                {branches.length === 0 && lockedBranchId ? (
+                  <Input value="Loading branch..." disabled className="h-8 md:h-10 text-xs md:text-sm" />
+                ) : (
+                  <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)} disabled={!!lockedBranchId}>
+                    <SelectTrigger className="h-8 md:h-10 text-xs md:text-sm"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                    <SelectContent>{availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -1394,7 +1398,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                     <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="trial">Trial</SelectItem><SelectItem value="all">All</SelectItem></SelectContent>
                   </Select>
                 </div>
-                <StudentSearchSelect students={filteredStudents} value={formData.student_id} container={dialogContentRef.current} onValueChange={(value) => {
+                <StudentSearchSelect students={filteredStudents} value={formData.student_id} container={dialogContentEl} loading={students.length === 0} onValueChange={(value) => {
                   handleInputChange('student_id', value);
                   const student = students.find(s => s.id === value);
                   if (student?.branch_id && !formData.branch_id) handleInputChange('branch_id', student.branch_id);
