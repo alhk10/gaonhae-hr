@@ -878,13 +878,21 @@ const PayrollProcessing = () => {
             calculationMethod: casualPayroll.slotBookingMetadata?.calculationMethod || 'legacy_rates',
           };
         } else if (fullTimePayroll) {
+          // Recompute using merged override allowances/deductions so the saved snapshot
+          // matches the values displayed on the Processing/Payment screens
+          const effectiveEmployee = {
+            ...employee,
+            allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
+            deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+          };
+          const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
           payrollDataToSave = {
             ...payrollDataToSave,
-            grossSalary: fullTimePayroll.grossPay || 0,
-            employeeCPF: fullTimePayroll.cpfEmployee || 0,
-            employerCPF: fullTimePayroll.cpfEmployer || 0,
-            totalCPF: (fullTimePayroll.cpfEmployee || 0) + (fullTimePayroll.cpfEmployer || 0),
-            netSalary: fullTimePayroll.netPay || 0,
+            grossSalary: recalc.grossSalary,
+            employeeCPF: recalc.employeeCPF,
+            employerCPF: recalc.employerCPF,
+            totalCPF: recalc.totalCPF,
+            netSalary: recalc.netSalary,
           };
         }
 
