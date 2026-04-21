@@ -412,6 +412,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
         loadBranchTerms(lockedBranchId);
       }
+      if (prefilledStudentId) {
+        setFormData(prev => ({ ...prev, student_id: prefilledStudentId }));
+        setStudentStatusFilter('all');
+      }
     } else {
       setMode(initialMode);
       loadInvoiceData();
