@@ -383,6 +383,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [refundReason, setRefundReason] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
 
+  // Grading prerequisite override (superadmin) state
+  const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
+  const prerequisiteOverriddenRef = useRef(false);
+
   const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
 
