@@ -1,44 +1,42 @@
 
 
-## Plan: Fix empty product dropdown in invoice edit/adjust mode
+## Plan: Load grading slots in edit/adjust mode so the slot dropdown populates
 
 ### Root cause
 
-In `src/components/sales/InvoiceDialog.tsx`, the `useEffect` that builds `branchAvailableProductIds` (lines 437–474) iterates over the **`products`** array. That array is only populated by `loadProducts()`, which runs **only in create mode** (line 391: `if (!isCreateMode) return;`).
+In `src/components/sales/InvoiceDialog.tsx`, `loadGradingSlots()` only runs inside the create-mode mount effect (line 391: `if (!isCreateMode) return;`). When opening an existing invoice in **view/edit/adjust** mode, `gradingSlots` state stays `[]`, so for any line item in the *Grading* category the edit-mode UI (lines 1746–1776) computes `branchSlots = []` and shows:
 
-When opening an existing invoice in edit/adjust mode:
-- `products` stays `[]`
-- The effect builds `branchAvailableProductIds` as an **empty Set** (not `null`)
-- The edit-mode product dropdown filter (line 1665) `(!branchAvailableProductIds || branchAvailableProductIds.has(p.id))` rejects every product because the Set is non-null but empty
-- Result: dropdown shows **"No products available for this branch."** even though the branch (Morley) has products like *Foundation >> White*
+> *"No grading slots — create one in Sales → Grading"*
 
-The view/edit dropdown uses `viewProducts` (loaded by `loadViewProducts()` on dialog open), but the availability gate is computed from the wrong source array.
+Elliot's invoice INV-2026-00248 actually has `metadata.grading_slot_id = bcc577d6-...` saved (Morley · 11 Apr 2026 · 08:10 · White), and 7 active slots exist for Morley on that date — they just aren't fetched in edit mode.
 
 ### Fix
 
 **File: `src/components/sales/InvoiceDialog.tsx`**
 
-Change the branch-availability effect to derive `branchAvailableProductIds` from whichever product list is populated:
-- Use `products` in create mode (existing behaviour)
-- Use `viewProducts` in view/edit mode
+In the dialog-open effect (lines 400–414), also call `loadGradingSlots()` for the view/edit branch when the slots haven't been loaded yet. The function already filters by `status: 'active'` and includes the past 60 days, which covers the Apr 11 slot.
 
-Specifically, in the effect at lines 437–474:
-1. Add `viewProducts` to the dependency list
-2. Pick the source list: `const sourceList = isCreateMode ? products : viewProducts;`
-3. Iterate `sourceList` instead of `products` to build the `available` Set
-4. If the relevant source list is still empty (initial mount), keep `branchAvailableProductIds = null` so the dropdown isn't gated to nothing while loading
+```ts
+} else {
+  setMode(initialMode);
+  loadInvoiceData();
+  loadViewProducts();
+  if (branches.length === 0) loadBranches();
+  if (gradingSlots.length === 0) loadGradingSlots();
+}
+```
 
-This keeps the existing per-branch hidden-product logic (`price_rules` with `is_active = false`) intact, just sourcing the universe of products from the correct array depending on mode.
+The existing edit-mode renderer (lines 1746–1776) already filters slots by `s.branch_id === invoice.branch_id || s.available_branch_ids?.includes(invoice.branch_id)`, so once `gradingSlots` populates, all 7 Morley slots for 11 Apr 2026 (Foundation 1, Yellow Tip, White, Yellow, Green Tip, Green/Blue Tip, Foundation) will appear in the dropdown and the currently-saved slot (`bcc577d6-...`, "Morley - 11 Apr 2026 - 08:10 - White") will display as the selected value.
 
 ### Verification
 
-1. Open an existing Morley invoice → click **Edit/Adjust** → open the Product dropdown on a line item → full Morley product list appears, including *Foundation >> White*; selecting it updates the line correctly.
-2. Hidden products (price_rules with `is_active = false` for that branch) still do not appear.
-3. Create-mode flow (new invoice) is unchanged — same branch filtering as before.
-4. Earl's invoice: product can be switched from *White >> Yellow Tip* to *Foundation >> White*, save, totals recalculate using existing tax-inclusive logic for Morley.
+1. Open INV-2026-00248 → click **Adjust** → the *White >> Yellow Tip* line shows **Grading slot: Morley - 11 Apr 2026 - 08:10 - White** as the selected value, with all 7 Apr 11 Morley slots in the dropdown.
+2. Switch to a different slot → save → invoice metadata updates; reopen → new slot reflected.
+3. Open any non-grading invoice → no extra render impact (gradingSlots still loaded once but unused).
+4. Create-mode flow unchanged (slots still preloaded on mount).
 
 ### Out of scope
 
-- Changing how `price_rules` decides availability (still treats only `is_active = false` rows as hides).
-- Refactoring `loadProducts` vs `loadViewProducts` into a single source of truth (separate cleanup task).
+- Changing how grading slots are filtered by belt/age (separate slot eligibility logic in `getFilteredGradingSlots`, which is create-mode only).
+- Refactoring `gradingSlots` into a shared cache.
 
