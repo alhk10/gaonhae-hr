@@ -623,6 +623,48 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const gradingTermPaidCount = gradingMetrics.termPaid;
   const totalTermStudents = gradingMetrics.totalTermStudents;
 
+  // Fetch IDs of students who have a paid/verified lesson invoice for the displayTerm
+  const { data: paidTermStudentIdsArr = [] } = useQuery({
+    queryKey: ['paid-term-student-ids', branchId, displayTerm?.id],
+    queryFn: async () => {
+      if (!displayTerm) return [] as string[];
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
+      if (lessonProductIds.length === 0) return [] as string[];
+
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select(`
+          metadata,
+          invoices!inner (
+            student_id,
+            branch_id,
+            status
+          )
+        `)
+        .in('product_id', lessonProductIds)
+        .eq('invoices.branch_id', branchId)
+        .in('invoices.status', ['paid', 'verified']);
+
+      const ids = new Set<string>();
+      (invoiceItems || []).forEach(item => {
+        const metadata = item.metadata as Record<string, any> | null;
+        if (metadata?.term_id === displayTerm.id) {
+          ids.add((item.invoices as any).student_id);
+        }
+      });
+      return Array.from(ids);
+    },
+    enabled: !!branchId && !!displayTerm,
+  });
+  const paidTermStudentIds = React.useMemo(
+    () => new Set(paidTermStudentIdsArr),
+    [paidTermStudentIdsArr]
+  );
+
   // Check if casual employees have bookings this month
   const { data: hasCasualBookings = false } = useQuery({
     queryKey: ['casual-bookings-exists', branchId],
@@ -797,6 +839,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       matchesStatus = studentStatus === 'inactive';
     } else if (statusFilter === 'trial') {
       matchesStatus = studentStatus === 'trial';
+    } else if (statusFilter === 'unpaid_term') {
+      matchesStatus =
+        (studentStatus === 'active' || studentStatus === 'inactive') &&
+        !!displayTerm &&
+        !paidTermStudentIds.has(student.id);
     }
     
     return matchesSearch && matchesStatus;
@@ -913,7 +960,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   Filter
                   {statusFilter !== 'active_inactive' && (
                     <Badge variant="secondary" className="ml-1 text-[10px] px-1">
-                      {statusFilter === 'active' ? 'Active' : statusFilter === 'inactive' ? 'Inactive' : 'Trial'}
+                      {statusFilter === 'active' ? 'Active'
+                        : statusFilter === 'inactive' ? 'Inactive'
+                        : statusFilter === 'trial' ? 'Trial'
+                        : statusFilter === 'unpaid_term' ? 'Unpaid Term'
+                        : ''}
                     </Badge>
                   )}
                 </Button>
@@ -932,6 +983,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>
+                  Unpaid Class Fees (Current Term)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -984,8 +1038,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   ))}
                 </div>
               ) : filteredStudents.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No students found
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  {statusFilter === 'unpaid_term' && !displayTerm
+                    ? 'No active term configured for this branch'
+                    : 'No students found'}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
