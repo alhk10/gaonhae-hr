@@ -44,6 +44,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchCasualSchedule from './BranchCasualSchedule';
+import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
