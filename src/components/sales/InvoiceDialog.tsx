@@ -311,6 +311,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   onInvoiceCreated,
   onInvoiceUpdated,
   branchId: lockedBranchId,
+  prefilledStudentId,
 }) => {
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
@@ -318,10 +319,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // ─── Shared State ───────────────────────────────────────────────
   const [internalOpen, setInternalOpen] = useState(false);
   const isCreateMode = initialMode === 'create';
-  const dialogOpen = isCreateMode ? internalOpen : (externalOpen ?? false);
-  const setDialogOpen = isCreateMode
-    ? setInternalOpen
-    : (v: boolean) => externalOnOpenChange?.(v);
+  const isControlled = externalOpen !== undefined;
+  const dialogOpen = isControlled ? !!externalOpen : internalOpen;
+  const setDialogOpen = isControlled
+    ? (v: boolean) => externalOnOpenChange?.(v)
+    : (v: boolean) => { setInternalOpen(v); externalOnOpenChange?.(v); };
 
   const [mode, setMode] = useState<'create' | 'view' | 'edit'>(initialMode);
   const [loading, setLoading] = useState(false);
