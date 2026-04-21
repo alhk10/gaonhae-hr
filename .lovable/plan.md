@@ -1,44 +1,65 @@
 
 
-## Plan: Wider, taller, mobile-friendly Create Invoice dialog
+## Plan: Add "Unpaid Class Fees (Current Term)" filter to Students tab
 
-### Current state (from screenshot + code)
-- `InvoiceDialog` uses `DialogContent` with `max-w-6xl w-[95vw] max-h-[95vh] overflow-y-auto p-3 sm:p-6 top-[5%] translate-y-0`.
-- On a 1804px viewport the dialog renders much narrower than expected (~720px) and short — empty space below items, headers crammed (Disc/Size/Color narrow). On mobile the items table doesn't fit and forces horizontal scroll.
+### Where
+`src/components/dashboard/BranchDashboard.tsx` — Students tab Filter dropdown (around line 920-936) and the `filteredStudents` filter logic (line 780-803).
 
-### Root cause
-`Dialog`'s base `DialogContent` (`src/components/ui/dialog.tsx`) hardcodes `max-w-lg` in its className. Because Tailwind merges via `twMerge`, `max-w-6xl` from `InvoiceDialog` does override `max-w-lg` — but the dialog also lacks an explicit `min-h` and the items table columns are fixed at narrow widths. The dialog also doesn't reach near the viewport bottom because there's no `min-h` / flex layout to fill `max-h-[95vh]`.
+### New filter option
+Add a new menu item below the existing four:
+- **Active + Inactive**
+- Active Only
+- Inactive Only
+- Trial
+- **Unpaid Class Fees (Current Term)** ← new
 
-### Fix (single file: `src/components/sales/InvoiceDialog.tsx`)
+When selected, the table shows only **non-withdrawn** students at this branch who:
+- Have **no paid/verified lesson invoice** for the current term, and
+- Are **not trial** students (trial students don't owe class fees).
 
-1. **Wider on desktop, full-bleed on mobile**
-   - Change `DialogContent` className to:
-     `w-[98vw] sm:w-[95vw] max-w-[1400px] max-h-[95vh] sm:max-h-[90vh] min-h-[60vh] overflow-hidden p-0 top-[2%] sm:top-[5%] translate-y-0 flex flex-col`
-   - Wrap the existing header in `px-4 sm:px-6 pt-4 sm:pt-6` and the body in a scrollable `flex-1 overflow-y-auto px-4 sm:px-6` region; footer (Cancel / Create Invoice) gets `border-t px-4 sm:px-6 py-3 sticky bottom-0 bg-background`. This makes the dialog visually fill more vertical space and keeps action buttons reachable on mobile.
+This mirrors the existing "termPaid" logic already used for the Grading metric (line 584-613) — same definition of "lesson invoice for current term" (products with `is_lesson=true`, matched via `invoice_items.metadata.term_id`, branch-scoped, status `paid` or `verified`).
 
-2. **Mobile-friendly items area**
-   - The `Invoice Items` table currently uses a fixed grid (`Category | Product | Qty | Price | Disc | Size | Color | Term/Slot | Total | +`) — too wide for phones.
-   - Wrap the table in `<div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">` so it scrolls horizontally only inside the body on mobile, while the dialog itself stops needing horizontal scroll.
-   - Set table min-width: `min-w-[900px]` so columns keep their proportions when scrolled.
-   - On `sm:` and up, the table fits the wider dialog naturally — no horizontal scroll needed.
+### Implementation
 
-3. **Header field stacking on mobile**
-   - The Branch / Student / Invoice Date row uses a 3-col grid. Change to `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3` so each field gets a full row on phones.
+**1. New query — `paidTermStudentIds`** (only fetches when filter active or always, cached by `displayTerm.id`):
+- Same shape as the existing `gradingMetrics` query but returns just the `Set<string>` of student IDs with a paid/verified lesson invoice for `displayTerm`.
+- Source of truth: `invoice_items` where `product_id IN (lesson products)`, joined to `invoices` where `branch_id = branchId` and `status IN ('paid','verified')`, filtered in JS by `metadata.term_id === displayTerm.id`.
+- Memoize as a `Set` for O(1) lookup.
 
-4. **Apply the same shell to edit/view modes**
-   - Same `DialogContent` shell pattern for `mode === 'edit' | 'view'` so the experience is consistent (no separate dialog).
+**2. Extend `filteredStudents` (line 780-803)**:
+- Add a new branch:
+  ```ts
+  } else if (statusFilter === 'unpaid_term') {
+    matchesStatus =
+      (studentStatus === 'active' || studentStatus === 'inactive') &&
+      !!displayTerm &&
+      !paidTermStudentIds.has(student.id);
+  }
+  ```
+- Excludes trial and withdrawn (withdrawn already excluded at top of filter).
+
+**3. Filter dropdown UI (line 922-936)**:
+- Add `<DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>Unpaid Class Fees (Current Term)</DropdownMenuItem>`.
+- Update the badge logic (line 914-918) so the active filter shows label `Unpaid Term` when `statusFilter === 'unpaid_term'`.
+
+**4. Empty-state copy**:
+- If `displayTerm` is missing (no term defined for branch), the filter resolves to "no students" — show the existing empty row but with helper text "No active term configured for this branch" so it isn't mistaken for a bug.
+
+### Term used
+`displayTerm = currentTerm || mostRecentTerm` — same fallback used elsewhere in this dashboard (line 465). Keeps behaviour consistent with the Grading and Outstanding tiles.
 
 ### What stays the same
-- All field logic, validation, branch product filtering, popover scroll behavior (already fixed).
-- Compact sizing tokens (`h-7`, `text-xs`) per existing memory.
-- Date format (`DD/MM/YYYY` via `DatePicker`).
+- All other filters, search, mass-edit, withdraw actions, columns.
+- No DB changes, no schema migration, no RLS changes (re-uses tables already accessible: `products`, `invoice_items`, `invoices`).
+- No new permissions — same visibility rules as current Students tab.
 
 ### Verification
-- Desktop 1804px: dialog ≈ 1400px wide and ≥60vh tall — no empty space, items table fits without horizontal scroll.
-- Tablet ~820px: dialog uses ~95vw, header fields stack 2-up, items table fits.
-- Mobile 390px: dialog uses ~98vw, header fields stack 1-up, items table scrolls horizontally inside the dialog body, footer stays pinned at bottom and reachable.
+- Switch filter → table shows only active/inactive students missing a paid/verified term invoice for current term.
+- Issue & pay an invoice for one of those students → student disappears from the list (after refetch via existing realtime invalidation on `invoices`).
+- Trial students never appear under this filter.
+- Branch with no current term → empty list with explanatory message.
 
 ### Out of scope
-- Redesigning the items table layout itself (column re-ordering, hiding columns on mobile).
-- Touching other dialogs.
+- Bulk-actions on the filtered list (e.g., bulk reminder send) — can be a follow-up.
+- Splitting "draft/sent" vs "overdue" — current definition is "no paid/verified lesson invoice for the term" which covers all unpaid states uniformly.
 
