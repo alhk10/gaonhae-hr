@@ -1,42 +1,65 @@
 
 
-## Plan: Load grading slots in edit/adjust mode so the slot dropdown populates
+## Plan: Tie auto-created grading registrations to the grading slot's term, not the lesson term
 
 ### Root cause
 
-In `src/components/sales/InvoiceDialog.tsx`, `loadGradingSlots()` only runs inside the create-mode mount effect (line 391: `if (!isCreateMode) return;`). When opening an existing invoice in **view/edit/adjust** mode, `gradingSlots` state stays `[]`, so for any line item in the *Grading* category the edit-mode UI (lines 1746–1776) computes `branchSlots = []` and shows:
+When an invoice contains both a **lesson** product (e.g. Term 2 *Unlimited*) and a **grading** product with a `metadata.grading_slot_id` (e.g. the *11 Apr 2026* slot — which is Term 1's grading event), `createInvoice` in `src/services/invoiceService.ts` (lines 396–441) only inspects the **lesson** items to derive `term_id`s for `grading_registrations`. The grading slot's actual term is ignored.
 
-> *"No grading slots — create one in Sales → Grading"*
+Result for Morley:
 
-Elliot's invoice INV-2026-00248 actually has `metadata.grading_slot_id = bcc577d6-...` saved (Morley · 11 Apr 2026 · 08:10 · White), and 7 active slots exist for Morley on that date — they just aren't fetched in edit mode.
+| Student | Lesson item term | Grading slot date | Registration created against |
+|---|---|---|---|
+| Daniel | Term 2 2026 | 11 Apr 2026 (Term 1) | **Term 2 2026** ❌ |
+| Elliot | Term 2 2026 | 11 Apr 2026 (Term 1) | **Term 2 2026** ❌ |
+| Earl | (no lesson — grading-only invoice) | 11 Apr 2026 (Term 1) | **none** ❌ |
+
+So in the Grading List → **Term 1 2026**, none of them show up; in **Term 2 2026** they appear early. Earl appears nowhere because his invoice is grading-only, which the current auto-create path skips entirely.
+
+`grading_slots` has no `term_id` column, so the slot's term must be derived by looking up the `term_calendars` row whose `[start_date, end_date]` window contains `slot.grading_date` (also matching `branch_id`). For 11 Apr 2026 at Morley, that resolves to **Term 1 2026** (Jan 19 – Apr 10) only by nearest-end fallback — which is the policy we need.
 
 ### Fix
 
-**File: `src/components/sales/InvoiceDialog.tsx`**
+#### A. Derive term from the grading slot when present
 
-In the dialog-open effect (lines 400–414), also call `loadGradingSlots()` for the view/edit branch when the slots haven't been loaded yet. The function already filters by `status: 'active'` and includes the past 60 days, which covers the Apr 11 slot.
+`src/services/invoiceService.ts` — extend the auto-create block (lines 396–441):
 
-```ts
-} else {
-  setMode(initialMode);
-  loadInvoiceData();
-  loadViewProducts();
-  if (branches.length === 0) loadBranches();
-  if (gradingSlots.length === 0) loadGradingSlots();
-}
-```
+1. Collect, in addition to lesson `term_id`s, a map of `(grading_slot_id → term_id)` for every invoice item with `metadata.grading_slot_id`.
+2. For each such slot, fetch its `branch_id` and `grading_date`, then resolve `term_id` via:
+   - First, `term_calendars` row where `branch_id = slot.branch_id AND start_date <= grading_date AND end_date >= grading_date` (in-window term).
+   - Else, the term whose `end_date` is the **closest on or before** `grading_date` (handles the off-by-one case of grading taking place 1 day after term end, e.g. 11 Apr vs term ends 10 Apr).
+   - Else, the term with the **earliest `start_date` after** `grading_date` (next term).
+3. For each `(student_id, slot_term_id)` pair, upsert into `grading_registrations`:
+   - If a row exists for that `(student_id, term_id)` → set `ready_for_grading = true`, refresh `current_belt`/`target_belt`, **and link `grading_slot_id`** if not already set.
+   - Else insert new row with `grading_slot_id` populated.
+4. Run this branch even when the invoice has **no lesson items** (grading-only invoices like Earl's).
+5. Keep the existing lesson-term path, but **only insert** if no slot-derived registration was created/updated for that student in this same invoice (i.e. the slot-term takes precedence over the lesson-term to avoid duplicate registrations across two terms for the same grading event).
 
-The existing edit-mode renderer (lines 1746–1776) already filters slots by `s.branch_id === invoice.branch_id || s.available_branch_ids?.includes(invoice.branch_id)`, so once `gradingSlots` populates, all 7 Morley slots for 11 Apr 2026 (Foundation 1, Yellow Tip, White, Yellow, Green Tip, Green/Blue Tip, Foundation) will appear in the dropdown and the currently-saved slot (`bcc577d6-...`, "Morley - 11 Apr 2026 - 08:10 - White") will display as the selected value.
+#### B. Backfill the three affected Morley registrations
+
+Run a one-off SQL update so the user's current state matches the new logic:
+
+- `INV-2026-00254` (Daniel): re-tag registration to Term 1 2026 + link slot `5d8aa9b1...`.
+- `INV-2026-00248` (Elliot): re-tag registration to Term 1 2026 + link slot `bcc577d6...`.
+- `INV-2026-00252` (Earl John): create missing registration for Term 1 2026 with slot `bcc577d6...`, `current_belt = White`, `target_belt = Yellow Tip`, `ready_for_grading = true`.
+
+This is a data-only migration; no schema changes.
+
+#### C. No cleanup change needed
+
+The existing deletion path in `invoiceService.ts` already removes auto-created registrations (where `invoice_item_id IS NULL` and `result IS NULL`) when invoices are deleted, regardless of term, so it stays correct.
 
 ### Verification
 
-1. Open INV-2026-00248 → click **Adjust** → the *White >> Yellow Tip* line shows **Grading slot: Morley - 11 Apr 2026 - 08:10 - White** as the selected value, with all 7 Apr 11 Morley slots in the dropdown.
-2. Switch to a different slot → save → invoice metadata updates; reopen → new slot reflected.
-3. Open any non-grading invoice → no extra render impact (gradingSlots still loaded once but unused).
-4. Create-mode flow unchanged (slots still preloaded on mount).
+1. **Branch Dashboard → Morley → Grading → Term 1 2026** → Daniel, Elliot, and Earl John appear with **Ready ✓** pre-checked, the correct slot pre-selected (11 Apr 2026, 08:10 / 08:20), and **Grading Paid** reflects invoice status.
+2. **Term 2 2026** view no longer lists Daniel/Elliot for grading (they only appear there if/when a future term invoice with a Term 2-dated grading slot is issued).
+3. Create a new test invoice combining a *Term 3 2026* lesson with a grading slot dated inside Term 2 → registration is filed against **Term 2** (slot's term wins).
+4. Create a grading-only invoice → registration is still created (current code skips this).
+5. Delete one of the auto-created registrations' invoice → registration is removed (existing cleanup path).
+6. Re-issue an invoice for a student already at top belt → no row inserted (no `targetBelt`), unchanged.
 
 ### Out of scope
 
-- Changing how grading slots are filtered by belt/age (separate slot eligibility logic in `getFilteredGradingSlots`, which is create-mode only).
-- Refactoring `gradingSlots` into a shared cache.
+- Adding a `term_id` column to `grading_slots` (current fallback resolution from `grading_date` is sufficient and avoids a schema migration). Can revisit later as a cleanup.
+- Changing how the create-invoice UI labels grading slots; only the term-tagging on `grading_registrations` is affected.
 
