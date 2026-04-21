@@ -1525,6 +1525,54 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         />
       )}
 
+      {/* Withdraw Confirmation */}
+      <AlertDialog open={!!withdrawTarget} onOpenChange={(open) => { if (!open) setWithdrawTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userrole === 'superadmin' ? `Withdraw ${withdrawTarget?.name}?` : `Request withdrawal for ${withdrawTarget?.name}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userrole === 'superadmin'
+                ? `This will mark ${withdrawTarget?.name} as withdrawn immediately. This action requires no further approval.`
+                : `Submit a withdrawal request for ${withdrawTarget?.name}? A superadmin must approve before the student is withdrawn.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!withdrawTarget) return;
+                const target = withdrawTarget;
+                try {
+                  if (userrole === 'superadmin') {
+                    await directWithdrawStudent(target.id);
+                    toast.success(`${target.name} withdrawn`);
+                    queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+                    queryClient.invalidateQueries({ queryKey: ['pending-withdrawal-requests'] });
+                  } else {
+                    await createWithdrawalRequest(
+                      target.id,
+                      target.name,
+                      branchId,
+                      user?.email || ''
+                    );
+                    toast.success('Withdrawal request submitted for superadmin approval');
+                  }
+                } catch (err: any) {
+                  toast.error(err.message || 'Failed to withdraw student');
+                } finally {
+                  setWithdrawTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {userrole === 'superadmin' ? 'Withdraw' : 'Submit Request'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
