@@ -74,7 +74,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm, getMostRecentTerm } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 import { Student } from '@/services/studentService';
@@ -456,15 +456,22 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  // Fetch most recent term as fallback (for grading metrics when no current term)
-  const { data: mostRecentTerm } = useQuery({
-    queryKey: ['most-recent-term', branchId],
-    queryFn: () => getMostRecentTerm(branchId),
+  // Fetch upcoming term as preferred fallback during inter-term gaps
+  const { data: upcomingTerm } = useQuery({
+    queryKey: ['upcoming-term', branchId],
+    queryFn: () => getUpcomingTerm(branchId),
     enabled: !!branchId && !currentTerm,
   });
 
-  // Use currentTerm if available, otherwise mostRecentTerm for grading metrics
-  const displayTerm = currentTerm || mostRecentTerm || null;
+  // Fetch most recent term as final fallback (for grading metrics when no current/upcoming term)
+  const { data: mostRecentTerm } = useQuery({
+    queryKey: ['most-recent-term', branchId],
+    queryFn: () => getMostRecentTerm(branchId),
+    enabled: !!branchId && !currentTerm && !upcomingTerm,
+  });
+
+  // Precedence: current → upcoming (covers inter-term gap) → most recent past
+  const displayTerm = currentTerm || upcomingTerm || mostRecentTerm || null;
 
   // Fetch active students (students who have paid invoices this term)
   const { data: activeStudentIds = [] } = useQuery({
