@@ -297,6 +297,63 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   }, [rejectingPayment, rejectionReason, branchId, queryClient, user?.employeeId]);
 
+  // Handle Send invoice via SMS (opens device SMS app, no PDF)
+  const handleShareSMS = async (invoice: any) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id).catch(() => null);
+      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
+      if (!number) {
+        toast.error('No mobile number on file for this student');
+        return;
+      }
+
+      // Fetch full invoice items
+      const fullInvoice = await getInvoiceById(invoice.id);
+
+      // Fetch bank transfer info from active template for this branch's country
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
+
+      const sourceInvoice = fullInvoice ?? invoice;
+      const invoiceData: InvoiceData = {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        issue_date: sourceInvoice.issue_date || null,
+        due_date: sourceInvoice.due_date || null,
+        subtotal: sourceInvoice.subtotal,
+        tax_amount: sourceInvoice.tax_amount,
+        discount_amount: sourceInvoice.discount_amount,
+        total_amount: sourceInvoice.total_amount,
+        amount_paid: sourceInvoice.amount_paid,
+        balance_due: sourceInvoice.balance_due,
+        notes: sourceInvoice.notes,
+        status: sourceInvoice.status,
+        items: fullInvoice?.items?.map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+        })) || [],
+        branch: branch ? { name: branch.name, address: branch.address } : undefined,
+        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+      };
+
+      await shareInvoiceViaSMS(invoiceData, number);
+    } catch (error) {
+      console.error('Error sharing invoice via SMS:', error);
+      toast.error('Failed to open SMS app');
+    }
+  };
+
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
     try {
