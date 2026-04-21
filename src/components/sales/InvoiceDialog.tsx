@@ -978,7 +978,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       // Grading validation
       const hasGradingItem = items.some(i => products.find(p => p.id === i.product_id)?.category_id === GRADING_CATEGORY_ID);
       const hasTermItem = items.some(i => !!i.term_id);
-      if (hasGradingItem && !hasTermItem) {
+      let prerequisiteFailed = false;
+      if (hasGradingItem && !hasTermItem && !prerequisiteOverriddenRef.current) {
         const { data: studentInvoices } = await supabase.from('invoices').select('id, status').eq('student_id', formData.student_id).in('status', ['paid', 'verified']);
         const paidIds = (studentInvoices || []).map(i => i.id);
         let hasTermPaid = false;
@@ -991,7 +992,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             hasTermPaid = (termItems || []).some(item => { const meta = item.metadata as any; return meta?.term_id && termIds.includes(meta.term_id); });
           } else hasTermPaid = true;
         }
-        if (!hasTermPaid) { toast.error('This student must have a paid term invoice before creating a grading invoice.'); setLoading(false); return; }
+        if (!hasTermPaid) prerequisiteFailed = true;
       }
       // Duplicate grading check
       for (const item of items) {
@@ -1002,12 +1003,18 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         }
       }
 
+      const isOverridden = prerequisiteOverriddenRef.current;
+      const overrideNote = isOverridden ? '[Superadmin override: grading prerequisite]' : '';
+      const combinedNotes = [formData.notes, overrideNote].filter(Boolean).join(' ').trim() || undefined;
+
       const invoiceItems = items.map(item => {
         const ld = item.discount_type && item.discount_value && item.discount_value > 0 ? { discount_type: item.discount_type, discount_value: item.discount_value } : undefined;
+        const isGradingLine = products.find(p => p.id === item.product_id)?.category_id === GRADING_CATEGORY_ID;
+        const overrideMeta = (isOverridden && isGradingLine) ? { prerequisite_overridden_by: user?.email || 'superadmin' } : {};
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}) }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...overrideMeta }
         };
       });
 
@@ -1019,11 +1026,27 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       const invoiceData: CreateInvoiceData = {
         student_id: formData.student_id, branch_id: formData.branch_id || undefined,
-        payment_terms_days: 30, notes: formData.notes || undefined,
+        payment_terms_days: 30, notes: combinedNotes,
         tax_included: taxIncluded !== null ? taxIncluded : undefined,
         ...(isSuperadmin && formData.issue_date ? { issue_date: formData.issue_date } : {}),
         items: invoiceItems
       };
+
+      // Prerequisite failed: superadmin → confirmation dialog; others → approval request
+      if (prerequisiteFailed) {
+        if (isSuperadmin) {
+          setPrerequisiteOverrideOpen(true);
+          setLoading(false);
+          return;
+        }
+        const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
+        const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
+        const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
+        const totalDiscPre = calculateTotalDiscount(items);
+        await submitDiscountApproval(invoiceData, studentName, branchName, totalDiscPre, totalAmount, user?.email || null, 'Grading invoice without paid term invoice');
+        toast.success('This student has no paid term invoice. Request submitted for superadmin approval.');
+        setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+      }
 
       const hasException = items.some(i => outOfCriteriaProductIds.has(i.product_id));
       const totalDisc = calculateTotalDiscount(items);
