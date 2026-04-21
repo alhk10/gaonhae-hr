@@ -1151,21 +1151,22 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                   <div className="flex items-center gap-1">
                                     <Button
                                       variant="ghost"
-                                      size="sm"
-                                      className="h-6 text-[10px]"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      title="Create Invoice"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setCreateInvoiceForStudentId(student.id);
                                         setCreateInvoiceOpen(true);
                                       }}
                                     >
-                                      <FileText className="w-3 h-3 mr-0.5" />
-                                      Invoice
+                                      <FileText className="w-3 h-3" />
                                     </Button>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
-                                      className="h-6 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      size="icon"
+                                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      title="Withdraw"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setWithdrawTarget({
@@ -1174,8 +1175,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                         });
                                       }}
                                     >
-                                      <UserMinus className="w-3 h-3 mr-0.5" />
-                                      Withdraw
+                                      <UserMinus className="w-3 h-3" />
                                     </Button>
                                   </div>
                                 )}
