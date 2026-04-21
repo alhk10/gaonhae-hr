@@ -618,8 +618,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const loadGradingSlots = async () => {
     setGradingSlotsLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      setGradingSlots(await getGradingSlots({ status: 'active', from_date: today }));
+      // Include slots from the past 60 days so staff can still link an invoice
+      // to a recent grading event when payment lags the actual grading day.
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - GRADING_DUPLICATE_CHECK_DAYS);
+      const fromDateStr = fromDate.toISOString().split('T')[0];
+      setGradingSlots(await getGradingSlots({ status: 'active', from_date: fromDateStr }));
     } catch { console.error('Error loading grading slots'); }
     finally { setGradingSlotsLoading(false); }
   };
