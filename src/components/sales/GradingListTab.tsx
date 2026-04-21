@@ -363,7 +363,14 @@ const GradingListTab: React.FC = () => {
       }
 
       const result = Array.from(studentResultMap.values());
-      result.sort((a, b) => a.student_name.localeCompare(b.student_name));
+      result.sort((a, b) => {
+        const aHas = a.current_belt ? 0 : 1;
+        const bHas = b.current_belt ? 0 : 1;
+        if (aHas !== bHas) return aHas - bHas;
+        const beltCmp = compareBeltLevels(a.current_belt || '', b.current_belt || '');
+        if (beltCmp !== 0) return beltCmp;
+        return a.student_name.localeCompare(b.student_name);
+      });
       return result;
     },
     enabled: !!selectedBranch && !!selectedTerm
