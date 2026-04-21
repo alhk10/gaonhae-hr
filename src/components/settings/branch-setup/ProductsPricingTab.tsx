@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { upsertBranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   branchId: string;
@@ -21,6 +22,8 @@ interface ProductRow {
   name: string;
   sku: string;
   base_price: number;
+  category_id: string | null;
+  category_name: string | null;
   is_visible: boolean;
   price_override: number | null;
   rule_id?: string;
@@ -30,23 +33,41 @@ interface ProductRow {
   dirty: boolean;
 }
 
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, branchCurrency }) => {
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data: products, error: pe } = await supabase
-        .from('products')
-        .select('id, name, sku, base_price')
-        .eq('is_active', true)
-        .order('name');
-      if (pe) throw pe;
+      const [productsRes, categoriesRes] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id, name, sku, base_price, category_id, product_categories(name)')
+          .eq('is_active', true)
+          .order('name'),
+        supabase
+          .from('product_categories')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name'),
+      ]);
+      if (productsRes.error) throw productsRes.error;
+      if (categoriesRes.error) throw categoriesRes.error;
 
-      const productIds = (products || []).map((p) => p.id);
+      const products = productsRes.data || [];
+      setCategories((categoriesRes.data || []) as CategoryOption[]);
+
+      const productIds = products.map((p) => p.id);
       let ruleMap = new Map<string, { id: string; price_override: number | null; is_active: boolean | null }>();
       if (productIds.length > 0) {
         const { data: rules, error: re } = await supabase
@@ -60,7 +81,7 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
         }
       }
 
-      const built: ProductRow[] = (products || []).map((p) => {
+      const built: ProductRow[] = products.map((p: any) => {
         const rule = ruleMap.get(p.id);
         const visible = rule ? rule.is_active !== false : true;
         const priceOverride = rule?.price_override ?? null;
@@ -69,6 +90,8 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
           name: p.name,
           sku: p.sku,
           base_price: p.base_price,
+          category_id: p.category_id ?? null,
+          category_name: p.product_categories?.name ?? null,
           is_visible: visible,
           price_override: priceOverride,
           rule_id: rule?.id,
@@ -93,11 +116,12 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) => r.name.toLowerCase().includes(q) || (r.sku || '').toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+    return rows.filter((r) => {
+      if (categoryFilter !== 'all' && r.category_id !== categoryFilter) return false;
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q) || (r.sku || '').toLowerCase().includes(q);
+    });
+  }, [rows, search, categoryFilter]);
 
   const updateRow = (id: string, patch: Partial<ProductRow>) => {
     setRows((prev) =>
@@ -165,14 +189,27 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search products..."
-          className="pl-8"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            className="pl-8 h-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="h-9 w-[200px]">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
