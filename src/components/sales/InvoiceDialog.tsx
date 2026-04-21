@@ -458,24 +458,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         setHiddenProductIds(hidden);
 
         // Branch-available logic:
-        // - product has active rule for this branch => available
-        // - product has any global (branch_id IS NULL) active rule and not explicitly hidden at this branch => available
-        // - product has NO price_rules at all => available (legacy/global)
-        const productIdsWithAnyRule = new Set<string>(rules.map(r => r.product_id));
-        const branchActiveProductIds = new Set<string>(
-          rules.filter(r => r.branch_id === branchId && r.is_active === true).map(r => r.product_id)
-        );
-        const globalActiveProductIds = new Set<string>(
-          rules.filter(r => r.branch_id === null && r.is_active === true).map(r => r.product_id)
-        );
-
+        // price_rules are per-branch price overrides, not availability gates.
+        // A product is available at every branch unless explicitly hidden via
+        // an inactive rule for that specific branch.
         const available = new Set<string>();
         for (const p of products) {
           if (hidden.has(p.id)) continue;
-          if (branchActiveProductIds.has(p.id)) { available.add(p.id); continue; }
-          if (globalActiveProductIds.has(p.id)) { available.add(p.id); continue; }
-          if (!productIdsWithAnyRule.has(p.id)) { available.add(p.id); continue; }
-          // else: has rules, but none active for this branch / globally → not available here
+          available.add(p.id);
         }
         setBranchAvailableProductIds(available);
       } catch {
