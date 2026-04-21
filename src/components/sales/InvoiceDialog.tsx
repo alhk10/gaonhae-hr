@@ -460,8 +460,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         // price_rules are per-branch price overrides, not availability gates.
         // A product is available at every branch unless explicitly hidden via
         // an inactive rule for that specific branch.
+        // Source list depends on mode: create uses `products`, edit/view uses `viewProducts`.
+        const sourceList = isCreateMode ? products : viewProducts;
+        if (sourceList.length === 0) {
+          setBranchAvailableProductIds(null);
+          return;
+        }
         const available = new Set<string>();
-        for (const p of products) {
+        for (const p of sourceList) {
           if (hidden.has(p.id)) continue;
           available.add(p.id);
         }
@@ -471,7 +477,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         setBranchAvailableProductIds(null);
       }
     })();
-  }, [formData.branch_id, invoice?.branch_id, products]);
+  }, [formData.branch_id, invoice?.branch_id, products, viewProducts, isCreateMode]);
 
   // When entering edit mode, initialize from invoice
   useEffect(() => {
