@@ -1778,7 +1778,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 <div className="flex justify-end">
                   <div className="w-full md:w-64 space-y-1.5">
                     <div className="flex justify-between text-xs md:text-sm"><span>Subtotal:</span><span>{formatCurrency(editTotals.subtotal)}</span></div>
-                    <div className="flex justify-between text-xs md:text-sm"><span>Tax:</span><span>{formatCurrency(editTotals.tax)}</span></div>
+                    <div className="flex justify-between text-xs md:text-sm"><span>Tax{editIsTaxInclusive ? ' (incl.)' : ''}:</span><span>{formatCurrency(editTotals.tax)}</span></div>
                     <Separator />
                     <div className="flex justify-between font-bold text-sm md:text-base"><span>Total:</span><span>{formatCurrency(editTotals.total)}</span></div>
                     <div className="flex justify-between text-xs md:text-sm"><span>Paid:</span><span className="text-green-600">{formatCurrency(invoice.amount_paid)}</span></div>
