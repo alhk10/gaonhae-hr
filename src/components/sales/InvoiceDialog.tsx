@@ -1091,6 +1091,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
+    prerequisiteOverriddenRef.current = false;
   };
 
   // ─── Edit Mode Logic ───────────────────────────────────────────
