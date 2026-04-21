@@ -184,6 +184,13 @@ const PayrollProcessing = () => {
         if (empIdx >= 0) {
           if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
           if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+          // Sync override allowances/deductions onto employee object so calculators see the same source of truth
+          if (mergedAllowances[empId]) {
+            employees[empIdx] = { ...employees[empIdx], allowances: mergedAllowances[empId] as any };
+          }
+          if (mergedDeductions[empId]) {
+            employees[empIdx] = { ...employees[empIdx], deductions: mergedDeductions[empId] as any };
+          }
         }
       });
       
