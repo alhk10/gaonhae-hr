@@ -211,7 +211,7 @@ const GradingListTab: React.FC = () => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', selectedBranch)
-        .eq('invoices.status', 'paid');
+        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
 
       if (itemsError) throw itemsError;
 
