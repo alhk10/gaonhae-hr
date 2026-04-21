@@ -109,6 +109,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [invoiceDialogMode, setInvoiceDialogMode] = useState<'view' | 'edit'>('view');
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [createInvoiceForStudentId, setCreateInvoiceForStudentId] = useState<string | null>(null);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
