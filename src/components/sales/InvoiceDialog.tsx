@@ -435,6 +435,16 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   }, [availableBranches.length, formData.branch_id]);
 
+  // Apply country-default tax mode when branch is set (covers locked-branch flow)
+  useEffect(() => {
+    if (!isCreateMode) return;
+    if (taxManuallySet.current) return;
+    if (!formData.branch_id || branches.length === 0) return;
+    const selectedBranch = branches.find(b => b.id === formData.branch_id);
+    const country = selectedBranch?.country || null;
+    setTaxIncluded(country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED);
+  }, [formData.branch_id, branches, isCreateMode]);
+
   // Fetch hidden products + branch-available products
   useEffect(() => {
     const branchId = isCreateMode ? formData.branch_id : invoice?.branch_id;
