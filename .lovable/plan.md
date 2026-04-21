@@ -1,51 +1,44 @@
 
 
-## Plan: Fix dropdown scroll + tighten product filtering by branch & student
+## Plan: Wider, taller, mobile-friendly Create Invoice dialog
 
-### Issues observed in screenshot
-1. **Dropdown not scrollable** — the product popover in `Create New Invoice` shows the list extending below the visible area without a working scrollbar. CommandList already has `max-h-[300px] overflow-y-auto`, but inside the dialog (`overflow-y-auto`) the wheel events bubble to the dialog instead of scrolling the dropdown list.
-2. **Too many irrelevant products** — for student LUCAS HOANG (Morley, Foundation belt), the dropdown shows every "Black Tip & Above" product flagged `(exception)`. Many of these products are not sold at Morley at all — they're showing because the current filter only hides products with an explicit `price_rules` row marked `is_active=false`. Products with no price_rule at all leak through.
-3. **Exception items leak across branches** — the out-of-criteria (red `(exception)`) list should only contain products actually available at the selected branch; right now it's drawn from the full product universe.
+### Current state (from screenshot + code)
+- `InvoiceDialog` uses `DialogContent` with `max-w-6xl w-[95vw] max-h-[95vh] overflow-y-auto p-3 sm:p-6 top-[5%] translate-y-0`.
+- On a 1804px viewport the dialog renders much narrower than expected (~720px) and short — empty space below items, headers crammed (Disc/Size/Color narrow). On mobile the items table doesn't fit and forces horizontal scroll.
 
-### Fix
+### Root cause
+`Dialog`'s base `DialogContent` (`src/components/ui/dialog.tsx`) hardcodes `max-w-lg` in its className. Because Tailwind merges via `twMerge`, `max-w-6xl` from `InvoiceDialog` does override `max-w-lg` — but the dialog also lacks an explicit `min-h` and the items table columns are fixed at narrow widths. The dialog also doesn't reach near the viewport bottom because there's no `min-h` / flex layout to fill `max-h-[95vh]`.
 
-**1. `src/components/sales/InvoiceDialog.tsx` — Popover/CommandList scroll behavior**
-- Bump the inner scroll container so the wheel/touch reliably scrolls the list:
-  - Change `<PopoverContent className="w-64 p-0">` to `w-72 p-0 max-h-[60vh] overflow-hidden` and add `onWheel={(e) => e.stopPropagation()}` on `CommandList`.
-  - Set `<CommandList className="max-h-[300px] overflow-y-auto overscroll-contain">` so wheel events stay inside the popover instead of being captured by the dialog scroller.
-- Apply the same to the edit-mode product popover (line ~1590).
+### Fix (single file: `src/components/sales/InvoiceDialog.tsx`)
 
-**2. Branch availability filter (relate products to branch)**
-- Add a new `branchAvailableProductIds` set, computed once per branch:
-  - Source A: products with at least one **active** `price_rules` row for this `branch_id` (branch-specific availability).
-  - Source B: products with `branch_id IS NULL` rules (globally available) and **no** inactive override for this branch.
-  - Source C: if no price rules exist at all for a product, treat it as globally available (matches today's behaviour for catalogue items without per-branch overrides).
-- Replace the current `notHidden = !hiddenProductIds.has(p.id)` check in `filteredProducts` with `availableInBranch = branchAvailableProductIds.has(p.id)`.
+1. **Wider on desktop, full-bleed on mobile**
+   - Change `DialogContent` className to:
+     `w-[98vw] sm:w-[95vw] max-w-[1400px] max-h-[95vh] sm:max-h-[90vh] min-h-[60vh] overflow-hidden p-0 top-[2%] sm:top-[5%] translate-y-0 flex flex-col`
+   - Wrap the existing header in `px-4 sm:px-6 pt-4 sm:pt-6` and the body in a scrollable `flex-1 overflow-y-auto px-4 sm:px-6` region; footer (Cancel / Create Invoice) gets `border-t px-4 sm:px-6 py-3 sticky bottom-0 bg-background`. This makes the dialog visually fill more vertical space and keeps action buttons reachable on mobile.
 
-**3. Student-relevance ordering inside that branch list**
-- Keep `outOfCriteriaProductIds` logic but compute it **only over the branch-available pool**, not over all products. This means:
-  - Students see relevant (eligible) products at the top.
-  - Exception (red `(exception)`) products only appear if they're actually sold at this branch.
-- Sort `filteredProducts` so eligible items come first, then exception items grouped at the bottom (still selectable, still flagged `(exception)`, still triggers superadmin approval flow already in place at line 975-989). No behaviour change for grading category (already filtered by belt transition).
+2. **Mobile-friendly items area**
+   - The `Invoice Items` table currently uses a fixed grid (`Category | Product | Qty | Price | Disc | Size | Color | Term/Slot | Total | +`) — too wide for phones.
+   - Wrap the table in `<div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">` so it scrolls horizontally only inside the body on mobile, while the dialog itself stops needing horizontal scroll.
+   - Set table min-width: `min-w-[900px]` so columns keep their proportions when scrolled.
+   - On `sm:` and up, the table fits the wider dialog naturally — no horizontal scroll needed.
 
-**4. Empty-state messaging**
-- If branch+student combination yields zero eligible products and zero exceptions, show a clearer `CommandEmpty`: "No products available for this branch."
+3. **Header field stacking on mobile**
+   - The Branch / Student / Invoice Date row uses a 3-col grid. Change to `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3` so each field gets a full row on phones.
 
-### Files touched
-- `src/components/sales/InvoiceDialog.tsx` — only file changed.
-  - `ProductSearchSelect` component (popover sizing, scroll containment, sort by eligibility).
-  - `filteredProducts` memo (branch-availability filter).
-  - `outOfCriteriaProductIds` memo (compute against branch pool only).
-  - Add a small helper `useBranchAvailableProducts(branchId, products)` that fetches `price_rules` once and returns the allowed set.
+4. **Apply the same shell to edit/view modes**
+   - Same `DialogContent` shell pattern for `mode === 'edit' | 'view'` so the experience is consistent (no separate dialog).
 
-### Verification (after default mode applies the changes)
-- Open Create Invoice in Morley → student LUCAS HOANG → product dropdown:
-  - List scrolls smoothly with mouse wheel and touch inside the popover.
-  - Eligible products (Foundation/everyone) appear first; "Black Tip & Above" only appears at the bottom marked `(exception)` and only if Morley actually sells them.
-  - Switching to a different branch refreshes the list to that branch's catalogue.
-- Existing approval flow (`needsExceptionApproval` for non-superadmins) continues to fire when an `(exception)` item is selected.
+### What stays the same
+- All field logic, validation, branch product filtering, popover scroll behavior (already fixed).
+- Compact sizing tokens (`h-7`, `text-xs`) per existing memory.
+- Date format (`DD/MM/YYYY` via `DatePicker`).
+
+### Verification
+- Desktop 1804px: dialog ≈ 1400px wide and ≥60vh tall — no empty space, items table fits without horizontal scroll.
+- Tablet ~820px: dialog uses ~95vw, header fields stack 2-up, items table fits.
+- Mobile 390px: dialog uses ~98vw, header fields stack 1-up, items table scrolls horizontally inside the dialog body, footer stays pinned at bottom and reachable.
 
 ### Out of scope
-- Changing the underlying `price_rules` data model.
-- Changing the (exception) approval threshold or workflow.
+- Redesigning the items table layout itself (column re-ordering, hiding columns on mobile).
+- Touching other dialogs.
 
