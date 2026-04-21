@@ -1038,8 +1038,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   ))}
                 </div>
               ) : filteredStudents.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No students found
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  {statusFilter === 'unpaid_term' && !displayTerm
+                    ? 'No active term configured for this branch'
+                    : 'No students found'}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
