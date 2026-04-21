@@ -57,6 +57,7 @@ interface InvoiceDialogProps {
   onInvoiceCreated?: () => void;
   onInvoiceUpdated?: () => void;
   branchId?: string;
+  prefilledStudentId?: string;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
