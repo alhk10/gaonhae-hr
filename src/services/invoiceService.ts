@@ -371,6 +371,81 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             .map(p => [p.id, p])
         );
 
+        // Auto-create grading_registrations for lesson invoices with a term_id
+        // (so newly invoiced students show up in the Grading List as "Ready" by default)
+        try {
+          // Lazy-load belt helpers to avoid circular imports
+          const { getNextBeltLevel } = await import('@/constants/beltLevels');
+
+          // Look up student current_belt and branch country
+          const [{ data: studentRow }, { data: branchRow }, { data: authData }] = await Promise.all([
+            supabase.from('students').select('current_belt').eq('id', invoiceData.student_id).maybeSingle(),
+            invoiceData.branch_id
+              ? supabase.from('branches').select('country').eq('id', invoiceData.branch_id).maybeSingle()
+              : Promise.resolve({ data: null as any }),
+            supabase.auth.getUser(),
+          ]);
+
+          const currentBelt = studentRow?.current_belt || null;
+          const country = branchRow?.country || null;
+          const createdByEmail = authData?.user?.email || null;
+
+          if (currentBelt) {
+            const targetBelt = getNextBeltLevel(currentBelt, country);
+            if (targetBelt) {
+              // Collect distinct term_ids from lesson invoice items
+              const termIds = new Set<string>();
+              for (const insertedItem of insertedItems) {
+                const product = lessonProducts.get(insertedItem.product_id);
+                if (!product) continue;
+                const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
+                const itemMetadata = originalItem?.metadata;
+                const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0] || product.term_id;
+                if (termId) termIds.add(termId);
+              }
+
+              for (const termId of termIds) {
+                // Check for existing registration for this (student_id, term_id)
+                const { data: existingReg } = await supabase
+                  .from('grading_registrations')
+                  .select('id, result, invoice_item_id, grading_slot_id')
+                  .eq('student_id', invoiceData.student_id)
+                  .eq('term_id', termId)
+                  .maybeSingle();
+
+                if (existingReg) {
+                  // Only flip ready_for_grading on; refresh belts. Preserve result/slot/invoice link.
+                  await supabase
+                    .from('grading_registrations')
+                    .update({
+                      ready_for_grading: true,
+                      current_belt: currentBelt,
+                      target_belt: targetBelt,
+                    })
+                    .eq('id', existingReg.id);
+                } else {
+                  await supabase
+                    .from('grading_registrations')
+                    .insert([{
+                      student_id: invoiceData.student_id,
+                      term_id: termId,
+                      current_belt: currentBelt,
+                      target_belt: targetBelt,
+                      ready_for_grading: true,
+                      invoice_item_id: null,
+                      grading_slot_id: null,
+                      result: null,
+                      created_by: createdByEmail,
+                    }]);
+                }
+              }
+            }
+          }
+        } catch (gradingRegError) {
+          logger.error('Failed to auto-create grading registrations (non-fatal)', gradingRegError);
+          // Non-fatal — invoice still valid
+        }
+
         const entitlementsToCreate = [];
         for (const insertedItem of insertedItems) {
           const product = lessonProducts.get(insertedItem.product_id);
