@@ -311,7 +311,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         if (branchData?.country) branchCountry = branchData.country;
       }
       const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text').eq('country', countryCode).eq('is_active', true).limit(1);
+      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
       const template = templates?.[0] || null;
 
       const termIds: string[] = [];
