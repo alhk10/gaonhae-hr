@@ -1,66 +1,78 @@
 
 
-## Plan: "Unpaid Term" filter should pick the upcoming term during the inter-term gap
+## Plan: Add "Create Invoice" button in the Students tab Actions column
 
-### Root cause
+### Current behavior
 
-Today is 21 Apr 2026. For Morley, Term 1 2026 ended 10 Apr and Term 2 2026 starts 28 Apr — we're in the inter-term gap. In `src/components/dashboard/BranchDashboard.tsx` (line 467), `displayTerm = currentTerm || mostRecentTerm`. Since `currentTerm` is null (no active term covers today), the filter falls back to `mostRecentTerm`, which `getMostRecentTerm` resolves to the most recent **past** term — i.e. Term 1 2026.
+In `src/components/dashboard/BranchDashboard.tsx` (Students tab, lines 1145–1173), each non-withdrawn student row shows only a single "Withdraw" button in the Actions column. To create an invoice for a specific student, staff currently switch to the Invoice & Payment tab and re-pick the student.
 
-The "Unpaid Term" filter (line 844-848) then asks "who has no paid/verified lesson invoice for Term 1 2026?". ALEX, EARL JOHN, ELLIOT, ETHAN, HENRY have already been issued and verified Term 2 2026 invoices (confirmed in DB) but not Term 1, so they correctly fail the Term 1 check and incorrectly appear in the "Unpaid Term" list.
+### Change
 
-### Fix
+Add a second small action — **Create Invoice** — beside the Withdraw button on every non-withdrawn student row. Clicking it opens the existing `InvoiceDialog` in `create` mode with the student pre-selected and the branch locked to the current `branchId`.
 
-Introduce an "upcoming term" lookup and prefer it over the past term whenever there's no active current term. The filter then targets the term that staff are actually trying to collect for.
+### Implementation
 
-#### 1. New helper in `src/services/termCalendarService.ts`
+#### 1. Extend `InvoiceDialog` to accept a pre-selected student (`src/components/sales/InvoiceDialog.tsx`)
 
-Add `getUpcomingTerm(branchId)`:
-- Selects from `term_calendars` where `branch_id = branchId`, `is_active = true`, `start_date > today`, ordered by `start_date asc`, limit 1.
-- Returns the same `Term` shape as `getCurrentTerm`.
+- Add an optional prop `prefilledStudentId?: string` to `InvoiceDialogProps` (lines 51–60).
+- Where the create-mode form initializes its student selection state, if `mode === 'create'` and `prefilledStudentId` is provided, set it as the initially selected student id (using the same code path the existing student picker uses on selection — fetch student by id if needed for the display label).
+- No behavioural change for any existing caller (prop is optional and defaults to undefined).
 
-#### 2. New term selection precedence in `BranchDashboard.tsx`
+#### 2. Add per-row "Create Invoice" trigger (`src/components/dashboard/BranchDashboard.tsx`)
 
-- Add a `useQuery` for `getUpcomingTerm(branchId)`, enabled only when there's no `currentTerm`.
-- Change line 467 to:
+- Add a new state pair near the other invoice dialog state (lines 109–113):
   ```ts
-  const displayTerm = currentTerm || upcomingTerm || mostRecentTerm || null;
+  const [createInvoiceForStudentId, setCreateInvoiceForStudentId] = useState<string | null>(null);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   ```
-- This makes the "fee-collection term" the active driver:
-  - During a term → that term (unchanged).
-  - In the inter-term gap → the **upcoming** term (new behaviour, what staff are billing for).
-  - Only if no upcoming term exists at all (end of year, etc.) → fall back to most recent past term (preserves current behaviour for grading-list display).
+- In the Actions cell (lines 1145–1173), inside the same `<TableCell>`, add a small ghost button before the existing Withdraw button:
+  - Icon: `FileText` (already imported), label "Invoice", classes `h-6 text-[10px]`, separated from Withdraw with a small gap.
+  - `onClick` (with `e.stopPropagation()` to avoid opening the StudentDetails dialog): set `createInvoiceForStudentId = student.id` and `createInvoiceOpen = true`.
+- Render a single controlled `InvoiceDialog` once, near the existing view/edit `InvoiceDialog` (around line 1480):
+  ```tsx
+  {createInvoiceForStudentId && (
+    <InvoiceDialog
+      mode="create"
+      branchId={branchId}
+      prefilledStudentId={createInvoiceForStudentId}
+      open={createInvoiceOpen}
+      onOpenChange={(open) => {
+        setCreateInvoiceOpen(open);
+        if (!open) setCreateInvoiceForStudentId(null);
+      }}
+      onInvoiceCreated={() => {
+        queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
+        queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+      }}
+    />
+  )}
+  ```
+- The cell remains hidden in `massEditMode` (the existing `{!massEditMode && (…)}` wrapper covers both buttons).
 
-#### 3. Scope of the change
+### Behavioural rules preserved
 
-Because `displayTerm` also drives:
-- Outstanding-balance card (line 491)
-- Grading metrics (line 510)
-- Paid-term-student-ids (line 630)
-- Grading List default term (`GradingListTab.tsx` reads `displayTerm` via prop)
+- Branch is locked because `branchId` is passed (existing `invoice-branch-context-restrictions` rule applies — price rules, in-context products, locked branch).
+- The button is not shown for `status === 'withdrawn'` rows (they are filtered out of the list anyway).
+- Student row click still opens the Student Details dialog because `e.stopPropagation()` is called on the new button.
+- No existing caller of `InvoiceDialog` needs changes (new prop is optional).
 
-…all of these will now reflect the upcoming term during the gap, which is the desired operational view (you want to see who still hasn't paid for the term that's about to start, not the one that just ended). This matches the existing memory rule: *"Display term falls back to most recent."* — extended to prefer the upcoming term first.
+### Verification
 
-#### 4. No DB changes
-
-All term records already exist; only the client-side selection precedence changes.
-
-### Verification (Morley, today 21 Apr 2026)
-
-1. Open Branch Dashboard → Students tab → filter **Unpaid Class Fees (Current Term)** → ALEX, EARL JOHN, ELLIOT, ETHAN, HENRY no longer appear (they have verified Term 2 2026 invoices).
-2. Filter chip still labelled "Unpaid Term" — copy unchanged.
-3. Students with no Term 2 2026 lesson invoice yet still appear (e.g. ARIANA, CIELLE if they haven't been invoiced yet).
-4. After 28 Apr 2026 when Term 2 becomes the current term → behaviour unchanged (same term picked, just via the `currentTerm` branch instead of `upcomingTerm`).
-5. Outstanding balance card and Grading metrics now reflect Term 2 2026 during the gap — the term staff are actively collecting for.
-6. Branches with no upcoming active term configured → continue to fall back to the most recent past term (no regression).
+1. Morley → Students tab → ALEX NOH row shows two buttons: **Invoice** and **Withdraw**.
+2. Click **Invoice** → Create Invoice dialog opens with ALEX NOH pre-selected, branch locked to Morley.
+3. Closing or saving the dialog returns focus to the list; on save, the Invoice & Payment list refreshes (queries invalidated).
+4. Mass Edit mode → Actions column hidden as today (no regression).
+5. Withdrawn students do not appear in the list (no regression).
+6. Existing **Create Invoice** button at the top of the Invoice & Payment tab continues to work unchanged (opens with no pre-selected student).
 
 ### Files affected
 
-- `src/services/termCalendarService.ts` — add `getUpcomingTerm`.
-- `src/components/dashboard/BranchDashboard.tsx` — query upcoming term, update `displayTerm` precedence.
+- `src/components/sales/InvoiceDialog.tsx` — add optional `prefilledStudentId` prop and apply it in create mode initialization.
+- `src/components/dashboard/BranchDashboard.tsx` — new state, per-row Invoice button, controlled `InvoiceDialog` instance.
 
 ### Out of scope
 
-- Changing the filter label or adding a manual term picker.
-- Treating Term 1 invoices as still "owed" once Term 2 has begun.
-- Any backend / RLS / migration work.
+- Bulk-invoice from Mass Edit selection.
+- Pre-selecting a product/term per student.
+- Any change to the Invoice & Payment tab's existing "Create Invoice" button or to other dashboards (Sales/StudentManagementList already have their own create flows).
 
