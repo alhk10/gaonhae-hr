@@ -149,7 +149,8 @@ export const getUserAdminAccess = async (employeeId: string) => {
 export const getUserPageAccess = async (employeeId: string) => {
   const defaultAccess = {
     profile: true, applyLeave: true, submitClaim: true,
-    payslips: true, myAttendance: true, slotBookingEmployee: true
+    payslips: true, myAttendance: true, slotBookingEmployee: true,
+    cctvMonitoring: false
   };
 
   try {
@@ -168,7 +169,8 @@ export const getUserPageAccess = async (employeeId: string) => {
           submitClaim: row.submit_claim ?? true,
           payslips: row.payslips ?? true,
           myAttendance: row.my_attendance ?? true,
-          slotBookingEmployee: row.slot_booking_employee ?? true
+          slotBookingEmployee: row.slot_booking_employee ?? true,
+          cctvMonitoring: row.cctv_monitoring ?? false
         };
         cachePageAccess(employeeId, accessData);
         return accessData;
