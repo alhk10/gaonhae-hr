@@ -510,3 +510,33 @@ export const shareInvoiceViaWhatsApp = async (
   // Open WhatsApp Web
   window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
 };
+
+export const shareInvoiceViaSMS = async (
+  invoice: InvoiceData,
+  phoneNumber: string
+): Promise<void> => {
+  // Clean the phone number
+  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+
+  // Build items list
+  const itemsList = invoice.items && invoice.items.length > 0
+    ? invoice.items.map(item => `${item.description} - ${formatCurrency(item.total_amount)}`).join('\n')
+    : 'No items';
+
+  // Build bank transfer info if available
+  const bankInfo = invoice.template?.bank_transfer_info?.trim()
+    ? `\n${invoice.template.bank_transfer_info.trim()}\n`
+    : '\n';
+
+  // Build the message
+  const message =
+    `Hello! Your Gaonhae invoice ${invoice.invoice_number} has been issued.\n\n` +
+    `Items:\n${itemsList}\n\n` +
+    `Total: ${formatCurrency(invoice.total_amount)}\n` +
+    `${bankInfo}` +
+    `Thank you\n` +
+    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`;
+
+  // Open SMS app
+  window.location.href = `sms:${cleanNumber}?&body=${encodeURIComponent(message)}`;
+};

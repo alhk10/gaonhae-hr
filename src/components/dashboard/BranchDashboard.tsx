@@ -27,7 +27,8 @@ import {
   Loader2,
   Users,
   Save,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,7 +51,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
 import {
@@ -296,6 +297,63 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   }, [rejectingPayment, rejectionReason, branchId, queryClient, user?.employeeId]);
 
+  // Handle Send invoice via SMS (opens device SMS app, no PDF)
+  const handleShareSMS = async (invoice: any) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id).catch(() => null);
+      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
+      if (!number) {
+        toast.error('No mobile number on file for this student');
+        return;
+      }
+
+      // Fetch full invoice items
+      const fullInvoice = await getInvoiceById(invoice.id);
+
+      // Fetch bank transfer info from active template for this branch's country
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
+
+      const sourceInvoice = fullInvoice ?? invoice;
+      const invoiceData: InvoiceData = {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        issue_date: sourceInvoice.issue_date || null,
+        due_date: sourceInvoice.due_date || null,
+        subtotal: sourceInvoice.subtotal,
+        tax_amount: sourceInvoice.tax_amount,
+        discount_amount: sourceInvoice.discount_amount,
+        total_amount: sourceInvoice.total_amount,
+        amount_paid: sourceInvoice.amount_paid,
+        balance_due: sourceInvoice.balance_due,
+        notes: sourceInvoice.notes,
+        status: sourceInvoice.status,
+        items: fullInvoice?.items?.map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+        })) || [],
+        branch: branch ? { name: branch.name, address: branch.address } : undefined,
+        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+      };
+
+      await shareInvoiceViaSMS(invoiceData, number);
+    } catch (error) {
+      console.error('Error sharing invoice via SMS:', error);
+      toast.error('Failed to open SMS app');
+    }
+  };
+
   // Handle PDF download for invoice
   const handleDownloadPDF = async (invoice: any) => {
     try {
@@ -310,7 +368,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         if (branchData?.country) branchCountry = branchData.country;
       }
       const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text').eq('country', countryCode).eq('is_active', true).limit(1);
+      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
       const template = templates?.[0] || null;
 
       const termIds: string[] = [];
@@ -358,7 +416,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           }
           return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
         }) || [],
-        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined } : undefined
+        branch: branch ? { name: branch.name, address: branch.address } : undefined,
+        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined, bank_transfer_info: template.bank_transfer_info || undefined } : undefined
       };
       await downloadInvoicePDF(invoiceData);
       toast.success('Invoice PDF downloaded');
@@ -1331,6 +1390,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 )}
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Download PDF" onClick={() => handleDownloadPDF(invoice)} disabled={pdfLoadingId === invoice.id}>
                                   {pdfLoadingId === invoice.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" title="Send via SMS" onClick={(e) => { e.stopPropagation(); handleShareSMS(invoice); }}>
+                                  <MessageSquare className="w-3 h-3" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
