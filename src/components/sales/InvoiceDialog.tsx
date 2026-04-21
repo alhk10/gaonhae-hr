@@ -618,8 +618,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const loadGradingSlots = async () => {
     setGradingSlotsLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      setGradingSlots(await getGradingSlots({ status: 'active', from_date: today }));
+      // Include slots from the past 60 days so staff can still link an invoice
+      // to a recent grading event when payment lags the actual grading day.
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - GRADING_DUPLICATE_CHECK_DAYS);
+      const fromDateStr = fromDate.toISOString().split('T')[0];
+      setGradingSlots(await getGradingSlots({ status: 'active', from_date: fromDateStr }));
     } catch { console.error('Error loading grading slots'); }
     finally { setGradingSlotsLoading(false); }
   };
@@ -1527,9 +1531,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                     <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
                     <TableCell className="px-2">{sizeOptions.length > 0 ? <Select value={newItem.size_variant} onValueChange={(v) => handleNewItemChange('size_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Size" /></SelectTrigger><SelectContent>{sizeOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select> : showSizeInput ? <Input type="text" value={newItem.size_variant} onChange={(e) => handleNewItemChange('size_variant', e.target.value)} placeholder="Size" className="h-7 text-xs w-16 px-1" /> : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="px-2">{colorOptions.length > 0 ? <Select value={newItem.color_variant} onValueChange={(v) => handleNewItemChange('color_variant', v)}><SelectTrigger className="h-7 text-xs w-16"><SelectValue placeholder="Color" /></SelectTrigger><SelectContent>{colorOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground">-</span>}</TableCell>
-                    <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No slots</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
+                    <TableCell className="px-2">{selectedCategory?.name === 'Classes' ? (branchTerms.length > 0 ? <Select value={newItem.term_id} onValueChange={(v) => handleNewItemChange('term_id', v)} disabled={termLoading}><SelectTrigger className={`h-7 text-xs ${termError ? 'border-destructive' : ''}`}><SelectValue placeholder={termLoading ? "..." : "Term"} /></SelectTrigger><SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-xs">No terms</span>) : newItem.category_id === GRADING_CATEGORY_ID ? (getFilteredGradingSlots().length > 0 ? <Select value={newItem.grading_slot_id} onValueChange={(v) => handleNewItemChange('grading_slot_id', v)} disabled={gradingSlotsLoading}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder={gradingSlotsLoading ? "..." : "Slot"} /></SelectTrigger><SelectContent>{getFilteredGradingSlots().map(s => <SelectItem key={s.id} value={s.id}>{s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}</SelectItem>)}</SelectContent></Select> : <span className="text-muted-foreground text-[10px] leading-tight block">No grading slots — create one in Sales → Grading</span>) : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="px-2 text-muted-foreground">-</TableCell>
-                    <TableCell className="px-1"><Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id}><Plus className="h-3.5 w-3.5" /></Button></TableCell>
+                    <TableCell className="px-1"><Button type="button" onClick={addItem} size="icon" className="h-7 w-7" disabled={!newItem.product_id || (newItem.category_id === GRADING_CATEGORY_ID && getFilteredGradingSlots().length === 0)}><Plus className="h-3.5 w-3.5" /></Button></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -1716,6 +1720,38 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                             })}
                           </div>
                         )}
+                        {/* Grading slot selector — for Grading category items (backfill legacy rows) */}
+                        {(() => {
+                          const product = viewProducts.find(p => p.id === item.product_id);
+                          const isGradingItem = (product?.category_name || item.category_name) === 'Grading';
+                          if (!isGradingItem) return null;
+                          const currentSlotId = (item.metadata as any)?.grading_slot_id || '';
+                          const branchSlots = gradingSlots.filter(s =>
+                            s.branch_id === invoice.branch_id ||
+                            (Array.isArray(s.available_branch_ids) && s.available_branch_ids.includes(invoice.branch_id || ''))
+                          );
+                          return (
+                            <div className="flex items-center gap-1.5 pt-1 border-t">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Grading slot:</Label>
+                              {branchSlots.length > 0 ? (
+                                <Select value={currentSlotId} onValueChange={(newSlotId) => {
+                                  setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), grading_slot_id: newSlotId } }));
+                                }}>
+                                  <SelectTrigger className="h-7 w-full md:w-72 text-xs"><SelectValue placeholder="Select grading slot" /></SelectTrigger>
+                                  <SelectContent>
+                                    {branchSlots.map(s => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">No grading slots — create one in Sales → Grading</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
                       </div>
                     );
