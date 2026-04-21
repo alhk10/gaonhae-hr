@@ -67,7 +67,7 @@ const PartyManagement = () => {
     submitClaim: true,
     payslips: true,
     myAttendance: true,
-    slotBookingEmployee: true
+    slotBookingEmployee: true,
     cctvMonitoring: false
   });
 
@@ -236,7 +236,7 @@ const PartyManagement = () => {
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
       cctvMonitoring: false
     });
   };

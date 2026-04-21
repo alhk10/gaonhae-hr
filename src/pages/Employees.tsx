@@ -52,7 +52,7 @@ const Employees = () => {
     submitClaim: true,
     payslips: true,
     myAttendance: true,
-    slotBookingEmployee: true
+    slotBookingEmployee: true,
     cctvMonitoring: false
   });
 
@@ -186,7 +186,7 @@ const Employees = () => {
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
       cctvMonitoring: false
     });
   };

@@ -101,7 +101,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           submitClaim: emp.pageAccess?.submitClaim !== false,
           payslips: emp.pageAccess?.payslips !== false,
           myAttendance: emp.pageAccess?.myAttendance !== false,
-          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false
+          slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false,
           cctvMonitoring: emp.pageAccess?.cctvMonitoring === true
         };
       });
@@ -152,7 +152,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           submitClaim: permissions.submitClaim,
           payslips: permissions.payslips,
           myAttendance: permissions.myAttendance,
-          slotBookingEmployee: permissions.slotBookingEmployee
+          slotBookingEmployee: permissions.slotBookingEmployee,
           cctvMonitoring: permissions.cctvMonitoring
         };
         

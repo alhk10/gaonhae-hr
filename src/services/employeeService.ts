@@ -94,7 +94,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           submitClaim: pageAccess.submit_claim ?? true,
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
-          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
           cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
@@ -102,7 +102,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           submitClaim: true,
           payslips: true,
           myAttendance: true,
-          slotBookingEmployee: true
+          slotBookingEmployee: true,
           cctvMonitoring: false
         }
       };
@@ -217,7 +217,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           submitClaim: pageAccess.submit_claim ?? true,
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
-          slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
           cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
@@ -225,7 +225,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           submitClaim: true,
           payslips: true,
           myAttendance: true,
-          slotBookingEmployee: true
+          slotBookingEmployee: true,
           cctvMonitoring: false
         }
       };
@@ -333,7 +333,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         submitClaim: pageAccess.submit_claim ?? true,
         payslips: pageAccess.payslips ?? true,
         myAttendance: pageAccess.my_attendance ?? true,
-        slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+        slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
         cctvMonitoring: pageAccess.cctv_monitoring ?? false
       } : {
         profile: true,
@@ -341,7 +341,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         submitClaim: true,
         payslips: true,
         myAttendance: true,
-        slotBookingEmployee: true
+        slotBookingEmployee: true,
         cctvMonitoring: false
       }
     };
@@ -452,7 +452,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       submitClaim: pageAccess.submit_claim ?? true,
       payslips: pageAccess.payslips ?? true,
       myAttendance: pageAccess.my_attendance ?? true,
-      slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+      slotBookingEmployee: pageAccess.slot_booking_employee ?? true,
       cctvMonitoring: pageAccess.cctv_monitoring ?? false
     } : {
       profile: true,
@@ -460,7 +460,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       submitClaim: true,
       payslips: true,
       myAttendance: true,
-      slotBookingEmployee: true
+      slotBookingEmployee: true,
       cctvMonitoring: false
     }
   };
