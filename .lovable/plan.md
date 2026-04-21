@@ -1,78 +1,72 @@
 
 
-## Plan: Add "Branch Setup" button to Branch Dashboard header (superadmin only)
+## Plan: Fix first-open race where Branch & Student dropdowns appear empty
 
-Mirror the same multi-tab Branch Setup hub from **Settings → Branches → Branch Setup** so superadmins can manage branch configuration without navigating away from the Branch Dashboard.
+### Root cause
 
-### Changes
+In `InvoiceDialog.tsx`, the data loaders (`loadBranches`, `loadStudents`, `loadProducts`, `loadCategories`, `loadGradingSlots`) only run inside `useEffect(..., [dialogOpen])` — i.e., **after** the dialog opens. The dialog renders immediately with empty `branches=[]` and `students=[]`, so:
 
-**File: `src/components/dashboard/BranchDashboard.tsx`**
+- The **Branch** Select receives `formData.branch_id = lockedBranchId` (e.g. `"morley"`) but no matching `<SelectItem>` exists yet → it falls back to the "Select branch" placeholder. The "Locked" badge still shows because `lockedBranchId` is truthy, but the field looks empty.
+- The **Student** combobox renders with `filteredStudents = []` → "Select student" placeholder, no options to pick.
+- Closing and reopening "fixes" it because by the time the user reopens, the prior fetches have populated `branches`/`students`/`products` state, and the second mount's loaders just refresh already-populated data.
 
-1. **Import the existing dialog** (no duplication):
+There is a secondary minor issue: `StudentSearchSelect` receives `container={dialogContentRef.current}`, which is `null` on the first render (ref attaches after mount), but this only affects the popover portal target, not the empty-list problem.
+
+### Fix
+
+**File: `src/components/sales/InvoiceDialog.tsx`**
+
+1. **Preload shared data on component mount in create mode**, not on dialog open. The component is mounted as soon as the page renders the trigger button, so by the time the user clicks, `branches`/`students`/`products`/`categories`/`gradingSlots` are already populated.
+
+   Replace the existing `useEffect([dialogOpen])`:
    ```ts
-   import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
+   // Preload reference data once when component mounts (create mode only)
+   useEffect(() => {
+     if (!isCreateMode) return;
+     loadStudents();
+     loadProducts();
+     loadBranches();
+     loadCategories();
+     loadGradingSlots();
+   }, [isCreateMode]);
+
+   // On dialog open: just apply locked branch + load view data for view/edit
+   useEffect(() => {
+     if (!dialogOpen) return;
+     if (isCreateMode) {
+       if (lockedBranchId) {
+         setFormData(prev => ({ ...prev, branch_id: lockedBranchId }));
+         loadBranchTerms(lockedBranchId);
+       }
+     } else {
+       setMode(initialMode);
+       loadInvoiceData();
+       loadViewProducts();
+     }
+   }, [dialogOpen]);
    ```
 
-2. **Add state** near other dialog state:
+2. **Add a loading guard for the locked-branch case** so the Select doesn't briefly render with a stale placeholder if a slow network beats the user's click. While `branches.length === 0` AND `lockedBranchId` is set, render a disabled `<Input value="Loading branch..." />` in place of the Branch Select. Once `branches` populates (almost always before the user opens the dialog after the mount-preload), the real Select renders with the correct selected branch name.
+
+3. **Show a subtle loading indicator in the Student combobox** when `students.length === 0`: change the placeholder from "Select student" to "Loading students..." and disable the trigger button. Once students load, normal behavior resumes.
+
+4. **Fix the popover container ref** so the Student/Product comboboxes portal correctly on first open: switch `container={dialogContentRef.current}` to a state-driven ref:
    ```ts
-   const [branchSetupOpen, setBranchSetupOpen] = useState(false);
+   const [dialogContentEl, setDialogContentEl] = useState<HTMLElement | null>(null);
+   <DialogContent ref={(el) => { dialogContentRef.current = el; setDialogContentEl(el); }} ...>
    ```
-
-3. **Update header (lines 907–911)** to add a superadmin-only button beside the title:
-   ```tsx
-   <div className="flex items-center justify-between">
-     <h2 className="text-lg sm:text-2xl font-bold text-foreground">
-       {branch?.name || 'Loading...'} Dashboard
-     </h2>
-     {userrole === 'superadmin' && branch && (
-       <Button
-         variant="outline"
-         size="sm"
-         onClick={() => setBranchSetupOpen(true)}
-         className="gap-1.5"
-       >
-         <Settings className="w-4 h-4" />
-         <span className="hidden sm:inline">Branch Setup</span>
-       </Button>
-     )}
-   </div>
-   ```
-   `Settings` icon is already imported (line 25); `Button` is already imported.
-
-4. **Render the dialog** at the bottom of the component (next to other dialogs):
-   ```tsx
-   <BranchSetupDialog
-     branch={branch as any}
-     open={branchSetupOpen}
-     onOpenChange={setBranchSetupOpen}
-     onSaved={() => {
-       queryClient.invalidateQueries({ queryKey: ['branch', branchId] });
-     }}
-   />
-   ```
-   The `branch` from `useQuery` is `select('*')` from `branches` and matches the `Branch` interface used by `BranchSetupDialog` (id, name, country, currency, etc.). On save, we invalidate the branch query so updated name/country/currency reflects in the header immediately.
-
-### What the button opens
-
-The exact same `BranchSetupDialog` shown in **Settings → Branches**, with all 7 tabs:
-- General, Operating Hours, Class Timetable, Products & Pricing, Inventory, Employee Access, CCTV Cameras
-
-No changes to the dialog itself — single source of truth.
-
-### Access control
-
-- Button only renders when `userrole === 'superadmin'`. Non-superadmin staff (managers, partners, employees) will not see it.
-- Matches existing superadmin-only patterns (e.g., delete-without-approval, mass edit).
+   Then pass `container={dialogContentEl}` to `StudentSearchSelect` and `ProductSearchSelect`. This ensures the popover re-renders with the correct portal target after the dialog mounts.
 
 ### Verification
 
-- Login as **superadmin**, open any branch dashboard → "Branch Setup" button appears top-right of header → clicking opens the same multi-tab dialog as Settings → Branches → Branch Setup (gear icon).
-- Login as **manager / partner / employee** with branch access → no button visible.
-- Edit branch name in the General tab → save → header title updates after dialog closes (via `onSaved` invalidation).
-- Mobile (<640px) → button shows icon only (label hidden) to fit the header.
+- From `/parties` (or any branch dashboard), click **Create Invoice** for the first time after page load → Branch field immediately shows the locked branch name (e.g. **Morley**), Student dropdown lists active students for that branch, no need to close/reopen.
+- Click Create Invoice on a slow network → Branch field briefly shows "Loading branch..." then resolves to the locked branch; Student dropdown shows "Loading students..." then populates. No empty dropdown with a "Locked" badge.
+- Open Create Invoice from `InvoiceManagementList` (no `lockedBranchId`) → Branch dropdown lists all accessible branches on first open.
+- Open in **view/edit** mode → unchanged (loaders still fire on `dialogOpen` for invoice data).
+- Open Student combobox → list portals inside the dialog (not behind it), search works on first interaction.
 
 ### Out of scope
 
-- Changing the dialog's content, tabs, or per-tab logic.
-- Adding the button to non-superadmin roles (can be revisited if needed).
+- Migrating loaders to React Query for cross-component caching (current local-state approach is fine for the fix; can be revisited later).
+- Changing the locked-branch UX (badge, disabled state).
 
