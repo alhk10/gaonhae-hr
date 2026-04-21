@@ -5359,6 +5359,7 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: {
           apply_leave: boolean
+          cctv_monitoring: boolean
           my_attendance: boolean
           payslips: boolean
           profile: boolean
