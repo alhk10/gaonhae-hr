@@ -176,7 +176,8 @@ const StudentSearchSelect: React.FC<{
   value: string;
   onValueChange: (value: string) => void;
   container?: HTMLElement | null;
-}> = ({ students, value, onValueChange, container }) => {
+  loading?: boolean;
+}> = ({ students, value, onValueChange, container, loading }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = students.find(s => s.id === value)?.name;
@@ -185,8 +186,8 @@ const StudentSearchSelect: React.FC<{
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
-          {selectedName || <span className="text-muted-foreground">Select student</span>}
+        <Button variant="outline" role="combobox" aria-expanded={open} disabled={loading} className="w-full justify-between font-normal">
+          {selectedName || <span className="text-muted-foreground">{loading ? 'Loading students...' : 'Select student'}</span>}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
