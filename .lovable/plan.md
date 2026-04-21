@@ -1,110 +1,89 @@
 
 
-## Plan: CCTV Monitoring page
+## Plan: Instagram AI Content & Posting Module
 
-A new authenticated page that displays a grid of branch cards, each playing a live HLS video stream proxied from a self-hosted MediaMTX server. RTSP camera URLs are stored in the database and never leave the server — the frontend only sees relay URLs like `https://media.gaonhae.app/<token>/index.m3u8`.
+A new module that lets superadmins/marketing staff generate AI-written Instagram captions tailored to brand voice + branch, schedule posts, route them through approval, and (optionally) publish to Instagram Business accounts via the Meta Graph API.
 
-### Important: required infrastructure (out of Lovable's reach)
+### Important: third-party requirements (out of Lovable's control)
 
-Live RTSP-to-HLS conversion requires a server you control running MediaMTX (or equivalent). **Lovable cannot host this.** You'll need:
+Publishing to Instagram requires Meta-side setup that you must do once:
+1. A **Facebook Page** linked to each Instagram **Business/Creator** account (one per branch you want to publish to).
+2. A **Meta Developer App** with the `instagram_content_publish`, `instagram_basic`, `pages_show_list`, `pages_read_engagement` permissions, reviewed and approved by Meta.
+3. A **long-lived Page Access Token** per branch (stored as a Supabase secret, never exposed to the browser).
 
-1. A small VPS (1 vCPU, 1 GB RAM is enough for ~10 cameras) reachable from each branch's router.
-2. MediaMTX installed (single binary, free, open-source) listening on:
-   - `:8554` for RTSP ingest (cameras push, or it pulls)
-   - `:8888` for HLS playback
-   - `:8889` for WebRTC playback (optional, low-latency)
-3. Each branch camera/NVR configured to either be reachable by MediaMTX (pull mode) or to push to MediaMTX (push mode — more reliable behind NAT).
-4. A TLS hostname pointed at MediaMTX (e.g. `media.gaonhae.app`) so browsers can play it from HTTPS pages.
+Until those are configured, the module still works end-to-end as a **draft + approval + scheduled queue** — only the final "Publish to Instagram" step is gated on the token being present. Drafts/approvals/AI generation work immediately.
 
-The plan below builds everything around that — once the server exists, paths are configured per-branch via the new admin UI and streams Just Work.
+### Database (new tables)
 
-### New tables (Supabase)
+- `brand_settings`
+  - `id uuid pk`, `branch_id text fk → branches.id` (nullable = global default), `tone text`, `keywords text[]`, `default_hashtags text[]`, `caption_style text`, `language text default 'en'`, `created_at`, `updated_at`.
+  - One row per branch + one global fallback. RLS: SELECT for any authenticated user with branch access; INSERT/UPDATE/DELETE for superadmin only.
 
-- `cctv_cameras`
-  - `id uuid pk`, `branch_id text fk → branches.id`, `name text`, `mediamtx_path text` (e.g. `balmoral-front`), `supports_playback bool default false`, `is_active bool default true`, `display_order int default 0`, `created_at`, `updated_at`.
-  - **No raw RTSP URL stored client-side.** Raw RTSP credentials live in MediaMTX's own config on the VPS (or in a private `cctv_camera_secrets` table only readable by service role).
-- `cctv_camera_secrets` (optional, server-only)
-  - `id uuid pk`, `camera_id uuid fk`, `rtsp_url text`, `username text`, `password text`. RLS: deny all to authenticated; only service_role can read. Used by the edge function below to render MediaMTX config or to mint signed playback tokens.
-- RLS on `cctv_cameras`:
-  - SELECT: superadmin OR `has_branch_access(branch_id)` (existing function).
-  - INSERT/UPDATE/DELETE: superadmin only.
+- `social_posts`
+  - `id uuid pk`, `branch_id text fk → branches.id`, `content_type text check in ('achievement','training','educational','promotion')`, `caption text`, `cta text`, `hashtags text[]`, `media_url text`, `media_type text check in ('image','video')`, `scheduled_at timestamptz`, `status text check in ('draft','pending_approval','approved','scheduled','publishing','published','failed') default 'draft'`, `instagram_media_id text`, `instagram_permalink text`, `failure_reason text`, `created_by text` (employee email), `approved_by text`, `approved_at timestamptz`, `published_at timestamptz`, `created_at`, `updated_at`.
+  - RLS: SELECT for branch access OR superadmin; INSERT for branch access; UPDATE limited to creator (while `draft`) or superadmin (any state); DELETE superadmin only.
 
-### Edge function: `cctv-stream-token`
-
-- Input: `{ camera_id }`.
-- Verifies caller is authenticated and has branch access to that camera's `branch_id` (reuses `has_branch_access`).
-- Returns a short-lived signed URL: `https://media.gaonhae.app/<mediamtx_path>/index.m3u8?jwt=…` (HMAC-signed, 5-minute TTL). MediaMTX is configured with the matching shared secret in its `authJWTJWKS`/`authInternalUsers` block to validate the JWT before serving the segment.
-- Same pattern for WebRTC: returns `https://media.gaonhae.app/<mediamtx_path>/whep?jwt=…`.
-
-This is what hides the raw RTSP URL — the browser only ever sees a per-session signed HLS URL.
+- New storage bucket: `social-media` (public read, authenticated write) — uploaded photos/videos for posts.
 
 ### Permissions
 
-- New permission key `cctv_monitoring` added to `employee_page_access` (boolean, default false).
-- Auto-granted to superadmin. Toggleable per employee in the existing **Settings → Employee Access** UI (one-line addition).
-- Route gated with `<PageAccessGuard requiredPermission="cctv_monitoring">`.
+- New `employee_page_access.social_media boolean default false`. Superadmin always allowed. Sidebar item shows when granted. Route guard via existing `<PageAccessGuard requiredPermission="socialMedia">`. Update `EmployeePageAccessPermissions` type and the `get_page_access_for_auth` RPC.
+
+### Edge functions
+
+1. **`social-generate-caption`** (auth required)
+   - Input: `{ branch_id, content_type, custom_notes? }`.
+   - Loads `brand_settings` for that branch (falling back to global), composes the prompt as specified (tone/keywords/branch/content_type), and calls **Lovable AI Gateway** with `google/gemini-3-flash-preview` using **tool calling** to enforce structured JSON output `{ caption, cta, hashtags: string[10] }`. Handles 429/402 with friendly errors.
+   - No Meta involvement — pure text generation.
+
+2. **`social-publish-instagram`** (auth required, superadmin or post-creator only)
+   - Input: `{ post_id }`. Loads the `social_posts` row + secrets `IG_PAGE_TOKEN_<BRANCH_ID>` and `IG_ACCOUNT_ID_<BRANCH_ID>`.
+   - Two-step Graph API flow: (a) `POST /<ig-user-id>/media` with `image_url` (or `video_url` + `media_type=VIDEO`) + caption; (b) `POST /<ig-user-id>/media_publish` with the returned container id. Stores `instagram_media_id` + `permalink`, flips status to `published`, sets `published_at`.
+   - On error, sets status to `failed` and stores `failure_reason`.
+
+3. **`social-scheduler-tick`** (cron, every 5 min via `pg_cron` + `pg_net`)
+   - Finds posts where `status='scheduled' AND scheduled_at <= now()`, invokes `social-publish-instagram` for each.
 
 ### Frontend
 
-- Route: `/cctv` → `src/pages/CctvMonitoring.tsx`.
-- Sidebar entry "CCTV Monitoring" (icon `Video` from lucide-react), shown when permission is granted.
-- Page layout:
-  - Header with branch filter (uses `useBranchAccess` so non-superadmins only see their branches).
-  - Responsive grid: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` of `<CameraCard>`.
-  - Each card:
-    - Branch name + camera name.
-    - Camera selector dropdown if branch has >1 camera.
-    - HLS player using `hls.js` (already-supported pattern: native `<video>` on Safari/iOS, `hls.js` elsewhere).
-    - Auto-reconnect: on `ERROR_FATAL` event re-fetch a fresh signed URL via `cctv-stream-token` and call `hls.loadSource()` again, exponential backoff (1s, 2s, 5s, max 30s).
-    - "Live" indicator dot + last-frame-received timestamp.
-    - Optional "Playback" button (only when `supports_playback=true`) — opens a date/time picker that requests a VOD URL from the same edge function (MediaMTX `playback` endpoint).
-- Mobile: cards stack 1 column, video uses `aspect-video`, controls remain reachable.
+- New route `/social` → tabbed page `SocialMedia.tsx` with three tabs:
+  - **Create** — `/social` default tab. Branch selector → media upload (storage bucket `social-media`) → content type dropdown → "Generate Caption" button → editable caption / CTA / hashtags fields → mobile Instagram-style preview card (square crop + caption truncation rules) → Save Draft / Submit for Approval.
+  - **Calendar** — month grid (reuses `Calendar`/`react-day-picker`); each day shows pill chips per post coloured by status; branch filter bar; click a chip to open the editor dialog.
+  - **Approvals** — superadmin-only list of `pending_approval` posts with Approve / Reject (with note) actions; approving with `scheduled_at` set → status `scheduled`, otherwise → status `approved` (manual publish).
 
-### Admin UI
+- New components:
+  - `src/components/social/PostEditorDialog.tsx` — shared edit dialog used from Create tab and Calendar.
+  - `src/components/social/InstagramPreview.tsx` — mobile-format preview.
+  - `src/components/social/PostStatusBadge.tsx`.
+  - `src/components/social/MediaUpload.tsx` — uses existing storage upload pattern.
 
-- New tab in **Settings → Branches → Branch Setup dialog** called **"CCTV Cameras"** (re-uses the existing per-branch setup hub built last task).
-  - Lists this branch's cameras with edit/delete.
-  - "Add camera" form: Name, MediaMTX path, Supports playback toggle, Active toggle, Display order.
-  - For superadmin only: separate collapsible "Stream credentials (server-only)" panel that writes to `cctv_camera_secrets`.
+- New service: `src/services/socialMediaService.ts` (CRUD on `social_posts` + `brand_settings`, upload helpers, edge-function invokers).
 
-### What stays the same
+### Brand settings UI
 
-- No changes to existing auth, sidebar render, branch access service, or other settings tabs.
-- No new third-party SaaS — `hls.js` is a small open-source npm dep, MediaMTX is self-hosted.
+- New tab inside the existing **Branch Setup dialog** (`BranchSetupDialog.tsx`) called **"Brand Voice"** — edits `brand_settings` for that branch (tone, keywords, default hashtags, caption style). Plus a global default editable from **Settings → System** as a top-level card.
 
-### Files
+### Sidebar
 
-- New: `src/pages/CctvMonitoring.tsx`
-- New: `src/components/cctv/CameraCard.tsx`
-- New: `src/components/cctv/HlsPlayer.tsx`
-- New: `src/components/cctv/PlaybackDialog.tsx`
-- New: `src/components/settings/branch-setup/CctvCamerasTab.tsx`
-- New: `src/services/cctvService.ts`
-- New: `supabase/functions/cctv-stream-token/index.ts`
-- Modify: `src/App.tsx` (add `/cctv` route)
-- Modify: `src/components/layout/Sidebar.tsx` (add menu item)
-- Modify: `src/components/settings/BranchSetupDialog.tsx` (add tab)
-- Modify: `src/types/employee.ts` (add `cctvMonitoring` to `EmployeePageAccessPermissions`)
-- Migration: create the two tables + RLS, add `cctv_monitoring` boolean column to `employee_page_access`.
+- Add `{ icon: Instagram, label: 'Social Media', path: '/social' }` (lucide `Instagram`) for superadmin and for any employee with `pageAccess.socialMedia`.
 
-### What you (the user) need to provide before this works
+### Cron job
 
-1. A VPS with MediaMTX installed and a TLS hostname (we'll add a setup README to the repo).
-2. A shared HMAC secret saved in Supabase secrets as `MEDIAMTX_JWT_SECRET` and in MediaMTX's config.
-3. The MediaMTX base URL saved as `MEDIAMTX_BASE_URL` (e.g. `https://media.gaonhae.app`).
-4. Per-camera RTSP URL + credentials, entered once via the new Branch Setup → CCTV Cameras tab.
+- One-time SQL to register the 5-minute `social-scheduler-tick` job using `pg_cron` + `pg_net` (you'll need to confirm `pg_cron`/`pg_net` are enabled — they're already used by other reminder functions in this project, so this should just work).
 
-### Verification (after VPS is up)
+### Verification
 
-- Add a test camera at Morley with `mediamtx_path = morley-test`, RTSP `rtsp://user:pass@10.0.0.20/stream1`.
-- Visit `/cctv` as superadmin → grid shows Morley card with live video within 2-3 seconds.
-- Disconnect camera Ethernet → "Reconnecting…" overlay appears, retries automatically.
-- Log in as a Morley-only employee with `cctv_monitoring=true` → sees only Morley cameras; cannot see Balmoral.
-- Network tab: HLS URL contains `?jwt=…`; raw RTSP URL never appears in any client request.
+- Settings → Branches → Brand Voice for Morley → set tone "energetic, family-friendly", keywords ["taekwondo","kids","Perth"]. Save.
+- `/social` → upload a training photo → branch Morley → content type Training → click Generate Caption → caption + CTA + 10 hashtags appear. Edit if desired. Submit for Approval.
+- Log in as superadmin → Approvals tab shows the post → Approve with `scheduled_at = now() + 2 minutes`.
+- Within 5 min, scheduler tick runs, post moves to `publishing` → `published` (if Meta token is configured) or `failed` with reason (if not). Permalink stored.
+- Calendar tab → post chip appears on the scheduled day with correct status colour.
+- Network tab: no Meta token ever leaves the edge function; raw IG account IDs not exposed to the browser.
 
 ### Out of scope
 
-- VPS provisioning, MediaMTX install scripts, NAT/router setup at branches.
-- Recording-to-cloud, motion alerts, AI analytics — purely live + on-camera playback.
-- Multi-tenant access beyond existing branch-access model.
+- Per-user Instagram OAuth (we use one Page token per branch; Meta does not support per-end-user posting to a brand IG account anyway).
+- Carousel posts, Reels with cover-frame selection, Stories — only single-image and single-video feed posts in v1.
+- Auto-suggesting best post times, analytics on engagement (likes/comments) — read-back from IG insights is a follow-up.
+- Multi-language generation beyond what the AI naturally produces from the brand `language` field.
 
