@@ -1559,6 +1559,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {branch && (
+        <BranchSetupDialog
+          branch={branch as any}
+          open={branchSetupOpen}
+          onOpenChange={setBranchSetupOpen}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['branch', branchId] });
+          }}
+        />
+      )}
     </div>
   );
 };
