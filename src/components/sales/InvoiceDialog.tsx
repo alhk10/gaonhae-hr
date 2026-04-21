@@ -1723,7 +1723,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                         {/* Grading slot selector — for Grading category items (backfill legacy rows) */}
                         {(() => {
                           const product = viewProducts.find(p => p.id === item.product_id);
-                          const isGradingItem = product?.category_id === GRADING_CATEGORY_ID;
+                          const isGradingItem = (product?.category_name || item.category_name) === 'Grading';
                           if (!isGradingItem) return null;
                           const currentSlotId = (item.metadata as any)?.grading_slot_id || '';
                           const branchSlots = gradingSlots.filter(s =>
