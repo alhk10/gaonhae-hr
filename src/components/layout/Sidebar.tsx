@@ -22,7 +22,8 @@ import {
   FileSpreadsheet,
   Award,
   FileCheck,
-  Building2
+  Building2,
+  Video
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -128,6 +129,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
         { icon: DollarSign, label: 'Payslips', path: '/payslips' },
         { icon: Clock, label: 'My Attendance', path: '/my-attendance' },
         { icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' },
+        { icon: Video, label: 'CCTV Monitoring', path: '/cctv' },
       ];
 
       // Add Sales Module items if user has access
@@ -262,6 +264,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
       // Hide Slot Booking for partners
       if (pageAccess.slotBookingEmployee && !isPartnerPosition) {
         menuItems.push({ icon: CalendarClock, label: 'Slot Booking', path: '/slot-booking' });
+      }
+      if (pageAccess.cctvMonitoring) {
+        menuItems.push({ icon: Video, label: 'CCTV Monitoring', path: '/cctv' });
       }
     }
 

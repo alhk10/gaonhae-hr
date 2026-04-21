@@ -15,6 +15,7 @@ import {
   Settings as SettingsIcon,
   Users,
   Warehouse,
+  Video,
 } from 'lucide-react';
 import type { Branch } from '@/services/settingsService';
 import { GeneralTab } from './branch-setup/GeneralTab';
@@ -23,6 +24,7 @@ import { ClassTimetableTab } from './branch-setup/ClassTimetableTab';
 import { ProductsPricingTab } from './branch-setup/ProductsPricingTab';
 import { InventoryTab } from './branch-setup/InventoryTab';
 import { EmployeeAccessTab } from './branch-setup/EmployeeAccessTab';
+import { CctvCamerasTab } from './branch-setup/CctvCamerasTab';
 
 interface BranchSetupDialogProps {
   branch: Branch | null;
@@ -72,6 +74,9 @@ export const BranchSetupDialog: React.FC<BranchSetupDialogProps> = ({
             <TabsTrigger value="access" className="flex items-center gap-1.5">
               <Users className="w-4 h-4" /> Employee Access
             </TabsTrigger>
+            <TabsTrigger value="cctv" className="flex items-center gap-1.5">
+              <Video className="w-4 h-4" /> CCTV Cameras
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -95,6 +100,9 @@ export const BranchSetupDialog: React.FC<BranchSetupDialogProps> = ({
           </TabsContent>
           <TabsContent value="access">
             <EmployeeAccessTab branchId={branch.id} />
+          </TabsContent>
+          <TabsContent value="cctv">
+            <CctvCamerasTab branchId={branch.id} />
           </TabsContent>
         </Tabs>
       </DialogContent>

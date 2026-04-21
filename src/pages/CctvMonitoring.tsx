@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+// (default-import workaround removed; ResponsiveLayout uses default export)
+
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,

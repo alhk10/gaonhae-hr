@@ -42,6 +42,7 @@ const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
+const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -114,6 +115,7 @@ function App() {
                     <Route path="/payslips" element={<ProtectedRoute permission="payslips"><Payslips /></ProtectedRoute>} />
                     <Route path="/my-attendance" element={<ProtectedRoute permission="myAttendance"><MyAttendance /></ProtectedRoute>} />
                     <Route path="/slot-booking" element={<ProtectedRoute permission="slotBookingEmployee"><SlotBooking /></ProtectedRoute>} />
+                    <Route path="/cctv" element={<ProtectedRoute permission="cctvMonitoring"><CctvMonitoring /></ProtectedRoute>} />
 
                     {/* Protected Admin/Manager Routes */}
                     <Route path="/employees" element={<ProtectedRoute permission="employees"><Employees /></ProtectedRoute>} />
