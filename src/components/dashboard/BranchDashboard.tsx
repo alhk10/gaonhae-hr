@@ -44,6 +44,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchCasualSchedule from './BranchCasualSchedule';
+import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
@@ -112,6 +113,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
+  const [branchSetupOpen, setBranchSetupOpen] = useState(false);
   
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
@@ -908,6 +910,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <h2 className="text-lg sm:text-2xl font-bold text-foreground">
           {branch?.name || 'Loading...'} Dashboard
         </h2>
+        {userrole === 'superadmin' && branch && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBranchSetupOpen(true)}
+            className="gap-1.5"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Branch Setup</span>
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -1546,6 +1559,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {branch && (
+        <BranchSetupDialog
+          branch={branch as any}
+          open={branchSetupOpen}
+          onOpenChange={setBranchSetupOpen}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['branch', branchId] });
+          }}
+        />
+      )}
     </div>
   );
 };
