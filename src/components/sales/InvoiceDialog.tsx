@@ -2030,6 +2030,30 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Grading prerequisite override (superadmin) */}
+      <AlertDialog open={prerequisiteOverrideOpen} onOpenChange={setPrerequisiteOverrideOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Override grading prerequisite?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {students.find(s => s.id === formData.student_id)?.name || 'This student'} has no paid term invoice for the current term at {branches.find(b => b.id === formData.branch_id)?.name || 'this branch'}. As superadmin you can issue this grading invoice anyway. Proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                prerequisiteOverriddenRef.current = true;
+                setPrerequisiteOverrideOpen(false);
+                handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+              }}
+            >
+              Override and create
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
