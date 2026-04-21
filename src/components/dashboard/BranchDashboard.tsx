@@ -113,6 +113,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
+  const [branchSetupOpen, setBranchSetupOpen] = useState(false);
   
   const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
   const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
