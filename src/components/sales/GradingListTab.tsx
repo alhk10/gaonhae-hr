@@ -350,7 +350,7 @@ const GradingListTab: React.FC = () => {
           invoice_status: invoiceStatus,
           invoice_id: invoiceId,
           ready_for_grading: reg.ready_for_grading || false,
-          result: reg.result || null,
+          result: (reg.result as GradingListStudent['result']) || null,
           certificate_issued: reg.certificate_issued || false,
           certificate_ii_issued: reg.certificate_ii_issued || false,
           registration_id: reg.id,
