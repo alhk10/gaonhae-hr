@@ -94,6 +94,7 @@ export const EMERGENCY_FALLBACKS = {
     myAttendance: true,
     slotBookingEmployee: true,
     cctvMonitoring: false,
+    socialMedia: false,
   },
 } as const;
 

@@ -150,7 +150,8 @@ export const getUserPageAccess = async (employeeId: string) => {
   const defaultAccess = {
     profile: true, applyLeave: true, submitClaim: true,
     payslips: true, myAttendance: true, slotBookingEmployee: true,
-    cctvMonitoring: false
+    cctvMonitoring: false,
+    socialMedia: false
   };
 
   try {
@@ -170,7 +171,8 @@ export const getUserPageAccess = async (employeeId: string) => {
           payslips: row.payslips ?? true,
           myAttendance: row.my_attendance ?? true,
           slotBookingEmployee: row.slot_booking_employee ?? true,
-          cctvMonitoring: row.cctv_monitoring ?? false
+          cctvMonitoring: row.cctv_monitoring ?? false,
+          socialMedia: row.social_media ?? false
         };
         cachePageAccess(employeeId, accessData);
         return accessData;

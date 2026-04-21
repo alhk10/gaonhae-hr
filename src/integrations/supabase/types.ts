@@ -538,6 +538,50 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_settings: {
+        Row: {
+          branch_id: string | null
+          caption_style: string | null
+          created_at: string
+          default_hashtags: string[] | null
+          id: string
+          keywords: string[] | null
+          language: string | null
+          tone: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          caption_style?: string | null
+          created_at?: string
+          default_hashtags?: string[] | null
+          id?: string
+          keywords?: string[] | null
+          language?: string | null
+          tone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          caption_style?: string | null
+          created_at?: string
+          default_hashtags?: string[] | null
+          id?: string
+          keywords?: string[] | null
+          language?: string | null
+          tone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cctv_camera_secrets: {
         Row: {
           camera_id: string
@@ -1092,6 +1136,7 @@ export type Database = {
           payslips: boolean | null
           profile: boolean | null
           slot_booking_employee: boolean | null
+          social_media: boolean | null
           submit_claim: boolean | null
         }
         Insert: {
@@ -1104,6 +1149,7 @@ export type Database = {
           payslips?: boolean | null
           profile?: boolean | null
           slot_booking_employee?: boolean | null
+          social_media?: boolean | null
           submit_claim?: boolean | null
         }
         Update: {
@@ -1116,6 +1162,7 @@ export type Database = {
           payslips?: boolean | null
           profile?: boolean | null
           slot_booking_employee?: boolean | null
+          social_media?: boolean | null
           submit_claim?: boolean | null
         }
         Relationships: []
@@ -3908,6 +3955,83 @@ export type Database = {
           },
         ]
       }
+      social_posts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          branch_id: string
+          caption: string | null
+          content_type: string
+          created_at: string
+          created_by: string | null
+          cta: string | null
+          failure_reason: string | null
+          hashtags: string[] | null
+          id: string
+          instagram_media_id: string | null
+          instagram_permalink: string | null
+          media_type: string | null
+          media_url: string | null
+          published_at: string | null
+          rejection_note: string | null
+          scheduled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id: string
+          caption?: string | null
+          content_type: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          failure_reason?: string | null
+          hashtags?: string[] | null
+          id?: string
+          instagram_media_id?: string | null
+          instagram_permalink?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          published_at?: string | null
+          rejection_note?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          branch_id?: string
+          caption?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          failure_reason?: string | null
+          hashtags?: string[] | null
+          id?: string
+          instagram_media_id?: string | null
+          instagram_permalink?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          published_at?: string | null
+          rejection_note?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_auth: {
         Row: {
           auth_user_id: string | null
@@ -5364,6 +5488,7 @@ export type Database = {
           payslips: boolean
           profile: boolean
           slot_booking_employee: boolean
+          social_media: boolean
           submit_claim: boolean
         }[]
       }

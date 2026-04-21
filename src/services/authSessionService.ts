@@ -38,7 +38,8 @@ export interface SessionResult {
 const DEFAULT_PAGE_ACCESS = {
   profile: true, applyLeave: true, submitClaim: true,
   payslips: true, myAttendance: true, slotBookingEmployee: true,
-  cctvMonitoring: false
+  cctvMonitoring: false,
+  socialMedia: false
 };
 
 import { withTimeout } from '@/utils/asyncHelpers';
