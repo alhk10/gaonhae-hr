@@ -393,18 +393,80 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           if (currentBelt) {
             const targetBelt = getNextBeltLevel(currentBelt, country);
             if (targetBelt) {
-              // Collect distinct term_ids from lesson invoice items
-              const termIds = new Set<string>();
+              // Helper: resolve term_id from a grading slot's date+branch
+              const resolveTermFromSlot = async (slotId: string): Promise<string | null> => {
+                const { data: slot } = await supabase
+                  .from('grading_slots')
+                  .select('grading_date, branch_id')
+                  .eq('id', slotId)
+                  .maybeSingle();
+                if (!slot?.grading_date) return null;
+                const slotBranchId = slot.branch_id || invoiceData.branch_id;
+                const slotDate = slot.grading_date;
+
+                // 1) Term whose window contains the grading date
+                const { data: inWindow } = await supabase
+                  .from('term_calendars')
+                  .select('id, start_date, end_date')
+                  .eq('branch_id', slotBranchId)
+                  .lte('start_date', slotDate)
+                  .gte('end_date', slotDate)
+                  .limit(1);
+                if (inWindow && inWindow.length > 0) return inWindow[0].id;
+
+                // 2) Term whose end_date is the closest on or before the grading date
+                const { data: prevTerm } = await supabase
+                  .from('term_calendars')
+                  .select('id, end_date')
+                  .eq('branch_id', slotBranchId)
+                  .lte('end_date', slotDate)
+                  .order('end_date', { ascending: false })
+                  .limit(1);
+                if (prevTerm && prevTerm.length > 0) return prevTerm[0].id;
+
+                // 3) Term with the earliest start_date after the grading date
+                const { data: nextTerm } = await supabase
+                  .from('term_calendars')
+                  .select('id, start_date')
+                  .eq('branch_id', slotBranchId)
+                  .gte('start_date', slotDate)
+                  .order('start_date', { ascending: true })
+                  .limit(1);
+                if (nextTerm && nextTerm.length > 0) return nextTerm[0].id;
+
+                return null;
+              };
+
+              // Collect term_ids derived from grading_slot_id on any invoice item
+              const slotDerivedTermIds = new Set<string>();
+              for (const item of invoiceData.items) {
+                const slotId = item?.metadata?.grading_slot_id;
+                if (!slotId) continue;
+                const slotTermId = await resolveTermFromSlot(slotId);
+                if (slotTermId) slotDerivedTermIds.add(slotTermId);
+              }
+
+              // Collect lesson-derived term_ids (existing behaviour)
+              const lessonTermIds = new Set<string>();
               for (const insertedItem of insertedItems) {
                 const product = lessonProducts.get(insertedItem.product_id);
                 if (!product) continue;
                 const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
                 const itemMetadata = originalItem?.metadata;
                 const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0] || product.term_id;
-                if (termId) termIds.add(termId);
+                if (termId) lessonTermIds.add(termId);
               }
 
-              for (const termId of termIds) {
+              // Slot-derived terms take precedence; only add lesson terms that aren't already covered
+              const finalTermIds = new Set<string>(slotDerivedTermIds);
+              if (slotDerivedTermIds.size === 0) {
+                for (const t of lessonTermIds) finalTermIds.add(t);
+              }
+
+              // Find first slot id available on the invoice (used to link when creating)
+              const firstSlotId = invoiceData.items.find(i => i?.metadata?.grading_slot_id)?.metadata?.grading_slot_id || null;
+
+              for (const termId of finalTermIds) {
                 // Check for existing registration for this (student_id, term_id)
                 const { data: existingReg } = await supabase
                   .from('grading_registrations')
@@ -414,14 +476,18 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                   .maybeSingle();
 
                 if (existingReg) {
-                  // Only flip ready_for_grading on; refresh belts. Preserve result/slot/invoice link.
+                  // Only flip ready_for_grading on; refresh belts. Link slot if missing.
+                  const updatePayload: any = {
+                    ready_for_grading: true,
+                    current_belt: currentBelt,
+                    target_belt: targetBelt,
+                  };
+                  if (!existingReg.grading_slot_id && firstSlotId) {
+                    updatePayload.grading_slot_id = firstSlotId;
+                  }
                   await supabase
                     .from('grading_registrations')
-                    .update({
-                      ready_for_grading: true,
-                      current_belt: currentBelt,
-                      target_belt: targetBelt,
-                    })
+                    .update(updatePayload)
                     .eq('id', existingReg.id);
                 } else {
                   await supabase
@@ -433,7 +499,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                       target_belt: targetBelt,
                       ready_for_grading: true,
                       invoice_item_id: null,
-                      grading_slot_id: null,
+                      grading_slot_id: firstSlotId,
                       result: null,
                       created_by: createdByEmail,
                     }]);
