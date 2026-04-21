@@ -509,7 +509,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       setEditingClassSlots(slots);
       setEditIssueDate(invoice.issue_date || '');
     }
-  }, [mode, invoice, viewProducts]);
+  }, [mode, invoice, viewProducts, branches]);
 
   // Load term data and timetable times when invoice loads (view/edit)
   useEffect(() => {
