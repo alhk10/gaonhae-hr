@@ -542,7 +542,7 @@ const GradingListTab: React.FC = () => {
               <CardTitle>Students for Grading</CardTitle>
               <CardDescription>
                 {selectedTermData 
-                  ? `${students.length} active student${students.length !== 1 ? 's' : ''} with paid invoices for ${selectedTermData.name}`
+                  ? `${students.length} grading registration${students.length !== 1 ? 's' : ''} for ${selectedTermData.name}`
                   : 'Select a branch and term to view students'}
               </CardDescription>
             </div>
