@@ -960,7 +960,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                   Filter
                   {statusFilter !== 'active_inactive' && (
                     <Badge variant="secondary" className="ml-1 text-[10px] px-1">
-                      {statusFilter === 'active' ? 'Active' : statusFilter === 'inactive' ? 'Inactive' : 'Trial'}
+                      {statusFilter === 'active' ? 'Active'
+                        : statusFilter === 'inactive' ? 'Inactive'
+                        : statusFilter === 'trial' ? 'Trial'
+                        : statusFilter === 'unpaid_term' ? 'Unpaid Term'
+                        : ''}
                     </Badge>
                   )}
                 </Button>
@@ -979,6 +983,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>
+                  Unpaid Class Fees (Current Term)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
