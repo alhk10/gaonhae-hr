@@ -95,6 +95,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
           slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
           applyLeave: true,
@@ -102,6 +103,7 @@ export const getEmployees = async (): Promise<EmployeeProfile[]> => {
           payslips: true,
           myAttendance: true,
           slotBookingEmployee: true
+          cctvMonitoring: false
         }
       };
     });
@@ -216,6 +218,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           payslips: pageAccess.payslips ?? true,
           myAttendance: pageAccess.my_attendance ?? true,
           slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+          cctvMonitoring: pageAccess.cctv_monitoring ?? false
         } : {
           profile: true,
           applyLeave: true,
@@ -223,6 +226,7 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           payslips: true,
           myAttendance: true,
           slotBookingEmployee: true
+          cctvMonitoring: false
         }
       };
     });
@@ -330,6 +334,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         payslips: pageAccess.payslips ?? true,
         myAttendance: pageAccess.my_attendance ?? true,
         slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+        cctvMonitoring: pageAccess.cctv_monitoring ?? false
       } : {
         profile: true,
         applyLeave: true,
@@ -337,6 +342,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
         payslips: true,
         myAttendance: true,
         slotBookingEmployee: true
+        cctvMonitoring: false
       }
     };
   }) || [];
@@ -447,6 +453,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       payslips: pageAccess.payslips ?? true,
       myAttendance: pageAccess.my_attendance ?? true,
       slotBookingEmployee: pageAccess.slot_booking_employee ?? true
+      cctvMonitoring: pageAccess.cctv_monitoring ?? false
     } : {
       profile: true,
       applyLeave: true,
@@ -454,6 +461,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       payslips: true,
       myAttendance: true,
       slotBookingEmployee: true
+      cctvMonitoring: false
     }
   };
 };

@@ -53,6 +53,7 @@ const Employees = () => {
     payslips: true,
     myAttendance: true,
     slotBookingEmployee: true
+    cctvMonitoring: false
   });
 
   const { data: employees = [], isLoading, error } = useQuery({
@@ -186,6 +187,7 @@ const Employees = () => {
       payslips: true,
       myAttendance: true,
       slotBookingEmployee: true
+      cctvMonitoring: false
     });
   };
 

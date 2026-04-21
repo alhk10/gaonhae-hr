@@ -27,6 +27,7 @@ interface ExtendedAdminAccessPermissions {
   payslips: boolean;
   myAttendance: boolean;
   slotBookingEmployee: boolean;
+  cctvMonitoring: boolean;
 }
 
 interface EmployeeModuleSettingsProps {
@@ -100,6 +101,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           payslips: emp.pageAccess?.payslips !== false,
           myAttendance: emp.pageAccess?.myAttendance !== false,
           slotBookingEmployee: emp.pageAccess?.slotBookingEmployee !== false
+          cctvMonitoring: emp.pageAccess?.cctvMonitoring === true
         };
       });
       
@@ -150,6 +152,7 @@ const EmployeeModuleSettings: React.FC<EmployeeModuleSettingsProps> = ({
           payslips: permissions.payslips,
           myAttendance: permissions.myAttendance,
           slotBookingEmployee: permissions.slotBookingEmployee
+          cctvMonitoring: permissions.cctvMonitoring
         };
         
         console.log('EmployeeModuleSettings: Saving admin permissions:', adminPermissions);

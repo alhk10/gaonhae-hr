@@ -93,6 +93,7 @@ export const EMERGENCY_FALLBACKS = {
     payslips: true,
     myAttendance: true,
     slotBookingEmployee: true,
+    cctvMonitoring: false,
   },
 } as const;
 
