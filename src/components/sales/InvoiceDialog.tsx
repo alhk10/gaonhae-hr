@@ -1396,7 +1396,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Invoice Details */}
           <div className="space-y-2 md:space-y-4">
-            <div className={cn("grid grid-cols-1 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
+            <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4", isSuperadmin ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs md:text-sm">Branch</Label>
