@@ -43,18 +43,31 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data: products, error: pe } = await supabase
-        .from('products')
-        .select('id, name, sku, base_price')
-        .eq('is_active', true)
-        .order('name');
-      if (pe) throw pe;
+      const [productsRes, categoriesRes] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id, name, sku, base_price, category_id, product_categories(name)')
+          .eq('is_active', true)
+          .order('name'),
+        supabase
+          .from('product_categories')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name'),
+      ]);
+      if (productsRes.error) throw productsRes.error;
+      if (categoriesRes.error) throw categoriesRes.error;
 
-      const productIds = (products || []).map((p) => p.id);
+      const products = productsRes.data || [];
+      setCategories((categoriesRes.data || []) as CategoryOption[]);
+
+      const productIds = products.map((p) => p.id);
       let ruleMap = new Map<string, { id: string; price_override: number | null; is_active: boolean | null }>();
       if (productIds.length > 0) {
         const { data: rules, error: re } = await supabase
@@ -68,7 +81,7 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
         }
       }
 
-      const built: ProductRow[] = (products || []).map((p) => {
+      const built: ProductRow[] = products.map((p: any) => {
         const rule = ruleMap.get(p.id);
         const visible = rule ? rule.is_active !== false : true;
         const priceOverride = rule?.price_override ?? null;
@@ -77,6 +90,8 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
           name: p.name,
           sku: p.sku,
           base_price: p.base_price,
+          category_id: p.category_id ?? null,
+          category_name: p.product_categories?.name ?? null,
           is_visible: visible,
           price_override: priceOverride,
           rule_id: rule?.id,
@@ -101,11 +116,12 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) => r.name.toLowerCase().includes(q) || (r.sku || '').toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+    return rows.filter((r) => {
+      if (categoryFilter !== 'all' && r.category_id !== categoryFilter) return false;
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q) || (r.sku || '').toLowerCase().includes(q);
+    });
+  }, [rows, search, categoryFilter]);
 
   const updateRow = (id: string, patch: Partial<ProductRow>) => {
     setRows((prev) =>
