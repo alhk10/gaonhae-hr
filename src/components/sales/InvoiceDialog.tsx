@@ -1720,6 +1720,38 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                             })}
                           </div>
                         )}
+                        {/* Grading slot selector — for Grading category items (backfill legacy rows) */}
+                        {(() => {
+                          const product = viewProducts.find(p => p.id === item.product_id);
+                          const isGradingItem = product?.category_id === GRADING_CATEGORY_ID;
+                          if (!isGradingItem) return null;
+                          const currentSlotId = (item.metadata as any)?.grading_slot_id || '';
+                          const branchSlots = gradingSlots.filter(s =>
+                            s.branch_id === invoice.branch_id ||
+                            (Array.isArray(s.available_branch_ids) && s.available_branch_ids.includes(invoice.branch_id || ''))
+                          );
+                          return (
+                            <div className="flex items-center gap-1.5 pt-1 border-t">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Grading slot:</Label>
+                              {branchSlots.length > 0 ? (
+                                <Select value={currentSlotId} onValueChange={(newSlotId) => {
+                                  setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), grading_slot_id: newSlotId } }));
+                                }}>
+                                  <SelectTrigger className="h-7 w-full md:w-72 text-xs"><SelectValue placeholder="Select grading slot" /></SelectTrigger>
+                                  <SelectContent>
+                                    {branchSlots.map(s => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">No grading slots — create one in Sales → Grading</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
                       </div>
                     );
