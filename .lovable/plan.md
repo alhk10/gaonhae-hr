@@ -1,49 +1,72 @@
 
 
-## Fix: WhatsApp link fails for international numbers (`+61…`)
+## Plan: WhatsApp share — text-only message, no PDF, no link
 
-### Root cause
+### What changes
 
-Hannah Song's record is correctly stored as `+61 431589013` (verified in DB). The bug is in `shareInvoiceViaWhatsApp` in `src/utils/invoicePDFGenerator.ts` (line 502):
+Simplify `shareInvoiceViaWhatsApp` in `src/utils/invoicePDFGenerator.ts` so clicking the WhatsApp icon on an invoice:
 
-```ts
-const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
-// → "+61431589013"
-window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
-// → https://wa.me/+61431589013   ← INVALID
+1. Opens a WhatsApp chat directly with the recipient.
+2. Prefills a plain text message (invoice number, amount due, due date, branch name).
+3. Does **not** download the PDF.
+4. Does **not** include any link to the PDF or invoice.
+
+### Implementation
+
+**`src/utils/invoicePDFGenerator.ts` — `shareInvoiceViaWhatsApp`**
+
+- Remove the PDF generation/download step entirely.
+- Remove any URL/link from the message body.
+- Sanitize the phone number to digits-only (required by WhatsApp): `whatsappNumber.replace(/\D/g, '')`.
+- Use a more reliable launch chain for mobile:
+  1. Try native deep link: `whatsapp://send?phone={digits}&text={encodedMessage}`
+  2. Fallback to: `https://api.whatsapp.com/send?phone={digits}&text={encodedMessage}`
+- Navigate via `window.location.href` (more reliable than `window.open` after async work; `window.open` is unnecessary now that there's no PDF step).
+- Update the success toast to: "Opening WhatsApp…" (drop the "attach PDF" instruction).
+
+**Message body (plain text, no link):**
+
+```
+Hi {Parent/Student Name},
+
+This is a reminder for invoice {INV-XXXX} from {Branch Name}.
+Amount due: ${amount}
+Due date: {DD/MM/YYYY}
+
+Thank you.
 ```
 
-The `wa.me` URL scheme requires a **digits-only** phone number (no `+`, no spaces). When the `+` is left in, WhatsApp can't resolve the contact, which triggers the "phone number is not registered with WhatsApp" dialog you screenshotted — even when the number is a valid registered WhatsApp account.
+### SMS — unchanged
 
-The correct URL for Hannah is `https://wa.me/61431589013` (country code + local, no `+`).
+`shareInvoiceViaSMS` and `shareInvoiceOverdueReminderViaSMS` keep their current behavior:
+- Continue using the `sms:` scheme.
+- Continue preserving the leading `+` in the phone number.
+- No change to message templates.
 
-### The fix (1-line change)
-
-In `src/utils/invoicePDFGenerator.ts`, replace the regex on line 502 to strip everything that isn't a digit:
+To prevent future cross-contamination between the two paths, add two small helpers in `src/utils/invoicePDFGenerator.ts`:
 
 ```ts
-// Before
-const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
-
-// After
-const cleanNumber = whatsappNumber.replace(/\D/g, '');
+const normalizeWhatsAppTarget = (v: string) => v.replace(/\D/g, '');   // digits only
+const normalizeSmsTarget      = (v: string) => v.replace(/[\s\-\(\)]/g, ''); // keep leading +
 ```
 
-This handles `+`, spaces, dashes, brackets, and any other formatting in one shot. Singapore numbers like `+65 91234567` become `6591234567`, Australian `+61 431589013` becomes `61431589013` — both valid `wa.me` targets.
-
-### Verification
-
-1. Branch Dashboard → find Hannah Song's invoice → click WhatsApp icon → opens `https://wa.me/61431589013?text=…` → WhatsApp resolves the contact correctly.
-2. Singapore students (`+65 …`) continue to work (already worked because `+65` happened to also fail the same way? — confirm: any `+` prefix produced a broken URL, so SG numbers were also affected; this fix repairs both).
-3. Numbers stored without `+` (legacy, digits only) continue to work — `replace(/\D/g, '')` is a no-op on already-clean digits.
+WhatsApp uses the first; SMS functions use the second.
 
 ### Files affected
 
-- `src/utils/invoicePDFGenerator.ts` — one-line regex change in `shareInvoiceViaWhatsApp`.
+- `src/utils/invoicePDFGenerator.ts` — rewrite `shareInvoiceViaWhatsApp` (text-only, no PDF, deep-link launch); add the two normalization helpers; refactor SMS functions to use the SMS helper. No changes to PDF generation or any other caller.
+
+### Verification
+
+1. Sales → Invoice Management → click WhatsApp on Hannah Song's invoice (`+61 431589013`) → WhatsApp opens a chat directly with that contact, prefilled text only, no PDF download, no link in message.
+2. Same test on a Singapore invoice (`+65 …`) — chat opens correctly.
+3. Branch Dashboard → blue SMS button → still opens `sms:` with the standard reminder text.
+4. Branch Dashboard → red overdue SMS button → still opens `sms:` with the overdue template.
+5. Confirm no file downloads when clicking WhatsApp.
 
 ### Out of scope
 
-- Hannah's stored phone number (already correct, no change needed).
-- SMS sharing (uses `sms:` scheme, which accepts `+` and is unaffected).
-- WhatsApp message body / PDF attachment workflow (unchanged).
+- PDF generation logic (untouched).
+- SMS message templates and behavior (unchanged).
+- Stored phone numbers (already correct).
 
