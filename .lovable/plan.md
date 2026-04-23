@@ -1,85 +1,71 @@
 
 
-## Plan: Restructure Invoice & Payment row layout
+## Plan: Add student name to term reminder message
 
 ### What changes
 
-In `src/components/dashboard/BranchDashboard.tsx` (Invoice list rendering, lines ~1604–1662), restructure each invoice card into 2 lines with the requested ordering, and hide View/Edit/Delete buttons on mobile.
+In `src/utils/invoicePDFGenerator.ts` (function `buildTermReminderMessage`, lines 528–598), update the message body to insert the student's name into the "Kindly arrange payment" line. This message is the one shared via SMS and WhatsApp from the Invoice & Payment tab.
 
-### New row layout
+### Updated message body
 
-**Line 1** (left → right):
-- Student Display Name (uppercase, bold)
-- Invoice number (muted, smaller)
-- Amount (right-aligned)
-- Status badge
+```
+Good {Morning/Afternoon/Evening},
 
-**Line 2** (left → right):
-- Date of invoice (muted)
-- Action buttons (right-aligned): `$` Add Payment, Download PDF, SMS, WhatsApp, Overdue alert (if overdue), View, Edit, Delete
+We have now reached the end of {current term name}. {next term name} {commence phrase} and will run from {next_start} to {next_end}.
 
-### Mobile vs desktop visibility
+Kindly arrange payment for {Student Name} before the start of the term as follows:
 
-Use the existing `useIsMobile()` hook (from `@/hooks/use-mobile`) to conditionally hide three action buttons under 768px:
-- **View** (Eye icon) — hidden on mobile
-- **Edit** (Edit icon) — hidden on mobile
-- **Delete** (Trash icon) — hidden on mobile
+{product_1} – {amount_1}
+{product_2} – {amount_2}
 
-Always visible on both mobile and desktop:
-- `$` Add Payment (when status is unpaid/draft/sent/partial/overdue)
-- Download PDF
-- SMS, WhatsApp
-- Overdue alert (when applicable)
+Total: {total_amount}
 
-Implementation: wrap the three buttons with `{!isMobile && (...)}`.
+Payment can be made via bank transfer using the details below:
+{branch bank transfer details}
 
-### Hint text
-
-The phrase "Click row to view/edit invoice" does not currently appear anywhere in the codebase. No hint text is added; row container has no `onClick` handler — confirmed unchanged.
-
-### Code shape
-
-```tsx
-<div key={invoice.id} className="px-2 py-1.5 bg-muted/50 rounded-lg space-y-1">
-  {/* Line 1: name + invoice number + amount + status */}
-  <div className="flex items-center gap-1.5">
-    <span className="font-semibold text-xs truncate min-w-0">{studentName}</span>
-    <span className="text-[11px] text-muted-foreground whitespace-nowrap">{invoice.invoice_number}</span>
-    <span className="font-medium text-xs whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
-    <Badge variant={...} className="text-[10px] px-1 h-4 shrink-0">{invoice.status}</Badge>
-  </div>
-  {/* Line 2: date + action buttons */}
-  <div className="flex items-center gap-1.5">
-    <span className="text-[11px] text-muted-foreground">{formatDate(new Date(invoice.created_at))}</span>
-    <div className="flex items-center shrink-0 ml-auto">
-      {/* $ Add Payment, Download, SMS, WhatsApp, Overdue — always shown */}
-      {!isMobile && (
-        <>
-          {/* View, Edit, Delete buttons */}
-        </>
-      )}
-    </div>
-  </div>
-</div>
+Thank you for your continued support.
+Gaonhae Taekwondo {branch}
 ```
 
-Add `const isMobile = useIsMobile();` near the top of the component if not already present, and import `useIsMobile` from `@/hooks/use-mobile`.
+### Implementation
+
+1. Inside `buildTermReminderMessage`, derive the student name from `invoice.student?.name`. Trim it; fall back to `"your child"` when missing (e.g., test invoices without a student) so the sentence still reads naturally.
+2. Change line 591 from:
+   ```ts
+   `Kindly arrange payment before the start of the term as follows:\n\n` +
+   ```
+   to:
+   ```ts
+   `Kindly arrange payment for ${studentName} before the start of the term as follows:\n\n` +
+   ```
+3. Remove the redundant `Items:\n` label on line 592 so the items list flows directly under the intro line, matching the requested format. Items are already formatted as `{product} – {amount}` per line (line 534), so no change to item formatting is needed.
+
+### Behaviour after change
+
+- SMS and WhatsApp share buttons in the Invoice & Payment tab now produce a message that explicitly names the student, making multi-child households unambiguous.
+- All existing dynamic placeholders (greeting, current/next term names, commence phrase, date range, items, total, bank transfer info, branch name) continue to work exactly as today.
+- When `invoice.student.name` is missing, the sentence becomes: *"Kindly arrange payment for your child before the start of the term as follows:"* — still grammatical.
 
 ### Files affected
 
-- `src/components/dashboard/BranchDashboard.tsx` (only)
+- `src/utils/invoicePDFGenerator.ts` (only — `buildTermReminderMessage` function)
+
+No changes to:
+- The Invoice PDF body (PDF uses a different generator, unchanged).
+- The SMS/WhatsApp share button wiring or phone-number normalization.
+- Any other call site — `buildTermReminderMessage` is the single source for both SMS and WhatsApp reminder text.
 
 ### Verification
 
-1. Desktop (≥768px): each invoice row shows 2 lines as specified, all 8 action buttons visible on line 2.
-2. Mobile (<768px): each invoice row shows 2 lines; line 2 hides View, Edit, Delete; `$`, Download, SMS, WhatsApp (and Overdue when applicable) remain.
-3. Status badge shows on line 1 next to the amount on both viewports.
-4. Invoice number now sits next to the student name on line 1 (previously on line 2).
-5. No "Click row to view/edit invoice" hint appears anywhere; row has no click handler.
+1. Open Branch Dashboard → Invoice & Payment → click WhatsApp on any invoice → message preview includes "Kindly arrange payment for {STUDENT NAME} before the start of the term as follows:" followed by the product lines.
+2. Click SMS on the same invoice → identical body text.
+3. Invoice with multiple line items → each appears as `{product} – {amount}` on its own line, no `Items:` header.
+4. Invoice without an attached student record → reads "Kindly arrange payment for your child …" (graceful fallback).
+5. Greeting, term names, and bank transfer block all still render as before.
 
 ### Out of scope
 
-- Status filter dropdown, Create Invoice button, search/date filter row — unchanged.
-- Payments section rendering elsewhere — unchanged.
-- Tab counter logic — unchanged.
+- The PDF invoice's notes/body text.
+- Translating the template into other languages.
+- Adding payment links / QR codes into the SMS/WhatsApp body.
 
