@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSessionState } from '@/hooks/useSessionState';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -103,6 +104,7 @@ interface BranchDashboardProps {
 
 const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const { user, userrole } = useAuth();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const ns = `branch-dash:${branchId}`;
@@ -1606,15 +1608,20 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                           ? `${invoice.students.first_name} ${invoice.students.last_name}`.toUpperCase()
                           : 'Unknown';
                         return (
-                          <div key={invoice.id} className="px-2 py-1.5 bg-muted/50 rounded-lg">
-                            {/* Line 1: Student name, amount, status, actions */}
+                          <div key={invoice.id} className="px-2 py-1.5 bg-muted/50 rounded-lg space-y-1">
+                            {/* Line 1: Student name, invoice number, amount, status */}
                             <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-xs truncate min-w-0">{studentName}</span>
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">{invoice.invoice_number}</span>
                               <span className="font-medium text-xs whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
                               <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="text-[10px] px-1 h-4 shrink-0">
                                 {invoice.status}
                               </Badge>
-                              <div className="flex items-center shrink-0">
+                            </div>
+                            {/* Line 2: Date + action buttons */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(new Date(invoice.created_at))}</span>
+                              <div className="flex items-center shrink-0 ml-auto">
                                 {['draft', 'sent', 'unpaid', 'partial', 'overdue'].includes(invoice.status) && (
                                   <CreatePaymentDialog
                                     trigger={
@@ -1640,22 +1647,20 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                     <AlertCircle className="w-3 h-3" />
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
-                                  <Eye className="w-3 h-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
+                                {!isMobile && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
+                                      <Eye className="w-3 h-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget({ type: 'invoice', id: invoice.id, label: invoice.invoice_number })}>
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                            {/* Line 2: Invoice number + date */}
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                              <span>{invoice.invoice_number}</span>
-                              <span>·</span>
-                              <span>{formatDate(new Date(invoice.created_at))}</span>
                             </div>
                           </div>
                         );
