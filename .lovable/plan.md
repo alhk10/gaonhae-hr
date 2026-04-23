@@ -1,97 +1,75 @@
 
 
-## Plan: Add 2nd SMS button for late payment reminders
+## Plan: Strip leading `0` after country code from all party phone/WhatsApp numbers
 
-### New "Overdue" SMS button
+### What's happening
 
-A second icon button next to the existing blue "Send via SMS" button on each invoice row in the **Branch Dashboard → Invoice & Payment** tab. Shown only for invoices that are actually overdue (status `unpaid`, `partial`, `partially_paid`, `sent`, `overdue`, or `draft` — i.e. has `balance_due > 0` AND `due_date < today`). Hidden for paid/verified/cancelled invoices.
+International numbers in `students`, `student_registrations`, and `student_emergency_contacts` were stored with the local trunk prefix `0` retained after the country code (e.g. `+61 0431790857`). E164-style format requires this `0` to be dropped (`+61 431790857`).
 
-- Icon: `AlertCircle` (lucide) in **red** (`text-red-600`), tooltip "Send overdue reminder".
-- Sits between the existing blue SMS button and the View button.
+### Affected data (current counts)
 
-### Message template
+| Table | Field | Rows to fix |
+|---|---|---|
+| students | phone | 41 |
+| students | whatsapp | 41 |
+| students | emergency_contact_phone | 41 |
+| students | emergency_contact_2_phone | 4 |
+| student_registrations | phone | 41 |
+| student_registrations | whatsapp | 41 |
+| student_registrations | emergency_contact_phone | 41 |
+| student_registrations | emergency_contact_2_phone | 4 |
+| student_emergency_contacts | phone | 41 |
+| employees | phone | 0 |
 
+All matched rows are `+61 0…` (Australia). No `+65` (Singapore), `+60`, etc. are affected. Format pattern to strip: country code + space + `0` → country code + space.
+
+### Migration
+
+One SQL migration that, for each `(table, column)` pair above, runs:
+
+```sql
+UPDATE <table>
+SET <column> = regexp_replace(
+  <column>,
+  '^(\+(?:65|61|60|62|86|91|63|66|84|81|82|44|64|49|33|39|34|95|971|966|852|886|855|856|1))[\s]?0',
+  '\1 ',
+  ''
+)
+WHERE <column> ~ '^\+(65|61|60|62|86|91|63|66|84|81|82|44|64|49|33|39|34|95|971|966|852|886|855|856|1) ?0';
 ```
-This is a reminder that your payment for {current_term_name} is now {days_overdue} days overdue.
 
-Please arrange payment immediately as follows:
+The `WHERE` filter ensures only valid country-code prefixed rows are touched (no false positives on local-format numbers, no NULLs). The replacement preserves the country code and inserts a single space before the trunk-stripped local number.
 
-Items:
-{product_1} – {amount_1}
-{product_2} – {amount_2}
+### Forward prevention (UI input normalization)
 
-Total: {total_amount}
-
-Payment can be made via bank transfer using the details below:
-{branch_bank_transfer_info}
-
-Please note that students may be barred from attending classes until the outstanding amount has been settled.
-
-We appreciate your prompt attention to this matter.
-Gaonhae Taekwondo ({branch})
-```
-
-- `{current_term_name}` = `getCurrentTerm(branchId) ?? getMostRecentTerm(branchId)` (same source as the existing SMS). Falls back to `"the current term"` if missing.
-- `{days_overdue}` = whole days between `invoice.due_date` and today (`Math.max(1, …)`). Falls back to `"several"` if `due_date` is null.
-- Items use en-dash separator and `formatCurrency`, dates DD/MM/YYYY via `@/utils/dateFormat`.
-- `{branch_bank_transfer_info}` from `invoice_templates` matching the branch country (same lookup as existing SMS).
-
-### Implementation
-
-**1. `src/utils/invoicePDFGenerator.ts`** — add a sibling helper:
+Update `formatPhone` in `src/constants/formOptions.ts` to strip a leading `0` from `localNumber` before joining, so any future entry like `0431790857` is saved as `431790857`. This is a one-line change and prevents the issue from re-occurring across all party forms (student, registration, emergency contacts, employee — all use the shared `PhoneInput`).
 
 ```ts
-export const shareInvoiceOverdueReminderViaSMS = async (
-  invoice: InvoiceData,
-  phoneNumber: string,
-  context?: { currentTerm?: SmsTermInfo | null; daysOverdue?: number | null }
-): Promise<void>
+export function formatPhone(countryCode: string, localNumber: string): string {
+  if (!localNumber) return '';
+  const cleaned = localNumber.trim().replace(/^0+/, '');
+  return `${countryCode} ${cleaned}`.trim();
+}
 ```
 
-Builds the overdue body using the template above and opens `sms:` URI. Reuses the existing `formatCurrency` helper, `SmsTermInfo` type, and number-cleaning regex. No PDF, no attachment.
-
-**2. `src/components/dashboard/BranchDashboard.tsx`**
-
-- Add a new handler `handleShareOverdueSMS(invoice)` that:
-  - Resolves student phone (same fallback chain as `handleShareSMS`).
-  - Fetches `fullInvoice`, branch country, active `invoice_template` (identical lookup).
-  - Fetches current term: `getCurrentTerm(branch_id) ?? getMostRecentTerm(branch_id)`.
-  - Computes `daysOverdue = Math.max(1, floor((today - due_date) / 86_400_000))` when `due_date` exists.
-  - Calls `shareInvoiceOverdueReminderViaSMS(invoiceData, number, { currentTerm, daysOverdue })`.
-
-- Render a new icon button next to the existing SMS button (line ~1405), guarded by an `isOverdue(invoice)` helper:
-
-```tsx
-{isOverdue(invoice) && (
-  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600"
-    title="Send overdue reminder"
-    onClick={(e) => { e.stopPropagation(); handleShareOverdueSMS(invoice); }}>
-    <AlertCircle className="w-3 h-3" />
-  </Button>
-)}
-```
-
-- `isOverdue` = `invoice.balance_due > 0 && invoice.due_date && new Date(invoice.due_date) < startOfToday() && !['cancelled','paid','verified'].includes(invoice.status)`.
-- Add `AlertCircle` to the existing `lucide-react` import.
-
-### Files affected
-
-- `src/utils/invoicePDFGenerator.ts` — new `shareInvoiceOverdueReminderViaSMS` helper.
-- `src/components/dashboard/BranchDashboard.tsx` — new `handleShareOverdueSMS`, conditional red `AlertCircle` button next to the existing blue SMS button, lucide import update.
+`parsePhone` already handles display correctly; no other UI changes needed.
 
 ### Verification
 
-1. Branch Dashboard → Invoice & Payment.
-2. An overdue unpaid/partial invoice shows three action icons: Download (grey), SMS (blue), **Overdue reminder (red `AlertCircle`)**, View, Edit, Delete.
-3. A paid/verified/future-due invoice shows only the existing buttons (no red icon).
-4. Clicking the red icon opens the device SMS app pre-filled with the template, correct days-overdue count, current term name, items + amounts, branch bank info, and signature line.
-5. If `due_date` is null, body shows "several days overdue"; if no current term, body uses "the current term".
-6. Existing blue SMS button, WhatsApp button, PDF download remain unchanged.
+1. After migration: re-run the count query — all rows should return 0.
+2. Sample check: the 5 sample rows shown should display as `+61 431790857`, `+61 401288657`, etc.
+3. Edit a student in Branch Dashboard → Students → confirm phone displays in `PhoneInput` as `+61` flag + `431790857` (no leading 0).
+4. Try entering `0412345678` in a fresh phone input → saved as `+61 412345678`.
+5. Existing `+65` Singapore numbers remain untouched (none had the `0` issue).
+
+### Files affected
+
+- New migration: backfills 4 columns × `students`, 4 × `student_registrations`, 1 × `student_emergency_contacts`.
+- `src/constants/formOptions.ts` — `formatPhone` strips leading `0` from local number.
 
 ### Out of scope
 
-- Surfacing on Sales > Invoice Management.
-- Auto-send / scheduled reminders or bulk send.
-- Recording reminder history / audit log.
-- Changing WhatsApp message format.
+- Reformatting numbers that have no country code prefix (none currently exist in the matched set).
+- WhatsApp link generation logic (already uses `cleanNumber.replace(/\D/g, '')`, which is unaffected by the leading 0 fix once data is normalized — links will become correct automatically).
+- Changing `parsePhone` (still correctly splits `+61 431…`).
 
