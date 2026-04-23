@@ -28,7 +28,8 @@ import {
   Users,
   Save,
   X,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,7 +52,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceOverdueReminderViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
 import {
@@ -361,6 +362,89 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       await shareInvoiceViaSMS(invoiceData, number, smsTerms);
     } catch (error) {
       console.error('Error sharing invoice via SMS:', error);
+      toast.error('Failed to open SMS app');
+    }
+  };
+
+  // Helper: is this invoice overdue?
+  const isOverdue = (invoice: any): boolean => {
+    if (!invoice?.due_date) return false;
+    if ((invoice.balance_due ?? 0) <= 0) return false;
+    if (['cancelled', 'paid', 'verified'].includes(invoice.status)) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(invoice.due_date) < today;
+  };
+
+  // Handle Send overdue reminder via SMS
+  const handleShareOverdueSMS = async (invoice: any) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id).catch(() => null);
+      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
+      if (!number) {
+        toast.error('No mobile number on file for this student');
+        return;
+      }
+
+      const fullInvoice = await getInvoiceById(invoice.id);
+
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
+
+      const sourceInvoice = fullInvoice ?? invoice;
+      const invoiceData: InvoiceData = {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        issue_date: sourceInvoice.issue_date || null,
+        due_date: sourceInvoice.due_date || null,
+        subtotal: sourceInvoice.subtotal,
+        tax_amount: sourceInvoice.tax_amount,
+        discount_amount: sourceInvoice.discount_amount,
+        total_amount: sourceInvoice.total_amount,
+        amount_paid: sourceInvoice.amount_paid,
+        balance_due: sourceInvoice.balance_due,
+        notes: sourceInvoice.notes,
+        status: sourceInvoice.status,
+        items: fullInvoice?.items?.map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+        })) || [],
+        branch: branch ? { name: branch.name, address: branch.address } : undefined,
+        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+      };
+
+      // Resolve current term for the message body
+      let currentTerm: { name?: string; start_date?: string; end_date?: string } | null = null;
+      if (invoice.branch_id) {
+        const current = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
+        if (current) currentTerm = { name: current.name, start_date: current.start_date, end_date: current.end_date };
+      }
+
+      // Days overdue (whole days)
+      let daysOverdue: number | null = null;
+      if (sourceInvoice.due_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(sourceInvoice.due_date);
+        due.setHours(0, 0, 0, 0);
+        const diff = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+        daysOverdue = Math.max(1, diff);
+      }
+
+      await shareInvoiceOverdueReminderViaSMS(invoiceData, number, { currentTerm, daysOverdue });
+    } catch (error) {
+      console.error('Error sharing overdue reminder via SMS:', error);
       toast.error('Failed to open SMS app');
     }
   };
@@ -1405,6 +1489,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" title="Send via SMS" onClick={(e) => { e.stopPropagation(); handleShareSMS(invoice); }}>
                                   <MessageSquare className="w-3 h-3" />
                                 </Button>
+                                {isOverdue(invoice) && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600" title="Send overdue reminder" onClick={(e) => { e.stopPropagation(); handleShareOverdueSMS(invoice); }}>
+                                    <AlertCircle className="w-3 h-3" />
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
                                 </Button>

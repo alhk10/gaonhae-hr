@@ -557,3 +557,39 @@ export const shareInvoiceViaSMS = async (
   // Open SMS app
   window.location.href = `sms:${cleanNumber}?&body=${encodeURIComponent(message)}`;
 };
+
+export const shareInvoiceOverdueReminderViaSMS = async (
+  invoice: InvoiceData,
+  phoneNumber: string,
+  context?: { currentTerm?: SmsTermInfo | null; daysOverdue?: number | null }
+): Promise<void> => {
+  // Clean the phone number
+  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+
+  // Build items list (en-dash separator)
+  const itemsList = invoice.items && invoice.items.length > 0
+    ? invoice.items.map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
+    : 'No items';
+
+  // Bank transfer info
+  const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
+
+  // Term name + days overdue with graceful fallbacks
+  const currentName = context?.currentTerm?.name?.trim() || 'the current term';
+  const daysOverdueLabel = context?.daysOverdue && context.daysOverdue > 0
+    ? `${context.daysOverdue}`
+    : 'several';
+
+  const message =
+    `This is a reminder that your payment for ${currentName} is now ${daysOverdueLabel} days overdue.\n\n` +
+    `Please arrange payment immediately as follows:\n\n` +
+    `Items:\n${itemsList}\n\n` +
+    `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
+    `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
+    `Please note that students may be barred from attending classes until the outstanding amount has been settled.\n\n` +
+    `We appreciate your prompt attention to this matter.\n` +
+    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`;
+
+  // Open SMS app
+  window.location.href = `sms:${cleanNumber}?&body=${encodeURIComponent(message)}`;
+};
