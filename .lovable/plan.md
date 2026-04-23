@@ -1,94 +1,98 @@
 
 
-## Plan: Dynamic "commence" timing and remove brackets around branch name
+## Plan: Auto-refresh Uninvoiced filter + add live student count
 
-### What changes
+### Problem
 
-In `src/utils/invoicePDFGenerator.ts` → `buildTermReminderMessage` (used by both blue **SMS** and green **WhatsApp** buttons):
+1. After creating an invoice (e.g. Dawn's), the **Uninvoiced Class Fees (Current Term)** filtered list still shows the student. Cause: `invalidateAllBranchData()` (and the realtime invoice subscription) does not invalidate the React Query cache key `['invoiced-term-student-ids', branchId, displayTerm?.id]`. The list is stale until a hard refresh.
+2. There is no visible count of how many students still need to be invoiced for the current/upcoming term.
 
-1. **Dynamic "commence" phrase**
-   Replace the hard-coded `"will commence next week"` with a phrase derived from the number of days between **today (sender's local date)** and the **next term start date**:
+### Changes (one file: `src/components/dashboard/BranchDashboard.tsx`)
 
-   | Days until next term start | Phrase used |
-   |---|---|
-   | Already started (≤ 0 days) | `has commenced` |
-   | 1 day | `will commence tomorrow` |
-   | 2–6 days | `will commence in N days` |
-   | 7–13 days | `will commence next week` |
-   | 14+ days | `will commence in N days` |
-   | Next term start unknown | `will commence soon` |
+**A. Fix stale Uninvoiced list — add cache invalidation**
 
-   Day count is calculated from midnight-to-midnight of the local clock so partial days don't skew the number.
+In `invalidateAllBranchData` (line ~958), add:
+```ts
+queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
+```
+This ensures the query is re-run whenever any invoice/payment changes. The existing realtime subscriptions on `invoices` and `payments` already call `invalidateAllBranchData`, so adding the key here covers both manual actions (create/edit/delete invoice in the dashboard) and external changes via realtime.
 
-2. **Remove brackets from branch name in signature**
-   Change the closing line from:
-   ```
-   Gaonhae Taekwondo (Branch)
-   ```
-   to:
-   ```
-   Gaonhae Taekwondo Branch
-   ```
-   Fallback when no branch is set: `Gaonhae Taekwondo`.
+Also add a realtime listener on `invoice_items` (currently only `invoices` is watched). Term-id lives in `invoice_items.metadata`, so an `UPDATE` to a line item that changes the term needs to refresh the set too:
+```ts
+.on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_items' }, () => {
+  queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
+})
+```
+(No branch filter — `invoice_items` has no `branch_id` column; the query itself joins to `invoices.branch_id`.)
 
-### Resulting message template
+**B. Add live student count next to the filter**
+
+Show the count in the **filter badge** when the Uninvoiced filter is active, and additionally show a small inline counter immediately to the right of the filter button whenever a term is configured (regardless of which filter is active), in the format:
 
 ```
-Good Morning,
-
-We have now reached the end of Term 1 2026. Term 2 2026 will commence in 5 days and will run from 28/04/2026 to 30/06/2026.
-
-Kindly arrange payment before the start of the term as follows:
-
-Items:
-Term 2 2026 Lessons – $360.00
-Uniform – $50.00
-
-Total: $410.00
-
-Payment can be made via bank transfer using the details below:
-DBS 123-456-789-0
-Gaonhae Taekwondo Pte Ltd
-
-Thank you for your continued support.
-Gaonhae Taekwondo Bukit Timah
+Uninvoiced: <uninvoicedCount> / <totalActiveTerm>
 ```
 
-### File affected
+Where:
+- `uninvoicedCount` = active + inactive students at this branch who are NOT in `invoicedTermStudentIds` (i.e. no non-cancelled lesson invoice for `displayTerm`).
+- `totalActiveTerm` = total active + inactive students at this branch (the existing `students` array minus withdrawn/trial).
 
-- `src/utils/invoicePDFGenerator.ts`
-  - Update `buildTermReminderMessage` only (commence-phrase logic + signature line).
-  - No changes to `shareInvoiceViaSMS`, `shareInvoiceViaWhatsApp`, or any caller.
+Both values are derived from already-fetched React Query data, so they update automatically the moment the underlying queries are invalidated (which step A guarantees).
 
-### Files NOT changed
+Implementation:
+```ts
+const eligibleTermStudents = React.useMemo(
+  () => students.filter(s => {
+    const st = s.status?.toLowerCase();
+    return st === 'active' || st === 'inactive';
+  }),
+  [students]
+);
+const uninvoicedCount = React.useMemo(
+  () => displayTerm
+    ? eligibleTermStudents.filter(s => !invoicedTermStudentIds.has(s.id)).length
+    : 0,
+  [eligibleTermStudents, invoicedTermStudentIds, displayTerm]
+);
+const totalActiveTerm = eligibleTermStudents.length;
+```
 
-- `BranchDashboard.tsx`, `InvoiceManagementList.tsx` — they already pass `terms.next.start_date`; no caller updates needed.
-- `shareInvoiceOverdueReminderViaSMS` — unrelated overdue template, untouched.
+UI (just to the right of the Filter dropdown trigger, only when `displayTerm` exists):
+```tsx
+<span className="text-[11px] sm:text-xs text-muted-foreground shrink-0">
+  Uninvoiced: <span className="font-semibold text-foreground">{uninvoicedCount}</span>
+  {' / '}
+  <span className="font-semibold text-foreground">{totalActiveTerm}</span>
+</span>
+```
 
-### Behavior after change
+Also update the filter badge label when `statusFilter === 'uninvoiced_term'` from `Uninvoiced Term` to `Uninvoiced Term (${uninvoicedCount}/${totalActiveTerm})` so the chip itself stays informative.
 
-| Scenario | Output snippet |
+### Behaviour after change
+
+| Action | Result |
 |---|---|
-| Next term starts in 12 days | `Term 2 2026 will commence next week and will run from …` |
-| Next term starts in 3 days | `Term 2 2026 will commence in 3 days and will run from …` |
-| Next term starts tomorrow | `Term 2 2026 will commence tomorrow and will run from …` |
-| Next term already started | `Term 2 2026 has commenced and will run from …` |
-| Next term date unknown | `Term 2 2026 will commence soon.` |
-| Branch is "Bukit Timah" | Signature: `Gaonhae Taekwondo Bukit Timah` |
-| Branch missing | Signature: `Gaonhae Taekwondo` |
+| Create invoice for Dawn (with current-term lesson item) | Realtime `invoices` INSERT → `invoiceItems` INSERT → query invalidated → Dawn disappears from Uninvoiced list within ~1 s; counter drops by 1. |
+| Delete an invoice line | Counter goes back up; student reappears in Uninvoiced list. |
+| Switch term selector / branch loads | Counter recalculates against the new `displayTerm`. |
+| No active/upcoming term configured | Counter is hidden; existing empty-state message unchanged. |
 
 ### Verification
 
-1. Open Branch Dashboard → click green WhatsApp button on an invoice whose term starts in 5 days → message reads `will commence in 5 days`, signature has no brackets.
-2. Click blue SMS button on the same invoice → identical body.
-3. Test with a term starting tomorrow → reads `will commence tomorrow`.
-4. Test with a term already started → reads `has commenced`.
-5. Test with branch "Bukit Timah" → ends with `Gaonhae Taekwondo Bukit Timah` (no parentheses).
-6. Time-of-day greeting and all other content (items, total, bank info) unchanged.
+1. Open Branch Dashboard → Students tab. Counter `Uninvoiced: X / Y` shows next to Filter.
+2. Apply `Uninvoiced Class Fees (Current Term)` filter. List shows X rows. Badge reads `Uninvoiced Term (X/Y)`.
+3. From a different tab/window, create a current-term lesson invoice for one of those students → within a second, the row vanishes and the counter decreases by 1 with no manual refresh.
+4. Cancel that invoice → row reappears, counter increases by 1.
+5. With no active term configured → counter is hidden, list shows existing empty state.
+
+### Files NOT changed
+
+- No DB migrations, no RLS changes.
+- `invoiceService.ts` and other writers untouched — they already trigger Supabase realtime events.
+- `supabase_realtime` publication already includes `invoices`, `invoice_items`, and `payments` (used by other dashboards), so no SQL needed.
 
 ### Out of scope
 
-- Recipient-timezone awareness (uses sender's device clock — same as current greeting).
-- Overdue SMS template.
-- Number/currency formatting.
+- Counts on other tabs (Grading, Invoice & Payment) — already handled by their own queries.
+- Splitting "current term" vs "upcoming term" into two separate counters — `displayTerm` already resolves to current → upcoming → most-recent, matching today's logic.
 
