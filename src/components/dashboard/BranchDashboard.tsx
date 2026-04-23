@@ -145,6 +145,27 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectingPayment, setIsRejectingPayment] = useState(false);
 
+  // Restore selected student object on refresh from persisted id.
+  useEffect(() => {
+    let cancelled = false;
+    if (selectedStudentId && !selectedStudent) {
+      getStudentById(selectedStudentId)
+        .then((s) => { if (!cancelled && s) setSelectedStudent(s as Student); })
+        .catch(() => { if (!cancelled) setSelectedStudentId(null); });
+    }
+    if (!selectedStudentId && selectedStudent) {
+      setSelectedStudent(null);
+    }
+    return () => { cancelled = true; };
+  }, [selectedStudentId]);
+
+  // Keep persisted id in sync when selection changes locally.
+  useEffect(() => {
+    if (selectedStudent && selectedStudent.id !== selectedStudentId) {
+      setSelectedStudentId(selectedStudent.id);
+    }
+  }, [selectedStudent?.id]);
+
   const handleMassEditChange = useCallback((studentId: string, field: string, value: string) => {
     setMassEditData(prev => ({
       ...prev,
