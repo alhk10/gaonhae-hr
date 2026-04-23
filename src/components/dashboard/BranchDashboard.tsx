@@ -964,6 +964,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
     queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
     queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
   }, [queryClient, branchId]);
 
   // Realtime subscription for invoice/payment/registration changes to auto-refresh all metrics
@@ -1003,6 +1004,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
         invalidateAllBranchData();
         invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
         queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
