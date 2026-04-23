@@ -555,9 +555,19 @@ export const shareInvoiceViaSMS = async (
   // Build bank transfer info if available
   const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
 
-  // Opening line — term context with graceful fallbacks
+  // Opening line — term context with graceful fallbacks.
+  // If we know the ending term name (e.g. "Term 2 2026"), derive a sensible
+  // next-term label ("Term 3 2026") when the explicit next term is missing.
   const currentName = terms?.current?.name?.trim() || 'the current term';
-  const nextName = terms?.next?.name?.trim() || 'The next term';
+  const explicitNextName = terms?.next?.name?.trim();
+  const deriveNextName = (cur?: string): string | null => {
+    if (!cur) return null;
+    const m = cur.match(/^Term\s+(\d+)\s+(\d{4})$/i);
+    if (!m) return null;
+    return `Term ${parseInt(m[1], 10) + 1} ${m[2]}`;
+  };
+  const nextName = explicitNextName || deriveNextName(terms?.current?.name?.trim()) || 'The next term';
+
   const nextStart = terms?.next?.start_date ? formatDate(terms.next.start_date) : null;
   const nextEnd = terms?.next?.end_date ? formatDate(terms.next.end_date) : null;
 
@@ -567,6 +577,7 @@ export const shareInvoiceViaSMS = async (
 
   const opening = `We have now reached the end of ${currentName}. ${nextName} will commence next week${nextRange}.`;
 
+  // Always include items, totals, bank info, and closing — never short-circuit.
   const message =
     `${opening}\n\n` +
     `Kindly arrange payment before the start of the term as follows:\n\n` +

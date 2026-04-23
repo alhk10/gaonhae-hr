@@ -632,6 +632,11 @@ export async function getMostRecentTerm(branchId: string): Promise<Term | null> 
   }
 }
 
+// Alias for getTerm — explicit name for callers that resolve a term from an ID
+export async function getTermById(termId: string): Promise<Term | null> {
+  return getTerm(termId);
+}
+
 // Get available years for filter
 export async function getTermYears(): Promise<number[]> {
   try {

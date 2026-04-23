@@ -76,7 +76,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm, getNextTerm } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm, getNextTerm, getTermById } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 import { Student } from '@/services/studentService';
@@ -343,18 +343,33 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           total_amount: item.total_amount,
           tax_rate: item.tax_rate,
           tax_amount: item.tax_amount,
+          metadata: item.metadata,
         })) || [],
         branch: branch ? { name: branch.name, address: branch.address } : undefined,
         template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
       };
 
-      // Fetch current + next term context for the SMS body
+      // Resolve term context anchored to the invoice itself.
+      // Priority: term_id from any line item's metadata → branch current/most-recent term.
       let smsTerms: { current?: any; next?: any } | undefined;
       if (invoice.branch_id) {
-        const current = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
-        const next = current ? await getNextTerm(invoice.branch_id, current.end_date) : null;
+        // Look for a term_id in the invoice's line items (most recent item wins)
+        const itemTermId: string | undefined = (fullInvoice?.items || [])
+          .map((it: any) => it?.metadata?.term_id)
+          .filter((v: any) => typeof v === 'string' && v.length > 0)
+          .pop();
+
+        let endingTerm: any = null;
+        if (itemTermId) {
+          endingTerm = await getTermById(itemTermId).catch(() => null);
+        }
+        if (!endingTerm) {
+          endingTerm = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
+        }
+
+        const next = endingTerm ? await getNextTerm(invoice.branch_id, endingTerm.end_date) : null;
         smsTerms = {
-          current: current ? { name: current.name, start_date: current.start_date, end_date: current.end_date } : null,
+          current: endingTerm ? { name: endingTerm.name, start_date: endingTerm.start_date, end_date: endingTerm.end_date } : null,
           next: next ? { name: next.name, start_date: next.start_date, end_date: next.end_date } : null,
         };
       }
