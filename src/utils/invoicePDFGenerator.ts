@@ -593,7 +593,7 @@ export const buildTermReminderMessage = (
     `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
-    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`
+    `Gaonhae Taekwondo${invoice.branch?.name ? ` ${invoice.branch.name}` : ''}`
   );
 };
 
