@@ -585,15 +585,45 @@ export const shareInvoiceViaWhatsApp = async (
   whatsappNumber: string,
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): Promise<void> => {
-  // Digits-only target (wa.me requires no '+', no spaces)
+  // Digits-only target (wa.me / whatsapp:// require no '+', no spaces, no hidden chars)
   const digits = normalizeWhatsAppTarget(whatsappNumber);
+  if (!digits) {
+    // Caller is expected to pre-validate; guard here too so we never open a broken link.
+    throw new Error('No valid mobile number to send WhatsApp message to');
+  }
 
   // Build the same rich term-reminder body used by SMS
   const message = buildTermReminderMessage(invoice, terms);
+  const encoded = encodeURIComponent(message);
 
-  // Open WhatsApp via the simpler wa.me link in a new tab
-  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
+  const appUrl = `whatsapp://send?phone=${digits}&text=${encoded}`;
+  const webUrl = `https://wa.me/${digits}?text=${encoded}`;
+
+  // Try the native app scheme first; fall back to wa.me if the app does not take over.
+  // On desktop browsers without a registered handler, the app URL silently fails and
+  // the timeout-driven fallback opens the web link in a new tab.
+  const startedAt = Date.now();
+  let fellBack = false;
+  const fallback = () => {
+    if (fellBack) return;
+    fellBack = true;
+    window.open(webUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  try {
+    // Use location assignment so a registered protocol handler can intercept it.
+    window.location.href = appUrl;
+  } catch {
+    fallback();
+    return;
+  }
+
+  // If the page is still focused after a short delay, the app didn't open — fall back.
+  window.setTimeout(() => {
+    if (Date.now() - startedAt < 2500 && document.visibilityState === 'visible') {
+      fallback();
+    }
+  }, 800);
 };
 
 export const shareInvoiceViaSMS = async (
