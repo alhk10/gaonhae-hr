@@ -1494,6 +1494,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                     <AlertCircle className="w-3 h-3" />
                                   </Button>
                                 )}
+                                <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
                                   <Eye className="w-3 h-3" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
