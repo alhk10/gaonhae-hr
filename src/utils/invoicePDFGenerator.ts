@@ -557,7 +557,24 @@ export const buildTermReminderMessage = (
     ? ` and will run from ${nextStart} to ${nextEnd}`
     : '';
 
-  const opening = `We have now reached the end of ${currentName}. ${nextName} will commence next week${nextRange}.`;
+  // Dynamic "commence" phrase based on days until next term start (sender's local clock)
+  const commencePhrase = ((): string => {
+    const startStr = terms?.next?.start_date;
+    if (!startStr) return 'will commence soon';
+    const startDate = new Date(startStr);
+    if (isNaN(startDate.getTime())) return 'will commence soon';
+    const startMidnight = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.round((startMidnight.getTime() - todayMidnight.getTime()) / 86400000);
+    if (days <= 0) return 'has commenced';
+    if (days === 1) return 'will commence tomorrow';
+    if (days >= 2 && days <= 6) return `will commence in ${days} days`;
+    if (days >= 7 && days <= 13) return 'will commence next week';
+    return `will commence in ${days} days`;
+  })();
+
+  const opening = `We have now reached the end of ${currentName}. ${nextName} ${commencePhrase}${nextRange}.`;
 
   // Time-of-day greeting based on sender's local clock
   const hour = new Date().getHours();
@@ -576,7 +593,7 @@ export const buildTermReminderMessage = (
     `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
-    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`
+    `Gaonhae Taekwondo${invoice.branch?.name ? ` ${invoice.branch.name}` : ''}`
   );
 };
 
