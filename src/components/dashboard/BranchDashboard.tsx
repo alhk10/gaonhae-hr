@@ -1396,7 +1396,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           {/* Student Details Dialog */}
           <StudentDetailsDialog
             open={studentDetailsOpen}
-            onOpenChange={setStudentDetailsOpen}
+            onOpenChange={(open) => {
+              setStudentDetailsOpen(open);
+              if (!open) setSelectedStudentId(null);
+            }}
             student={selectedStudent}
             branchId={branchId}
             onStudentUpdated={async () => {
