@@ -585,11 +585,13 @@ export const buildTermReminderMessage = (
       : 'Evening';
   const greeting = `Good ${timeOfDay},`;
 
+  const studentName = invoice.student?.name?.trim() || 'your child';
+
   return (
     `${greeting}\n\n` +
     `${opening}\n\n` +
-    `Kindly arrange payment before the start of the term as follows:\n\n` +
-    `Items:\n${itemsList}\n\n` +
+    `Kindly arrange payment for ${studentName} before the start of the term as follows:\n\n` +
+    `${itemsList}\n\n` +
     `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
