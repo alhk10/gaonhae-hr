@@ -77,3 +77,17 @@ export function formatPhone(countryCode: string, localNumber: string): string {
   const cleaned = localNumber.trim().replace(/^0+/, '');
   return `${countryCode} ${cleaned}`.trim();
 }
+
+/**
+ * Normalize a stored phone string by stripping a leading 0 right after a
+ * known country code. Safe for: empty, null, no-country-code, already-correct.
+ *   "+61 0431..." -> "+61 431..."
+ *   "+610431..."  -> "+61 431..."
+ *   "+65 91234567" -> "+65 91234567" (unchanged)
+ *   "91234567"    -> "91234567" (unchanged)
+ */
+export function normalizeStoredPhone<T extends string | null | undefined>(value: T): T {
+  if (!value || typeof value !== 'string') return value;
+  const re = /^(\+(?:65|61|60|62|86|91|63|66|84|81|82|44|64|49|33|39|34|95|971|966|852|886|855|856|1)) ?0/;
+  return value.replace(re, '$1 ') as T;
+}

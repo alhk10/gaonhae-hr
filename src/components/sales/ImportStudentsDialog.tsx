@@ -7,6 +7,7 @@ import { Download, Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-re
 import { toast } from '@/components/ui/sonner';
 import { createStudent, CreateStudentData } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
+import { normalizeStoredPhone } from '@/constants/formOptions';
 
 // Parse DD-MM-YYYY to YYYY-MM-DD for database storage
 const parseDateValue = (value: string): string => {
@@ -206,7 +207,7 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           languages_spoken: row.languages_spoken ? row.languages_spoken.split(';').map(l => l.trim()).filter(Boolean) : undefined,
           nric_passport: row.nric_passport || undefined,
           email: row.email || undefined,
-          phone: row.phone || undefined,
+          phone: normalizeStoredPhone(row.phone) || undefined,
           address: row.address || undefined,
           postal_code: row.postal_code || undefined,
           branch_id: row.branch_id ? (branches.find(b => b.name.toLowerCase() === row.branch_id.trim().toLowerCase())?.id || row.branch_id) : undefined,
@@ -226,10 +227,10 @@ const ImportStudentsDialog: React.FC<ImportStudentsDialogProps> = ({
           referral_source: row.referral_source || undefined,
           registered_date: row.registered_date ? parseDateValue(row.registered_date) : undefined,
           emergency_contact_name: row.emergency_contact_name || undefined,
-          emergency_contact_phone: row.emergency_contact_phone || undefined,
+          emergency_contact_phone: normalizeStoredPhone(row.emergency_contact_phone) || undefined,
           emergency_contact_relationship: row.emergency_contact_relationship || undefined,
           emergency_contact_2_name: row.emergency_contact_2_name || undefined,
-          emergency_contact_2_phone: row.emergency_contact_2_phone || undefined,
+          emergency_contact_2_phone: normalizeStoredPhone(row.emergency_contact_2_phone) || undefined,
           emergency_contact_2_relationship: row.emergency_contact_2_relationship || undefined,
           medical_conditions: row.medical_conditions || undefined,
           dietary_restrictions: row.dietary_restrictions || undefined,
