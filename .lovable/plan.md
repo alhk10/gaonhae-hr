@@ -1,78 +1,69 @@
 
 
-## Plan: Fix Invoice & Payment tab counter showing 0 for upcoming-term invoices
+## Plan: Restructure Invoice & Payment row layout
 
-### Problem
+### What changes
 
-The tab shows `Invoice & Payment (0 | $0.00)` even though many unpaid `draft` invoices for the upcoming term are visible (issued 23/04/2026). Today is between terms, so `displayTerm` falls back to the **upcoming term**, whose `start_date` is in the future. The current query (`src/components/dashboard/BranchDashboard.tsx`, lines 742–763) filters by `issue_date BETWEEN displayTerm.start_date AND displayTerm.end_date`, which excludes invoices issued *before* the term starts — exactly the case here. The Students counter `(2/44)` works because it matches via `metadata.term_id` on invoice items, not by `issue_date`.
+In `src/components/dashboard/BranchDashboard.tsx` (Invoice list rendering, lines ~1604–1662), restructure each invoice card into 2 lines with the requested ordering, and hide View/Edit/Delete buttons on mobile.
 
-### Fix
+### New row layout
 
-Change the `outstanding-invoices` query to identify invoices that contain at least one line item with `metadata.term_id === displayTerm.id` (mirroring the pattern already used by the `invoiced-term-student-ids` query at lines 886–921), then aggregate count and `balance_due` of the unique parent invoices whose status is in the unpaid set.
+**Line 1** (left → right):
+- Student Display Name (uppercase, bold)
+- Invoice number (muted, smaller)
+- Amount (right-aligned)
+- Status badge
 
-### Implementation
+**Line 2** (left → right):
+- Date of invoice (muted)
+- Action buttons (right-aligned): `$` Add Payment, Download PDF, SMS, WhatsApp, Overdue alert (if overdue), View, Edit, Delete
 
-In `src/components/dashboard/BranchDashboard.tsx`, replace the `outstandingData` query (lines 742–763) with:
+### Mobile vs desktop visibility
 
-```ts
-const { data: outstandingData = { count: 0, amount: 0 } } = useQuery({
-  queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
-  queryFn: async () => {
-    if (!displayTerm) return { count: 0, amount: 0 };
+Use the existing `useIsMobile()` hook (from `@/hooks/use-mobile`) to conditionally hide three action buttons under 768px:
+- **View** (Eye icon) — hidden on mobile
+- **Edit** (Edit icon) — hidden on mobile
+- **Delete** (Trash icon) — hidden on mobile
 
-    const UNPAID = ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'];
+Always visible on both mobile and desktop:
+- `$` Add Payment (when status is unpaid/draft/sent/partial/overdue)
+- Download PDF
+- SMS, WhatsApp
+- Overdue alert (when applicable)
 
-    // Pull invoice_items joined to their invoice, scoped to this branch + unpaid statuses
-    const { data: items } = await supabase
-      .from('invoice_items')
-      .select(`
-        metadata,
-        invoices!inner (
-          id,
-          balance_due,
-          status,
-          branch_id
-        )
-      `)
-      .eq('invoices.branch_id', branchId)
-      .in('invoices.status', UNPAID);
+Implementation: wrap the three buttons with `{!isMobile && (...)}`.
 
-    // Dedupe to invoices whose any line item belongs to displayTerm
-    const map = new Map<string, number>();
-    (items || []).forEach((row: any) => {
-      const md = row.metadata as Record<string, any> | null;
-      if (md?.term_id !== displayTerm.id) return;
-      const inv = row.invoices;
-      if (!inv) return;
-      if (!map.has(inv.id)) map.set(inv.id, Number(inv.balance_due) || 0);
-    });
+### Hint text
 
-    const balances = Array.from(map.values());
-    return {
-      count: balances.length,
-      amount: balances.reduce((s, n) => s + n, 0),
-    };
-  },
-  enabled: !!branchId && !!displayTerm,
-});
+The phrase "Click row to view/edit invoice" does not currently appear anywhere in the codebase. No hint text is added; row container has no `onClick` handler — confirmed unchanged.
+
+### Code shape
+
+```tsx
+<div key={invoice.id} className="px-2 py-1.5 bg-muted/50 rounded-lg space-y-1">
+  {/* Line 1: name + invoice number + amount + status */}
+  <div className="flex items-center gap-1.5">
+    <span className="font-semibold text-xs truncate min-w-0">{studentName}</span>
+    <span className="text-[11px] text-muted-foreground whitespace-nowrap">{invoice.invoice_number}</span>
+    <span className="font-medium text-xs whitespace-nowrap ml-auto">${invoice.total_amount?.toFixed(2)}</span>
+    <Badge variant={...} className="text-[10px] px-1 h-4 shrink-0">{invoice.status}</Badge>
+  </div>
+  {/* Line 2: date + action buttons */}
+  <div className="flex items-center gap-1.5">
+    <span className="text-[11px] text-muted-foreground">{formatDate(new Date(invoice.created_at))}</span>
+    <div className="flex items-center shrink-0 ml-auto">
+      {/* $ Add Payment, Download, SMS, WhatsApp, Overdue — always shown */}
+      {!isMobile && (
+        <>
+          {/* View, Edit, Delete buttons */}
+        </>
+      )}
+    </div>
+  </div>
+</div>
 ```
 
-No changes to the tab label rendering (line 1213) or to invalidation calls — query key stays `['outstanding-invoices', branchId, displayTerm?.id]`, which is already invalidated everywhere it needs to be.
-
-### Behaviour after change
-
-| Scenario | Tab label |
-|---|---|
-| Inter-term: 5 draft unpaid invoices for upcoming term, total $1,250 | `Invoice & Payment (5 \| $1,250.00)` |
-| All term invoices paid | `Invoice & Payment (0 \| $0.00)` |
-| Mid-term unpaid invoices | unchanged behaviour, now matched via `metadata.term_id` |
-| No `displayTerm` configured | `Invoice & Payment (0 \| $0.00)` |
-
-### Why this matches the rest of the dashboard
-
-- Students tab `uninvoicedCount` already uses `metadata.term_id` (lines 886–921).
-- Grading tab `gradingMetrics` uses `metadata.term_id` (line 770+).
-- Aligning the Invoice tab keeps all tab counters consistent: "this term" = items tagged with the term, regardless of invoice issue date.
+Add `const isMobile = useIsMobile();` near the top of the component if not already present, and import `useIsMobile` from `@/hooks/use-mobile`.
 
 ### Files affected
 
@@ -80,15 +71,15 @@ No changes to the tab label rendering (line 1213) or to invalidation calls — q
 
 ### Verification
 
-1. Branch Dashboard during inter-term period with draft invoices visible for upcoming term → tab shows `(N | $X.XX)` matching the visible Unpaid list.
-2. Mark one of those invoices as Paid → counter decrements within ~1 s (existing realtime invalidation).
-3. Cancel an unpaid invoice → counter decrements.
-4. During mid-term: counter still reflects unpaid invoices for the current term.
-5. Branch with no terms configured → `(0 | $0.00)`.
+1. Desktop (≥768px): each invoice row shows 2 lines as specified, all 8 action buttons visible on line 2.
+2. Mobile (<768px): each invoice row shows 2 lines; line 2 hides View, Edit, Delete; `$`, Download, SMS, WhatsApp (and Overdue when applicable) remain.
+3. Status badge shows on line 1 next to the amount on both viewports.
+4. Invoice number now sits next to the student name on line 1 (previously on line 2).
+5. No "Click row to view/edit invoice" hint appears anywhere; row has no click handler.
 
 ### Out of scope
 
-- Changing which statuses count as "unpaid".
-- Behaviour of other tab counters (already correct).
-- The Invoice list filtering inside the tab.
+- Status filter dropdown, Create Invoice button, search/date filter row — unchanged.
+- Payments section rendering elsewhere — unchanged.
+- Tab counter logic — unchanged.
 
