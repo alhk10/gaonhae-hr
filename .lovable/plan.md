@@ -1,13 +1,20 @@
 
 
-## Plan: Update SMS message to include term-end / next-term context
+## Plan: Add 2nd SMS button for late payment reminders
 
-### New message format
+### New "Overdue" SMS button
+
+A second icon button next to the existing blue "Send via SMS" button on each invoice row in the **Branch Dashboard → Invoice & Payment** tab. Shown only for invoices that are actually overdue (status `unpaid`, `partial`, `partially_paid`, `sent`, `overdue`, or `draft` — i.e. has `balance_due > 0` AND `due_date < today`). Hidden for paid/verified/cancelled invoices.
+
+- Icon: `AlertCircle` (lucide) in **red** (`text-red-600`), tooltip "Send overdue reminder".
+- Sits between the existing blue SMS button and the View button.
+
+### Message template
 
 ```
-We have now reached the end of {current_term_name}. {next_term_name} will commence next week and will run from {next_term_start} to {next_term_end}.
+This is a reminder that your payment for {current_term_name} is now {days_overdue} days overdue.
 
-Kindly arrange payment before the start of the term as follows:
+Please arrange payment immediately as follows:
 
 Items:
 {product_1} – {amount_1}
@@ -18,52 +25,73 @@ Total: {total_amount}
 Payment can be made via bank transfer using the details below:
 {branch_bank_transfer_info}
 
-Thank you for your continued support.
+Please note that students may be barred from attending classes until the outstanding amount has been settled.
+
+We appreciate your prompt attention to this matter.
 Gaonhae Taekwondo ({branch})
 ```
 
-Dates rendered as DD/MM/YYYY via `formatDate` from `@/utils/dateFormat`.
-
-### Where the term info comes from
-
-`term_calendars` table, scoped to the invoice's `branch_id`:
-- **Current term** = `getCurrentTerm(branchId)` (or `getMostRecentTerm` as fallback).
-- **Next term** = first row where `branch_id = X`, `is_active = true`, `start_date > current_term.end_date`, ordered by `start_date asc`, limit 1.
-
-If either is missing the line is gracefully omitted / replaced with sensible fallback (e.g. "the current term" / "The next term").
+- `{current_term_name}` = `getCurrentTerm(branchId) ?? getMostRecentTerm(branchId)` (same source as the existing SMS). Falls back to `"the current term"` if missing.
+- `{days_overdue}` = whole days between `invoice.due_date` and today (`Math.max(1, …)`). Falls back to `"several"` if `due_date` is null.
+- Items use en-dash separator and `formatCurrency`, dates DD/MM/YYYY via `@/utils/dateFormat`.
+- `{branch_bank_transfer_info}` from `invoice_templates` matching the branch country (same lookup as existing SMS).
 
 ### Implementation
 
-**1. `src/services/termCalendarService.ts`** — add a small helper:
+**1. `src/utils/invoicePDFGenerator.ts`** — add a sibling helper:
 
 ```ts
-export async function getNextTerm(branchId: string, afterDate: string): Promise<Term | null>
+export const shareInvoiceOverdueReminderViaSMS = async (
+  invoice: InvoiceData,
+  phoneNumber: string,
+  context?: { currentTerm?: SmsTermInfo | null; daysOverdue?: number | null }
+): Promise<void>
 ```
-Queries `term_calendars` for the next active term after `afterDate` for that branch.
 
-**2. `src/utils/invoicePDFGenerator.ts`** — extend `InvoiceData.branch` typing (or pass extra arg) so SMS can receive optional `currentTerm` / `nextTerm` objects with `{ name, start_date, end_date }`. Update `shareInvoiceViaSMS` to build the new message body with the en-dash separator (`–`) between item description and amount, formatted dates, and the new wording. Falls back cleanly if term info is missing.
+Builds the overdue body using the template above and opens `sms:` URI. Reuses the existing `formatCurrency` helper, `SmsTermInfo` type, and number-cleaning regex. No PDF, no attachment.
 
-**3. `src/components/dashboard/BranchDashboard.tsx`** — in `handleShareSMS`:
-- After resolving `invoice.branch_id`, fetch `currentTerm = getCurrentTerm(branch_id) ?? getMostRecentTerm(branch_id)`.
-- If `currentTerm` exists, fetch `nextTerm = getNextTerm(branch_id, currentTerm.end_date)`.
-- Pass both to `shareInvoiceViaSMS` (e.g. via a new optional `terms` arg or as part of `InvoiceData`).
+**2. `src/components/dashboard/BranchDashboard.tsx`**
+
+- Add a new handler `handleShareOverdueSMS(invoice)` that:
+  - Resolves student phone (same fallback chain as `handleShareSMS`).
+  - Fetches `fullInvoice`, branch country, active `invoice_template` (identical lookup).
+  - Fetches current term: `getCurrentTerm(branch_id) ?? getMostRecentTerm(branch_id)`.
+  - Computes `daysOverdue = Math.max(1, floor((today - due_date) / 86_400_000))` when `due_date` exists.
+  - Calls `shareInvoiceOverdueReminderViaSMS(invoiceData, number, { currentTerm, daysOverdue })`.
+
+- Render a new icon button next to the existing SMS button (line ~1405), guarded by an `isOverdue(invoice)` helper:
+
+```tsx
+{isOverdue(invoice) && (
+  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600"
+    title="Send overdue reminder"
+    onClick={(e) => { e.stopPropagation(); handleShareOverdueSMS(invoice); }}>
+    <AlertCircle className="w-3 h-3" />
+  </Button>
+)}
+```
+
+- `isOverdue` = `invoice.balance_due > 0 && invoice.due_date && new Date(invoice.due_date) < startOfToday() && !['cancelled','paid','verified'].includes(invoice.status)`.
+- Add `AlertCircle` to the existing `lucide-react` import.
 
 ### Files affected
 
-- `src/services/termCalendarService.ts` — add `getNextTerm` helper.
-- `src/utils/invoicePDFGenerator.ts` — new SMS body format, accept current/next term info, format dates DD/MM/YYYY.
-- `src/components/dashboard/BranchDashboard.tsx` — fetch current + next term and pass to `shareInvoiceViaSMS`.
+- `src/utils/invoicePDFGenerator.ts` — new `shareInvoiceOverdueReminderViaSMS` helper.
+- `src/components/dashboard/BranchDashboard.tsx` — new `handleShareOverdueSMS`, conditional red `AlertCircle` button next to the existing blue SMS button, lucide import update.
 
 ### Verification
 
-1. Branch Dashboard → Invoice & Payment → click MessageSquare icon on a term invoice.
-2. SMS app opens with body matching the new template; dates render as `DD/MM/YYYY`; items use ` – ` separator; bank info follows; signature line `Gaonhae Taekwondo ({branch})`.
-3. If branch has no current term, the opening sentence falls back to a generic phrasing rather than blank/undefined.
-4. Existing WhatsApp button, PDF download, and other invoice actions unaffected.
+1. Branch Dashboard → Invoice & Payment.
+2. An overdue unpaid/partial invoice shows three action icons: Download (grey), SMS (blue), **Overdue reminder (red `AlertCircle`)**, View, Edit, Delete.
+3. A paid/verified/future-due invoice shows only the existing buttons (no red icon).
+4. Clicking the red icon opens the device SMS app pre-filled with the template, correct days-overdue count, current term name, items + amounts, branch bank info, and signature line.
+5. If `due_date` is null, body shows "several days overdue"; if no current term, body uses "the current term".
+6. Existing blue SMS button, WhatsApp button, PDF download remain unchanged.
 
 ### Out of scope
 
-- Surfacing the new SMS button on Sales > Invoice Management (still Branch Dashboard only).
+- Surfacing on Sales > Invoice Management.
+- Auto-send / scheduled reminders or bulk send.
+- Recording reminder history / audit log.
 - Changing WhatsApp message format.
-- Bulk send / scheduled reminders.
 
