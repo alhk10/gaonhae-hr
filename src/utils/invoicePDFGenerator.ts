@@ -497,56 +497,21 @@ const normalizeWhatsAppTarget = (v: string) => v.replace(/\D/g, '');
 // SMS scheme keeps the leading '+' for international dialing; only strip formatting chars.
 const normalizeSmsTarget = (v: string) => v.replace(/[\s\-\(\)]/g, '');
 
-export const shareInvoiceViaWhatsApp = async (
-  invoice: InvoiceData,
-  whatsappNumber: string
-): Promise<void> => {
-  // Digits-only target (WhatsApp requirement)
-  const digits = normalizeWhatsAppTarget(whatsappNumber);
-
-  // Plain-text message — no PDF, no links
-  const recipientName = invoice.student?.name?.trim() || 'there';
-  const branchName = invoice.branch?.name || 'Gaonhae Taekwondo';
-  const dueDate = invoice.due_date ? formatDate(invoice.due_date) : 'soon';
-
-  const messageText =
-    `Hi ${recipientName},\n\n` +
-    `This is a reminder for invoice ${invoice.invoice_number} from ${branchName}.\n` +
-    `Amount due: ${formatCurrency(invoice.balance_due ?? invoice.total_amount)}\n` +
-    `Due date: ${dueDate}\n\n` +
-    `Thank you.`;
-
-  const encoded = encodeURIComponent(messageText);
-
-  // Prefer native app deep link; fall back to api.whatsapp.com if it doesn't open.
-  const deepLink = `whatsapp://send?phone=${digits}&text=${encoded}`;
-  const fallback = `https://api.whatsapp.com/send?phone=${digits}&text=${encoded}`;
-
-  // Attempt native deep link first
-  window.location.href = deepLink;
-
-  // Fallback after a short delay if the native app didn't take over the page
-  window.setTimeout(() => {
-    if (document.visibilityState === 'visible') {
-      window.location.href = fallback;
-    }
-  }, 800);
-};
-
 export interface SmsTermInfo {
   name?: string;
   start_date?: string;
   end_date?: string;
 }
 
-export const shareInvoiceViaSMS = async (
+/**
+ * Build the rich term-reminder message body shared by SMS and WhatsApp.
+ * Includes opening (ending + upcoming term with date range), itemized list,
+ * total, bank transfer details, and the Gaonhae signature.
+ */
+export const buildTermReminderMessage = (
   invoice: InvoiceData,
-  phoneNumber: string,
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
-): Promise<void> => {
-  // Clean the phone number (preserve leading '+' for SMS scheme)
-  const cleanNumber = normalizeSmsTarget(phoneNumber);
-
+): string => {
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
     ? invoice.items.map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
@@ -577,15 +542,42 @@ export const shareInvoiceViaSMS = async (
 
   const opening = `We have now reached the end of ${currentName}. ${nextName} will commence next week${nextRange}.`;
 
-  // Always include items, totals, bank info, and closing — never short-circuit.
-  const message =
+  return (
     `${opening}\n\n` +
     `Kindly arrange payment before the start of the term as follows:\n\n` +
     `Items:\n${itemsList}\n\n` +
     `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
-    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`;
+    `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`
+  );
+};
+
+export const shareInvoiceViaWhatsApp = async (
+  invoice: InvoiceData,
+  whatsappNumber: string,
+  terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
+): Promise<void> => {
+  // Digits-only target (wa.me requires no '+', no spaces)
+  const digits = normalizeWhatsAppTarget(whatsappNumber);
+
+  // Build the same rich term-reminder body used by SMS
+  const message = buildTermReminderMessage(invoice, terms);
+
+  // Open WhatsApp via the simpler wa.me link in a new tab
+  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+export const shareInvoiceViaSMS = async (
+  invoice: InvoiceData,
+  phoneNumber: string,
+  terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
+): Promise<void> => {
+  // Clean the phone number (preserve leading '+' for SMS scheme)
+  const cleanNumber = normalizeSmsTarget(phoneNumber);
+
+  const message = buildTermReminderMessage(invoice, terms);
 
   // Open SMS app
   window.location.href = `sms:${cleanNumber}?&body=${encodeURIComponent(message)}`;
