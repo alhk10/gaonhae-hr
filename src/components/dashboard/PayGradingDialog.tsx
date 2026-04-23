@@ -801,41 +801,11 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
                     </div>
 
                     {/* Proof of Payment */}
-                    <div className="space-y-2">
-                      <Label>Proof of Payment *</Label>
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && !file.type.startsWith('image/')) {
-                              toast.error('Only image files are accepted for payment proof');
-                              e.target.value = '';
-                              return;
-                            }
-                            setProofFile(file || null);
-                          }}
-                          className="hidden"
-                          id="grading-proof-upload"
-                        />
-                        <label htmlFor="grading-proof-upload" className="cursor-pointer">
-                          {proofFile ? (
-                            <div className="flex items-center justify-center gap-2 text-primary">
-                              <CheckCircle className="w-5 h-5" />
-                              <span className="text-sm">{proofFile.name}</span>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                              <p className="text-sm text-muted-foreground">
-                                Click to upload payment screenshot
-                              </p>
-                            </div>
-                          )}
-                        </label>
-                      </div>
-                    </div>
+                    <ProofOfPaymentUpload
+                      value={proofFile}
+                      onChange={setProofFile}
+                      required
+                    />
                   </>
                 )}
 

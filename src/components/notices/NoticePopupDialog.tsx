@@ -185,26 +185,12 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
                         />
                       </div>
 
-                      <div>
-                        <Label className="text-xs">Proof of Payment *</Label>
-                        <div className="mt-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => proofInputRef.current?.click()}
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {proofFile ? proofFile.name : 'Upload proof'}
-                          </Button>
-                          <input
-                            ref={proofInputRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                          />
-                        </div>
-                      </div>
+                      <ProofOfPaymentUpload
+                        value={proofFile}
+                        onChange={setProofFile}
+                        required
+                        compact
+                      />
                     </>
                   )}
 

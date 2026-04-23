@@ -19,7 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
 import { getStudentCreditBalance } from '@/services/studentCreditService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
-import { Loader2, Search, FileText, DollarSign, Upload, X } from 'lucide-react';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
@@ -613,47 +614,13 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Proof of Payment {formData.payment_method !== 'cash' && '*'}</Label>
-              <div className="space-y-1.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="proof-upload"
-                />
-                {proofFile ? (
-                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="flex-1 text-xs truncate">{proofFile.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={removeFile}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-8 text-xs"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    Upload Proof of Payment
-                  </Button>
-                )}
-                <p className="text-[11px] text-muted-foreground">
-                  Accepted formats: Images, PDF (max 5MB)
-                </p>
-              </div>
-            </div>
+            <ProofOfPaymentUpload
+              value={proofFile}
+              onChange={setProofFile}
+              required={formData.payment_method !== 'cash'}
+              label={`Proof of Payment${formData.payment_method !== 'cash' ? '' : ' (optional for cash)'}`}
+              compact
+            />
 
           </div>
 
