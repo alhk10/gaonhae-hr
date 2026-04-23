@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -42,7 +44,8 @@ const countQueryOpts = { staleTime: 30 * 1000, refetchInterval: 60 * 1000 };
 
 const SuperadminDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useSessionState('superadmin-dash:tab', 'overview');
+  useScrollRestoration();
 
   const { data: pendingPaymentDeletionsCount = 0 } = useQuery({
     queryKey: ['pending-deletion-count'],

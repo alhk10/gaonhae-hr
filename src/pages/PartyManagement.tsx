@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import AuthGuard from '@/components/auth/AuthGuard';
@@ -34,10 +36,11 @@ const PartyManagement = () => {
   const { hasAccess: hasSalesAccess } = useSalesModuleAccess();
   
   // Tab State
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useSessionState('party-mgmt:tab', 'students');
+  useScrollRestoration();
   
   // Filter State - Single dropdown for status
-  const [statusFilter, setStatusFilter] = useState('current-all');
+  const [statusFilter, setStatusFilter] = useSessionState('party-mgmt:statusFilter', 'current-all');
   
   // Dialog States
   const [showAddForm, setShowAddForm] = useState(false);
@@ -73,8 +76,8 @@ const PartyManagement = () => {
   });
 
   // Student search state
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentPage, setStudentPage] = useState(1);
+  const [studentSearch, setStudentSearch] = useSessionState('party-mgmt:studentSearch', '');
+  const [studentPage, setStudentPage] = useSessionState('party-mgmt:studentPage', 1);
 
   // Check user permissions for employee tabs
   const isSuperAdmin = userrole === 'superadmin';
