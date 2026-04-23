@@ -6,6 +6,7 @@ import { processUserSession } from '@/services/authSessionService';
 import { AuthContextType, UserType, LinkedStudent } from '@/types/auth';
 import { logger } from '@/utils/logger';
 import { clearAuthCache } from '@/services/authCacheService';
+import { clearAllResumeState } from '@/hooks/useSessionState';
 
 const SESSION_STORAGE_KEY = 'selectedStudentId';
 const RECOVERY_FLAG_KEY = 'requiresPasswordChange';
@@ -166,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async (): Promise<void> => {
     try {
       clearAuthCache();
+      clearAllResumeState();
       sessionStorage.removeItem(RECOVERY_FLAG_KEY);
       setRequiresPasswordChange(false);
 
@@ -214,6 +216,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       logger.info('Auth state changed', { event });
 
       if (event === 'SIGNED_OUT') {
+        clearAllResumeState();
         clearUserState();
         setIsLoading(false);
         return;
