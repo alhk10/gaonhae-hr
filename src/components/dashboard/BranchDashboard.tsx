@@ -55,7 +55,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, hasUsableMobileNumber, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
