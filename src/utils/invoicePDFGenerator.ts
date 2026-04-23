@@ -511,30 +511,47 @@ export const shareInvoiceViaWhatsApp = async (
   window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
 };
 
+export interface SmsTermInfo {
+  name?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
 export const shareInvoiceViaSMS = async (
   invoice: InvoiceData,
-  phoneNumber: string
+  phoneNumber: string,
+  terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): Promise<void> => {
   // Clean the phone number
   const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
 
-  // Build items list
+  // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
-    ? invoice.items.map(item => `${item.description} - ${formatCurrency(item.total_amount)}`).join('\n')
+    ? invoice.items.map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
     : 'No items';
 
   // Build bank transfer info if available
-  const bankInfo = invoice.template?.bank_transfer_info?.trim()
-    ? `\n${invoice.template.bank_transfer_info.trim()}\n`
-    : '\n';
+  const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
 
-  // Build the message
+  // Opening line — term context with graceful fallbacks
+  const currentName = terms?.current?.name?.trim() || 'the current term';
+  const nextName = terms?.next?.name?.trim() || 'The next term';
+  const nextStart = terms?.next?.start_date ? formatDate(terms.next.start_date) : null;
+  const nextEnd = terms?.next?.end_date ? formatDate(terms.next.end_date) : null;
+
+  const nextRange = nextStart && nextEnd
+    ? ` and will run from ${nextStart} to ${nextEnd}`
+    : '';
+
+  const opening = `We have now reached the end of ${currentName}. ${nextName} will commence next week${nextRange}.`;
+
   const message =
-    `Hello! Your Gaonhae invoice ${invoice.invoice_number} has been issued.\n\n` +
+    `${opening}\n\n` +
+    `Kindly arrange payment before the start of the term as follows:\n\n` +
     `Items:\n${itemsList}\n\n` +
-    `Total: ${formatCurrency(invoice.total_amount)}\n` +
-    `${bankInfo}` +
-    `Thank you\n` +
+    `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
+    `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
+    `Thank you for your continued support.\n` +
     `Gaonhae Taekwondo (${invoice.branch?.name || 'Branch'})`;
 
   // Open SMS app
