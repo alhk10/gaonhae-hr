@@ -55,7 +55,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, hasUsableMobileNumber, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
@@ -395,15 +395,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   };
 
-  // Handle Send invoice via WhatsApp (wa.me, mirrors the rich SMS message)
+  // Handle Send invoice via WhatsApp (whatsapp:// → wa.me fallback, mirrors the rich SMS message)
   const handleShareWhatsApp = async (invoice: any) => {
     try {
       const studentData = await getStudentById(invoice.student_id).catch(() => null);
-      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
-      if (!number) {
+      const candidate = studentData?.whatsapp || studentData?.phone || '';
+      if (!hasUsableMobileNumber(candidate)) {
         toast.error('No mobile number on file for this student');
         return;
       }
+      const number = candidate;
 
       // Fetch full invoice items
       const fullInvoice = await getInvoiceById(invoice.id);
