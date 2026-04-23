@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeStoredPhone } from '@/constants/formOptions';
 
 export interface StudentRegistrationData {
   referral_source?: string;
@@ -39,6 +40,10 @@ export async function submitStudentRegistration(data: StudentRegistrationData) {
     .from('student_registrations')
     .insert({
       ...data,
+      phone: normalizeStoredPhone(data.phone) || null,
+      whatsapp: normalizeStoredPhone(data.whatsapp) || null,
+      emergency_contact_phone: normalizeStoredPhone(data.emergency_contact_phone) || null,
+      emergency_contact_2_phone: normalizeStoredPhone(data.emergency_contact_2_phone) || null,
       nationality: data.nationality || [],
       languages_spoken: data.languages_spoken || [],
       status: 'pending',
@@ -106,18 +111,18 @@ export async function approveRegistration(registrationId: string, reviewerEmail:
     gender: merged.gender || '',
     nric_passport: merged.nric_passport || '',
     passport_no: merged.passport_no || '',
-    phone: merged.phone || '',
-    whatsapp: merged.whatsapp || '',
+    phone: normalizeStoredPhone(merged.phone) || '',
+    whatsapp: normalizeStoredPhone(merged.whatsapp) || '',
     email: merged.email || '',
     address: merged.address || '',
     postal_code: merged.postal_code || '',
     nationality: (merged.nationality as string[]) || [],
     languages_spoken: (merged.languages_spoken as string[]) || [],
     emergency_contact_name: merged.emergency_contact_name || '',
-    emergency_contact_phone: merged.emergency_contact_phone || '',
+    emergency_contact_phone: normalizeStoredPhone(merged.emergency_contact_phone) || '',
     emergency_contact_relationship: merged.emergency_contact_relationship || '',
     emergency_contact_2_name: merged.emergency_contact_2_name || '',
-    emergency_contact_2_phone: merged.emergency_contact_2_phone || '',
+    emergency_contact_2_phone: normalizeStoredPhone(merged.emergency_contact_2_phone) || '',
     emergency_contact_2_relationship: merged.emergency_contact_2_relationship || '',
     current_belt: beltValue,
     previous_experience: merged.previous_experience || '',

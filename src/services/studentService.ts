@@ -780,14 +780,14 @@ export const importStudentsFromCSV = async (csvContent: string): Promise<{ succe
           certificate_name: fullName,
           display_name: fullName,
           email: values[3] || undefined,
-          phone: values[4] || undefined,
+          phone: normalizeStoredPhone(values[4]) || undefined,
           date_of_birth: values[5] || undefined,
           gender: values[6] || undefined,
           current_belt: values[7] || undefined,
           status: values[8] || 'active',
           branch_id: values[10] || undefined,
           emergency_contact_name: values[12] || undefined,
-          emergency_contact_phone: values[13] || undefined,
+          emergency_contact_phone: normalizeStoredPhone(values[13]) || undefined,
           notes: values[15] || undefined
         };
 
