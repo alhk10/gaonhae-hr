@@ -878,9 +878,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const gradingTermPaidCount = gradingMetrics.termPaid;
   const totalTermStudents = gradingMetrics.totalTermStudents;
 
-  // Fetch IDs of students who have a paid/verified lesson invoice for the displayTerm
-  const { data: paidTermStudentIdsArr = [] } = useQuery({
-    queryKey: ['paid-term-student-ids', branchId, displayTerm?.id],
+  // Fetch IDs of students who have ANY non-cancelled lesson invoice for the displayTerm
+  const { data: invoicedTermStudentIdsArr = [] } = useQuery({
+    queryKey: ['invoiced-term-student-ids', branchId, displayTerm?.id],
     queryFn: async () => {
       if (!displayTerm) return [] as string[];
       const { data: lessonProducts } = await supabase
@@ -902,7 +902,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['paid', 'verified']);
+        .neq('invoices.status', 'cancelled');
 
       const ids = new Set<string>();
       (invoiceItems || []).forEach(item => {
@@ -915,9 +915,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     },
     enabled: !!branchId && !!displayTerm,
   });
-  const paidTermStudentIds = React.useMemo(
-    () => new Set(paidTermStudentIdsArr),
-    [paidTermStudentIdsArr]
+  const invoicedTermStudentIds = React.useMemo(
+    () => new Set(invoicedTermStudentIdsArr),
+    [invoicedTermStudentIdsArr]
   );
 
   // Check if casual employees have bookings this month
@@ -1099,11 +1099,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       matchesStatus = studentStatus === 'inactive';
     } else if (statusFilter === 'trial') {
       matchesStatus = studentStatus === 'trial';
-    } else if (statusFilter === 'unpaid_term') {
+    } else if (statusFilter === 'uninvoiced_term') {
       matchesStatus =
         (studentStatus === 'active' || studentStatus === 'inactive') &&
         !!displayTerm &&
-        !paidTermStudentIds.has(student.id);
+        !invoicedTermStudentIds.has(student.id);
     }
     
     return matchesSearch && matchesStatus;
@@ -1222,7 +1222,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       {statusFilter === 'active' ? 'Active'
                         : statusFilter === 'inactive' ? 'Inactive'
                         : statusFilter === 'trial' ? 'Trial'
-                        : statusFilter === 'unpaid_term' ? 'Unpaid Term'
+                        : statusFilter === 'uninvoiced_term' ? 'Uninvoiced Term'
                         : ''}
                     </Badge>
                   )}
@@ -1243,8 +1243,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>
-                  Unpaid Class Fees (Current Term)
+                <DropdownMenuItem onClick={() => setStatusFilter('uninvoiced_term')}>
+                  Uninvoiced Class Fees (Current Term)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1298,7 +1298,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </div>
               ) : filteredStudents.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-sm">
-                  {statusFilter === 'unpaid_term' && !displayTerm
+                  {statusFilter === 'uninvoiced_term' && !displayTerm
                     ? 'No active term configured for this branch'
                     : 'No students found'}
                 </div>
