@@ -1489,7 +1489,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" title="Send via SMS" onClick={(e) => { e.stopPropagation(); handleShareSMS(invoice); }}>
                                   <MessageSquare className="w-3 h-3" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" title="View" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('view'); setInvoiceDialogOpen(true); }}>
+                                {isOverdue(invoice) && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600" title="Send overdue reminder" onClick={(e) => { e.stopPropagation(); handleShareOverdueSMS(invoice); }}>
+                                    <AlertCircle className="w-3 h-3" />
+                                  </Button>
+                                )}
                                   <Eye className="w-3 h-3" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit" onClick={() => { setSelectedInvoiceId(invoice.id); setInvoiceDialogMode('edit'); setInvoiceDialogOpen(true); }}>
