@@ -544,8 +544,8 @@ export const shareInvoiceViaSMS = async (
   phoneNumber: string,
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): Promise<void> => {
-  // Clean the phone number
-  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  // Clean the phone number (preserve leading '+' for SMS scheme)
+  const cleanNumber = normalizeSmsTarget(phoneNumber);
 
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
@@ -585,8 +585,8 @@ export const shareInvoiceOverdueReminderViaSMS = async (
   phoneNumber: string,
   context?: { currentTerm?: SmsTermInfo | null; daysOverdue?: number | null }
 ): Promise<void> => {
-  // Clean the phone number
-  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  // Clean the phone number (preserve leading '+' for SMS scheme)
+  const cleanNumber = normalizeSmsTarget(phoneNumber);
 
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
