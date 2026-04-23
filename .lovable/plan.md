@@ -1,72 +1,94 @@
 
 
-## Plan: Rename "Unpaid Class Fees" to "Uninvoiced Class Fees" and change filter logic
+## Plan: Dynamic "commence" timing and remove brackets around branch name
 
 ### What changes
 
-In the Branch Dashboard → Students tab → Filter dropdown:
+In `src/utils/invoicePDFGenerator.ts` → `buildTermReminderMessage` (used by both blue **SMS** and green **WhatsApp** buttons):
 
-- The option currently labelled **"Unpaid Class Fees (Current Term)"** becomes **"Uninvoiced Class Fees (Current Term)"**.
-- The chip/badge currently shown as **"Unpaid Term"** becomes **"Uninvoiced Term"**.
-- The underlying logic changes to the strict definition: a student appears in this filter only when **no lesson invoice exists at all** for the current term at this branch — regardless of invoice status (draft, sent, unpaid, partially_paid, paid, verified, overdue, cancelled). Students with any existing lesson invoice for the term are excluded.
+1. **Dynamic "commence" phrase**
+   Replace the hard-coded `"will commence next week"` with a phrase derived from the number of days between **today (sender's local date)** and the **next term start date**:
 
-### File to update
+   | Days until next term start | Phrase used |
+   |---|---|
+   | Already started (≤ 0 days) | `has commenced` |
+   | 1 day | `will commence tomorrow` |
+   | 2–6 days | `will commence in N days` |
+   | 7–13 days | `will commence next week` |
+   | 14+ days | `will commence in N days` |
+   | Next term start unknown | `will commence soon` |
 
-**`src/components/dashboard/BranchDashboard.tsx`**
+   Day count is calculated from midnight-to-midnight of the local clock so partial days don't skew the number.
 
-1. **Replace the existing query** (currently `paid-term-student-ids`, lines ~881–921):
-   - Rename to `invoiced-term-student-ids`.
-   - Drop the `.in('invoices.status', ['paid', 'verified'])` filter so it matches lesson invoice items for the term across **all statuses except `cancelled`** (cancelled invoices should not block a student from appearing as "uninvoiced").
-   - Keep the rest: filter by `is_lesson = true`, `invoices.branch_id = branchId`, and `metadata.term_id = displayTerm.id`.
-   - Return the set of student IDs that already have any non-cancelled lesson invoice for the displayed term.
-
-2. **Rename the local variables** for clarity:
-   - `paidTermStudentIdsArr` → `invoicedTermStudentIdsArr`
-   - `paidTermStudentIds` → `invoicedTermStudentIds`
-
-3. **Update the filter branch** (lines ~1102–1107):
-   ```ts
-   } else if (statusFilter === 'uninvoiced_term') {
-     matchesStatus =
-       (studentStatus === 'active' || studentStatus === 'inactive') &&
-       !!displayTerm &&
-       !invoicedTermStudentIds.has(student.id);
-   }
+2. **Remove brackets from branch name in signature**
+   Change the closing line from:
    ```
-   - Rename the filter key `'unpaid_term'` → `'uninvoiced_term'` everywhere it appears in this file (state default check, badge label, dropdown item, empty-state copy).
+   Gaonhae Taekwondo (Branch)
+   ```
+   to:
+   ```
+   Gaonhae Taekwondo Branch
+   ```
+   Fallback when no branch is set: `Gaonhae Taekwondo`.
 
-4. **Update visible labels**:
-   - Dropdown item text: `Uninvoiced Class Fees (Current Term)`
-   - Active filter badge text: `Uninvoiced Term`
-   - Empty-state message when no term is configured stays the same: `No active term configured for this branch`.
+### Resulting message template
+
+```
+Good Morning,
+
+We have now reached the end of Term 1 2026. Term 2 2026 will commence in 5 days and will run from 28/04/2026 to 30/06/2026.
+
+Kindly arrange payment before the start of the term as follows:
+
+Items:
+Term 2 2026 Lessons – $360.00
+Uniform – $50.00
+
+Total: $410.00
+
+Payment can be made via bank transfer using the details below:
+DBS 123-456-789-0
+Gaonhae Taekwondo Pte Ltd
+
+Thank you for your continued support.
+Gaonhae Taekwondo Bukit Timah
+```
+
+### File affected
+
+- `src/utils/invoicePDFGenerator.ts`
+  - Update `buildTermReminderMessage` only (commence-phrase logic + signature line).
+  - No changes to `shareInvoiceViaSMS`, `shareInvoiceViaWhatsApp`, or any caller.
 
 ### Files NOT changed
 
-- `PayGradingDialog.tsx` and `PaySchoolFeesDialog.tsx` use a separate concept ("unpaid terms" meaning terms the student hasn't fully paid for in the payment workflows) — unrelated to this branch dashboard filter. Left untouched.
-- No database, RLS, or schema changes.
-- No other dashboards or pages reference this filter key.
+- `BranchDashboard.tsx`, `InvoiceManagementList.tsx` — they already pass `terms.next.start_date`; no caller updates needed.
+- `shareInvoiceOverdueReminderViaSMS` — unrelated overdue template, untouched.
 
 ### Behavior after change
 
-- A student with no lesson invoice for the current term at this branch → appears in the list.
-- A student with a draft / sent / unpaid / partially_paid / paid / verified / overdue lesson invoice for the current term at this branch → does NOT appear.
-- A student whose only lesson invoice for the term is `cancelled` → appears (treated as if they have no invoice).
-- Withdrawn students are still excluded, as today.
-- Trial-only students are still excluded (filter requires `active` or `inactive`).
+| Scenario | Output snippet |
+|---|---|
+| Next term starts in 12 days | `Term 2 2026 will commence next week and will run from …` |
+| Next term starts in 3 days | `Term 2 2026 will commence in 3 days and will run from …` |
+| Next term starts tomorrow | `Term 2 2026 will commence tomorrow and will run from …` |
+| Next term already started | `Term 2 2026 has commenced and will run from …` |
+| Next term date unknown | `Term 2 2026 will commence soon.` |
+| Branch is "Bukit Timah" | Signature: `Gaonhae Taekwondo Bukit Timah` |
+| Branch missing | Signature: `Gaonhae Taekwondo` |
 
 ### Verification
 
-1. Open Branch Dashboard → Students tab → Filter → confirm the option reads **"Uninvoiced Class Fees (Current Term)"**.
-2. Select it → the active filter badge shows **"Uninvoiced Term"**.
-3. Pick a known student with an unpaid (status `unpaid` or `sent`) term lesson invoice → they should NOT be listed.
-4. Pick a known student with no invoice for the current term → they SHOULD be listed.
-5. Pick a student whose only term lesson invoice is `cancelled` → they SHOULD be listed.
-6. Withdrawn / trial students → never appear in this filter.
-7. If the branch has no active term configured → the empty state still reads "No active term configured for this branch".
+1. Open Branch Dashboard → click green WhatsApp button on an invoice whose term starts in 5 days → message reads `will commence in 5 days`, signature has no brackets.
+2. Click blue SMS button on the same invoice → identical body.
+3. Test with a term starting tomorrow → reads `will commence tomorrow`.
+4. Test with a term already started → reads `has commenced`.
+5. Test with branch "Bukit Timah" → ends with `Gaonhae Taekwondo Bukit Timah` (no parentheses).
+6. Time-of-day greeting and all other content (items, total, bank info) unchanged.
 
 ### Out of scope
 
-- Changing the filter for any other dashboard or list.
-- Adding a separate "unpaid invoices" filter (can be a follow-up).
-- Modifying invoice status semantics or the dashboard outstanding-balance metric.
+- Recipient-timezone awareness (uses sender's device clock — same as current greeting).
+- Overdue SMS template.
+- Number/currency formatting.
 
