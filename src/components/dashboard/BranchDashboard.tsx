@@ -1015,11 +1015,16 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     };
   }, [branchId, queryClient, invalidateAllBranchData]);
 
-  // Auto-switch to Approvals tab on first load OR when approvals first appear (e.g. realtime insert)
+  // Auto-switch to Approvals tab on first load OR when approvals first appear (e.g. realtime insert).
+  // Skip the initial auto-switch when a persisted tab from sessionStorage exists (resume-on-refresh).
+  const hadPersistedTabRef = useRef(
+    typeof window !== 'undefined' &&
+      window.sessionStorage.getItem(`lov-resume:${ns}:tab`) !== null
+  );
   const prevHasApprovalsRef = useRef(false);
   useEffect(() => {
     if (!hasSetInitialTab.current) {
-      if (hasApprovals) {
+      if (hasApprovals && !hadPersistedTabRef.current) {
         setActiveTab('approvals');
       }
       hasSetInitialTab.current = true;
