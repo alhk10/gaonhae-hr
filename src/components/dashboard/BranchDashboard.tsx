@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -101,34 +103,44 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const { user, userrole } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('timetable');
+  const ns = `branch-dash:${branchId}`;
+  const [activeTab, setActiveTab] = useSessionState(`${ns}:tab`, 'timetable');
+  useScrollRestoration(branchId);
   const hasSetInitialTab = useRef(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('active_inactive');
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('unpaid');
+  const [searchTerm, setSearchTerm] = useSessionState(`${ns}:searchTerm`, '');
+  const [statusFilter, setStatusFilter] = useSessionState<string>(`${ns}:statusFilter`, 'active_inactive');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useSessionState<string>(`${ns}:invoiceStatusFilter`, 'unpaid');
+  const [selectedStudentId, setSelectedStudentId] = useSessionState<string | null>(`${ns}:selectedStudentId`, null);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
-  const [invoiceDialogMode, setInvoiceDialogMode] = useState<'view' | 'edit'>('view');
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [createInvoiceForStudentId, setCreateInvoiceForStudentId] = useState<string | null>(null);
-  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
-  const [paymentDialogMode, setPaymentDialogMode] = useState<'view' | 'edit'>('view');
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [studentDetailsOpen, setStudentDetailsOpen] = useSessionState(`${ns}:studentDetailsOpen`, false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useSessionState<string | null>(`${ns}:invoiceId`, null);
+  const [invoiceDialogMode, setInvoiceDialogMode] = useSessionState<'view' | 'edit'>(`${ns}:invoiceDialogMode`, 'view');
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useSessionState(`${ns}:invoiceDialogOpen`, false);
+  const [createInvoiceForStudentId, setCreateInvoiceForStudentId] = useSessionState<string | null>(`${ns}:createInvoiceForStudentId`, null);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useSessionState(`${ns}:createInvoiceOpen`, false);
+  const [selectedPaymentId, setSelectedPaymentId] = useSessionState<string | null>(`${ns}:paymentId`, null);
+  const [paymentDialogMode, setPaymentDialogMode] = useSessionState<'view' | 'edit'>(`${ns}:paymentDialogMode`, 'view');
+  const [paymentDialogOpen, setPaymentDialogOpen] = useSessionState(`${ns}:paymentDialogOpen`, false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'invoice' | 'payment'; id: string; label: string } | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<{ id: string; name: string } | null>(null);
-  const [branchSetupOpen, setBranchSetupOpen] = useState(false);
+  const [branchSetupOpen, setBranchSetupOpen] = useSessionState(`${ns}:branchSetupOpen`, false);
   
-  const [invoiceDateFilter, setInvoiceDateFilter] = useState<Date | undefined>(undefined);
-  const [invoiceNameFilter, setInvoiceNameFilter] = useState('');
+  const [invoiceDateFilterIso, setInvoiceDateFilterIso] = useSessionState<string | null>(`${ns}:invoiceDateFilterIso`, null);
+  const invoiceDateFilter = useMemo<Date | undefined>(
+    () => (invoiceDateFilterIso ? new Date(invoiceDateFilterIso) : undefined),
+    [invoiceDateFilterIso]
+  );
+  const setInvoiceDateFilter = useCallback((d: Date | undefined) => {
+    setInvoiceDateFilterIso(d ? d.toISOString() : null);
+  }, [setInvoiceDateFilterIso]);
+  const [invoiceNameFilter, setInvoiceNameFilter] = useSessionState(`${ns}:invoiceNameFilter`, '');
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [massEditMode, setMassEditMode] = useState(false);
   const [massEditData, setMassEditData] = useState<Record<string, Record<string, string>>>({});
   const [massEditSaving, setMassEditSaving] = useState(false);
-  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
-  const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
+  const [showAddStudentDialog, setShowAddStudentDialog] = useSessionState(`${ns}:showAddStudentDialog`, false);
+  const [showAddTrialDialog, setShowAddTrialDialog] = useSessionState(`${ns}:showAddTrialDialog`, false);
   const [rejectingPayment, setRejectingPayment] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectingPayment, setIsRejectingPayment] = useState(false);
