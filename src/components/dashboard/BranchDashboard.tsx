@@ -1222,7 +1222,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       {statusFilter === 'active' ? 'Active'
                         : statusFilter === 'inactive' ? 'Inactive'
                         : statusFilter === 'trial' ? 'Trial'
-                        : statusFilter === 'unpaid_term' ? 'Unpaid Term'
+                        : statusFilter === 'uninvoiced_term' ? 'Uninvoiced Term'
                         : ''}
                     </Badge>
                   )}
