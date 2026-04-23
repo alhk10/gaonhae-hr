@@ -1,82 +1,69 @@
 
 
-## Fix: Net Pay mismatch after Force Recalculate / monthly override edits
+## Plan: Update SMS message to include term-end / next-term context
 
-### The bug (Albert's row)
+### New message format
 
-| Column | Shown | Source |
-|---|---|---|
-| Basic Salary | S$3,700 | `employee.baseSalary` (override merged ✅) |
-| Allowances | S$640 (2 items) | `employeeAllowances[id]` state (override merged ✅) |
-| Deductions | None | `employeeDeductions[id]` state |
-| Claims | S$0.00 | approved claims |
-| **Net Pay** | **S$4,000** ❌ | `calculateFullTimePayroll(employee, …).netSalary` |
+```
+We have now reached the end of {current_term_name}. {next_term_name} will commence next week and will run from {next_term_start} to {next_term_end}.
 
-Expected with no CPF/deductions: 3,700 + 640 + 0 = **S$4,340**.
-Actual S$4,000 = 3,700 + 300 → the calculator is using the **base** allowances from the `allowances` table (S$300), not the per-month overrides (S$640) the rest of the row displays.
+Kindly arrange payment before the start of the term as follows:
 
-### Root cause
+Items:
+{product_1} – {amount_1}
+{product_2} – {amount_2}
 
-In `src/pages/PayrollProcessing.tsx`:
+Total: {total_amount}
 
-1. `forceRecalculatePayroll` (lines 165–197) loads `payroll_monthly_overrides`, merges them into the `employeeAllowances` / `employeeDeductions` **state maps**, and writes back `base_salary` / `hourly_rate` into the `employees[]` objects — but it never writes the override `allowances` / `deductions` arrays back onto the employee objects.
-2. The Net Pay cell (line 1127) calls `calculateFullTimePayroll(employee, approvedClaims, 0)`, and that function (`src/utils/payrollCalculations.ts` lines 110–115) reads `employee.allowances` / `employee.deductions` — i.e. the **base** values from `getEmployeesForPayroll`, ignoring the merged overrides.
+Payment can be made via bank transfer using the details below:
+{branch_bank_transfer_info}
 
-So the displayed Allowances/Deductions columns and the Net Pay column use two different sources, and they diverge whenever a monthly override exists. The same divergence will affect the Payment step's Net Pay calc (line 1338) and the saved payroll snapshot (line 1607), since both feed off similar `employee.*` arrays.
+Thank you for your continued support.
+Gaonhae Taekwondo ({branch})
+```
 
-### Fix
+Dates rendered as DD/MM/YYYY via `formatDate` from `@/utils/dateFormat`.
 
-Single source of truth: when building the row data, override `employee.allowances` and `employee.deductions` from the merged state maps before passing to `calculateFullTimePayroll` (and the equivalent paths for the payment step + save).
+### Where the term info comes from
 
-**File:** `src/pages/PayrollProcessing.tsx`
+`term_calendars` table, scoped to the invoice's `branch_id`:
+- **Current term** = `getCurrentTerm(branchId)` (or `getMostRecentTerm` as fallback).
+- **Next term** = first row where `branch_id = X`, `is_active = true`, `start_date > current_term.end_date`, ordered by `start_date asc`, limit 1.
 
-1. **`forceRecalculatePayroll`** (around lines 172–188): when merging overrides, also write the override arrays back onto the employee object so the in-memory `employees[]` becomes the single source of truth:
+If either is missing the line is gracefully omitted / replaced with sensible fallback (e.g. "the current term" / "The next term").
 
-   ```ts
-   if (override.allowances?.length) {
-     employees[empIdx] = { ...employees[empIdx], allowances: override.allowances };
-   }
-   if (override.deductions?.length) {
-     employees[empIdx] = { ...employees[empIdx], deductions: override.deductions };
-   }
-   ```
+### Implementation
 
-2. **Full-time table render** (line 1115 `fullTimeEmployees.map`): build an `effectiveEmployee` that merges the state arrays before calculating:
+**1. `src/services/termCalendarService.ts`** — add a small helper:
 
-   ```ts
-   const effectiveEmployee = {
-     ...employee,
-     allowances: employeeAllowances[employee.id] ?? employee.allowances ?? [],
-     deductions: employeeDeductions[employee.id] ?? employee.deductions ?? [],
-   };
-   const payrollCalc = calculateFullTimePayroll(effectiveEmployee, approvedClaims, 0);
-   ```
+```ts
+export async function getNextTerm(branchId: string, afterDate: string): Promise<Term | null>
+```
+Queries `term_calendars` for the next active term after `afterDate` for that branch.
 
-   This is the minimal, defensive fix — it works even if step 1 misses an edge case (e.g. when the user edits allowances inline after recalc).
+**2. `src/utils/invoicePDFGenerator.ts`** — extend `InvoiceData.branch` typing (or pass extra arg) so SMS can receive optional `currentTerm` / `nextTerm` objects with `{ name, start_date, end_date }`. Update `shareInvoiceViaSMS` to build the new message body with the en-dash separator (`–`) between item description and amount, formatted dates, and the new wording. Falls back cleanly if term info is missing.
 
-3. **Payment step Net Pay** (around line 1336): the same `grossPay - employeeCPF - totalDeductions` chain needs to use `employeeAllowances`/`employeeDeductions` state for `grossPay` and `totalDeductions`. Apply the same `effectiveEmployee` pattern there.
-
-4. **Save snapshot** (around line 1604–1620, `handleProcessPayment` write path): use the merged state arrays when computing `grossPay`, `totalDeductions`, and `netPay` written into Supabase, so the persisted record matches the displayed values.
-
-5. After fixing, the same `EditAllowancesDialog` / `EditDeductionsDialog` `onSave` handlers should already update `employeeAllowances` / `employeeDeductions` state — the table will recompute Net Pay correctly because of step 2. (No change needed there, just verifying flow.)
-
-### Verification
-
-1. Open Payroll Processing → March 2026.
-2. Albert's row: Basic 3,700, Allowances 640, Deductions None → Net Pay shows **S$4,340 − Employee CPF** (Singapore Citizen) or **S$4,340** if PR-foreigner with no CPF.
-3. Click **Force Recalculate** → values stay consistent (Allowances column = 640, Net Pay = matching gross − CPF − deductions).
-4. Edit allowances inline → Allowances column and Net Pay both update.
-5. Move to Payment step → Net Pay column matches the Processing step.
-6. Process payment → saved payslip's `net_pay` matches the displayed value.
-7. Other employees in the table (Cha Jinwoo, Jason Chiang, etc.) keep correct totals.
+**3. `src/components/dashboard/BranchDashboard.tsx`** — in `handleShareSMS`:
+- After resolving `invoice.branch_id`, fetch `currentTerm = getCurrentTerm(branch_id) ?? getMostRecentTerm(branch_id)`.
+- If `currentTerm` exists, fetch `nextTerm = getNextTerm(branch_id, currentTerm.end_date)`.
+- Pass both to `shareInvoiceViaSMS` (e.g. via a new optional `terms` arg or as part of `InvoiceData`).
 
 ### Files affected
 
-- `src/pages/PayrollProcessing.tsx` — merge override allowances/deductions onto employee in `forceRecalculatePayroll`; build `effectiveEmployee` before `calculateFullTimePayroll` in the Processing table, Payment table, and save path.
+- `src/services/termCalendarService.ts` — add `getNextTerm` helper.
+- `src/utils/invoicePDFGenerator.ts` — new SMS body format, accept current/next term info, format dates DD/MM/YYYY.
+- `src/components/dashboard/BranchDashboard.tsx` — fetch current + next term and pass to `shareInvoiceViaSMS`.
+
+### Verification
+
+1. Branch Dashboard → Invoice & Payment → click MessageSquare icon on a term invoice.
+2. SMS app opens with body matching the new template; dates render as `DD/MM/YYYY`; items use ` – ` separator; bank info follows; signature line `Gaonhae Taekwondo ({branch})`.
+3. If branch has no current term, the opening sentence falls back to a generic phrasing rather than blank/undefined.
+4. Existing WhatsApp button, PDF download, and other invoice actions unaffected.
 
 ### Out of scope
 
-- Refactoring `getEmployeePayrollDataOptimized` to natively merge overrides (broader change; the targeted fix above resolves the visible bug without touching shared services).
-- Casual employee Net Pay (no override-driven mismatch reported; can be revisited if needed).
-- Changing the CPF or claims calculation logic.
+- Surfacing the new SMS button on Sales > Invoice Management (still Branch Dashboard only).
+- Changing WhatsApp message format.
+- Bulk send / scheduled reminders.
 
