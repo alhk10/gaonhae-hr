@@ -1,68 +1,87 @@
 
+## Plan: Make WhatsApp sharing resilient to hidden characters and add `whatsapp://` fallback
 
-## Plan: Add time-of-day greeting to invoice SMS & WhatsApp messages
+### Problem to address
 
-### What changes
+`wa.me` currently depends on a clean phone target and a browser opening a web URL successfully. Even though the existing helper strips non-digits, there are still two weak points:
 
-Prepend a salutation line to the shared term-reminder message (used by both blue SMS and green WhatsApp buttons):
+1. Phone fields may contain whitespace-only values or invisible Unicode characters that pass the current “has value” checks.
+2. Some devices/browsers handle `whatsapp://send` more reliably than `wa.me`, especially when the app is installed.
 
-```text
-Good Morning,
+### Changes
 
-We have now reached the end of Term 1 2026. Term 2 2026 will commence next week and will run from 28/04/2026 to ...
-```
+#### 1. Harden WhatsApp target sanitizing
+Update `src/utils/invoicePDFGenerator.ts`:
 
-The greeting is determined by the recipient's local time at the moment the message is opened:
+- Replace the current simple `normalizeWhatsAppTarget` with a stricter sanitizer that:
+  - runs Unicode normalization (`NFKC`)
+  - removes zero-width / hidden characters such as:
+    - zero-width space
+    - zero-width joiner / non-joiner
+    - BOM / word joiner
+    - non-breaking spaces
+  - trims leading/trailing whitespace
+  - strips all remaining non-digits
+- Add a guard so if the final digit string is empty, WhatsApp sharing aborts cleanly instead of trying to open a broken URL.
 
-- **Morning** — 05:00–11:59
-- **Afternoon** — 12:00–17:59
-- **Evening** — 18:00–04:59
+This covers the user concern about trailing spaces and hidden characters.
 
-(Computed from the sender's device clock, since SMS/WhatsApp open in the browser of the staff sending the message — no recipient timezone lookup required.)
+#### 2. Add `whatsapp://` first, with `wa.me` fallback
+Update `src/utils/invoicePDFGenerator.ts` `shareInvoiceViaWhatsApp`:
 
-### File to update
+- Keep building the same rich message body as today.
+- Build both URLs from the same sanitized number + encoded message:
+  - `whatsapp://send?phone=${digits}&text=${encodedMessage}`
+  - `https://wa.me/${digits}?text=${encodedMessage}`
+- Try the app scheme first:
+  - open/navigate to `whatsapp://send...`
+  - if the app does not take over, fall back to `wa.me` after a short timeout
+- Preserve current browser-safe behavior for desktop by falling back to `wa.me` automatically.
 
-**`src/utils/invoicePDFGenerator.ts` — `buildTermReminderMessage`**
+This gives the best chance of opening WhatsApp on both mobile app and web/desktop.
 
-- Add a small helper `getTimeOfDayGreeting()` that returns `'Morning' | 'Afternoon' | 'Evening'` based on `new Date().getHours()`.
-- Prepend `Good ${greeting},\n\n` to the existing message body.
-- Everything else (term opening, items, total, bank transfer info, signature) stays exactly as today.
+#### 3. Tighten caller-side phone checks
+Update both callers so whitespace-only / hidden-character-only numbers are rejected earlier:
 
-No other files need changes — both `shareInvoiceViaSMS` and `shareInvoiceViaWhatsApp` already call `buildTermReminderMessage`, so both channels pick up the new greeting automatically.
+- `src/components/dashboard/BranchDashboard.tsx`
+- `src/components/sales/InvoiceManagementList.tsx`
 
-### Final message format
+Use a shared “candidate number” cleanup before the “No mobile number” toast so values like `"   "` or strings containing only invisible characters do not pass validation.
 
-```text
-Good {Morning|Afternoon|Evening},
+### Files affected
 
-We have now reached the end of {ending term name}. {upcoming term name} will commence next week and will run from {start} to {end}.
+- `src/utils/invoicePDFGenerator.ts`
+  - stronger WhatsApp number sanitizer
+  - `whatsapp://` + `wa.me` fallback logic
+  - invalid-number guard
+- `src/components/dashboard/BranchDashboard.tsx`
+  - stricter pre-check before calling WhatsApp share
+- `src/components/sales/InvoiceManagementList.tsx`
+  - same stricter pre-check
 
-Kindly arrange payment before the start of the term as follows:
+### Behavior after change
 
-Items:
-{Product 1} – {amount 1}
-{Product 2} – {amount 2}
+When the green WhatsApp button is clicked:
 
-Total: {total_amount}
-
-Payment can be made via bank transfer using the details below:
-{bank transfer info}
-
-Thank you for your continued support.
-Gaonhae Taekwondo ({branch name})
-```
+1. The stored WhatsApp/phone value is cleaned of trailing spaces and hidden characters.
+2. If no usable digits remain, show the existing error toast and do nothing.
+3. If digits remain:
+   - try `whatsapp://send?...`
+   - if that does not open the app, fall back to `https://wa.me/...`
+4. The prefilled message remains the current rich template with salutation, term text, items, total, bank details, and branch signature.
 
 ### Verification
 
-1. At 09:30 local — click blue SMS on Hannah's Term 2 2026 invoice → message starts with `Good Morning,` followed by the existing term opening.
-2. At 14:00 local — click green WhatsApp on the same invoice → message starts with `Good Afternoon,`.
-3. At 20:00 local — either button → message starts with `Good Evening,`.
-4. At 02:00 local — either button → still `Good Evening,` (treats early morning as evening per the band above).
-5. Items, totals, bank transfer info, and Gaonhae signature are unchanged.
+1. Number stored as `"+61 431 234 567 "` → WhatsApp opens correctly.
+2. Number containing zero-width spaces or NBSPs → still opens correctly.
+3. Number field containing only spaces / hidden characters → error toast, no broken link.
+4. Mobile device with WhatsApp installed → `whatsapp://` opens app directly.
+5. Desktop browser or device without app handling → automatically falls back to `wa.me`.
+6. Branch Dashboard and Invoice Management list both behave the same.
+7. SMS sharing remains unchanged.
 
 ### Out of scope
 
-- Per-recipient timezone resolution (uses the sender's device clock).
-- Personalising with the recipient's name (not requested).
-- Overdue SMS template (separate function, unchanged).
-
+- Changing the SMS flow
+- Changing the WhatsApp message content
+- Country-specific number validation beyond producing a clean digits-only target
