@@ -1243,8 +1243,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 <DropdownMenuItem onClick={() => setStatusFilter('trial')}>
                   Trial
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStatusFilter('unpaid_term')}>
-                  Unpaid Class Fees (Current Term)
+                <DropdownMenuItem onClick={() => setStatusFilter('uninvoiced_term')}>
+                  Uninvoiced Class Fees (Current Term)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
