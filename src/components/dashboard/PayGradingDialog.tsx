@@ -34,6 +34,7 @@ import { formatBeltLevel } from '@/constants/beltLevels';
 import { getNextBelt } from './QuickActionsSection';
 import { getInvoiceTemplates } from '@/services/invoiceTemplateService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import ClassScheduleSelector from './ClassScheduleSelector';
 

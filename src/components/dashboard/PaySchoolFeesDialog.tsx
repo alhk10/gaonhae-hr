@@ -33,6 +33,7 @@ import { createPayment } from '@/services/paymentService';
 import ClassScheduleSelector from './ClassScheduleSelector';
 import { getInvoiceTemplates, InvoiceTemplate } from '@/services/invoiceTemplateService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { GradingSlot } from '@/services/gradingService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { getNextBelt } from './QuickActionsSection';

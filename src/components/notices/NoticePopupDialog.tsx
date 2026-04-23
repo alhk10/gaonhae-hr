@@ -8,8 +8,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, ZoomIn, ExternalLink, CreditCard, Upload, Loader2 } from 'lucide-react';
+import { Download, ZoomIn, ExternalLink, CreditCard, Loader2 } from 'lucide-react';
 import { Notice, uploadNoticeFile } from '@/services/noticeService';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
