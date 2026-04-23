@@ -1,29 +1,59 @@
 
 
-## Plan: Move Uninvoiced count to the Students tab label
+## Plan: Show unpaid invoice count + outstanding amount in Invoice & Payment tab
 
 ### What changes
 
 In `src/components/dashboard/BranchDashboard.tsx`:
 
-1. **Add the count to the Students tab label.** Change the tab trigger text from `Students` to `Students (X/Y)` where:
-   - `X` = `uninvoicedCount` (active+inactive students at this branch with no non-cancelled lesson invoice for `displayTerm`)
-   - `Y` = `totalActiveTerm` (active+inactive students at this branch)
-   - Only shown when `displayTerm` exists; otherwise just `Students`.
+1. **Update the `outstanding-invoices` query** (line ~743) to return both the count and the sum:
+   ```ts
+   const { data: outstandingData = { count: 0, amount: 0 } } = useQuery({
+     queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
+     queryFn: async () => {
+       if (!displayTerm) return { count: 0, amount: 0 };
+       const { data: unpaidInvoices } = await supabase
+         .from('invoices')
+         .select('balance_due')
+         .eq('branch_id', branchId)
+         .in('status', ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'])
+         .gte('issue_date', displayTerm.start_date)
+         .lte('issue_date', displayTerm.end_date);
+       const list = unpaidInvoices || [];
+       return {
+         count: list.length,
+         amount: list.reduce((s, inv) => s + (inv.balance_due || 0), 0),
+       };
+     },
+     enabled: !!branchId && !!displayTerm,
+   });
+   ```
 
-2. **Remove the inline counter** (`Uninvoiced: X / Y`) currently rendered to the right of the Filter dropdown.
+2. **Update the tab label** (line 1209) from:
+   ```
+   Invoice & Payment ($0.00)
+   ```
+   to:
+   ```
+   Invoice & Payment (3 | $750.00)
+   ```
+   ```tsx
+   <TabsTrigger value="invoices" className="text-xs sm:text-sm">
+     Invoice & Payment ({outstandingData.count} | {formatCurrency(outstandingData.amount, branchCurrency)})
+   </TabsTrigger>
+   ```
 
-3. **Revert the filter badge label** for the Uninvoiced filter from `Uninvoiced Term (X/Y)` back to `Uninvoiced Term` — the count now lives only in the tab label.
+3. **Definition of "not paid"** — uses the existing status set already in the query: `unpaid`, `partial`, `partially_paid`, `draft`, `sent`, `overdue`. Excludes `paid`, `verified`, and `cancelled`. Scope stays restricted to invoices issued within `displayTerm`.
 
 ### Behaviour after change
 
-| Element | Before | After |
-|---|---|---|
-| Students tab label | `Students` | `Students (28/50)` |
-| Inline counter beside Filter | `Uninvoiced: 28 / 50` | removed |
-| Filter chip when active | `Uninvoiced Term (28/50)` | `Uninvoiced Term` |
+| State | Tab label |
+|---|---|
+| 3 unpaid invoices totalling $750 | `Invoice & Payment (3 \| $750.00)` |
+| No unpaid invoices | `Invoice & Payment (0 \| $0.00)` |
+| No `displayTerm` configured | `Invoice & Payment (0 \| $0.00)` (fallback default) |
 
-The count still updates live via the existing query invalidation (no logic changes to `uninvoicedCount` / `totalActiveTerm` derivation or to the realtime subscriptions added previously).
+Live updates: existing realtime subscription on `invoices` already invalidates `['outstanding-invoices', branchId]` queries via `invalidateAllBranchData`, so both count and amount refresh within ~1 s of any invoice/payment change.
 
 ### Files affected
 
@@ -31,14 +61,15 @@ The count still updates live via the existing query invalidation (no logic chang
 
 ### Verification
 
-1. Branch Dashboard → tabs row shows `Students (X/Y)` matching the previous inline counter values.
-2. No `Uninvoiced: X / Y` text appears next to the Filter dropdown.
-3. Selecting the Uninvoiced filter shows a plain `Uninvoiced Term` chip with no parenthetical count.
-4. Creating/cancelling a current-term lesson invoice updates the `(X/Y)` in the tab label within ~1 s.
-5. When no term is configured, the tab label is plain `Students`.
+1. Branch Dashboard tabs row shows `Invoice & Payment (N | $X.XX)`.
+2. Mark an unpaid invoice as paid → count decreases by 1, amount drops by its balance, no manual refresh.
+3. Create a new draft/unpaid invoice → count increases by 1, amount increases.
+4. Cancel an unpaid invoice → count decreases by 1.
+5. Branch with no display term → tab reads `Invoice & Payment (0 | $0.00)`.
 
 ### Out of scope
 
-- Counts on other tabs (Weekly Timetable, Invoice & Payment, Grading, Inventory, Notices) — unchanged.
-- Filter logic, realtime subscriptions, query keys — unchanged.
+- Changing which statuses count as "not paid".
+- Counts on other tabs (Students, Grading, etc.) — unchanged.
+- Date-range or filter logic in the Invoice list itself.
 
