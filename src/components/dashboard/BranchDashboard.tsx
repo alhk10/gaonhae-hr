@@ -878,9 +878,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const gradingTermPaidCount = gradingMetrics.termPaid;
   const totalTermStudents = gradingMetrics.totalTermStudents;
 
-  // Fetch IDs of students who have a paid/verified lesson invoice for the displayTerm
-  const { data: paidTermStudentIdsArr = [] } = useQuery({
-    queryKey: ['paid-term-student-ids', branchId, displayTerm?.id],
+  // Fetch IDs of students who have ANY non-cancelled lesson invoice for the displayTerm
+  const { data: invoicedTermStudentIdsArr = [] } = useQuery({
+    queryKey: ['invoiced-term-student-ids', branchId, displayTerm?.id],
     queryFn: async () => {
       if (!displayTerm) return [] as string[];
       const { data: lessonProducts } = await supabase
@@ -902,7 +902,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         `)
         .in('product_id', lessonProductIds)
         .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['paid', 'verified']);
+        .neq('invoices.status', 'cancelled');
 
       const ids = new Set<string>();
       (invoiceItems || []).forEach(item => {
@@ -915,9 +915,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     },
     enabled: !!branchId && !!displayTerm,
   });
-  const paidTermStudentIds = React.useMemo(
-    () => new Set(paidTermStudentIdsArr),
-    [paidTermStudentIdsArr]
+  const invoicedTermStudentIds = React.useMemo(
+    () => new Set(invoicedTermStudentIdsArr),
+    [invoicedTermStudentIdsArr]
   );
 
   // Check if casual employees have bookings this month
