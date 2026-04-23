@@ -437,11 +437,11 @@ const InvoiceManagementList: React.FC = () => {
     }
   };
 
-  // Handle WhatsApp share
+  // Handle WhatsApp share — opens wa.me with the rich term-reminder message
   const handleShareWhatsApp = async (invoice: Invoice) => {
     try {
       setPdfLoadingId(invoice.id);
-      
+
       // Get student details to get WhatsApp number
       let studentData;
       try {
@@ -449,15 +449,53 @@ const InvoiceManagementList: React.FC = () => {
       } catch {
         studentData = null;
       }
-      
+
       const whatsappNumber = studentData?.whatsapp || studentData?.phone;
       if (!whatsappNumber) {
         toast.error('No WhatsApp or phone number found for this student');
         return;
       }
-      
+
+      // Base invoice data (items, template letterhead, etc.)
       const invoiceData = await prepareInvoiceDataForPDF(invoice);
-      await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber);
+
+      // Enrich with branch name + bank transfer info (needed for the SMS-style body)
+      let branchName: string | undefined;
+      let branchAddress: string | undefined;
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase
+          .from('branches')
+          .select('name, address, country')
+          .eq('id', invoice.branch_id)
+          .single();
+        branchName = branchData?.name;
+        branchAddress = branchData?.address;
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase
+        .from('invoice_templates')
+        .select('bank_transfer_info')
+        .eq('country', countryCode)
+        .eq('is_active', true)
+        .limit(1);
+      const bankTransferInfo = templates?.[0]?.bank_transfer_info || undefined;
+
+      const enriched: InvoiceData = {
+        ...invoiceData,
+        branch: branchName ? { name: branchName, address: branchAddress } : invoiceData.branch,
+        template: {
+          ...(invoiceData.template || {}),
+          bank_transfer_info: bankTransferInfo,
+        },
+      };
+
+      // Resolve term context (invoice term = upcoming; previous = ending)
+      const fullInvoice = await getInvoiceById(invoice.id).catch(() => null);
+      const terms = await resolveInvoiceTermContext(invoice.branch_id, fullInvoice?.items);
+
+      await shareInvoiceViaWhatsApp(enriched, whatsappNumber, terms);
       toast.success('Opening WhatsApp…');
     } catch (error) {
       console.error('Error sharing via WhatsApp:', error);
