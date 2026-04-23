@@ -73,5 +73,7 @@ export function parsePhone(phone: string): { countryCode: string; localNumber: s
 
 export function formatPhone(countryCode: string, localNumber: string): string {
   if (!localNumber) return '';
-  return `${countryCode} ${localNumber}`.trim();
+  // Strip leading 0 (local trunk prefix) from local number for E164-style format
+  const cleaned = localNumber.trim().replace(/^0+/, '');
+  return `${countryCode} ${cleaned}`.trim();
 }
