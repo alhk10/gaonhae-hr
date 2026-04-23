@@ -1099,11 +1099,11 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       matchesStatus = studentStatus === 'inactive';
     } else if (statusFilter === 'trial') {
       matchesStatus = studentStatus === 'trial';
-    } else if (statusFilter === 'unpaid_term') {
+    } else if (statusFilter === 'uninvoiced_term') {
       matchesStatus =
         (studentStatus === 'active' || studentStatus === 'inactive') &&
         !!displayTerm &&
-        !paidTermStudentIds.has(student.id);
+        !invoicedTermStudentIds.has(student.id);
     }
     
     return matchesSearch && matchesStatus;
