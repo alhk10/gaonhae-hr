@@ -1,66 +1,49 @@
 
 
-## Plan: Strip leading `0` after country code on all new student data entry paths
+## Fix: WhatsApp link fails for international numbers (`+61…`)
 
-The shared `PhoneInput` already strips leading `0` via `formatPhone` (last migration), so **all UI forms are already safe**: `AddStudentDialog`, `EditStudentDialog`, `AddTrialDialog`, `StudentRegistration` (public `/register`), `StudentEmergencyContacts`. No changes needed there.
+### Root cause
 
-The remaining gap is **non-UI write paths** that bypass `PhoneInput`:
-
-1. **CSV bulk import** (`ImportStudentsDialog.tsx`) — writes `row.phone` etc. directly from spreadsheet cells.
-2. **CSV import branch in `studentService.ts`** (around line 770) — same.
-3. **Defensive layer at the service** — to guarantee no future code path can re-introduce the bug.
-
-### Implementation
-
-**1. New helper in `src/constants/formOptions.ts`**
+Hannah Song's record is correctly stored as `+61 431589013` (verified in DB). The bug is in `shareInvoiceViaWhatsApp` in `src/utils/invoicePDFGenerator.ts` (line 502):
 
 ```ts
-/**
- * Normalize a stored phone string by stripping a leading 0 right after a
- * known country code. Safe for: empty, null, no-country-code, already-correct.
- * "+61 0431..." -> "+61 431..."
- * "+65 91234567" -> "+65 91234567" (unchanged)
- * "91234567" -> "91234567" (unchanged)
- */
-export function normalizeStoredPhone(value: string | null | undefined): string | null | undefined
+const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
+// → "+61431589013"
+window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+// → https://wa.me/+61431589013   ← INVALID
 ```
 
-Implementation reuses the same regex as the migration (the recognized CC list) and only mutates strings that match `^\+CC ?0`.
+The `wa.me` URL scheme requires a **digits-only** phone number (no `+`, no spaces). When the `+` is left in, WhatsApp can't resolve the contact, which triggers the "phone number is not registered with WhatsApp" dialog you screenshotted — even when the number is a valid registered WhatsApp account.
 
-**2. `src/components/sales/ImportStudentsDialog.tsx`**
+The correct URL for Hannah is `https://wa.me/61431589013` (country code + local, no `+`).
 
-Apply `normalizeStoredPhone` to the four phone-bearing columns when building each row before insert: `phone`, `whatsapp` (if present), `emergency_contact_phone`, `emergency_contact_2_phone`. (~4 lines added in the row mapper near line 207–233.)
+### The fix (1-line change)
 
-**3. `src/services/studentService.ts`**
+In `src/utils/invoicePDFGenerator.ts`, replace the regex on line 502 to strip everything that isn't a digit:
 
-- In `createStudent` payload (line ~370–385): wrap `phone`, `whatsapp`, `emergency_contact_phone`, `emergency_contact_2_phone` with `normalizeStoredPhone(...)`.
-- In `updateStudent` (mirror the same fields).
-- In the legacy CSV import branch (line ~770–782): wrap `phone` and `emergency_contact_phone` with the helper.
-- In the `student_emergency_contacts` insert (line ~412): wrap `phone`.
+```ts
+// Before
+const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
 
-**4. `src/services/studentRegistrationService.ts`**
+// After
+const cleanNumber = whatsappNumber.replace(/\D/g, '');
+```
 
-In `createRegistration` / `updateRegistration` (and the merged write at line ~107–121), wrap the four phone fields with `normalizeStoredPhone`. This covers the public `/register` form as a defensive belt-and-braces.
-
-### Files affected
-
-- `src/constants/formOptions.ts` — add `normalizeStoredPhone` helper.
-- `src/components/sales/ImportStudentsDialog.tsx` — normalize 4 phone fields in CSV row mapping.
-- `src/services/studentService.ts` — normalize phone fields in create/update payloads, emergency contact insert, and legacy CSV branch.
-- `src/services/studentRegistrationService.ts` — normalize phone fields on create/update.
+This handles `+`, spaces, dashes, brackets, and any other formatting in one shot. Singapore numbers like `+65 91234567` become `6591234567`, Australian `+61 431589013` becomes `61431589013` — both valid `wa.me` targets.
 
 ### Verification
 
-1. **CSV import**: import a row with `phone = +61 0412345678` → DB stores `+61 412345678`.
-2. **Create student via dialog**: type `0412345678` in PhoneInput with `+61` selected → already saves `+61 412345678` (existing behavior, unchanged).
-3. **Public registration `/register`**: same as above.
-4. **Approve a registration that contains `+61 04…`** → resulting student row stores normalized `+61 4…`.
-5. **Singapore numbers** (e.g. `+65 91234567`) remain untouched — no leading `0` after `+65` to strip.
-6. **Numbers without country code prefix** (legacy) pass through unchanged.
+1. Branch Dashboard → find Hannah Song's invoice → click WhatsApp icon → opens `https://wa.me/61431589013?text=…` → WhatsApp resolves the contact correctly.
+2. Singapore students (`+65 …`) continue to work (already worked because `+65` happened to also fail the same way? — confirm: any `+` prefix produced a broken URL, so SG numbers were also affected; this fix repairs both).
+3. Numbers stored without `+` (legacy, digits only) continue to work — `replace(/\D/g, '')` is a no-op on already-clean digits.
+
+### Files affected
+
+- `src/utils/invoicePDFGenerator.ts` — one-line regex change in `shareInvoiceViaWhatsApp`.
 
 ### Out of scope
 
-- Migrating already-stored values (already done in the prior migration; current DB count of `+CC 0…` rows = 0).
-- Employee form (no `employees.phone` rows currently affected; uses the same `PhoneInput`).
-- Changing `parsePhone` or display formatting.
+- Hannah's stored phone number (already correct, no change needed).
+- SMS sharing (uses `sms:` scheme, which accepts `+` and is unaffected).
+- WhatsApp message body / PDF attachment workflow (unchanged).
 
