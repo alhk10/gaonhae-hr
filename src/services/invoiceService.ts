@@ -405,6 +405,21 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           if (currentBelt) {
             const targetBelt = getNextBeltLevel(currentBelt, country);
             if (targetBelt) {
+              // Expected grading-product name for this student's belt transition
+              const expectedName = `${formatBeltLevel(currentBelt)} >> ${formatBeltLevel(targetBelt)}`.toLowerCase();
+
+              // Find the inserted invoice_item that is a Grading-category product
+              // whose name matches the student's belt transition.
+              const matchingGradingItem = insertedItems.find(ii => {
+                const meta = productMetaMap.get(ii.product_id);
+                if (!meta) return false;
+                if ((meta.category_name || '').toLowerCase() !== 'grading') return false;
+                return (meta.name || '').toLowerCase() === expectedName;
+              });
+
+              // Only auto-create/update grading_registrations when a matching
+              // grading line item exists on this invoice.
+              if (matchingGradingItem) {
               // Helper: resolve term_id from a grading slot's date+branch
               const resolveTermFromSlot = async (slotId: string): Promise<string | null> => {
                 const { data: slot } = await supabase
@@ -469,10 +484,17 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                 if (termId) lessonTermIds.add(termId);
               }
 
-              // Slot-derived terms take precedence; only add lesson terms that aren't already covered
+              // Fallback: term_id from the matching grading item's own metadata
+              const matchingOriginal = invoiceData.items.find(i => i.product_id === matchingGradingItem.product_id);
+              const gradingItemTermId = matchingOriginal?.metadata?.term_id || matchingOriginal?.metadata?.term_ids?.[0] || null;
+
+              // Slot-derived terms take precedence; otherwise lesson-derived; otherwise grading item's own term
               const finalTermIds = new Set<string>(slotDerivedTermIds);
               if (slotDerivedTermIds.size === 0) {
                 for (const t of lessonTermIds) finalTermIds.add(t);
+              }
+              if (finalTermIds.size === 0 && gradingItemTermId) {
+                finalTermIds.add(gradingItemTermId);
               }
 
               // Find first slot id available on the invoice (used to link when creating)
@@ -497,6 +519,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                   if (!existingReg.grading_slot_id && firstSlotId) {
                     updatePayload.grading_slot_id = firstSlotId;
                   }
+                  if (!existingReg.invoice_item_id) {
+                    updatePayload.invoice_item_id = matchingGradingItem.id;
+                  }
                   await supabase
                     .from('grading_registrations')
                     .update(updatePayload)
@@ -510,13 +535,14 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                       current_belt: currentBelt,
                       target_belt: targetBelt,
                       ready_for_grading: true,
-                      invoice_item_id: null,
+                      invoice_item_id: matchingGradingItem.id,
                       grading_slot_id: firstSlotId,
                       result: null,
                       created_by: createdByEmail,
                     }]);
                 }
               }
+              } // end if (matchingGradingItem)
             }
           }
         } catch (gradingRegError) {
