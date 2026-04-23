@@ -78,7 +78,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm, getNextTerm, getTermById } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm, getNextTerm, getPreviousTerm, getTermById } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 import { Student } from '@/services/studentService';
@@ -383,7 +383,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       };
 
       // Resolve term context anchored to the invoice itself.
-      // Priority: term_id from any line item's metadata → branch current/most-recent term.
+      // The invoice's term is the UPCOMING term (one that will commence next week).
+      // The "ending" term is the one immediately preceding the upcoming term.
+      // Priority: term_id from any line item's metadata → branch upcoming term → current/most-recent term.
       let smsTerms: { current?: any; next?: any } | undefined;
       if (invoice.branch_id) {
         // Look for a term_id in the invoice's line items (most recent item wins)
@@ -392,18 +394,26 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           .filter((v: any) => typeof v === 'string' && v.length > 0)
           .pop();
 
-        let endingTerm: any = null;
+        let upcomingTermResolved: any = null;
         if (itemTermId) {
-          endingTerm = await getTermById(itemTermId).catch(() => null);
+          upcomingTermResolved = await getTermById(itemTermId).catch(() => null);
         }
-        if (!endingTerm) {
-          endingTerm = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
+        if (!upcomingTermResolved) {
+          upcomingTermResolved = await getUpcomingTerm(invoice.branch_id).catch(() => null);
         }
 
-        const next = endingTerm ? await getNextTerm(invoice.branch_id, endingTerm.end_date) : null;
+        let endingTerm: any = null;
+        if (upcomingTermResolved) {
+          endingTerm = await getPreviousTerm(invoice.branch_id, upcomingTermResolved.start_date).catch(() => null);
+        } else {
+          // Last-resort fallback: original behavior (current term as ending, next as upcoming)
+          endingTerm = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
+          upcomingTermResolved = endingTerm ? await getNextTerm(invoice.branch_id, endingTerm.end_date) : null;
+        }
+
         smsTerms = {
           current: endingTerm ? { name: endingTerm.name, start_date: endingTerm.start_date, end_date: endingTerm.end_date } : null,
-          next: next ? { name: next.name, start_date: next.start_date, end_date: next.end_date } : null,
+          next: upcomingTermResolved ? { name: upcomingTermResolved.name, start_date: upcomingTermResolved.start_date, end_date: upcomingTermResolved.end_date } : null,
         };
       }
 
