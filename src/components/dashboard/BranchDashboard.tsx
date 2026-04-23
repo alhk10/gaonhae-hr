@@ -1210,7 +1210,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students{displayTerm ? ` (${uninvoicedCount}/${totalActiveTerm})` : ''}</TabsTrigger>
-          <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({outstandingData.count} | {formatCurrency(outstandingData.amount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
           {hasCasualBookings && (
             <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
