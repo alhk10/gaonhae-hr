@@ -362,7 +362,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       const productIds = [...new Set(insertedItems.map(i => i.product_id))];
       const { data: productDetails } = await supabase
         .from('products')
-        .select('id, is_lesson, session_count, validity_type, validity_months, term_id, allowed_class_types, name')
+        .select('id, is_lesson, session_count, validity_type, validity_months, term_id, allowed_class_types, name, category_id, product_categories(name)')
         .in('id', productIds);
 
       if (productDetails) {
@@ -371,11 +371,23 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             .map(p => [p.id, p])
         );
 
-        // Auto-create grading_registrations for lesson invoices with a term_id
-        // (so newly invoiced students show up in the Grading List as "Ready" by default)
+        // Map of product id -> { name, category_name } for grading-product matching
+        const productMetaMap = new Map<string, { name: string; category_name: string | null }>(
+          productDetails.map(p => [
+            p.id,
+            {
+              name: p.name || '',
+              category_name: (p as any).product_categories?.name ?? null,
+            },
+          ])
+        );
+
+        // Auto-create grading_registrations ONLY when the invoice contains a
+        // grading-category product whose name matches the student's belt transition
+        // (e.g. "Yellow Tip >> Yellow"). Lesson-only invoices must NOT auto-flag.
         try {
           // Lazy-load belt helpers to avoid circular imports
-          const { getNextBeltLevel } = await import('@/constants/beltLevels');
+          const { getNextBeltLevel, formatBeltLevel } = await import('@/constants/beltLevels');
 
           // Look up student current_belt and branch country
           const [{ data: studentRow }, { data: branchRow }, { data: authData }] = await Promise.all([
