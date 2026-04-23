@@ -542,7 +542,17 @@ export const buildTermReminderMessage = (
 
   const opening = `We have now reached the end of ${currentName}. ${nextName} will commence next week${nextRange}.`;
 
+  // Time-of-day greeting based on sender's local clock
+  const hour = new Date().getHours();
+  const timeOfDay = hour >= 5 && hour < 12
+    ? 'Morning'
+    : hour >= 12 && hour < 18
+      ? 'Afternoon'
+      : 'Evening';
+  const greeting = `Good ${timeOfDay},`;
+
   return (
+    `${greeting}\n\n` +
     `${opening}\n\n` +
     `Kindly arrange payment before the start of the term as follows:\n\n` +
     `Items:\n${itemsList}\n\n` +
