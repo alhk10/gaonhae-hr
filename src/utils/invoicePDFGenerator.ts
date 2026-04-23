@@ -491,24 +491,46 @@ export const getInvoicePDFBase64 = async (invoice: InvoiceData): Promise<string>
   return doc.output('datauristring').split(',')[1];
 };
 
+// Phone target normalization helpers
+// WhatsApp deep links require digits-only (no '+', no spaces).
+const normalizeWhatsAppTarget = (v: string) => v.replace(/\D/g, '');
+// SMS scheme keeps the leading '+' for international dialing; only strip formatting chars.
+const normalizeSmsTarget = (v: string) => v.replace(/[\s\-\(\)]/g, '');
+
 export const shareInvoiceViaWhatsApp = async (
   invoice: InvoiceData,
   whatsappNumber: string
 ): Promise<void> => {
-  // First download the PDF
-  await downloadInvoicePDF(invoice);
-  
-  // Clean the phone number — wa.me requires digits only (strip + and all formatting)
-  const cleanNumber = whatsappNumber.replace(/\D/g, '');
-  
-  // Prepare the message
-  const message = encodeURIComponent(
-    `Hello! Here is your invoice ${invoice.invoice_number} for ${formatCurrency(invoice.total_amount)}. ` +
-    `Balance due: ${formatCurrency(invoice.balance_due)}. Please find the PDF attachment.`
-  );
-  
-  // Open WhatsApp Web
-  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank');
+  // Digits-only target (WhatsApp requirement)
+  const digits = normalizeWhatsAppTarget(whatsappNumber);
+
+  // Plain-text message — no PDF, no links
+  const recipientName = invoice.student?.name?.trim() || 'there';
+  const branchName = invoice.branch?.name || 'Gaonhae Taekwondo';
+  const dueDate = invoice.due_date ? formatDate(invoice.due_date) : 'soon';
+
+  const messageText =
+    `Hi ${recipientName},\n\n` +
+    `This is a reminder for invoice ${invoice.invoice_number} from ${branchName}.\n` +
+    `Amount due: ${formatCurrency(invoice.balance_due ?? invoice.total_amount)}\n` +
+    `Due date: ${dueDate}\n\n` +
+    `Thank you.`;
+
+  const encoded = encodeURIComponent(messageText);
+
+  // Prefer native app deep link; fall back to api.whatsapp.com if it doesn't open.
+  const deepLink = `whatsapp://send?phone=${digits}&text=${encoded}`;
+  const fallback = `https://api.whatsapp.com/send?phone=${digits}&text=${encoded}`;
+
+  // Attempt native deep link first
+  window.location.href = deepLink;
+
+  // Fallback after a short delay if the native app didn't take over the page
+  window.setTimeout(() => {
+    if (document.visibilityState === 'visible') {
+      window.location.href = fallback;
+    }
+  }, 800);
 };
 
 export interface SmsTermInfo {
@@ -522,8 +544,8 @@ export const shareInvoiceViaSMS = async (
   phoneNumber: string,
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): Promise<void> => {
-  // Clean the phone number
-  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  // Clean the phone number (preserve leading '+' for SMS scheme)
+  const cleanNumber = normalizeSmsTarget(phoneNumber);
 
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
@@ -563,8 +585,8 @@ export const shareInvoiceOverdueReminderViaSMS = async (
   phoneNumber: string,
   context?: { currentTerm?: SmsTermInfo | null; daysOverdue?: number | null }
 ): Promise<void> => {
-  // Clean the phone number
-  const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  // Clean the phone number (preserve leading '+' for SMS scheme)
+  const cleanNumber = normalizeSmsTarget(phoneNumber);
 
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0

@@ -458,7 +458,7 @@ const InvoiceManagementList: React.FC = () => {
       
       const invoiceData = await prepareInvoiceDataForPDF(invoice);
       await shareInvoiceViaWhatsApp(invoiceData, whatsappNumber);
-      toast.success('PDF downloaded. Please attach it to the WhatsApp chat.');
+      toast.success('Opening WhatsApp…');
     } catch (error) {
       console.error('Error sharing via WhatsApp:', error);
       toast.error('Failed to share via WhatsApp');
