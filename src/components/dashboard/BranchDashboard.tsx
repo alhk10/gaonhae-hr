@@ -920,6 +920,22 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     [invoicedTermStudentIdsArr]
   );
 
+  // Counts for the Uninvoiced filter UI (active+inactive students for displayTerm)
+  const eligibleTermStudents = React.useMemo(
+    () => students.filter(s => {
+      const st = s.status?.toLowerCase();
+      return st === 'active' || st === 'inactive';
+    }),
+    [students]
+  );
+  const totalActiveTerm = eligibleTermStudents.length;
+  const uninvoicedCount = React.useMemo(
+    () => displayTerm
+      ? eligibleTermStudents.filter(s => !invoicedTermStudentIds.has(s.id)).length
+      : 0,
+    [eligibleTermStudents, invoicedTermStudentIds, displayTerm]
+  );
+
   // Check if casual employees have bookings this month
   const { data: hasCasualBookings = false } = useQuery({
     queryKey: ['casual-bookings-exists', branchId],
@@ -964,6 +980,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
     queryClient.invalidateQueries({ queryKey: ['week-attendance', branchId] });
     queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+    queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
   }, [queryClient, branchId]);
 
   // Realtime subscription for invoice/payment/registration changes to auto-refresh all metrics
@@ -1003,6 +1020,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
         invalidateAllBranchData();
         invalidateApprovalCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
         queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
@@ -1222,7 +1242,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       {statusFilter === 'active' ? 'Active'
                         : statusFilter === 'inactive' ? 'Inactive'
                         : statusFilter === 'trial' ? 'Trial'
-                        : statusFilter === 'uninvoiced_term' ? 'Uninvoiced Term'
+                        : statusFilter === 'uninvoiced_term' ? `Uninvoiced Term (${uninvoicedCount}/${totalActiveTerm})`
                         : ''}
                     </Badge>
                   )}
@@ -1248,6 +1268,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {displayTerm && (
+              <span className="text-[11px] sm:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+                Uninvoiced: <span className="font-semibold text-foreground">{uninvoicedCount}</span>
+                {' / '}
+                <span className="font-semibold text-foreground">{totalActiveTerm}</span>
+              </span>
+            )}
 
             {userrole === 'superadmin' && !massEditMode && (
               <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0" onClick={() => { setMassEditMode(true); setMassEditData({}); }}>
