@@ -3,7 +3,9 @@
  * Main page for Milestone 5 - Product catalog management with Inventory tabs
  */
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import ProductManagementList from '@/components/sales/ProductManagementList';
 import InventoryListTab from '@/components/sales/InventoryListTab';
@@ -18,7 +20,8 @@ import {
 } from 'lucide-react';
 
 const ProductManagement: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('products');
+  const [activeTab, setActiveTab] = useSessionState('product-mgmt:tab', 'products');
+  useScrollRestoration();
   
   return (
     <ResponsiveLayout>

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
@@ -78,7 +80,8 @@ const formatCurrency = (amount: number | null): string => {
 
 const Miscellaneous = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('student');
+  const [activeTab, setActiveTab] = useSessionState('misc:tab', 'student');
+  useScrollRestoration();
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [studentOpen, setStudentOpen] = useState(false);

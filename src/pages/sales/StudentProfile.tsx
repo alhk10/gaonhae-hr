@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useParams, useNavigate } from 'react-router-dom';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Button } from '@/components/ui/button';
@@ -51,8 +53,9 @@ const StudentProfile: React.FC = () => {
   const [entitlementsLoading, setEntitlementsLoading] = useState(false);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
 
-  // Active tab
-  const [activeTab, setActiveTab] = useState('overview');
+  // Active tab (per-student, persisted across refresh)
+  const [activeTab, setActiveTab] = useSessionState(`student-profile:${studentId || 'none'}:tab`, 'overview');
+  useScrollRestoration(studentId || '');
 
   useEffect(() => {
     if (!studentId) {

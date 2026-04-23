@@ -1,5 +1,7 @@
 
 import { useState, useEffect } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +45,8 @@ interface AttendanceWithEmployee extends AttendanceRecord {
 const Attendance = () => {
   console.log('⏰ Attendance page loading - comprehensive version');
   
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useSessionState('attendance:tab', 'overview');
+  useScrollRestoration();
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceWithEmployee[]>([]);
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

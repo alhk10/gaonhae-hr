@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { useSessionState } from '@/hooks/useSessionState';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import AuthGuard from '@/components/auth/AuthGuard';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +36,8 @@ interface LeaveRequestWithEmployee {
 const LeaveManagement = () => {
   console.log('🏖️ Leave Management page loading - comprehensive version v2.1');
   
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useSessionState('leave-mgmt:tab', 'overview');
+  useScrollRestoration();
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestWithEmployee[]>([]);
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
