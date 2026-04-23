@@ -48,6 +48,7 @@ import InvoiceDialog from './InvoiceDialog';
 import CreatePaymentDialog from './CreatePaymentDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { downloadInvoicePDF, shareInvoiceViaWhatsApp, getInvoicePDFBase64, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
