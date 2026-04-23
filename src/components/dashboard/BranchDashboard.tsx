@@ -1205,7 +1205,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
-          <TabsTrigger value="students" className="text-xs sm:text-sm">Students</TabsTrigger>
+          <TabsTrigger value="students" className="text-xs sm:text-sm">Students{displayTerm ? ` (${uninvoicedCount}/${totalActiveTerm})` : ''}</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
           {hasCasualBookings && (
@@ -1242,7 +1242,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                       {statusFilter === 'active' ? 'Active'
                         : statusFilter === 'inactive' ? 'Inactive'
                         : statusFilter === 'trial' ? 'Trial'
-                        : statusFilter === 'uninvoiced_term' ? `Uninvoiced Term (${uninvoicedCount}/${totalActiveTerm})`
+                        : statusFilter === 'uninvoiced_term' ? 'Uninvoiced Term'
                         : ''}
                     </Badge>
                   )}
@@ -1269,13 +1269,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {displayTerm && (
-              <span className="text-[11px] sm:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-                Uninvoiced: <span className="font-semibold text-foreground">{uninvoicedCount}</span>
-                {' / '}
-                <span className="font-semibold text-foreground">{totalActiveTerm}</span>
-              </span>
-            )}
+
+
 
             {userrole === 'superadmin' && !massEditMode && (
               <Button size="sm" variant="outline" className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0" onClick={() => { setMassEditMode(true); setMassEditData({}); }}>
