@@ -31,6 +31,7 @@ import {
   Save,
   X,
   MessageSquare,
+  MessageCircle,
   AlertCircle
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,7 +55,8 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceOverdueReminderViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
 import {
@@ -382,45 +384,73 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
       };
 
-      // Resolve term context anchored to the invoice itself.
-      // The invoice's term is the UPCOMING term (one that will commence next week).
-      // The "ending" term is the one immediately preceding the upcoming term.
-      // Priority: term_id from any line item's metadata → branch upcoming term → current/most-recent term.
-      let smsTerms: { current?: any; next?: any } | undefined;
-      if (invoice.branch_id) {
-        // Look for a term_id in the invoice's line items (most recent item wins)
-        const itemTermId: string | undefined = (fullInvoice?.items || [])
-          .map((it: any) => it?.metadata?.term_id)
-          .filter((v: any) => typeof v === 'string' && v.length > 0)
-          .pop();
-
-        let upcomingTermResolved: any = null;
-        if (itemTermId) {
-          upcomingTermResolved = await getTermById(itemTermId).catch(() => null);
-        }
-        if (!upcomingTermResolved) {
-          upcomingTermResolved = await getUpcomingTerm(invoice.branch_id).catch(() => null);
-        }
-
-        let endingTerm: any = null;
-        if (upcomingTermResolved) {
-          endingTerm = await getPreviousTerm(invoice.branch_id, upcomingTermResolved.start_date).catch(() => null);
-        } else {
-          // Last-resort fallback: original behavior (current term as ending, next as upcoming)
-          endingTerm = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
-          upcomingTermResolved = endingTerm ? await getNextTerm(invoice.branch_id, endingTerm.end_date) : null;
-        }
-
-        smsTerms = {
-          current: endingTerm ? { name: endingTerm.name, start_date: endingTerm.start_date, end_date: endingTerm.end_date } : null,
-          next: upcomingTermResolved ? { name: upcomingTermResolved.name, start_date: upcomingTermResolved.start_date, end_date: upcomingTermResolved.end_date } : null,
-        };
-      }
+      // Resolve term context anchored to the invoice itself
+      // (invoice's term = upcoming; previous term = ending)
+      const smsTerms = await resolveInvoiceTermContext(invoice.branch_id, fullInvoice?.items);
 
       await shareInvoiceViaSMS(invoiceData, number, smsTerms);
     } catch (error) {
       console.error('Error sharing invoice via SMS:', error);
       toast.error('Failed to open SMS app');
+    }
+  };
+
+  // Handle Send invoice via WhatsApp (wa.me, mirrors the rich SMS message)
+  const handleShareWhatsApp = async (invoice: any) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id).catch(() => null);
+      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
+      if (!number) {
+        toast.error('No mobile number on file for this student');
+        return;
+      }
+
+      // Fetch full invoice items
+      const fullInvoice = await getInvoiceById(invoice.id);
+
+      // Fetch bank transfer info from active template for this branch's country
+      let branchCountry = 'Singapore';
+      if (invoice.branch_id) {
+        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+        if (branchData?.country) branchCountry = branchData.country;
+      }
+      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+      const template = templates?.[0] || null;
+
+      const sourceInvoice = fullInvoice ?? invoice;
+      const invoiceData: InvoiceData = {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        issue_date: sourceInvoice.issue_date || null,
+        due_date: sourceInvoice.due_date || null,
+        subtotal: sourceInvoice.subtotal,
+        tax_amount: sourceInvoice.tax_amount,
+        discount_amount: sourceInvoice.discount_amount,
+        total_amount: sourceInvoice.total_amount,
+        amount_paid: sourceInvoice.amount_paid,
+        balance_due: sourceInvoice.balance_due,
+        notes: sourceInvoice.notes,
+        status: sourceInvoice.status,
+        items: fullInvoice?.items?.map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+          metadata: item.metadata,
+        })) || [],
+        branch: branch ? { name: branch.name, address: branch.address } : undefined,
+        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+      };
+
+      const terms = await resolveInvoiceTermContext(invoice.branch_id, fullInvoice?.items);
+      await shareInvoiceViaWhatsApp(invoiceData, number, terms);
+    } catch (error) {
+      console.error('Error sharing invoice via WhatsApp:', error);
+      toast.error('Failed to open WhatsApp');
     }
   };
 
@@ -1554,6 +1584,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" title="Send via SMS" onClick={(e) => { e.stopPropagation(); handleShareSMS(invoice); }}>
                                   <MessageSquare className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600" title="Send via WhatsApp" onClick={(e) => { e.stopPropagation(); handleShareWhatsApp(invoice); }}>
+                                  <MessageCircle className="w-3 h-3" />
                                 </Button>
                                 {isOverdue(invoice) && (
                                   <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600" title="Send overdue reminder" onClick={(e) => { e.stopPropagation(); handleShareOverdueSMS(invoice); }}>
