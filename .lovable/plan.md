@@ -1,76 +1,82 @@
 
 
-## Plan: Fix SMS message — invoice term is the *upcoming* term, not the ending one
+## Plan: Make WhatsApp message mirror the rich SMS template, via `wa.me`
 
-### What's wrong
+### What changes
 
-For Hannah's invoice (item term = **Term 2 2026**), the SMS reads:
-> "We have now reached the end of **Term 2 2026**. **Term 3 2026** will commence next week and will run from 13/07/2026 to 18/09/2026."
+The WhatsApp share will produce the exact same message body as the blue SMS button — opening line with the ending term + the upcoming term and its date range, full itemized list, total, bank transfer details, and the Gaonhae signature — and it will open via the simpler `https://wa.me/<digits>?text=...` link.
 
-It should read:
-> "We have now reached the end of **Term 1 2026**. **Term 2 2026** will commence next week and will run from 28/04/2026 to ..."
-
-The current code treats the invoice's `metadata.term_id` as the **ending** term. Conceptually, an invoice raised before a term starts is for the **upcoming** term — so the invoice's term is the term that will *commence next week*, and the *ending* term is the one immediately before it.
-
-### Fix
-
-**`src/components/dashboard/BranchDashboard.tsx` — `handleShareSMS` (lines ~385–408)**
-
-Re-interpret the invoice-anchored term as the **next** (upcoming) term, and resolve the **ending/previous** term from it:
-
-1. Read `term_id` from the invoice's line-item metadata as before → call this `invoiceTerm` (the upcoming term).
-2. Add a new helper `getPreviousTerm(branchId, beforeStartDate)` in `termCalendarService.ts` (mirror of `getNextTerm`, ordered DESC, `start_date < beforeStartDate`).
-3. Set `endingTerm = await getPreviousTerm(branchId, invoiceTerm.start_date)`.
-4. Build `smsTerms = { current: endingTerm, next: invoiceTerm }` and pass to `shareInvoiceViaSMS`.
-
-Fallback chain when no `term_id` is present on any line item (unchanged in spirit, but corrected semantics):
-- Try `getUpcomingTerm(branch)` → use as `next`; previous of that becomes `current`.
-- Else fall back to `getCurrentTerm(branch)` as `current` and `getNextTerm(branch, current.end_date)` as `next` (the original behavior, only used when no invoice-anchored term and no upcoming term exist).
-
-**`src/services/termCalendarService.ts`**
-
-Add `getPreviousTerm(branchId, beforeStartDate)`:
+### Final message format
 
 ```text
-.from('term_calendars')
-.eq('branch_id', branchId)
-.eq('is_active', true)
-.lt('start_date', beforeStartDate)
-.order('start_date', { ascending: false })
-.limit(1)
+We have now reached the end of {endingTerm.name}. {upcomingTerm.name} will commence next week and will run from {start} to {end}.
+
+Kindly arrange payment before the start of the term as follows:
+
+Items:
+{Product 1} – {amount 1}
+{Product 2} – {amount 2}
+
+Total: {total_amount}
+
+Payment can be made via bank transfer using the details below:
+{bank transfer info from active template for branch country}
+
+Thank you for your continued support.
+Gaonhae Taekwondo ({branch name})
 ```
 
-Returns the term immediately preceding the given start date, with branch name + breaks attached (same shape as the other helpers).
+Same template, derivation rules and graceful fallbacks as `shareInvoiceViaSMS` (including the `Term N YYYY` → `Term N+1 YYYY` last-resort name derivation).
 
-**`src/utils/invoicePDFGenerator.ts` — `shareInvoiceViaSMS`**
+### Files to update
 
-No change to the template strings. The opening already reads:
-> "We have now reached the end of `{current.name}`. `{next.name}` will commence next week and will run from `{next.start_date}` to `{next.end_date}`."
+**1. `src/utils/invoicePDFGenerator.ts`**
 
-It will now render correctly because `current` = the previous term (Term 1 2026) and `next` = the invoice's term (Term 2 2026).
+- Refactor `shareInvoiceViaWhatsApp` to:
+  - Accept the same optional term context as SMS:
+    `(invoice, whatsappNumber, terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null })`
+  - Build the message using identical logic to `shareInvoiceViaSMS` (extract a small shared `buildTermReminderMessage(invoice, terms)` helper and reuse it from both).
+  - Open the chat via the simpler `wa.me` link only:
+    `window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')`
+  - Drop the `whatsapp://` deep link + 800ms fallback dance (no PDF, no link in body).
+- Keep `normalizeWhatsAppTarget` (digits-only) — `wa.me` requires no leading `+`.
 
-The existing `deriveNextName` fallback (incrementing "Term N YYYY" → "Term N+1 YYYY") stays as a last-resort safety net but won't be needed for invoice-anchored cases.
+**2. `src/components/dashboard/BranchDashboard.tsx`**
+
+- Add a `handleShareWhatsApp(invoice)` mirroring `handleShareSMS`:
+  - Resolve mobile number (`whatsapp || phone`).
+  - Fetch full invoice items, branch country, active template `bank_transfer_info`.
+  - Resolve term context with the same chain already used for SMS:
+    invoice line-item `term_id` → `getUpcomingTerm` → `getCurrentTerm`/`getMostRecentTerm`/`getNextTerm` fallback.
+    Compute `endingTerm = getPreviousTerm(branchId, upcomingTerm.start_date)`.
+  - Call `shareInvoiceViaWhatsApp(invoiceData, number, smsTerms)`.
+- Wire this to the existing green WhatsApp icon in the Invoice & Payment row (currently wired to the older simple WhatsApp handler / `InvoiceManagementList`'s version on this page).
+
+**3. `src/components/sales/InvoiceManagementList.tsx`**
+
+- Update `handleShareWhatsApp` to also build and pass the term context, using the same resolution chain as Branch Dashboard's SMS handler. Extract the chain into a tiny helper (e.g. `src/utils/invoiceTermContext.ts → resolveInvoiceTermContext(invoice, fullInvoice)`) and call it from both `BranchDashboard.handleShareSMS`, `BranchDashboard.handleShareWhatsApp`, and `InvoiceManagementList.handleShareWhatsApp` to avoid drift.
+
+### Files NOT changed
+
+- SMS templates and SMS handlers (visible behavior unchanged).
+- PDF generation.
+- Phone storage / normalization rules.
+- Overdue SMS button.
 
 ### Verification
 
-1. Hannah Song (Morley, Term 2 2026 invoice) → blue SMS:
-   `"We have now reached the end of Term 1 2026. Term 2 2026 will commence next week and will run from 28/04/2026 to <Term 2 end>."`
-   followed by Items, Total, AU bank details, closing.
-2. SG branch invoice for Term 2 2026 → SMS reads "end of Term 1 2026. Term 2 2026 will commence …" with SG dates and ANEXT BANK details.
-3. Invoice with no `term_id` on items but an upcoming term exists → SMS uses upcoming term as `next` and the term before it as `current`.
-4. Invoice with no `term_id` and no upcoming term → falls back to current term as `current` and the next chronological term as `next` (legacy behavior).
-5. Red overdue SMS button → unchanged (uses `currentTerm` only, not affected by this fix).
-6. WhatsApp button → unchanged.
-
-### Files affected
-
-- `src/components/dashboard/BranchDashboard.tsx` — flip `handleShareSMS` semantics: invoice term = next; previous term = current.
-- `src/services/termCalendarService.ts` — add `getPreviousTerm` helper.
-- `src/utils/invoicePDFGenerator.ts` — no change.
+1. Branch Dashboard → Hannah's Term 2 2026 invoice → click green WhatsApp icon → `wa.me` opens a chat with her number, prefilled message reads:
+   *"We have now reached the end of Term 1 2026. Term 2 2026 will commence next week and will run from 28/04/2026 to <Term 2 end>. … Items … Total … Bank Transfer … Gaonhae Taekwondo (Morley)."*
+2. Sales → Invoice Management → same green WhatsApp icon on a SG invoice → identical message structure with SG dates and ANEXT BANK details.
+3. Invoice with no `term_id` on items but an upcoming term exists → uses upcoming as next, previous as ending.
+4. Invoice with no `term_id` and no upcoming term → falls back to current/most-recent term as ending and next chronological term as next; if name still missing, derives "Term N+1 YYYY" from the ending term name.
+5. Student with no `whatsapp` and no `phone` → toast: "No mobile number on file for this student", no chat opens.
+6. SMS buttons (blue + red) → unchanged behavior and copy.
+7. No PDF download is triggered when clicking WhatsApp.
 
 ### Out of scope
 
-- Overdue SMS template.
-- WhatsApp template.
-- Bank transfer content / phone number storage.
+- Attaching the PDF to WhatsApp (web `wa.me` cannot attach files).
+- Email share, SMS templates, overdue WhatsApp variant.
+- Phone number storage or country-code normalization.
 
