@@ -75,7 +75,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm } from '@/services/termCalendarService';
+import { getCurrentTerm, getMostRecentTerm, getUpcomingTerm, getNextTerm } from '@/services/termCalendarService';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 import { Student } from '@/services/studentService';
@@ -347,7 +347,18 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
       };
 
-      await shareInvoiceViaSMS(invoiceData, number);
+      // Fetch current + next term context for the SMS body
+      let smsTerms: { current?: any; next?: any } | undefined;
+      if (invoice.branch_id) {
+        const current = (await getCurrentTerm(invoice.branch_id)) || (await getMostRecentTerm(invoice.branch_id));
+        const next = current ? await getNextTerm(invoice.branch_id, current.end_date) : null;
+        smsTerms = {
+          current: current ? { name: current.name, start_date: current.start_date, end_date: current.end_date } : null,
+          next: next ? { name: next.name, start_date: next.start_date, end_date: next.end_date } : null,
+        };
+      }
+
+      await shareInvoiceViaSMS(invoiceData, number, smsTerms);
     } catch (error) {
       console.error('Error sharing invoice via SMS:', error);
       toast.error('Failed to open SMS app');
