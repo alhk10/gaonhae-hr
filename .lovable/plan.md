@@ -1,83 +1,94 @@
 
 
-## Plan: Drag-drop, paste, and camera upload for Proof of Payment
+## Plan: Fix Invoice & Payment tab counter showing 0 for upcoming-term invoices
 
-### What changes
+### Problem
 
-Replace the four existing "Upload Proof of Payment" inputs with a single shared component that supports: click-to-browse, **drag-and-drop**, **clipboard paste (Ctrl/Cmd+V)**, and **camera capture** (mobile + supported desktops).
+The tab shows `Invoice & Payment (0 | $0.00)` even though many unpaid `draft` invoices for the upcoming term are visible (issued 23/04/2026). Today is between terms, so `displayTerm` falls back to the **upcoming term**, whose `start_date` is in the future. The current query (`src/components/dashboard/BranchDashboard.tsx`, lines 742–763) filters by `issue_date BETWEEN displayTerm.start_date AND displayTerm.end_date`, which excludes invoices issued *before* the term starts — exactly the case here. The Students counter `(2/44)` works because it matches via `metadata.term_id` on invoice items, not by `issue_date`.
 
-### New shared component
+### Fix
 
-**`src/components/payment/ProofOfPaymentUpload.tsx`** (new file)
+Change the `outstanding-invoices` query to identify invoices that contain at least one line item with `metadata.term_id === displayTerm.id` (mirroring the pattern already used by the `invoiced-term-student-ids` query at lines 886–921), then aggregate count and `balance_due` of the unique parent invoices whose status is in the unpaid set.
 
-A self-contained dropzone with this behaviour:
+### Implementation
 
-- **Click to browse** — opens the file picker (existing behaviour preserved).
-- **Camera button** — separate icon button using `<input type="file" accept="image/*" capture="environment">`. On mobile this opens the rear camera; on desktop without a camera it falls back to the file picker.
-- **Drag-and-drop** — the dropzone responds to `dragenter`/`dragover`/`dragleave`/`drop`. Shows a highlighted ring (`border-primary bg-primary/5`) while a file is hovering. On drop, takes the first file and validates.
-- **Paste from clipboard** — when the dropzone is focused (it becomes `tabIndex={0}`), `paste` event reads `e.clipboardData.files[0]` (e.g. screenshot copied via Snipping Tool / Cmd+Shift+Ctrl+4). A small "Tip: paste with Ctrl/Cmd+V" hint appears under the box.
-- **Validation** — image-only by default (`accept="image/*"`), max 5MB, with optional `acceptPdf` prop for places that allow PDF. Reuses the same `toast.error` patterns used today ("Only image files are accepted for payment proof", "File must be smaller than 5MB").
-- **Preview** — when a file is set, shows filename, size, a thumbnail (for images via `URL.createObjectURL`), and an X button to clear. Object URL is revoked on unmount/clear.
-- **Props**:
-  ```ts
-  {
-    value: File | null;
-    onChange: (file: File | null) => void;
-    required?: boolean;
-    acceptPdf?: boolean;       // default false
-    maxSizeMB?: number;        // default 5
-    label?: string;            // default "Proof of Payment"
-    compact?: boolean;         // smaller variant for CreatePaymentDialog
-    disabled?: boolean;
-  }
-  ```
-- **Accessibility** — `role="button"`, `aria-label`, keyboard `Enter`/`Space` triggers file picker, focus ring visible.
+In `src/components/dashboard/BranchDashboard.tsx`, replace the `outstandingData` query (lines 742–763) with:
 
-### Call sites updated to use the new component
+```ts
+const { data: outstandingData = { count: 0, amount: 0 } } = useQuery({
+  queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
+  queryFn: async () => {
+    if (!displayTerm) return { count: 0, amount: 0 };
 
-1. `src/components/sales/CreatePaymentDialog.tsx` (line 616–656) — use `compact` variant.
-2. `src/components/dashboard/PayGradingDialog.tsx` (line 803–838).
-3. `src/components/dashboard/PaySchoolFeesDialog.tsx` (line 991–1026).
-4. `src/components/notices/NoticePopupDialog.tsx` (line 188–207).
+    const UNPAID = ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'];
 
-Each call site simply renders:
-```tsx
-<ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
+    // Pull invoice_items joined to their invoice, scoped to this branch + unpaid statuses
+    const { data: items } = await supabase
+      .from('invoice_items')
+      .select(`
+        metadata,
+        invoices!inner (
+          id,
+          balance_due,
+          status,
+          branch_id
+        )
+      `)
+      .eq('invoices.branch_id', branchId)
+      .in('invoices.status', UNPAID);
+
+    // Dedupe to invoices whose any line item belongs to displayTerm
+    const map = new Map<string, number>();
+    (items || []).forEach((row: any) => {
+      const md = row.metadata as Record<string, any> | null;
+      if (md?.term_id !== displayTerm.id) return;
+      const inv = row.invoices;
+      if (!inv) return;
+      if (!map.has(inv.id)) map.set(inv.id, Number(inv.balance_due) || 0);
+    });
+
+    const balances = Array.from(map.values());
+    return {
+      count: balances.length,
+      amount: balances.reduce((s, n) => s + n, 0),
+    };
+  },
+  enabled: !!branchId && !!displayTerm,
+});
 ```
-and removes the now-unused `<input type="file">`, `fileInputRef`, and the inline button/label markup. All upload/save logic downstream is unchanged because `proofFile` (a `File`) remains the contract.
+
+No changes to the tab label rendering (line 1213) or to invalidation calls — query key stays `['outstanding-invoices', branchId, displayTerm?.id]`, which is already invalidated everywhere it needs to be.
 
 ### Behaviour after change
 
-| Interaction | Result |
+| Scenario | Tab label |
 |---|---|
-| Click the dropzone | Opens file picker |
-| Drag image onto the dropzone | Highlight, drop sets file |
-| Copy a screenshot, focus dropzone, Ctrl/Cmd+V | File is set from clipboard |
-| Tap the Camera button on mobile | Opens device camera, captured photo becomes the file |
-| Drop / paste / select a non-image (when PDF disallowed) | Toast error, file rejected |
-| File > 5MB | Toast error, file rejected |
-| File set | Shows thumbnail + filename + size + Clear (X) |
+| Inter-term: 5 draft unpaid invoices for upcoming term, total $1,250 | `Invoice & Payment (5 \| $1,250.00)` |
+| All term invoices paid | `Invoice & Payment (0 \| $0.00)` |
+| Mid-term unpaid invoices | unchanged behaviour, now matched via `metadata.term_id` |
+| No `displayTerm` configured | `Invoice & Payment (0 \| $0.00)` |
+
+### Why this matches the rest of the dashboard
+
+- Students tab `uninvoicedCount` already uses `metadata.term_id` (lines 886–921).
+- Grading tab `gradingMetrics` uses `metadata.term_id` (line 770+).
+- Aligning the Invoice tab keeps all tab counters consistent: "this term" = items tagged with the term, regardless of invoice issue date.
 
 ### Files affected
 
-- **New**: `src/components/payment/ProofOfPaymentUpload.tsx`
-- **Edited**: `CreatePaymentDialog.tsx`, `PayGradingDialog.tsx`, `PaySchoolFeesDialog.tsx`, `NoticePopupDialog.tsx`
-
-No service/Supabase changes — only the UI capture surface is upgraded; uploaded `File` objects continue to flow through `uploadProofOfPayment` exactly as today.
+- `src/components/dashboard/BranchDashboard.tsx` (only)
 
 ### Verification
 
-1. Open Branch Dashboard → Record Payment → drag a screenshot onto the dropzone → preview appears, Record Payment enabled.
-2. Copy a screenshot to clipboard, click into the dropzone, press Ctrl/Cmd+V → file accepted, preview shown.
-3. On mobile, tap the Camera icon in the dropzone → camera opens → captured photo populates the file.
-4. Try to drop a `.txt` file → toast error, no file set.
-5. Same flow works in Pay Grading, Pay School Fees, and Notice payment popups.
-6. Clearing (X) removes the preview and clears the file.
+1. Branch Dashboard during inter-term period with draft invoices visible for upcoming term → tab shows `(N | $X.XX)` matching the visible Unpaid list.
+2. Mark one of those invoices as Paid → counter decrements within ~1 s (existing realtime invalidation).
+3. Cancel an unpaid invoice → counter decrements.
+4. During mid-term: counter still reflects unpaid invoices for the current term.
+5. Branch with no terms configured → `(0 | $0.00)`.
 
 ### Out of scope
 
-- Multi-file uploads (still single file).
-- Server-side image processing/compression.
-- Receipt OCR or auto-fill of reference number.
-- Other upload surfaces (claim receipts, certificates) — these already have their own upload UX and are unchanged.
+- Changing which statuses count as "unpaid".
+- Behaviour of other tab counters (already correct).
+- The Invoice list filtering inside the tab.
 
