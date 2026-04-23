@@ -739,12 +739,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
-  // Fetch outstanding invoice amount for current/display term
-  const { data: outstandingAmount = 0 } = useQuery({
+  // Fetch outstanding invoice count + amount for current/display term
+  const { data: outstandingData = { count: 0, amount: 0 } } = useQuery({
     queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
     queryFn: async () => {
-      if (!displayTerm) return 0;
-      
+      if (!displayTerm) return { count: 0, amount: 0 };
+
       const { data: unpaidInvoices } = await supabase
         .from('invoices')
         .select('balance_due')
@@ -752,8 +752,12 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         .in('status', ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'])
         .gte('issue_date', displayTerm.start_date)
         .lte('issue_date', displayTerm.end_date);
-      
-      return (unpaidInvoices || []).reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+
+      const list = unpaidInvoices || [];
+      return {
+        count: list.length,
+        amount: list.reduce((sum, inv) => sum + (inv.balance_due || 0), 0),
+      };
     },
     enabled: !!branchId && !!displayTerm,
   });
@@ -1206,7 +1210,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students{displayTerm ? ` (${uninvoicedCount}/${totalActiveTerm})` : ''}</TabsTrigger>
-          <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({formatCurrency(outstandingAmount, branchCurrency)})</TabsTrigger>
+          <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({outstandingData.count} | {formatCurrency(outstandingData.amount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
           {hasCasualBookings && (
             <TabsTrigger value="casual-schedule" className="text-xs sm:text-sm">Casual Schedule</TabsTrigger>
