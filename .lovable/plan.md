@@ -1,90 +1,77 @@
 
 
-## Plan: Fix SMS reminder so the full template always renders correctly
+## Plan: Resume where you left off after a page refresh
 
-### What's wrong
+When you refresh, the app will restore the same page, tab, open dialog, search/filter values, and scroll position — scoped to your browser tab via `sessionStorage`. Closing the browser still gives a fresh start; only refresh/reload restores.
 
-Current screenshot shows:
-- Opening line ends at "next term will commence next week." (no term date range)
-- Bank transfer details and closing line missing entirely
+### What gets restored
 
-The template strings in `shareInvoiceViaSMS` already match the user's spec, but the message degrades when:
-1. **Term resolution fails** between terms (e.g. Hannah, Morley, 23/04/2026 — Term 1 2026 ended 10/04, Term 2 2026 starts 28/04). `getCurrentTerm` returns null, fallback uses `getMostRecentTerm`, and `getNextTerm` may not match cleanly → user sees "The next term will commence next week" with no dates and no proper next-term name.
-2. **No term context anchored to the invoice** — the SMS uses branch-level "current term" instead of the term the invoice was actually issued for. This is incorrect: an invoice raised for Term 2 should always reference Term 2 ending and Term 3 starting, regardless of today's date.
-3. The trailing sections (bank info + closing) are present in code but the user's screenshot suggests they were silently dropped — likely because the SMS app truncated, or the message body never built them due to an earlier failure path. We'll harden by always including them.
+1. Current route / page (already handled by React Router — refresh stays on the same URL).
+2. Active tab on every multi-tab page (Branch Dashboard, Superadmin Dashboard, Party Management, Sales pages, Settings, Leave Management, Attendance, Payslips, etc.).
+3. Open dialogs on Branch Dashboard and Sales/Invoice pages — Invoice view/edit, Create Invoice, Student Details, Create Payment, View/Edit Payment, Branch Setup, Add Student, Add Trial. Re-opens with the same target id.
+4. Search inputs and filters (status filter, invoice status filter, name filter, date filter, student/employee selectors).
+5. Vertical scroll position of the page.
 
-### Target message (final)
+### How it works (one shared mechanism)
 
-```
-We have now reached the end of {Term X YYYY}. {Term X+1 YYYY} will commence next week and will run from {DD/MM/YYYY} to {DD/MM/YYYY}.
+Add a small reusable hook that wraps `useState` and persists to `sessionStorage` under a route-aware key. Every component that wants resume-on-refresh swaps `useState` for this hook.
 
-Kindly arrange payment before the start of the term as follows:
-
-Items:
-{product_1} – {amount_1}
-{product_2} – {amount_2}
-
-Total: {total_amount}
-
-Payment can be made via bank transfer using the details below:
-{branch bank transfer details}
-
-Thank you for your continued support.
-Gaonhae Taekwondo ({branch})
+```text
+useState(initial)            →   useSessionState('branch-dash:tab', initial)
+useState<Type|null>(null)    →   useSessionState<Type|null>('branch-dash:invoiceId', null)
 ```
 
-### Implementation
+Key rules:
+- Keys are namespaced by route + feature (`/branch-dashboard:branchId:tab`) so navigating away then back doesn't pollute.
+- Values JSON-serialized; non-serializable values (Dates) stored as ISO strings via small adapters.
+- Cleared on logout (in `AuthContext.signOut`) so the next user starts clean.
+- Cleared on route change away (optional for dialog flags, so dialogs don't pop back open if you open the same page from a fresh nav).
 
-**1. `src/components/dashboard/BranchDashboard.tsx` — `handleShareSMS`**
+### Files to add
 
-Resolve term context **from the invoice itself**, not from "today":
+- `src/hooks/useSessionState.ts` — the persisted-state hook (typed, JSON-safe).
+- `src/hooks/useScrollRestoration.ts` — saves `window.scrollY` per route into sessionStorage and restores on mount after content is ready (uses a small `requestAnimationFrame` retry loop to handle async data).
 
-- Inspect `fullInvoice.items[*].metadata.term_id`.
-- Pick the term referenced by the most recent (or any) lesson line item → this is the **ending term** the message should reference.
-- Look up that term in `term_calendars` (id, name, start_date, end_date, branch_id).
-- Call `getNextTerm(branchId, endingTerm.end_date)` to resolve the **next term**.
-- Pass both into `shareInvoiceViaSMS` as `terms.current` (the ending term) and `terms.next`.
+### Files to update
 
-Fallback chain when no item has a `term_id`:
-1. `getCurrentTerm(branch)` → 2. `getMostRecentTerm(branch)` (existing behavior).
+Replace the relevant `useState`s with `useSessionState`, and mount `useScrollRestoration()` once per page:
 
-**2. `src/utils/invoicePDFGenerator.ts` — `shareInvoiceViaSMS`**
+- `src/components/dashboard/BranchDashboard.tsx` — `activeTab`, `searchTerm`, `statusFilter`, `invoiceStatusFilter`, `invoiceDateFilter`, `invoiceNameFilter`, `selectedInvoiceId`+`invoiceDialogMode`+`invoiceDialogOpen`, `createInvoiceForStudentId`+`createInvoiceOpen`, `selectedPaymentId`+`paymentDialogMode`+`paymentDialogOpen`, `studentDetailsOpen`+`selectedStudent.id`, `branchSetupOpen`, `showAddStudentDialog`, `showAddTrialDialog`. Selected student/payment objects re-fetched from the saved id on mount.
+- `src/components/dashboard/SuperadminDashboard.tsx` — `activeTab`.
+- `src/pages/PartyManagement.tsx` — `activeTab`, status filter, search.
+- `src/pages/sales/InvoiceManagement.tsx`, `PaymentManagement.tsx`, `ProductManagement.tsx`, `GradingManagement.tsx`, `CreditManagement.tsx`, `SalesAnalytics.tsx`, `SalesSettings.tsx`, `SalesDashboard.tsx` — active tab, search query, filter selects, open-dialog ids.
+- `src/pages/sales/StudentProfile.tsx` — active tab, any open invoice/payment dialog.
+- `src/pages/Attendance.tsx`, `LeaveManagement.tsx`, `Claims.tsx`, `PayrollProcessing.tsx`, `PayslipManagement.tsx`, `Payslips.tsx`, `Miscellaneous.tsx`, `Employees.tsx`, `EmployeeDetails.tsx`, `Settings.tsx`, `BranchProfitLoss.tsx`, `MyAttendance.tsx`, `SlotBooking.tsx`, `AdminSlotBooking.tsx` — active tab, search/filter inputs, primary open-dialog flags.
+- `src/contexts/AuthContext.tsx` — clear all `sessionStorage` keys with the resume prefix on sign-out.
+- `src/App.tsx` — no change to Router.
 
-Tighten the body so missing data degrades gracefully but still looks correct:
+### Restore flow on refresh
 
-- If `terms.next.name` is missing, derive a sensible label (e.g. increment from `current.name` like "Term 2 2026" → "Term 3 2026"); otherwise keep generic "The next term".
-- If `terms.next.start_date`/`end_date` are missing, omit the "and will run from … to …" clause cleanly (no dangling " and will run from to .").
-- Always append the bank-transfer section and the closing line — never short-circuit them.
-- Keep en-dash item separator and the existing item description format (`{description} – {amount}`), one per line.
-- Keep the closing line on its own line:
-  `Thank you for your continued support.\nGaonhae Taekwondo ({branch})`
+1. React Router lands on the same URL (already correct).
+2. Each page component initializes its `useSessionState` from `sessionStorage`, so tabs/filters/dialog flags come back instantly.
+3. Dialogs that need server data (e.g. selected invoice) read the saved id, fire the existing fetch, and open once data resolves.
+4. `useScrollRestoration` waits for the main content to render (poll up to ~1s), then sets `window.scrollTo(0, savedY)`.
 
-No change to the WhatsApp helper or to `shareInvoiceOverdueReminderViaSMS` (separate template, separate path).
+### Edge cases
 
-**3. Helper added to `src/services/termCalendarService.ts`**
-
-Add `getTermById(termId: string)` (thin wrapper over `term_calendars` select by id, returning `Term | null`) so `BranchDashboard.handleShareSMS` can resolve the invoice-anchored term in one call.
-
-### Files affected
-
-- `src/components/dashboard/BranchDashboard.tsx` — switch term resolution in `handleShareSMS` to use the invoice's `metadata.term_id` first, branch fallback second.
-- `src/utils/invoicePDFGenerator.ts` — harden `shareInvoiceViaSMS` body (no dangling clauses, always include bank info + closing, smarter next-term name fallback).
-- `src/services/termCalendarService.ts` — add `getTermById` helper.
+- Stale ids (e.g. invoice was deleted): the existing fetch returns null → the hook clears the saved id and the dialog stays closed, no error toast.
+- Permission changes between refreshes: `PageAccessGuard` runs first; if access is denied the saved state on that route is irrelevant.
+- Multiple browser tabs: `sessionStorage` is per-tab, so each tab resumes independently — no cross-tab interference.
+- Logout: all `lov-resume:*` keys are wiped so the next sign-in starts clean.
+- Public/auth routes (`/`, `/register`, `/auth/reset-password`): no resume state stored.
 
 ### Verification
 
-1. Branch Dashboard → Hannah Song's invoice (Morley, Term 2 2026 line item) → blue SMS button → message reads:
-   `We have now reached the end of Term 2 2026. Term 3 2026 will commence next week and will run from 13/07/2026 to 18/09/2026.`
-   followed by Items, Total, AU bank transfer details (BSB 803 439, Acct 238 648 651), then "Thank you for your continued support. Gaonhae Taekwondo (Morley)".
-2. SG branch invoice (e.g. Yishun, Term 1 2026 line item) → SMS resolves Term 2 2026 dates (04/04/2026 → 28/06/2026) and SG bank info (ANEXT BANK).
-3. Invoice with no `term_id` in any item → falls back to current/most-recent term (existing behavior), still produces a clean message with no dangling phrases.
-4. Red overdue SMS button → unchanged behavior, unchanged template.
-5. WhatsApp button → unchanged (still text-only, deep link).
+1. Branch Dashboard → switch to "Invoice & Payment" tab → set status filter to "Unpaid" → search "Hannah" → open an invoice → scroll halfway → refresh → land on the same tab, same filter, same search, same invoice dialog open, same scroll position.
+2. Sales → Invoices → open Create Invoice for a student → refresh → Create Invoice dialog reopens for that student.
+3. Superadmin Dashboard → Approvals tab → refresh → still on Approvals.
+4. Sign out → sign back in → land on default dashboard with no leftover dialogs or filters.
+5. Open the same app in a second browser tab → that tab is independent and starts on its own default state.
 
 ### Out of scope
 
-- WhatsApp template/launch logic (unchanged).
-- Overdue SMS template (unchanged).
-- Bank transfer details content (already populated for SG and AU).
-- Stored phone numbers.
+- Restoring scroll inside scrollable inner containers (only main `window` scroll).
+- Restoring transient UI like dropdown-menu open state, toast queue, hover states.
+- Cross-device or cross-browser persistence (sessionStorage is local).
+- Restoring unsaved form input inside dialogs (only which dialog is open and for which entity).
 
