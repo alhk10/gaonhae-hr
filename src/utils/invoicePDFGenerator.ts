@@ -498,8 +498,8 @@ export const shareInvoiceViaWhatsApp = async (
   // First download the PDF
   await downloadInvoicePDF(invoice);
   
-  // Clean the phone number (remove spaces, dashes, etc.)
-  const cleanNumber = whatsappNumber.replace(/[\s\-\(\)]/g, '');
+  // Clean the phone number — wa.me requires digits only (strip + and all formatting)
+  const cleanNumber = whatsappNumber.replace(/\D/g, '');
   
   // Prepare the message
   const message = encodeURIComponent(
