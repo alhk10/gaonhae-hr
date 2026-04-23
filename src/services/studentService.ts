@@ -8,6 +8,7 @@ import { logSalesModuleAccess } from './salesModuleService';
 import { logger } from '@/utils/logger';
 import { createStudentAuth } from './studentAuthService';
 import { normalizePartyData } from '@/utils/partyUtils';
+import { normalizeStoredPhone } from '@/constants/formOptions';
 
 export interface Student {
   id: string;
@@ -374,12 +375,13 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       last_name: studentData.last_name || null,
       date_of_birth: studentData.date_of_birth || null,
       email: studentData.email || null,
-      phone: studentData.phone || null,
+      phone: normalizeStoredPhone(studentData.phone) || null,
+      whatsapp: normalizeStoredPhone((studentData as any).whatsapp) || null,
       emergency_contact_name: studentData.emergency_contact_name || null,
-      emergency_contact_phone: studentData.emergency_contact_phone || null,
+      emergency_contact_phone: normalizeStoredPhone(studentData.emergency_contact_phone) || null,
       emergency_contact_relationship: studentData.emergency_contact_relationship || null,
       emergency_contact_2_name: studentData.emergency_contact_2_name || null,
-      emergency_contact_2_phone: studentData.emergency_contact_2_phone || null,
+      emergency_contact_2_phone: normalizeStoredPhone(studentData.emergency_contact_2_phone) || null,
       emergency_contact_2_relationship: studentData.emergency_contact_2_relationship || null,
       languages_spoken: studentData.languages_spoken?.length ? studentData.languages_spoken : null,
       registered_date: studentData.registered_date || null,
@@ -411,7 +413,7 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
         .insert({
           student_id: data.id,
           name: studentData.emergency_contact_name,
-          phone: studentData.emergency_contact_phone,
+          phone: normalizeStoredPhone(studentData.emergency_contact_phone) || studentData.emergency_contact_phone,
           relationship: studentData.emergency_contact_relationship || 'Emergency Contact',
           is_primary: true
         });
@@ -473,6 +475,14 @@ export async function updateStudent(studentId: string, studentData: Partial<Crea
     for (const field of nullableStringFields) {
       if (field in rawData && (rawData as any)[field] === '') {
         (rawData as any)[field] = null;
+      }
+    }
+
+    // Normalize phone fields: strip leading 0 after country code
+    const phoneFields = ['phone', 'whatsapp', 'emergency_contact_phone', 'emergency_contact_2_phone'];
+    for (const field of phoneFields) {
+      if (field in rawData && (rawData as any)[field]) {
+        (rawData as any)[field] = normalizeStoredPhone((rawData as any)[field]);
       }
     }
     

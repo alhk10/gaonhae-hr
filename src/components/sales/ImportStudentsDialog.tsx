@@ -7,6 +7,7 @@ import { Download, Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-re
 import { toast } from '@/components/ui/sonner';
 import { createStudent, CreateStudentData } from '@/services/studentService';
 import { useBranches } from '@/hooks/useBranches';
+import { normalizeStoredPhone } from '@/constants/formOptions';
 
 // Parse DD-MM-YYYY to YYYY-MM-DD for database storage
 const parseDateValue = (value: string): string => {
