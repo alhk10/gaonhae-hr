@@ -1,101 +1,44 @@
 
 
-## Plan: Restrict "Ready for Grading" auto-flag to invoices with a matching grading product
+## Plan: Move Uninvoiced count to the Students tab label
 
-### Problem
+### What changes
 
-Currently in `src/services/invoiceService.ts` (`createInvoice`, lines ~374–513), **any** lesson invoice auto-creates a `grading_registrations` row with `ready_for_grading = true` for the student's current → next belt. This is why CIELLE, HANNAH, and DAWN show ✓ in the Ready column even though no grading fee was ever invoiced.
+In `src/components/dashboard/BranchDashboard.tsx`:
 
-### Required behaviour
+1. **Add the count to the Students tab label.** Change the tab trigger text from `Students` to `Students (X/Y)` where:
+   - `X` = `uninvoicedCount` (active+inactive students at this branch with no non-cancelled lesson invoice for `displayTerm`)
+   - `Y` = `totalActiveTerm` (active+inactive students at this branch)
+   - Only shown when `displayTerm` exists; otherwise just `Students`.
 
-`ready_for_grading = true` should only be set when the same invoice contains a **grading-category product whose name matches the student's belt transition**, i.e. a product where:
-- `product_categories.name = 'Grading'`, AND
-- `products.name = '<student.current_belt> >> <getNextBeltLevel(current_belt, country)>'` (e.g. `Yellow Tip >> Yellow`).
+2. **Remove the inline counter** (`Uninvoiced: X / Y`) currently rendered to the right of the Filter dropdown.
 
-A lesson-only invoice (no matching grading product) must NOT create a grading registration and must NOT flip `ready_for_grading` on. Manual toggle from the Grading List UI is unaffected.
-
-### Changes
-
-**1. `src/services/invoiceService.ts` — auto-flag block (≈ lines 374–513)**
-
-Replace the current "any lesson product → Ready" logic with:
-
-a. When fetching `productDetails` (already happens above, line ~365), also pull each product's `category_id` and join to `product_categories.name`. Build a `gradingProducts` map keyed by `product.id` containing `{ name, category_name }`.
-
-b. Compute the **expected grading product name** for this student:
-```ts
-const expectedName = `${formatBeltLevel(currentBelt)} >> ${formatBeltLevel(targetBelt)}`;
-```
-(using the same `formatBeltLevel` already used in `PayGradingDialog`).
-
-c. Iterate `invoiceData.items` and find any item whose product is in category `Grading` AND whose product name equals `expectedName` (case-insensitive). Call this `matchingGradingItem`.
-
-d. **Gate the entire auto-flag block on `matchingGradingItem` existing.** If none, skip — do not insert or update any `grading_registrations` row.
-
-e. When `matchingGradingItem` exists:
-   - Term resolution stays the same (slot-derived term wins; otherwise lesson-derived term; otherwise `matchingGradingItem.metadata.term_id`).
-   - On insert, set `invoice_item_id = <id of matchingGradingItem after insert>` (instead of `null`) so deletion cleanup at line ~772 can purge it via the existing `invoice_item_id IN (...)` branch.
-   - On update of an existing registration, still flip `ready_for_grading = true` and refresh belts/slot, and additionally set `invoice_item_id` if it was previously null.
-
-**2. `src/services/invoiceService.ts` — deletion cleanup (≈ lines 782–797)**
-
-The "1b. Delete auto-created grading_registrations" block (which currently deletes any `invoice_item_id IS NULL` registration) becomes safe to keep but largely redundant since new auto-rows now carry an `invoice_item_id`. Leave it in place to also clean up legacy null-linked rows from earlier behaviour. No code change needed here.
-
-**3. One-off data correction (migration)**
-
-Existing `grading_registrations` rows that were auto-created under the old rule (with `ready_for_grading = true`, `invoice_item_id IS NULL`, `result IS NULL`) need to be reconciled so CIELLE / HANNAH / DAWN (and similar) lose the ✓.
-
-Add a SQL migration that, for every such row, checks whether the student has any **non-cancelled** invoice in the same term containing a grading product matching `current_belt >> target_belt`. If not, delete the row.
-
-```sql
-DELETE FROM public.grading_registrations gr
-WHERE gr.invoice_item_id IS NULL
-  AND gr.result IS NULL
-  AND gr.ready_for_grading = true
-  AND NOT EXISTS (
-    SELECT 1
-    FROM public.invoice_items ii
-    JOIN public.invoices i  ON i.id = ii.invoice_id
-    JOIN public.products  p  ON p.id = ii.product_id
-    JOIN public.product_categories pc ON pc.id = p.category_id
-    WHERE i.student_id = gr.student_id
-      AND i.status <> 'cancelled'
-      AND pc.name = 'Grading'
-      AND p.name  = gr.current_belt || ' >> ' || gr.target_belt
-      AND COALESCE(ii.metadata->>'term_id', '') = gr.term_id::text
-  );
-```
-
-This is a one-shot cleanup. It will also remove any other "false-positive" Ready rows from the previous logic, which matches the intent.
+3. **Revert the filter badge label** for the Uninvoiced filter from `Uninvoiced Term (X/Y)` back to `Uninvoiced Term` — the count now lives only in the tab label.
 
 ### Behaviour after change
 
-| Scenario | Result |
-|---|---|
-| Invoice with only lesson products | No grading_registrations row created. Student does NOT appear with Ready ✓. |
-| Invoice contains "Yellow Tip >> Yellow" for a Yellow Tip student | Grading_registrations row created with `ready_for_grading = true` and `invoice_item_id` set. Student shows Ready ✓. |
-| Invoice contains "White >> Yellow Tip" for a Yellow Tip student (mismatch) | No auto-flag — name doesn't match the student's belt transition. |
-| Staff manually ticks Ready in the Grading List | Unchanged — manual toggle still works. |
-| Invoice deleted | Existing FK-based cleanup deletes the linked grading_registrations row. |
+| Element | Before | After |
+|---|---|---|
+| Students tab label | `Students` | `Students (28/50)` |
+| Inline counter beside Filter | `Uninvoiced: 28 / 50` | removed |
+| Filter chip when active | `Uninvoiced Term (28/50)` | `Uninvoiced Term` |
 
-### Files NOT changed
+The count still updates live via the existing query invalidation (no logic changes to `uninvoicedCount` / `totalActiveTerm` derivation or to the realtime subscriptions added previously).
 
-- `gradingService.ts` (manual toggle untouched)
-- `BranchGradingList.tsx` (display only — already reads `ready_for_grading`)
-- `PayGradingDialog.tsx` / `PaySchoolFeesDialog.tsx` (grading-product lookup pattern is the source of truth for the matching name)
-- No RLS changes
+### Files affected
+
+- `src/components/dashboard/BranchDashboard.tsx` (only)
 
 ### Verification
 
-1. Open Branch Dashboard → Grading tab → CIELLE, HANNAH, DAWN no longer show ✓ in Ready (after migration runs).
-2. Create a new lesson-only invoice for any active student → student does NOT appear with Ready ✓.
-3. Create a new invoice that includes the matching grading product (e.g. `Yellow Tip >> Yellow` for a Yellow Tip student) → student now appears with Ready ✓ and the row is linked to the grading line item.
-4. Delete that invoice → student disappears from the Ready list.
-5. Manual ✓ toggle in the Grading List still works regardless.
+1. Branch Dashboard → tabs row shows `Students (X/Y)` matching the previous inline counter values.
+2. No `Uninvoiced: X / Y` text appears next to the Filter dropdown.
+3. Selecting the Uninvoiced filter shows a plain `Uninvoiced Term` chip with no parenthetical count.
+4. Creating/cancelling a current-term lesson invoice updates the `(X/Y)` in the tab label within ~1 s.
+5. When no term is configured, the tab label is plain `Students`.
 
 ### Out of scope
 
-- Changing the manual toggle behaviour or the Grading List UI.
-- Revisiting `getNextBeltLevel` country logic.
-- Altering grading-fee pricing or the Pay Grading workflow.
+- Counts on other tabs (Weekly Timetable, Invoice & Payment, Grading, Inventory, Notices) — unchanged.
+- Filter logic, realtime subscriptions, query keys — unchanged.
 
