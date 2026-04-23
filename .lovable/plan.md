@@ -1,87 +1,72 @@
 
-## Plan: Make WhatsApp sharing resilient to hidden characters and add `whatsapp://` fallback
 
-### Problem to address
+## Plan: Rename "Unpaid Class Fees" to "Uninvoiced Class Fees" and change filter logic
 
-`wa.me` currently depends on a clean phone target and a browser opening a web URL successfully. Even though the existing helper strips non-digits, there are still two weak points:
+### What changes
 
-1. Phone fields may contain whitespace-only values or invisible Unicode characters that pass the current “has value” checks.
-2. Some devices/browsers handle `whatsapp://send` more reliably than `wa.me`, especially when the app is installed.
+In the Branch Dashboard → Students tab → Filter dropdown:
 
-### Changes
+- The option currently labelled **"Unpaid Class Fees (Current Term)"** becomes **"Uninvoiced Class Fees (Current Term)"**.
+- The chip/badge currently shown as **"Unpaid Term"** becomes **"Uninvoiced Term"**.
+- The underlying logic changes to the strict definition: a student appears in this filter only when **no lesson invoice exists at all** for the current term at this branch — regardless of invoice status (draft, sent, unpaid, partially_paid, paid, verified, overdue, cancelled). Students with any existing lesson invoice for the term are excluded.
 
-#### 1. Harden WhatsApp target sanitizing
-Update `src/utils/invoicePDFGenerator.ts`:
+### File to update
 
-- Replace the current simple `normalizeWhatsAppTarget` with a stricter sanitizer that:
-  - runs Unicode normalization (`NFKC`)
-  - removes zero-width / hidden characters such as:
-    - zero-width space
-    - zero-width joiner / non-joiner
-    - BOM / word joiner
-    - non-breaking spaces
-  - trims leading/trailing whitespace
-  - strips all remaining non-digits
-- Add a guard so if the final digit string is empty, WhatsApp sharing aborts cleanly instead of trying to open a broken URL.
+**`src/components/dashboard/BranchDashboard.tsx`**
 
-This covers the user concern about trailing spaces and hidden characters.
+1. **Replace the existing query** (currently `paid-term-student-ids`, lines ~881–921):
+   - Rename to `invoiced-term-student-ids`.
+   - Drop the `.in('invoices.status', ['paid', 'verified'])` filter so it matches lesson invoice items for the term across **all statuses except `cancelled`** (cancelled invoices should not block a student from appearing as "uninvoiced").
+   - Keep the rest: filter by `is_lesson = true`, `invoices.branch_id = branchId`, and `metadata.term_id = displayTerm.id`.
+   - Return the set of student IDs that already have any non-cancelled lesson invoice for the displayed term.
 
-#### 2. Add `whatsapp://` first, with `wa.me` fallback
-Update `src/utils/invoicePDFGenerator.ts` `shareInvoiceViaWhatsApp`:
+2. **Rename the local variables** for clarity:
+   - `paidTermStudentIdsArr` → `invoicedTermStudentIdsArr`
+   - `paidTermStudentIds` → `invoicedTermStudentIds`
 
-- Keep building the same rich message body as today.
-- Build both URLs from the same sanitized number + encoded message:
-  - `whatsapp://send?phone=${digits}&text=${encodedMessage}`
-  - `https://wa.me/${digits}?text=${encodedMessage}`
-- Try the app scheme first:
-  - open/navigate to `whatsapp://send...`
-  - if the app does not take over, fall back to `wa.me` after a short timeout
-- Preserve current browser-safe behavior for desktop by falling back to `wa.me` automatically.
+3. **Update the filter branch** (lines ~1102–1107):
+   ```ts
+   } else if (statusFilter === 'uninvoiced_term') {
+     matchesStatus =
+       (studentStatus === 'active' || studentStatus === 'inactive') &&
+       !!displayTerm &&
+       !invoicedTermStudentIds.has(student.id);
+   }
+   ```
+   - Rename the filter key `'unpaid_term'` → `'uninvoiced_term'` everywhere it appears in this file (state default check, badge label, dropdown item, empty-state copy).
 
-This gives the best chance of opening WhatsApp on both mobile app and web/desktop.
+4. **Update visible labels**:
+   - Dropdown item text: `Uninvoiced Class Fees (Current Term)`
+   - Active filter badge text: `Uninvoiced Term`
+   - Empty-state message when no term is configured stays the same: `No active term configured for this branch`.
 
-#### 3. Tighten caller-side phone checks
-Update both callers so whitespace-only / hidden-character-only numbers are rejected earlier:
+### Files NOT changed
 
-- `src/components/dashboard/BranchDashboard.tsx`
-- `src/components/sales/InvoiceManagementList.tsx`
-
-Use a shared “candidate number” cleanup before the “No mobile number” toast so values like `"   "` or strings containing only invisible characters do not pass validation.
-
-### Files affected
-
-- `src/utils/invoicePDFGenerator.ts`
-  - stronger WhatsApp number sanitizer
-  - `whatsapp://` + `wa.me` fallback logic
-  - invalid-number guard
-- `src/components/dashboard/BranchDashboard.tsx`
-  - stricter pre-check before calling WhatsApp share
-- `src/components/sales/InvoiceManagementList.tsx`
-  - same stricter pre-check
+- `PayGradingDialog.tsx` and `PaySchoolFeesDialog.tsx` use a separate concept ("unpaid terms" meaning terms the student hasn't fully paid for in the payment workflows) — unrelated to this branch dashboard filter. Left untouched.
+- No database, RLS, or schema changes.
+- No other dashboards or pages reference this filter key.
 
 ### Behavior after change
 
-When the green WhatsApp button is clicked:
-
-1. The stored WhatsApp/phone value is cleaned of trailing spaces and hidden characters.
-2. If no usable digits remain, show the existing error toast and do nothing.
-3. If digits remain:
-   - try `whatsapp://send?...`
-   - if that does not open the app, fall back to `https://wa.me/...`
-4. The prefilled message remains the current rich template with salutation, term text, items, total, bank details, and branch signature.
+- A student with no lesson invoice for the current term at this branch → appears in the list.
+- A student with a draft / sent / unpaid / partially_paid / paid / verified / overdue lesson invoice for the current term at this branch → does NOT appear.
+- A student whose only lesson invoice for the term is `cancelled` → appears (treated as if they have no invoice).
+- Withdrawn students are still excluded, as today.
+- Trial-only students are still excluded (filter requires `active` or `inactive`).
 
 ### Verification
 
-1. Number stored as `"+61 431 234 567 "` → WhatsApp opens correctly.
-2. Number containing zero-width spaces or NBSPs → still opens correctly.
-3. Number field containing only spaces / hidden characters → error toast, no broken link.
-4. Mobile device with WhatsApp installed → `whatsapp://` opens app directly.
-5. Desktop browser or device without app handling → automatically falls back to `wa.me`.
-6. Branch Dashboard and Invoice Management list both behave the same.
-7. SMS sharing remains unchanged.
+1. Open Branch Dashboard → Students tab → Filter → confirm the option reads **"Uninvoiced Class Fees (Current Term)"**.
+2. Select it → the active filter badge shows **"Uninvoiced Term"**.
+3. Pick a known student with an unpaid (status `unpaid` or `sent`) term lesson invoice → they should NOT be listed.
+4. Pick a known student with no invoice for the current term → they SHOULD be listed.
+5. Pick a student whose only term lesson invoice is `cancelled` → they SHOULD be listed.
+6. Withdrawn / trial students → never appear in this filter.
+7. If the branch has no active term configured → the empty state still reads "No active term configured for this branch".
 
 ### Out of scope
 
-- Changing the SMS flow
-- Changing the WhatsApp message content
-- Country-specific number validation beyond producing a clean digits-only target
+- Changing the filter for any other dashboard or list.
+- Adding a separate "unpaid invoices" filter (can be a follow-up).
+- Modifying invoice status semantics or the dashboard outstanding-balance metric.
+
