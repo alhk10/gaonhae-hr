@@ -451,8 +451,8 @@ const InvoiceManagementList: React.FC = () => {
         studentData = null;
       }
 
-      const whatsappNumber = studentData?.whatsapp || studentData?.phone;
-      if (!whatsappNumber) {
+      const whatsappNumber = studentData?.whatsapp || studentData?.phone || '';
+      if (!hasUsableMobileNumber(whatsappNumber)) {
         toast.error('No WhatsApp or phone number found for this student');
         return;
       }
