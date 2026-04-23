@@ -492,10 +492,27 @@ export const getInvoicePDFBase64 = async (invoice: InvoiceData): Promise<string>
 };
 
 // Phone target normalization helpers
+// Strip invisible/zero-width characters and normalize Unicode before any further cleanup.
+// Covers: zero-width space (U+200B), ZWNJ (U+200C), ZWJ (U+200D), BOM/word-joiner
+// (U+FEFF, U+2060), non-breaking spaces (U+00A0, U+202F, U+205F), ideographic space (U+3000),
+// and the soft hyphen (U+00AD).
+const HIDDEN_CHARS_RE = /[\u200B-\u200D\u2060\uFEFF\u00A0\u202F\u205F\u3000\u00AD]/g;
+const stripHiddenAndTrim = (v: string): string =>
+  (v ?? '').normalize('NFKC').replace(HIDDEN_CHARS_RE, '').trim();
+
 // WhatsApp deep links require digits-only (no '+', no spaces).
-const normalizeWhatsAppTarget = (v: string) => v.replace(/\D/g, '');
+export const normalizeWhatsAppTarget = (v: string): string =>
+  stripHiddenAndTrim(v).replace(/\D/g, '');
 // SMS scheme keeps the leading '+' for international dialing; only strip formatting chars.
-const normalizeSmsTarget = (v: string) => v.replace(/[\s\-\(\)]/g, '');
+const normalizeSmsTarget = (v: string): string =>
+  stripHiddenAndTrim(v).replace(/[\s\-\(\)]/g, '');
+
+/**
+ * Returns true if the raw value contains at least one digit after stripping
+ * hidden characters and whitespace. Use as a pre-check before opening WhatsApp.
+ */
+export const hasUsableMobileNumber = (v?: string | null): boolean =>
+  !!v && stripHiddenAndTrim(v).replace(/\D/g, '').length > 0;
 
 export interface SmsTermInfo {
   name?: string;
