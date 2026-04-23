@@ -1,15 +1,41 @@
 
 
-## Plan: Make WhatsApp message mirror the rich SMS template, via `wa.me`
+## Plan: Add time-of-day greeting to invoice SMS & WhatsApp messages
 
 ### What changes
 
-The WhatsApp share will produce the exact same message body as the blue SMS button — opening line with the ending term + the upcoming term and its date range, full itemized list, total, bank transfer details, and the Gaonhae signature — and it will open via the simpler `https://wa.me/<digits>?text=...` link.
+Prepend a salutation line to the shared term-reminder message (used by both blue SMS and green WhatsApp buttons):
+
+```text
+Good Morning,
+
+We have now reached the end of Term 1 2026. Term 2 2026 will commence next week and will run from 28/04/2026 to ...
+```
+
+The greeting is determined by the recipient's local time at the moment the message is opened:
+
+- **Morning** — 05:00–11:59
+- **Afternoon** — 12:00–17:59
+- **Evening** — 18:00–04:59
+
+(Computed from the sender's device clock, since SMS/WhatsApp open in the browser of the staff sending the message — no recipient timezone lookup required.)
+
+### File to update
+
+**`src/utils/invoicePDFGenerator.ts` — `buildTermReminderMessage`**
+
+- Add a small helper `getTimeOfDayGreeting()` that returns `'Morning' | 'Afternoon' | 'Evening'` based on `new Date().getHours()`.
+- Prepend `Good ${greeting},\n\n` to the existing message body.
+- Everything else (term opening, items, total, bank transfer info, signature) stays exactly as today.
+
+No other files need changes — both `shareInvoiceViaSMS` and `shareInvoiceViaWhatsApp` already call `buildTermReminderMessage`, so both channels pick up the new greeting automatically.
 
 ### Final message format
 
 ```text
-We have now reached the end of {endingTerm.name}. {upcomingTerm.name} will commence next week and will run from {start} to {end}.
+Good {Morning|Afternoon|Evening},
+
+We have now reached the end of {ending term name}. {upcoming term name} will commence next week and will run from {start} to {end}.
 
 Kindly arrange payment before the start of the term as follows:
 
@@ -20,63 +46,23 @@ Items:
 Total: {total_amount}
 
 Payment can be made via bank transfer using the details below:
-{bank transfer info from active template for branch country}
+{bank transfer info}
 
 Thank you for your continued support.
 Gaonhae Taekwondo ({branch name})
 ```
 
-Same template, derivation rules and graceful fallbacks as `shareInvoiceViaSMS` (including the `Term N YYYY` → `Term N+1 YYYY` last-resort name derivation).
-
-### Files to update
-
-**1. `src/utils/invoicePDFGenerator.ts`**
-
-- Refactor `shareInvoiceViaWhatsApp` to:
-  - Accept the same optional term context as SMS:
-    `(invoice, whatsappNumber, terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null })`
-  - Build the message using identical logic to `shareInvoiceViaSMS` (extract a small shared `buildTermReminderMessage(invoice, terms)` helper and reuse it from both).
-  - Open the chat via the simpler `wa.me` link only:
-    `window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')`
-  - Drop the `whatsapp://` deep link + 800ms fallback dance (no PDF, no link in body).
-- Keep `normalizeWhatsAppTarget` (digits-only) — `wa.me` requires no leading `+`.
-
-**2. `src/components/dashboard/BranchDashboard.tsx`**
-
-- Add a `handleShareWhatsApp(invoice)` mirroring `handleShareSMS`:
-  - Resolve mobile number (`whatsapp || phone`).
-  - Fetch full invoice items, branch country, active template `bank_transfer_info`.
-  - Resolve term context with the same chain already used for SMS:
-    invoice line-item `term_id` → `getUpcomingTerm` → `getCurrentTerm`/`getMostRecentTerm`/`getNextTerm` fallback.
-    Compute `endingTerm = getPreviousTerm(branchId, upcomingTerm.start_date)`.
-  - Call `shareInvoiceViaWhatsApp(invoiceData, number, smsTerms)`.
-- Wire this to the existing green WhatsApp icon in the Invoice & Payment row (currently wired to the older simple WhatsApp handler / `InvoiceManagementList`'s version on this page).
-
-**3. `src/components/sales/InvoiceManagementList.tsx`**
-
-- Update `handleShareWhatsApp` to also build and pass the term context, using the same resolution chain as Branch Dashboard's SMS handler. Extract the chain into a tiny helper (e.g. `src/utils/invoiceTermContext.ts → resolveInvoiceTermContext(invoice, fullInvoice)`) and call it from both `BranchDashboard.handleShareSMS`, `BranchDashboard.handleShareWhatsApp`, and `InvoiceManagementList.handleShareWhatsApp` to avoid drift.
-
-### Files NOT changed
-
-- SMS templates and SMS handlers (visible behavior unchanged).
-- PDF generation.
-- Phone storage / normalization rules.
-- Overdue SMS button.
-
 ### Verification
 
-1. Branch Dashboard → Hannah's Term 2 2026 invoice → click green WhatsApp icon → `wa.me` opens a chat with her number, prefilled message reads:
-   *"We have now reached the end of Term 1 2026. Term 2 2026 will commence next week and will run from 28/04/2026 to <Term 2 end>. … Items … Total … Bank Transfer … Gaonhae Taekwondo (Morley)."*
-2. Sales → Invoice Management → same green WhatsApp icon on a SG invoice → identical message structure with SG dates and ANEXT BANK details.
-3. Invoice with no `term_id` on items but an upcoming term exists → uses upcoming as next, previous as ending.
-4. Invoice with no `term_id` and no upcoming term → falls back to current/most-recent term as ending and next chronological term as next; if name still missing, derives "Term N+1 YYYY" from the ending term name.
-5. Student with no `whatsapp` and no `phone` → toast: "No mobile number on file for this student", no chat opens.
-6. SMS buttons (blue + red) → unchanged behavior and copy.
-7. No PDF download is triggered when clicking WhatsApp.
+1. At 09:30 local — click blue SMS on Hannah's Term 2 2026 invoice → message starts with `Good Morning,` followed by the existing term opening.
+2. At 14:00 local — click green WhatsApp on the same invoice → message starts with `Good Afternoon,`.
+3. At 20:00 local — either button → message starts with `Good Evening,`.
+4. At 02:00 local — either button → still `Good Evening,` (treats early morning as evening per the band above).
+5. Items, totals, bank transfer info, and Gaonhae signature are unchanged.
 
 ### Out of scope
 
-- Attaching the PDF to WhatsApp (web `wa.me` cannot attach files).
-- Email share, SMS templates, overdue WhatsApp variant.
-- Phone number storage or country-code normalization.
+- Per-recipient timezone resolution (uses the sender's device clock).
+- Personalising with the recipient's name (not requested).
+- Overdue SMS template (separate function, unchanged).
 
