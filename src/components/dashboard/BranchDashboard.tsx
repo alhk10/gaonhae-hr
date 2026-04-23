@@ -739,24 +739,43 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId && !!currentTerm,
   });
 
-  // Fetch outstanding invoice count + amount for current/display term
+  // Fetch outstanding invoice count + amount for current/display term.
+  // Match invoices via line-item metadata.term_id (consistent with Students/Grading tabs),
+  // not invoice issue_date — so upcoming-term drafts issued before term start are included.
   const { data: outstandingData = { count: 0, amount: 0 } } = useQuery({
     queryKey: ['outstanding-invoices', branchId, displayTerm?.id],
     queryFn: async () => {
       if (!displayTerm) return { count: 0, amount: 0 };
 
-      const { data: unpaidInvoices } = await supabase
-        .from('invoices')
-        .select('balance_due')
-        .eq('branch_id', branchId)
-        .in('status', ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'])
-        .gte('issue_date', displayTerm.start_date)
-        .lte('issue_date', displayTerm.end_date);
+      const UNPAID = ['unpaid', 'partial', 'partially_paid', 'draft', 'sent', 'overdue'];
 
-      const list = unpaidInvoices || [];
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select(`
+          metadata,
+          invoices!inner (
+            id,
+            balance_due,
+            status,
+            branch_id
+          )
+        `)
+        .eq('invoices.branch_id', branchId)
+        .in('invoices.status', UNPAID);
+
+      const map = new Map<string, number>();
+      (items || []).forEach((row: any) => {
+        const md = row.metadata as Record<string, any> | null;
+        if (md?.term_id !== displayTerm.id) return;
+        const inv = row.invoices;
+        if (!inv) return;
+        if (!map.has(inv.id)) map.set(inv.id, Number(inv.balance_due) || 0);
+      });
+
+      const balances = Array.from(map.values());
       return {
-        count: list.length,
-        amount: list.reduce((sum, inv) => sum + (inv.balance_due || 0), 0),
+        count: balances.length,
+        amount: balances.reduce((s, n) => s + n, 0),
       };
     },
     enabled: !!branchId && !!displayTerm,
