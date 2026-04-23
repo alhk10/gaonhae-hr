@@ -8,8 +8,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, ZoomIn, ExternalLink, CreditCard, Upload, Loader2 } from 'lucide-react';
+import { Download, ZoomIn, ExternalLink, CreditCard, Loader2 } from 'lucide-react';
 import { Notice, uploadNoticeFile } from '@/services/noticeService';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -185,26 +186,12 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
                         />
                       </div>
 
-                      <div>
-                        <Label className="text-xs">Proof of Payment *</Label>
-                        <div className="mt-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => proofInputRef.current?.click()}
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            {proofFile ? proofFile.name : 'Upload proof'}
-                          </Button>
-                          <input
-                            ref={proofInputRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                          />
-                        </div>
-                      </div>
+                      <ProofOfPaymentUpload
+                        value={proofFile}
+                        onChange={setProofFile}
+                        required
+                        compact
+                      />
                     </>
                   )}
 
