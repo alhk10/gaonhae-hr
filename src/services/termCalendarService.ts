@@ -548,6 +548,46 @@ export async function getUpcomingTerm(branchId: string): Promise<Term | null> {
   }
 }
 
+// Get the next active term for a branch starting strictly after a given date
+export async function getNextTerm(branchId: string, afterDate: string): Promise<Term | null> {
+  try {
+    const { data, error } = await supabase
+      .from('term_calendars')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('is_active', true)
+      .gt('start_date', afterDate)
+      .order('start_date', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const { data: branchData } = await supabase
+      .from('branches')
+      .select('name')
+      .eq('id', data.branch_id)
+      .maybeSingle();
+
+    const { data: breaks } = await supabase
+      .from('term_breaks')
+      .select('*')
+      .eq('term_id', data.id)
+      .order('start_date');
+
+    return {
+      ...data,
+      branch_name: branchData?.name || data.branch_id,
+      grace_days: data.grace_days ?? 7,
+      breaks: breaks || []
+    };
+  } catch (error) {
+    logger.error('Failed to get next term', error);
+    return null;
+  }
+}
+
 // Get the most recent term for a branch (current if exists, otherwise latest past)
 export async function getMostRecentTerm(branchId: string): Promise<Term | null> {
   // First try current term
