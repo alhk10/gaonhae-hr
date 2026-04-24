@@ -694,7 +694,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                               aria-label={`Select ${student.student_name}`}
                             />
                           </TableCell>
-                          <TableCell className={cellCls}>
+                          <TableCell className={`${cellCls} ${stickyLeftCell} ${isSelected ? 'bg-accent/30' : ''}`}>
                             <Button
                               variant="link"
                               className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
