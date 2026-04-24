@@ -1,44 +1,67 @@
-## Grading Certificate PDF — Phase 1 (Morley/AU only)
+## Inline Scorecard with Frozen Columns + Direct PDF Download
 
-Generate downloadable PDF certificates for grading registrations with a flexible, database-persisted scorecard. Restricted to the Morley branch (Australia) for Phase 1; Singapore branches will use a different template in Phase 2.
+Replace the current modal-based scorecard editor with **inline editable cells** in the grading list table. The Student column stays frozen on the left, the action buttons (Cert / Cert II / Actions) stay frozen on the right, and the scorecard columns scroll horizontally in the middle. Pressing the certificate button downloads the PDF directly using the saved scorecard data — no dialog.
 
-### Scope & rules
-- **Belts**: Foundation → Black Tip only.
-- **Eligibility**: Only `result = 'pass'` or `'double'`. `'double'` generates **two** certificates (current belt + next belt).
-- **Branch gate**: Only `branch_id = BR1768967806476` (Morley). Other AU branches and SG branches show a disabled button with tooltip *"Template pending for this branch"*.
-- **Action**: Download only. No auto-flip of `certificate_issued`.
-- **Date**: Long format, e.g. `24 April 2026`.
+### 1. Database (new migration)
 
-### Flexible scorecard (persisted to DB)
-- New column `scorecard jsonb NOT NULL DEFAULT '[]'::jsonb` on `grading_registrations`.
-- Stores ordered array of `{ label: string, value: string }` — examiner can add/remove/reorder rows per registration.
-- Auto-derived **BMI** appended on the PDF when both `Height` and `Weight` rows are present (display-only, not stored).
-- Default seed labels (only when no record exists yet): Height, Weight, Poomsae, Balchagi, Kyorugi, Hoshinsul, Push-ups, Leg Raises, Air Squats.
+**New table `grading_term_scorecard_columns`** — persists which scorecard fields exist per term + branch, so all students in the same grading term share the same column set.
 
-### Files
+```sql
+CREATE TABLE public.grading_term_scorecard_columns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  term_id text NOT NULL,
+  branch_id text NOT NULL,
+  label text NOT NULL,
+  position int NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (term_id, branch_id, label)
+);
+ALTER TABLE public.grading_term_scorecard_columns ENABLE ROW LEVEL SECURITY;
+-- Policies match existing grading_registrations pattern (authenticated select/insert/update/delete).
+```
 
-**Migration (new)**
-- `supabase/migrations/<ts>_add_grading_scorecard.sql` — `ALTER TABLE grading_registrations ADD COLUMN scorecard jsonb NOT NULL DEFAULT '[]'::jsonb;`
+The existing `grading_registrations.scorecard jsonb` column is reused to store each student's `{label, value}` array.
 
-**New files**
-- `src/constants/scorecardLabels.ts` — default seed labels.
-- `src/utils/gradingCertificatePDFGenerator.ts` — jsPDF generator. Page 1 = formal certificate (student name uppercase, belt achieved, branch, long-format date, examiner). Page 2 = scorecard table rendered from saved JSON + auto BMI line.
-- `src/components/grading/GradingScorecardDialog.tsx` — compact dialog: loads `scorecard` via React Query, dynamic add/remove rows, two actions: **Save** and **Save & Generate PDF**. Uses `@/utils/dateFormat` (DD/MM/YYYY everywhere except the certificate body which uses long format per spec).
+### 2. New files
 
-**Edited files**
-- `src/constants/beltLevels.ts` — add `isFoundationToBlackTip(belt)` helper.
-- `src/components/dashboard/BranchGradingList.tsx` — Award icon button on each eligible row; disabled+tooltip when not Morley; two buttons (Cert I / Cert II) for `double`.
-- `src/components/sales/GradingListTab.tsx` — same Award button + dialog wiring.
+- **`src/services/gradingScorecardColumnService.ts`** — CRUD for `grading_term_scorecard_columns`:
+  - `listColumns(termId, branchId)`
+  - `addColumn(termId, branchId, label)` — also appends `{label, value: ""}` to every student's `scorecard` JSON in that term+branch.
+  - `removeColumn(termId, branchId, label)` — strips that label from every student's `scorecard` JSON.
+  - First-time access seeds default labels (Height, Weight, Poomsae, Balchagi, Kyorugi, Hoshinsul, Push-ups, Leg Raises, Air Squats).
+- **`src/components/grading/InlineScorecardCell.tsx`** — compact `h-7 w-16 text-xs` input. Reads value from row's `scorecard` JSON, debounces save (400 ms) to `grading_registrations.scorecard`. Shows toast on failure. BMI cell variant is read-only and auto-derives when both Height and Weight values are present and numeric.
+- **`src/components/grading/ScorecardColumnHeader.tsx`** — header cell with label + delete (×) icon. Plus a trailing `+ Field` header button to add a new column (prompt for label).
 
-### UX details
-- Award button visible only when: result ∈ {pass, double} **AND** belt is Foundation→Black Tip **AND** branch = Morley.
-- Clicking Award opens `GradingScorecardDialog`; saving persists to `grading_registrations.scorecard` and invalidates the grading list query.
-- For `double`: two Award buttons rendered (Cert I = current belt passed, Cert II = next belt). Each generates its own PDF using the same scorecard.
-- PDF filename: `Certificate_<StudentName>_<Belt>_<yyyy-MM-dd>.pdf`.
+### 3. Edited files
+
+- **`src/components/dashboard/BranchGradingList.tsx`**
+  - Wrap desktop table in `<div className="overflow-x-auto">`.
+  - Apply `sticky left-0 bg-background z-10` to the Student column (`<th>` and `<td>`).
+  - Apply `sticky right-0 bg-background z-10` to the Cert / Cert II / Actions column group.
+  - Insert dynamic scorecard columns between Result and the right-frozen actions, populated from `grading_term_scorecard_columns` for current term + Morley branch (`BR1768967806476`).
+  - Render `InlineScorecardCell` per student row × per column, plus a derived BMI column when both Height + Weight columns exist.
+  - **Cert button** now calls `downloadGradingCertificatePDF(...)` directly using the row's saved `scorecard` JSON — no dialog.
+  - Mobile (`< md`) card layout untouched (frozen-column UX is desktop-only).
+- **`src/components/sales/GradingListTab.tsx`** — same treatment (frozen Student left, frozen actions right, scorecard columns scrollable middle, direct PDF download).
+- **`src/utils/gradingCertificatePDFGenerator.ts`** — no layout change; already accepts the scorecard JSON.
+
+### 4. Removed
+
+- **`src/components/grading/GradingScorecardDialog.tsx`** — deleted; flow no longer uses a dialog.
+
+### 5. UX details
+
+- Frozen columns use `sticky` positioning with matching `bg-background` so middle content scrolls cleanly underneath.
+- Cert / Cert II buttons remain gated by: result ∈ {pass, double} AND Foundation→Black Tip belt range AND Morley branch (other branches show disabled tooltip "Template pending for this branch").
+- Add/remove column updates **all students in the same term + branch at once** — matches the "add scorecard to existing row" intent.
+- React Query cache (`['grading-list-students', ...]` and column query) invalidated on any column or value change.
+- Toast feedback on every save / column mutation.
 
 ### Out of scope (Phase 2)
-- Singapore certificate template + branch enablement.
-- Drag-to-reorder scorecard rows (current dialog uses up/down arrows or simple add/remove).
-- Auto-marking `certificate_issued` on download.
+- Singapore template + non-Morley branches.
+- Drag-to-reorder columns (use add/remove only).
+- Auto-flipping `certificate_issued` on download.
 
-Approve to switch into default mode and execute everything in one pass.
+---
+
+Click **Approve** on this plan card to switch into default mode and execute everything in one pass.

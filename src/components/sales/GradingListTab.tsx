@@ -29,7 +29,12 @@ import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
-import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
+import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
+import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
+import { listColumns } from '@/services/gradingScorecardColumnService';
+import { downloadGradingCertificatePDF } from '@/utils/gradingCertificatePDFGenerator';
+import type { ScorecardRow } from '@/constants/scorecardLabels';
+import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
 
 /** Phase 1 — only Morley (AU) gets the AU certificate template. */
@@ -52,6 +57,7 @@ interface GradingListStudent {
   grading_slot_title: string | null;
   grading_slot_date: string | null;
   grading_slot_id: string | null;
+  scorecard: ScorecardRow[];
 }
 
 interface Branch { id: string; name: string }
@@ -73,14 +79,6 @@ const GradingListTab: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
-  // Phase 1 — AU/Morley scorecard + cert dialog state
-  const [certCtx, setCertCtx] = useState<{
-    registrationId: string;
-    studentName: string;
-    beltAchieved: string;
-    gradingDate: string | null;
-  } | null>(null);
-
   const isMorley = selectedBranch === MORLEY_BRANCH_ID;
 
   const { data: availableSlots = [] } = useQuery({
@@ -96,6 +94,13 @@ const GradingListTab: React.FC = () => {
       return data || [];
     },
     enabled: !!selectedBranch
+  });
+
+  // Scorecard columns for current term + branch (Morley/AU only in Phase 1)
+  const { data: scorecardColumns = [] } = useQuery({
+    queryKey: ['grading-scorecard-columns', selectedTerm, selectedBranch],
+    queryFn: () => listColumns(selectedTerm, selectedBranch),
+    enabled: !!selectedBranch && !!selectedTerm && isMorley,
   });
 
   const { data: branches = [] } = useQuery<Branch[]>({
@@ -204,7 +209,7 @@ const GradingListTab: React.FC = () => {
 
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
-        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
+        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id, scorecard')
         .eq('term_id', selectedTerm);
       if (regErr) throw regErr;
       const registrations = regs || [];
@@ -369,6 +374,9 @@ const GradingListTab: React.FC = () => {
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
           grading_slot_id: reg.grading_slot_id || null,
+          scorecard: Array.isArray((reg as any).scorecard)
+            ? ((reg as any).scorecard as any[]).map((r: any) => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
+            : [],
         });
       }
 
@@ -396,6 +404,7 @@ const GradingListTab: React.FC = () => {
           grading_slot_title: null,
           grading_slot_date: null,
           grading_slot_id: null,
+          scorecard: [],
         });
       }
 
@@ -498,12 +507,23 @@ const GradingListTab: React.FC = () => {
       toast.error('Could not determine target belt');
       return;
     }
-    setCertCtx({
-      registrationId: student.registration_id,
-      studentName: student.student_name,
-      beltAchieved,
-      gradingDate: student.grading_slot_date,
-    });
+    if (!student.grading_slot_date) {
+      toast.error('Grading date missing — cannot generate certificate');
+      return;
+    }
+    const safeName = student.student_name.replace(/[^\w\-]+/g, '_');
+    const safeBelt = beltAchieved.replace(/[^\w\-]+/g, '_');
+    const dateStr = format(new Date(student.grading_slot_date), 'yyyy-MM-dd');
+    downloadGradingCertificatePDF(
+      {
+        studentName: student.student_name,
+        beltAchieved,
+        gradingDate: student.grading_slot_date,
+        scorecard: student.scorecard,
+      },
+      `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
+    );
+    toast.success('Certificate generated');
   };
 
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
@@ -538,6 +558,16 @@ const GradingListTab: React.FC = () => {
         result: s.result,
       }));
   }, [bulkStudentIds, selectedIds, students]);
+
+  const stickyLeftHead = 'sticky left-0 z-20 bg-card';
+  const stickyLeftCell = 'sticky left-0 z-10 bg-background';
+  const stickyRightHead = (offset: string) => `sticky z-20 bg-card ${offset}`;
+  const stickyRightCell = (offset: string) => `sticky z-10 bg-background ${offset}`;
+  const showScorecard = isMorley && !!selectedTerm;
+  const hasHeight = scorecardColumns.some(c => /height/i.test(c.label));
+  const hasWeight = scorecardColumns.some(c => /weight/i.test(c.label));
+  const showBmi = hasHeight && hasWeight;
+  const rowsKey = ['grading-list-students', selectedBranch, selectedTerm];
 
   const cellCls = 'py-1 px-2 text-xs align-middle';
   const headCls = 'h-8 px-2 text-xs';
@@ -610,16 +640,27 @@ const GradingListTab: React.FC = () => {
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead className={`${headCls} min-w-[150px]`}>Student</TableHead>
+                    <TableHead className={`${headCls} min-w-[150px] ${stickyLeftHead}`}>Student</TableHead>
                     <TableHead className={`${headCls} w-[80px]`}>Belt</TableHead>
                     <TableHead className={`${headCls} w-[60px] text-center`}>Lessons</TableHead>
                     <TableHead className={`${headCls} w-[60px] text-center`}>Ready</TableHead>
                     <TableHead className={`${headCls} w-[80px]`}>Grading</TableHead>
                     <TableHead className={`${headCls} min-w-[160px]`}>Slot</TableHead>
                     <TableHead className={`${headCls} w-[90px]`}>Result</TableHead>
-                    <TableHead className={`${headCls} w-[44px] text-center`}>Cert</TableHead>
-                    <TableHead className={`${headCls} w-[44px] text-center`}>Cert II</TableHead>
-                    <TableHead className={`${headCls} w-[110px]`}>Actions</TableHead>
+                    {showScorecard && scorecardColumns.map(col => (
+                      <TableHead key={col.id} className={`${headCls} w-[88px]`}>
+                        <ScorecardColumnHeader termId={selectedTerm} branchId={selectedBranch} label={col.label} rowsInvalidateKey={rowsKey} />
+                      </TableHead>
+                    ))}
+                    {showBmi && (<TableHead className={`${headCls} w-[60px] text-center`}>BMI</TableHead>)}
+                    {showScorecard && (
+                      <TableHead className={`${headCls} w-[80px]`}>
+                        <AddScorecardColumnHeader termId={selectedTerm} branchId={selectedBranch} rowsInvalidateKey={rowsKey} />
+                      </TableHead>
+                    )}
+                    <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[154px]')}`}>Cert</TableHead>
+                    <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[110px]')}`}>Cert II</TableHead>
+                    <TableHead className={`${headCls} w-[110px] ${stickyRightHead('right-0')}`}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -642,7 +683,7 @@ const GradingListTab: React.FC = () => {
                             aria-label={`Select ${student.student_name}`}
                           />
                         </TableCell>
-                        <TableCell className={cellCls}>
+                        <TableCell className={`${cellCls} ${stickyLeftCell} ${isSelected ? 'bg-accent/30' : ''}`}>
                           <Button
                             variant="link"
                             className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
@@ -791,18 +832,6 @@ const GradingListTab: React.FC = () => {
         />
       )}
 
-      {/* Phase 1 — AU/Morley scorecard + certificate generator */}
-      {certCtx && (
-        <GradingScorecardDialog
-          open={!!certCtx}
-          onOpenChange={(o) => { if (!o) setCertCtx(null); }}
-          registrationId={certCtx.registrationId}
-          studentName={certCtx.studentName}
-          beltAchieved={certCtx.beltAchieved}
-          gradingDate={certCtx.gradingDate}
-          invalidateKeys={[['grading-list-students', selectedBranch, selectedTerm]]}
-        />
-      )}
     </div>
   );
 };
