@@ -202,6 +202,12 @@ const GradingListTab: React.FC = () => {
 
   const selectedTermData = terms.find(t => t.id === selectedTerm);
 
+  // Term-aware Ready derivation: a row counts as Ready if the DB flag is true
+  // OR the term has started and there is no recorded result. The DB flag is
+  // synced lazily on the next save (see batchSaveMutation below).
+  const todayStr = new Date().toISOString().split('T')[0];
+  const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
+
   // Union-driven: registrations ∪ lesson-invoiced students for this term + branch.
   // Lesson-invoice-only students appear with no registration_id; editing them
   // (toggle Ready / set slot / set result) creates a registration on save.
@@ -436,11 +442,14 @@ const GradingListTab: React.FC = () => {
     enabled: !!selectedBranch && !!selectedTerm
   });
 
-  // Get effective value for a field (pending change or original)
+  // Term-aware effective Ready: pending edit > DB flag > derived (term started + no result).
   const getEffectiveReady = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
-    return change?.ready_for_grading !== undefined ? change.ready_for_grading : student.ready_for_grading;
-  }, [pendingChanges]);
+    if (change?.ready_for_grading !== undefined) return change.ready_for_grading;
+    if (student.ready_for_grading) return true;
+    if (termStarted && !student.result) return true;
+    return false;
+  }, [pendingChanges, termStarted]);
 
   const getEffectiveResult = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
@@ -508,7 +517,20 @@ const GradingListTab: React.FC = () => {
           if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
           if (changes.result !== undefined) updateData.result = changes.result;
           if (changes.grading_slot_id !== undefined) updateData.grading_slot_id = changes.grading_slot_id;
-          
+
+          // Lazy DB sync: if the term has started and the row has no result and
+          // the user did not explicitly set a Ready value, converge the
+          // persisted ready_for_grading flag to true on this save.
+          if (
+            updateData.ready_for_grading === undefined &&
+            termStarted &&
+            !student.ready_for_grading &&
+            !student.result &&
+            (changes.result === undefined || !changes.result)
+          ) {
+            updateData.ready_for_grading = true;
+          }
+
           if (Object.keys(updateData).length > 0) {
             operations.push(
               supabase
@@ -523,12 +545,16 @@ const GradingListTab: React.FC = () => {
           const { getNextBeltLevel } = await import('@/constants/beltLevels');
           const currentBelt = student.current_belt || 'White';
           const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
+          const persistedReady =
+            changes.ready_for_grading !== undefined
+              ? changes.ready_for_grading
+              : (termStarted && !changes.result);
           const insertData = {
             student_id: studentId,
             current_belt: currentBelt,
             target_belt: nextBelt,
             grading_slot_id: changes.grading_slot_id || null,
-            ready_for_grading: changes.ready_for_grading || false,
+            ready_for_grading: persistedReady || false,
             result: changes.result || null,
             term_id: selectedTerm || null,
           } as const;

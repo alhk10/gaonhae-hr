@@ -82,6 +82,107 @@ export const refundLineItem = async (
       .in('id', enrollmentIds);
   }
 
+  // 4b. Grading registration cleanup for grading-fee or lesson refunds
+  // ----------------------------------------------------------------
+  // Two scenarios are handled term-agnostically:
+  //   A) The refunded item IS the grading fee (grading_registrations.invoice_item_id === item.id)
+  //      → If a sibling lesson item on the same invoice is still active, keep
+  //        the registration row but clear slot/invoice link and untick Ready
+  //        (so the student remains visible as Source B in the grading list).
+  //      → If no sibling lesson item is active, delete the registration when
+  //        no result has been recorded yet.
+  //   B) The refunded item is a LESSON item paired with a grading registration
+  //      whose grading fee item lives on the same invoice
+  //      → If the grading item has also been refunded (or doesn't exist),
+  //        delete the registration when no result has been recorded.
+  //      → Otherwise leave the registration intact (grading still paid).
+  try {
+    // Pull all sibling items on the same invoice, including refund metadata,
+    // so we can decide whether the grading fee or lesson side is still active.
+    const { data: siblingItems } = await supabase
+      .from('invoice_items')
+      .select('id, product_id, metadata, products(category_id, is_lesson, product_categories(name))')
+      .eq('invoice_id', invoice.id);
+
+    const itemsList = (siblingItems || []) as any[];
+    const isItemRefunded = (it: any): boolean => {
+      const md = (it?.metadata as Record<string, any>) || {};
+      return md?.refunded === true;
+    };
+    const itemCategoryName = (it: any): string => (it?.products?.product_categories?.name || '').toLowerCase();
+    const itemIsLesson = (it: any): boolean => !!it?.products?.is_lesson;
+
+    const refundedItemRow = itemsList.find(i => i.id === invoiceItemId);
+    const isGradingItem = refundedItemRow ? itemCategoryName(refundedItemRow) === 'grading' : false;
+    const isLessonItem = refundedItemRow ? itemIsLesson(refundedItemRow) : false;
+
+    // Scenario A: grading fee refunded
+    if (isGradingItem) {
+      const { data: regsByItem } = await supabase
+        .from('grading_registrations')
+        .select('id, term_id, result, grading_slot_id, invoice_item_id')
+        .eq('invoice_item_id', invoiceItemId);
+
+      for (const reg of regsByItem || []) {
+        // Treat the just-refunded item as already refunded for the active-lesson check
+        const lessonStillActive = itemsList.some(
+          i => i.id !== invoiceItemId && itemIsLesson(i) && !isItemRefunded(i)
+        );
+        if (lessonStillActive) {
+          await supabase
+            .from('grading_registrations')
+            .update({
+              ready_for_grading: false,
+              grading_slot_id: null,
+              invoice_item_id: null,
+            })
+            .eq('id', reg.id);
+        } else if (!reg.result) {
+          await supabase
+            .from('grading_registrations')
+            .delete()
+            .eq('id', reg.id);
+        }
+        // If result is set, leave the row alone (grading already happened).
+      }
+    }
+
+    // Scenario B: lesson item refunded — find any registration linked to a
+    // grading item on the same invoice, for the same student.
+    if (isLessonItem) {
+      const gradingItemIds = itemsList
+        .filter(i => itemCategoryName(i) === 'grading')
+        .map(i => i.id);
+
+      if (gradingItemIds.length > 0) {
+        const { data: linkedRegs } = await supabase
+          .from('grading_registrations')
+          .select('id, result, invoice_item_id')
+          .eq('student_id', invoice.student_id)
+          .in('invoice_item_id', gradingItemIds);
+
+        for (const reg of linkedRegs || []) {
+          const gradingItem = itemsList.find(i => i.id === reg.invoice_item_id);
+          const gradingRefunded = gradingItem ? isItemRefunded(gradingItem) : true;
+          // The just-refunded lesson is the only one on the invoice if no other
+          // active lesson items remain.
+          const anotherLessonActive = itemsList.some(
+            i => i.id !== invoiceItemId && itemIsLesson(i) && !isItemRefunded(i)
+          );
+          if (!anotherLessonActive && gradingRefunded && !reg.result) {
+            await supabase
+              .from('grading_registrations')
+              .delete()
+              .eq('id', reg.id);
+          }
+          // Otherwise leave the registration alone — grading is still paid.
+        }
+      }
+    }
+  } catch (gradingCleanupError) {
+    logger.error('Grading registration cleanup after refund failed (non-fatal)', gradingCleanupError);
+  }
+
   // 5. Mark item metadata as refunded
   const existingMetadata = (item.metadata as Record<string, any>) || {};
   await supabase
