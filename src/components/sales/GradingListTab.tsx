@@ -804,18 +804,6 @@ const GradingListTab: React.FC = () => {
         />
       )}
 
-      {/* Phase 1 — AU/Morley scorecard + certificate generator */}
-      {certCtx && (
-        <GradingScorecardDialog
-          open={!!certCtx}
-          onOpenChange={(o) => { if (!o) setCertCtx(null); }}
-          registrationId={certCtx.registrationId}
-          studentName={certCtx.studentName}
-          beltAchieved={certCtx.beltAchieved}
-          gradingDate={certCtx.gradingDate}
-          invalidateKeys={[['grading-list-students', selectedBranch, selectedTerm]]}
-        />
-      )}
     </div>
   );
 };
