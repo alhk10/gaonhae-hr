@@ -1,98 +1,80 @@
-## Plan: Render per-line discounts in SMS/WhatsApp reminder messages
+## Plan: Render discount line + Subtotal in single-child reminder message
 
 ### Problem
 
-In Eli's reminder, "Once a Week" is shown at $230 (the *net* price) and the $20 sibling discount disappears entirely. The expected output is:
+When a student has no siblings (single-invoice send), the SMS / WhatsApp reminder does not show the discount line, even though the same `buildItemAndDiscountLines` helper is used for the combined sibling message and renders it correctly there.
 
-```
-Once a Week – $250.00
-National Athlete License – $35.00
-South West Open – $70.00
-Discount: -$20.00
-Subtotal: $335.00
-```
+Two issues compound:
 
-### Root cause
+1. **Visual ambiguity** — the single-child template (line 644–653 in `src/utils/invoicePDFGenerator.ts`) ends with `Total: ${formatCurrency(invoice.total_amount)}`. Because `invoice.total_amount` is already the *net* amount (after discount), if a discount line is rendered between the item and the Total, the math reads transparently (`$250 − $20 = $230 Total`) but there is no `Subtotal:` label like the combined template uses. Users glancing at the message can miss that the discount actually applied — or interpret the absence of a `Subtotal` line as the discount not being included.
 
-`buildItemAndDiscountLines` in `src/utils/invoicePDFGenerator.ts` only detects discounts in two ways:
-1. **Negative line items** (`total_amount < 0`) — none exist here.
-2. **Header `invoice.discount_amount > 0`** — also zero for this invoice.
-
-The actual discount lives **inside each item's metadata** as `metadata.line_discount = { discount_type: 'amount', discount_value: 20 }` (older rows) or `{ type, value }` (newer rows, written by `InvoiceDialog.tsx` line 1192). The item's stored `total_amount` is **already net** of that discount (`unit_price × quantity − discount`). DB confirms: `unit_price=25, quantity=10, total_amount=230` → gross $250, discount $20, net $230. So the discount is invisible in the message.
+2. **Mismatch between single-invoice and combined-invoice templates** — the combined message uses `Subtotal: ${balance_due}` per block, while the single-child message uses `Total: ${total_amount}`. Inconsistent labels, and `total_amount` ignores partial payments while `balance_due` reflects what's actually owed.
 
 ### Fix
 
-Update `buildItemAndDiscountLines` to handle line-level discounts:
+Update the single-child template in `buildTermReminderMessage` (`src/utils/invoicePDFGenerator.ts`, lines 634–654) so it mirrors the combined layout:
 
-1. For each positive line item, read `metadata.line_discount` and normalise both shapes:
-   ```ts
-   const ld = item.metadata?.line_discount;
-   const dType = ld?.type ?? ld?.discount_type;          // 'amount' | 'percentage'
-   const dValue = Number(ld?.value ?? ld?.discount_value ?? 0);
-   ```
-2. If `dValue > 0`, render the item line at **gross** (`quantity × unit_price`) instead of `total_amount`, and emit a separate discount line directly under it:
-   ```
-   Once a Week – $250.00
-   Discount: -$20.00
-   ```
-   - `discount_type === 'amount'` → discount amount = `dValue`.
-   - `discount_type === 'percentage'` → discount amount = `gross × dValue / 100`.
-3. If `dValue` is 0/missing → keep current behaviour (render `total_amount`, no discount line).
-4. Existing **negative-amount line items** and **header `invoice.discount_amount`** logic stays unchanged (used by manual discounts and bundle discounts that are written as a separate negative item).
-5. The per-invoice `Subtotal: ${balance_due}` and the message-level `Grand Total` are untouched — they are already correct because `balance_due` reflects the net amount.
+**Before**
+```
+{itemsList}
 
-### Extend `InvoiceItem` type
-
-In `src/utils/invoicePDFGenerator.ts`, widen the optional `metadata` shape so TypeScript accepts `line_discount`:
-
-```ts
-metadata?: {
-  term_id?: string;
-  grading_slot_id?: string;
-  line_discount?: {
-    type?: 'amount' | 'percentage';
-    value?: number;
-    discount_type?: 'amount' | 'percentage'; // legacy
-    discount_value?: number;                  // legacy
-  };
-};
+Total: {total_amount}
 ```
 
-No DB changes. No edge-function changes. No component-API changes — `BranchDashboard.tsx` already maps `metadata` through to `InvoiceData.items[].metadata` (line 399), so the helper will receive what it needs without any further plumbing.
+**After**
+```
+{itemsList}
+Subtotal: {balance_due}
+```
+
+Specifically:
+
+1. Replace `Total: ${formatCurrency(invoice.total_amount)}` with `Subtotal: ${formatCurrency(invoice.balance_due)}`, placed immediately after `itemsList` (no blank line between items and Subtotal — matches combined format).
+2. Keep `buildItemAndDiscountLines(invoice)` exactly as-is — it already handles `metadata.line_discount`, negative-amount line items, and header `discount_amount`.
+3. No changes to `buildCombinedReminderMessage`, `shareInvoiceViaSMS`, `shareInvoiceViaWhatsApp`, or `BranchDashboard.tsx`.
+
+Resulting single-child output (e.g., a lone student with a sibling discount on `Once a Week`):
+
+```
+Good Morning,
+
+We have now reached the end of Term 1 2026. Term 2 2026 will commence in 4 days and will run from 28/04/2026 to 03/07/2026.
+
+Kindly arrange payment for ELI GIAM before the start of the term as follows:
+
+Once a Week – $250.00
+Discount: -$20.00
+National Athlete License – $35.00
+South West Open – $70.00
+Subtotal: $335.00
+
+Payment can be made via bank transfer using the details below:
+{branch bank info}
+
+Thank you for your continued support.
+Gaonhae Taekwondo {branch}
+```
 
 ### Files affected
 
-- `src/utils/invoicePDFGenerator.ts` — extend `InvoiceItem.metadata` type; update `buildItemAndDiscountLines` only.
+- `src/utils/invoicePDFGenerator.ts` — `buildTermReminderMessage` only.
 
-Both `buildTermReminderMessage` (single-invoice path, used by Branch Dashboard and `InvoiceManagementList.tsx` Sales module) and `buildCombinedReminderMessage` (sibling-merge path) call `buildItemAndDiscountLines`, so the fix flows through both automatically.
+No DB changes, no service changes, no UI changes.
 
 ### Verification
 
-1. **Eli (INV-2026-00274)** — click SMS / WhatsApp on Leah Giam's invoice (which merges Eli + Phoebe + Leah Giam). Eli's block reads:
-   ```
-   ELI GIAM — Invoice INV-2026-00274
-   Once a Week – $250.00
-   Discount: -$20.00
-   National Athlete License – $35.00
-   South West Open – $70.00
-   Subtotal: $335.00
-   ```
-2. **Leah Giam (INV-2026-00282)** and **Phoebe (INV-2026-00287)**:
-   ```
-   Once a Week – $250.00
-   Discount: -$20.00
-   Subtotal: $230.00
-   ```
-3. **Grand Total** = $335 + $230 + $230 = **$795.00**.
-4. Invoice with no `line_discount` and no header discount → renders exactly as today (no spurious discount line).
-5. Invoice with a manual header `discount_amount` → still shows the existing `Discount: -$X` line under items.
-6. Invoice with a negative-amount line item (e.g., automatic bundle $10 discount) → still shows that line verbatim.
-7. Invoice using percentage discount (`discount_type: 'percentage', discount_value: 10`) → gross calculated from `quantity × unit_price`, discount amount = `gross × 10 / 100`.
-8. Single-invoice send (no siblings) via `buildTermReminderMessage` → same per-line discount rendering applied.
+1. **Single child with line discount** — click SMS on an invoice that has `metadata.line_discount` (e.g., `Once a Week` $250 with $20 sibling discount) for a student with no siblings: message shows the item at $250, `Discount: -$20.00` directly underneath, then `Subtotal: $230.00`.
+2. **Single child with negative-amount line item** (e.g., bundle discount): the negative item still renders as `{description}: -$10.00`, then `Subtotal: …`.
+3. **Single child with header `discount_amount`** only: shows `Discount: -{amount}` line, then `Subtotal: …`.
+4. **Single child with no discounts at all**: shows items, then `Subtotal: {balance_due}` — no spurious discount line.
+5. **Partial payment present** (`balance_due < total_amount`): Subtotal correctly reflects `balance_due`, matching the combined-template behaviour.
+6. **Combined sibling message**: unchanged — still per-block `Subtotal` + `Grand Total` at end.
+7. **WhatsApp button** on single child: identical body opens via WhatsApp.
+8. **Overdue reminder** (`shareInvoiceOverdueReminderViaSMS`): unchanged — uses its own template.
 
 ### Out of scope
 
-- Changing the PDF invoice body (separate template).
-- Cross-branch sibling merging.
-- Matching siblings by phone/WhatsApp number.
-- Updating the overdue-reminder SMS template.
+- Changing the combined-message format.
+- Updating `InvoiceManagementList.tsx` (Sales module) which uses the same helper — it will automatically benefit.
+- Changing the PDF invoice body.
+- Overdue reminder template.
