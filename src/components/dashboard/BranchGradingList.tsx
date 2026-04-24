@@ -122,31 +122,51 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Fetch term_ids that have at least one lesson invoice for this branch
+  // Fetch term_ids that should appear in the term selector for this branch:
+  //  • any term referenced by a lesson invoice item at this branch (next-term opt-ins)
+  //  • any term referenced by a grading_registrations row for a student who has any invoice at this branch
   const { data: invoicedTermIds = [] } = useQuery<string[]>({
     queryKey: ['grading-list-invoiced-terms', branchId],
     queryFn: async () => {
       if (!branchId) return [];
+      const termIds = new Set<string>();
+
+      // 1) Lesson-invoice-driven term ids
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
         .eq('is_lesson', true);
       const lessonProductIds = (lessonProducts || []).map(p => p.id);
-      if (lessonProductIds.length === 0) return [];
+      if (lessonProductIds.length > 0) {
+        const { data: items } = await supabase
+          .from('invoice_items')
+          .select(`metadata, invoices!inner(branch_id, status)`)
+          .in('product_id', lessonProductIds)
+          .eq('invoices.branch_id', branchId)
+          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
 
-      const { data: items } = await supabase
-        .from('invoice_items')
-        .select(`metadata, invoices!inner(branch_id, status)`)
-        .in('product_id', lessonProductIds)
-        .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+        (items || []).forEach((it: any) => {
+          const md = it.metadata as Record<string, any> | null;
+          const tid = md?.term_id || md?.term_ids?.[0];
+          if (tid) termIds.add(tid);
+        });
+      }
 
-      const termIds = new Set<string>();
-      (items || []).forEach((it: any) => {
-        const md = it.metadata as Record<string, any> | null;
-        const tid = md?.term_id || md?.term_ids?.[0];
-        if (tid) termIds.add(tid);
-      });
+      // 2) Registration-driven term ids (covers grading invoices whose lesson item belongs to a different term)
+      const { data: branchInvoices } = await supabase
+        .from('invoices')
+        .select('student_id')
+        .eq('branch_id', branchId);
+      const branchStudentIds = [...new Set((branchInvoices || []).map((i: any) => i.student_id).filter(Boolean))];
+      if (branchStudentIds.length > 0) {
+        const { data: regs } = await supabase
+          .from('grading_registrations')
+          .select('term_id, student_id')
+          .in('student_id', branchStudentIds)
+          .not('term_id', 'is', null);
+        (regs || []).forEach((r: any) => { if (r.term_id) termIds.add(r.term_id); });
+      }
+
       return Array.from(termIds);
     },
     enabled: !!branchId
