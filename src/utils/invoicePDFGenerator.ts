@@ -645,8 +645,8 @@ export const buildTermReminderMessage = (
     `${greeting}\n\n` +
     `${opening}\n\n` +
     `Kindly arrange payment for ${studentName} before the start of the term as follows:\n\n` +
-    `${itemsList}\n\n` +
-    `Total: ${formatCurrency(invoice.total_amount)}\n\n` +
+    `${itemsList}\n` +
+    `Subtotal: ${formatCurrency(invoice.balance_due)}\n\n` +
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
     `Gaonhae Taekwondo${invoice.branch?.name ? ` ${invoice.branch.name}` : ''}`
