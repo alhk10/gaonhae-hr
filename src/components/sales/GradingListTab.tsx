@@ -640,16 +640,27 @@ const GradingListTab: React.FC = () => {
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead className={`${headCls} min-w-[150px]`}>Student</TableHead>
+                    <TableHead className={`${headCls} min-w-[150px] ${stickyLeftHead}`}>Student</TableHead>
                     <TableHead className={`${headCls} w-[80px]`}>Belt</TableHead>
                     <TableHead className={`${headCls} w-[60px] text-center`}>Lessons</TableHead>
                     <TableHead className={`${headCls} w-[60px] text-center`}>Ready</TableHead>
                     <TableHead className={`${headCls} w-[80px]`}>Grading</TableHead>
                     <TableHead className={`${headCls} min-w-[160px]`}>Slot</TableHead>
                     <TableHead className={`${headCls} w-[90px]`}>Result</TableHead>
-                    <TableHead className={`${headCls} w-[44px] text-center`}>Cert</TableHead>
-                    <TableHead className={`${headCls} w-[44px] text-center`}>Cert II</TableHead>
-                    <TableHead className={`${headCls} w-[110px]`}>Actions</TableHead>
+                    {showScorecard && scorecardColumns.map(col => (
+                      <TableHead key={col.id} className={`${headCls} w-[88px]`}>
+                        <ScorecardColumnHeader termId={selectedTerm} branchId={selectedBranch} label={col.label} rowsInvalidateKey={rowsKey} />
+                      </TableHead>
+                    ))}
+                    {showBmi && (<TableHead className={`${headCls} w-[60px] text-center`}>BMI</TableHead>)}
+                    {showScorecard && (
+                      <TableHead className={`${headCls} w-[80px]`}>
+                        <AddScorecardColumnHeader termId={selectedTerm} branchId={selectedBranch} rowsInvalidateKey={rowsKey} />
+                      </TableHead>
+                    )}
+                    <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[154px]')}`}>Cert</TableHead>
+                    <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[110px]')}`}>Cert II</TableHead>
+                    <TableHead className={`${headCls} w-[110px] ${stickyRightHead('right-0')}`}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
