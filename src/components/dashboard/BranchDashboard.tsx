@@ -354,8 +354,15 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
     // Always include the originally clicked invoice
     const clickedFull = await getInvoiceById(invoice.id);
-    const clickedStudent = await getStudentById(invoice.student_id).catch(() => null);
-    const clickedEmail = (clickedStudent?.email || '').trim().toLowerCase();
+    // Direct query for student email — avoids service-layer side-effects that
+    // can cause silent fallback to single-invoice send.
+    const { data: clickedStudent, error: stuErr } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, email')
+      .eq('id', invoice.student_id)
+      .maybeSingle();
+    if (stuErr) console.warn('[ShareInvoice] failed to load clicked student', stuErr);
+    const clickedEmail = (clickedStudent?.email ?? '').trim().toLowerCase();
 
     // Resolve term context (anchored to the clicked invoice's items)
     const terms = await resolveInvoiceTermContext(invoice.branch_id, clickedFull?.items);
