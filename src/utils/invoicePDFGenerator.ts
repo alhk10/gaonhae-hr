@@ -560,19 +560,21 @@ const buildItemAndDiscountLines = (invoice: InvoiceData): string[] => {
   return lines;
 };
 
-export const buildTermReminderMessage = (
-  invoice: InvoiceData,
+// Greeting based on sender's local clock
+const buildGreeting = (): string => {
+  const hour = new Date().getHours();
+  const timeOfDay = hour >= 5 && hour < 12
+    ? 'Morning'
+    : hour >= 12 && hour < 18
+      ? 'Afternoon'
+      : 'Evening';
+  return `Good ${timeOfDay},`;
+};
+
+// Term-context opening sentence (or empty if there is no usable info)
+const buildTermOpening = (
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): string => {
-  // Build items list with discount lines (en-dash separator)
-  const itemsList = buildItemAndDiscountLines(invoice).join('\n');
-
-  // Build bank transfer info if available
-  const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
-
-  // Opening line — term context with graceful fallbacks.
-  // If we know the ending term name (e.g. "Term 2 2026"), derive a sensible
-  // next-term label ("Term 3 2026") when the explicit next term is missing.
   const currentName = terms?.current?.name?.trim() || 'the current term';
   const explicitNextName = terms?.next?.name?.trim();
   const deriveNextName = (cur?: string): string | null => {
@@ -585,12 +587,9 @@ export const buildTermReminderMessage = (
 
   const nextStart = terms?.next?.start_date ? formatDate(terms.next.start_date) : null;
   const nextEnd = terms?.next?.end_date ? formatDate(terms.next.end_date) : null;
+  const nextRange = nextStart && nextEnd ? ` and will run from ${nextStart} to ${nextEnd}` : '';
 
-  const nextRange = nextStart && nextEnd
-    ? ` and will run from ${nextStart} to ${nextEnd}`
-    : '';
-
-  // Dynamic "commence" phrase based on days until next term start (sender's local clock)
+  // Dynamic "commence" phrase based on days until next term start
   const commencePhrase = ((): string => {
     const startStr = terms?.next?.start_date;
     if (!startStr) return 'will commence soon';
@@ -607,17 +606,17 @@ export const buildTermReminderMessage = (
     return `will commence in ${days} days`;
   })();
 
-  const opening = `We have now reached the end of ${currentName}. ${nextName} ${commencePhrase}${nextRange}.`;
+  return `We have now reached the end of ${currentName}. ${nextName} ${commencePhrase}${nextRange}.`;
+};
 
-  // Time-of-day greeting based on sender's local clock
-  const hour = new Date().getHours();
-  const timeOfDay = hour >= 5 && hour < 12
-    ? 'Morning'
-    : hour >= 12 && hour < 18
-      ? 'Afternoon'
-      : 'Evening';
-  const greeting = `Good ${timeOfDay},`;
-
+export const buildTermReminderMessage = (
+  invoice: InvoiceData,
+  terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
+): string => {
+  const itemsList = buildItemAndDiscountLines(invoice).join('\n');
+  const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
+  const opening = buildTermOpening(terms);
+  const greeting = buildGreeting();
   const studentName = invoice.student?.name?.trim() || 'your child';
 
   return (
@@ -629,6 +628,52 @@ export const buildTermReminderMessage = (
     `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
     `Thank you for your continued support.\n` +
     `Gaonhae Taekwondo${invoice.branch?.name ? ` ${invoice.branch.name}` : ''}`
+  );
+};
+
+/**
+ * Combined reminder for multiple invoices (typically siblings sharing an email).
+ * Each invoice renders as its own block with items, discount lines, and a subtotal,
+ * followed by a Grand Total, single bank-transfer block, and signature.
+ */
+export const buildCombinedReminderMessage = (
+  invoices: InvoiceData[],
+  terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
+): string => {
+  const greeting = buildGreeting();
+  const opening = buildTermOpening(terms);
+
+  // Distinct student count → drives singular/plural intro
+  const distinctStudentNames = new Set(
+    invoices.map(inv => (inv.student?.name?.trim() || '').toLowerCase()).filter(Boolean)
+  );
+  const isPlural = distinctStudentNames.size > 1;
+  const introLine = `Kindly arrange payment for ${isPlural ? 'your children' : 'your child'} before the start of the term:`;
+
+  // Per-invoice blocks
+  const blocks = invoices.map(inv => {
+    const studentName = (inv.student?.name?.trim() || 'Student').toUpperCase();
+    const lines = [`${studentName} \u2014 Invoice ${inv.invoice_number}`];
+    lines.push(...buildItemAndDiscountLines(inv));
+    lines.push(`Subtotal: ${formatCurrency(inv.balance_due)}`);
+    return lines.join('\n');
+  }).join('\n\n');
+
+  const grandTotal = invoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+
+  // Bank transfer info from the first invoice's template (all invoices share the same branch)
+  const bankInfo = invoices[0]?.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
+  const branchName = invoices[0]?.branch?.name;
+
+  return (
+    `${greeting}\n\n` +
+    `${opening}\n\n` +
+    `${introLine}\n\n` +
+    `${blocks}\n\n` +
+    `Grand Total: ${formatCurrency(grandTotal)}\n\n` +
+    `Payment can be made via bank transfer using the details below:\n${bankInfo}\n\n` +
+    `Thank you for your continued support.\n` +
+    `Gaonhae Taekwondo${branchName ? ` ${branchName}` : ''}`
   );
 };
 
