@@ -407,11 +407,15 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId && !!selectedTerm
   });
 
-  // Get effective value for a field (pending change or original)
+  // Get effective Ready value, factoring in pending edit OR term-started derivation
+  // for rows with no manual override and no recorded result.
   const getEffectiveReady = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
-    return change?.ready_for_grading !== undefined ? change.ready_for_grading : student.ready_for_grading;
-  }, [pendingChanges]);
+    if (change?.ready_for_grading !== undefined) return change.ready_for_grading;
+    if (student.ready_for_grading) return true;
+    if (termStarted && !student.result) return true;
+    return false;
+  }, [pendingChanges, termStarted]);
 
   const getEffectiveResult = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
