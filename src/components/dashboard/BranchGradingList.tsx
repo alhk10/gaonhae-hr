@@ -471,8 +471,35 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
-  const handleViewCertificate = (_studentId: string, certificateNumber: 1 | 2) => {
-    toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
+  /**
+   * Open the scorecard editor for a student. Cert I uses the target belt
+   * (next promotion); Cert II is only used for "double" promotions and
+   * uses the belt after that. Only enabled for the Morley (AU) branch in
+   * Phase 1, and only for the Foundation → Black Tip range.
+   */
+  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    if (!isMorley) {
+      toast.info('Certificate template pending for this branch');
+      return;
+    }
+    if (!student.registration_id) {
+      toast.error('No grading registration found for this student');
+      return;
+    }
+    const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+    const beltAchieved = certificateNumber === 2
+      ? getNextBeltLevel(baseBelt, 'AU')
+      : baseBelt;
+    if (!beltAchieved) {
+      toast.error('Could not determine target belt');
+      return;
+    }
+    setCertCtx({
+      registrationId: student.registration_id,
+      studentName: student.student_name,
+      beltAchieved,
+      gradingDate: student.grading_slot_date,
+    });
   };
 
   // Selection helpers
