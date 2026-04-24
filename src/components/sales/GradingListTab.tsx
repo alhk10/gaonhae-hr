@@ -202,28 +202,55 @@ const GradingListTab: React.FC = () => {
 
   const selectedTermData = terms.find(t => t.id === selectedTerm);
 
-  // Fetch grading registrations for the selected term & branch (registration-driven)
+  // Union-driven: registrations ∪ lesson-invoiced students for this term + branch.
+  // Lesson-invoice-only students appear with no registration_id; editing them
+  // (toggle Ready / set slot / set result) creates a registration on save.
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', selectedBranch, selectedTerm],
     queryFn: async () => {
       if (!selectedBranch || !selectedTerm) return [];
 
-      // 1) Registrations for this term
+      // 1) Registrations for this term (Source A)
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
         .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
         .eq('term_id', selectedTerm);
       if (regErr) throw regErr;
       const registrations = regs || [];
-      if (registrations.length === 0) return [];
 
-      const regStudentIds = [...new Set(registrations.map(r => r.student_id))];
+      // 2) Lesson-invoiced students for this term + branch (Source B)
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
 
-      // 2) Active students only
+      let lessonInvoicedItems: any[] = [];
+      if (lessonProductIds.length > 0) {
+        const { data: items } = await supabase
+          .from('invoice_items')
+          .select(`metadata, invoices!inner(id, status, student_id, branch_id)`)
+          .in('product_id', lessonProductIds)
+          .eq('invoices.branch_id', selectedBranch)
+          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+        lessonInvoicedItems = (items || []).filter((it: any) => {
+          const md = it.metadata as Record<string, any> | null;
+          return md?.term_id === selectedTerm;
+        });
+      }
+      const lessonInvoicedStudentIds = [...new Set(
+        lessonInvoicedItems.map((it: any) => (it.invoices as any).student_id).filter(Boolean)
+      )];
+
+      const regStudentIds = registrations.map(r => r.student_id);
+      const candidateStudentIds = [...new Set([...regStudentIds, ...lessonInvoicedStudentIds])];
+      if (candidateStudentIds.length === 0) return [];
+
+      // 3) Active students only
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
-        .in('id', regStudentIds)
+        .in('id', candidateStudentIds)
         .ilike('status', 'active');
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
@@ -232,7 +259,7 @@ const GradingListTab: React.FC = () => {
       const activeStudentIds = Object.keys(studentMap);
       if (activeStudentIds.length === 0) return [];
 
-      // 3) Branch scoping: keep only students who have ANY invoice at this branch.
+      // 4) Branch scoping: keep only students with at least one invoice at this branch.
       const { data: branchInvoices } = await supabase
         .from('invoices')
         .select('id, student_id, status')
@@ -247,9 +274,18 @@ const GradingListTab: React.FC = () => {
       if (branchScopedStudentIds.length === 0) return [];
 
       const branchScopedRegs = registrations.filter(r => branchScopedStudentIds.includes(r.student_id));
-      if (branchScopedRegs.length === 0) return [];
 
-      // 4) Parallel: attendance counts, slot info, grading-paid lookup via invoice_item_id
+      // Per-student lesson invoice for the selected term (drives invoice_id + status)
+      const studentToTermLessonInvoice: Record<string, { id: string; status: string }> = {};
+      lessonInvoicedItems.forEach((it: any) => {
+        const inv = it.invoices as any;
+        if (!branchScopedStudentIds.includes(inv.student_id)) return;
+        if (!studentToTermLessonInvoice[inv.student_id]) {
+          studentToTermLessonInvoice[inv.student_id] = { id: inv.id, status: inv.status };
+        }
+      });
+
+      // 5) Parallel: attendance counts, slot info, grading-paid lookup via invoice_item_id
       const slotIds = [...new Set(branchScopedRegs.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
       const invoiceItemIds = branchScopedRegs.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
 
@@ -280,15 +316,13 @@ const GradingListTab: React.FC = () => {
       const slotMap: Record<string, any> = {};
       (slotsResult.data || []).forEach((s: any) => { slotMap[s.id] = s; });
 
-      // Map invoice_item_id -> { status, invoice_id }
       const itemToInvoice: Record<string, { status: string; invoice_id: string }> = {};
       (gradingItemsResult.data || []).forEach((ii: any) => {
         const inv = ii.invoices as any;
         itemToInvoice[ii.id] = { status: inv?.status || 'draft', invoice_id: inv?.id || ii.invoice_id };
       });
 
-      // 5) Fallback grading-paid lookup: for registrations missing invoice_item_id,
-      // search any invoice item at this branch with metadata.grading_slot_id matching.
+      // Fallback grading-paid lookup for registrations missing invoice_item_id
       const regsMissingItem = branchScopedRegs.filter(r => !r.invoice_item_id && r.grading_slot_id);
       const fallbackByStudent: Record<string, { status: string; invoice_id: string }> = {};
       if (regsMissingItem.length > 0) {
@@ -305,7 +339,6 @@ const GradingListTab: React.FC = () => {
           if (!sid || !fallbackSlotIds.includes(sid)) return;
           const studentId = (it.invoices as any)?.student_id;
           if (!studentId) return;
-          // Prefer paid/verified; otherwise keep first encountered
           const status = (it.invoices as any)?.status || 'draft';
           const existing = fallbackByStudent[studentId];
           if (!existing || (['paid', 'verified'].includes(status) && !['paid', 'verified'].includes(existing.status))) {
@@ -314,8 +347,10 @@ const GradingListTab: React.FC = () => {
         });
       }
 
-      // 6) Build list (one row per registration; first registration per student wins)
+      // 6) Build rows: registrations first (preserve manual data), then add
+      // lesson-invoice-only students (no registration row yet).
       const studentResultMap = new Map<string, GradingListStudent>();
+
       for (const reg of branchScopedRegs) {
         if (studentResultMap.has(reg.student_id)) continue;
         const student = studentMap[reg.student_id];
@@ -323,7 +358,6 @@ const GradingListTab: React.FC = () => {
 
         const slot = reg.grading_slot_id ? slotMap[reg.grading_slot_id] : null;
 
-        // Resolve grading paid + invoice id
         let gradingPaid: 'paid' | 'unpaid' | 'n/a' = 'n/a';
         let gradingInvoiceId: string | null = null;
         if (reg.invoice_item_id && itemToInvoice[reg.invoice_item_id]) {
@@ -336,7 +370,6 @@ const GradingListTab: React.FC = () => {
           gradingInvoiceId = info.invoice_id;
         }
 
-        // invoice_id fallback: any branch invoice for this student
         const fallbackInvoice = studentToBranchInvoices[reg.student_id]?.[0];
         const invoiceId = gradingInvoiceId || fallbackInvoice?.id || '';
         const invoiceStatus = gradingInvoiceId
@@ -359,6 +392,33 @@ const GradingListTab: React.FC = () => {
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
           grading_slot_id: reg.grading_slot_id || null,
+        });
+      }
+
+      // Lesson-invoice-only students (no registration row)
+      for (const studentId of branchScopedStudentIds) {
+        if (studentResultMap.has(studentId)) continue;
+        const student = studentMap[studentId];
+        if (!student) continue;
+        const termLessonInv = studentToTermLessonInvoice[studentId];
+        if (!termLessonInv) continue;
+
+        studentResultMap.set(studentId, {
+          student_id: studentId,
+          student_name: `${student.first_name} ${student.last_name}`,
+          current_belt: student.current_belt,
+          invoice_status: termLessonInv.status,
+          invoice_id: termLessonInv.id,
+          ready_for_grading: false,
+          result: null,
+          certificate_issued: false,
+          certificate_ii_issued: false,
+          registration_id: null,
+          lessons_attended: attendanceCountMap[studentId] || 0,
+          grading_paid: 'n/a',
+          grading_slot_title: null,
+          grading_slot_date: null,
+          grading_slot_id: null,
         });
       }
 
