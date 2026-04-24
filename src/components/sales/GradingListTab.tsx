@@ -442,11 +442,14 @@ const GradingListTab: React.FC = () => {
     enabled: !!selectedBranch && !!selectedTerm
   });
 
-  // Get effective value for a field (pending change or original)
+  // Term-aware effective Ready: pending edit > DB flag > derived (term started + no result).
   const getEffectiveReady = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
-    return change?.ready_for_grading !== undefined ? change.ready_for_grading : student.ready_for_grading;
-  }, [pendingChanges]);
+    if (change?.ready_for_grading !== undefined) return change.ready_for_grading;
+    if (student.ready_for_grading) return true;
+    if (termStarted && !student.result) return true;
+    return false;
+  }, [pendingChanges, termStarted]);
 
   const getEffectiveResult = useCallback((student: GradingListStudent) => {
     const change = pendingChanges[student.student_id];
