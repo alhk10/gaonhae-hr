@@ -405,6 +405,7 @@ const GradingListTab: React.FC = () => {
           grading_slot_title: null,
           grading_slot_date: null,
           grading_slot_id: null,
+          scorecard: [],
         });
       }
 
