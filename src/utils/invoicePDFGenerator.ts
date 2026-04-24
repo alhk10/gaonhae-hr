@@ -13,6 +13,14 @@ export interface InvoiceItem {
   metadata?: {
     term_id?: string;
     grading_slot_id?: string;
+    line_discount?: {
+      type?: 'amount' | 'percentage';
+      value?: number;
+      // Legacy keys (older invoices)
+      discount_type?: 'amount' | 'percentage';
+      discount_value?: number;
+    };
+    [key: string]: any;
   };
   term_info?: string;      // e.g., "Term 1 2026 (19 Jan - 10 Apr)"
   grading_info?: string;   // e.g., "11 Apr 2026 at 08:40"
