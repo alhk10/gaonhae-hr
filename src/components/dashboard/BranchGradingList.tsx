@@ -200,6 +200,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
+  // Term-aware Ready derivation: a row counts as "Ready" if the DB flag is true
+  // OR the term has started and no result has been recorded yet. This lets us
+  // auto-flip Term 2 rows from "Not Ready" to "Ready" the moment the term begins
+  // without a background job.
+  const todayStr = new Date().toISOString().split('T')[0];
+  const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
+
   // Union-driven grading list: `grading_registrations` for the selected term ∪
   // every student with a lesson invoice item for that term at this branch.
   // Lesson-invoice-only students appear with no registration_id; editing
