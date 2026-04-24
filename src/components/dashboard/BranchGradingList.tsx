@@ -475,10 +475,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   });
 
   /**
-   * Open the scorecard editor for a student. Cert I uses the target belt
-   * (next promotion); Cert II is only used for "double" promotions and
-   * uses the belt after that. Only enabled for the Morley (AU) branch in
-   * Phase 1, and only for the Foundation → Black Tip range.
+   * Generate and download a certificate PDF immediately using the row's
+   * saved scorecard JSON (no dialog). Cert I uses the target belt (next
+   * promotion); Cert II is only used for "double" promotions and uses the
+   * belt after that. Only enabled for the Morley (AU) branch in Phase 1,
+   * and only for the Foundation → Black Tip range.
    */
   const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     if (!isMorley) {
@@ -497,12 +498,23 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       toast.error('Could not determine target belt');
       return;
     }
-    setCertCtx({
-      registrationId: student.registration_id,
-      studentName: student.student_name,
-      beltAchieved,
-      gradingDate: student.grading_slot_date,
-    });
+    if (!student.grading_slot_date) {
+      toast.error('Grading date missing — cannot generate certificate');
+      return;
+    }
+    const safeName = student.student_name.replace(/[^\w\-]+/g, '_');
+    const safeBelt = beltAchieved.replace(/[^\w\-]+/g, '_');
+    const dateStr = format(new Date(student.grading_slot_date), 'yyyy-MM-dd');
+    downloadGradingCertificatePDF(
+      {
+        studentName: student.student_name,
+        beltAchieved,
+        gradingDate: student.grading_slot_date,
+        scorecard: student.scorecard,
+      },
+      `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
+    );
+    toast.success('Certificate generated');
   };
 
   // Selection helpers
