@@ -347,6 +347,7 @@ const GradingListTab: React.FC = () => {
           student_id: reg.student_id,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: reg.current_belt || student.current_belt,
+          target_belt: reg.target_belt || null,
           invoice_status: invoiceStatus,
           invoice_id: invoiceId,
           ready_for_grading: reg.ready_for_grading || false,
