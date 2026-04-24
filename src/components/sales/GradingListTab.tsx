@@ -39,6 +39,7 @@ interface GradingListStudent {
   student_id: string;
   student_name: string;
   current_belt: string | null;
+  target_belt: string | null;
   invoice_status: string;
   invoice_id: string;
   ready_for_grading: boolean;
