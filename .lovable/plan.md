@@ -1,80 +1,67 @@
-## Plan: Term 1 2026 grading list shows 0 students despite paid invoices
+## Plan: Show all lesson-invoiced students in the term grading list, none Ready by default
 
-### Root cause (two compounding issues)
+### Findings
 
-Verified against Morley (`BR1768967806476`) + Term 1 2026 (`dd062ecd…`):
+1. **Sample data (Morley = `BR1768967806476`, Term 2 2026):**
+   - Only **7** `grading_registrations` rows exist for the term — all manually keyed by `alhk10@gmail.com` on 2026-04-23 with `ready_for_grading = true`.
+   - **42** distinct students actually have a Term 2 lesson invoice at this branch.
+   - Result: 35 invoiced students are missing from the Grading list, and the 7 shown are incorrectly marked Ready.
 
-**1. `BranchGradingList.tsx` filters by the wrong term field.**
-The query filters lesson invoice items by `metadata.term_id === selectedTerm`. But the typical workflow at term-end is "Pay Grading + opt-in to next term" — the **lesson item carries the next term's id (Term 2 2026)** while the **grading slot is for the current term (Apr 11, in Term 1 2026)**. So when the user selects Term 1 2026, zero lesson items match and the list is empty — even for the 8 students who DO have a `grading_registrations` row for Term 1 2026 (Leah You, Olivia Lee, Yuzhou He, Zuhayr Jafarsadiq, etc.).
+2. **Root cause:** Both `BranchGradingList.tsx` (Branch Dashboard) and `GradingListTab.tsx` (Sales) became **registration-driven** in the previous fix. A student only appears if a `grading_registrations` row exists for the selected term. Lesson-invoice-only students are now invisible.
 
-The Sales-side `GradingListTab.tsx` already does this correctly: it queries `grading_registrations.term_id` directly. `BranchGradingList` should mirror that approach.
+3. **Term 1 2026 (BR1768967806476):** 27 registrations exist (19 backfilled, 8 manual). The user said Term 1 was hand-keyed by superadmin — we must not touch existing Term 1 rows or alter their `ready_for_grading` flags.
 
-**2. ~10 paid grading invoices have no `grading_registrations` row at all.**
-Affected at Morley (Term 1 2026 slots, Apr 11): Ethan Bondarenko, Alex Noh, Eden Jung, Ejun Jung, Daniel Im, Earl John Lucero II, Elliot Hii, Henry Morgan, Evander King, Genie You, Iqraa Jafarsadiq, Keller Chaine.
+### Changes
 
-Auto-creation in `invoiceService.ts` (lines 385–422) only fires when the grading line item's name matches `formatBeltLevel(currentBelt) >> formatBeltLevel(getNextBeltLevel(currentBelt))`. It fails when:
-- the invoice is a **double-belt grading** (e.g. Ethan: current_belt `Green`, product `Green >> Blue Tip` — skipping `Green Tip`), or
-- the student's belt was advanced in a prior grading after this invoice was issued.
+#### 1. `src/components/dashboard/BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx` — query refactor
 
-### Fix
+Make the list **union-driven**: registrations ∪ lesson-invoiced students for the selected term/branch.
 
-#### A. Make `BranchGradingList.tsx` registration-driven (mirror Sales `GradingListTab.tsx`)
+For the selected `(branchId, termId)`:
 
-Replace the lesson-invoice-item driven student-discovery block (current lines ~183–337) with a registration-first flow:
+- **Source A (existing):** all `grading_registrations` for `term_id = selectedTerm` whose student has any invoice at `branchId`.
+- **Source B (new):** all distinct `student_id`s with a lesson invoice item at `branchId` whose `metadata.term_id = selectedTerm` and invoice status ∈ active set (`draft, sent, unpaid, partial, partially_paid, overdue, paid, verified`). These students appear with **no `registration_id`**, `ready_for_grading = false`, `result = null`, `grading_slot_id = null`, `current_belt = student.current_belt`, and `term_paid` derived from their lesson invoice status.
+- **De-dupe** by `student_id`; if the student exists in Source A, that row wins (preserves existing manual data, slot assignment, grading-paid status).
+- Keep the existing active-student filter and branch scoping.
 
-1. Query `grading_registrations` filtered by `term_id = selectedTerm` (no branch filter on the registration itself — registrations don't have branch_id).
-2. Filter to active students via `students` table (`status ilike 'active'`).
-3. Branch-scope by keeping only students who have ANY invoice at `branchId` (single `invoices` query already used in Sales tab).
-4. Keep existing enrichment: attendance count, slot info, `grading_paid` lookup via `invoice_item_id → invoices.status`.
-5. Keep `term_paid` derivation, but source the lesson invoice for the term via the existing branch-invoice list rather than via the term-id metadata filter.
-6. Update `invoicedTermIds` query to include terms appearing on `grading_registrations` for branch students (matches Sales tab logic at lines 160–167) so future grading-only terms still appear in the dropdown.
+#### 2. Save logic — create-on-edit
 
-Files:
-- `src/components/dashboard/BranchGradingList.tsx` — query at lines 183–337 and `invoicedTermIds` query at lines 126–153.
+Currently `batchSaveMutation` updates rows when `registration_id` exists and inserts otherwise. The insert path already exists in `GradingListTab.tsx` and `BranchGradingList.tsx`; we just need to ensure that when a Source B (no-registration) student is edited (Ready toggled, slot assigned, or result entered), a new `grading_registrations` row is created with:
 
-No prop, type, mutation, or UI changes. Pure query refactor.
+- `student_id`, `term_id = selectedTerm`
+- `current_belt = student.current_belt` (or `'White'` if null)
+- `target_belt` parsed from belt progression (existing `formatBeltLevel` helper) or `current_belt` if unknown
+- `ready_for_grading`, `result`, `grading_slot_id` from the pending change
 
-After this change, the existing 8 Morley Term 1 2026 registrations (Leah, Olivia, Yuzhou, Zuhayr, …) will appear immediately.
+No DB schema changes needed.
 
-#### B. Backfill missing `grading_registrations` rows (one-off SQL migration)
+#### 3. Reset the 7 incorrect Term 2 2026 Ready flags (one-time data fix)
 
-For every invoice item where:
-- `metadata->>'grading_slot_id'` is set,
-- the parent invoice status is in (`paid`, `verified`, `partially_paid`, `draft`, `sent`, `unpaid`, `partial`, `overdue`) and not `cancelled`,
-- product `category_name = 'Grading'`,
-- and there is no existing `grading_registrations` row with that `invoice_item_id`,
+The 7 manually-keyed Term 2 rows were set with `ready_for_grading = true` even though the term hasn't started. Migration:
 
-insert a `grading_registrations` row using:
-- `student_id` from the parent invoice,
-- `invoice_item_id` from the line item,
-- `grading_slot_id` from `metadata`,
-- `term_id` resolved from the slot's `grading_date` against `term_calendars` for the slot's branch (window match → previous term → next term), matching `resolveTermFromSlot` logic in `invoiceService.ts` (lines 424–465),
-- `current_belt` from the belt-transition name (`"<from> >> <to>"` → `from`),
-- `target_belt` from the same parse (`to`),
-- `ready_for_grading = false`, `result = null`.
+```sql
+UPDATE public.grading_registrations
+SET ready_for_grading = false
+WHERE term_id = '93c68375-31d9-406a-adfa-07fc24614428' -- Term 2 2026 (BR1768967806476)
+  AND ready_for_grading = true
+  AND result IS NULL;
+```
 
-Scope: branch-agnostic, but verified to cover the 12 Morley cases above. Idempotent: only inserts where no matching `invoice_item_id` row exists.
+Scoped narrowly: only this term, only rows with no result yet (so we can't accidentally clear graded students). **Term 1 2026 rows are not touched.**
 
-#### C. Fix the auto-create gap for future invoices
-
-In `src/services/invoiceService.ts` (lines 385–422), relax the matching:
-- If a `grading_slot_id` is present on any invoice item AND the line item belongs to a `Grading` category product, auto-create the registration regardless of whether the product name matches `current_belt → getNextBeltLevel(current_belt)`.
-- Parse `current_belt`/`target_belt` from the product name (split on `>>`) instead of computing from the student record. This handles double-belt gradings and post-grading-belt-update scenarios.
-- Keep the existing `resolveTermFromSlot` term-derivation.
-- Preserve idempotency (skip if a registration already exists for the same `invoice_item_id`).
+If other branches' Term 2 2026 registrations exist in the future with the same issue, this same scoped update can be re-run; for now only one branch has any.
 
 ### Verification
 
-1. Open Morley → Grading tab → Term 1 2026: list shows all ~20 students with paid/draft grading invoices for Apr 11 slots, including Ethan, Alex, Eden, Ejun, Daniel, Earl John, Elliot, Henry, Evander, Genie, Iqraa, Keller (after backfill) plus the 8 already-registered.
-2. Switching to Term 2 2026 still shows that term's grading registrations (no regression).
-3. Grading (paid/total) header counter stays correct (already registration-driven via `gradingMetrics`).
-4. Mass Edit save still works (no mutation code touched).
-5. Create a new draft invoice with a grading line item where the product name skips a belt (e.g. White → Yellow): a `grading_registrations` row is auto-created with `current_belt='White'`, `target_belt='Yellow'`.
-6. Sales → Grading List tab unaffected (already registration-driven).
+1. Open Branch Dashboard → Morley → Grading tab → Term 2 2026.
+2. Expect ~42 students listed (all with Term 2 lesson invoices), sorted as today.
+3. The 7 previously-Ready students still appear (with their belt transitions preserved) but the **Ready ✓** column is empty for everyone.
+4. Toggling Ready or assigning a slot for a Source B student (e.g., a brand-new entry) successfully creates a `grading_registrations` row on Save.
+5. Open Term 1 2026 → all 27 existing rows render unchanged (Ready flags, slots, results all preserved).
+6. Repeat sanity check on Sales → Grading List tab for the same branch/terms.
 
 ### Out of scope
 
-- Cross-branch grading list merging.
-- Changing the dashboard "Grading (X/Y)" tab counter (already correct — uses registrations).
-- Touching `class_attendance`, slot eligibility, or grading-payment-prerequisite logic.
-- UI/visual changes to the grading table.
+- Auto-creating `grading_registrations` at invoice time for lesson-only invoices (kept on-demand, as before).
+- Changing the Ready logic / business rules beyond defaulting to `false` for invoice-only rows.
+- Cross-branch grading visibility.

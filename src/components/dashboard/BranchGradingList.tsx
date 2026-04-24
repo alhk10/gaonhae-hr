@@ -200,31 +200,57 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
-  // Registration-driven grading list. Mirrors Sales `GradingListTab.tsx` so that
-  // students whose lesson invoice belongs to a different term (e.g. paid grading
-  // + opt-in to next-term lessons) still appear under the term their grading
-  // slot actually falls into.
+  // Union-driven grading list: `grading_registrations` for the selected term ∪
+  // every student with a lesson invoice item for that term at this branch.
+  // Lesson-invoice-only students appear with no registration_id; editing
+  // (toggle Ready / assign slot / set result) creates a registration on save.
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
-      // 1) Registrations for this term
+      // 1) Registrations for this term (Source A)
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
         .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
         .eq('term_id', selectedTerm);
       if (regErr) throw regErr;
       const registrations = regs || [];
-      if (registrations.length === 0) return [];
 
-      const regStudentIds = [...new Set(registrations.map(r => r.student_id))];
+      // 2) Lesson-invoiced students for this term + branch (Source B)
+      const { data: lessonProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('is_lesson', true);
+      const lessonProductIds = (lessonProducts || []).map(p => p.id);
 
-      // 2) Active students only
+      let lessonInvoicedItems: any[] = [];
+      if (lessonProductIds.length > 0) {
+        const { data: items } = await supabase
+          .from('invoice_items')
+          .select(`metadata, invoices!inner(id, status, student_id, branch_id)`)
+          .in('product_id', lessonProductIds)
+          .eq('invoices.branch_id', branchId)
+          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+        lessonInvoicedItems = (items || []).filter((it: any) => {
+          const md = it.metadata as Record<string, any> | null;
+          return md?.term_id === selectedTerm;
+        });
+      }
+      const lessonInvoicedStudentIds = [...new Set(
+        lessonInvoicedItems.map((it: any) => (it.invoices as any).student_id).filter(Boolean)
+      )];
+
+      // Union of candidate student ids
+      const regStudentIds = registrations.map(r => r.student_id);
+      const candidateStudentIds = [...new Set([...regStudentIds, ...lessonInvoicedStudentIds])];
+      if (candidateStudentIds.length === 0) return [];
+
+      // 3) Active students only
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
-        .in('id', regStudentIds)
+        .in('id', candidateStudentIds)
         .ilike('status', 'active');
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
@@ -233,7 +259,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       const activeStudentIds = Object.keys(studentMap);
       if (activeStudentIds.length === 0) return [];
 
-      // 3) Branch scoping: only keep students with at least one invoice at this branch.
+      // 4) Branch scoping: keep only students with at least one invoice at this branch
       const { data: branchInvoices } = await supabase
         .from('invoices')
         .select('id, student_id, status')
@@ -248,9 +274,18 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       if (branchScopedStudentIds.length === 0) return [];
 
       const branchScopedRegs = registrations.filter(r => branchScopedStudentIds.includes(r.student_id));
-      if (branchScopedRegs.length === 0) return [];
 
-      // 4) Parallel enrichment: attendance counts, slot info, grading-paid lookup
+      // 5) Per-student lesson invoice for this term (drives `term_paid` + invoice_id)
+      const studentToTermLessonInvoice: Record<string, { id: string; status: string }> = {};
+      lessonInvoicedItems.forEach((it: any) => {
+        const inv = it.invoices as any;
+        if (!branchScopedStudentIds.includes(inv.student_id)) return;
+        if (!studentToTermLessonInvoice[inv.student_id]) {
+          studentToTermLessonInvoice[inv.student_id] = { id: inv.id, status: inv.status };
+        }
+      });
+
+      // 6) Parallel enrichment: attendance counts, slot info, grading-paid lookup
       const slotIds = [...new Set(branchScopedRegs.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
       const invoiceItemIds = branchScopedRegs.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
 
@@ -287,53 +322,25 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         gradingItemStatusMap[ii.id] = (ii.invoices as any)?.status || 'draft';
       });
 
-      // 5) For each student: pick a representative branch invoice for term_paid + invoice_id.
-      // Prefer a lesson invoice for the selected term if one exists, otherwise fall back
-      // to the most-relevant branch invoice for that student.
-      const { data: lessonProducts } = await supabase
-        .from('products')
-        .select('id')
-        .eq('is_lesson', true);
-      const lessonProductIds = (lessonProducts || []).map(p => p.id);
-      let studentToTermLessonInvoice: Record<string, { id: string; status: string }> = {};
-      if (lessonProductIds.length > 0) {
-        const { data: lessonItems } = await supabase
-          .from('invoice_items')
-          .select(`metadata, invoices!inner(id, status, student_id, branch_id)`)
-          .in('product_id', lessonProductIds)
-          .in('invoices.student_id', branchScopedStudentIds)
-          .eq('invoices.branch_id', branchId)
-          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
-        (lessonItems || []).forEach((it: any) => {
-          const md = it.metadata as Record<string, any> | null;
-          if (md?.term_id !== selectedTerm) return;
-          const inv = it.invoices as any;
-          if (!studentToTermLessonInvoice[inv.student_id]) {
-            studentToTermLessonInvoice[inv.student_id] = { id: inv.id, status: inv.status };
-          }
-        });
-      }
-
+      // 7) Build rows: registrations first (preserve manual data), then any
+      // lesson-invoiced students who don't yet have a registration.
       const result: GradingListStudent[] = [];
       const seen = new Set<string>();
+
       for (const reg of branchScopedRegs) {
         if (seen.has(reg.student_id)) continue;
-        seen.add(reg.student_id);
-
         const student = studentMap[reg.student_id];
         if (!student) continue;
+        seen.add(reg.student_id);
 
         const slot = reg.grading_slot_id ? slotMap[reg.grading_slot_id] : null;
 
-        // Grading payment status for this student
         let gradingPaid: 'paid' | 'unpaid' | 'n/a' = 'n/a';
         if (reg.invoice_item_id && gradingItemStatusMap[reg.invoice_item_id]) {
           const st = gradingItemStatusMap[reg.invoice_item_id];
           gradingPaid = (st === 'paid' || st === 'verified') ? 'paid' : 'unpaid';
         }
 
-        // Term invoice context: lesson invoice for the selected term wins;
-        // otherwise fall back to any branch invoice for this student.
         const termLessonInv = studentToTermLessonInvoice[reg.student_id];
         const fallbackInv = studentToBranchInvoices[reg.student_id]?.[0];
         const repInv = termLessonInv || fallbackInv;
@@ -341,7 +348,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         result.push({
           student_id: reg.student_id,
           student_name: `${student.first_name} ${student.last_name}`,
-          current_belt: student.current_belt,
+          current_belt: reg.current_belt || student.current_belt,
           invoice_status: repInv?.status || 'draft',
           invoice_id: repInv?.id || '',
           ready_for_grading: reg.ready_for_grading || false,
@@ -355,6 +362,35 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
           grading_slot_id: reg.grading_slot_id || null,
+        });
+      }
+
+      // Lesson-invoice-only students (no registration row)
+      for (const studentId of branchScopedStudentIds) {
+        if (seen.has(studentId)) continue;
+        const student = studentMap[studentId];
+        if (!student) continue;
+        const termLessonInv = studentToTermLessonInvoice[studentId];
+        if (!termLessonInv) continue; // only show if they have a lesson invoice for this term
+        seen.add(studentId);
+
+        result.push({
+          student_id: studentId,
+          student_name: `${student.first_name} ${student.last_name}`,
+          current_belt: student.current_belt,
+          invoice_status: termLessonInv.status,
+          invoice_id: termLessonInv.id,
+          ready_for_grading: false,
+          result: null,
+          certificate_issued: false,
+          certificate_ii_issued: false,
+          registration_id: null,
+          lessons_attended: attendanceCountMap[studentId] || 0,
+          grading_paid: 'n/a',
+          term_paid: termLessonInv.status,
+          grading_slot_title: null,
+          grading_slot_date: null,
+          grading_slot_id: null,
         });
       }
 
@@ -446,10 +482,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             );
           }
         } else {
+          const { getNextBeltLevel } = await import('@/constants/beltLevels');
+          const currentBelt = student.current_belt || 'White';
+          const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
           const insertData = {
             student_id: studentId,
-            current_belt: student.current_belt || 'white',
-            target_belt: student.current_belt || 'white',
+            current_belt: currentBelt,
+            target_belt: nextBelt,
             grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
