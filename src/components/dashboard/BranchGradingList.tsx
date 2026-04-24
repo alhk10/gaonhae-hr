@@ -693,14 +693,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           </TableCell>
                           <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificate ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 1)}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 1)}>
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificateII ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 2)}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 2)}>
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             ) : <span className="text-muted-foreground">-</span>}
