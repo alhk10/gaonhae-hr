@@ -568,6 +568,16 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   const cellCls = 'py-1 px-2 text-xs align-middle';
   const headCls = 'h-8 px-2 text-xs';
+  // Frozen column helpers — Student stays at left edge, Cert/Cert II/Actions at right edge.
+  const stickyLeftHead = 'sticky left-0 z-20 bg-card';
+  const stickyLeftCell = 'sticky left-0 z-10 bg-background';
+  const stickyRightHead = (offset: string) => `sticky z-20 bg-card ${offset}`;
+  const stickyRightCell = (offset: string) => `sticky z-10 bg-background ${offset}`;
+  const showScorecard = isMorley && scorecardColumns.length >= 0;
+  const hasHeight = scorecardColumns.some(c => /height/i.test(c.label));
+  const hasWeight = scorecardColumns.some(c => /weight/i.test(c.label));
+  const showBmi = hasHeight && hasWeight;
+  const rowsKey = ['grading-list-students', branchId, selectedTerm];
 
   return (
     <div className="space-y-4">
