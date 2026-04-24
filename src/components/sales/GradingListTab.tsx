@@ -22,14 +22,18 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
-import { formatBeltLevel } from '@/constants/beltLevels';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
+import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
 import { formatDate } from '@/utils/dateFormat';
+
+/** Phase 1 — only Morley (AU) gets the AU certificate template. */
+const MORLEY_BRANCH_ID = 'BR1768967806476';
 
 interface GradingListStudent {
   student_id: string;
