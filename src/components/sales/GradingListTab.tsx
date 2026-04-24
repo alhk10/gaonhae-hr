@@ -735,12 +735,9 @@ const GradingListTab: React.FC = () => {
                           <TableCell key={col.id} className={cellCls}>
                             <InlineScorecardCell
                               registrationId={student.registration_id}
-                              studentId={student.student_id}
-                              currentBelt={student.current_belt}
-                              termId={selectedTerm}
-                              scorecard={student.scorecard}
                               label={col.label}
-                              rowsInvalidateKey={rowsKey}
+                              scorecard={student.scorecard}
+                              invalidateKey={rowsKey}
                             />
                           </TableCell>
                         ))}
