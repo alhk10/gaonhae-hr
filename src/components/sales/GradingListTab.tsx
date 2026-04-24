@@ -57,6 +57,7 @@ interface GradingListStudent {
   grading_slot_title: string | null;
   grading_slot_date: string | null;
   grading_slot_id: string | null;
+  scorecard: ScorecardRow[];
 }
 
 interface Branch { id: string; name: string }
