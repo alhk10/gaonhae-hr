@@ -1,11 +1,18 @@
 /**
  * Branch Grading List Component
- * Shows active students with invoices for a term, enriched grading data
- * Pre-filtered by branch ID from props
- * Mass-editable: changes are tracked locally and saved in batch
+ * Shows active students with invoices for a term, enriched grading data.
+ * Pre-filtered by branch ID from props.
+ *
+ * UX:
+ *  - Sorted by grading slot date asc; unassigned slots float to the top.
+ *  - Compact 1-line desktop rows.
+ *  - Ready checkbox is always interactive and autosaves immediately.
+ *  - Multi-select + Bulk Edit dialog replaces the old "Mass Edit" mode.
+ *  - The pencil icon on each row opens the same Bulk Edit dialog with that
+ *    single student preselected.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,10 +26,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Trash2, Eye, Save, Undo2, Pencil } from 'lucide-react';
+import { FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from '@/components/sales/GradingStudentDetailDialog';
+import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
 import { formatDate } from '@/utils/dateFormat';
 
 interface GradingListStudent {
@@ -49,28 +57,19 @@ interface BranchGradingListProps {
   onStudentClick?: (studentId: string) => void;
 }
 
-interface PendingChange {
-  ready_for_grading?: boolean;
-  result?: string | null;
-  grading_slot_id?: string | null;
-}
+const RESULT_LABELS: Record<string, string> = {
+  double: 'Double',
+  pass: 'Pass',
+  fail: 'Fail',
+  confirmed: 'Confirmed',
+};
 
-const RESULT_OPTIONS = [
-  { value: 'double', label: 'Double' },
-  { value: 'pass', label: 'Pass' },
-  { value: 'fail', label: 'Fail' },
-  { value: 'confirmed', label: 'Confirmed' },
-];
-
-const getTermPaidBadgeVariant = (status: string): "success" | "destructive" | "secondary" | "default" => {
+const getTermPaidBadgeVariant = (status: string): 'success' | 'destructive' | 'secondary' | 'default' => {
   switch (status) {
-    case 'paid': return 'success';
+    case 'paid':
+    case 'verified': return 'success';
     case 'overdue':
     case 'unpaid': return 'destructive';
-    case 'draft':
-    case 'sent':
-    case 'partial':
-    case 'partially_paid':
     default: return 'secondary';
   }
 };
@@ -78,28 +77,28 @@ const getTermPaidBadgeVariant = (status: string): "success" | "destructive" | "s
 const getTermPaidLabel = (status: string): string => {
   switch (status) {
     case 'paid': return 'Paid';
+    case 'verified': return 'Verified';
     case 'unpaid': return 'Unpaid';
     case 'overdue': return 'Overdue';
     case 'draft': return 'Draft';
     case 'sent': return 'Sent';
     case 'partial': return 'Partial';
-    case 'partially_paid': return 'Partially Paid';
-    default: return status;
+    case 'partially_paid': return 'Partial';
+    default: return status || '-';
   }
 };
 
 const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStudentClick }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   const [selectedTerm, setSelectedTerm] = useState<string>('');
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string } | null>(null);
-  const [pendingChanges, setPendingChanges] = useState<Record<string, PendingChange>>({});
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null); // overrides selectedIds when set (single-row pencil)
 
-  const hasPendingChanges = Object.keys(pendingChanges).length > 0;
-
-  // Fetch available grading slots for the branch
+  // Available grading slots for this branch (used in dialog and slot lookup)
   const { data: availableSlots = [] } = useQuery({
     queryKey: ['grading-slots-available', branchId],
     queryFn: async () => {
@@ -115,23 +114,20 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Fetch all terms for this branch (including past)
+  // All terms for this branch (including past)
   const { data: branchTerms = [] } = useQuery<Term[]>({
     queryKey: ['terms-grading-list', branchId],
     queryFn: () => getAllTermsForBranch(branchId),
     enabled: !!branchId
   });
 
-  // Fetch term_ids that should appear in the term selector for this branch:
-  //  • any term referenced by a lesson invoice item at this branch (next-term opt-ins)
-  //  • any term referenced by a grading_registrations row for a student who has any invoice at this branch
+  // Term ids that should appear in the term selector
   const { data: invoicedTermIds = [] } = useQuery<string[]>({
     queryKey: ['grading-list-invoiced-terms', branchId],
     queryFn: async () => {
       if (!branchId) return [];
       const termIds = new Set<string>();
 
-      // 1) Lesson-invoice-driven term ids
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
@@ -152,7 +148,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         });
       }
 
-      // 2) Registration-driven term ids (covers grading invoices whose lesson item belongs to a different term)
       const { data: branchInvoices } = await supabase
         .from('invoices')
         .select('student_id')
@@ -172,7 +167,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // Show past + current + every future term that has at least one lesson invoice
   const availableTerms = React.useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const invoicedSet = new Set(invoicedTermIds);
@@ -180,7 +174,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     return [...filtered].sort((a, b) => b.start_date.localeCompare(a.start_date));
   }, [branchTerms, invoicedTermIds]);
 
-  // Auto-select: prefer current term, else most recent term with invoices, else most recent past term
   React.useEffect(() => {
     if (branchId && availableTerms.length > 0) {
       const today = new Date().toISOString().split('T')[0];
@@ -195,28 +188,19 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     } else {
       setSelectedTerm('');
     }
-    setPendingChanges({});
+    setSelectedIds(new Set());
   }, [branchId, availableTerms, invoicedTermIds]);
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
-  // Term-aware Ready derivation: a row counts as "Ready" if the DB flag is true
-  // OR the term has started and no result has been recorded yet. This lets us
-  // auto-flip Term 2 rows from "Not Ready" to "Ready" the moment the term begins
-  // without a background job.
   const todayStr = new Date().toISOString().split('T')[0];
   const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
 
-  // Union-driven grading list: `grading_registrations` for the selected term ∪
-  // every student with a lesson invoice item for that term at this branch.
-  // Lesson-invoice-only students appear with no registration_id; editing
-  // (toggle Ready / assign slot / set result) creates a registration on save.
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
-      // 1) Registrations for this term (Source A)
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
         .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
@@ -224,7 +208,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       if (regErr) throw regErr;
       const registrations = regs || [];
 
-      // 2) Lesson-invoiced students for this term + branch (Source B)
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
@@ -248,12 +231,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         lessonInvoicedItems.map((it: any) => (it.invoices as any).student_id).filter(Boolean)
       )];
 
-      // Union of candidate student ids
       const regStudentIds = registrations.map(r => r.student_id);
       const candidateStudentIds = [...new Set([...regStudentIds, ...lessonInvoicedStudentIds])];
       if (candidateStudentIds.length === 0) return [];
 
-      // 3) Active students only
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
@@ -266,7 +247,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       const activeStudentIds = Object.keys(studentMap);
       if (activeStudentIds.length === 0) return [];
 
-      // 4) Branch scoping: keep only students with at least one invoice at this branch
       const { data: branchInvoices } = await supabase
         .from('invoices')
         .select('id, student_id, status')
@@ -282,7 +262,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
       const branchScopedRegs = registrations.filter(r => branchScopedStudentIds.includes(r.student_id));
 
-      // 5) Per-student lesson invoice for this term (drives `term_paid` + invoice_id)
       const studentToTermLessonInvoice: Record<string, { id: string; status: string }> = {};
       lessonInvoicedItems.forEach((it: any) => {
         const inv = it.invoices as any;
@@ -292,7 +271,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         }
       });
 
-      // 6) Parallel enrichment: attendance counts, slot info, grading-paid lookup
       const slotIds = [...new Set(branchScopedRegs.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
       const invoiceItemIds = branchScopedRegs.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
 
@@ -329,8 +307,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         gradingItemStatusMap[ii.id] = (ii.invoices as any)?.status || 'draft';
       });
 
-      // 7) Build rows: registrations first (preserve manual data), then any
-      // lesson-invoiced students who don't yet have a registration.
       const result: GradingListStudent[] = [];
       const seen = new Set<string>();
 
@@ -372,13 +348,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         });
       }
 
-      // Lesson-invoice-only students (no registration row)
       for (const studentId of branchScopedStudentIds) {
         if (seen.has(studentId)) continue;
         const student = studentMap[studentId];
         if (!student) continue;
         const termLessonInv = studentToTermLessonInvoice[studentId];
-        if (!termLessonInv) continue; // only show if they have a lesson invoice for this term
+        if (!termLessonInv) continue;
         seen.add(studentId);
 
         result.push({
@@ -401,184 +376,145 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         });
       }
 
-      result.sort((a, b) => a.student_name.localeCompare(b.student_name));
+      // Sort: unassigned first, then by slot date asc, slot title, name
+      result.sort((a, b) => {
+        const aHas = !!a.grading_slot_date;
+        const bHas = !!b.grading_slot_date;
+        if (aHas !== bHas) return aHas ? 1 : -1;
+        if (!aHas && !bHas) return a.student_name.localeCompare(b.student_name);
+        const dateCmp = (a.grading_slot_date || '').localeCompare(b.grading_slot_date || '');
+        if (dateCmp !== 0) return dateCmp;
+        const titleCmp = (a.grading_slot_title || '').localeCompare(b.grading_slot_title || '');
+        if (titleCmp !== 0) return titleCmp;
+        return a.student_name.localeCompare(b.student_name);
+      });
       return result;
     },
     enabled: !!branchId && !!selectedTerm
   });
 
-  // Get effective Ready value, factoring in pending edit OR term-started derivation
-  // for rows with no manual override and no recorded result.
-  const getEffectiveReady = useCallback((student: GradingListStudent) => {
-    const change = pendingChanges[student.student_id];
-    if (change?.ready_for_grading !== undefined) return change.ready_for_grading;
+  // Display Ready: DB flag OR (term started AND no result yet)
+  const displayReady = useCallback((student: GradingListStudent) => {
     if (student.ready_for_grading) return true;
     if (termStarted && !student.result) return true;
     return false;
-  }, [pendingChanges, termStarted]);
+  }, [termStarted]);
 
-  const getEffectiveResult = useCallback((student: GradingListStudent) => {
-    const change = pendingChanges[student.student_id];
-    return change?.result !== undefined ? change.result : student.result;
-  }, [pendingChanges]);
-
-  const getEffectiveSlot = useCallback((student: GradingListStudent) => {
-    const change = pendingChanges[student.student_id];
-    return change?.grading_slot_id !== undefined ? change.grading_slot_id : student.grading_slot_id;
-  }, [pendingChanges]);
-
-  const hasStudentChange = useCallback((studentId: string) => {
-    return !!pendingChanges[studentId];
-  }, [pendingChanges]);
-
-  // Track local changes
-  const setLocalReady = (studentId: string, isReady: boolean, originalValue: boolean) => {
-    setPendingChanges(prev => {
-      const existing = prev[studentId] || {};
-      const updated = { ...existing, ready_for_grading: isReady };
-      if (isReady === originalValue && updated.result === undefined && updated.grading_slot_id === undefined) {
-        const { [studentId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [studentId]: updated };
-    });
-  };
-
-  const setLocalResult = (studentId: string, result: string | null, originalValue: string | null) => {
-    setPendingChanges(prev => {
-      const existing = prev[studentId] || {};
-      const updated = { ...existing, result };
-      if (result === originalValue && updated.ready_for_grading === undefined && updated.grading_slot_id === undefined) {
-        const { [studentId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [studentId]: updated };
-    });
-  };
-
-  const setLocalSlot = (studentId: string, slotId: string | null, originalValue: string | null) => {
-    setPendingChanges(prev => {
-      const existing = prev[studentId] || {};
-      const updated = { ...existing, grading_slot_id: slotId };
-      if (slotId === originalValue && updated.ready_for_grading === undefined && updated.result === undefined) {
-        const { [studentId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [studentId]: updated };
-    });
-  };
-
-  // Batch save mutation
-  const batchSaveMutation = useMutation({
-    mutationFn: async () => {
-      const operations: Promise<any>[] = [];
-      
-      for (const [studentId, changes] of Object.entries(pendingChanges)) {
-        const student = students.find(s => s.student_id === studentId);
-        if (!student) continue;
-        
-        if (student.registration_id) {
-          const updateData: Record<string, any> = {};
-          if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
-          if (changes.result !== undefined) updateData.result = changes.result;
-          if (changes.grading_slot_id !== undefined) updateData.grading_slot_id = changes.grading_slot_id;
-
-          // Lazy DB sync: if the term has started and the row has no result,
-          // converge the persisted ready_for_grading flag to true on the next save.
-          if (
-            updateData.ready_for_grading === undefined &&
-            termStarted &&
-            !student.ready_for_grading &&
-            !student.result &&
-            (changes.result === undefined || !changes.result)
-          ) {
-            updateData.ready_for_grading = true;
-          }
-
-          if (Object.keys(updateData).length > 0) {
-            operations.push(
-              supabase
-                .from('grading_registrations')
-                .update(updateData)
-                .eq('id', student.registration_id)
-                .then(({ error }) => { if (error) throw error; }) as Promise<any>
-            );
-          }
-        } else {
-          const { getNextBeltLevel } = await import('@/constants/beltLevels');
-          const currentBelt = student.current_belt || 'White';
-          const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
-          // For a new registration created from this list, persist Ready when
-          // the user explicitly ticked it OR the term has started and no result.
-          const persistedReady =
-            changes.ready_for_grading !== undefined
-              ? changes.ready_for_grading
-              : (termStarted && !changes.result);
-          const insertData = {
-            student_id: studentId,
+  // Inline autosave for the Ready checkbox
+  const toggleReadyMutation = useMutation({
+    mutationFn: async ({ student, next }: { student: GradingListStudent; next: boolean }) => {
+      if (student.registration_id) {
+        const { error } = await supabase
+          .from('grading_registrations')
+          .update({ ready_for_grading: next })
+          .eq('id', student.registration_id);
+        if (error) throw error;
+      } else {
+        const { getNextBeltLevel } = await import('@/constants/beltLevels');
+        const currentBelt = student.current_belt || 'White';
+        const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
+        const { error } = await supabase
+          .from('grading_registrations')
+          .insert([{
+            student_id: student.student_id,
             current_belt: currentBelt,
             target_belt: nextBelt,
-            grading_slot_id: changes.grading_slot_id || null,
-            ready_for_grading: persistedReady || false,
-            result: changes.result || null,
+            grading_slot_id: null,
+            ready_for_grading: next,
+            result: null,
             term_id: selectedTerm || null,
-          } as const;
-          operations.push(
-            supabase
-              .from('grading_registrations')
-              .insert([insertData])
-              .then(({ error }) => { if (error) throw error; }) as Promise<any>
-          );
-        }
+          }]);
+        if (error) throw error;
       }
-      
-      await Promise.all(operations);
     },
-    onSuccess: () => {
-      setPendingChanges({});
-      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
-      toast.success(`Saved changes for ${Object.keys(pendingChanges).length} student(s)`);
+    onMutate: async ({ student, next }) => {
+      // Optimistic update so the tick reflects immediately
+      const key = ['grading-list-students', branchId, selectedTerm];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<GradingListStudent[]>(key);
+      queryClient.setQueryData<GradingListStudent[]>(key, (old) =>
+        (old || []).map(s => s.student_id === student.student_id ? { ...s, ready_for_grading: next } : s)
+      );
+      return { previous };
     },
-    onError: (error: Error) => toast.error(error.message || 'Failed to save changes'),
+    onError: (err: Error, _vars, ctx) => {
+      const key = ['grading-list-students', branchId, selectedTerm];
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
+      toast.error(err.message || 'Failed to update Ready');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', branchId, selectedTerm] });
+    },
   });
 
-  // Mutation to request deletion (requires superadmin approval)
   const deleteMutation = useMutation({
     mutationFn: async ({ registrationId, studentId, studentName }: { registrationId: string; studentId: string; studentName: string }) => {
       await createGradingDeletionRequest(registrationId, studentId, studentName);
     },
-    onSuccess: () => {
-      toast.success('Deletion request submitted for superadmin approval');
-    },
+    onSuccess: () => toast.success('Deletion request submitted for superadmin approval'),
     onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
-  const handleViewCertificate = (studentId: string, certificateNumber: 1 | 2) => {
+  const handleViewCertificate = (_studentId: string, certificateNumber: 1 | 2) => {
     toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
   };
 
-  const renderSlotDisplay = (student: GradingListStudent) => {
-    const effectiveSlotId = getEffectiveSlot(student);
-    const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
-    if (effectiveSlot) {
-      return `${effectiveSlot.title || 'Slot'} - ${effectiveSlot.grading_date ? formatDate(new Date(effectiveSlot.grading_date)) : ''}`;
-    }
-    if (student.grading_slot_title || student.grading_slot_date) {
-      return `${student.grading_slot_title || 'Slot'} - ${student.grading_slot_date ? formatDate(new Date(student.grading_slot_date)) : ''}`;
-    }
-    return null;
+  // Selection helpers
+  const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
+  const someVisibleSelected = students.some(s => selectedIds.has(s.student_id));
+  const toggleAll = () => {
+    setSelectedIds(prev => {
+      if (allVisibleSelected) return new Set();
+      const next = new Set(prev);
+      students.forEach(s => next.add(s.student_id));
+      return next;
+    });
   };
+  const toggleOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Compute the students passed to the bulk dialog (single-row pencil overrides selection)
+  const bulkTargetStudents: BulkEditStudent[] = React.useMemo(() => {
+    const ids = bulkStudentIds ?? Array.from(selectedIds);
+    return students
+      .filter(s => ids.includes(s.student_id))
+      .map(s => ({
+        student_id: s.student_id,
+        student_name: s.student_name,
+        registration_id: s.registration_id,
+        current_belt: s.current_belt,
+        grading_paid: s.grading_paid,
+        ready_for_grading: s.ready_for_grading,
+        result: s.result,
+      }));
+  }, [bulkStudentIds, selectedIds, students]);
+
+  const renderSlotInline = (s: GradingListStudent) => {
+    if (!s.grading_slot_date && !s.grading_slot_title) return <span className="text-muted-foreground">Not Assigned</span>;
+    return (
+      <span>
+        {s.grading_slot_title || 'Slot'}{s.grading_slot_date ? ` · ${formatDate(new Date(s.grading_slot_date))}` : ''}
+      </span>
+    );
+  };
+
+  const cellCls = 'py-1 px-2 text-xs align-middle';
+  const headCls = 'h-8 px-2 text-xs';
 
   return (
     <div className="space-y-4">
-      {/* Students Table */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <CardTitle>Students for Grading</CardTitle>
               <div className="w-48">
-                <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setPendingChanges({}); }}>
+                <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); }}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
@@ -591,46 +527,21 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant={isEditMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setIsEditMode(!isEditMode);
-                  if (isEditMode) setPendingChanges({});
-                }}
-              >
-                <Pencil className="w-4 h-4 mr-1" />
-                {isEditMode ? 'Exit Edit' : 'Mass Edit'}
-              </Button>
-              {hasPendingChanges && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPendingChanges({})}
-                    disabled={batchSaveMutation.isPending}
-                  >
-                    <Undo2 className="w-4 h-4 mr-1" />
-                    Discard ({Object.keys(pendingChanges).length})
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => batchSaveMutation.mutate()}
-                    disabled={batchSaveMutation.isPending}
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    {batchSaveMutation.isPending ? 'Saving...' : `Save All (${Object.keys(pendingChanges).length})`}
-                  </Button>
-                </>
+              {selectedIds.size > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}
+                >
+                  <Pencil className="w-4 h-4 mr-1" />
+                  Bulk Edit ({selectedIds.size})
+                </Button>
               )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {!selectedTerm ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Please select a term to view students.
-            </div>
+            <div className="text-center py-8 text-muted-foreground">Please select a term to view students.</div>
           ) : isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -641,173 +552,126 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
+              {/* Desktop compact 1-line table */}
               <div className="overflow-x-auto hidden sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student Name</TableHead>
-                      <TableHead className="w-[120px]">Current Belt</TableHead>
-                      <TableHead className="w-[80px] text-center">Lessons</TableHead>
-                      <TableHead className="w-[80px] text-center">Ready</TableHead>
-                      <TableHead className="w-[100px]">Term Paid</TableHead>
-                      <TableHead className="w-[100px]">Grading Paid</TableHead>
-                      <TableHead className="w-[160px]">Grading Slot</TableHead>
-                      <TableHead className="w-[140px]">Result</TableHead>
-                      <TableHead className="w-[90px]">Certificate</TableHead>
-                      <TableHead className="w-[100px]">Certificate II</TableHead>
-                      <TableHead className="w-[90px]">Actions</TableHead>
+                      <TableHead className={`${headCls} w-[36px]`}>
+                        <Checkbox
+                          checked={allVisibleSelected ? true : (someVisibleSelected ? 'indeterminate' as any : false)}
+                          onCheckedChange={toggleAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
+                      <TableHead className={`${headCls} min-w-[150px]`}>Student</TableHead>
+                      <TableHead className={`${headCls} w-[80px]`}>Belt</TableHead>
+                      <TableHead className={`${headCls} w-[60px] text-center`}>Lessons</TableHead>
+                      <TableHead className={`${headCls} w-[60px] text-center`}>Ready</TableHead>
+                      <TableHead className={`${headCls} w-[80px]`}>Term</TableHead>
+                      <TableHead className={`${headCls} w-[80px]`}>Grading</TableHead>
+                      <TableHead className={`${headCls} min-w-[160px]`}>Slot</TableHead>
+                      <TableHead className={`${headCls} w-[90px]`}>Result</TableHead>
+                      <TableHead className={`${headCls} w-[44px] text-center`}>Cert</TableHead>
+                      <TableHead className={`${headCls} w-[44px] text-center`}>Cert II</TableHead>
+                      <TableHead className={`${headCls} w-[110px]`}>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {students.map((student) => {
-                      const effectiveResult = getEffectiveResult(student);
-                      const effectiveReady = getEffectiveReady(student);
-                      const effectiveSlotId = getEffectiveSlot(student);
-                      const effectiveSlot = availableSlots.find(s => s.id === effectiveSlotId);
-                      const isChanged = hasStudentChange(student.student_id);
-                      const canViewCertificate = effectiveResult === 'pass' || effectiveResult === 'confirmed';
-                      const canViewCertificateII = effectiveResult === 'double';
-                      
+                      const result = student.result;
+                      const ready = displayReady(student);
+                      const isSelected = selectedIds.has(student.student_id);
+                      const canViewCertificate = result === 'pass' || result === 'confirmed';
+                      const canViewCertificateII = result === 'double';
+
                       return (
-                        <TableRow key={student.student_id} className={isChanged ? 'bg-accent/30' : undefined}>
-                          <TableCell>
+                        <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
+                          <TableCell className={cellCls}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleOne(student.student_id)}
+                              aria-label={`Select ${student.student_name}`}
+                            />
+                          </TableCell>
+                          <TableCell className={cellCls}>
                             <Button
                               variant="link"
-                              className="p-0 h-auto font-medium"
-              onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
+                              className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
+                              onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
                             >
-                              <User className="w-3 h-3 mr-1" />
-                              {student.student_name}
+                              <User className="w-3 h-3 mr-1 shrink-0" />
+                              <span className="truncate">{student.student_name}</span>
                             </Button>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className={cellCls}>
                             {student.current_belt ? (
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">
                                 {formatBeltLevel(student.current_belt)}
                               </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
-                          <TableCell className="text-center font-medium">
-                            {student.lessons_attended}
+                          <TableCell className={`${cellCls} text-center font-medium`}>{student.lessons_attended}</TableCell>
+                          <TableCell className={`${cellCls} text-center`}>
+                            <Checkbox
+                              checked={ready}
+                              disabled={toggleReadyMutation.isPending}
+                              onCheckedChange={(checked) => toggleReadyMutation.mutate({ student, next: !!checked })}
+                              aria-label="Ready for grading"
+                            />
                           </TableCell>
-                          <TableCell className="text-center">
-                            {isEditMode ? (
-                              <Checkbox
-                                checked={effectiveReady}
-                                onCheckedChange={(checked) => {
-                                  setLocalReady(student.student_id, !!checked, student.ready_for_grading);
-                                }}
-                              />
-                            ) : (
-                              <span className={`text-[11px] ${effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                                {effectiveReady ? '✓' : '-'}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getTermPaidBadgeVariant(student.term_paid)}>
+                          <TableCell className={cellCls}>
+                            <Badge variant={getTermPaidBadgeVariant(student.term_paid)} className="text-[10px] px-1 py-0">
                               {getTermPaidLabel(student.term_paid)}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Badge 
+                          <TableCell className={cellCls}>
+                            <Badge
                               variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
+                              className="text-[10px] px-1 py-0"
                             >
                               {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            {isEditMode ? (
-                              <Select
-                                value={effectiveSlotId || 'none'}
-                                onValueChange={(value) => {
-                                  setLocalSlot(student.student_id, value === 'none' ? null : value, student.grading_slot_id);
-                                }}
-                                disabled={student.grading_paid !== 'paid'}
-                              >
-                                <SelectTrigger className="h-8">
-                                  <SelectValue placeholder="Select..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Not Assigned</SelectItem>
-                                  {availableSlots.map(slot => (
-                                    <SelectItem key={slot.id} value={slot.id}>
-                                      {slot.title || 'Slot'} - {slot.grading_date ? formatDate(new Date(slot.grading_date)) : ''}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              effectiveSlot ? (
-                                <span className="text-sm">
-                                  {effectiveSlot.title || 'Slot'} - {effectiveSlot.grading_date ? formatDate(new Date(effectiveSlot.grading_date)) : ''}
-                                </span>
-                              ) : student.grading_slot_title || student.grading_slot_date ? (
-                                <span className="text-sm">
-                                  {student.grading_slot_title || 'Slot'} - {student.grading_slot_date ? formatDate(new Date(student.grading_slot_date)) : ''}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">Not Assigned</span>
-                              )
-                            )}
+                          <TableCell className={`${cellCls} truncate max-w-[220px] whitespace-nowrap`}>
+                            {renderSlotInline(student)}
                           </TableCell>
-                          <TableCell>
-                            {isEditMode ? (
-                              <Select
-                                value={effectiveResult || 'none'}
-                                onValueChange={(value) => {
-                                  setLocalResult(student.student_id, value === 'none' ? null : value, student.result);
-                                }}
-                                disabled={student.grading_paid !== 'paid'}
-                              >
-                                <SelectTrigger className="h-8">
-                                  <SelectValue placeholder="Select..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Clear</SelectItem>
-                                  {RESULT_OPTIONS.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              effectiveResult ? (
-                                <Badge variant={effectiveResult === 'pass' || effectiveResult === 'double' ? 'success' : effectiveResult === 'fail' ? 'destructive' : 'secondary'}>
-                                  {RESULT_OPTIONS.find(o => o.value === effectiveResult)?.label || effectiveResult}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )
-                            )}
+                          <TableCell className={cellCls}>
+                            {result ? (
+                              <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
+                                {RESULT_LABELS[result] || result}
+                              </Badge>
+                            ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificate ? (
-                              <Button variant="ghost" size="sm" onClick={() => handleViewCertificate(student.student_id, 1)}>
-                                <FileText className="w-4 h-4" />
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 1)}>
+                                <FileText className="w-3.5 h-3.5" />
                               </Button>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificateII ? (
-                              <Button variant="ghost" size="sm" onClick={() => handleViewCertificate(student.student_id, 2)}>
-                                <FileText className="w-4 h-4" />
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 2)}>
+                                <FileText className="w-3.5 h-3.5" />
                               </Button>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
+                          <TableCell className={cellCls}>
+                            <div className="flex gap-0.5">
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                                title="Edit slot/result"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
                                 onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
                                 title="View Details"
                               >
@@ -816,7 +680,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                               {student.registration_id && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" title="Delete Registration">
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Delete Registration">
                                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                                     </Button>
                                   </AlertDialogTrigger>
@@ -847,22 +711,25 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                 </Table>
               </div>
 
-              {/* Mobile 3-line layout */}
+              {/* Mobile cards */}
               <div className="sm:hidden space-y-1.5">
                 {students.map((student) => {
-                  const effectiveResult = getEffectiveResult(student);
-                  const effectiveReady = getEffectiveReady(student);
-                  const isChanged = hasStudentChange(student.student_id);
-                  const slotDisplay = renderSlotDisplay(student);
-
+                  const ready = displayReady(student);
+                  const isSelected = selectedIds.has(student.student_id);
+                  const result = student.result;
                   return (
                     <div
                       key={student.student_id}
-                      className={`rounded-lg px-2 py-1.5 ${isChanged ? 'bg-accent/30' : 'bg-muted/50'}`}
+                      className={`rounded-lg px-2 py-1.5 ${isSelected ? 'bg-accent/30' : 'bg-muted/50'}`}
                     >
-                      {/* Line 1: Name, Belt, Ready, Actions */}
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleOne(student.student_id)}
+                            className="h-3.5 w-3.5"
+                            aria-label={`Select ${student.student_name}`}
+                          />
                           <span
                             className="font-bold text-xs truncate cursor-pointer"
                             onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
@@ -876,19 +743,21 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          {isEditMode ? (
-                            <Checkbox
-                              checked={effectiveReady}
-                              onCheckedChange={(checked) => {
-                                setLocalReady(student.student_id, !!checked, student.ready_for_grading);
-                              }}
-                              className="h-3.5 w-3.5"
-                            />
-                          ) : (
-                            <span className={`text-[11px] ${effectiveReady ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                              {effectiveReady ? '✓' : ''}
-                            </span>
-                          )}
+                          <Checkbox
+                            checked={ready}
+                            disabled={toggleReadyMutation.isPending}
+                            onCheckedChange={(checked) => toggleReadyMutation.mutate({ student, next: !!checked })}
+                            className="h-3.5 w-3.5"
+                            aria-label="Ready"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -925,31 +794,28 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                         </div>
                       </div>
 
-                      {/* Line 2: Lessons, Term Paid, Grading Paid */}
                       <div className="flex items-center gap-2 mt-0.5 text-[11px]">
                         <span className="text-muted-foreground">{student.lessons_attended} lessons</span>
                         <Badge variant={getTermPaidBadgeVariant(student.term_paid)} className="text-[10px] px-1.5 py-0">
-                          Term: {getTermPaidLabel(student.term_paid)}
+                          {getTermPaidLabel(student.term_paid)}
                         </Badge>
                         <Badge
                           variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
                           className="text-[10px] px-1.5 py-0"
                         >
-                          Grading: {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
+                          {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
                         </Badge>
                       </div>
 
-                      {/* Line 3: Grading Slot, Result */}
                       <div className="flex items-center gap-2 mt-0.5 text-[11px]">
                         <span className="text-muted-foreground truncate">
-                          {slotDisplay || 'No slot'}
+                          {student.grading_slot_title || student.grading_slot_date
+                            ? `${student.grading_slot_title || 'Slot'}${student.grading_slot_date ? ` · ${formatDate(new Date(student.grading_slot_date))}` : ''}`
+                            : 'No slot'}
                         </span>
-                        {effectiveResult ? (
-                          <Badge
-                            variant={effectiveResult === 'pass' || effectiveResult === 'double' ? 'success' : effectiveResult === 'fail' ? 'destructive' : 'secondary'}
-                            className="text-[10px] px-1.5 py-0 shrink-0"
-                          >
-                            {RESULT_OPTIONS.find(o => o.value === effectiveResult)?.label || effectiveResult}
+                        {result ? (
+                          <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
+                            {RESULT_LABELS[result] || result}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground shrink-0">No result</span>
@@ -964,33 +830,23 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         </CardContent>
       </Card>
 
-      {/* Sticky save bar */}
-      {hasPendingChanges && (
-        <div className="sticky bottom-4 z-10 flex justify-center">
-          <div className="bg-primary text-primary-foreground rounded-lg px-6 py-3 shadow-lg flex items-center gap-4">
-            <span className="text-sm font-medium">{Object.keys(pendingChanges).length} unsaved change(s)</span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setPendingChanges({})}
-              disabled={batchSaveMutation.isPending}
-            >
-              Discard
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => batchSaveMutation.mutate()}
-              disabled={batchSaveMutation.isPending}
-            >
-              <Save className="w-4 h-4 mr-1" />
-              {batchSaveMutation.isPending ? 'Saving...' : 'Save All'}
-            </Button>
-          </div>
-        </div>
-      )}
+      <GradingBulkEditDialog
+        open={bulkOpen}
+        onOpenChange={(o) => {
+          setBulkOpen(o);
+          if (!o) {
+            setBulkStudentIds(null);
+            // Clear multi-select after a successful multi-row apply
+            if (bulkStudentIds === null) setSelectedIds(new Set());
+          }
+        }}
+        students={bulkTargetStudents}
+        availableSlots={availableSlots}
+        selectedTermId={selectedTerm}
+        termStarted={termStarted}
+        invalidateKeys={[['grading-list-students', branchId, selectedTerm]]}
+      />
 
-      {/* Student Detail Dialog */}
       {selectedTermData && (
         <GradingStudentDetailDialog
           open={!!detailStudent}
