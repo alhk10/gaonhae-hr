@@ -497,6 +497,11 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             const currentBelt = parsedFrom || studentCurrentBelt || 'White';
             const targetBelt = parsedTo || studentCurrentBelt || 'White';
 
+            // Term-aware Ready: only auto-mark Ready if the term has already started.
+            // Future-term grading (e.g. Term 2 invoiced today) defaults to Not Ready
+            // and the UI/lazy sync will flip it once the term begins.
+            const readyForGrading = await isTermStarted(termId);
+
             // Idempotent on (invoice_item_id) — a grading line item maps to exactly one registration
             const { data: existingByItem } = await supabase
               .from('grading_registrations')
@@ -508,7 +513,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             // Otherwise look for an existing (student_id, term_id) row that has no invoice_item_id yet
             const { data: existingByTerm } = await supabase
               .from('grading_registrations')
-              .select('id, grading_slot_id, invoice_item_id')
+              .select('id, grading_slot_id, invoice_item_id, ready_for_grading')
               .eq('student_id', invoiceData.student_id)
               .eq('term_id', termId)
               .is('invoice_item_id', null)
@@ -516,7 +521,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
             if (existingByTerm) {
               const updatePayload: any = {
-                ready_for_grading: true,
+                // Preserve an already-true flag (e.g. set manually); only escalate to true
+                // when the term has started.
+                ready_for_grading: existingByTerm.ready_for_grading === true ? true : readyForGrading,
                 current_belt: currentBelt,
                 target_belt: targetBelt,
                 invoice_item_id: insertedItem.id,
@@ -536,7 +543,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
                   term_id: termId,
                   current_belt: currentBelt,
                   target_belt: targetBelt,
-                  ready_for_grading: true,
+                  ready_for_grading: readyForGrading,
                   invoice_item_id: insertedItem.id,
                   grading_slot_id: slotId,
                   result: null,
