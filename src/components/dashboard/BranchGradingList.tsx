@@ -109,7 +109,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
 
-  const isMorley_pre = branchId === MORLEY_BRANCH_ID;
+  const isMorley = branchId === MORLEY_BRANCH_ID;
 
   // Available grading slots for this branch (used in dialog and slot lookup)
   const { data: availableSlots = [] } = useQuery({
