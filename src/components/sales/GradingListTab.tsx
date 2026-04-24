@@ -96,6 +96,13 @@ const GradingListTab: React.FC = () => {
     enabled: !!selectedBranch
   });
 
+  // Scorecard columns for current term + branch (Morley/AU only in Phase 1)
+  const { data: scorecardColumns = [] } = useQuery({
+    queryKey: ['grading-scorecard-columns', selectedTerm, selectedBranch],
+    queryFn: () => listColumns(selectedTerm, selectedBranch),
+    enabled: !!selectedBranch && !!selectedTerm && isMorley,
+  });
+
   const { data: branches = [] } = useQuery<Branch[]>({
     queryKey: ['branches-grading-list'],
     queryFn: async () => {
