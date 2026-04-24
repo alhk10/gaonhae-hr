@@ -200,156 +200,164 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   const selectedTermData = availableTerms.find(t => t.id === selectedTerm) || branchTerms.find(t => t.id === selectedTerm);
 
-  // Fetch students with invoices (all statuses except cancelled) for selected term
+  // Registration-driven grading list. Mirrors Sales `GradingListTab.tsx` so that
+  // students whose lesson invoice belongs to a different term (e.g. paid grading
+  // + opt-in to next-term lessons) still appear under the term their grading
+  // slot actually falls into.
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
+      // 1) Registrations for this term
+      const { data: regs, error: regErr } = await supabase
+        .from('grading_registrations')
+        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
+        .eq('term_id', selectedTerm);
+      if (regErr) throw regErr;
+      const registrations = regs || [];
+      if (registrations.length === 0) return [];
+
+      const regStudentIds = [...new Set(registrations.map(r => r.student_id))];
+
+      // 2) Active students only
+      const { data: studentsData } = await supabase
+        .from('students')
+        .select('id, first_name, last_name, current_belt, status')
+        .in('id', regStudentIds)
+        .ilike('status', 'active');
+      const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
+        acc[s.id] = s;
+        return acc;
+      }, {});
+      const activeStudentIds = Object.keys(studentMap);
+      if (activeStudentIds.length === 0) return [];
+
+      // 3) Branch scoping: only keep students with at least one invoice at this branch.
+      const { data: branchInvoices } = await supabase
+        .from('invoices')
+        .select('id, student_id, status')
+        .in('student_id', activeStudentIds)
+        .eq('branch_id', branchId);
+      const studentToBranchInvoices: Record<string, Array<{ id: string; status: string }>> = {};
+      (branchInvoices || []).forEach((i: any) => {
+        if (!studentToBranchInvoices[i.student_id]) studentToBranchInvoices[i.student_id] = [];
+        studentToBranchInvoices[i.student_id].push({ id: i.id, status: i.status });
+      });
+      const branchScopedStudentIds = Object.keys(studentToBranchInvoices);
+      if (branchScopedStudentIds.length === 0) return [];
+
+      const branchScopedRegs = registrations.filter(r => branchScopedStudentIds.includes(r.student_id));
+      if (branchScopedRegs.length === 0) return [];
+
+      // 4) Parallel enrichment: attendance counts, slot info, grading-paid lookup
+      const slotIds = [...new Set(branchScopedRegs.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
+      const invoiceItemIds = branchScopedRegs.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
+
+      const [attendanceResult, slotsResult, gradingItemsResult] = await Promise.all([
+        selectedTermData ? supabase
+          .from('class_attendance')
+          .select('student_id')
+          .in('student_id', branchScopedStudentIds)
+          .eq('branch_id', branchId)
+          .eq('status', 'present')
+          .gte('class_date', selectedTermData.start_date)
+          .lte('class_date', selectedTermData.end_date) : Promise.resolve({ data: [] as any[] }),
+        slotIds.length > 0
+          ? supabase.from('grading_slots').select('id, title, grading_date').in('id', slotIds)
+          : Promise.resolve({ data: [] as any[] }),
+        invoiceItemIds.length > 0
+          ? supabase
+              .from('invoice_items')
+              .select('id, invoice_id, invoices!inner(id, status)')
+              .in('id', invoiceItemIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const attendanceCountMap: Record<string, number> = {};
+      ((attendanceResult.data as any[]) || []).forEach((a: any) => {
+        attendanceCountMap[a.student_id] = (attendanceCountMap[a.student_id] || 0) + 1;
+      });
+
+      const slotMap: Record<string, any> = {};
+      ((slotsResult.data as any[]) || []).forEach((s: any) => { slotMap[s.id] = s; });
+
+      const gradingItemStatusMap: Record<string, string> = {};
+      ((gradingItemsResult.data as any[]) || []).forEach((ii: any) => {
+        gradingItemStatusMap[ii.id] = (ii.invoices as any)?.status || 'draft';
+      });
+
+      // 5) For each student: pick a representative branch invoice for term_paid + invoice_id.
+      // Prefer a lesson invoice for the selected term if one exists, otherwise fall back
+      // to the most-relevant branch invoice for that student.
       const { data: lessonProducts } = await supabase
         .from('products')
         .select('id')
         .eq('is_lesson', true);
-      
       const lessonProductIds = (lessonProducts || []).map(p => p.id);
-      if (lessonProductIds.length === 0) return [];
-
-      // Get invoice items — include all statuses except cancelled
-      const { data: invoiceItems, error: itemsError } = await supabase
-        .from('invoice_items')
-        .select(`
-          id,
-          invoice_id,
-          metadata,
-          invoices!inner (
-            id,
-            status,
-            student_id,
-            branch_id
-          )
-        `)
-        .in('product_id', lessonProductIds)
-        .eq('invoices.branch_id', branchId)
-        .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
-
-      if (itemsError) throw itemsError;
-
-      const termItems = (invoiceItems || []).filter(item => {
-        const metadata = item.metadata as Record<string, any> | null;
-        return metadata?.term_id === selectedTerm;
-      });
-
-      if (termItems.length === 0) return [];
-
-      const studentIds = [...new Set(termItems.map(item => (item.invoices as any).student_id))];
-
-      const { data: studentsData } = await supabase
-        .from('students')
-        .select('id, first_name, last_name, current_belt, status')
-        .in('id', studentIds)
-        .ilike('status', 'active');
-
-      const activeStudentIds = (studentsData || []).map(s => s.id);
-      if (activeStudentIds.length === 0) return [];
-
-      const [regResult, attendanceResult] = await Promise.all([
-        supabase
-          .from('grading_registrations')
-          .select('id, student_id, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id')
-          .in('student_id', activeStudentIds)
-          .eq('term_id', selectedTerm),
-        selectedTermData ? supabase
-          .from('class_attendance')
-          .select('student_id')
-          .in('student_id', activeStudentIds)
-          .eq('branch_id', branchId)
-          .eq('status', 'present')
-          .gte('class_date', selectedTermData.start_date)
-          .lte('class_date', selectedTermData.end_date) : Promise.resolve({ data: [] }),
-      ]);
-
-      const registrations = regResult.data || [];
-      const attendanceRecords = attendanceResult.data || [];
-
-      const attendanceCountMap: Record<string, number> = {};
-      attendanceRecords.forEach((a: any) => {
-        attendanceCountMap[a.student_id] = (attendanceCountMap[a.student_id] || 0) + 1;
-      });
-
-      const regMap: Record<string, any> = {};
-      registrations.forEach(r => {
-        if (!regMap[r.student_id]) {
-          regMap[r.student_id] = r;
-        }
-      });
-
-      const slotIds = [...new Set(registrations.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
-      let slotMap: Record<string, any> = {};
-      if (slotIds.length > 0) {
-        const { data: slots } = await supabase
-          .from('grading_slots')
-          .select('id, title, grading_date')
-          .in('id', slotIds);
-        (slots || []).forEach(s => { slotMap[s.id] = s; });
-      }
-
-      const invoiceItemIds = registrations.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
-      let gradingPaidMap: Record<string, string> = {};
-      if (invoiceItemIds.length > 0) {
-        const { data: gradingInvItems } = await supabase
+      let studentToTermLessonInvoice: Record<string, { id: string; status: string }> = {};
+      if (lessonProductIds.length > 0) {
+        const { data: lessonItems } = await supabase
           .from('invoice_items')
-          .select('id, invoice_id, invoices!inner(id, status)')
-          .in('id', invoiceItemIds);
-        const itemToStatus: Record<string, string> = {};
-        (gradingInvItems || []).forEach((ii: any) => {
-          itemToStatus[ii.id] = (ii.invoices as any)?.status || 'draft';
-        });
-        registrations.forEach(r => {
-          if (r.invoice_item_id && itemToStatus[r.invoice_item_id]) {
-            gradingPaidMap[r.student_id] = itemToStatus[r.invoice_item_id] === 'paid' ? 'paid' : 'unpaid';
+          .select(`metadata, invoices!inner(id, status, student_id, branch_id)`)
+          .in('product_id', lessonProductIds)
+          .in('invoices.student_id', branchScopedStudentIds)
+          .eq('invoices.branch_id', branchId)
+          .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+        (lessonItems || []).forEach((it: any) => {
+          const md = it.metadata as Record<string, any> | null;
+          if (md?.term_id !== selectedTerm) return;
+          const inv = it.invoices as any;
+          if (!studentToTermLessonInvoice[inv.student_id]) {
+            studentToTermLessonInvoice[inv.student_id] = { id: inv.id, status: inv.status };
           }
         });
       }
 
-      const studentMap = (studentsData || []).reduce((acc, s) => {
-        acc[s.id] = s;
-        return acc;
-      }, {} as Record<string, any>);
+      const result: GradingListStudent[] = [];
+      const seen = new Set<string>();
+      for (const reg of branchScopedRegs) {
+        if (seen.has(reg.student_id)) continue;
+        seen.add(reg.student_id);
 
-      const studentResultMap = new Map<string, GradingListStudent>();
-      
-      for (const item of termItems) {
-        const invoice = item.invoices as any;
-        const studentId = invoice.student_id;
-        if (studentResultMap.has(studentId)) continue;
-        
-        const student = studentMap[studentId];
+        const student = studentMap[reg.student_id];
         if (!student) continue;
 
-        const reg = regMap[studentId];
-        const slot = reg?.grading_slot_id ? slotMap[reg.grading_slot_id] : null;
+        const slot = reg.grading_slot_id ? slotMap[reg.grading_slot_id] : null;
 
-        studentResultMap.set(studentId, {
-          student_id: studentId,
+        // Grading payment status for this student
+        let gradingPaid: 'paid' | 'unpaid' | 'n/a' = 'n/a';
+        if (reg.invoice_item_id && gradingItemStatusMap[reg.invoice_item_id]) {
+          const st = gradingItemStatusMap[reg.invoice_item_id];
+          gradingPaid = (st === 'paid' || st === 'verified') ? 'paid' : 'unpaid';
+        }
+
+        // Term invoice context: lesson invoice for the selected term wins;
+        // otherwise fall back to any branch invoice for this student.
+        const termLessonInv = studentToTermLessonInvoice[reg.student_id];
+        const fallbackInv = studentToBranchInvoices[reg.student_id]?.[0];
+        const repInv = termLessonInv || fallbackInv;
+
+        result.push({
+          student_id: reg.student_id,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: student.current_belt,
-          invoice_status: invoice.status,
-          invoice_id: invoice.id,
-          ready_for_grading: reg?.ready_for_grading || false,
-          result: reg?.result || null,
-          certificate_issued: reg?.certificate_issued || false,
-          certificate_ii_issued: reg?.certificate_ii_issued || false,
-          registration_id: reg?.id || null,
-          lessons_attended: attendanceCountMap[studentId] || 0,
-          grading_paid: (gradingPaidMap[studentId] as 'paid' | 'unpaid') || 'n/a',
-          term_paid: invoice.status || 'draft',
+          invoice_status: repInv?.status || 'draft',
+          invoice_id: repInv?.id || '',
+          ready_for_grading: reg.ready_for_grading || false,
+          result: (reg.result as any) || null,
+          certificate_issued: reg.certificate_issued || false,
+          certificate_ii_issued: reg.certificate_ii_issued || false,
+          registration_id: reg.id || null,
+          lessons_attended: attendanceCountMap[reg.student_id] || 0,
+          grading_paid: gradingPaid,
+          term_paid: repInv?.status || 'draft',
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
-          grading_slot_id: reg?.grading_slot_id || null,
+          grading_slot_id: reg.grading_slot_id || null,
         });
       }
 
-      const result = Array.from(studentResultMap.values());
       result.sort((a, b) => a.student_name.localeCompare(b.student_name));
       return result;
     },
