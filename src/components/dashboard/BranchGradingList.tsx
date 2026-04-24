@@ -24,19 +24,21 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
-import { formatBeltLevel } from '@/constants/beltLevels';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
+import { Award, FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from '@/components/sales/GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
+import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
 import { formatDate } from '@/utils/dateFormat';
 
 interface GradingListStudent {
   student_id: string;
   student_name: string;
   current_belt: string | null;
+  target_belt: string | null;
   invoice_status: string;
   invoice_id: string;
   ready_for_grading: boolean;
@@ -51,6 +53,9 @@ interface GradingListStudent {
   grading_slot_date: string | null;
   grading_slot_id: string | null;
 }
+
+/** Phase 1 — only Morley (AU) gets the AU certificate template. */
+const MORLEY_BRANCH_ID = 'BR1768967806476';
 
 interface BranchGradingListProps {
   branchId: string;
@@ -96,7 +101,16 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null); // overrides selectedIds when set (single-row pencil)
+  const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
+  // Certificate dialog state — Phase 1 Morley/AU only
+  const [certCtx, setCertCtx] = useState<{
+    registrationId: string;
+    studentName: string;
+    beltAchieved: string;
+    gradingDate: string | null;
+  } | null>(null);
+
+  const isMorley = branchId === MORLEY_BRANCH_ID;
 
   // Available grading slots for this branch (used in dialog and slot lookup)
   const { data: availableSlots = [] } = useQuery({
@@ -332,6 +346,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           student_id: reg.student_id,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: reg.current_belt || student.current_belt,
+          target_belt: reg.target_belt || null,
           invoice_status: repInv?.status || 'draft',
           invoice_id: repInv?.id || '',
           ready_for_grading: reg.ready_for_grading || false,
@@ -360,6 +375,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           student_id: studentId,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: student.current_belt,
+          target_belt: null,
           invoice_status: termLessonInv.status,
           invoice_id: termLessonInv.id,
           ready_for_grading: false,

@@ -1402,6 +1402,7 @@ export type Database = {
           notes: string | null
           ready_for_grading: boolean | null
           result: string | null
+          scorecard: Json
           student_id: string
           target_belt: string
           term_id: string | null
@@ -1418,6 +1419,7 @@ export type Database = {
           notes?: string | null
           ready_for_grading?: boolean | null
           result?: string | null
+          scorecard?: Json
           student_id: string
           target_belt: string
           term_id?: string | null
@@ -1434,6 +1436,7 @@ export type Database = {
           notes?: string | null
           ready_for_grading?: boolean | null
           result?: string | null
+          scorecard?: Json
           student_id?: string
           target_belt?: string
           term_id?: string | null

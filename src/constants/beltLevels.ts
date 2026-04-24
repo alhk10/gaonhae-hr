@@ -58,6 +58,21 @@ export type BeltLevel = typeof BELT_LEVELS[number];
 // Mutable array version for components that need string[]
 export const BELT_LEVELS_ARRAY: string[] = [...BELT_LEVELS];
 
+/**
+ * Foundation → Black Tip range (inclusive). Used to gate the AU/Morley grading
+ * certificate generator — Poom and Dan grades use a Kukkiwon-issued cert
+ * instead and therefore never produce one of these certificates.
+ */
+const FOUNDATION_TO_BLACK_TIP: ReadonlySet<string> = new Set([
+  ...SG_FOUNDATION,
+  ...AU_FOUNDATION,
+  'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
+  'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
+]);
+
+export const isFoundationToBlackTip = (belt?: string | null): boolean =>
+  !!belt && FOUNDATION_TO_BLACK_TIP.has(belt);
+
 export type Country = 'Singapore' | 'Australia' | string;
 
 /**
