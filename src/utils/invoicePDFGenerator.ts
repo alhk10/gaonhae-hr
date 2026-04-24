@@ -13,6 +13,14 @@ export interface InvoiceItem {
   metadata?: {
     term_id?: string;
     grading_slot_id?: string;
+    line_discount?: {
+      type?: 'amount' | 'percentage';
+      value?: number;
+      // Legacy keys (older invoices)
+      discount_type?: 'amount' | 'percentage';
+      discount_value?: number;
+    };
+    [key: string]: any;
   };
   term_info?: string;      // e.g., "Term 1 2026 (19 Jan - 10 Apr)"
   grading_info?: string;   // e.g., "11 Apr 2026 at 08:40"
@@ -536,11 +544,25 @@ const buildItemAndDiscountLines = (invoice: InvoiceData): string[] => {
   if (items.length === 0) {
     lines.push('No items');
   } else {
-    // Positive (or zero) line items rendered normally
+    // Positive (or zero) line items rendered normally; per-line discount (if any)
+    // is rendered as a separate "Discount: -$X" line directly underneath, with
+    // the item itself shown at its GROSS price (quantity × unit_price) so the
+    // discount is visible and the math reads transparently.
     items
       .filter(item => (item.total_amount ?? 0) >= 0)
       .forEach(item => {
-        lines.push(`${item.description} \u2013 ${formatCurrency(item.total_amount)}`);
+        const ld = item.metadata?.line_discount;
+        const dType = (ld?.type ?? ld?.discount_type) as 'amount' | 'percentage' | undefined;
+        const dValue = Number(ld?.value ?? ld?.discount_value ?? 0);
+        const gross = (item.quantity ?? 0) * (item.unit_price ?? 0);
+
+        if (dValue > 0 && gross > 0) {
+          const discountAmt = dType === 'percentage' ? gross * (dValue / 100) : dValue;
+          lines.push(`${item.description} \u2013 ${formatCurrency(gross)}`);
+          lines.push(`Discount: -${formatCurrency(discountAmt)}`);
+        } else {
+          lines.push(`${item.description} \u2013 ${formatCurrency(item.total_amount)}`);
+        }
       });
 
     // Negative line items rendered as discount lines using their description
