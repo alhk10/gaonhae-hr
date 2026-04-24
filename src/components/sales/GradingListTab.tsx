@@ -731,21 +731,40 @@ const GradingListTab: React.FC = () => {
                             </Badge>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
-                        <TableCell className={`${cellCls} text-center`}>
+                        {showScorecard && scorecardColumns.map(col => (
+                          <TableCell key={col.id} className={cellCls}>
+                            <InlineScorecardCell
+                              registrationId={student.registration_id}
+                              studentId={student.student_id}
+                              currentBelt={student.current_belt}
+                              termId={selectedTerm}
+                              scorecard={student.scorecard}
+                              label={col.label}
+                              rowsInvalidateKey={rowsKey}
+                            />
+                          </TableCell>
+                        ))}
+                        {showBmi && (
+                          <TableCell className={`${cellCls} text-center`}>
+                            <InlineBmiCell scorecard={student.scorecard} />
+                          </TableCell>
+                        )}
+                        {showScorecard && (<TableCell className={cellCls} />)}
+                        <TableCell className={`${cellCls} text-center ${stickyRightCell('right-[154px]')} ${isSelected ? 'bg-accent/30' : ''}`}>
                           {canViewCertificate ? (
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 1)}>
                               <FileText className="w-3.5 h-3.5" />
                             </Button>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
-                        <TableCell className={`${cellCls} text-center`}>
+                        <TableCell className={`${cellCls} text-center ${stickyRightCell('right-[110px]')} ${isSelected ? 'bg-accent/30' : ''}`}>
                           {canViewCertificateII ? (
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 2)}>
                               <FileText className="w-3.5 h-3.5" />
                             </Button>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
-                        <TableCell className={cellCls}>
+                        <TableCell className={`${cellCls} ${stickyRightCell('right-0')} ${isSelected ? 'bg-accent/30' : ''}`}>
                           <div className="flex gap-0.5">
                             <Button
                               variant="ghost"
