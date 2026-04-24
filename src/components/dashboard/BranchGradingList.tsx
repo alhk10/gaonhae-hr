@@ -482,10 +482,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             );
           }
         } else {
+          const { getNextBeltLevel } = await import('@/constants/beltLevels');
+          const currentBelt = student.current_belt || 'White';
+          const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
           const insertData = {
             student_id: studentId,
-            current_belt: student.current_belt || 'white',
-            target_belt: student.current_belt || 'white',
+            current_belt: currentBelt,
+            target_belt: nextBelt,
             grading_slot_id: changes.grading_slot_id || null,
             ready_for_grading: changes.ready_for_grading || false,
             result: changes.result || null,
