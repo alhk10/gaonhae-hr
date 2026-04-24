@@ -38,6 +38,7 @@ interface GradingListStudent {
   student_id: string;
   student_name: string;
   current_belt: string | null;
+  target_belt: string | null;
   invoice_status: string;
   invoice_id: string;
   ready_for_grading: boolean;
@@ -52,6 +53,9 @@ interface GradingListStudent {
   grading_slot_date: string | null;
   grading_slot_id: string | null;
 }
+
+/** Phase 1 — only Morley (AU) gets the AU certificate template. */
+const MORLEY_BRANCH_ID = 'BR1768967806476';
 
 interface BranchGradingListProps {
   branchId: string;
