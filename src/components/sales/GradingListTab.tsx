@@ -500,12 +500,23 @@ const GradingListTab: React.FC = () => {
       toast.error('Could not determine target belt');
       return;
     }
-    setCertCtx({
-      registrationId: student.registration_id,
-      studentName: student.student_name,
-      beltAchieved,
-      gradingDate: student.grading_slot_date,
-    });
+    if (!student.grading_slot_date) {
+      toast.error('Grading date missing — cannot generate certificate');
+      return;
+    }
+    const safeName = student.student_name.replace(/[^\w\-]+/g, '_');
+    const safeBelt = beltAchieved.replace(/[^\w\-]+/g, '_');
+    const dateStr = format(new Date(student.grading_slot_date), 'yyyy-MM-dd');
+    downloadGradingCertificatePDF(
+      {
+        studentName: student.student_name,
+        beltAchieved,
+        gradingDate: student.grading_slot_date,
+        scorecard: student.scorecard,
+      },
+      `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
+    );
+    toast.success('Certificate generated');
   };
 
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
