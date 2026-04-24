@@ -382,167 +382,149 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           ])
         );
 
-        // Auto-create grading_registrations ONLY when the invoice contains a
-        // grading-category product whose name matches the student's belt transition
-        // (e.g. "Yellow Tip >> Yellow"). Lesson-only invoices must NOT auto-flag.
+        // Auto-create grading_registrations for EVERY grading-category line item
+        // on this invoice. Parse the belt transition from the product name itself
+        // (e.g. "Green >> Blue Tip") so this works for double-belt gradings and
+        // for invoices where the student's current_belt has already been
+        // advanced. Lesson-only invoices (no Grading-category items) still
+        // produce no registration.
         try {
           // Lazy-load belt helpers to avoid circular imports
-          const { getNextBeltLevel, formatBeltLevel } = await import('@/constants/beltLevels');
+          const { formatBeltLevel } = await import('@/constants/beltLevels');
 
-          // Look up student current_belt and branch country
-          const [{ data: studentRow }, { data: branchRow }, { data: authData }] = await Promise.all([
+          const [{ data: studentRow }, { data: authData }] = await Promise.all([
             supabase.from('students').select('current_belt').eq('id', invoiceData.student_id).maybeSingle(),
-            invoiceData.branch_id
-              ? supabase.from('branches').select('country').eq('id', invoiceData.branch_id).maybeSingle()
-              : Promise.resolve({ data: null as any }),
             supabase.auth.getUser(),
           ]);
-
-          const currentBelt = studentRow?.current_belt || null;
-          const country = branchRow?.country || null;
+          const studentCurrentBelt = studentRow?.current_belt || null;
           const createdByEmail = authData?.user?.email || null;
 
-          if (currentBelt) {
-            const targetBelt = getNextBeltLevel(currentBelt, country);
-            if (targetBelt) {
-              // Expected grading-product name for this student's belt transition
-              const expectedName = `${formatBeltLevel(currentBelt)} >> ${formatBeltLevel(targetBelt)}`.toLowerCase();
+          // Helper: resolve term_id from a grading slot's date+branch
+          const resolveTermFromSlot = async (slotId: string): Promise<string | null> => {
+            const { data: slot } = await supabase
+              .from('grading_slots')
+              .select('grading_date, branch_id')
+              .eq('id', slotId)
+              .maybeSingle();
+            if (!slot?.grading_date) return null;
+            const slotBranchId = slot.branch_id || invoiceData.branch_id;
+            const slotDate = slot.grading_date;
 
-              // Find the inserted invoice_item that is a Grading-category product
-              // whose name matches the student's belt transition.
-              const matchingGradingItem = insertedItems.find(ii => {
-                const meta = productMetaMap.get(ii.product_id);
-                if (!meta) return false;
-                if ((meta.category_name || '').toLowerCase() !== 'grading') return false;
-                return (meta.name || '').toLowerCase() === expectedName;
-              });
+            const { data: inWindow } = await supabase
+              .from('term_calendars')
+              .select('id, start_date, end_date')
+              .eq('branch_id', slotBranchId)
+              .lte('start_date', slotDate)
+              .gte('end_date', slotDate)
+              .limit(1);
+            if (inWindow && inWindow.length > 0) return inWindow[0].id;
 
-              // Only auto-create/update grading_registrations when a matching
-              // grading line item exists on this invoice.
-              if (matchingGradingItem) {
-              // Helper: resolve term_id from a grading slot's date+branch
-              const resolveTermFromSlot = async (slotId: string): Promise<string | null> => {
-                const { data: slot } = await supabase
-                  .from('grading_slots')
-                  .select('grading_date, branch_id')
-                  .eq('id', slotId)
-                  .maybeSingle();
-                if (!slot?.grading_date) return null;
-                const slotBranchId = slot.branch_id || invoiceData.branch_id;
-                const slotDate = slot.grading_date;
+            const { data: prevTerm } = await supabase
+              .from('term_calendars')
+              .select('id, end_date')
+              .eq('branch_id', slotBranchId)
+              .lte('end_date', slotDate)
+              .order('end_date', { ascending: false })
+              .limit(1);
+            if (prevTerm && prevTerm.length > 0) return prevTerm[0].id;
 
-                // 1) Term whose window contains the grading date
-                const { data: inWindow } = await supabase
-                  .from('term_calendars')
-                  .select('id, start_date, end_date')
-                  .eq('branch_id', slotBranchId)
-                  .lte('start_date', slotDate)
-                  .gte('end_date', slotDate)
-                  .limit(1);
-                if (inWindow && inWindow.length > 0) return inWindow[0].id;
+            const { data: nextTerm } = await supabase
+              .from('term_calendars')
+              .select('id, start_date')
+              .eq('branch_id', slotBranchId)
+              .gte('start_date', slotDate)
+              .order('start_date', { ascending: true })
+              .limit(1);
+            if (nextTerm && nextTerm.length > 0) return nextTerm[0].id;
 
-                // 2) Term whose end_date is the closest on or before the grading date
-                const { data: prevTerm } = await supabase
-                  .from('term_calendars')
-                  .select('id, end_date')
-                  .eq('branch_id', slotBranchId)
-                  .lte('end_date', slotDate)
-                  .order('end_date', { ascending: false })
-                  .limit(1);
-                if (prevTerm && prevTerm.length > 0) return prevTerm[0].id;
+            return null;
+          };
 
-                // 3) Term with the earliest start_date after the grading date
-                const { data: nextTerm } = await supabase
-                  .from('term_calendars')
-                  .select('id, start_date')
-                  .eq('branch_id', slotBranchId)
-                  .gte('start_date', slotDate)
-                  .order('start_date', { ascending: true })
-                  .limit(1);
-                if (nextTerm && nextTerm.length > 0) return nextTerm[0].id;
+          // Parse "From >> To" → { from, to }. Accepts "From>>To" or "From - To" too.
+          const parseBeltTransition = (name: string): { from: string | null; to: string | null } => {
+            if (!name) return { from: null, to: null };
+            const parts = name.split(/\s*>>\s*|\s+-\s+/);
+            if (parts.length < 2) return { from: null, to: null };
+            return { from: parts[0].trim() || null, to: parts[parts.length - 1].trim() || null };
+          };
 
-                return null;
+          // Lesson-derived term ids on this invoice (used as fallback when no slot is set)
+          const lessonTermIds = new Set<string>();
+          for (const insertedItem of insertedItems) {
+            const product = lessonProducts.get(insertedItem.product_id);
+            if (!product) continue;
+            const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
+            const itemMetadata = originalItem?.metadata;
+            const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0] || product.term_id;
+            if (termId) lessonTermIds.add(termId);
+          }
+
+          // Iterate every Grading-category line item on this invoice
+          for (const insertedItem of insertedItems) {
+            const meta = productMetaMap.get(insertedItem.product_id);
+            if (!meta) continue;
+            if ((meta.category_name || '').toLowerCase() !== 'grading') continue;
+
+            const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
+            const slotId = originalItem?.metadata?.grading_slot_id || null;
+
+            // Term id: 1) slot-derived  2) item metadata  3) any lesson term on this invoice
+            let termId: string | null = null;
+            if (slotId) termId = await resolveTermFromSlot(slotId);
+            if (!termId) termId = originalItem?.metadata?.term_id || originalItem?.metadata?.term_ids?.[0] || null;
+            if (!termId && lessonTermIds.size > 0) termId = Array.from(lessonTermIds)[0];
+            if (!termId) continue; // can't place this registration without a term
+
+            // Belt transition derived from the product name; fall back to student's belt
+            const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
+            const currentBelt = parsedFrom || studentCurrentBelt || 'White';
+            const targetBelt = parsedTo || studentCurrentBelt || 'White';
+
+            // Idempotent on (invoice_item_id) — a grading line item maps to exactly one registration
+            const { data: existingByItem } = await supabase
+              .from('grading_registrations')
+              .select('id')
+              .eq('invoice_item_id', insertedItem.id)
+              .maybeSingle();
+            if (existingByItem) continue;
+
+            // Otherwise look for an existing (student_id, term_id) row that has no invoice_item_id yet
+            const { data: existingByTerm } = await supabase
+              .from('grading_registrations')
+              .select('id, grading_slot_id, invoice_item_id')
+              .eq('student_id', invoiceData.student_id)
+              .eq('term_id', termId)
+              .is('invoice_item_id', null)
+              .maybeSingle();
+
+            if (existingByTerm) {
+              const updatePayload: any = {
+                ready_for_grading: true,
+                current_belt: currentBelt,
+                target_belt: targetBelt,
+                invoice_item_id: insertedItem.id,
               };
-
-              // Collect term_ids derived from grading_slot_id on any invoice item
-              const slotDerivedTermIds = new Set<string>();
-              for (const item of invoiceData.items) {
-                const slotId = item?.metadata?.grading_slot_id;
-                if (!slotId) continue;
-                const slotTermId = await resolveTermFromSlot(slotId);
-                if (slotTermId) slotDerivedTermIds.add(slotTermId);
+              if (!existingByTerm.grading_slot_id && slotId) {
+                updatePayload.grading_slot_id = slotId;
               }
-
-              // Collect lesson-derived term_ids (existing behaviour)
-              const lessonTermIds = new Set<string>();
-              for (const insertedItem of insertedItems) {
-                const product = lessonProducts.get(insertedItem.product_id);
-                if (!product) continue;
-                const originalItem = invoiceData.items.find(i => i.product_id === insertedItem.product_id);
-                const itemMetadata = originalItem?.metadata;
-                const termId = itemMetadata?.term_id || itemMetadata?.term_ids?.[0] || product.term_id;
-                if (termId) lessonTermIds.add(termId);
-              }
-
-              // Fallback: term_id from the matching grading item's own metadata
-              const matchingOriginal = invoiceData.items.find(i => i.product_id === matchingGradingItem.product_id);
-              const gradingItemTermId = matchingOriginal?.metadata?.term_id || matchingOriginal?.metadata?.term_ids?.[0] || null;
-
-              // Slot-derived terms take precedence; otherwise lesson-derived; otherwise grading item's own term
-              const finalTermIds = new Set<string>(slotDerivedTermIds);
-              if (slotDerivedTermIds.size === 0) {
-                for (const t of lessonTermIds) finalTermIds.add(t);
-              }
-              if (finalTermIds.size === 0 && gradingItemTermId) {
-                finalTermIds.add(gradingItemTermId);
-              }
-
-              // Find first slot id available on the invoice (used to link when creating)
-              const firstSlotId = invoiceData.items.find(i => i?.metadata?.grading_slot_id)?.metadata?.grading_slot_id || null;
-
-              for (const termId of finalTermIds) {
-                // Check for existing registration for this (student_id, term_id)
-                const { data: existingReg } = await supabase
-                  .from('grading_registrations')
-                  .select('id, result, invoice_item_id, grading_slot_id')
-                  .eq('student_id', invoiceData.student_id)
-                  .eq('term_id', termId)
-                  .maybeSingle();
-
-                if (existingReg) {
-                  // Only flip ready_for_grading on; refresh belts. Link slot if missing.
-                  const updatePayload: any = {
-                    ready_for_grading: true,
-                    current_belt: currentBelt,
-                    target_belt: targetBelt,
-                  };
-                  if (!existingReg.grading_slot_id && firstSlotId) {
-                    updatePayload.grading_slot_id = firstSlotId;
-                  }
-                  if (!existingReg.invoice_item_id) {
-                    updatePayload.invoice_item_id = matchingGradingItem.id;
-                  }
-                  await supabase
-                    .from('grading_registrations')
-                    .update(updatePayload)
-                    .eq('id', existingReg.id);
-                } else {
-                  await supabase
-                    .from('grading_registrations')
-                    .insert([{
-                      student_id: invoiceData.student_id,
-                      term_id: termId,
-                      current_belt: currentBelt,
-                      target_belt: targetBelt,
-                      ready_for_grading: true,
-                      invoice_item_id: matchingGradingItem.id,
-                      grading_slot_id: firstSlotId,
-                      result: null,
-                      created_by: createdByEmail,
-                    }]);
-                }
-              }
-              } // end if (matchingGradingItem)
+              await supabase
+                .from('grading_registrations')
+                .update(updatePayload)
+                .eq('id', existingByTerm.id);
+            } else {
+              await supabase
+                .from('grading_registrations')
+                .insert([{
+                  student_id: invoiceData.student_id,
+                  term_id: termId,
+                  current_belt: currentBelt,
+                  target_belt: targetBelt,
+                  ready_for_grading: true,
+                  invoice_item_id: insertedItem.id,
+                  grading_slot_id: slotId,
+                  result: null,
+                  created_by: createdByEmail,
+                }]);
             }
           }
         } catch (gradingRegError) {
