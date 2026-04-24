@@ -59,6 +59,11 @@ A small set of label **suggestions** (not enforced) lives in a frontend constant
 
 Compact dialog opened from the per-row Pencil icon (Morley AU rows only) **or** automatically before the Generate Certificate action when `scorecard` is null/empty.
 
+**Persistence (REQUIRED):** Every Save action writes the full `scorecard` array to `grading_registrations.scorecard` via Supabase update. The dialog is the single source of truth — re-opening it always reloads the latest persisted JSON from the DB (via the existing React Query `grading_registrations` cache, invalidated on save). Nothing is held only in component state. Both buttons persist:
+- **Save** → writes to DB, closes dialog, toast "Scorecard saved".
+- **Save & Generate PDF** → writes to DB first, then generates PDF from the just-saved data.
+- **Cancel** → discards local edits, no DB write.
+
 Layout:
 - Header: `Scorecard — {Student Name} — {Target Belt}`
 - Read-only context strip: Height / Weight inputs (auto-calculate BMI shown beside) — these are convenience fields that get pushed into the JSON array as the first three entries.
@@ -108,18 +113,18 @@ For SG branches: render the existing greyed-out "Cert (SG template pending)" pla
 
 ## Implementation steps
 
-1. **Migration** — add `scorecard jsonb` column on `grading_registrations` (nullable, default null). No backfill needed.
+1. **Migration** — add `scorecard jsonb` column on `grading_registrations` (nullable, default null). No backfill needed. RLS: existing `grading_registrations` policies cover the new column (no policy changes required).
 2. **Constants** — add `src/constants/beltLevels.ts → isFoundationToBlackTip(belt)` helper and `src/constants/scorecardLabels.ts → SCORECARD_LABEL_SUGGESTIONS`.
 3. **PDF generator** — `src/utils/gradingCertificatePDFGenerator.ts` (jsPDF, A4 landscape). Two functions:
    - `generateAUCertificate({ registration, student, branch, certVariant: 'I' | 'II' })`
    - Internal `drawPage1AU(...)` and `drawPage2Scorecard(...)`.
    - Bundled assets under `src/assets/certificates/au/` (logos + signature PNG).
-4. **Scorecard dialog** — `src/components/grading/GradingScorecardDialog.tsx` (flexible row editor, autocomplete labels, BMI auto-calc).
+4. **Scorecard dialog** — `src/components/grading/GradingScorecardDialog.tsx` (flexible row editor, autocomplete labels, BMI auto-calc). **Persists scorecard JSON to `grading_registrations.scorecard` via Supabase update on Save.** Uses React Query mutation + invalidates the grading-registrations query so all UIs see the latest scorecard immediately.
 5. **Wire-up** — in both grading list components:
    - Add `Award` icon button per row, gated by the eligibility logic above.
-   - On click: if `scorecard` is null/empty → open `GradingScorecardDialog` first; else → call generator directly.
-   - Pencil icon on the row also opens the scorecard dialog (separate from the grading-slot/result bulk dialog).
-6. **Memory** — add `mem://features/grading/certificate-au-morley` describing the AU/Morley scope, JSON scorecard shape, and that SG template is deferred. Update `mem://index.md` Memories list.
+   - On click: if `scorecard` is null/empty → open `GradingScorecardDialog` first; else → call generator directly with the persisted JSON.
+   - Pencil icon on the row also opens the scorecard dialog (separate from the grading-slot/result bulk dialog) so staff can edit the saved scorecard at any time, even after the certificate has been issued.
+6. **Memory** — add `mem://features/grading/certificate-au-morley` describing the AU/Morley scope, the persisted JSON scorecard shape, and that SG template is deferred. Update `mem://index.md` Memories list.
 
 ## Files to create / edit
 
@@ -150,5 +155,6 @@ For SG branches: render the existing greyed-out "Cert (SG template pending)" pla
 - Morley row, result = double, belt = Yellow → Cert I + Cert II both enabled. Cert I prints intermediate (Yellow Tip), Cert II prints Yellow.
 - Morley row, result = pass, belt = 1st Poom → both Cert buttons hidden (out of belt range).
 - Jurong West row → Cert button disabled with tooltip "Singapore template pending".
-- Re-opening the scorecard dialog for a registration that was already saved restores the same rows in the same order.
-- Examiner removes the `Push-ups` row → re-generates → PDF no longer shows that line.
+- Re-opening the scorecard dialog for a registration that was already saved restores the same rows in the same order **from the database** (verified by hard-refreshing the page between save and re-open).
+- Examiner removes the `Push-ups` row → Save → re-opens dialog → row stays gone (DB persisted) → re-generates → PDF no longer shows that line.
+- Editing scorecard on one device and refreshing on another (same registration) shows the updated scorecard — confirms it lives in DB, not local state.
