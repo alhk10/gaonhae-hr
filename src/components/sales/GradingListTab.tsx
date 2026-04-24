@@ -202,6 +202,12 @@ const GradingListTab: React.FC = () => {
 
   const selectedTermData = terms.find(t => t.id === selectedTerm);
 
+  // Term-aware Ready derivation: a row counts as Ready if the DB flag is true
+  // OR the term has started and there is no recorded result. The DB flag is
+  // synced lazily on the next save (see batchSaveMutation below).
+  const todayStr = new Date().toISOString().split('T')[0];
+  const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
+
   // Union-driven: registrations ∪ lesson-invoiced students for this term + branch.
   // Lesson-invoice-only students appear with no registration_id; editing them
   // (toggle Ready / set slot / set result) creates a registration on save.
