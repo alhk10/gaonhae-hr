@@ -223,7 +223,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
-        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id')
+        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id, scorecard')
         .eq('term_id', selectedTerm);
       if (regErr) throw regErr;
       const registrations = regs || [];
