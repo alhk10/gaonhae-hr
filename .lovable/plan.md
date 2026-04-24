@@ -113,18 +113,18 @@ For SG branches: render the existing greyed-out "Cert (SG template pending)" pla
 
 ## Implementation steps
 
-1. **Migration** — add `scorecard jsonb` column on `grading_registrations` (nullable, default null). No backfill needed.
+1. **Migration** — add `scorecard jsonb` column on `grading_registrations` (nullable, default null). No backfill needed. RLS: existing `grading_registrations` policies cover the new column (no policy changes required).
 2. **Constants** — add `src/constants/beltLevels.ts → isFoundationToBlackTip(belt)` helper and `src/constants/scorecardLabels.ts → SCORECARD_LABEL_SUGGESTIONS`.
 3. **PDF generator** — `src/utils/gradingCertificatePDFGenerator.ts` (jsPDF, A4 landscape). Two functions:
    - `generateAUCertificate({ registration, student, branch, certVariant: 'I' | 'II' })`
    - Internal `drawPage1AU(...)` and `drawPage2Scorecard(...)`.
    - Bundled assets under `src/assets/certificates/au/` (logos + signature PNG).
-4. **Scorecard dialog** — `src/components/grading/GradingScorecardDialog.tsx` (flexible row editor, autocomplete labels, BMI auto-calc).
+4. **Scorecard dialog** — `src/components/grading/GradingScorecardDialog.tsx` (flexible row editor, autocomplete labels, BMI auto-calc). **Persists scorecard JSON to `grading_registrations.scorecard` via Supabase update on Save.** Uses React Query mutation + invalidates the grading-registrations query so all UIs see the latest scorecard immediately.
 5. **Wire-up** — in both grading list components:
    - Add `Award` icon button per row, gated by the eligibility logic above.
-   - On click: if `scorecard` is null/empty → open `GradingScorecardDialog` first; else → call generator directly.
-   - Pencil icon on the row also opens the scorecard dialog (separate from the grading-slot/result bulk dialog).
-6. **Memory** — add `mem://features/grading/certificate-au-morley` describing the AU/Morley scope, JSON scorecard shape, and that SG template is deferred. Update `mem://index.md` Memories list.
+   - On click: if `scorecard` is null/empty → open `GradingScorecardDialog` first; else → call generator directly with the persisted JSON.
+   - Pencil icon on the row also opens the scorecard dialog (separate from the grading-slot/result bulk dialog) so staff can edit the saved scorecard at any time, even after the certificate has been issued.
+6. **Memory** — add `mem://features/grading/certificate-au-morley` describing the AU/Morley scope, the persisted JSON scorecard shape, and that SG template is deferred. Update `mem://index.md` Memories list.
 
 ## Files to create / edit
 
