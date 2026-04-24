@@ -31,7 +31,12 @@ import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from '@/components/sales/GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
-import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
+import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
+import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
+import { listColumns, scorecardColumnsKey } from '@/services/gradingScorecardColumnService';
+import { downloadGradingCertificatePDF } from '@/utils/gradingCertificatePDFGenerator';
+import type { ScorecardRow } from '@/constants/scorecardLabels';
+import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
 
 interface GradingListStudent {
