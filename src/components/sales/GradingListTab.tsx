@@ -559,6 +559,16 @@ const GradingListTab: React.FC = () => {
       }));
   }, [bulkStudentIds, selectedIds, students]);
 
+  const stickyLeftHead = 'sticky left-0 z-20 bg-card';
+  const stickyLeftCell = 'sticky left-0 z-10 bg-background';
+  const stickyRightHead = (offset: string) => `sticky z-20 bg-card ${offset}`;
+  const stickyRightCell = (offset: string) => `sticky z-10 bg-background ${offset}`;
+  const showScorecard = isMorley && !!selectedTerm;
+  const hasHeight = scorecardColumns.some(c => /height/i.test(c.label));
+  const hasWeight = scorecardColumns.some(c => /weight/i.test(c.label));
+  const showBmi = hasHeight && hasWeight;
+  const rowsKey = ['grading-list-students', selectedBranch, selectedTerm];
+
   const cellCls = 'py-1 px-2 text-xs align-middle';
   const headCls = 'h-8 px-2 text-xs';
 
