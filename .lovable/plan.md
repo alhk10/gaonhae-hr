@@ -1,80 +1,80 @@
-## Plan: Render discount line + Subtotal in single-child reminder message
+## Plan: Term 1 2026 grading list shows 0 students despite paid invoices
 
-### Problem
+### Root cause (two compounding issues)
 
-When a student has no siblings (single-invoice send), the SMS / WhatsApp reminder does not show the discount line, even though the same `buildItemAndDiscountLines` helper is used for the combined sibling message and renders it correctly there.
+Verified against Morley (`BR1768967806476`) + Term 1 2026 (`dd062ecd…`):
 
-Two issues compound:
+**1. `BranchGradingList.tsx` filters by the wrong term field.**
+The query filters lesson invoice items by `metadata.term_id === selectedTerm`. But the typical workflow at term-end is "Pay Grading + opt-in to next term" — the **lesson item carries the next term's id (Term 2 2026)** while the **grading slot is for the current term (Apr 11, in Term 1 2026)**. So when the user selects Term 1 2026, zero lesson items match and the list is empty — even for the 8 students who DO have a `grading_registrations` row for Term 1 2026 (Leah You, Olivia Lee, Yuzhou He, Zuhayr Jafarsadiq, etc.).
 
-1. **Visual ambiguity** — the single-child template (line 644–653 in `src/utils/invoicePDFGenerator.ts`) ends with `Total: ${formatCurrency(invoice.total_amount)}`. Because `invoice.total_amount` is already the *net* amount (after discount), if a discount line is rendered between the item and the Total, the math reads transparently (`$250 − $20 = $230 Total`) but there is no `Subtotal:` label like the combined template uses. Users glancing at the message can miss that the discount actually applied — or interpret the absence of a `Subtotal` line as the discount not being included.
+The Sales-side `GradingListTab.tsx` already does this correctly: it queries `grading_registrations.term_id` directly. `BranchGradingList` should mirror that approach.
 
-2. **Mismatch between single-invoice and combined-invoice templates** — the combined message uses `Subtotal: ${balance_due}` per block, while the single-child message uses `Total: ${total_amount}`. Inconsistent labels, and `total_amount` ignores partial payments while `balance_due` reflects what's actually owed.
+**2. ~10 paid grading invoices have no `grading_registrations` row at all.**
+Affected at Morley (Term 1 2026 slots, Apr 11): Ethan Bondarenko, Alex Noh, Eden Jung, Ejun Jung, Daniel Im, Earl John Lucero II, Elliot Hii, Henry Morgan, Evander King, Genie You, Iqraa Jafarsadiq, Keller Chaine.
+
+Auto-creation in `invoiceService.ts` (lines 385–422) only fires when the grading line item's name matches `formatBeltLevel(currentBelt) >> formatBeltLevel(getNextBeltLevel(currentBelt))`. It fails when:
+- the invoice is a **double-belt grading** (e.g. Ethan: current_belt `Green`, product `Green >> Blue Tip` — skipping `Green Tip`), or
+- the student's belt was advanced in a prior grading after this invoice was issued.
 
 ### Fix
 
-Update the single-child template in `buildTermReminderMessage` (`src/utils/invoicePDFGenerator.ts`, lines 634–654) so it mirrors the combined layout:
+#### A. Make `BranchGradingList.tsx` registration-driven (mirror Sales `GradingListTab.tsx`)
 
-**Before**
-```
-{itemsList}
+Replace the lesson-invoice-item driven student-discovery block (current lines ~183–337) with a registration-first flow:
 
-Total: {total_amount}
-```
+1. Query `grading_registrations` filtered by `term_id = selectedTerm` (no branch filter on the registration itself — registrations don't have branch_id).
+2. Filter to active students via `students` table (`status ilike 'active'`).
+3. Branch-scope by keeping only students who have ANY invoice at `branchId` (single `invoices` query already used in Sales tab).
+4. Keep existing enrichment: attendance count, slot info, `grading_paid` lookup via `invoice_item_id → invoices.status`.
+5. Keep `term_paid` derivation, but source the lesson invoice for the term via the existing branch-invoice list rather than via the term-id metadata filter.
+6. Update `invoicedTermIds` query to include terms appearing on `grading_registrations` for branch students (matches Sales tab logic at lines 160–167) so future grading-only terms still appear in the dropdown.
 
-**After**
-```
-{itemsList}
-Subtotal: {balance_due}
-```
+Files:
+- `src/components/dashboard/BranchGradingList.tsx` — query at lines 183–337 and `invoicedTermIds` query at lines 126–153.
 
-Specifically:
+No prop, type, mutation, or UI changes. Pure query refactor.
 
-1. Replace `Total: ${formatCurrency(invoice.total_amount)}` with `Subtotal: ${formatCurrency(invoice.balance_due)}`, placed immediately after `itemsList` (no blank line between items and Subtotal — matches combined format).
-2. Keep `buildItemAndDiscountLines(invoice)` exactly as-is — it already handles `metadata.line_discount`, negative-amount line items, and header `discount_amount`.
-3. No changes to `buildCombinedReminderMessage`, `shareInvoiceViaSMS`, `shareInvoiceViaWhatsApp`, or `BranchDashboard.tsx`.
+After this change, the existing 8 Morley Term 1 2026 registrations (Leah, Olivia, Yuzhou, Zuhayr, …) will appear immediately.
 
-Resulting single-child output (e.g., a lone student with a sibling discount on `Once a Week`):
+#### B. Backfill missing `grading_registrations` rows (one-off SQL migration)
 
-```
-Good Morning,
+For every invoice item where:
+- `metadata->>'grading_slot_id'` is set,
+- the parent invoice status is in (`paid`, `verified`, `partially_paid`, `draft`, `sent`, `unpaid`, `partial`, `overdue`) and not `cancelled`,
+- product `category_name = 'Grading'`,
+- and there is no existing `grading_registrations` row with that `invoice_item_id`,
 
-We have now reached the end of Term 1 2026. Term 2 2026 will commence in 4 days and will run from 28/04/2026 to 03/07/2026.
+insert a `grading_registrations` row using:
+- `student_id` from the parent invoice,
+- `invoice_item_id` from the line item,
+- `grading_slot_id` from `metadata`,
+- `term_id` resolved from the slot's `grading_date` against `term_calendars` for the slot's branch (window match → previous term → next term), matching `resolveTermFromSlot` logic in `invoiceService.ts` (lines 424–465),
+- `current_belt` from the belt-transition name (`"<from> >> <to>"` → `from`),
+- `target_belt` from the same parse (`to`),
+- `ready_for_grading = false`, `result = null`.
 
-Kindly arrange payment for ELI GIAM before the start of the term as follows:
+Scope: branch-agnostic, but verified to cover the 12 Morley cases above. Idempotent: only inserts where no matching `invoice_item_id` row exists.
 
-Once a Week – $250.00
-Discount: -$20.00
-National Athlete License – $35.00
-South West Open – $70.00
-Subtotal: $335.00
+#### C. Fix the auto-create gap for future invoices
 
-Payment can be made via bank transfer using the details below:
-{branch bank info}
-
-Thank you for your continued support.
-Gaonhae Taekwondo {branch}
-```
-
-### Files affected
-
-- `src/utils/invoicePDFGenerator.ts` — `buildTermReminderMessage` only.
-
-No DB changes, no service changes, no UI changes.
+In `src/services/invoiceService.ts` (lines 385–422), relax the matching:
+- If a `grading_slot_id` is present on any invoice item AND the line item belongs to a `Grading` category product, auto-create the registration regardless of whether the product name matches `current_belt → getNextBeltLevel(current_belt)`.
+- Parse `current_belt`/`target_belt` from the product name (split on `>>`) instead of computing from the student record. This handles double-belt gradings and post-grading-belt-update scenarios.
+- Keep the existing `resolveTermFromSlot` term-derivation.
+- Preserve idempotency (skip if a registration already exists for the same `invoice_item_id`).
 
 ### Verification
 
-1. **Single child with line discount** — click SMS on an invoice that has `metadata.line_discount` (e.g., `Once a Week` $250 with $20 sibling discount) for a student with no siblings: message shows the item at $250, `Discount: -$20.00` directly underneath, then `Subtotal: $230.00`.
-2. **Single child with negative-amount line item** (e.g., bundle discount): the negative item still renders as `{description}: -$10.00`, then `Subtotal: …`.
-3. **Single child with header `discount_amount`** only: shows `Discount: -{amount}` line, then `Subtotal: …`.
-4. **Single child with no discounts at all**: shows items, then `Subtotal: {balance_due}` — no spurious discount line.
-5. **Partial payment present** (`balance_due < total_amount`): Subtotal correctly reflects `balance_due`, matching the combined-template behaviour.
-6. **Combined sibling message**: unchanged — still per-block `Subtotal` + `Grand Total` at end.
-7. **WhatsApp button** on single child: identical body opens via WhatsApp.
-8. **Overdue reminder** (`shareInvoiceOverdueReminderViaSMS`): unchanged — uses its own template.
+1. Open Morley → Grading tab → Term 1 2026: list shows all ~20 students with paid/draft grading invoices for Apr 11 slots, including Ethan, Alex, Eden, Ejun, Daniel, Earl John, Elliot, Henry, Evander, Genie, Iqraa, Keller (after backfill) plus the 8 already-registered.
+2. Switching to Term 2 2026 still shows that term's grading registrations (no regression).
+3. Grading (paid/total) header counter stays correct (already registration-driven via `gradingMetrics`).
+4. Mass Edit save still works (no mutation code touched).
+5. Create a new draft invoice with a grading line item where the product name skips a belt (e.g. White → Yellow): a `grading_registrations` row is auto-created with `current_belt='White'`, `target_belt='Yellow'`.
+6. Sales → Grading List tab unaffected (already registration-driven).
 
 ### Out of scope
 
-- Changing the combined-message format.
-- Updating `InvoiceManagementList.tsx` (Sales module) which uses the same helper — it will automatically benefit.
-- Changing the PDF invoice body.
-- Overdue reminder template.
+- Cross-branch grading list merging.
+- Changing the dashboard "Grading (X/Y)" tab counter (already correct — uses registrations).
+- Touching `class_attendance`, slot eligibility, or grading-payment-prerequisite logic.
+- UI/visual changes to the grading table.
