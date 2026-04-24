@@ -56,7 +56,7 @@ import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
 import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
-import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, hasUsableMobileNumber, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, hasUsableMobileNumber, buildCombinedReminderMessage, normalizeWhatsAppTarget, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
@@ -335,44 +335,53 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
   }, [rejectingPayment, rejectionReason, branchId, queryClient, user?.employeeId]);
 
-  // Handle Send invoice via SMS (opens device SMS app, no PDF)
-  const handleShareSMS = async (invoice: any) => {
-    try {
-      const studentData = await getStudentById(invoice.student_id).catch(() => null);
-      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
-      if (!number) {
-        toast.error('No mobile number on file for this student');
-        return;
-      }
+  // Build the InvoiceData payload list to send. If the clicked student has an
+  // email shared with siblings, combine all currently unpaid invoices for those
+  // siblings (same branch only). Otherwise returns just the clicked invoice.
+  const buildShareInvoicePayload = async (
+    invoice: any
+  ): Promise<{ invoices: InvoiceData[]; terms: any; bankInfo: string | undefined }> => {
+    // Resolve branch country & bank-transfer template (shared by all invoices in this branch)
+    let branchCountry = 'Singapore';
+    if (invoice.branch_id) {
+      const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+      if (branchData?.country) branchCountry = branchData.country;
+    }
+    const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
+    const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
+    const template = templates?.[0] || null;
+    const templateForInvoice = template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined;
 
-      // Fetch full invoice items
-      const fullInvoice = await getInvoiceById(invoice.id);
+    // Always include the originally clicked invoice
+    const clickedFull = await getInvoiceById(invoice.id);
+    const clickedStudent = await getStudentById(invoice.student_id).catch(() => null);
+    const clickedEmail = (clickedStudent?.email || '').trim().toLowerCase();
 
-      // Fetch bank transfer info from active template for this branch's country
-      let branchCountry = 'Singapore';
-      if (invoice.branch_id) {
-        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
-        if (branchData?.country) branchCountry = branchData.country;
-      }
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
-      const template = templates?.[0] || null;
+    // Resolve term context (anchored to the clicked invoice's items)
+    const terms = await resolveInvoiceTermContext(invoice.branch_id, clickedFull?.items);
 
-      const sourceInvoice = fullInvoice ?? invoice;
-      const invoiceData: InvoiceData = {
-        id: invoice.id,
-        invoice_number: invoice.invoice_number,
-        issue_date: sourceInvoice.issue_date || null,
-        due_date: sourceInvoice.due_date || null,
-        subtotal: sourceInvoice.subtotal,
-        tax_amount: sourceInvoice.tax_amount,
-        discount_amount: sourceInvoice.discount_amount,
-        total_amount: sourceInvoice.total_amount,
-        amount_paid: sourceInvoice.amount_paid,
-        balance_due: sourceInvoice.balance_due,
-        notes: sourceInvoice.notes,
-        status: sourceInvoice.status,
-        items: fullInvoice?.items?.map((item: any) => ({
+    // Helper: build full InvoiceData payload from a fetched invoice + student
+    const toInvoiceData = (
+      inv: any,
+      full: any,
+      student: { name: string; email?: string | null } | undefined
+    ): InvoiceData => {
+      const source = full ?? inv;
+      return {
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        issue_date: source.issue_date || null,
+        due_date: source.due_date || null,
+        subtotal: source.subtotal,
+        tax_amount: source.tax_amount,
+        discount_amount: source.discount_amount,
+        total_amount: source.total_amount,
+        amount_paid: source.amount_paid,
+        balance_due: source.balance_due,
+        notes: source.notes,
+        status: source.status,
+        student: student ? { name: student.name, email: student.email ?? null } : undefined,
+        items: full?.items?.map((item: any) => ({
           id: item.id,
           description: item.description,
           quantity: item.quantity,
@@ -383,14 +392,99 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           metadata: item.metadata,
         })) || [],
         branch: branch ? { name: branch.name, address: branch.address } : undefined,
-        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+        template: templateForInvoice,
       };
+    };
 
-      // Resolve term context anchored to the invoice itself
-      // (invoice's term = upcoming; previous term = ending)
-      const smsTerms = await resolveInvoiceTermContext(invoice.branch_id, fullInvoice?.items);
+    const clickedStudentName = clickedStudent
+      ? `${clickedStudent.first_name || ''} ${clickedStudent.last_name || ''}`.trim() || 'Student'
+      : 'Student';
 
-      await shareInvoiceViaSMS(invoiceData, number, smsTerms);
+    const clickedPayload = toInvoiceData(invoice, clickedFull, {
+      name: clickedStudentName,
+      email: clickedStudent?.email,
+    });
+
+    // No email → can't match siblings, just send the single clicked invoice
+    if (!clickedEmail) {
+      return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
+    }
+
+    // Find siblings sharing this email (case-insensitive)
+    const { data: siblings } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, email')
+      .ilike('email', clickedEmail);
+
+    const siblingIds = (siblings || []).map((s: any) => s.id).filter((id: string) => id !== invoice.student_id);
+    if (siblingIds.length === 0) {
+      return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
+    }
+
+    // Pull all currently unpaid invoices for the siblings within the same branch
+    const { data: siblingInvoices } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, student_id, balance_due, status, branch_id, issue_date, due_date, subtotal, tax_amount, discount_amount, total_amount, amount_paid, notes')
+      .in('student_id', siblingIds)
+      .eq('branch_id', invoice.branch_id)
+      .in('status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue']);
+
+    const otherInvoices = (siblingInvoices || []).filter((inv: any) => (inv.balance_due ?? 0) > 0);
+    if (otherInvoices.length === 0) {
+      return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
+    }
+
+    // Build payloads for sibling invoices in parallel
+    const siblingMap = new Map((siblings || []).map((s: any) => [s.id, s]));
+    const siblingPayloads = await Promise.all(
+      otherInvoices.map(async (inv: any) => {
+        const full = await getInvoiceById(inv.id).catch(() => null);
+        const sib = siblingMap.get(inv.student_id);
+        const sibName = sib
+          ? `${sib.first_name || ''} ${sib.last_name || ''}`.trim() || 'Student'
+          : 'Student';
+        return toInvoiceData(inv, full, { name: sibName, email: sib?.email });
+      })
+    );
+
+    // Combine + dedupe by invoice id (clicked invoice first), then sort by student name → invoice number
+    const all: InvoiceData[] = [clickedPayload, ...siblingPayloads];
+    const seen = new Set<string>();
+    const deduped = all.filter(p => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+    deduped.sort((a, b) => {
+      const an = (a.student?.name || '').toLowerCase();
+      const bn = (b.student?.name || '').toLowerCase();
+      if (an !== bn) return an.localeCompare(bn);
+      return (a.invoice_number || '').localeCompare(b.invoice_number || '');
+    });
+
+    return { invoices: deduped, terms, bankInfo: template?.bank_transfer_info || undefined };
+  };
+
+  // Handle Send invoice via SMS (opens device SMS app, no PDF)
+  const handleShareSMS = async (invoice: any) => {
+    try {
+      const studentData = await getStudentById(invoice.student_id).catch(() => null);
+      const number = (studentData?.whatsapp || studentData?.phone || '').trim();
+      if (!number) {
+        toast.error('No mobile number on file for this student');
+        return;
+      }
+
+      const { invoices, terms } = await buildShareInvoicePayload(invoice);
+
+      if (invoices.length === 1) {
+        await shareInvoiceViaSMS(invoices[0], number, terms);
+        return;
+      }
+
+      // Combined message for siblings
+      const message = buildCombinedReminderMessage(invoices, terms);
+      const cleanNumber = number.normalize('NFKC').replace(/[\s\-\(\)]/g, '');
+      window.location.href = `sms:${cleanNumber}?&body=${encodeURIComponent(message)}`;
+
+      const distinctStudents = new Set(invoices.map(i => i.student?.name?.trim() || '').filter(Boolean)).size;
+      toast.success(`Combined reminder for ${invoices.length} invoices across ${distinctStudents} student(s).`);
     } catch (error) {
       console.error('Error sharing invoice via SMS:', error);
       toast.error('Failed to open SMS app');
@@ -408,49 +502,44 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       }
       const number = candidate;
 
-      // Fetch full invoice items
-      const fullInvoice = await getInvoiceById(invoice.id);
+      const { invoices, terms } = await buildShareInvoicePayload(invoice);
 
-      // Fetch bank transfer info from active template for this branch's country
-      let branchCountry = 'Singapore';
-      if (invoice.branch_id) {
-        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
-        if (branchData?.country) branchCountry = branchData.country;
+      if (invoices.length === 1) {
+        await shareInvoiceViaWhatsApp(invoices[0], number, terms);
+        return;
       }
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase.from('invoice_templates').select('bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
-      const template = templates?.[0] || null;
 
-      const sourceInvoice = fullInvoice ?? invoice;
-      const invoiceData: InvoiceData = {
-        id: invoice.id,
-        invoice_number: invoice.invoice_number,
-        issue_date: sourceInvoice.issue_date || null,
-        due_date: sourceInvoice.due_date || null,
-        subtotal: sourceInvoice.subtotal,
-        tax_amount: sourceInvoice.tax_amount,
-        discount_amount: sourceInvoice.discount_amount,
-        total_amount: sourceInvoice.total_amount,
-        amount_paid: sourceInvoice.amount_paid,
-        balance_due: sourceInvoice.balance_due,
-        notes: sourceInvoice.notes,
-        status: sourceInvoice.status,
-        items: fullInvoice?.items?.map((item: any) => ({
-          id: item.id,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_amount: item.total_amount,
-          tax_rate: item.tax_rate,
-          tax_amount: item.tax_amount,
-          metadata: item.metadata,
-        })) || [],
-        branch: branch ? { name: branch.name, address: branch.address } : undefined,
-        template: template ? { bank_transfer_info: template.bank_transfer_info || undefined } : undefined,
+      // Combined message for siblings
+      const message = buildCombinedReminderMessage(invoices, terms);
+      const digits = normalizeWhatsAppTarget(number);
+      if (!digits) {
+        toast.error('No valid mobile number to send WhatsApp message to');
+        return;
+      }
+      const encoded = encodeURIComponent(message);
+      const appUrl = `whatsapp://send?phone=${digits}&text=${encoded}`;
+      const webUrl = `https://wa.me/${digits}?text=${encoded}`;
+
+      const startedAt = Date.now();
+      let fellBack = false;
+      const fallback = () => {
+        if (fellBack) return;
+        fellBack = true;
+        window.open(webUrl, '_blank', 'noopener,noreferrer');
       };
+      try {
+        window.location.href = appUrl;
+      } catch {
+        fallback();
+      }
+      window.setTimeout(() => {
+        if (Date.now() - startedAt < 2500 && document.visibilityState === 'visible') {
+          fallback();
+        }
+      }, 800);
 
-      const terms = await resolveInvoiceTermContext(invoice.branch_id, fullInvoice?.items);
-      await shareInvoiceViaWhatsApp(invoiceData, number, terms);
+      const distinctStudents = new Set(invoices.map(i => i.student?.name?.trim() || '').filter(Boolean)).size;
+      toast.success(`Combined reminder for ${invoices.length} invoices across ${distinctStudents} student(s).`);
     } catch (error) {
       console.error('Error sharing invoice via WhatsApp:', error);
       toast.error('Failed to open WhatsApp');
