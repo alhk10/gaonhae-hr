@@ -366,6 +366,9 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           grading_slot_title: slot?.title || null,
           grading_slot_date: slot?.grading_date || null,
           grading_slot_id: reg.grading_slot_id || null,
+          scorecard: Array.isArray((reg as any).scorecard)
+            ? ((reg as any).scorecard as any[]).map((r: any) => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
+            : [],
         });
       }
 
