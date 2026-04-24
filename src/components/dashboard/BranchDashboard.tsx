@@ -417,11 +417,18 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
     }
 
+    // No email → can't match siblings, just send the single clicked invoice
+    if (!clickedEmail) {
+      console.warn('[ShareInvoice] No email on clicked student → single-invoice send', { studentId: invoice.student_id });
+      return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
+    }
+
     // Find siblings sharing this email (case-insensitive)
-    const { data: siblings } = await supabase
+    const { data: siblings, error: sibErr } = await supabase
       .from('students')
       .select('id, first_name, last_name, email')
       .ilike('email', clickedEmail);
+    if (sibErr) console.warn('[ShareInvoice] sibling lookup failed', sibErr);
 
     const siblingIds = (siblings || []).map((s: any) => s.id).filter((id: string) => id !== invoice.student_id);
     if (siblingIds.length === 0) {
