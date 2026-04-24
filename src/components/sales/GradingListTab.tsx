@@ -29,7 +29,12 @@ import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
-import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
+import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
+import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
+import { listColumns } from '@/services/gradingScorecardColumnService';
+import { downloadGradingCertificatePDF } from '@/utils/gradingCertificatePDFGenerator';
+import type { ScorecardRow } from '@/constants/scorecardLabels';
+import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
 
 /** Phase 1 — only Morley (AU) gets the AU certificate template. */
