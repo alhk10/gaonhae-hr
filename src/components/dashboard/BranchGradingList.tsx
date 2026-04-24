@@ -625,8 +625,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                       const result = student.result;
                       const ready = displayReady(student);
                       const isSelected = selectedIds.has(student.student_id);
-                      const canViewCertificate = result === 'pass' || result === 'confirmed';
-                      const canViewCertificateII = result === 'double';
+                      // Phase 1 cert eligibility: pass/double + Foundation→Black Tip range.
+                      // Non-Morley branches still see the icon (disabled with tooltip).
+                      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+                      const canViewCertificate = (result === 'pass' || result === 'double') && beltInRange;
+                      const canViewCertificateII = result === 'double' && beltInRange;
+                      const certDisabled = !isMorley;
+                      const certTitle = certDisabled ? 'Template pending for this branch' : 'Generate certificate';
 
                       return (
                         <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
