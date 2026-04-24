@@ -476,8 +476,34 @@ const GradingListTab: React.FC = () => {
     onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
-  const handleViewCertificate = (_studentId: string, certificateNumber: 1 | 2) => {
-    toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
+  /**
+   * Open the scorecard editor + AU certificate generator for a student.
+   * Phase 1: only the Morley (AU) branch generates a real PDF; other branches
+   * show a disabled button with a "template pending" tooltip.
+   */
+  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    if (!isMorley) {
+      toast.info('Certificate template pending for this branch');
+      return;
+    }
+    if (!student.registration_id) {
+      toast.error('No grading registration found for this student');
+      return;
+    }
+    const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+    const beltAchieved = certificateNumber === 2
+      ? getNextBeltLevel(baseBelt, 'AU')
+      : baseBelt;
+    if (!beltAchieved) {
+      toast.error('Could not determine target belt');
+      return;
+    }
+    setCertCtx({
+      registrationId: student.registration_id,
+      studentName: student.student_name,
+      beltAchieved,
+      gradingDate: student.grading_slot_date,
+    });
   };
 
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
