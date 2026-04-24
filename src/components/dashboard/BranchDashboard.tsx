@@ -436,12 +436,13 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
 
     // Pull all currently unpaid invoices for the siblings within the same branch
-    const { data: siblingInvoices } = await supabase
+    const { data: siblingInvoices, error: invErr } = await supabase
       .from('invoices')
       .select('id, invoice_number, student_id, balance_due, status, branch_id, issue_date, due_date, subtotal, tax_amount, discount_amount, total_amount, amount_paid, notes')
       .in('student_id', siblingIds)
       .eq('branch_id', invoice.branch_id)
       .in('status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue']);
+    if (invErr) console.warn('[ShareInvoice] sibling invoices lookup failed', invErr);
 
     const otherInvoices = (siblingInvoices || []).filter((inv: any) => (inv.balance_due ?? 0) > 0);
     if (otherInvoices.length === 0) {
