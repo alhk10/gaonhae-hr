@@ -471,8 +471,35 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
-  const handleViewCertificate = (_studentId: string, certificateNumber: 1 | 2) => {
-    toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
+  /**
+   * Open the scorecard editor for a student. Cert I uses the target belt
+   * (next promotion); Cert II is only used for "double" promotions and
+   * uses the belt after that. Only enabled for the Morley (AU) branch in
+   * Phase 1, and only for the Foundation → Black Tip range.
+   */
+  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    if (!isMorley) {
+      toast.info('Certificate template pending for this branch');
+      return;
+    }
+    if (!student.registration_id) {
+      toast.error('No grading registration found for this student');
+      return;
+    }
+    const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+    const beltAchieved = certificateNumber === 2
+      ? getNextBeltLevel(baseBelt, 'AU')
+      : baseBelt;
+    if (!beltAchieved) {
+      toast.error('Could not determine target belt');
+      return;
+    }
+    setCertCtx({
+      registrationId: student.registration_id,
+      studentName: student.student_name,
+      beltAchieved,
+      gradingDate: student.grading_slot_date,
+    });
   };
 
   // Selection helpers
@@ -598,8 +625,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                       const result = student.result;
                       const ready = displayReady(student);
                       const isSelected = selectedIds.has(student.student_id);
-                      const canViewCertificate = result === 'pass' || result === 'confirmed';
-                      const canViewCertificateII = result === 'double';
+                      // Phase 1 cert eligibility: pass/double + Foundation→Black Tip range.
+                      // Non-Morley branches still see the icon (disabled with tooltip).
+                      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+                      const canViewCertificate = (result === 'pass' || result === 'double') && beltInRange;
+                      const canViewCertificateII = result === 'double' && beltInRange;
+                      const certDisabled = !isMorley;
+                      const certTitle = certDisabled ? 'Template pending for this branch' : 'Generate certificate';
 
                       return (
                         <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
@@ -661,14 +693,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           </TableCell>
                           <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificate ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 1)}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 1)}>
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           <TableCell className={`${cellCls} text-center`}>
                             {canViewCertificateII ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 2)}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 2)}>
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             ) : <span className="text-muted-foreground">-</span>}
@@ -873,6 +905,19 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           termId={selectedTerm}
           termStartDate={selectedTermData.start_date}
           termEndDate={selectedTermData.end_date}
+        />
+      )}
+
+      {/* Phase 1 — AU/Morley scorecard + certificate generator */}
+      {certCtx && (
+        <GradingScorecardDialog
+          open={!!certCtx}
+          onOpenChange={(o) => { if (!o) setCertCtx(null); }}
+          registrationId={certCtx.registrationId}
+          studentName={certCtx.studentName}
+          beltAchieved={certCtx.beltAchieved}
+          gradingDate={certCtx.gradingDate}
+          invalidateKeys={[['grading-list-students', branchId, selectedTerm]]}
         />
       )}
     </div>

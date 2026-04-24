@@ -22,19 +22,24 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
-import { formatBeltLevel } from '@/constants/beltLevels';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
 import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/grading/GradingBulkEditDialog';
+import GradingScorecardDialog from '@/components/grading/GradingScorecardDialog';
 import { formatDate } from '@/utils/dateFormat';
+
+/** Phase 1 — only Morley (AU) gets the AU certificate template. */
+const MORLEY_BRANCH_ID = 'BR1768967806476';
 
 interface GradingListStudent {
   student_id: string;
   student_name: string;
   current_belt: string | null;
+  target_belt: string | null;
   invoice_status: string;
   invoice_id: string;
   ready_for_grading: boolean;
@@ -68,6 +73,15 @@ const GradingListTab: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
+  // Phase 1 — AU/Morley scorecard + cert dialog state
+  const [certCtx, setCertCtx] = useState<{
+    registrationId: string;
+    studentName: string;
+    beltAchieved: string;
+    gradingDate: string | null;
+  } | null>(null);
+
+  const isMorley = selectedBranch === MORLEY_BRANCH_ID;
 
   const { data: availableSlots = [] } = useQuery({
     queryKey: ['grading-slots-available', selectedBranch],
@@ -342,6 +356,7 @@ const GradingListTab: React.FC = () => {
           student_id: reg.student_id,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: reg.current_belt || student.current_belt,
+          target_belt: reg.target_belt || null,
           invoice_status: invoiceStatus,
           invoice_id: invoiceId,
           ready_for_grading: reg.ready_for_grading || false,
@@ -368,6 +383,7 @@ const GradingListTab: React.FC = () => {
           student_id: studentId,
           student_name: `${student.first_name} ${student.last_name}`,
           current_belt: student.current_belt,
+          target_belt: null,
           invoice_status: termLessonInv.status,
           invoice_id: termLessonInv.id,
           ready_for_grading: false,
@@ -460,8 +476,34 @@ const GradingListTab: React.FC = () => {
     onError: (error: Error) => toast.error(error.message || 'Failed to submit deletion request'),
   });
 
-  const handleViewCertificate = (_studentId: string, certificateNumber: 1 | 2) => {
-    toast.info(`Certificate ${certificateNumber === 2 ? 'II ' : ''}generation coming soon`);
+  /**
+   * Open the scorecard editor + AU certificate generator for a student.
+   * Phase 1: only the Morley (AU) branch generates a real PDF; other branches
+   * show a disabled button with a "template pending" tooltip.
+   */
+  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    if (!isMorley) {
+      toast.info('Certificate template pending for this branch');
+      return;
+    }
+    if (!student.registration_id) {
+      toast.error('No grading registration found for this student');
+      return;
+    }
+    const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+    const beltAchieved = certificateNumber === 2
+      ? getNextBeltLevel(baseBelt, 'AU')
+      : baseBelt;
+    if (!beltAchieved) {
+      toast.error('Could not determine target belt');
+      return;
+    }
+    setCertCtx({
+      registrationId: student.registration_id,
+      studentName: student.student_name,
+      beltAchieved,
+      gradingDate: student.grading_slot_date,
+    });
   };
 
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
@@ -585,8 +627,11 @@ const GradingListTab: React.FC = () => {
                     const result = student.result;
                     const ready = displayReady(student);
                     const isSelected = selectedIds.has(student.student_id);
-                    const canViewCertificate = result === 'pass' || result === 'confirmed';
-                    const canViewCertificateII = result === 'double';
+                    const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+                    const canViewCertificate = (result === 'pass' || result === 'double') && beltInRange;
+                    const canViewCertificateII = result === 'double' && beltInRange;
+                    const certDisabled = !isMorley;
+                    const certTitle = certDisabled ? 'Template pending for this branch' : 'Generate certificate';
 
                     return (
                       <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
@@ -647,14 +692,14 @@ const GradingListTab: React.FC = () => {
                         </TableCell>
                         <TableCell className={`${cellCls} text-center`}>
                           {canViewCertificate ? (
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 1)}>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 1)}>
                               <FileText className="w-3.5 h-3.5" />
                             </Button>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className={`${cellCls} text-center`}>
                           {canViewCertificateII ? (
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleViewCertificate(student.student_id, 2)}>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 2)}>
                               <FileText className="w-3.5 h-3.5" />
                             </Button>
                           ) : <span className="text-muted-foreground">-</span>}
@@ -743,6 +788,19 @@ const GradingListTab: React.FC = () => {
           termId={selectedTerm}
           termStartDate={selectedTermData.start_date}
           termEndDate={selectedTermData.end_date}
+        />
+      )}
+
+      {/* Phase 1 — AU/Morley scorecard + certificate generator */}
+      {certCtx && (
+        <GradingScorecardDialog
+          open={!!certCtx}
+          onOpenChange={(o) => { if (!o) setCertCtx(null); }}
+          registrationId={certCtx.registrationId}
+          studentName={certCtx.studentName}
+          beltAchieved={certCtx.beltAchieved}
+          gradingDate={certCtx.gradingDate}
+          invalidateKeys={[['grading-list-students', selectedBranch, selectedTerm]]}
         />
       )}
     </div>
