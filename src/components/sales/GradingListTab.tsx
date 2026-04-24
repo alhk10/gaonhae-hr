@@ -79,14 +79,6 @@ const GradingListTab: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
-  // Phase 1 — AU/Morley scorecard + cert dialog state
-  const [certCtx, setCertCtx] = useState<{
-    registrationId: string;
-    studentName: string;
-    beltAchieved: string;
-    gradingDate: string | null;
-  } | null>(null);
-
   const isMorley = selectedBranch === MORLEY_BRANCH_ID;
 
   const { data: availableSlots = [] } = useQuery({
