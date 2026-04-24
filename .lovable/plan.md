@@ -1,144 +1,154 @@
-## Grading List — Sort, Compact Rows, Multi-Select Bulk Action, Autosave Ready
+# Grading Certificate PDF — AU (Morley) Template with Flexible Scorecard
 
-Apply the same changes to **both** files (they share the same shape):
-- `src/components/dashboard/BranchGradingList.tsx` (Branch Dashboard)
-- `src/components/sales/GradingListTab.tsx` (Sales / Superadmin)
+Generate a 2-page PDF (Page 1 = Certificate, Page 2 = Scorecard) for Foundation → Black Tip results, modelled on the uploaded `Grading_Certificate_Template_Morley.pdf`.
 
-### 1. Sort by slot order (unassigned at top)
+## Scope rules
 
-Replace the current `result.sort((a, b) => a.student_name.localeCompare(b.student_name))` with:
+- **Branch scope (Phase 1):** Only enabled for **Morley** (`branch_id = BR1768967806476`, country = `Australia`). Other AU branches added later inherit the same template; the country gate is `country === 'Australia'`.
+- **Singapore branches:** Use a **different template** (Phase 2, not built in this iteration). The certificate button on SG-branch rows is hidden until that template ships.
+- **Belt scope:** Only when `target_belt` is one of *Foundation, Foundation 1/2/3, White, Yellow Tip, Yellow, Green Tip, Green, Blue Tip, Blue, Red Tip, Red, Black Tip*. Poom/Dan grades are excluded (Kukkiwon cert handles those).
+- **Eligibility:** Button enabled only when `result === 'pass'` or `result === 'double'`. For `double`, **two** certificate buttons are shown — Cert I (first belt) and Cert II (second belt).
+- **Date format on certificate:** Long form, e.g. `24 April 2026` (not DD/MM/YYYY) — explicit user choice for ceremonial documents. The Branch Dashboard list itself continues to show DD/MM/YYYY per the project-wide date rule.
+- **Action:** Generate → download PDF only. Do NOT auto-flip `certificate_issued` / `certificate_ii_issued`; staff toggle those manually (existing behaviour preserved).
+- **Belt label printed on Page 1:** the belt the student has just **passed into** (i.e. `target_belt`), e.g. *"Yellow Belt"*. For `double`, Cert I prints the intermediate belt and Cert II prints the final `target_belt`.
 
-```ts
-result.sort((a, b) => {
-  // Unassigned slots float to the top
-  const aHas = !!a.grading_slot_date;
-  const bHas = !!b.grading_slot_date;
-  if (aHas !== bHas) return aHas ? 1 : -1;          // unassigned first
-  if (!aHas && !bHas) return a.student_name.localeCompare(b.student_name);
-  // Both have a date → ascending (earliest first)
-  const dateCmp = (a.grading_slot_date || '').localeCompare(b.grading_slot_date || '');
-  if (dateCmp !== 0) return dateCmp;
-  // Same date → group by slot title, then name
-  const titleCmp = (a.grading_slot_title || '').localeCompare(b.grading_slot_title || '');
-  if (titleCmp !== 0) return titleCmp;
-  return a.student_name.localeCompare(b.student_name);
-});
+## Page 1 — Certificate (fixed layout)
+
+Single-page A4 landscape (matches the uploaded sample). Static elements drawn from bundled assets (no DB-driven layout):
+- Top-right: World Taekwondo + Kukkiwon + branch logos (PNG assets stored under `src/assets/certificates/au/`)
+- Title block: `CERTIFICATE OF GRADING`
+- Body: `This is to certify that` / **Student Name (uppercase)** / `has successfully passed the grading examination for` / **{Belt achieved} Belt**
+- Footer: `Date: 24 April 2026` (left), Examiner signature image + `Master <Name>` (right)
+- Branch line at bottom: `Morley Branch — Western Australia`
+
+All text and asset positions are hard-coded constants in `gradingCertificatePDFGenerator.ts`. No DB lookup of layout.
+
+## Page 2 — Scorecard (FLEXIBLE columns, examiner-defined)
+
+The scorecard is **not** a fixed schema. The examiner adds/removes rows per grading session. The PDF renders whatever the examiner captured for that registration — nothing more, nothing less.
+
+### Data model — flexible JSON, not fixed columns
+
+Add a single JSONB column on `grading_registrations` to hold an ordered list of scorecard entries:
+
+```sql
+ALTER TABLE public.grading_registrations
+  ADD COLUMN IF NOT EXISTS scorecard jsonb;
+
+-- Example payload:
+-- [
+--   { "label": "Height", "value": "142 cm" },
+--   { "label": "Weight", "value": "36 kg" },
+--   { "label": "BMI",    "value": "17.9" },
+--   { "label": "Poomsae",   "value": "Pass" },
+--   { "label": "Balchagi",  "value": "Pass" },
+--   { "label": "Push-ups (1 min)", "value": "32" },
+--   { "label": "Leg raises", "value": "28" },
+--   { "label": "Air squats", "value": "40" }
+-- ]
 ```
 
-### 2. One-line compact desktop row
+Why JSON instead of fixed columns:
+- Examiners change criteria across belts (e.g. push-ups added at Green; Hoshinsul only from Blue Tip).
+- Future-proof: new tests can be added without migrations.
+- Per-row ordering is preserved (array order = print order).
 
-Reduce row to a single line. Drop the per-row inline editor for slot/result (those move to the bulk dialog or a per-row pencil — see §4). Tighten table cell padding via a `compact` className.
+A small set of label **suggestions** (not enforced) lives in a frontend constant `SCORECARD_LABEL_SUGGESTIONS` so examiners get an autocomplete dropdown, but they can type any custom label.
 
-- Add a top-level checkbox column for multi-select (header = "select all visible").
-- Override `TableCell` padding for this table only with `className="py-1 px-2 text-xs"` and `TableHead` similarly. This keeps `ui/table.tsx` untouched.
-- Columns (in order): `[ ☐ ] Name · Belt · Lessons · Ready · Term · Grading · Slot · Result · Cert · Cert II · ⋯`
-  - Belt → `Badge` `text-[10px] px-1 py-0`
-  - Term Paid / Grading Paid → `Badge` `text-[10px] px-1 py-0`
-  - Slot → single-line `truncate` `text-xs` (e.g. "Morley · 11/04/2026 · 08:10 · White")
-  - Result → small badge or `–`
-  - Actions cell collapses Eye + Trash + Pencil (per-row edit) into a tight `gap-0.5` flex with `h-6 w-6 p-0` ghost buttons
-- Add `whitespace-nowrap` on Slot/Term/Result cells, but allow Name to truncate with `max-w-[180px] truncate`.
-- Drop `<TableHead className="w-[…]">` fixed widths in favour of `min-w-` so columns auto-fit.
+### Scorecard editor UI — `GradingScorecardDialog.tsx`
 
-Mobile layout stays as the existing 3-line cards but gains the same checkbox in the top-right cluster.
+Compact dialog opened from the per-row Pencil icon (Morley AU rows only) **or** automatically before the Generate Certificate action when `scorecard` is null/empty.
 
-### 3. Multi-select + Bulk Action dialog (replaces "Mass Edit" button)
+Layout:
+- Header: `Scorecard — {Student Name} — {Target Belt}`
+- Read-only context strip: Height / Weight inputs (auto-calculate BMI shown beside) — these are convenience fields that get pushed into the JSON array as the first three entries.
+- Dynamic table:
+  - Columns: `Label` (autocomplete `Combobox` from suggestions) · `Value` (free text) · row delete `✕`
+  - `+ Add row` button at the bottom
+  - Drag handle `⋮⋮` to reorder (optional Phase 1.5; otherwise rely on add-order)
+- Footer: `Cancel` · `Save` · `Save & Generate PDF`
 
-Remove the `Mass Edit` button entirely. Remove `isEditMode` state.
-
-State additions:
-```ts
-const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-const [bulkOpen, setBulkOpen] = useState(false);
+`SCORECARD_LABEL_SUGGESTIONS` (initial set, editable in the constants file):
+```
+Height, Weight, BMI, Poomsae, Balchagi, Kyorugi, Hoshinsul,
+Push-ups (1 min), Leg raises (1 min), Air squats (1 min),
+Sit-ups, Plank, Sprint, Flexibility, Attendance, Discipline, Attitude
 ```
 
-Header layout (replaces current right-side button cluster):
-- Always-visible: `Term` selector (unchanged)
-- When `selectedIds.size > 0`: show `Bulk Edit (N)` primary button → opens `<Dialog>`
-- When `selectedIds.size === 0`: button hidden; no other action buttons in the header
+### Page 2 PDF rendering
 
-Bulk dialog content (`max-w-md`):
-- Header: "Update N student(s)"
-- Field 1 — **Grading Slot**: `Select` with options `Leave unchanged` (default), `Not Assigned`, then `availableSlots` listed in **slot order (date asc)**. Use the same options the per-row Select uses today.
-- Field 2 — **Result**: `Select` with options `Leave unchanged` (default), `Clear`, plus the four `RESULT_OPTIONS`.
-- Footer: `Cancel` · `Apply`
+`gradingCertificatePDFGenerator.ts` reads the `scorecard` array and renders a 2-column table:
+- Column 1: Label (left-aligned, bold)
+- Column 2: Value (right-aligned)
+- Row height auto-fits content. If the array is long the table flows vertically; if it overflows the page, continue on a Page 3 (rare — typically ≤ 12 rows).
+- If `scorecard` is null/empty, Page 2 prints an empty bordered scorecard placeholder so the examiner can fill it in by hand (fallback for legacy records). The Generate flow always asks the user to either fill it in or proceed with the blank version.
 
-`Apply` handler:
-- Build a single `update` payload per selected student that mirrors the existing batch-save logic (registration update OR insert). Reuse the lazy-Ready-sync rule already implemented in `batchSaveMutation` (lines 486–496).
-- For students whose `grading_paid !== 'paid'` we still allow setting the slot — the existing per-row dropdown disables it, but the user explicitly asked for a bulk action; we will warn in the dialog ("Slot changes will be persisted even for unpaid grading rows. Result changes are only applied to paid rows.") and skip the `result` field for unpaid rows to match the existing inline rule.
-- After save: clear `selectedIds`, invalidate `grading-list-students`, toast `Updated N student(s)`.
+### Header strip on Page 2 (always printed, drawn from registration + student)
 
-Selection mechanics:
-- Header checkbox toggles all currently rendered rows.
-- Row checkbox toggles its own id.
-- Selection is cleared whenever `selectedTerm` changes.
+- Student Name · Date of Birth · Belt Achieved · Grading Date (`24 April 2026`) · Branch (`Morley`) · Examiner
 
-### 4. Inline autosave for Ready (no edit mode required)
+These are not part of the flexible array — they're fixed metadata at the top of the scorecard.
 
-The Ready cell becomes an always-interactive `Checkbox`. On change, call a new mutation that immediately persists the change (no batch, no edit mode):
+## Eligibility & button rendering
+
+In `BranchGradingList.tsx` and `GradingListTab.tsx`:
 
 ```ts
-const toggleReadyMutation = useMutation({
-  mutationFn: async ({ student, next }: { student: GradingListStudent; next: boolean }) => {
-    if (student.registration_id) {
-      const { error } = await supabase
-        .from('grading_registrations')
-        .update({ ready_for_grading: next })
-        .eq('id', student.registration_id);
-      if (error) throw error;
-    } else {
-      // Insert a fresh registration row (same shape used in batchSaveMutation else-branch)
-      const { getNextBeltLevel } = await import('@/constants/beltLevels');
-      const currentBelt = student.current_belt || 'White';
-      const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
-      const { error } = await supabase
-        .from('grading_registrations')
-        .insert([{
-          student_id: student.student_id,
-          current_belt: currentBelt,
-          target_belt: nextBelt,
-          grading_slot_id: null,
-          ready_for_grading: next,
-          result: null,
-          term_id: selectedTerm || null,
-        }]);
-      if (error) throw error;
-    }
-  },
-  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['grading-list-students'] }),
-  onError: (e: Error) => toast.error(e.message || 'Failed to update Ready'),
-});
+const branch = useBranchCountry(student.branch_id); // existing hook
+const isAU = branch === 'Australia';
+const isMorley = student.branch_id === 'BR1768967806476';
+const beltOK = isFoundationToBlackTip(student.target_belt);   // new helper
+const canCertI  = isAU && isMorley && beltOK && (student.result === 'pass' || student.result === 'double');
+const canCertII = isAU && isMorley && beltOK &&  student.result === 'double';
 ```
 
-Behaviour:
-- Checkbox is `disabled={toggleReadyMutation.isPending}` while in flight.
-- Optimistic UI: temporarily reflect the toggle by updating the row through `setQueryData` so the user sees the tick immediately; rollback on error.
-- The existing UI-derivation (`termStarted && !result`) still drives the **default** displayed state; the autosave converges the DB on the very first interaction.
+Button cluster in the Cert / Cert II columns shows enabled icons only when those flags are true. Hover tooltip explains why a button is disabled (wrong country, wrong belt, no result yet, etc.).
 
-### 5. Per-row Slot/Result still editable via a small pencil (per Q3 answer)
+For SG branches: render the existing greyed-out "Cert (SG template pending)" placeholder so staff know it's coming.
 
-Add a `Pencil` icon in the row's Actions cell. Clicking it opens the **same** Bulk Edit dialog pre-seeded with that single student id (`selectedIds = new Set([student.student_id])`, `bulkOpen = true`). This:
-- Removes the need for any persistent edit-mode state.
-- Lets staff edit exactly one row through the same code path as bulk.
-- Keeps single-row changes safe (explicit dialog confirmation).
+## Implementation steps
 
-### 6. Cleanup
+1. **Migration** — add `scorecard jsonb` column on `grading_registrations` (nullable, default null). No backfill needed.
+2. **Constants** — add `src/constants/beltLevels.ts → isFoundationToBlackTip(belt)` helper and `src/constants/scorecardLabels.ts → SCORECARD_LABEL_SUGGESTIONS`.
+3. **PDF generator** — `src/utils/gradingCertificatePDFGenerator.ts` (jsPDF, A4 landscape). Two functions:
+   - `generateAUCertificate({ registration, student, branch, certVariant: 'I' | 'II' })`
+   - Internal `drawPage1AU(...)` and `drawPage2Scorecard(...)`.
+   - Bundled assets under `src/assets/certificates/au/` (logos + signature PNG).
+4. **Scorecard dialog** — `src/components/grading/GradingScorecardDialog.tsx` (flexible row editor, autocomplete labels, BMI auto-calc).
+5. **Wire-up** — in both grading list components:
+   - Add `Award` icon button per row, gated by the eligibility logic above.
+   - On click: if `scorecard` is null/empty → open `GradingScorecardDialog` first; else → call generator directly.
+   - Pencil icon on the row also opens the scorecard dialog (separate from the grading-slot/result bulk dialog).
+6. **Memory** — add `mem://features/grading/certificate-au-morley` describing the AU/Morley scope, JSON scorecard shape, and that SG template is deferred. Update `mem://index.md` Memories list.
 
-- Delete: `isEditMode`, `pendingChanges`, `setLocalReady`, `setLocalResult`, `setLocalSlot`, `getEffectiveResult`, `getEffectiveSlot`, `hasStudentChange`, `batchSaveMutation`, sticky save bar, `Save` / `Undo2` / `Pencil`-as-mass-edit imports (re-add `Pencil` for per-row edit), discard buttons.
-- Keep: `getEffectiveReady` (still useful for term-started fallback display) — but rename to `displayReady` since there are no longer any pending changes. Inputs simplify to `(student) => student.ready_for_grading || (termStarted && !student.result)`.
-- Keep: deletion AlertDialog, detail dialog, term selector behaviour.
+## Files to create / edit
 
-### 7. Verification checklist
+**Create**
+- `supabase/migrations/<ts>_add_grading_scorecard_jsonb.sql`
+- `src/utils/gradingCertificatePDFGenerator.ts`
+- `src/components/grading/GradingScorecardDialog.tsx`
+- `src/constants/scorecardLabels.ts`
+- `src/assets/certificates/au/` (logos + Master signature PNG — placeholders if assets aren't supplied yet)
+- `mem://features/grading/certificate-au-morley`
 
-- Term 1 2026 list opens sorted by slot date (Morley 11/04/2026 grouped together) with any unassigned students at the top.
-- Toggling the Ready checkbox on any row immediately persists (refresh confirms) without entering an edit mode.
-- Selecting 3 students → header shows `Bulk Edit (3)` → dialog allows slot+result update → Apply persists all 3 in one network round-trip equivalent.
-- Pencil on a single row opens the same dialog with that student preselected.
-- Mobile: rows still render as the compact 3-line card, Ready autosaves, multi-select checkbox visible top-right.
-- Both Branch Dashboard grading tab and Sales > Grading List tab behave identically.
-
-### Files to edit
+**Edit**
+- `src/constants/beltLevels.ts` (add `isFoundationToBlackTip`)
 - `src/components/dashboard/BranchGradingList.tsx`
 - `src/components/sales/GradingListTab.tsx`
+- `mem://index.md`
 
-No DB schema changes. No new memory entries needed (behaviour is consistent with existing grading-list memory).
+## Out of scope (Phase 2 — explicitly deferred)
+
+- **SG certificate template** — separate generator (`generateSGCertificate(...)`), separate assets, will reuse the same flexible `scorecard` JSON column and the same `GradingScorecardDialog`. Wire-up gated on `country === 'Singapore'`.
+- Roll-out to **other AU branches** beyond Morley — flip the gate to `isAU` only (drop the `isMorley` check) once additional AU branches go live.
+- Drag-to-reorder scorecard rows (currently rely on add order + delete/re-add).
+- Automatic flipping of `certificate_issued` / `certificate_ii_issued` flags (kept manual per current UX).
+
+## Verification checklist
+
+- Morley row, result = pass, belt = Yellow Tip → Cert I button enabled, Cert II hidden. Click → scorecard dialog → fill 5 rows → Save & Generate → 2-page PDF downloads. Page 1 shows "Yellow Tip Belt" and "24 April 2026". Page 2 lists exactly the 5 rows entered.
+- Morley row, result = double, belt = Yellow → Cert I + Cert II both enabled. Cert I prints intermediate (Yellow Tip), Cert II prints Yellow.
+- Morley row, result = pass, belt = 1st Poom → both Cert buttons hidden (out of belt range).
+- Jurong West row → Cert button disabled with tooltip "Singapore template pending".
+- Re-opening the scorecard dialog for a registration that was already saved restores the same rows in the same order.
+- Examiner removes the `Push-ups` row → re-generates → PDF no longer shows that line.
