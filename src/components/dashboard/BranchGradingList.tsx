@@ -101,7 +101,16 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null); // overrides selectedIds when set (single-row pencil)
+  const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
+  // Certificate dialog state — Phase 1 Morley/AU only
+  const [certCtx, setCertCtx] = useState<{
+    registrationId: string;
+    studentName: string;
+    beltAchieved: string;
+    gradingDate: string | null;
+  } | null>(null);
+
+  const isMorley = branchId === MORLEY_BRANCH_ID;
 
   // Available grading slots for this branch (used in dialog and slot lookup)
   const { data: availableSlots = [] } = useQuery({
