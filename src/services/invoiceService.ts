@@ -448,6 +448,23 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             return { from: parts[0].trim() || null, to: parts[parts.length - 1].trim() || null };
           };
 
+          // A grading registration is auto-marked Ready only when the term has started.
+          // Future-term grading (e.g. invoiced today for next term) defaults to Not Ready
+          // until the term's start_date is reached.
+          const todayStr = new Date().toISOString().split('T')[0];
+          const termStartedCache = new Map<string, boolean>();
+          const isTermStarted = async (termId: string): Promise<boolean> => {
+            if (termStartedCache.has(termId)) return termStartedCache.get(termId)!;
+            const { data: termRow } = await supabase
+              .from('term_calendars')
+              .select('start_date')
+              .eq('id', termId)
+              .maybeSingle();
+            const started = !!(termRow?.start_date && termRow.start_date <= todayStr);
+            termStartedCache.set(termId, started);
+            return started;
+          };
+
           // Lesson-derived term ids on this invoice (used as fallback when no slot is set)
           const lessonTermIds = new Set<string>();
           for (const insertedItem of insertedItems) {
