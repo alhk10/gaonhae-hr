@@ -59,6 +59,11 @@ A small set of label **suggestions** (not enforced) lives in a frontend constant
 
 Compact dialog opened from the per-row Pencil icon (Morley AU rows only) **or** automatically before the Generate Certificate action when `scorecard` is null/empty.
 
+**Persistence (REQUIRED):** Every Save action writes the full `scorecard` array to `grading_registrations.scorecard` via Supabase update. The dialog is the single source of truth — re-opening it always reloads the latest persisted JSON from the DB (via the existing React Query `grading_registrations` cache, invalidated on save). Nothing is held only in component state. Both buttons persist:
+- **Save** → writes to DB, closes dialog, toast "Scorecard saved".
+- **Save & Generate PDF** → writes to DB first, then generates PDF from the just-saved data.
+- **Cancel** → discards local edits, no DB write.
+
 Layout:
 - Header: `Scorecard — {Student Name} — {Target Belt}`
 - Read-only context strip: Height / Weight inputs (auto-calculate BMI shown beside) — these are convenience fields that get pushed into the JSON array as the first three entries.
