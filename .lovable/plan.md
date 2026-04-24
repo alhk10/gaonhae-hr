@@ -155,5 +155,6 @@ For SG branches: render the existing greyed-out "Cert (SG template pending)" pla
 - Morley row, result = double, belt = Yellow → Cert I + Cert II both enabled. Cert I prints intermediate (Yellow Tip), Cert II prints Yellow.
 - Morley row, result = pass, belt = 1st Poom → both Cert buttons hidden (out of belt range).
 - Jurong West row → Cert button disabled with tooltip "Singapore template pending".
-- Re-opening the scorecard dialog for a registration that was already saved restores the same rows in the same order.
-- Examiner removes the `Push-ups` row → re-generates → PDF no longer shows that line.
+- Re-opening the scorecard dialog for a registration that was already saved restores the same rows in the same order **from the database** (verified by hard-refreshing the page between save and re-open).
+- Examiner removes the `Push-ups` row → Save → re-opens dialog → row stays gone (DB persisted) → re-generates → PDF no longer shows that line.
+- Editing scorecard on one device and refreshing on another (same registration) shows the updated scorecard — confirms it lives in DB, not local state.
