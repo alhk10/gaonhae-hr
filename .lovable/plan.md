@@ -1,67 +1,92 @@
-## Plan: Show all lesson-invoiced students in the term grading list, none Ready by default
+## Plan: Term-aware "Ready for Grading" + lazy DB sync + refund handling
 
-### Findings
+### Context recap
 
-1. **Sample data (Morley = `BR1768967806476`, Term 2 2026):**
-   - Only **7** `grading_registrations` rows exist for the term — all manually keyed by `alhk10@gmail.com` on 2026-04-23 with `ready_for_grading = true`.
-   - **42** distinct students actually have a Term 2 lesson invoice at this branch.
-   - Result: 35 invoiced students are missing from the Grading list, and the 7 shown are incorrectly marked Ready.
+- Term 1 2026 = current/past (already started). Term 2 2026 = future (starts 2026-04-28).
+- Term 1 grading list was hand-keyed by superadmin; do not disturb existing Term 1 rows.
+- Term 2 list currently shows the 42 lesson-invoiced students (good) but 7 are wrongly Ready (already reset).
+- Going forward, the "Ready" state must depend on whether the **grading slot's term has started**, not whether the lesson invoice's term has started.
 
-2. **Root cause:** Both `BranchGradingList.tsx` (Branch Dashboard) and `GradingListTab.tsx` (Sales) became **registration-driven** in the previous fix. A student only appears if a `grading_registrations` row exists for the selected term. Lesson-invoice-only students are now invisible.
+### Rule for `ready_for_grading`
 
-3. **Term 1 2026 (BR1768967806476):** 27 registrations exist (19 backfilled, 8 manual). The user said Term 1 was hand-keyed by superadmin — we must not touch existing Term 1 rows or alter their `ready_for_grading` flags.
+A grading registration is "Ready" when the **term that owns the assigned grading slot** has started (`term.start_date <= today`) and no result has been recorded yet. The grading-slot term and the lesson-invoice term can differ (e.g., Term 2 lesson invoice + Term 1 grading slot).
 
 ### Changes
 
-#### 1. `src/components/dashboard/BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx` — query refactor
+#### 1. `src/services/invoiceService.ts` — gated auto-mark on invoice creation
 
-Make the list **union-driven**: registrations ∪ lesson-invoiced students for the selected term/branch.
+When an invoice with a Grading line item creates/updates a `grading_registrations` row:
 
-For the selected `(branchId, termId)`:
+- Look up the term that the **grading slot** belongs to (`grading_slots.term_id` → `terms.start_date`).
+- Set `ready_for_grading = (slotTerm.start_date <= today)`.
+- Result: invoicing today for a Term 1 grading slot → `true`; invoicing today for a Term 2 grading slot → `false`.
 
-- **Source A (existing):** all `grading_registrations` for `term_id = selectedTerm` whose student has any invoice at `branchId`.
-- **Source B (new):** all distinct `student_id`s with a lesson invoice item at `branchId` whose `metadata.term_id = selectedTerm` and invoice status ∈ active set (`draft, sent, unpaid, partial, partially_paid, overdue, paid, verified`). These students appear with **no `registration_id`**, `ready_for_grading = false`, `result = null`, `grading_slot_id = null`, `current_belt = student.current_belt`, and `term_paid` derived from their lesson invoice status.
-- **De-dupe** by `student_id`; if the student exists in Source A, that row wins (preserves existing manual data, slot assignment, grading-paid status).
-- Keep the existing active-student filter and branch scoping.
+Belt-transition parsing and registration upsert behaviour are otherwise unchanged.
 
-#### 2. Save logic — create-on-edit
+#### 2. UI-derived "Ready" + lazy DB sync — `BranchGradingList.tsx` and `GradingListTab.tsx`
 
-Currently `batchSaveMutation` updates rows when `registration_id` exists and inserts otherwise. The insert path already exists in `GradingListTab.tsx` and `BranchGradingList.tsx`; we just need to ensure that when a Source B (no-registration) student is edited (Ready toggled, slot assigned, or result entered), a new `grading_registrations` row is created with:
+- **Display**: a row renders as Ready when `db.ready_for_grading === true` **OR** (`slotTerm.start_date <= today` AND `result IS NULL`). This means once Term 2 starts on 2026-04-28, every Term 2 row with a slot automatically appears Ready in the UI without any backend job.
+- **Lazy DB sync**: whenever the user saves a row (toggle Ready, assign slot, edit result, etc.), if the UI-derived Ready is `true` but the stored value is `false`, the save payload includes `ready_for_grading: true`. So the DB converges naturally on next write — no scheduler.
+- Source B (lesson-invoice-only) rows: same rule. If they have no slot yet, they cannot be Ready; assigning a slot whose term has started flips them Ready immediately.
 
-- `student_id`, `term_id = selectedTerm`
-- `current_belt = student.current_belt` (or `'White'` if null)
-- `target_belt` parsed from belt progression (existing `formatBeltLevel` helper) or `current_belt` if unknown
-- `ready_for_grading`, `result`, `grading_slot_id` from the pending change
+#### 3. `src/services/invoiceRefundService.ts` — refund handling for grading items
 
-No DB schema changes needed.
+The rule is **term-agnostic**: it applies to any grading slot, regardless of whether the slot belongs to Term 1, Term 2, or any other term. The lesson invoice's term is also irrelevant — only the line items being refunded matter.
 
-#### 3. Reset the 7 incorrect Term 2 2026 Ready flags (one-time data fix)
+When `refundLineItem` runs on an invoice item, after the existing entitlement/enrollment cleanup, inspect the `grading_registrations` row(s) linked to this item (`invoice_item_id = refundedItem.id`):
 
-The 7 manually-keyed Term 2 rows were set with `ready_for_grading = true` even though the term hasn't started. Migration:
+- **Case A — Grading item refunded, lesson item still active for the same student:**
+  - Examples covered:
+    - Invoiced for Term 2 class + Term 2 grading, refund Term 2 grading → uncheck Ready, keep row.
+    - Invoiced for Term 2 class + Term 1 grading, refund Term 1 grading → uncheck Ready, keep row.
+  - Action: on the matching `grading_registrations` row, set `ready_for_grading = false`, clear `grading_slot_id`, clear `invoice_item_id`, and append a note `Grading refunded from invoice {n}`. Do **not** delete the row — the student stays in the list (Source B style) so staff retain visibility and can reassign later.
+  - Detection: the student still has at least one active (non-refunded, non-cancelled) lesson invoice item for any term at the same branch.
+
+- **Case B — Both grading and lesson items refunded/cancelled (no active lesson item remains for this student at this branch):**
+  - Examples covered:
+    - Invoiced for Term 2 class + Term 2 grading, refund both → remove from list.
+    - Invoiced for Term 2 class + Term 1 grading, refund both → remove from list.
+  - Action: hard-delete the `grading_registrations` row, but **only if `result IS NULL`**. If a result is already recorded, keep the row for audit and just clear `grading_slot_id` / `invoice_item_id`.
+
+- **Detection logic** (run after the refund updates are applied):
+  1. Fetch the registration row(s) where `invoice_item_id = refundedItem.id`.
+  2. For each, check whether the student still has any non-refunded lesson invoice item at this branch (any active invoice status).
+  3. Apply Case A or Case B accordingly.
+
+- **Ordering**: refund flow remains: credit → deactivate entitlement → cancel enrollment → mark item refunded → recalculate invoice → **(new)** reconcile grading registration → log change.
+
+- **Logging**: include the registration outcome (`ready_unchecked` or `registration_removed`) in the existing `logInvoiceChange` payload so the audit trail is complete.
+
+#### 4. SQL backfill — restore Term 1 2026 Ready flags
+
+Term 1 has started, so every Term 1 registration with an assigned slot and no result should be Ready. The earlier reset migration was correctly scoped to Term 2, but we need to ensure Term 1 rows are correct (the user reported they're showing as Not Ready).
 
 ```sql
-UPDATE public.grading_registrations
-SET ready_for_grading = false
-WHERE term_id = '93c68375-31d9-406a-adfa-07fc24614428' -- Term 2 2026 (BR1768967806476)
-  AND ready_for_grading = true
-  AND result IS NULL;
+UPDATE public.grading_registrations gr
+SET ready_for_grading = true
+FROM public.terms t
+WHERE gr.term_id = t.id
+  AND t.start_date <= CURRENT_DATE
+  AND gr.grading_slot_id IS NOT NULL
+  AND gr.result IS NULL
+  AND gr.ready_for_grading = false;
 ```
 
-Scoped narrowly: only this term, only rows with no result yet (so we can't accidentally clear graded students). **Term 1 2026 rows are not touched.**
-
-If other branches' Term 2 2026 registrations exist in the future with the same issue, this same scoped update can be re-run; for now only one branch has any.
+This is global (every branch, every current/past term) and idempotent.
 
 ### Verification
 
-1. Open Branch Dashboard → Morley → Grading tab → Term 2 2026.
-2. Expect ~42 students listed (all with Term 2 lesson invoices), sorted as today.
-3. The 7 previously-Ready students still appear (with their belt transitions preserved) but the **Ready ✓** column is empty for everyone.
-4. Toggling Ready or assigning a slot for a Source B student (e.g., a brand-new entry) successfully creates a `grading_registrations` row on Save.
-5. Open Term 1 2026 → all 27 existing rows render unchanged (Ready flags, slots, results all preserved).
-6. Repeat sanity check on Sales → Grading List tab for the same branch/terms.
+1. **Term 1 2026 (Morley)**: every row with a slot shows Ready ✓; rows without slots stay unchecked.
+2. **Term 2 2026 (Morley)**: all rows show Not Ready until 2026-04-28; on/after that date the UI flips them Ready automatically (DB lazily catches up on next save).
+3. **New invoice today, Term 1 grading slot** → registration row created with `ready_for_grading = true`.
+4. **New invoice today, Term 2 grading slot** → registration row created with `ready_for_grading = false`.
+5. **Refund scenarios** (run for each combination — Term 2 class + Term 2 grading, and Term 2 class + Term 1 grading):
+   - Refund only the grading item → registration row stays, Ready unchecked, slot/invoice_item_id cleared, student still visible in the relevant term's list.
+   - Refund grading + cancel/refund the lesson item too → registration row deleted (no result), student disappears from the list.
+6. **Sales → Grading List** mirrors all of the above.
 
 ### Out of scope
 
-- Auto-creating `grading_registrations` at invoice time for lesson-only invoices (kept on-demand, as before).
-- Changing the Ready logic / business rules beyond defaulting to `false` for invoice-only rows.
-- Cross-branch grading visibility.
+- Background scheduler for term-start auto-flip (handled by UI derivation + lazy sync).
+- Cross-branch grading visibility changes.
+- Refund logic for invoices that contain only a grading item with no associated lesson item (the existing refund flow already handles credit/entitlement; the new reconcile step still runs and will delete the registration row if `result IS NULL`).
