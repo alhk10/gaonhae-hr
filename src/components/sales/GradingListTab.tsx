@@ -517,7 +517,20 @@ const GradingListTab: React.FC = () => {
           if (changes.ready_for_grading !== undefined) updateData.ready_for_grading = changes.ready_for_grading;
           if (changes.result !== undefined) updateData.result = changes.result;
           if (changes.grading_slot_id !== undefined) updateData.grading_slot_id = changes.grading_slot_id;
-          
+
+          // Lazy DB sync: if the term has started and the row has no result and
+          // the user did not explicitly set a Ready value, converge the
+          // persisted ready_for_grading flag to true on this save.
+          if (
+            updateData.ready_for_grading === undefined &&
+            termStarted &&
+            !student.ready_for_grading &&
+            !student.result &&
+            (changes.result === undefined || !changes.result)
+          ) {
+            updateData.ready_for_grading = true;
+          }
+
           if (Object.keys(updateData).length > 0) {
             operations.push(
               supabase
@@ -532,12 +545,16 @@ const GradingListTab: React.FC = () => {
           const { getNextBeltLevel } = await import('@/constants/beltLevels');
           const currentBelt = student.current_belt || 'White';
           const nextBelt = getNextBeltLevel(currentBelt) || currentBelt;
+          const persistedReady =
+            changes.ready_for_grading !== undefined
+              ? changes.ready_for_grading
+              : (termStarted && !changes.result);
           const insertData = {
             student_id: studentId,
             current_belt: currentBelt,
             target_belt: nextBelt,
             grading_slot_id: changes.grading_slot_id || null,
-            ready_for_grading: changes.ready_for_grading || false,
+            ready_for_grading: persistedReady || false,
             result: changes.result || null,
             term_id: selectedTerm || null,
           } as const;
