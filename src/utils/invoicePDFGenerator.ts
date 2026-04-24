@@ -525,14 +525,47 @@ export interface SmsTermInfo {
  * Includes opening (ending + upcoming term with date range), itemized list,
  * total, bank transfer details, and the Gaonhae signature.
  */
+/**
+ * Split invoice items into positive (real products) and discount (negative) lines.
+ * Returns formatted lines for the SMS/WhatsApp body.
+ */
+const buildItemAndDiscountLines = (invoice: InvoiceData): string[] => {
+  const lines: string[] = [];
+  const items = invoice.items || [];
+
+  if (items.length === 0) {
+    lines.push('No items');
+  } else {
+    // Positive (or zero) line items rendered normally
+    items
+      .filter(item => (item.total_amount ?? 0) >= 0)
+      .forEach(item => {
+        lines.push(`${item.description} \u2013 ${formatCurrency(item.total_amount)}`);
+      });
+
+    // Negative line items rendered as discount lines using their description
+    items
+      .filter(item => (item.total_amount ?? 0) < 0)
+      .forEach(item => {
+        const label = item.description?.trim() || 'Discount';
+        lines.push(`${label}: -${formatCurrency(Math.abs(item.total_amount))}`);
+      });
+  }
+
+  // Header-level discount (manual discount on the invoice itself)
+  if ((invoice.discount_amount ?? 0) > 0) {
+    lines.push(`Discount: -${formatCurrency(invoice.discount_amount)}`);
+  }
+
+  return lines;
+};
+
 export const buildTermReminderMessage = (
   invoice: InvoiceData,
   terms?: { current?: SmsTermInfo | null; next?: SmsTermInfo | null }
 ): string => {
-  // Build items list (en-dash separator)
-  const itemsList = invoice.items && invoice.items.length > 0
-    ? invoice.items.map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
-    : 'No items';
+  // Build items list with discount lines (en-dash separator)
+  const itemsList = buildItemAndDiscountLines(invoice).join('\n');
 
   // Build bank transfer info if available
   const bankInfo = invoice.template?.bank_transfer_info?.trim() || '(Bank transfer details not configured)';
