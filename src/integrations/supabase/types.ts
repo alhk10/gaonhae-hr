@@ -1546,6 +1546,36 @@ export type Database = {
           },
         ]
       }
+      grading_term_scorecard_columns: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          label: string
+          position: number
+          term_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+          term_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          term_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           cost_per_unit: number | null
