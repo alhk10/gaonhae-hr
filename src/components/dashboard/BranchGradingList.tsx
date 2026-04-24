@@ -127,7 +127,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId
   });
 
-  // All terms for this branch (including past)
+  // Scorecard columns for the current term + branch (Morley/AU only — others won't show columns)
+  const { data: scorecardColumns = [] } = useQuery({
+    queryKey: ['grading-scorecard-columns', selectedTerm, branchId],
+    queryFn: () => listColumns(selectedTerm, branchId),
+    enabled: !!branchId && !!selectedTerm && isMorley,
+  });
   const { data: branchTerms = [] } = useQuery<Term[]>({
     queryKey: ['terms-grading-list', branchId],
     queryFn: () => getAllTermsForBranch(branchId),
