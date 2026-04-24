@@ -354,8 +354,15 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
     // Always include the originally clicked invoice
     const clickedFull = await getInvoiceById(invoice.id);
-    const clickedStudent = await getStudentById(invoice.student_id).catch(() => null);
-    const clickedEmail = (clickedStudent?.email || '').trim().toLowerCase();
+    // Direct query for student email — avoids service-layer side-effects that
+    // can cause silent fallback to single-invoice send.
+    const { data: clickedStudent, error: stuErr } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, email')
+      .eq('id', invoice.student_id)
+      .maybeSingle();
+    if (stuErr) console.warn('[ShareInvoice] failed to load clicked student', stuErr);
+    const clickedEmail = (clickedStudent?.email ?? '').trim().toLowerCase();
 
     // Resolve term context (anchored to the clicked invoice's items)
     const terms = await resolveInvoiceTermContext(invoice.branch_id, clickedFull?.items);
@@ -410,11 +417,18 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
     }
 
+    // No email → can't match siblings, just send the single clicked invoice
+    if (!clickedEmail) {
+      console.warn('[ShareInvoice] No email on clicked student → single-invoice send', { studentId: invoice.student_id });
+      return { invoices: [clickedPayload], terms, bankInfo: template?.bank_transfer_info || undefined };
+    }
+
     // Find siblings sharing this email (case-insensitive)
-    const { data: siblings } = await supabase
+    const { data: siblings, error: sibErr } = await supabase
       .from('students')
       .select('id, first_name, last_name, email')
       .ilike('email', clickedEmail);
+    if (sibErr) console.warn('[ShareInvoice] sibling lookup failed', sibErr);
 
     const siblingIds = (siblings || []).map((s: any) => s.id).filter((id: string) => id !== invoice.student_id);
     if (siblingIds.length === 0) {
@@ -422,12 +436,13 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     }
 
     // Pull all currently unpaid invoices for the siblings within the same branch
-    const { data: siblingInvoices } = await supabase
+    const { data: siblingInvoices, error: invErr } = await supabase
       .from('invoices')
       .select('id, invoice_number, student_id, balance_due, status, branch_id, issue_date, due_date, subtotal, tax_amount, discount_amount, total_amount, amount_paid, notes')
       .in('student_id', siblingIds)
       .eq('branch_id', invoice.branch_id)
       .in('status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue']);
+    if (invErr) console.warn('[ShareInvoice] sibling invoices lookup failed', invErr);
 
     const otherInvoices = (siblingInvoices || []).filter((inv: any) => (inv.balance_due ?? 0) > 0);
     if (otherInvoices.length === 0) {
