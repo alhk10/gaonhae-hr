@@ -42,6 +42,26 @@ const A4_H = 297;
 
 
 
+/**
+ * Append " Belt" to color belts (White through Black Tip).
+ * Skip the suffix for Foundation, Poom, and Dan ranks.
+ */
+const formatBeltLabel = (belt: string): string => {
+  const trimmed = (belt || '').trim();
+  if (!trimmed) return '';
+  if (/foundation|poom|dan/i.test(trimmed)) return trimmed;
+  if (/\bbelt\b/i.test(trimmed)) return trimmed;
+  return `${trimmed} Belt`;
+};
+
+/** Add unit suffix to specific scorecard labels for PDF display only. */
+const labelWithUnit = (label: string): string => {
+  const l = (label || '').trim().toLowerCase();
+  if (l === 'height') return 'Height (cm)';
+  if (l === 'weight') return 'Weight (kg)';
+  return label;
+};
+
 const longDate = (d: Date | string): string => {
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return '';
@@ -90,7 +110,7 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.setFont('times', 'bolditalic');
   doc.setFontSize(26);
   doc.setTextColor(0, 0, 0);
-  doc.text(input.beltAchieved, A4_W / 2, 138, { align: 'center' });
+  doc.text(formatBeltLabel(input.beltAchieved), A4_W / 2, 138, { align: 'center' });
 
   // "Grading Test held on"
   doc.setFont('times', 'normal');
@@ -134,7 +154,7 @@ const isBlankValue = (v?: string): boolean => {
 
 const formatResult = (r?: 'pass' | 'double' | 'fail' | null): string => {
   if (!r) return '';
-  return r.charAt(0).toUpperCase() + r.slice(1);
+  return r.toUpperCase();
 };
 
 const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
@@ -149,7 +169,7 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
   const allRows: ScorecardRow[] = [
     { label: 'Grading Date', value: longDate(input.gradingDate) },
     { label: 'Student Name', value: input.studentName },
-    { label: 'Belt', value: input.beltAchieved },
+    { label: 'Belt', value: formatBeltLabel(input.beltAchieved) },
     ...dataRows,
     { label: 'Results', value: formatResult(input.result) },
   ];
@@ -185,9 +205,16 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(40, 40, 40);
-    doc.text(row.label, tableX + 4, y + 7.2);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(20, 20, 20);
+    doc.text(labelWithUnit(row.label), tableX + 4, y + 7.2);
+    const isResultsRow = row.label === 'Results';
+    const isPass = isResultsRow && row.value === 'PASS';
+    if (isPass) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(34, 139, 34);
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(20, 20, 20);
+    }
     doc.text(row.value || '', tableX + labelW + 4, y + 7.2);
     y += rowH;
   });
