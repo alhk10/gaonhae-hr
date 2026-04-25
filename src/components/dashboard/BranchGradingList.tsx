@@ -762,12 +762,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           <TableCell
                             className={`${cellCls} cursor-pointer hover:bg-accent/50 transition-colors`}
                             onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                            title="Click to change result"
+                            title={student.result_manual_override ? 'Click to change result (manually set)' : 'Click to change result (auto-calculated)'}
                           >
                             {result ? (
-                              <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
-                                {RESULT_LABELS[result] || result}
-                              </Badge>
+                              <span className="inline-flex items-center gap-1">
+                                <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
+                                  {RESULT_LABELS[result] || result}
+                                </Badge>
+                                {!student.result_manual_override && (
+                                  <span className="text-[9px] text-muted-foreground">auto</span>
+                                )}
+                              </span>
                             ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           {showScorecard && scorecardColumns.map(col => (
