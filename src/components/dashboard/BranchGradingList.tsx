@@ -48,6 +48,7 @@ interface GradingListStudent {
   invoice_id: string;
   ready_for_grading: boolean;
   result: 'pass' | 'fail' | 'double' | 'confirmed' | null;
+  result_manual_override: boolean;
   certificate_issued: boolean;
   certificate_ii_issued: boolean;
   registration_id: string | null;
