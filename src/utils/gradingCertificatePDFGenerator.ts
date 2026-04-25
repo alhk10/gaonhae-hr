@@ -154,7 +154,7 @@ const isBlankValue = (v?: string): boolean => {
 
 const formatResult = (r?: 'pass' | 'double' | 'fail' | null): string => {
   if (!r) return '';
-  return r.charAt(0).toUpperCase() + r.slice(1);
+  return r.toUpperCase();
 };
 
 const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
