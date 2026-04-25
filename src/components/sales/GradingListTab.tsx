@@ -546,6 +546,69 @@ const GradingListTab: React.FC = () => {
     runCertificate(student, certificateNumber);
   };
 
+  // ---- Bulk certificate print ---------------------------------------------
+  const [pendingBulkPrint, setPendingBulkPrint] = useState<{ inputs: GradingCertificateInput[]; unpaidNames: string[] } | null>(null);
+
+  const buildBulkInputs = (rows: GradingListStudent[]): { inputs: GradingCertificateInput[]; eligibleStudents: GradingListStudent[]; skipped: number } => {
+    const inputs: GradingCertificateInput[] = [];
+    const eligibleStudents: GradingListStudent[] = [];
+    let skipped = 0;
+    rows.forEach(student => {
+      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+      const result = student.result;
+      const isPass = result === 'pass';
+      const isDouble = result === 'double';
+      if (!beltInRange || (!isPass && !isDouble) || !student.grading_slot_date) { skipped += 1; return; }
+      const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+      if (!baseBelt) { skipped += 1; return; }
+      inputs.push({
+        studentName: student.student_name,
+        beltAchieved: baseBelt,
+        gradingDate: student.grading_slot_date,
+        scorecard: student.scorecard,
+        result: isDouble ? 'double' : 'pass',
+      });
+      if (isDouble) {
+        const secondBelt = getNextBeltLevel(baseBelt, 'AU');
+        if (secondBelt) {
+          inputs.push({
+            studentName: student.student_name,
+            beltAchieved: secondBelt,
+            gradingDate: student.grading_slot_date,
+            scorecard: student.scorecard,
+            result: 'double',
+          });
+        }
+      }
+      eligibleStudents.push(student);
+    });
+    return { inputs, eligibleStudents, skipped };
+  };
+
+  const runBulkDownload = (inputs: GradingCertificateInput[]) => {
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    downloadBulkGradingCertificatesPDF(inputs, `Certificates_Bulk_${dateStr}.pdf`);
+    toast.success(`Generated ${inputs.length} certificate${inputs.length === 1 ? '' : 's'}`);
+  };
+
+  const handleBulkPrintCertificates = () => {
+    if (!isMorley) { toast.info('Certificate template pending for this branch'); return; }
+    const selectedStudents = students.filter(s => selectedIds.has(s.student_id));
+    if (selectedStudents.length === 0) { toast.info('No students selected'); return; }
+    const { inputs, eligibleStudents, skipped } = buildBulkInputs(selectedStudents);
+    if (inputs.length === 0) {
+      toast.error('No selected students are eligible for certificates (require pass or double).');
+      return;
+    }
+    const unpaidNames = eligibleStudents.filter(s => s.grading_paid !== 'paid').map(s => s.student_name);
+    if (skipped > 0) toast.info(`${skipped} student${skipped === 1 ? '' : 's'} skipped (not pass/double or missing data)`);
+    if (unpaidNames.length > 0) {
+      setPendingBulkPrint({ inputs, unpaidNames });
+      return;
+    }
+    runBulkDownload(inputs);
+  };
+
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
   const someVisibleSelected = students.some(s => selectedIds.has(s.student_id));
   const toggleAll = () => {
