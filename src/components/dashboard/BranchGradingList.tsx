@@ -949,9 +949,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             : 'No slot'}
                         </span>
                         {result ? (
-                          <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
-                            {RESULT_LABELS[result] || result}
-                          </Badge>
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                              {RESULT_LABELS[result] || result}
+                            </Badge>
+                            {!student.result_manual_override && (
+                              <span className="text-[9px] text-muted-foreground">auto</span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground shrink-0">No result</span>
                         )}
