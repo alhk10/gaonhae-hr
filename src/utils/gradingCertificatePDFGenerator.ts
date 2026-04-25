@@ -110,7 +110,7 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.setFont('times', 'bolditalic');
   doc.setFontSize(26);
   doc.setTextColor(0, 0, 0);
-  doc.text(input.beltAchieved, A4_W / 2, 138, { align: 'center' });
+  doc.text(formatBeltLabel(input.beltAchieved), A4_W / 2, 138, { align: 'center' });
 
   // "Grading Test held on"
   doc.setFont('times', 'normal');
