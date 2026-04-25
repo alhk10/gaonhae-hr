@@ -1,35 +1,35 @@
-## Plan — Scorecard PDF refinements
+## Plan — Grading list table refinements
 
-Scope: `src/utils/gradingCertificatePDFGenerator.ts` only. No DB or UI changes.
+Scope: `BranchGradingList.tsx` and `GradingListTab.tsx`. No DB changes.
 
-### 1. Belt label suffix (Certificate page)
-When rendering the achieved belt name, append the word **" Belt"** to color belts. Skip the suffix when the belt name contains *Foundation*, *Poom*, or *Dan*.
-- `White` → `White Belt`
-- `Yellow Tip` → `Yellow Tip Belt`
-- … through `Black Tip` → `Black Tip Belt`
-- `Foundation 1` → `Foundation 1` (unchanged)
-- `Poom 1` → `Poom 1` (unchanged)
-- `1st Dan` → `1st Dan` (unchanged)
+### 1. Rotate scorecard column headers 90°
+- Apply `[writing-mode:vertical-rl] rotate-180` to scorecard `<TableHead>` labels so text reads bottom-to-top.
+- Increase header row height (e.g. `h-28`) to fit the rotated labels cleanly.
+- Keep header text small (`text-xs`) and centered.
 
-Logic: `if (!/foundation|poom|dan/i.test(beltName)) beltName += ' Belt';`
+### 2. Tighten scorecard column widths
+- Reduce each scorecard column from `w-[88px]` to `w-[34px]` — just enough for 4 digits + a comma (e.g. `10,75`).
+- Body cells: `text-center tabular-nums text-xs` for clean numeric alignment.
 
-Apply this to the belt as it appears on the certificate AND in the new "Belt" row at the top of the scorecard table.
+### 3. Remove dedicated Cert / Cert II columns
+- Delete the standalone "Cert" and "Cert II" `<TableHead>` and `<TableCell>` blocks.
+- Remove their sticky right-offset styles (`right-[154px]`, `right-[110px]`).
+- Remove `-` placeholders entirely — no column, no placeholder.
 
-### 2. Result styling (Scorecard – final "Results" row)
-- Always render the result value in **UPPERCASE** (`PASS`, `DOUBLE`, `FAIL`).
-- When the value is `PASS`, render it in **green** and **bold** in the right-hand cell.
-- `DOUBLE` and `FAIL` keep the default black text (bold optional, will keep current weight).
+### 4. Move certificate buttons into the Actions column
+- Inside the sticky `right-0` Actions cell, render the `FileText` Cert I and Cert II buttons.
+- **Conditional rendering**:
+  - Cert I button: only when `canViewCertificate` is true (result is `pass` or `double`).
+  - Cert II button: only when `canViewCertificateII` is true (result is `double`).
+- Keep existing tooltips ("View Certificate" / "View Certificate II") to distinguish them.
 
-### 3. Unit suffixes on scorecard labels
-When rendering scorecard rows, append units to these specific labels in the left-hand cell:
-- `Height` → **Height (cm)**
-- `Weight` → **Weight (kg)**
-
-Other labels are unchanged. Suffix is added in the PDF only — DB field names and the web editor remain as-is.
+### 5. Remove View (eye) and Delete (trash) icons from Actions
+- Remove the `Eye` view button and the `Trash2` delete button from the Actions cell entirely.
+- Actions column will now contain **only** the conditional Cert I / Cert II buttons (and will appear empty for rows that haven't passed).
+- Shrink the Actions column width accordingly (e.g. `w-[90px]`) since it now holds at most 2 small icon buttons.
 
 ### Out of scope
-- No changes to the certificate signature, logos, fonts, or layout.
-- No changes to the empty-row hiding logic (still skips `-` / `—` / blank).
-- No changes to callers (`BranchGradingList.tsx`, `GradingListTab.tsx`).
+- No changes to data, eligibility logic, or PDF generation.
+- No changes to mobile card layout — desktop table only.
 
 👉 Approve to switch to default mode and implement.
