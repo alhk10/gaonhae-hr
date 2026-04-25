@@ -930,7 +930,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                      <div
+                        className="flex items-center gap-2 mt-0.5 text-[11px] cursor-pointer rounded hover:bg-accent/50 transition-colors -mx-1 px-1 py-0.5"
+                        onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                        title="Tap to change slot/result"
+                      >
                         <span className="text-muted-foreground truncate">
                           {student.grading_slot_title || student.grading_slot_date
                             ? `${student.grading_slot_title || 'Slot'}${student.grading_slot_date ? ` · ${formatDate(new Date(student.grading_slot_date))}` : ''}`
