@@ -221,12 +221,16 @@ const GradingBulkEditDialog: React.FC<Props> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={UNCHANGED}>Leave unchanged</SelectItem>
-                <SelectItem value={NONE}>Clear</SelectItem>
+                <SelectItem value={AUTO}>Auto (recompute from scorecard)</SelectItem>
+                <SelectItem value={NONE}>Clear (manual)</SelectItem>
                 {RESULT_OPTIONS.map(opt => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Picking a value sets a manual override. Choose <em>Auto</em> to clear the override and recompute from the entered Poomsae / Balchagi / Kyorugi / Hoshinsul scores.
+            </p>
           </div>
         </div>
 
