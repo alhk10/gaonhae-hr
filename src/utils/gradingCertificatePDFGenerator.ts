@@ -33,7 +33,8 @@ export interface GradingCertificateInput {
   beltAchieved: string;         // e.g. "Yellow Belt" — printed verbatim
   gradingDate: Date | string;   // long format on the cert
   scorecard: ScorecardRow[];    // editable list rendered on page 2
-  examinerName?: string;        // defaults to "Master Alvin Lee"
+  examinerName?: string;        // (no longer printed) kept for backwards compat
+  result?: 'pass' | 'double' | 'fail' | null; // displayed in final scorecard row
 }
 
 const A4_W = 210;
