@@ -117,18 +117,11 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   // Kukkiwon logo
   doc.addImage(kukkiwonLogo, 'JPEG', 64, footerY, 36, 24, undefined, 'FAST');
 
-  // Signature block on the right
+  // Signature block on the right (image only — name/label removed per template update)
   const sigW = 50;
   const sigH = 28;
   const sigX = A4_W - 30 - sigW;
   doc.addImage(masterSignature, 'JPEG', sigX, footerY - 4, sigW, sigH, undefined, 'FAST');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(input.examinerName || MASTER_DEFAULT, sigX + sigW / 2, footerY + sigH, { align: 'center' });
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-  doc.text('Examiner', sigX + sigW / 2, footerY + sigH + 5, { align: 'center' });
 };
 
 const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
