@@ -486,15 +486,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
    * belt after that. Only enabled for the Morley (AU) branch in Phase 1,
    * and only for the Foundation → Black Tip range.
    */
-  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
-    if (!isMorley) {
-      toast.info('Certificate template pending for this branch');
-      return;
-    }
-    if (!student.registration_id) {
-      toast.error('No grading registration found for this student');
-      return;
-    }
+  // Pending certificate request awaiting payment-reminder confirmation.
+  const [pendingCert, setPendingCert] = useState<{ student: GradingListStudent; certificateNumber: 1 | 2 } | null>(null);
+
+  /** Actually generate and download the certificate PDF. */
+  const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
     const beltAchieved = certificateNumber === 2
       ? getNextBeltLevel(baseBelt, 'AU')
@@ -520,6 +516,26 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
     toast.success('Certificate generated');
+  };
+
+  /**
+   * Validate then either prompt a payment-reminder confirmation (if the
+   * grading invoice is not yet paid) or download immediately.
+   */
+  const handleViewCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    if (!isMorley) {
+      toast.info('Certificate template pending for this branch');
+      return;
+    }
+    if (!student.registration_id) {
+      toast.error('No grading registration found for this student');
+      return;
+    }
+    if (student.grading_paid !== 'paid') {
+      setPendingCert({ student, certificateNumber });
+      return;
+    }
+    runCertificate(student, certificateNumber);
   };
 
   // Selection helpers
@@ -975,6 +991,37 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           termEndDate={selectedTermData.end_date}
         />
       )}
+
+      {/* Payment-reminder confirmation before downloading the certificate. */}
+      <AlertDialog open={!!pendingCert} onOpenChange={(o) => { if (!o) setPendingCert(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Grading fee not yet paid</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingCert?.student.student_name}'s grading invoice is currently{' '}
+              <span className="font-semibold uppercase">
+                {pendingCert?.student.grading_paid === 'unpaid'
+                  ? (pendingCert?.student.invoice_status || 'unpaid')
+                  : (pendingCert?.student.grading_paid || 'n/a')}
+              </span>
+              . Please remind the parent to settle the grading fee.
+              <br /><br />
+              Do you still want to download the certificate now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingCert) runCertificate(pendingCert.student, pendingCert.certificateNumber);
+                setPendingCert(null);
+              }}
+            >
+              Download Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
