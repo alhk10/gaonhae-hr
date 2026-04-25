@@ -1,35 +1,41 @@
-## Plan — Grading list table refinements
+## Plan — Bulk print selected student certificates
 
-Scope: `BranchGradingList.tsx` and `GradingListTab.tsx`. No DB changes.
+Scope: Add a bulk certificate print/download action to the grading list screens. No database changes.
 
-### 1. Rotate scorecard column headers 90°
-- Apply `[writing-mode:vertical-rl] rotate-180` to scorecard `<TableHead>` labels so text reads bottom-to-top.
-- Increase header row height (e.g. `h-28`) to fit the rotated labels cleanly.
-- Keep header text small (`text-xs`) and centered.
+### 1. Add bulk certificate action for selected students
+- Add a **Print Certificates (N)** button near the existing grading list bulk actions in:
+  - `BranchGradingList.tsx`
+  - `GradingListTab.tsx`
+- The button uses the current selected student rows.
+- It only prints students eligible for certificates:
+  - `result = pass` prints 1 certificate
+  - `result = double` prints 2 certificates
+- Students without `pass` or `double` are skipped.
 
-### 2. Tighten scorecard column widths
-- Reduce each scorecard column from `w-[88px]` to `w-[34px]` — just enough for 4 digits + a comma (e.g. `10,75`).
-- Body cells: `text-center tabular-nums text-xs` for clean numeric alignment.
+### 2. Generate one combined PDF
+- Add a bulk PDF helper to the existing grading certificate PDF generator.
+- Instead of downloading one file per student, generate **one PDF file** containing all selected certificates.
+- Each certificate keeps the existing certificate layout, scorecard, belt text, pass styling, height/weight labels, and current PDF rules.
 
-### 3. Remove dedicated Cert / Cert II columns
-- Delete the standalone "Cert" and "Cert II" `<TableHead>` and `<TableCell>` blocks.
-- Remove their sticky right-offset styles (`right-[154px]`, `right-[110px]`).
-- Remove `-` placeholders entirely — no column, no placeholder.
+### 3. Double pass handling
+- For students with `result = double`, include both certificates in the same combined PDF:
+  - Certificate I for the first promotion
+  - Certificate II for the second promotion
+- The bulk print should therefore produce 2 certificate sets for each double-pass student.
 
-### 4. Move certificate buttons into the Actions column
-- Inside the sticky `right-0` Actions cell, render the `FileText` Cert I and Cert II buttons.
-- **Conditional rendering**:
-  - Cert I button: only when `canViewCertificate` is true (result is `pass` or `double`).
-  - Cert II button: only when `canViewCertificateII` is true (result is `double`).
-- Keep existing tooltips ("View Certificate" / "View Certificate II") to distinguish them.
+### 4. Payment warning before printing
+- If selected students include unpaid grading records, show one confirmation dialog before generating.
+- The dialog lists unpaid students and asks whether to continue.
+- If confirmed, proceed with eligible certificates.
 
-### 5. Remove View (eye) and Delete (trash) icons from Actions
-- Remove the `Eye` view button and the `Trash2` delete button from the Actions cell entirely.
-- Actions column will now contain **only** the conditional Cert I / Cert II buttons (and will appear empty for rows that haven't passed).
-- Shrink the Actions column width accordingly (e.g. `w-[90px]`) since it now holds at most 2 small icon buttons.
+### 5. User feedback and edge cases
+- Show a toast after generation with a summary, for example:
+  - certificates generated
+  - students skipped because they are not pass/double
+- If no selected students are eligible, show a clear message and do not generate a PDF.
 
-### Out of scope
-- No changes to data, eligibility logic, or PDF generation.
-- No changes to mobile card layout — desktop table only.
-
-👉 Approve to switch to default mode and implement.
+## Technical details
+- Reuse the existing single-certificate generation logic where possible to avoid duplicating certificate layout code.
+- Keep existing certificate button behavior in the Actions column unchanged.
+- Do not change grading results, payment status, certificate eligibility, or database structure.
+- Apply the feature consistently in both grading list implementations.
