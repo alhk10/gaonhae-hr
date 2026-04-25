@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
 import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Pencil } from 'lucide-react';
+import { FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
@@ -32,7 +32,7 @@ import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/gradin
 import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
 import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
 import { listColumns } from '@/services/gradingScorecardColumnService';
-import { downloadGradingCertificatePDF } from '@/utils/gradingCertificatePDFGenerator';
+import { downloadGradingCertificatePDF, downloadBulkGradingCertificatesPDF, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
@@ -546,6 +546,69 @@ const GradingListTab: React.FC = () => {
     runCertificate(student, certificateNumber);
   };
 
+  // ---- Bulk certificate print ---------------------------------------------
+  const [pendingBulkPrint, setPendingBulkPrint] = useState<{ inputs: GradingCertificateInput[]; unpaidNames: string[] } | null>(null);
+
+  const buildBulkInputs = (rows: GradingListStudent[]): { inputs: GradingCertificateInput[]; eligibleStudents: GradingListStudent[]; skipped: number } => {
+    const inputs: GradingCertificateInput[] = [];
+    const eligibleStudents: GradingListStudent[] = [];
+    let skipped = 0;
+    rows.forEach(student => {
+      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+      const result = student.result;
+      const isPass = result === 'pass';
+      const isDouble = result === 'double';
+      if (!beltInRange || (!isPass && !isDouble) || !student.grading_slot_date) { skipped += 1; return; }
+      const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+      if (!baseBelt) { skipped += 1; return; }
+      inputs.push({
+        studentName: student.student_name,
+        beltAchieved: baseBelt,
+        gradingDate: student.grading_slot_date,
+        scorecard: student.scorecard,
+        result: isDouble ? 'double' : 'pass',
+      });
+      if (isDouble) {
+        const secondBelt = getNextBeltLevel(baseBelt, 'AU');
+        if (secondBelt) {
+          inputs.push({
+            studentName: student.student_name,
+            beltAchieved: secondBelt,
+            gradingDate: student.grading_slot_date,
+            scorecard: student.scorecard,
+            result: 'double',
+          });
+        }
+      }
+      eligibleStudents.push(student);
+    });
+    return { inputs, eligibleStudents, skipped };
+  };
+
+  const runBulkDownload = (inputs: GradingCertificateInput[]) => {
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    downloadBulkGradingCertificatesPDF(inputs, `Certificates_Bulk_${dateStr}.pdf`);
+    toast.success(`Generated ${inputs.length} certificate${inputs.length === 1 ? '' : 's'}`);
+  };
+
+  const handleBulkPrintCertificates = () => {
+    if (!isMorley) { toast.info('Certificate template pending for this branch'); return; }
+    const selectedStudents = students.filter(s => selectedIds.has(s.student_id));
+    if (selectedStudents.length === 0) { toast.info('No students selected'); return; }
+    const { inputs, eligibleStudents, skipped } = buildBulkInputs(selectedStudents);
+    if (inputs.length === 0) {
+      toast.error('No selected students are eligible for certificates (require pass or double).');
+      return;
+    }
+    const unpaidNames = eligibleStudents.filter(s => s.grading_paid !== 'paid').map(s => s.student_name);
+    if (skipped > 0) toast.info(`${skipped} student${skipped === 1 ? '' : 's'} skipped (not pass/double or missing data)`);
+    if (unpaidNames.length > 0) {
+      setPendingBulkPrint({ inputs, unpaidNames });
+      return;
+    }
+    runBulkDownload(inputs);
+  };
+
   const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
   const someVisibleSelected = students.some(s => selectedIds.has(s.student_id));
   const toggleAll = () => {
@@ -631,10 +694,22 @@ const GradingListTab: React.FC = () => {
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
-                <Button size="sm" onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}>
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Bulk Edit ({selectedIds.size})
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkPrintCertificates}
+                    disabled={!isMorley}
+                    title={!isMorley ? 'Template pending for this branch' : 'Print certificates for selected students'}
+                  >
+                    <Printer className="w-4 h-4 mr-1" />
+                    Print Certificates ({selectedIds.size})
+                  </Button>
+                  <Button size="sm" onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}>
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Bulk Edit ({selectedIds.size})
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -858,6 +933,35 @@ const GradingListTab: React.FC = () => {
               }}
             >
               Download Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk certificate print: payment-reminder confirmation. */}
+      <AlertDialog open={!!pendingBulkPrint} onOpenChange={(o) => { if (!o) setPendingBulkPrint(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Some grading fees not yet paid</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>The following students have unpaid grading fees:</div>
+                <ul className="list-disc pl-5 max-h-40 overflow-y-auto text-sm">
+                  {pendingBulkPrint?.unpaidNames.map(n => <li key={n}>{n}</li>)}
+                </ul>
+                <div>Do you still want to print all eligible certificates now?</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingBulkPrint) runBulkDownload(pendingBulkPrint.inputs);
+                setPendingBulkPrint(null);
+              }}
+            >
+              Print Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

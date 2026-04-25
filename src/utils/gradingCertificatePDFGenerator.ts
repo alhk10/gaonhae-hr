@@ -237,3 +237,24 @@ export const downloadGradingCertificatePDF = (input: GradingCertificateInput, fi
   const doc = generateGradingCertificatePDF(input);
   doc.save(filename);
 };
+
+/**
+ * Generate a single combined PDF containing all supplied certificates.
+ * Each input contributes 2 pages (certificate + scorecard). For a "double"
+ * promotion, callers should pass both Cert I and Cert II as two entries.
+ */
+export const generateBulkGradingCertificatesPDF = (inputs: GradingCertificateInput[]): jsPDF => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+  inputs.forEach((input, idx) => {
+    if (idx > 0) doc.addPage('a4', 'portrait');
+    drawCertificatePage(doc, input);
+    drawScorecardPage(doc, input); // internally calls addPage()
+  });
+  return doc;
+};
+
+/** Trigger a browser download of the combined bulk certificates PDF. */
+export const downloadBulkGradingCertificatesPDF = (inputs: GradingCertificateInput[], filename: string): void => {
+  const doc = generateBulkGradingCertificatesPDF(inputs);
+  doc.save(filename);
+};
