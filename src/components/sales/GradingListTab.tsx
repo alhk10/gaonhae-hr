@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
 import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Pencil } from 'lucide-react';
+import { FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
@@ -32,7 +32,7 @@ import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/gradin
 import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
 import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
 import { listColumns } from '@/services/gradingScorecardColumnService';
-import { downloadGradingCertificatePDF } from '@/utils/gradingCertificatePDFGenerator';
+import { downloadGradingCertificatePDF, downloadBulkGradingCertificatesPDF, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
