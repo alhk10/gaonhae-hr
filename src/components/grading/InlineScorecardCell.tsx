@@ -53,7 +53,7 @@ export const InlineScorecardCell: React.FC<Props> = ({ registrationId, label, sc
       // Read latest, merge, write
       const { data: row, error: readErr } = await supabase
         .from('grading_registrations')
-        .select('scorecard')
+        .select('scorecard, result_manual_override')
         .eq('id', registrationId)
         .maybeSingle();
       if (readErr) throw readErr;
@@ -64,9 +64,16 @@ export const InlineScorecardCell: React.FC<Props> = ({ registrationId, label, sc
       if (idx >= 0) arr[idx] = { label, value: next };
       else arr.push({ label, value: next });
 
+      const updates: Record<string, any> = { scorecard: arr as any };
+
+      // Auto-recompute the result unless the examiner has manually overridden it.
+      if (!(row as any)?.result_manual_override) {
+        updates.result = computeAutoResult(arr);
+      }
+
       const { error: updErr } = await supabase
         .from('grading_registrations')
-        .update({ scorecard: arr as any })
+        .update(updates)
         .eq('id', registrationId);
       if (updErr) throw updErr;
       lastSaved.current = next;
