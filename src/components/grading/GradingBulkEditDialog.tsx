@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/utils/dateFormat';
+import { computeAutoResult, type ScorecardRow } from '@/constants/scorecardLabels';
 
 export interface BulkEditStudent {
   student_id: string;
