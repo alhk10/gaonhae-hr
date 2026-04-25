@@ -38,8 +38,13 @@ export const ScorecardColumnHeader: React.FC<HeaderProps> = ({ termId, branchId,
   });
 
   return (
-    <div className="flex items-center gap-0.5 whitespace-nowrap">
-      <span className="truncate max-w-[80px]" title={label}>{label}</span>
+    <div className="flex flex-col items-center gap-0.5 h-24 justify-end">
+      <span
+        className="[writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-xs"
+        title={label}
+      >
+        {label}
+      </span>
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button variant="ghost" size="sm" className="h-4 w-4 p-0 opacity-60 hover:opacity-100" title={`Remove "${label}"`}>
