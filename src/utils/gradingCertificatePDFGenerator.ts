@@ -248,8 +248,7 @@ export const generateBulkGradingCertificatesPDF = (inputs: GradingCertificateInp
   inputs.forEach((input, idx) => {
     if (idx > 0) doc.addPage('a4', 'portrait');
     drawCertificatePage(doc, input);
-    doc.addPage('a4', 'portrait');
-    drawScorecardPage(doc, input);
+    drawScorecardPage(doc, input); // internally calls addPage()
   });
   return doc;
 };
