@@ -1,33 +1,35 @@
-## Plan — Grading Certificate PDF template updates
+## Plan — Scorecard PDF refinements
 
-### Goal
-Update the 2-page grading certificate PDF (`src/utils/gradingCertificatePDFGenerator.ts`) to match the new examiner-approved template.
+Scope: `src/utils/gradingCertificatePDFGenerator.ts` only. No DB or UI changes.
 
-### Page 1 — Certificate
-- **Remove** the "Master Alvin Lee" name and the "Examiner" label printed under the signature image. The signature image itself stays.
+### 1. Belt label suffix (Certificate page)
+When rendering the achieved belt name, append the word **" Belt"** to color belts. Skip the suffix when the belt name contains *Foundation*, *Poom*, or *Dan*.
+- `White` → `White Belt`
+- `Yellow Tip` → `Yellow Tip Belt`
+- … through `Black Tip` → `Black Tip Belt`
+- `Foundation 1` → `Foundation 1` (unchanged)
+- `Poom 1` → `Poom 1` (unchanged)
+- `1st Dan` → `1st Dan` (unchanged)
 
-### Page 2 — Scorecard
-- Title: change `"Grading Scorecard"` → **`"GRADING SCORECARD"`** (all uppercase).
-- **Remove** the subtitle line that currently prints `Student name · Belt · Grading Date` under the title.
-- **Remove** the grey **"Field / Result"** header row at the top of the table.
-- **Insert 3 new rows at the top** of the table (same 2-column layout as the scorecard rows):
-  1. `Grading Date`  | formatted long date (e.g. `25 April 2026`)
-  2. `Student Name`  | student's full name
-  3. `Belt`          | belt achieved
-- **Append a final row** at the bottom of the table:
-  - `Results` | the Result value, capitalised (`Pass`, `Double`, `Fail`, or blank if not set)
-- **Hide rows with `—` / empty values**: any scorecard data row whose value is missing, blank, or just a dash (`-` / `—`) is skipped entirely (not rendered as `Label | —`). The 3 structural header rows (Date / Name / Belt) and the final `Results` row are always shown.
+Logic: `if (!/foundation|poom|dan/i.test(beltName)) beltName += ' Belt';`
 
-### Data plumbing
-- Extend `GradingCertificateInput` with an optional `result?: 'pass' | 'double' | 'fail' | null` field.
-- Update the two callers that generate certificates so they pass `result` through:
-  - `src/components/dashboard/BranchGradingList.tsx`
-  - `src/components/sales/GradingListTab.tsx`
-  Both already have `student.result` available from the existing query.
+Apply this to the belt as it appears on the certificate AND in the new "Belt" row at the top of the scorecard table.
+
+### 2. Result styling (Scorecard – final "Results" row)
+- Always render the result value in **UPPERCASE** (`PASS`, `DOUBLE`, `FAIL`).
+- When the value is `PASS`, render it in **green** and **bold** in the right-hand cell.
+- `DOUBLE` and `FAIL` keep the default black text (bold optional, will keep current weight).
+
+### 3. Unit suffixes on scorecard labels
+When rendering scorecard rows, append units to these specific labels in the left-hand cell:
+- `Height` → **Height (cm)**
+- `Weight` → **Weight (kg)**
+
+Other labels are unchanged. Suffix is added in the PDF only — DB field names and the web editor remain as-is.
 
 ### Out of scope
-- No DB changes — `result` already exists on `grading_registrations`.
-- No change to logos, fonts, page size, or signature image.
-- No change to the auto-result calculation logic shipped previously.
+- No changes to the certificate signature, logos, fonts, or layout.
+- No changes to the empty-row hiding logic (still skips `-` / `—` / blank).
+- No changes to callers (`BranchGradingList.tsx`, `GradingListTab.tsx`).
 
 👉 Approve to switch to default mode and implement.

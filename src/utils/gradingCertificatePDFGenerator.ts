@@ -42,6 +42,26 @@ const A4_H = 297;
 
 
 
+/**
+ * Append " Belt" to color belts (White through Black Tip).
+ * Skip the suffix for Foundation, Poom, and Dan ranks.
+ */
+const formatBeltLabel = (belt: string): string => {
+  const trimmed = (belt || '').trim();
+  if (!trimmed) return '';
+  if (/foundation|poom|dan/i.test(trimmed)) return trimmed;
+  if (/\bbelt\b/i.test(trimmed)) return trimmed;
+  return `${trimmed} Belt`;
+};
+
+/** Add unit suffix to specific scorecard labels for PDF display only. */
+const labelWithUnit = (label: string): string => {
+  const l = (label || '').trim().toLowerCase();
+  if (l === 'height') return 'Height (cm)';
+  if (l === 'weight') return 'Weight (kg)';
+  return label;
+};
+
 const longDate = (d: Date | string): string => {
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return '';
