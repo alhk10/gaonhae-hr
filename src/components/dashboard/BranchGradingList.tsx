@@ -775,7 +775,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           {showScorecard && scorecardColumns.map(col => (
-                            <TableCell key={col.id} className={cellCls}>
+                            <TableCell key={col.id} className={`${cellCls} px-1 text-center text-xs tabular-nums`}>
                               <InlineScorecardCell
                                 registrationId={student.registration_id}
                                 label={col.label}
@@ -790,55 +790,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             </TableCell>
                           )}
                           {showScorecard && <TableCell className={cellCls}></TableCell>}
-                          <TableCell className={`${cellCls} text-center ${stickyRightCell('right-[154px]')} ${isSelected ? 'bg-accent/30' : ''}`}>
-                            {canViewCertificate ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 1)}>
-                                <FileText className="w-3.5 h-3.5" />
-                              </Button>
-                            ) : <span className="text-muted-foreground">-</span>}
-                          </TableCell>
-                          <TableCell className={`${cellCls} text-center ${stickyRightCell('right-[110px]')} ${isSelected ? 'bg-accent/30' : ''}`}>
-                            {canViewCertificateII ? (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certTitle} onClick={() => handleViewCertificate(student, 2)}>
-                                <FileText className="w-3.5 h-3.5" />
-                              </Button>
-                            ) : <span className="text-muted-foreground">-</span>}
-                          </TableCell>
                           <TableCell className={`${cellCls} ${stickyRightCell('right-0')} ${isSelected ? 'bg-accent/30' : ''}`}>
-                            <div className="flex gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
-                                title="View Details"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </Button>
-                              {student.registration_id && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Delete Registration">
-                                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Request Deletion</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This will submit a deletion request for {student.student_name}'s grading registration. A superadmin must approve it before it takes effect.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => deleteMutation.mutate({ registrationId: student.registration_id!, studentId: student.student_id, studentName: student.student_name })}
-                                      >
-                                        Submit Request
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                            <div className="flex gap-0.5 justify-center">
+                              {canViewCertificate && (
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={certDisabled} title={certDisabled ? certTitle : 'View Certificate'} onClick={() => handleViewCertificate(student, 1)}>
+                                  <FileText className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                              {canViewCertificateII && (
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-primary" disabled={certDisabled} title={certDisabled ? certTitle : 'View Certificate II'} onClick={() => handleViewCertificate(student, 2)}>
+                                  <FileText className="w-3.5 h-3.5" />
+                                </Button>
                               )}
                             </div>
                           </TableCell>
