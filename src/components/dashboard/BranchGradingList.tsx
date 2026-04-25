@@ -1066,6 +1066,35 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk certificate print: payment-reminder confirmation. */}
+      <AlertDialog open={!!pendingBulkPrint} onOpenChange={(o) => { if (!o) setPendingBulkPrint(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Some grading fees not yet paid</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>The following students have unpaid grading fees:</div>
+                <ul className="list-disc pl-5 max-h-40 overflow-y-auto text-sm">
+                  {pendingBulkPrint?.unpaidNames.map(n => <li key={n}>{n}</li>)}
+                </ul>
+                <div>Do you still want to print all eligible certificates now?</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingBulkPrint) runBulkDownload(pendingBulkPrint.inputs);
+                setPendingBulkPrint(null);
+              }}
+            >
+              Print Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
