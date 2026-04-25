@@ -169,7 +169,7 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
   const allRows: ScorecardRow[] = [
     { label: 'Grading Date', value: longDate(input.gradingDate) },
     { label: 'Student Name', value: input.studentName },
-    { label: 'Belt', value: input.beltAchieved },
+    { label: 'Belt', value: formatBeltLabel(input.beltAchieved) },
     ...dataRows,
     { label: 'Results', value: formatResult(input.result) },
   ];
