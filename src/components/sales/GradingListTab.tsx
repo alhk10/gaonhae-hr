@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
 import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Trash2, Eye, Pencil } from 'lucide-react';
+import { FileText, Loader2, User, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
