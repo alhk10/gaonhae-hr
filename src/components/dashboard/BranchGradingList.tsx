@@ -885,14 +885,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
                             onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
                           >
                             <Eye className="w-3 h-3" />
