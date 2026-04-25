@@ -666,7 +666,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                       <TableHead className={`${headCls} min-w-[160px]`}>Slot</TableHead>
                       <TableHead className={`${headCls} w-[90px]`}>Result</TableHead>
                       {showScorecard && scorecardColumns.map(col => (
-                        <TableHead key={col.id} className={`${headCls} w-[88px]`}>
+                        <TableHead key={col.id} className={`${headCls} w-[34px] p-0 align-bottom text-center`}>
                           <ScorecardColumnHeader
                             termId={selectedTerm}
                             branchId={branchId}
@@ -687,9 +687,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           />
                         </TableHead>
                       )}
-                      <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[154px]')}`}>Cert</TableHead>
-                      <TableHead className={`${headCls} w-[44px] text-center ${stickyRightHead('right-[110px]')}`}>Cert II</TableHead>
-                      <TableHead className={`${headCls} w-[110px] ${stickyRightHead('right-0')}`}>Actions</TableHead>
+                      <TableHead className={`${headCls} w-[90px] text-center ${stickyRightHead('right-0')}`}>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
