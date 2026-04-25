@@ -50,3 +50,32 @@ export const extractNumeric = (raw?: string): number | null => {
   const n = parseFloat(m[0]);
   return Number.isFinite(n) ? n : null;
 };
+
+/**
+ * Auto-compute Pass / Double / Fail from the scorecard scores.
+ * Uses the deepest fully-filled set of {Poomsae,Balchagi[,Kyorugi[,Hoshinsul]]}.
+ * Returns null when Poomsae or Balchagi is missing (insufficient data).
+ *
+ * Scoring bands: ≤5.9 → fail, 6.0–7.9 → pass, 8.0–10.0 → double.
+ */
+export type AutoResult = 'pass' | 'double' | 'fail' | null;
+
+export const computeAutoResult = (rows: ScorecardRow[] | null | undefined): AutoResult => {
+  if (!rows) return null;
+  const num = (label: string) => {
+    const hit = rows.find(r => String(r.label).toLowerCase() === label.toLowerCase());
+    return extractNumeric(hit?.value);
+  };
+  const p = num('Poomsae');
+  const b = num('Balchagi');
+  const k = num('Kyorugi');
+  const h = num('Hoshinsul');
+  if (p == null || b == null) return null;
+  const set = (h != null && k != null) ? [p, b, k, h]
+            : (k != null)               ? [p, b, k]
+            :                             [p, b];
+  const avg = set.reduce((a, c) => a + c, 0) / set.length;
+  if (avg <= 5.9) return 'fail';
+  if (avg < 8.0) return 'pass';
+  return 'double';
+};

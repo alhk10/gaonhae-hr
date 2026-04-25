@@ -48,6 +48,7 @@ interface GradingListStudent {
   invoice_id: string;
   ready_for_grading: boolean;
   result: 'pass' | 'fail' | 'double' | 'confirmed' | null;
+  result_manual_override: boolean;
   certificate_issued: boolean;
   certificate_ii_issued: boolean;
   registration_id: string | null;
@@ -221,7 +222,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
-        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id, scorecard')
+        .select('id, student_id, current_belt, target_belt, ready_for_grading, result, result_manual_override, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id, scorecard')
         .eq('term_id', selectedTerm);
       if (regErr) throw regErr;
       const registrations = regs || [];
@@ -355,6 +356,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           invoice_id: repInv?.id || '',
           ready_for_grading: reg.ready_for_grading || false,
           result: (reg.result as any) || null,
+          result_manual_override: (reg as any).result_manual_override || false,
           certificate_issued: reg.certificate_issued || false,
           certificate_ii_issued: reg.certificate_ii_issued || false,
           registration_id: reg.id || null,
@@ -387,6 +389,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           invoice_id: termLessonInv.id,
           ready_for_grading: false,
           result: null,
+          result_manual_override: false,
           certificate_issued: false,
           certificate_ii_issued: false,
           registration_id: null,
@@ -759,12 +762,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           <TableCell
                             className={`${cellCls} cursor-pointer hover:bg-accent/50 transition-colors`}
                             onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                            title="Click to change result"
+                            title={student.result_manual_override ? 'Click to change result (manually set)' : 'Click to change result (auto-calculated)'}
                           >
                             {result ? (
-                              <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
-                                {RESULT_LABELS[result] || result}
-                              </Badge>
+                              <span className="inline-flex items-center gap-1">
+                                <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
+                                  {RESULT_LABELS[result] || result}
+                                </Badge>
+                                {!student.result_manual_override && (
+                                  <span className="text-[9px] text-muted-foreground">auto</span>
+                                )}
+                              </span>
                             ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
                           {showScorecard && scorecardColumns.map(col => (
@@ -941,9 +949,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             : 'No slot'}
                         </span>
                         {result ? (
-                          <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
-                            {RESULT_LABELS[result] || result}
-                          </Badge>
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                              {RESULT_LABELS[result] || result}
+                            </Badge>
+                            {!student.result_manual_override && (
+                              <span className="text-[9px] text-muted-foreground">auto</span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground shrink-0">No result</span>
                         )}
