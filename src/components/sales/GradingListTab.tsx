@@ -791,15 +791,6 @@ const GradingListTab: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0"
-                              onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                              title="Edit slot/result"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
                               onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
                               title="View Details"
                             >
