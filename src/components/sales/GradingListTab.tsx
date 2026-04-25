@@ -694,10 +694,22 @@ const GradingListTab: React.FC = () => {
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
-                <Button size="sm" onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}>
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Bulk Edit ({selectedIds.size})
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkPrintCertificates}
+                    disabled={!isMorley}
+                    title={!isMorley ? 'Template pending for this branch' : 'Print certificates for selected students'}
+                  >
+                    <Printer className="w-4 h-4 mr-1" />
+                    Print Certificates ({selectedIds.size})
+                  </Button>
+                  <Button size="sm" onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}>
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Bulk Edit ({selectedIds.size})
+                  </Button>
+                </>
               )}
             </div>
           </div>
