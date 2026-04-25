@@ -519,6 +519,7 @@ const GradingListTab: React.FC = () => {
         beltAchieved,
         gradingDate: student.grading_slot_date,
         scorecard: student.scorecard,
+        result: student.result === 'pass' || student.result === 'double' || student.result === 'fail' ? student.result : null,
       },
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
