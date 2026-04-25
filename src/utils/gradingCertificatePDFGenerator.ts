@@ -205,9 +205,16 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(40, 40, 40);
-    doc.text(row.label, tableX + 4, y + 7.2);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(20, 20, 20);
+    doc.text(labelWithUnit(row.label), tableX + 4, y + 7.2);
+    const isResultsRow = row.label === 'Results';
+    const isPass = isResultsRow && row.value === 'PASS';
+    if (isPass) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(34, 139, 34);
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(20, 20, 20);
+    }
     doc.text(row.value || '', tableX + labelW + 4, y + 7.2);
     y += rowH;
   });
