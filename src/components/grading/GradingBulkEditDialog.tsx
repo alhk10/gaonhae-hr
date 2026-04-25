@@ -58,6 +58,7 @@ const RESULT_OPTIONS = [
 
 const UNCHANGED = '__unchanged__';
 const NONE = '__none__';
+const AUTO = '__auto__';
 
 const GradingBulkEditDialog: React.FC<Props> = ({
   open, onOpenChange, students, availableSlots, selectedTermId, termStarted, invalidateKeys = [],
