@@ -1402,6 +1402,7 @@ export type Database = {
           notes: string | null
           ready_for_grading: boolean | null
           result: string | null
+          result_manual_override: boolean
           scorecard: Json
           student_id: string
           target_belt: string
@@ -1419,6 +1420,7 @@ export type Database = {
           notes?: string | null
           ready_for_grading?: boolean | null
           result?: string | null
+          result_manual_override?: boolean
           scorecard?: Json
           student_id: string
           target_belt: string
@@ -1436,6 +1438,7 @@ export type Database = {
           notes?: string | null
           ready_for_grading?: boolean | null
           result?: string | null
+          result_manual_override?: boolean
           scorecard?: Json
           student_id?: string
           target_belt?: string
