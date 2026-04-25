@@ -40,7 +40,7 @@ export interface GradingCertificateInput {
 const A4_W = 210;
 const A4_H = 297;
 
-const MASTER_DEFAULT = 'Master Alvin Lee';
+
 
 const longDate = (d: Date | string): string => {
   const date = d instanceof Date ? d : new Date(d);
