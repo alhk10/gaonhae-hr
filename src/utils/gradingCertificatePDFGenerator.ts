@@ -124,65 +124,54 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.addImage(masterSignature, 'JPEG', sigX, footerY - 4, sigW, sigH, undefined, 'FAST');
 };
 
+const isBlankValue = (v?: string): boolean => {
+  if (!v) return true;
+  const trimmed = v.trim();
+  if (trimmed === '') return true;
+  if (trimmed === '-' || trimmed === '—' || trimmed === '–') return true;
+  return false;
+};
+
+const formatResult = (r?: 'pass' | 'double' | 'fail' | null): string => {
+  if (!r) return '';
+  return r.charAt(0).toUpperCase() + r.slice(1);
+};
+
 const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.addPage();
 
-  const rows = withDerivedBmi(input.scorecard.filter(r => r.label?.trim() || r.value?.trim()));
+  // Filter out blank/dash-only scorecard rows
+  const dataRows = withDerivedBmi(
+    input.scorecard.filter(r => (r.label?.trim() ?? '') !== '' && !isBlankValue(r.value)),
+  );
 
-  // Header strip with student + belt + date so the scorecard is self-contained
+  // Build full row list: 3 structural header rows + scorecard rows + Results row
+  const allRows: ScorecardRow[] = [
+    { label: 'Grading Date', value: longDate(input.gradingDate) },
+    { label: 'Student Name', value: input.studentName },
+    { label: 'Belt', value: input.beltAchieved },
+    ...dataRows,
+    { label: 'Results', value: formatResult(input.result) },
+  ];
+
+  // Title (uppercase)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(20, 20, 20);
-  doc.text('Grading Scorecard', A4_W / 2, 22, { align: 'center' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-  doc.text(
-    `${input.studentName}  ·  ${input.beltAchieved}  ·  ${longDate(input.gradingDate)}`,
-    A4_W / 2,
-    29,
-    { align: 'center' },
-  );
+  doc.text('GRADING SCORECARD', A4_W / 2, 22, { align: 'center' });
 
   // Table layout
   const tableX = 25;
   const tableW = A4_W - tableX * 2;
   const labelW = tableW * 0.4;
-  const valueW = tableW - labelW;
   const rowH = 11;
-  let y = 45;
+  const startY = 35;
+  let y = startY;
 
-  // Header row
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.2);
-  doc.setFillColor(245, 245, 245);
-  doc.rect(tableX, y, tableW, rowH, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(40, 40, 40);
-  doc.text('Field', tableX + 4, y + 7.2);
-  doc.text('Result', tableX + labelW + 4, y + 7.2);
-  y += rowH;
 
-  // Data rows
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(20, 20, 20);
-
-  if (rows.length === 0) {
-    doc.rect(tableX, y, tableW, rowH * 3, 'S');
-    doc.setTextColor(140, 140, 140);
-    doc.text(
-      'No scorecard entries recorded.',
-      A4_W / 2,
-      y + (rowH * 3) / 2 + 2,
-      { align: 'center' },
-    );
-    return;
-  }
-
-  rows.forEach((row, idx) => {
+  allRows.forEach((row, idx) => {
     if (y + rowH > A4_H - 20) {
       doc.addPage();
       y = 25;
@@ -194,18 +183,19 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
     doc.setDrawColor(220, 220, 220);
     doc.line(tableX, y + rowH, tableX + tableW, y + rowH);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
     doc.setTextColor(40, 40, 40);
-    doc.text(row.label || '—', tableX + 4, y + 7.2);
+    doc.text(row.label, tableX + 4, y + 7.2);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(20, 20, 20);
-    doc.text(row.value || '—', tableX + labelW + 4, y + 7.2);
+    doc.text(row.value || '', tableX + labelW + 4, y + 7.2);
     y += rowH;
   });
 
   // Outer border
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.3);
-  doc.rect(tableX, 45, tableW, y - 45, 'S');
+  doc.rect(tableX, startY, tableW, y - startY, 'S');
 };
 
 export const generateGradingCertificatePDF = (input: GradingCertificateInput): jsPDF => {
