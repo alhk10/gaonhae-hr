@@ -864,6 +864,37 @@ const GradingListTab: React.FC = () => {
         />
       )}
 
+      {/* Payment-reminder confirmation before downloading the certificate. */}
+      <AlertDialog open={!!pendingCert} onOpenChange={(o) => { if (!o) setPendingCert(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Grading fee not yet paid</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingCert?.student.student_name}'s grading invoice is currently{' '}
+              <span className="font-semibold uppercase">
+                {pendingCert?.student.grading_paid === 'unpaid'
+                  ? (pendingCert?.student.invoice_status || 'unpaid')
+                  : (pendingCert?.student.grading_paid || 'n/a')}
+              </span>
+              . Please remind the parent to settle the grading fee.
+              <br /><br />
+              Do you still want to download the certificate now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingCert) runCertificate(pendingCert.student, pendingCert.certificateNumber);
+                setPendingCert(null);
+              }}
+            >
+              Download Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
