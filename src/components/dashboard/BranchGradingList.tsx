@@ -749,10 +749,18 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                               {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
                             </Badge>
                           </TableCell>
-                          <TableCell className={`${cellCls} truncate max-w-[220px] whitespace-nowrap`}>
+                          <TableCell
+                            className={`${cellCls} truncate max-w-[220px] whitespace-nowrap cursor-pointer hover:bg-accent/50 transition-colors`}
+                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                            title="Click to change slot"
+                          >
                             {renderSlotInline(student)}
                           </TableCell>
-                          <TableCell className={cellCls}>
+                          <TableCell
+                            className={`${cellCls} cursor-pointer hover:bg-accent/50 transition-colors`}
+                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                            title="Click to change result"
+                          >
                             {result ? (
                               <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
                                 {RESULT_LABELS[result] || result}
