@@ -1,50 +1,52 @@
-## Plan — Draft-invoice passes + payment reminder popup on PDF download
+## Plan — Click Slot/Result to edit (remove pencil button)
 
-### Findings (read-only investigation)
-- `GradingListTab.tsx` and `BranchGradingList.tsx` already let staff assign `result = 'pass' | 'double'` to a student **regardless of invoice status** (the Edit/Bulk Edit dialogs don't gate on `grading_paid`).
-- The Cert (📄) button is gated only on `result ∈ {pass, double}` + Foundation→Black Tip + Morley branch — **not** on payment status. So in the screenshot, draft/unpaid students show "-" simply because no result has been entered yet, not because draft is blocked.
-- Each row already carries `grading_paid: 'paid' | 'unpaid' | 'n/a'` (computed from the grading invoice item's invoice status), so no extra query is needed for the popup.
+### Goal
+Get rid of the per-row pencil (✏️) edit button. Instead, make the **Slot** and **Result** cells themselves clickable — clicking either one opens the existing `GradingBulkEditDialog` scoped to that single student, where the user can change slot and/or result.
+
+### Findings (read-only)
+- `GradingBulkEditDialog` already supports single-student editing (it accepts an array of student IDs and dynamically adapts the title/description).
+- Current Edit (✏️) button in both `BranchGradingList.tsx` and `GradingListTab.tsx` calls:
+  ```ts
+  setBulkStudentIds([student.student_id]);
+  setBulkOpen(true);
+  ```
+  — exactly the same handler we need to wire to the cell click.
+- Slot cell currently renders the slot name (or `"-"`); Result cell renders a colored badge (Pass / Double / Fail) or `"-"`.
+- Top-bar **Bulk Edit** button (multi-select via checkboxes) stays untouched — only the per-row pencil goes.
 
 ### Changes
 
-**1. Confirm "draft can pass" remains supported**  
-No code change required — passes already work for draft invoices. The flow is:
-1. Staff opens Edit (✏️) on a draft-invoice student → sets Result = Pass → Save.
-2. Cert button (📄) immediately appears in the row.
+**1. `src/components/dashboard/BranchGradingList.tsx`**
+- Remove the `<Button>` with the `Pencil` icon from the desktop Actions column.
+- Remove the `Pencil` import if no longer used.
+- Wrap the Slot cell content in a clickable element:
+  ```tsx
+  <TableCell
+    className="cursor-pointer hover:bg-accent/50 transition-colors"
+    onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+    title="Click to change slot"
+  >
+    {student.slot_name ?? <span className="text-muted-foreground italic">Click to assign</span>}
+  </TableCell>
+  ```
+- Same treatment for the Result cell (keep the existing badge inside, just make the cell clickable with the same handler + `title="Click to change result"`).
+- Mobile card: remove the small pencil button; make the "Slot:" and "Result:" lines tappable with the same handler (add `cursor-pointer` + subtle hover/active state).
 
-**2. Add payment-reminder confirmation dialog before PDF download**  
-When the user clicks the Cert (or Cert II) button **and** `grading_paid !== 'paid'`, show a confirmation dialog instead of downloading immediately:
+**2. `src/components/sales/GradingListTab.tsx`**
+- Mirror the exact same changes:
+  - Remove pencil button from the sticky Actions column.
+  - Make Slot and Result `<TableCell>`s clickable → open `GradingBulkEditDialog` for that single student.
+  - Mobile card: same treatment.
 
-> **Grading fee not yet paid**  
-> {Student Name}'s grading invoice is currently **{Draft / Unpaid / Partial / etc.}**.  
-> Please remind the parent to settle the grading fee.  
->   
-> Do you still want to download the certificate now?  
->   
-> [Cancel]  [Download Anyway]
+**3. Preserved behaviour**
+- Top-bar **Bulk Edit** button (works on multi-row checkbox selection) — unchanged.
+- Cert / Cert II buttons in the sticky-right action area — unchanged (still gated by result + payment-reminder dialog).
+- Inline scorecard cells (Height, Weight, etc.) — unchanged.
+- `GradingBulkEditDialog` itself — no changes needed.
 
-If `grading_paid === 'paid'` → download immediately (current behaviour, no popup).
-
-**3. Files to edit**
-- `src/components/sales/GradingListTab.tsx`
-  - Add `AlertDialog` state: `const [pendingCert, setPendingCert] = useState<{ student, certificateNumber } | null>(null)`.
-  - Refactor `handleViewCertificate` → split into:
-    - `requestCertificate(student, n)` — runs current validation; if `grading_paid !== 'paid'` sets `pendingCert`, else calls `runCertificate(...)`.
-    - `runCertificate(student, n)` — current download logic.
-  - Wire Cert / Cert II buttons to `requestCertificate`.
-  - Render `<AlertDialog open={!!pendingCert}>` with the warning copy + "Download Anyway" → `runCertificate(...)` then clear state.
-- `src/components/dashboard/BranchGradingList.tsx`
-  - Mirror the exact same change (same helpers, same dialog).
-
-**4. Reused infrastructure**
-- `AlertDialog` from `@/components/ui/alert-dialog` (already imported in `ScorecardColumnHeader.tsx`).
-- `student.grading_paid` already present on every row — no new fetch.
-- `invoice_status` shown in the dialog body for clarity (also already on the row).
-
-**5. Out of scope**
-- No change to result-entry rules, ready flag, or Edit dialog.
-- No change to the PDF generator or scorecard editor.
-- No new database column or migration.
-- Mobile card layout remains untouched.
+**4. Out of scope**
+- No DB or service changes.
+- No change to the dialog's UX or fields.
+- No change to result-entry validation / ready-flag logic.
 
 👉 Approve to switch to default mode and execute.

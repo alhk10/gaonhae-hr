@@ -749,10 +749,18 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                               {student.grading_paid === 'paid' ? 'Paid' : student.grading_paid === 'unpaid' ? 'Unpaid' : 'N/A'}
                             </Badge>
                           </TableCell>
-                          <TableCell className={`${cellCls} truncate max-w-[220px] whitespace-nowrap`}>
+                          <TableCell
+                            className={`${cellCls} truncate max-w-[220px] whitespace-nowrap cursor-pointer hover:bg-accent/50 transition-colors`}
+                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                            title="Click to change slot"
+                          >
                             {renderSlotInline(student)}
                           </TableCell>
-                          <TableCell className={cellCls}>
+                          <TableCell
+                            className={`${cellCls} cursor-pointer hover:bg-accent/50 transition-colors`}
+                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                            title="Click to change result"
+                          >
                             {result ? (
                               <Badge variant={result === 'pass' || result === 'double' ? 'success' : result === 'fail' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0">
                                 {RESULT_LABELS[result] || result}
@@ -791,15 +799,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           </TableCell>
                           <TableCell className={`${cellCls} ${stickyRightCell('right-0')} ${isSelected ? 'bg-accent/30' : ''}`}>
                             <div className="flex gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                                title="Edit slot/result"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -886,14 +885,6 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
                             onClick={() => setDetailStudent({ id: student.student_id, name: student.student_name })}
                           >
                             <Eye className="w-3 h-3" />
@@ -939,7 +930,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                      <div
+                        className="flex items-center gap-2 mt-0.5 text-[11px] cursor-pointer rounded hover:bg-accent/50 transition-colors -mx-1 px-1 py-0.5"
+                        onClick={() => { setBulkStudentIds([student.student_id]); setBulkOpen(true); }}
+                        title="Tap to change slot/result"
+                      >
                         <span className="text-muted-foreground truncate">
                           {student.grading_slot_title || student.grading_slot_date
                             ? `${student.grading_slot_title || 'Slot'}${student.grading_slot_date ? ` · ${formatDate(new Date(student.grading_slot_date))}` : ''}`
