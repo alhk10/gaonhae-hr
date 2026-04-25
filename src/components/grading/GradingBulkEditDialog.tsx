@@ -91,16 +91,41 @@ const GradingBulkEditDialog: React.FC<Props> = ({
       const slotPayload = slotChoice === UNCHANGED
         ? undefined
         : (slotChoice === NONE ? null : slotChoice);
-      const resultPayload = resultChoice === UNCHANGED
-        ? undefined
-        : (resultChoice === NONE ? null : resultChoice);
+
+      // Result has three modes: unchanged, auto (recompute from scorecard, clear override),
+      // explicit value or NONE (manual override).
+      const resultMode: 'unchanged' | 'auto' | 'manual' =
+        resultChoice === UNCHANGED ? 'unchanged'
+        : resultChoice === AUTO ? 'auto'
+        : 'manual';
+      const manualResultPayload = resultMode === 'manual'
+        ? (resultChoice === NONE ? null : resultChoice)
+        : undefined;
 
       for (const student of students) {
         const updates: Record<string, any> = {};
         if (slotPayload !== undefined) updates.grading_slot_id = slotPayload;
+
         // Result only applies to paid grading rows (mirrors per-row inline rule)
-        if (resultPayload !== undefined && student.grading_paid === 'paid') {
-          updates.result = resultPayload;
+        if (resultMode === 'manual' && student.grading_paid === 'paid') {
+          updates.result = manualResultPayload;
+          updates.result_manual_override = manualResultPayload !== null;
+        } else if (resultMode === 'auto' && student.grading_paid === 'paid') {
+          // Pull current scorecard, recompute, clear override flag.
+          if (student.registration_id) {
+            const { data: reg } = await supabase
+              .from('grading_registrations')
+              .select('scorecard')
+              .eq('id', student.registration_id)
+              .maybeSingle();
+            const rows: ScorecardRow[] = Array.isArray((reg as any)?.scorecard)
+              ? ((reg as any).scorecard as any[]).map(r => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
+              : [];
+            updates.result = computeAutoResult(rows);
+          } else {
+            updates.result = null;
+          }
+          updates.result_manual_override = false;
         }
 
         // Lazy DB sync: if the term has started and the row has no result,
@@ -139,6 +164,7 @@ const GradingBulkEditDialog: React.FC<Props> = ({
                 grading_slot_id: updates.grading_slot_id ?? null,
                 ready_for_grading: updates.ready_for_grading ?? (termStarted && !updates.result),
                 result: updates.result ?? null,
+                result_manual_override: updates.result_manual_override ?? false,
                 term_id: selectedTermId || null,
               }])
               .then(({ error }) => { if (error) throw error; }) as Promise<any>
