@@ -1,64 +1,25 @@
-## Problem
+## Goal
 
-`generateBulkGradingCertificatesPDF` runs entirely synchronously on the main thread. With ~6+ certificates (each = certificate page + scorecard page + 3 embedded JPEGs) the browser blocks for 10–30+ seconds and Chrome shows the "Page Unresponsive" dialog.
+Adjust the certificate footer in `src/utils/gradingCertificatePDFGenerator.ts`:
 
-## Fix overview
+- Move the affiliation logos (World Taekwondo + Kukkiwon) **0.5cm (5mm) to the right**
+- Move the master signature **0.5cm (5mm) to the left**
+- Increase the **size of both logos and the signature by 10%**
 
-Two layers:
+## Changes (lines 161–177)
 
-1. **Yield to the browser between certificates** — the heavy work is still on the main thread, but breaking it into per-certificate chunks separated by `await new Promise(r => setTimeout(r, 0))` lets the browser repaint, run the toast/progress UI, and avoids the "unresponsive" warning.
-2. **Persistent progress UI** — a fixed-position toast in the bottom-right (using sonner's existing `<Toaster />`) shows "Generating certificates… 4 / 12 (33%)" with a progress bar, updated as each certificate is added. When done, it switches to a success toast and triggers the download.
+**Logos — shift right + 10% larger box**
+- WT box: `fitBox(..., 32, 24)` → `fitBox(..., 35.2, 26.4)`; `wtX: 22 → 27`
+- KW box: `fitBox(..., 36, 24)` → `fitBox(..., 39.6, 26.4)`; `kwX: 60 → 65` (kept proportional gap; vertical-centring strip stays 24mm so layout doesn't push into other elements)
 
-A true Web Worker would be ideal but jsPDF's image embedding APIs use DOM-only `Image()` and canvas APIs in some code paths, and our generator imports JPEGs via the Vite asset pipeline — moving to a worker would require restructuring asset loading. The chunked-yield approach removes the freeze with a single small change and keeps all current code paths intact.
+**Signature — shift left + 10% larger box**
+- Sig box: `fitBox(..., 50, 28)` → `fitBox(..., 55, 30.8)`
+- `sigRightEdge: A4_W - 30 → A4_W - 35` (right edge moves 5mm left, signature follows)
 
-## Implementation
+The "In Affiliation With" label position remains unchanged (still anchored above the logos region).
 
-### 1. New async chunked bulk generator (`src/utils/gradingCertificatePDFGenerator.ts`)
+## Files
 
-Add a sibling to the existing sync function:
+- `src/utils/gradingCertificatePDFGenerator.ts` (footer block only)
 
-```ts
-export const generateBulkGradingCertificatesPDFAsync = async (
-  inputs: GradingCertificateInput[],
-  onProgress?: (done: number, total: number) => void,
-): Promise<jsPDF> => {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
-  for (let idx = 0; idx < inputs.length; idx++) {
-    if (idx > 0) doc.addPage('a4', 'portrait');
-    drawCertificatePage(doc, inputs[idx]);
-    drawScorecardPage(doc, inputs[idx]);
-    onProgress?.(idx + 1, inputs.length);
-    // Yield to the browser so it can repaint and stay responsive
-    await new Promise(r => setTimeout(r, 0));
-  }
-  return doc;
-};
-```
-
-The existing sync `generateBulkGradingCertificatesPDF` and `downloadBulkGradingCertificatesPDF` are kept for any other callers but the grading-list flow switches to the async one.
-
-### 2. Progress toast in both list components
-
-`src/components/sales/GradingListTab.tsx` and `src/components/dashboard/BranchGradingList.tsx`:
-
-Replace the body of `runBulkDownload` with an async function that:
-- Calls `toast.loading('Generating certificates… 0 / N', { id: toastId })` immediately so the user sees feedback in the bottom-right.
-- Calls `generateBulkGradingCertificatesPDFAsync(inputs, (done, total) => toast.loading(\`Generating certificates… ${done} / ${total} (${pct}%)\`, { id: toastId, description: <Progress bar component or ASCII bar> }))`.
-- On completion: `doc.save(filename)` then `toast.success(\`Generated ${inputs.length} certificates\`, { id: toastId })`.
-- On error: `toast.error(...)` with the same id so the loading toast is replaced.
-
-A single `toastId` (`'bulk-cert-progress'`) is reused so updates replace in place rather than stacking.
-
-### 3. Disable double-click
-
-Add a `bulkPrinting` boolean state. When true, the "Print Certificates (N)" button is disabled with a spinner, preventing the user from triggering a second concurrent generation.
-
-### Files to edit
-
-- `src/utils/gradingCertificatePDFGenerator.ts` — add `generateBulkGradingCertificatesPDFAsync`
-- `src/components/sales/GradingListTab.tsx` — update `runBulkDownload` + button disabled state
-- `src/components/dashboard/BranchGradingList.tsx` — same as above
-
-No service, schema, or query changes.
-
-**Approve to switch to default mode and implement.**
+Approve to apply.
