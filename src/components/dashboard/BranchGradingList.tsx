@@ -800,14 +800,21 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             />
                           </TableCell>
                           <TableCell className={`${cellCls} ${stickyLeftCell} ${isSelected ? 'bg-accent/30' : ''}`}>
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
-                              onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
-                            >
-                              <User className="w-3 h-3 mr-1 shrink-0" />
-                              <span className="truncate">{student.student_name}</span>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
+                                onClick={() => onStudentClick ? onStudentClick(student.student_id) : navigate(`/parties/student/${student.student_id}`)}
+                              >
+                                <User className="w-3 h-3 mr-1 shrink-0" />
+                                <span className="truncate">{student.student_name}</span>
+                              </Button>
+                              {student.student_status && student.student_status !== 'active' && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize border-amber-400 text-amber-700">
+                                  {student.student_status}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className={cellCls}>
                             {student.current_belt ? (
