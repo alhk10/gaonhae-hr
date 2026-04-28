@@ -66,6 +66,7 @@ interface GradingListStudent {
   grading_slot_date: string | null;
   grading_slot_id: string | null;
   scorecard: ScorecardRow[];
+  student_status?: string | null;
 }
 
 interface Branch { id: string; name: string }
@@ -252,8 +253,7 @@ const GradingListTab: React.FC = () => {
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
-        .in('id', candidateStudentIds)
-        .ilike('status', 'active');
+        .in('id', candidateStudentIds);
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
         return acc;
@@ -389,6 +389,7 @@ const GradingListTab: React.FC = () => {
           scorecard: Array.isArray((reg as any).scorecard)
             ? ((reg as any).scorecard as any[]).map((r: any) => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
             : [],
+          student_status: student.status || null,
         });
       }
 
@@ -418,6 +419,7 @@ const GradingListTab: React.FC = () => {
           grading_slot_date: null,
           grading_slot_id: null,
           scorecard: [],
+          student_status: student.status || null,
         });
       }
 
@@ -787,14 +789,21 @@ const GradingListTab: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell className={`${cellCls} ${stickyLeftCell} ${isSelected ? 'bg-accent/30' : ''}`}>
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
-                            onClick={() => navigate(`/parties/student/${student.student_id}`)}
-                          >
-                            <User className="w-3 h-3 mr-1 shrink-0" />
-                            <span className="truncate">{student.student_name}</span>
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto font-medium text-xs max-w-[180px] truncate inline-flex items-center"
+                              onClick={() => navigate(`/parties/student/${student.student_id}`)}
+                            >
+                              <User className="w-3 h-3 mr-1 shrink-0" />
+                              <span className="truncate">{student.student_name}</span>
+                            </Button>
+                            {student.student_status && student.student_status !== 'active' && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize border-amber-400 text-amber-700">
+                                {student.student_status}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className={cellCls}>
                           {student.current_belt ? (
