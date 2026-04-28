@@ -1,38 +1,43 @@
-## Plan — Auto-create grading registration on invoice edit
+## Plan — Backfill missing grading registrations + auto-fix on read
 
 ### Problem
-When Rory's invoice was **edited** (not newly created) to add a Foundation grading line item, the grading list for Term 1 did not show the registration, even after dialog save and refresh.
+Thomas Couto has invoice INV-2026-00290 (Morley, draft) with:
+- A Grading line item "White >> Yellow Tip" linked to grading slot 2026-04-11 (Morley).
+- A lesson item for Term 2 2026.
 
-Root cause: only `createInvoice` (in `src/services/invoiceService.ts`) auto-creates `grading_registrations` rows for Grading-category line items. The **edit save** path in `src/components/sales/InvoiceDialog.tsx` (`handleSave`, ~line 1178) inserts new `invoice_items` directly via `supabase.from('invoice_items').insert(...)` and never runs the grading-registration sync. So the new Grading line item exists but no registration row is written → student does not appear in the grading list.
+But there is **no row** in `grading_registrations` for this invoice item, so Thomas does not appear in the Term 1 grading list. Two more students in the same branch (Rory and another) have the same orphan state. Their invoices were created before the auto-create fix landed, or before the latest changes. We also confirmed the slot date (2026-04-11) sits between Term 1 (ends 04-10) and Term 2 (starts 04-28); the helper correctly resolves this to Term 1 via the "previous term" fallback — but only if the helper actually runs.
+
+Two distinct bugs to fix:
+
+1. **Backfill** — existing draft/sent/paid invoices with Grading line items have no registration row. They never will, unless someone re-edits them.
+2. **Self-heal on read** — even after the latest createInvoice/edit fixes, a future invoice path (or a row that slipped through) can leave a grading item without a registration. The grading-list query should detect orphan grading items for the displayed term and lazily create the registration so the student appears immediately.
 
 ### Fix
 
-**1. New shared service helper** (already drafted in `invoiceService.ts`):
-- `syncGradingRegistrationsForInvoice(invoiceId)` — re-derives registrations from the invoice's current Grading-category items.
-- Idempotent: skips items that already have a registration via `invoice_item_id`, claims any existing `(student_id, term_id)` row with no `invoice_item_id`, otherwise inserts a fresh row.
-- Resolves `term_id` in this priority: grading slot → item metadata → any lesson term on the invoice.
-- Belt transition parsed from product name (e.g. "White >> Yellow Tip"); falls back to student's current belt.
-- `ready_for_grading` flips true only when the term has started; preserves an already-true flag.
+**1. Backfill via migration**
+Add a one-shot SQL migration that inserts a `grading_registrations` row for every Grading-category invoice item without one, on non-cancelled invoices. Term resolution mirrors the app helper:
+- Use the slot's term (slot date inside a term, else previous term, else next term).
+- Else use `metadata.term_id` on the grading item.
+- Else use any lesson item's `metadata.term_id` on the same invoice.
+- Belt transition parsed from product name; falls back to student's current_belt for both sides if no `>>`.
+- `ready_for_grading = (term.start_date <= today)`.
+- `current_belt`, `target_belt`, `invoice_item_id`, `grading_slot_id`, `term_id`, `student_id` set; `result = NULL`.
+Skip rows where no term can be derived. Idempotent (LEFT JOIN ... WHERE registration IS NULL).
 
-**2. Wire it into the edit save flow** in `src/components/sales/InvoiceDialog.tsx`:
-- Import `syncGradingRegistrationsForInvoice` from `@/services/invoiceService` and `useQueryClient`.
-- Inside `handleSave`, after the existing item insert/update/delete + `invoices` update + class-slot sync, call:
-  ```ts
-  await syncGradingRegistrationsForInvoice(invoice.id);
-  queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
-  queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
-  queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
-  ```
-- This guarantees the grading list reflects the change immediately on the next read (no manual reload needed).
+**2. Self-healing in the grading list query**
+In `src/components/dashboard/BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx`, after fetching `lessonInvoicedItems` add a parallel fetch of **Grading-category invoice items** for active invoices in the branch whose linked slot resolves to the selected term and which have no `grading_registrations` row yet. For each such orphan, call `syncGradingRegistrationsForInvoice(invoice.id)` once, then re-query `grading_registrations` for the term and proceed normally. This guarantees the user sees the student on next render even if the registration was never written.
 
-**3. Edit cleanup for removed grading items**:
-- When a Grading line item is removed during edit (already tracked as `removedIds`), also delete its linked `grading_registrations` row (where `invoice_item_id IN removedIds`) before the items themselves are deleted, so a later re-add doesn't get blocked by an orphan FK and the list stays consistent.
+To keep the read fast, only run the orphan repair when the orphan list is non-empty (cheap query — Grading category is small and per-branch).
+
+**3. Defensive query-key invalidation on save (already done)**
+The earlier change in `InvoiceDialog.handleSave` already invalidates `grading-list-students`, `grading-list-count`, and `grading-registrations` after invoice edits and calls `syncGradingRegistrationsForInvoice`. No additional change needed there.
 
 ### Out of scope
-- No DB schema changes (the existing `grading_registrations` table already has `invoice_item_id`, `term_id`, `student_id`, etc.).
-- No change to `createInvoice` — its inline auto-create block already works and is idempotent. The new helper is only invoked from the edit path; we can refactor `createInvoice` to use it later if desired, but not in this change.
-- No change to the bulk certificate or column-width work from earlier.
+- No schema changes other than the data backfill.
+- No change to `createInvoice`'s existing inline auto-create.
+- No change to Term 2 grading list behaviour — Thomas's slot resolves to Term 1 by design (slot date 11 Apr is after Term 1 end but before Term 2 start, prev-term wins).
 
 ### Files
-- `src/services/invoiceService.ts` — add exported `syncGradingRegistrationsForInvoice` (already appended).
-- `src/components/sales/InvoiceDialog.tsx` — import the helper + `useQueryClient`, add `const queryClient = useQueryClient()`, call sync + invalidations at the end of `handleSave`, and delete grading_registrations for `removedIds` before deleting invoice_items.
+- New migration: backfill grading_registrations for orphan items branch-wide.
+- `src/components/dashboard/BranchGradingList.tsx` — add orphan detection + lazy sync inside the existing query.
+- `src/components/sales/GradingListTab.tsx` — same orphan detection + lazy sync.
