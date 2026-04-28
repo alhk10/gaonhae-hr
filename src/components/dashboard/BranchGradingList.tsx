@@ -645,13 +645,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     runBulkDownload(inputs);
   };
 
-  const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
-  const someVisibleSelected = students.some(s => selectedIds.has(s.student_id));
+  const allVisibleSelected = displayedStudents.length > 0 && displayedStudents.every(s => selectedIds.has(s.student_id));
+  const someVisibleSelected = displayedStudents.some(s => selectedIds.has(s.student_id));
   const toggleAll = () => {
     setSelectedIds(prev => {
       if (allVisibleSelected) return new Set();
       const next = new Set(prev);
-      students.forEach(s => next.add(s.student_id));
+      displayedStudents.forEach(s => next.add(s.student_id));
       return next;
     });
   };
