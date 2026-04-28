@@ -494,7 +494,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
             // Belt transition derived from the product name; fall back to student's belt
             const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
-            const currentBelt = parsedFrom || studentCurrentBelt || 'White';
+            // Source of truth for current_belt is the student's live belt — the invoice
+            // product name is just a price/SKU label and may not match reality.
+            const currentBelt = studentCurrentBelt || parsedFrom || 'White';
             const targetBelt = parsedTo || studentCurrentBelt || 'White';
 
             // Term-aware Ready: only auto-mark Ready if the term has already started.
