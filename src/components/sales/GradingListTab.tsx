@@ -723,13 +723,22 @@ const GradingListTab: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <CardTitle>Students for Grading</CardTitle>
-              <CardDescription>
-                {selectedTermData
-                  ? `${students.length} grading registration${students.length !== 1 ? 's' : ''} for ${selectedTermData.name}`
-                  : 'Select a branch and term to view students'}
-              </CardDescription>
+            <div className="flex flex-col gap-2">
+              <div>
+                <CardTitle>Students for Grading</CardTitle>
+                <CardDescription>
+                  {selectedTermData
+                    ? `${displayedStudents.length} of ${students.length} grading registration${students.length !== 1 ? 's' : ''} for ${selectedTermData.name}`
+                    : 'Select a branch and term to view students'}
+                </CardDescription>
+              </div>
+              <Tabs value={completionFilter} onValueChange={(v) => { setCompletionFilter(v as CompletionFilter); setSelectedIds(new Set()); }}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-xs h-6 px-2">All</TabsTrigger>
+                  <TabsTrigger value="missing" className="text-xs h-6 px-2">Missing Details</TabsTrigger>
+                  <TabsTrigger value="ready_print" className="text-xs h-6 px-2">Ready for Printing</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
