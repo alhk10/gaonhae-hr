@@ -72,7 +72,7 @@ interface GradingListStudent {
   date_of_birth?: string | null;
 }
 
-type CompletionFilter = 'all' | 'missing' | 'ready_print';
+type CompletionFilter = 'all' | 'missing' | 'ready_print' | 'yet_to_receive';
 
 // Required scorecard fields. Kyorugi/Balchagi are alternatives — lower belts use
 // Balchagi, higher belts use Kyorugi. Either counts as the sparring field.
