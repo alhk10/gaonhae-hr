@@ -587,7 +587,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     const baseBelt = student.current_belt || '';
     const beltAchieved = certificateNumber === 2
-      ? getNextBeltLevel(baseBelt, 'AU')
+      ? getNextBeltLevel(baseBelt, 'Australia')
       : baseBelt;
     if (!beltAchieved) {
       toast.error('Student has no current belt recorded');
