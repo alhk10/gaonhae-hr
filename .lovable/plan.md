@@ -1,30 +1,28 @@
-## Goal
+## Bug
 
-Add a fourth filter tab — **"Yet to Receive"** — to the Students for Grading list, alongside the existing All / Missing Details / Ready for Printing tabs. It surfaces students who are ready for printing, have a passing result, and have not yet had their belt and certificate confirmed as received.
+When confirming belt receipt for an AU `Foundation` student, the dialog shows "—" instead of "White Belt", and confirming throws "No higher belt available from Foundation".
 
-## Filter definition
+## Root cause
 
-A student is "Yet to Receive" when ALL hold:
-- They pass the existing **Ready for Printing** condition (`allFilled && hasResult` from `getCompleteness`)
-- Their result is `pass` or `double` (fails never receive a new belt/cert)
-- The certificate has NOT been confirmed yet:
-  - Single (`pass`): `certificate_issued === false`
-  - Double: `!(certificate_issued && certificate_ii_issued)`
+`getBeltLevelsForCountry(country)` in `src/constants/beltLevels.ts` only matches `country === 'Australia'`. The grading list pages (and the `confirmBeltAndCertificate` call) pass the string `'AU'` instead, so the function falls back to the Singapore belt list — which has no `Foundation` entry — and `getNextBeltLevel('Foundation', 'AU')` returns `null`.
 
-This exactly mirrors the disabled-state logic already used by the green Award confirmation button (`BranchGradingList.tsx` lines 884–885 / `GradingListTab.tsx` lines 875–876), so the tab disappears a row the moment confirmation is made.
+## Fix
 
-## Files to edit
+Replace every `'AU'` country argument in the AU-only certificate / promotion code paths with `'Australia'`, matching the value the constants module expects.
 
-Apply identical changes to both list components (they're parallel implementations):
+Changes (6 sites total — all simple string swaps):
 
-1. **`src/components/sales/GradingListTab.tsx`**
-   - Line 75: extend `CompletionFilter` type to include `'yet_to_receive'`
-   - Lines 482–489: extend `displayedStudents` filter to handle the new value
-   - Line 785 area: add a new `<TabsTrigger value="yet_to_receive">Yet to Receive</TabsTrigger>` after Ready for Printing
+- `src/components/sales/GradingListTab.tsx`
+  - line 578: `country: 'AU'` → `'Australia'`
+  - line 593: `getNextBeltLevel(baseBelt, 'AU')` → `'Australia'`
+  - line 664: `getNextBeltLevel(baseBelt, 'AU')` → `'Australia'`
+  - lines 1118–1119: `getDoubleBeltLevel(cur, 'AU')` / `getNextBeltLevel(cur, 'AU')` → `'Australia'`
 
-2. **`src/components/dashboard/BranchGradingList.tsx`**
-   - Line 75, 474–481, 773 area — same three changes
+- `src/components/dashboard/BranchGradingList.tsx`
+  - line 590: `getNextBeltLevel(baseBelt, 'AU')` → `'Australia'`
+  - line 661: `getNextBeltLevel(baseBelt, 'AU')` → `'Australia'`
+  - lines 1270–1271: `getDoubleBeltLevel(cur, 'AU')` / `getNextBeltLevel(cur, 'AU')` → `'Australia'`
 
-No service, schema, or query changes — all required fields (`result`, `certificate_issued`, `certificate_ii_issued`) are already selected.
+No service or schema changes needed — `confirmBeltAndCertificate` already passes the country through transparently.
 
-**Approve to switch to default mode and implement.**
+**Approve to switch to default mode and apply the fix.**

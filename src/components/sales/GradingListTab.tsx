@@ -575,7 +575,7 @@ const GradingListTab: React.FC = () => {
         studentId: student.student_id,
         currentBelt: student.current_belt,
         isDouble,
-        country: 'AU',
+        country: 'Australia',
       });
     },
     onSuccess: ({ newBelt }, student) => {
