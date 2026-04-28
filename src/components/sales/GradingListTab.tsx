@@ -820,11 +820,11 @@ const GradingListTab: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={handleBulkPrintCertificates}
-                    disabled={!isMorley}
-                    title={!isMorley ? 'Template pending for this branch' : 'Print certificates for selected students'}
+                    disabled={!isMorley || bulkPrinting}
+                    title={!isMorley ? 'Template pending for this branch' : (bulkPrinting ? 'Generating…' : 'Print certificates for selected students')}
                   >
                     <Printer className="w-4 h-4 mr-1" />
-                    Print Certificates ({selectedIds.size})
+                    {bulkPrinting ? 'Generating…' : `Print Certificates (${selectedIds.size})`}
                   </Button>
                   <Button size="sm" onClick={() => { setBulkStudentIds(null); setBulkOpen(true); }}>
                     <Pencil className="w-4 h-4 mr-1" />
