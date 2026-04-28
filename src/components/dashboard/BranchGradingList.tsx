@@ -24,7 +24,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
-import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel } from '@/constants/beltLevels';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+
+const beltRank = (belt: string | null | undefined): number => {
+  if (!belt) return -1;
+  const i = BELT_LEVELS_ARRAY.indexOf(belt);
+  return i === -1 ? 9999 : i;
+};
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
 import { Award, FileText, Loader2, User, Trash2, Eye, Pencil, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -403,7 +409,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         });
       }
 
-      // Sort: unassigned first, then by slot date asc, slot title, name
+      // Sort: unassigned first, then by slot date asc, belt rank asc, name
       result.sort((a, b) => {
         const aHas = !!a.grading_slot_date;
         const bHas = !!b.grading_slot_date;
@@ -411,8 +417,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         if (!aHas && !bHas) return a.student_name.localeCompare(b.student_name);
         const dateCmp = (a.grading_slot_date || '').localeCompare(b.grading_slot_date || '');
         if (dateCmp !== 0) return dateCmp;
-        const titleCmp = (a.grading_slot_title || '').localeCompare(b.grading_slot_title || '');
-        if (titleCmp !== 0) return titleCmp;
+        const beltCmp = beltRank(a.current_belt) - beltRank(b.current_belt);
+        if (beltCmp !== 0) return beltCmp;
         return a.student_name.localeCompare(b.student_name);
       });
       return result;
