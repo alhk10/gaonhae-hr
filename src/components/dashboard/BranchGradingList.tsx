@@ -68,7 +68,23 @@ interface GradingListStudent {
   grading_slot_id: string | null;
   scorecard: ScorecardRow[];
   student_status?: string | null;
+  date_of_birth?: string | null;
 }
+
+type CompletionFilter = 'all' | 'missing' | 'ready_print';
+
+const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i, /kyorugi/i] as const;
+
+const isScorecardFieldFilled = (scorecard: ScorecardRow[], rx: RegExp): boolean => {
+  const v = (scorecard.find(r => rx.test(r.label))?.value || '').trim();
+  return v !== '' && v !== '-';
+};
+
+const getCompleteness = (s: { scorecard: ScorecardRow[]; result: string | null }) => {
+  const allFilled = SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx));
+  const hasResult = !!s.result;
+  return { allFilled, hasResult };
+};
 
 /** Phase 1 — only Morley (AU) gets the AU certificate template. */
 const MORLEY_BRANCH_ID = 'BR1768967806476';
