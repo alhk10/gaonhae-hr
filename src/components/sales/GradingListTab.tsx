@@ -24,7 +24,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
 import { backfillOrphanGradingRegistrationsForBranch } from '@/services/invoiceService';
-import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { confirmBeltAndCertificate } from '@/services/gradingService';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, getDoubleBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const beltRank = (belt: string | null | undefined): number => {
   if (!belt) return -1;
@@ -32,7 +33,7 @@ const beltRank = (belt: string | null | undefined): number => {
   return i === -1 ? 9999 : i;
 };
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
+import { Award, FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
