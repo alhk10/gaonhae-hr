@@ -155,13 +155,13 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
 
   // WT logo
   const wtBox = fitBox(WT_NATIVE.w, WT_NATIVE.h, 35.2, 26.4);
-  const wtX = 22;
+  const wtX = 42;
   const wtY = footerY + (24 - wtBox.h) / 2;
   doc.addImage(worldTaekwondoLogo, 'JPEG', wtX, wtY, wtBox.w, wtBox.h, undefined, 'FAST');
 
   // Kukkiwon logo
   const kwBox = fitBox(KW_NATIVE.w, KW_NATIVE.h, 39.6, 26.4);
-  const kwX = 60;
+  const kwX = 80;
   const kwY = footerY + (24 - kwBox.h) / 2;
   doc.addImage(kukkiwonLogo, 'JPEG', kwX, kwY, kwBox.w, kwBox.h, undefined, 'FAST');
 
