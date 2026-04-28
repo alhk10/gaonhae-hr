@@ -609,12 +609,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     const eligibleStudents: GradingListStudent[] = [];
     let skipped = 0;
     rows.forEach(student => {
-      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+      const beltInRange = isFoundationToBlackTip(student.current_belt);
       const result = student.result;
       const isPass = result === 'pass';
       const isDouble = result === 'double';
       if (!beltInRange || (!isPass && !isDouble) || !student.grading_slot_date) { skipped += 1; return; }
-      const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+      const baseBelt = student.current_belt || '';
       if (!baseBelt) { skipped += 1; return; }
       inputs.push({
         studentName: student.student_name,
