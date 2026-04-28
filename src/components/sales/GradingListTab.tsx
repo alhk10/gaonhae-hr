@@ -419,6 +419,7 @@ const GradingListTab: React.FC = () => {
           grading_slot_date: null,
           grading_slot_id: null,
           scorecard: [],
+          student_status: student.status || null,
         });
       }
 
