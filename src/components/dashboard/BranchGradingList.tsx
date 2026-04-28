@@ -431,19 +431,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
           grading_slot_id: null,
           scorecard: [],
           student_status: student.status || null,
+          date_of_birth: student.date_of_birth || null,
         });
       }
 
-      // Sort: unassigned first, then by slot date asc, belt rank asc, name
+      // Sort: belt asc (lowest first), then age asc (youngest first = DOB desc), then name
       result.sort((a, b) => {
-        const aHas = !!a.grading_slot_date;
-        const bHas = !!b.grading_slot_date;
-        if (aHas !== bHas) return aHas ? 1 : -1;
-        if (!aHas && !bHas) return a.student_name.localeCompare(b.student_name);
-        const dateCmp = (a.grading_slot_date || '').localeCompare(b.grading_slot_date || '');
-        if (dateCmp !== 0) return dateCmp;
         const beltCmp = beltRank(a.current_belt) - beltRank(b.current_belt);
         if (beltCmp !== 0) return beltCmp;
+        const aDob = a.date_of_birth || '';
+        const bDob = b.date_of_birth || '';
+        if (aDob !== bDob) return bDob.localeCompare(aDob);
         return a.student_name.localeCompare(b.student_name);
       });
       return result;
