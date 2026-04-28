@@ -572,7 +572,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         studentId: student.student_id,
         currentBelt: student.current_belt,
         isDouble,
-        country: 'AU',
+        country: 'Australia',
       });
     },
     onSuccess: ({ newBelt }, student) => {
