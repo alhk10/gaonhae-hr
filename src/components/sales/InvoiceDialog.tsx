@@ -1201,7 +1201,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       for (const item of editItems.filter(i => i.isNew)) {
         if (!item.product_id) continue;
         const ld = (item.discount_value && item.discount_value > 0) ? { type: item.discount_type, value: item.discount_value } : undefined;
-        const metadata = { ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.color_variant ? { color_variant: item.color_variant } : {}) };
+        // Preserve any metadata captured by edit-mode UI (term_id, grading_slot_id, etc.)
+        const metadata = {
+          ...(item.metadata || {}),
+          ...(editingClassSlots[item.id] ? { selected_class_slots: editingClassSlots[item.id] } : {}),
+          ...(ld ? { line_discount: ld } : {}),
+          ...(item.color_variant ? { color_variant: item.color_variant } : {}),
+        };
         await supabase.from('invoice_items').insert({ invoice_id: invoice.id, product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, tax_rate: item.tax_rate, tax_amount: item.tax_amount, total_amount: item.total_amount, size_variant: item.size_variant || null, metadata: Object.keys(metadata).length > 0 ? metadata : null });
       }
 
