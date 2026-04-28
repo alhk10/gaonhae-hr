@@ -140,16 +140,41 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.setTextColor(40, 40, 40);
   doc.text('In Affiliation With', 30, footerY - 6);
 
-  // WT logo
-  doc.addImage(worldTaekwondoLogo, 'JPEG', 22, footerY, 36, 24, undefined, 'FAST');
-  // Kukkiwon logo
-  doc.addImage(kukkiwonLogo, 'JPEG', 64, footerY, 36, 24, undefined, 'FAST');
+  // Fit-into-box helper that preserves the image's native aspect ratio.
+  // Returns the actual rendered width/height inside the given max box.
+  const fitBox = (
+    nativeW: number,
+    nativeH: number,
+    maxW: number,
+    maxH: number,
+  ): { w: number; h: number } => {
+    const scale = Math.min(maxW / nativeW, maxH / nativeH);
+    return { w: nativeW * scale, h: nativeH * scale };
+  };
 
-  // Signature block on the right (image only — name/label removed per template update)
-  const sigW = 50;
-  const sigH = 28;
-  const sigX = A4_W - 30 - sigW;
-  doc.addImage(masterSignature, 'JPEG', sigX, footerY - 4, sigW, sigH, undefined, 'FAST');
+  // Native aspect ratios (pixels) — see source assets in /assets/certificates/au.
+  const WT_NATIVE = { w: 484, h: 231 };
+  const KW_NATIVE = { w: 347, h: 244 };
+  const SIG_NATIVE = { w: 456, h: 466 };
+
+  // WT logo — left-anchored, bottom-aligned to footerY + 24mm baseline
+  const wtBox = fitBox(WT_NATIVE.w, WT_NATIVE.h, 32, 24);
+  const wtX = 22;
+  const wtY = footerY + (24 - wtBox.h) / 2; // vertically centre within 24mm strip
+  doc.addImage(worldTaekwondoLogo, 'JPEG', wtX, wtY, wtBox.w, wtBox.h, undefined, 'FAST');
+
+  // Kukkiwon logo — placed beside WT, same vertical strip
+  const kwBox = fitBox(KW_NATIVE.w, KW_NATIVE.h, 36, 24);
+  const kwX = 60;
+  const kwY = footerY + (24 - kwBox.h) / 2;
+  doc.addImage(kukkiwonLogo, 'JPEG', kwX, kwY, kwBox.w, kwBox.h, undefined, 'FAST');
+
+  // Signature on the right, right-edge aligned to A4_W - 30, preserving square aspect
+  const sigBox = fitBox(SIG_NATIVE.w, SIG_NATIVE.h, 50, 28);
+  const sigRightEdge = A4_W - 30;
+  const sigX = sigRightEdge - sigBox.w;
+  const sigY = footerY - 4 + (28 - sigBox.h) / 2;
+  doc.addImage(masterSignature, 'JPEG', sigX, sigY, sigBox.w, sigBox.h, undefined, 'FAST');
 };
 
 const isBlankValue = (v?: string): boolean => {

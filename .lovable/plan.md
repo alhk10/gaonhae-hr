@@ -1,57 +1,24 @@
-## Goal
+## Problem
 
-Add an inline "Confirm receipt of belt & certificate" action button to each row of the Branch Dashboard Grading list and the Sales Grading list. When clicked it:
+On the grading certificate footer, the World Taekwondo logo, Kukkiwon logo, and Master Alvin Lee signature are drawn into fixed-size boxes (36×24mm for logos, 50×28mm for signature) that don't match the source image proportions. The signature is the worst offender — its source is roughly square (456×466) but it's stretched into 50×28, making it look unnaturally wide.
 
-1. Updates `students.current_belt` to the next belt (`getNextBeltLevel`) for a **pass** result, or skips a belt (`getDoubleBeltLevel`) for a **double** promotion.
-2. Marks `grading_registrations.certificate_issued = true` (and `certificate_ii_issued = true` for doubles) so the action can't accidentally be repeated.
-3. Refreshes the list so the new belt and disabled state are visible immediately.
+## Source image aspect ratios
 
-## UX
+- World Taekwondo: 484×231 → ratio ~2.10 (wide)
+- Kukkiwon: 347×244 → ratio ~1.42
+- Master signature: 456×466 → ratio ~0.98 (nearly square)
 
-In the Actions column (right-most, sticky on desktop) add a third icon-button next to the existing "View Certificate" / "View Certificate II" buttons:
+## Fix
 
-- **Icon**: `Award` from `lucide-react` (already imported), green tint.
-- **Visibility**: Only when result is `pass` or `double`, current belt is in the Foundation→Black Tip range, and a `current_belt` is recorded.
-- **Disabled state**: When `certificate_issued` is already true (or for doubles, `certificate_ii_issued` is also true) — show as filled / muted with tooltip "Belt and certificate already confirmed".
-- **Confirm dialog** (using existing `AlertDialog` pattern): "Confirm that {STUDENT NAME} has received their belt and certificate. Their current belt will be updated from {Current} to {NewBelt}. This cannot be undone from this screen."
-- **Toast** on success: "Belt updated to {NewBelt} for {STUDENT NAME}".
+In `src/utils/gradingCertificatePDFGenerator.ts` (footer block around lines 137–152), constrain each image to a max width AND max height box, then compute the actual draw size from its true aspect ratio so it fits inside the box without stretching. Keep the existing left/right anchor positions and vertically align logos along the same baseline.
 
-Mirror in the mobile card view (small green Award icon-button on the bottom row).
+Target bounding boxes (chosen to keep the current footprint):
+- WT logo: max 32w × 24h → renders ~32×15.3
+- Kukkiwon logo: max 36w × 24h → renders ~34×24
+- Signature: max 50w × 28h → renders ~27.4×28 (no longer stretched)
 
-## Technical implementation
+Anchor positions stay roughly the same; the signature is right-aligned to its existing right edge so the layout shifts inward rather than overlapping other elements.
 
-### 1. New service helper — `src/services/gradingService.ts`
-Add `confirmBeltAndCertificate({ registrationId, studentId, currentBelt, isDouble, country })`:
-- Compute `newBelt = isDouble ? getDoubleBeltLevel(currentBelt, country) : getNextBeltLevel(currentBelt, country)`.
-- If `newBelt` is null → throw "No higher belt available for {currentBelt}".
-- `update students set current_belt = newBelt where id = studentId`.
-- `update grading_registrations set certificate_issued = true, certificate_ii_issued = isDouble where id = registrationId`.
-- Return `{ newBelt }`.
+No other files change. Bulk and single certificate flows both use this generator, so both are covered.
 
-(Country is hard-coded to `'AU'` from the caller for now since Phase 1 = Morley only — same convention used by certificate generation.)
-
-### 2. `src/components/dashboard/BranchGradingList.tsx`
-- Import `Award` (already imported), `confirmBeltAndCertificate`, `getDoubleBeltLevel`.
-- Add `useMutation` `confirmBeltMutation` calling the new service helper, invalidating both `rowsKey` and the student query, with success/error toasts.
-- Add local state `confirmBeltTarget: GradingListStudent | null` and an `AlertDialog` rendered once at the bottom of the component.
-- In the Actions cell, after the existing certificate buttons, render the new button with the same eligibility conditions used for the cert button (pass/double + belt-in-range + isMorley + has current_belt). When `student.certificate_issued` (and `student.certificate_ii_issued` for doubles) is true, render the icon disabled with the "already confirmed" title.
-- Mirror the same button in the mobile card actions row.
-
-### 3. `src/components/sales/GradingListTab.tsx`
-Apply identical changes (import, mutation, dialog, desktop button, mobile button).
-
-### 4. Wiring & guards
-- Disable the button while the mutation is pending (`isPending` → spinner Loader2).
-- Don't trigger if `registration_id`, `current_belt`, or `student_id` is missing.
-- After success, the React Query invalidation re-fetches and the row will show the new belt + disabled icon automatically.
-
-## Notes / non-goals
-- No DB schema changes required — `certificate_issued` and `certificate_ii_issued` columns already exist.
-- No email/notification side-effects.
-- Double promotion: a single click confirms both belt jumps and both certificate flags. We don't add a separate "confirm Cert II only" path — the button represents "physically handed over belt + cert(s) for this grading event".
-- Action is irreversible from the UI; superadmin can still edit the student's belt manually elsewhere if needed.
-
-## Affected files
-- `src/services/gradingService.ts`
-- `src/components/dashboard/BranchGradingList.tsx`
-- `src/components/sales/GradingListTab.tsx`
+**Approve to switch to default mode and apply the fix.**
