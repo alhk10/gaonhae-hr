@@ -494,7 +494,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
             // Belt transition derived from the product name; fall back to student's belt
             const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
-            const currentBelt = parsedFrom || studentCurrentBelt || 'White';
+            // Source of truth for current_belt is the student's live belt — the invoice
+            // product name is just a price/SKU label and may not match reality.
+            const currentBelt = studentCurrentBelt || parsedFrom || 'White';
             const targetBelt = parsedTo || studentCurrentBelt || 'White';
 
             // Term-aware Ready: only auto-mark Ready if the term has already started.
@@ -1304,24 +1306,32 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
       if (!termId) continue;
 
       const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
-      const currentBelt = parsedFrom || studentCurrentBelt || 'White';
+      // Source of truth for current_belt is the student's live belt — the invoice
+      // product name (e.g. "White >> Yellow Tip") is just a price/SKU label and
+      // may not match the student's actual belt at grading time.
+      const currentBelt = studentCurrentBelt || parsedFrom || 'White';
       const targetBelt = parsedTo || studentCurrentBelt || 'White';
       const readyForGrading = await isTermStarted(termId);
 
       // If a registration is already linked to this invoice item, update it
       // so changes to the invoice (term, slot, belts) reflect immediately.
+      // Skip belt refresh if the registration has already been graded
+      // (manual override or a result has been recorded) to preserve history.
       const { data: existingByItem } = await supabase
         .from('grading_registrations')
-        .select('id, ready_for_grading, result')
+        .select('id, ready_for_grading, result, result_manual_override')
         .eq('invoice_item_id', item.id)
         .maybeSingle();
       if (existingByItem) {
+        const alreadyGraded = existingByItem.result_manual_override === true || !!existingByItem.result;
         const updatePayload: any = {
           term_id: termId,
-          current_belt: currentBelt,
-          target_belt: targetBelt,
           grading_slot_id: slotId,
         };
+        if (!alreadyGraded) {
+          updatePayload.current_belt = currentBelt;
+          updatePayload.target_belt = targetBelt;
+        }
         // Only escalate ready flag; never demote a manually-set true.
         if (existingByItem.ready_for_grading !== true) {
           updatePayload.ready_for_grading = readyForGrading;
