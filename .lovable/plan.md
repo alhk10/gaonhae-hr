@@ -1,54 +1,50 @@
-I investigated Rory’s database records directly.
+## Problem
 
-What I found:
-- Student: RORY MCINTOSH, active, Morley branch context.
-- Invoice: INV-2026-00288 includes:
-  - Class item with Term 2 2026 metadata.
-  - Grading item “Foundation >> White” with metadata = null.
-- Grading registration exists, but it was created as Term 2 2026 with no grading slot.
-- Term 1 Morley has the correct Foundation slot available: 11/04/2026 08:00.
+Earl John Lucero II's actual belt in the `students` table is **Foundation**, but the Term 1 grading list shows **White**. The list reads `current_belt` from the `grading_registrations` row (snapshotted at registration time), and Earl's row contains stale/incorrect data:
 
-Do I know what the issue is? Yes.
+- `grading_registrations.current_belt = 'White'`
+- `grading_registrations.target_belt = 'Yellow Tip'`
+- Created by `system-backfill` on 2026-04-24
 
-The problem is that when a grading product is added while editing an existing invoice, the edit-save path drops the new item’s metadata. The UI can collect a grading slot, but the insert for newly added edit items saves metadata without `item.metadata`, so `grading_slot_id` is lost. Then the grading sync has no slot to derive Term 1 from, falls back to the class item’s Term 2, and Rory is written into Term 2 instead of Term 1.
+The originating invoice item is also wrong:
+- Product: **"White >> Yellow Tip"** (`Grading004`, $50)
+- Description: `White >> Yellow Tip`
 
-Plan to fix after approval:
+So the invoice itself was created for the wrong belt transition. For a Foundation student the correct grading product should be **"Foundation >> Foundation 1"** (matching the existing grading-fee lookup pattern memory).
 
-1. Repair Rory’s current database records
-   - Update Rory’s grading invoice item metadata to include the correct Morley Foundation Term 1 grading slot.
-   - Update the linked grading registration to:
-     - Term 1 2026
-     - the correct Foundation grading slot
-     - ready_for_grading = true
-   - This makes Rory appear immediately in the Term 1 grading list.
+## Root cause
 
-2. Fix invoice edit-save metadata persistence
-   - In `InvoiceDialog.tsx`, update the new edit-item insert logic so it preserves `item.metadata`.
-   - This will save `grading_slot_id`, `term_id`, `term_ids`, and other metadata for newly added items during invoice edits.
-   - This also prevents similar issues for newly added class items during edits.
+Two layers:
+1. **Bad invoice**: an incorrect grading product was selected when the invoice was issued.
+2. **Snapshot never re-syncs**: `syncGradingRegistrationsForInvoice` records `current_belt` at creation/sync time but doesn't refresh it against the student's live `students.current_belt`, so even after the recent backfill overhaul (Rory fix) the registration keeps the wrong belt.
 
-3. Make grading sync update existing linked registrations
-   - In `syncGradingRegistrationsForInvoice`, stop skipping rows just because `invoice_item_id` already has a registration.
-   - If the invoice item metadata changes, update the existing grading registration’s term, slot, belts, and ready state.
-   - This ensures dialog save immediately corrects the database, not just newly creates missing records.
+## Plan
 
-4. Strengthen lazy self-healing on grading list access
-   - Update the branch backfill routine so it re-syncs grading invoices for the branch, not only invoice items with no registration.
-   - This lets the grading list repair stale/wrong-term registrations when the page is opened.
+### 1. Data repair (one-off SQL via migration / insert tool)
+- Update Earl's `grading_registrations` row:
+  - `current_belt = 'Foundation'`
+  - `target_belt = 'Foundation 1'`
+- Flag the invoice item for staff review (do NOT silently swap the product — the price/SKU differ and superadmin approval rules apply to paid invoice edits). Add a console-visible note: leave the invoice as-is and surface a UI warning instead (see step 3).
 
-5. Validate the Rory case
-   - Confirm Rory’s registration is Term 1 2026 with the Morley Foundation slot.
-   - Confirm the Term 1 grading list query will include him from `grading_registrations`.
+### 2. Auto-heal current belt in sync (`src/services/invoiceService.ts`)
+In both `syncGradingRegistrationsForInvoice` and `backfillOrphanGradingRegistrationsForBranch`:
+- When a registration already exists, also refresh `current_belt` from the student's live `students.current_belt` (only when not already manually graded — i.e. `result_manual_override` is false / no scorecard entered).
+- Same on initial insert: source `current_belt` from `students.current_belt`, not from the invoice item description.
 
-Technical files expected to change:
-- `src/components/sales/InvoiceDialog.tsx`
-- `src/services/invoiceService.ts`
-- Supabase migration for the one-time Rory data repair
+This prevents a recurrence: if the student's belt changes between invoice creation and grading day, the list reflects reality.
 
-<lov-actions>
-  <lov-open-history>View History</lov-open-history>
-</lov-actions>
+### 3. UI mismatch warning (`BranchGradingList.tsx` / `GradingListTab.tsx`)
+When `student.current_belt` (live) differs from the belt implied by the invoice item description (e.g. invoice says "White >> Yellow Tip" but student is "Foundation"), show a small amber warning badge "Belt mismatch" next to the row. This makes future bad-invoice cases visible to staff instead of silently rendering the wrong belt.
 
-<lov-actions>
-<lov-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</lov-link>
-</lov-actions>
+### Files touched
+- `supabase/migrations/<timestamp>_fix_earl_grading_belt.sql` — data repair
+- `src/services/invoiceService.ts` — refresh `current_belt` from live student data on sync/backfill
+- `src/components/dashboard/BranchGradingList.tsx` — mismatch badge
+- `src/components/sales/GradingListTab.tsx` — mismatch badge
+
+### Verification
+- Re-query Earl's registration → `current_belt = Foundation`, `target_belt = Foundation 1`.
+- Reload Term 1 grading list → Earl renders as Foundation.
+- Confirm no other students regress (other rows in screenshot have matching belts).
+
+Approve to switch to default mode and apply the repair + sync fix.
