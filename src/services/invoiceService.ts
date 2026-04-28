@@ -1381,26 +1381,38 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
  * that have a Grading-category line item without a corresponding registration.
  * Returns the number of invoices that were synced.
  */
+// Module-level cache for the (constant per session) grading product ids lookup.
+let _gradingProductIdsPromise: Promise<string[]> | null = null;
+const getGradingProductIds = (): Promise<string[]> => {
+  if (!_gradingProductIdsPromise) {
+    _gradingProductIdsPromise = (async () => {
+      const { data: gradingCat } = await supabase
+        .from('product_categories')
+        .select('id')
+        .ilike('name', 'grading')
+        .maybeSingle();
+      if (!gradingCat?.id) return [];
+      const { data: gradingProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('category_id', gradingCat.id);
+      return (gradingProducts || []).map(p => p.id);
+    })().catch(() => {
+      _gradingProductIdsPromise = null;
+      return [];
+    });
+  }
+  return _gradingProductIdsPromise;
+};
+
 export const backfillOrphanGradingRegistrationsForBranch = async (branchId: string): Promise<number> => {
   try {
     if (!branchId) return 0;
 
-    // 1. Find all Grading-category product ids
-    const { data: gradingCat } = await supabase
-      .from('product_categories')
-      .select('id')
-      .ilike('name', 'grading')
-      .maybeSingle();
-    if (!gradingCat?.id) return 0;
-
-    const { data: gradingProducts } = await supabase
-      .from('products')
-      .select('id')
-      .eq('category_id', gradingCat.id);
-    const gradingProductIds = (gradingProducts || []).map(p => p.id);
+    const gradingProductIds = await getGradingProductIds();
     if (gradingProductIds.length === 0) return 0;
 
-    // 2. Fetch all grading invoice items for active invoices in this branch
+    // Fetch all grading invoice items for active invoices in this branch
     const { data: gradingItems } = await supabase
       .from('invoice_items')
       .select('id, invoice_id, invoices!inner(id, branch_id, status)')
@@ -1410,16 +1422,29 @@ export const backfillOrphanGradingRegistrationsForBranch = async (branchId: stri
     const items = gradingItems || [];
     if (items.length === 0) return 0;
 
-    // 3. Re-sync EVERY grading invoice in this branch so stale/wrong-term
-    // registrations get repaired (not just orphan items). syncGradingRegistrationsForInvoice
-    // is idempotent and now updates already-linked registrations as well.
-    const invoiceIds = [...new Set(items.map((it: any) => it.invoice_id))] as string[];
-    if (invoiceIds.length === 0) return 0;
+    // Fast path: only re-sync invoices whose grading items don't already have a registration.
+    const itemIds = items.map((it: any) => it.id) as string[];
+    const { data: existingRegs } = await supabase
+      .from('grading_registrations')
+      .select('invoice_item_id')
+      .in('invoice_item_id', itemIds);
+    const linkedItemIds = new Set((existingRegs || []).map((r: any) => r.invoice_item_id).filter(Boolean));
+    const orphanInvoiceIds = [
+      ...new Set(
+        items
+          .filter((it: any) => !linkedItemIds.has(it.id))
+          .map((it: any) => it.invoice_id)
+      ),
+    ] as string[];
+    if (orphanInvoiceIds.length === 0) return 0;
 
-    for (const invoiceId of invoiceIds) {
-      await syncGradingRegistrationsForInvoice(invoiceId);
+    // Run syncs in parallel chunks to avoid hammering Supabase.
+    const CHUNK = 8;
+    for (let i = 0; i < orphanInvoiceIds.length; i += CHUNK) {
+      const slice = orphanInvoiceIds.slice(i, i + CHUNK);
+      await Promise.all(slice.map(id => syncGradingRegistrationsForInvoice(id)));
     }
-    return invoiceIds.length;
+    return orphanInvoiceIds.length;
   } catch (err) {
     logger.error('backfillOrphanGradingRegistrationsForBranch failed (non-fatal)', err);
     return 0;
