@@ -1115,8 +1115,8 @@ const GradingListTab: React.FC = () => {
                 const isDouble = confirmBeltTarget.result === 'double';
                 const cur = confirmBeltTarget.current_belt || '';
                 const next = isDouble
-                  ? getDoubleBeltLevel(cur, 'AU')
-                  : getNextBeltLevel(cur, 'AU');
+                  ? getDoubleBeltLevel(cur, 'Australia')
+                  : getNextBeltLevel(cur, 'Australia');
                 return (
                   <>
                     Confirm that <span className="font-semibold">{confirmBeltTarget.student_name}</span> has received their belt and certificate{isDouble ? 's' : ''}.
