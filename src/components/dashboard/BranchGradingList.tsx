@@ -450,6 +450,16 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     enabled: !!branchId && !!selectedTerm
   });
 
+  // Apply All / Missing Details / Ready for Printing filter to the rendered list
+  const displayedStudents = useMemo(() => {
+    if (completionFilter === 'all') return students;
+    return students.filter(s => {
+      const { allFilled, hasResult } = getCompleteness(s);
+      if (completionFilter === 'missing') return !allFilled;
+      return allFilled && hasResult; // ready_print
+    });
+  }, [students, completionFilter]);
+
   // Display Ready: DB flag OR (term started AND no result yet)
   const displayReady = useCallback((student: GradingListStudent) => {
     if (student.ready_for_grading) return true;
