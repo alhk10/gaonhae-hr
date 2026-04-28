@@ -134,14 +134,10 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
 
   // ── Footer block ──
   // "In Affiliation With" + WT/Kukkiwon logos on the left
-  const footerY = 230;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
-  doc.text('In Affiliation With', 30, footerY - 6);
+  // Footer shifted up 30mm; logos shifted left 10mm
+  const footerY = 200;
 
   // Fit-into-box helper that preserves the image's native aspect ratio.
-  // Returns the actual rendered width/height inside the given max box.
   const fitBox = (
     nativeW: number,
     nativeH: number,
@@ -157,20 +153,26 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   const KW_NATIVE = { w: 347, h: 244 };
   const SIG_NATIVE = { w: 456, h: 466 };
 
-  // WT logo — left-anchored, bottom-aligned to footerY + 24mm baseline
-  // Logos shifted +5mm right and scaled +10%
+  // WT logo
   const wtBox = fitBox(WT_NATIVE.w, WT_NATIVE.h, 35.2, 26.4);
-  const wtX = 32;
-  const wtY = footerY + (24 - wtBox.h) / 2; // vertically centre within 24mm strip
+  const wtX = 22;
+  const wtY = footerY + (24 - wtBox.h) / 2;
   doc.addImage(worldTaekwondoLogo, 'JPEG', wtX, wtY, wtBox.w, wtBox.h, undefined, 'FAST');
 
-  // Kukkiwon logo — placed beside WT, same vertical strip
+  // Kukkiwon logo
   const kwBox = fitBox(KW_NATIVE.w, KW_NATIVE.h, 39.6, 26.4);
-  const kwX = 70;
+  const kwX = 60;
   const kwY = footerY + (24 - kwBox.h) / 2;
   doc.addImage(kukkiwonLogo, 'JPEG', kwX, kwY, kwBox.w, kwBox.h, undefined, 'FAST');
 
-  // Signature on the right — shifted 5mm left and scaled +10%
+  // "In Affiliation With" — centred between left edge of WT and right edge of Kukkiwon
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  const affiliationCenterX = (wtX + (kwX + kwBox.w)) / 2;
+  doc.text('In Affiliation With', affiliationCenterX, footerY - 6, { align: 'center' });
+
+  // Signature on the right
   const sigBox = fitBox(SIG_NATIVE.w, SIG_NATIVE.h, 55, 30.8);
   const sigRightEdge = A4_W - 40;
   const sigX = sigRightEdge - sigBox.w;
