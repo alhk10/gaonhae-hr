@@ -483,8 +483,16 @@ const GradingListTab: React.FC = () => {
     if (completionFilter === 'all') return students;
     return students.filter(s => {
       const { allFilled, hasResult } = getCompleteness(s);
+      const readyForPrinting = allFilled && hasResult;
       if (completionFilter === 'missing') return !allFilled;
-      return allFilled && hasResult; // ready_print
+      if (completionFilter === 'ready_print') return readyForPrinting;
+      // yet_to_receive: ready for printing, pass/double, certificate not yet confirmed
+      if (!readyForPrinting) return false;
+      if (s.result !== 'pass' && s.result !== 'double') return false;
+      const received = s.result === 'double'
+        ? (s.certificate_issued && s.certificate_ii_issued)
+        : s.certificate_issued;
+      return !received;
     });
   }, [students, completionFilter]);
 
