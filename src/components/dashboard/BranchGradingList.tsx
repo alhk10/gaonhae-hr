@@ -227,6 +227,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
 
+      // Self-heal: backfill any grading registrations missing for invoices in this branch
+      // (e.g. invoices created before the auto-create logic landed).
+      await backfillOrphanGradingRegistrationsForBranch(branchId);
+
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
         .select('id, student_id, current_belt, target_belt, ready_for_grading, result, result_manual_override, certificate_issued, certificate_ii_issued, invoice_item_id, grading_slot_id, term_id, scorecard')
