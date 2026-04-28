@@ -811,7 +811,7 @@ const GradingListTab: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((student) => {
+                  {displayedStudents.map((student) => {
                     const result = student.result;
                     const ready = displayReady(student);
                     const isSelected = selectedIds.has(student.student_id);
