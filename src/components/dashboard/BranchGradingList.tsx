@@ -1019,6 +1019,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                   const ready = displayReady(student);
                   const isSelected = selectedIds.has(student.student_id);
                   const result = student.result;
+                  const isDoubleResult = result === 'double';
+                  const beltConfirmEligible = (result === 'pass' || result === 'double')
+                    && isFoundationToBlackTip(student.current_belt)
+                    && !!student.current_belt
+                    && !!student.registration_id;
+                  const beltAlreadyConfirmed = isDoubleResult
+                    ? (student.certificate_issued && student.certificate_ii_issued)
+                    : student.certificate_issued;
                   return (
                     <div
                       key={student.student_id}
@@ -1065,6 +1073,18 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
+                          {beltConfirmEligible && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`h-6 w-6 p-0 ${beltAlreadyConfirmed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700'}`}
+                              disabled={beltAlreadyConfirmed || confirmBeltMutation.isPending}
+                              title={beltAlreadyConfirmed ? 'Belt and certificate already confirmed' : 'Confirm receipt of belt & certificate'}
+                              onClick={() => setConfirmBeltTarget(student)}
+                            >
+                              <Award className="w-3 h-3" />
+                            </Button>
+                          )}
                           {student.registration_id && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
