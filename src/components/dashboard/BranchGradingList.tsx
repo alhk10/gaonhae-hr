@@ -675,10 +675,28 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     return { inputs, eligibleStudents, skipped };
   };
 
-  const runBulkDownload = (inputs: GradingCertificateInput[]) => {
+  const [bulkPrinting, setBulkPrinting] = useState(false);
+
+  const runBulkDownload = async (inputs: GradingCertificateInput[]) => {
+    if (bulkPrinting) return;
+    setBulkPrinting(true);
     const dateStr = format(new Date(), 'yyyy-MM-dd');
-    downloadBulkGradingCertificatesPDF(inputs, `Certificates_Bulk_${dateStr}.pdf`);
-    toast.success(`Generated ${inputs.length} certificate${inputs.length === 1 ? '' : 's'}`);
+    const toastId = 'bulk-cert-progress';
+    const total = inputs.length;
+    toast.loading(`Generating certificates… 0 / ${total} (0%)`, { id: toastId });
+    try {
+      const doc = await generateBulkGradingCertificatesPDFAsync(inputs, (done, t) => {
+        const pct = Math.round((done / t) * 100);
+        toast.loading(`Generating certificates… ${done} / ${t} (${pct}%)`, { id: toastId });
+      });
+      doc.save(`Certificates_Bulk_${dateStr}.pdf`);
+      toast.success(`Generated ${total} certificate${total === 1 ? '' : 's'}`, { id: toastId });
+    } catch (err) {
+      console.error('Bulk certificate generation failed:', err);
+      toast.error('Failed to generate certificates', { id: toastId });
+    } finally {
+      setBulkPrinting(false);
+    }
   };
 
   const handleBulkPrintCertificates = () => {
