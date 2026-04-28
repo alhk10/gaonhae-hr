@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
+import { backfillOrphanGradingRegistrationsForBranch } from '@/services/invoiceService';
 import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const beltRank = (belt: string | null | undefined): number => {
