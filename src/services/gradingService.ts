@@ -287,6 +287,60 @@ export const markCertificateIssued = async (registrationId: string): Promise<voi
   }
 };
 
+/**
+ * Confirm receipt of belt and certificate for a graded student.
+ *
+ * Promotes the student's `current_belt`:
+ *   - pass   → next belt level (`getNextBeltLevel`)
+ *   - double → skip a belt (`getDoubleBeltLevel`)
+ *
+ * Also flips `certificate_issued` (and `certificate_ii_issued` for doubles)
+ * on the grading registration so the action can't be repeated.
+ *
+ * Returns the new belt that was set on the student.
+ */
+export const confirmBeltAndCertificate = async (params: {
+  registrationId: string;
+  studentId: string;
+  currentBelt: string;
+  isDouble: boolean;
+  country?: string | null;
+}): Promise<{ newBelt: string }> => {
+  const { registrationId, studentId, currentBelt, isDouble, country } = params;
+  const { getNextBeltLevel, getDoubleBeltLevel } = await import('@/constants/beltLevels');
+
+  const newBelt = isDouble
+    ? getDoubleBeltLevel(currentBelt, country)
+    : getNextBeltLevel(currentBelt, country);
+
+  if (!newBelt) {
+    throw new Error(`No higher belt available from ${currentBelt}`);
+  }
+
+  const { error: studentErr } = await supabase
+    .from('students')
+    .update({ current_belt: newBelt })
+    .eq('id', studentId);
+  if (studentErr) {
+    console.error('Error promoting student belt:', studentErr);
+    throw studentErr;
+  }
+
+  const regUpdate: Record<string, boolean> = { certificate_issued: true };
+  if (isDouble) regUpdate.certificate_ii_issued = true;
+
+  const { error: regErr } = await supabase
+    .from('grading_registrations')
+    .update(regUpdate)
+    .eq('id', registrationId);
+  if (regErr) {
+    console.error('Error marking certificate(s) issued:', regErr);
+    throw regErr;
+  }
+
+  return { newBelt };
+};
+
 // Remove registration
 export const removeGradingRegistration = async (registrationId: string): Promise<void> => {
   const { error } = await supabase

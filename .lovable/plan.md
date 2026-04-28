@@ -1,37 +1,57 @@
 ## Goal
 
-The PDF "GRADING SCORECARD" page currently lists rows in whatever order they appear in the registration's `scorecard` JSON, with BMI appended at the very end. The user wants the rows in the same left-to-right order as the grading list, starting with **Height, Weight, BMI**, followed by the remaining columns in column order (Poomsae, Balchagi, Kyorugi, Hoshinsul, Push-ups, Leg Raises, Air Squats, plus any custom-added columns at their saved positions).
+Add an inline "Confirm receipt of belt & certificate" action button to each row of the Branch Dashboard Grading list and the Sales Grading list. When clicked it:
 
-The grading list column order lives in `grading_term_scorecard_columns.position` (per term + branch), fetched via `listColumns()` in `src/services/gradingScorecardColumnService.ts`.
+1. Updates `students.current_belt` to the next belt (`getNextBeltLevel`) for a **pass** result, or skips a belt (`getDoubleBeltLevel`) for a **double** promotion.
+2. Marks `grading_registrations.certificate_issued = true` (and `certificate_ii_issued = true` for doubles) so the action can't accidentally be repeated.
+3. Refreshes the list so the new belt and disabled state are visible immediately.
 
-## Changes
+## UX
 
-### 1. `src/utils/gradingCertificatePDFGenerator.ts`
-- Extend `GradingCertificateInput` with an optional `columnOrder?: string[]` (ordered list of labels from the grading list header).
-- In `drawScorecardPage`:
-  - After filtering blanks and computing BMI via `withDerivedBmi`, sort `dataRows` using a comparator:
-    1. Height → first
-    2. Weight → second
-    3. BMI → third
-    4. Remaining rows → ordered by index in `columnOrder` (case-insensitive label match); rows whose label isn't in `columnOrder` go to the end, preserving their original relative order.
-- Keep the existing 3 structural header rows (Grading Date, Student Name, Belt) at the top and the Results row at the bottom — only the data rows in between get reordered.
+In the Actions column (right-most, sticky on desktop) add a third icon-button next to the existing "View Certificate" / "View Certificate II" buttons:
+
+- **Icon**: `Award` from `lucide-react` (already imported), green tint.
+- **Visibility**: Only when result is `pass` or `double`, current belt is in the Foundation→Black Tip range, and a `current_belt` is recorded.
+- **Disabled state**: When `certificate_issued` is already true (or for doubles, `certificate_ii_issued` is also true) — show as filled / muted with tooltip "Belt and certificate already confirmed".
+- **Confirm dialog** (using existing `AlertDialog` pattern): "Confirm that {STUDENT NAME} has received their belt and certificate. Their current belt will be updated from {Current} to {NewBelt}. This cannot be undone from this screen."
+- **Toast** on success: "Belt updated to {NewBelt} for {STUDENT NAME}".
+
+Mirror in the mobile card view (small green Award icon-button on the bottom row).
+
+## Technical implementation
+
+### 1. New service helper — `src/services/gradingService.ts`
+Add `confirmBeltAndCertificate({ registrationId, studentId, currentBelt, isDouble, country })`:
+- Compute `newBelt = isDouble ? getDoubleBeltLevel(currentBelt, country) : getNextBeltLevel(currentBelt, country)`.
+- If `newBelt` is null → throw "No higher belt available for {currentBelt}".
+- `update students set current_belt = newBelt where id = studentId`.
+- `update grading_registrations set certificate_issued = true, certificate_ii_issued = isDouble where id = registrationId`.
+- Return `{ newBelt }`.
+
+(Country is hard-coded to `'AU'` from the caller for now since Phase 1 = Morley only — same convention used by certificate generation.)
 
 ### 2. `src/components/dashboard/BranchGradingList.tsx`
-- The component already loads scorecard columns for the current term + branch (used to render the inline scorecard headers). Pass that ordered label list as `columnOrder` to:
-  - `runCertificate` → `downloadGradingCertificatePDF({ ..., columnOrder })`
-  - `buildBulkInputs` → both Cert I and Cert II inputs.
-- If for any reason the columns aren't loaded yet (e.g. cross-branch row in bulk), fall back to the default order from `DEFAULT_SCORECARD_LABELS`.
+- Import `Award` (already imported), `confirmBeltAndCertificate`, `getDoubleBeltLevel`.
+- Add `useMutation` `confirmBeltMutation` calling the new service helper, invalidating both `rowsKey` and the student query, with success/error toasts.
+- Add local state `confirmBeltTarget: GradingListStudent | null` and an `AlertDialog` rendered once at the bottom of the component.
+- In the Actions cell, after the existing certificate buttons, render the new button with the same eligibility conditions used for the cert button (pass/double + belt-in-range + isMorley + has current_belt). When `student.certificate_issued` (and `student.certificate_ii_issued` for doubles) is true, render the icon disabled with the "already confirmed" title.
+- Mirror the same button in the mobile card actions row.
 
 ### 3. `src/components/sales/GradingListTab.tsx`
-- Mirror the exact same change: thread the active term + branch's `columnOrder` into `runCertificate` and `buildBulkInputs`.
-- For the sales view (which can span multiple branches in bulk), use each row's own `branch_id` + `term_id` to look up its column order; fall back to defaults if missing.
+Apply identical changes (import, mutation, dialog, desktop button, mobile button).
 
-### Notes
-- No DB / schema changes.
-- No change to the inline scorecard editor or the certificate page 1.
-- Custom columns added by examiners (e.g. "Chagi") will appear in their saved position automatically because `columnOrder` already reflects what the grading list shows.
+### 4. Wiring & guards
+- Disable the button while the mutation is pending (`isPending` → spinner Loader2).
+- Don't trigger if `registration_id`, `current_belt`, or `student_id` is missing.
+- After success, the React Query invalidation re-fetches and the row will show the new belt + disabled icon automatically.
+
+## Notes / non-goals
+- No DB schema changes required — `certificate_issued` and `certificate_ii_issued` columns already exist.
+- No email/notification side-effects.
+- Double promotion: a single click confirms both belt jumps and both certificate flags. We don't add a separate "confirm Cert II only" path — the button represents "physically handed over belt + cert(s) for this grading event".
+- Action is irreversible from the UI; superadmin can still edit the student's belt manually elsewhere if needed.
 
 ## Affected files
-- `src/utils/gradingCertificatePDFGenerator.ts`
+- `src/services/gradingService.ts`
 - `src/components/dashboard/BranchGradingList.tsx`
 - `src/components/sales/GradingListTab.tsx`

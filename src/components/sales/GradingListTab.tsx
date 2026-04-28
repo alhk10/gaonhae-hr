@@ -24,7 +24,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { type Term } from '@/services/termCalendarService';
 import { backfillOrphanGradingRegistrationsForBranch } from '@/services/invoiceService';
-import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { confirmBeltAndCertificate } from '@/services/gradingService';
+import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, getDoubleBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const beltRank = (belt: string | null | undefined): number => {
   if (!belt) return -1;
@@ -32,7 +33,7 @@ const beltRank = (belt: string | null | undefined): number => {
   return i === -1 ? 9999 : i;
 };
 import { createGradingDeletionRequest } from '@/services/gradingDeletionRequestService';
-import { FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
+import { Award, FileText, Loader2, User, Pencil, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import GradingStudentDetailDialog from './GradingStudentDetailDialog';
@@ -554,6 +555,29 @@ const GradingListTab: React.FC = () => {
   // Pending certificate request awaiting payment-reminder confirmation.
   const [pendingCert, setPendingCert] = useState<{ student: GradingListStudent; certificateNumber: 1 | 2 } | null>(null);
 
+  // Pending "confirm receipt of belt + certificate" target.
+  const [confirmBeltTarget, setConfirmBeltTarget] = useState<GradingListStudent | null>(null);
+  const confirmBeltMutation = useMutation({
+    mutationFn: async (student: GradingListStudent) => {
+      if (!student.registration_id) throw new Error('No grading registration found');
+      if (!student.current_belt) throw new Error('Student has no current belt recorded');
+      const isDouble = student.result === 'double';
+      return confirmBeltAndCertificate({
+        registrationId: student.registration_id,
+        studentId: student.student_id,
+        currentBelt: student.current_belt,
+        isDouble,
+        country: 'AU',
+      });
+    },
+    onSuccess: ({ newBelt }, student) => {
+      toast.success(`Belt updated to ${formatBeltLevel(newBelt)} for ${student.student_name}`);
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', selectedBranch, selectedTerm] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', selectedBranch] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to confirm belt & certificate'),
+  });
+
   /** Actually generate and download the certificate PDF. */
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     const baseBelt = student.current_belt || '';
@@ -842,6 +866,14 @@ const GradingListTab: React.FC = () => {
                     const canViewCertificateII = result === 'double' && beltInRange;
                     const certDisabled = !isMorley;
                     const certTitle = certDisabled ? 'Template pending for this branch' : 'Generate certificate';
+                    const isDoubleResult = result === 'double';
+                    const beltConfirmEligible = (result === 'pass' || result === 'double')
+                      && isFoundationToBlackTip(student.current_belt)
+                      && !!student.current_belt
+                      && !!student.registration_id;
+                    const beltAlreadyConfirmed = isDoubleResult
+                      ? (student.certificate_issued && student.certificate_ii_issued)
+                      : student.certificate_issued;
 
                     return (
                       <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
@@ -948,6 +980,20 @@ const GradingListTab: React.FC = () => {
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             )}
+                            {beltConfirmEligible && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${beltAlreadyConfirmed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700'}`}
+                                disabled={beltAlreadyConfirmed || confirmBeltMutation.isPending}
+                                title={beltAlreadyConfirmed ? 'Belt and certificate already confirmed' : 'Confirm receipt of belt & certificate'}
+                                onClick={() => setConfirmBeltTarget(student)}
+                              >
+                                {confirmBeltMutation.isPending && confirmBeltMutation.variables?.student_id === student.student_id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <Award className="w-3.5 h-3.5" />}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1045,6 +1091,47 @@ const GradingListTab: React.FC = () => {
               }}
             >
               Print Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm receipt of belt & certificate. */}
+      <AlertDialog open={!!confirmBeltTarget} onOpenChange={(o) => { if (!o) setConfirmBeltTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm belt &amp; certificate received</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmBeltTarget && (() => {
+                const isDouble = confirmBeltTarget.result === 'double';
+                const cur = confirmBeltTarget.current_belt || '';
+                const next = isDouble
+                  ? getDoubleBeltLevel(cur, 'AU')
+                  : getNextBeltLevel(cur, 'AU');
+                return (
+                  <>
+                    Confirm that <span className="font-semibold">{confirmBeltTarget.student_name}</span> has received their belt and certificate{isDouble ? 's' : ''}.
+                    <br /><br />
+                    Their current belt will be updated from{' '}
+                    <span className="font-semibold">{formatBeltLevel(cur)}</span> to{' '}
+                    <span className="font-semibold">{next ? formatBeltLevel(next) : '—'}</span>
+                    {isDouble && ' (double promotion — skips one belt)'}.
+                    <br /><br />
+                    This cannot be undone from this screen.
+                  </>
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmBeltTarget) confirmBeltMutation.mutate(confirmBeltTarget);
+                setConfirmBeltTarget(null);
+              }}
+            >
+              Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
