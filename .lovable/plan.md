@@ -1,45 +1,45 @@
 ## Problem
 
-The Grading tab (Branch Dashboard and Sales) takes a long time to show any data. The spinner stays until everything finishes.
+Henry, Teo, Zuhayr, Elliot, Kalli, Daniel and Iqraa all have completed scorecards and a result, but they don't appear in **Ready for Printing**.
 
-Root cause in `src/services/invoiceService.ts` + `BranchGradingList.tsx` / `GradingListTab.tsx`:
+I checked their `grading_registrations.scorecard` data:
 
-1. Every time the Grading tab opens, the query function `awaits` `backfillOrphanGradingRegistrationsForBranch(branchId)` **before** loading the list.
-2. That backfill loops through **every grading invoice in the branch** and calls `syncGradingRegistrationsForInvoice` one-by-one with `for … await` (no parallelism).
-3. Each `syncGradingRegistrationsForInvoice` call performs ~5–10 Supabase round-trips (invoice, items, products, student, slot→term, term started, existing reg lookups, update/insert).
+- All seven have **Height, Weight, Poomsae, and Balchagi** filled in, plus a `result` of `pass`.
+- None of them have a `Kyorugi` value (the field is either absent or filled with `-`).
 
-With Morley's 42 grading registrations + 24 invoices, that's hundreds of serial requests on every tab load → multi-second spinner.
+The current filter requires Kyorugi specifically:
 
-The backfill is a "self-heal" that is only needed when something is genuinely orphaned. It should not block the initial render every time.
+```ts
+const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i, /kyorugi/i];
+```
+
+But for lower belts (Foundation → Yellow Tip → Yellow), the sparring assessment is **Balchagi**, not Kyorugi. Higher belts use Kyorugi. They're alternatives — only one is expected per student depending on belt level.
 
 ## Fix
 
-### 1. `src/services/invoiceService.ts` — make the backfill lighter and parallel
+Update `getCompleteness` in both grading list components to require:
 
-- Add an early-exit fast path: query `grading_registrations` for invoice items in this branch and only re-sync invoices that are **actually missing a registration** (orphans), instead of re-syncing every grading invoice in the branch. Today the function name says "orphan" but it actually re-syncs everything.
-- Run the remaining `syncGradingRegistrationsForInvoice` calls in parallel with `Promise.all` (chunked at e.g. 8 at a time to avoid hammering Supabase).
-- Inside `syncGradingRegistrationsForInvoice`, replace the sequential per-item `await resolveTermFromSlot` / `existingByItem` / `existingByTerm` lookups with batched queries when there are multiple grading items on one invoice (single `.in(...)` calls), so each invoice resolves in 1–2 round-trips instead of 5–10.
+- Height, Weight, Poomsae (always)
+- **Either** Kyorugi **or** Balchagi (whichever the scorecard has)
+- A non-null `result`
 
-### 2. `BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx` — don't block render on the heal
+```ts
+const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i];
+const SPARRING_REGEXES = [/kyorugi/i, /balchagi/i];
 
-- Remove `await backfillOrphanGradingRegistrationsForBranch(branchId)` from inside the list `queryFn`.
-- Instead, fire it from a separate `useEffect` (fire-and-forget). When it finishes and reports any changes, invalidate `['grading-list-students', branchId, selectedTerm]` so the list refreshes silently.
-- The user sees data immediately; any belated repairs appear in a follow-up refetch without a spinner.
+const getCompleteness = (s) => {
+  const allFilled =
+    SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx)) &&
+    SPARRING_REGEXES.some(rx => isScorecardFieldFilled(s.scorecard, rx));
+  return { allFilled, hasResult: !!s.result };
+};
+```
 
-### 3. Cache the branch's grading-product lookup
-
-The first two queries in `backfillOrphanGradingRegistrationsForBranch` (grading category id + grading product ids) are constant per session. Cache them in a module-level promise so repeated calls are instant.
-
-## Expected result
-
-- Grading tab shows the list as soon as the main data query returns (typically <500 ms).
-- The self-heal still runs in the background on first open and only re-syncs invoices that are genuinely orphaned (usually zero), so it's effectively free after the initial repair.
-- Behaviour for Earl/Rory and any future fixes is unchanged — they're already healed; subsequent loads simply skip the heavy work.
+After this, the seven students will move into **Ready for Printing**, and **Missing Details** will only flag students truly missing a sparring score.
 
 ## Files to edit
 
-- `src/services/invoiceService.ts`
 - `src/components/dashboard/BranchGradingList.tsx`
 - `src/components/sales/GradingListTab.tsx`
 
-Approve to switch to default mode and apply the fix.
+Approve to switch to default mode and apply.
