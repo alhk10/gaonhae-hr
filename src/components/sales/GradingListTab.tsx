@@ -458,6 +458,16 @@ const GradingListTab: React.FC = () => {
     enabled: !!selectedBranch && !!selectedTerm
   });
 
+  // Apply All / Missing Details / Ready for Printing filter
+  const displayedStudents = useMemo(() => {
+    if (completionFilter === 'all') return students;
+    return students.filter(s => {
+      const { allFilled, hasResult } = getCompleteness(s);
+      if (completionFilter === 'missing') return !allFilled;
+      return allFilled && hasResult; // ready_print
+    });
+  }, [students, completionFilter]);
+
   const displayReady = useCallback((student: GradingListStudent) => {
     if (student.ready_for_grading) return true;
     if (termStarted && !student.result) return true;
