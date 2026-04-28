@@ -1248,6 +1248,47 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirm receipt of belt & certificate. */}
+      <AlertDialog open={!!confirmBeltTarget} onOpenChange={(o) => { if (!o) setConfirmBeltTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm belt &amp; certificate received</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmBeltTarget && (() => {
+                const isDouble = confirmBeltTarget.result === 'double';
+                const cur = confirmBeltTarget.current_belt || '';
+                const next = isDouble
+                  ? getDoubleBeltLevel(cur, 'AU')
+                  : getNextBeltLevel(cur, 'AU');
+                return (
+                  <>
+                    Confirm that <span className="font-semibold">{confirmBeltTarget.student_name}</span> has received their belt and certificate{isDouble ? 's' : ''}.
+                    <br /><br />
+                    Their current belt will be updated from{' '}
+                    <span className="font-semibold">{formatBeltLevel(cur)}</span> to{' '}
+                    <span className="font-semibold">{next ? formatBeltLevel(next) : '—'}</span>
+                    {isDouble && ' (double promotion — skips one belt)'}.
+                    <br /><br />
+                    This cannot be undone from this screen.
+                  </>
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmBeltTarget) confirmBeltMutation.mutate(confirmBeltTarget);
+                setConfirmBeltTarget(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
