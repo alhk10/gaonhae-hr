@@ -1171,3 +1171,182 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
     throw error;
   }
 };
+/**
+ * Sync grading registrations for an invoice based on its current Grading-category
+ * line items. Idempotent — uses (invoice_item_id) and (student_id, term_id) lookups.
+ * Call this after creating OR editing an invoice's items so that adjustments which
+ * add/remove grading line items immediately reflect in the grading list.
+ */
+export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Promise<void> => {
+  try {
+    const { data: invoice } = await supabase
+      .from('invoices')
+      .select('id, student_id, branch_id')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    if (!invoice?.student_id) return;
+
+    const { data: items } = await supabase
+      .from('invoice_items')
+      .select('id, product_id, metadata')
+      .eq('invoice_id', invoiceId);
+    if (!items || items.length === 0) return;
+
+    const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))] as string[];
+    if (productIds.length === 0) return;
+
+    const { data: productDetails } = await supabase
+      .from('products')
+      .select('id, is_lesson, term_id, name, category_id, product_categories(name)')
+      .in('id', productIds);
+    if (!productDetails) return;
+
+    const productMetaMap = new Map<string, { name: string; category_name: string | null; is_lesson: boolean; term_id: string | null }>(
+      productDetails.map(p => [
+        p.id,
+        {
+          name: p.name || '',
+          category_name: (p as any).product_categories?.name ?? null,
+          is_lesson: !!p.is_lesson,
+          term_id: (p as any).term_id ?? null,
+        },
+      ])
+    );
+
+    const { data: studentRow } = await supabase
+      .from('students')
+      .select('current_belt')
+      .eq('id', invoice.student_id)
+      .maybeSingle();
+    const studentCurrentBelt = studentRow?.current_belt || null;
+    const { data: authData } = await supabase.auth.getUser();
+    const createdByEmail = authData?.user?.email || null;
+
+    const resolveTermFromSlot = async (slotId: string): Promise<string | null> => {
+      const { data: slot } = await supabase
+        .from('grading_slots')
+        .select('grading_date, branch_id')
+        .eq('id', slotId)
+        .maybeSingle();
+      if (!slot?.grading_date) return null;
+      const slotBranchId = slot.branch_id || invoice.branch_id;
+      const slotDate = slot.grading_date;
+      const { data: inWindow } = await supabase
+        .from('term_calendars')
+        .select('id')
+        .eq('branch_id', slotBranchId)
+        .lte('start_date', slotDate)
+        .gte('end_date', slotDate)
+        .limit(1);
+      if (inWindow && inWindow.length > 0) return inWindow[0].id;
+      const { data: prevTerm } = await supabase
+        .from('term_calendars')
+        .select('id')
+        .eq('branch_id', slotBranchId)
+        .lte('end_date', slotDate)
+        .order('end_date', { ascending: false })
+        .limit(1);
+      if (prevTerm && prevTerm.length > 0) return prevTerm[0].id;
+      const { data: nextTerm } = await supabase
+        .from('term_calendars')
+        .select('id')
+        .eq('branch_id', slotBranchId)
+        .gte('start_date', slotDate)
+        .order('start_date', { ascending: true })
+        .limit(1);
+      if (nextTerm && nextTerm.length > 0) return nextTerm[0].id;
+      return null;
+    };
+
+    const parseBeltTransition = (name: string): { from: string | null; to: string | null } => {
+      if (!name) return { from: null, to: null };
+      const parts = name.split(/\s*>>\s*|\s+-\s+/);
+      if (parts.length < 2) return { from: null, to: null };
+      return { from: parts[0].trim() || null, to: parts[parts.length - 1].trim() || null };
+    };
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const termStartedCache = new Map<string, boolean>();
+    const isTermStarted = async (termId: string): Promise<boolean> => {
+      if (termStartedCache.has(termId)) return termStartedCache.get(termId)!;
+      const { data: termRow } = await supabase
+        .from('term_calendars')
+        .select('start_date')
+        .eq('id', termId)
+        .maybeSingle();
+      const started = !!(termRow?.start_date && termRow.start_date <= todayStr);
+      termStartedCache.set(termId, started);
+      return started;
+    };
+
+    // Lesson-derived term ids on this invoice (fallback for grading items missing slot/term)
+    const lessonTermIds = new Set<string>();
+    for (const item of items) {
+      const meta = productMetaMap.get(item.product_id);
+      if (!meta?.is_lesson) continue;
+      const itemMeta: any = item.metadata || {};
+      const termId = itemMeta?.term_id || itemMeta?.term_ids?.[0] || meta.term_id;
+      if (termId) lessonTermIds.add(termId);
+    }
+
+    for (const item of items) {
+      const meta = productMetaMap.get(item.product_id);
+      if (!meta) continue;
+      if ((meta.category_name || '').toLowerCase() !== 'grading') continue;
+
+      const itemMeta: any = item.metadata || {};
+      const slotId = itemMeta?.grading_slot_id || null;
+
+      let termId: string | null = null;
+      if (slotId) termId = await resolveTermFromSlot(slotId);
+      if (!termId) termId = itemMeta?.term_id || itemMeta?.term_ids?.[0] || null;
+      if (!termId && lessonTermIds.size > 0) termId = Array.from(lessonTermIds)[0];
+      if (!termId) continue;
+
+      const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
+      const currentBelt = parsedFrom || studentCurrentBelt || 'White';
+      const targetBelt = parsedTo || studentCurrentBelt || 'White';
+      const readyForGrading = await isTermStarted(termId);
+
+      const { data: existingByItem } = await supabase
+        .from('grading_registrations')
+        .select('id')
+        .eq('invoice_item_id', item.id)
+        .maybeSingle();
+      if (existingByItem) continue;
+
+      const { data: existingByTerm } = await supabase
+        .from('grading_registrations')
+        .select('id, grading_slot_id, ready_for_grading')
+        .eq('student_id', invoice.student_id)
+        .eq('term_id', termId)
+        .is('invoice_item_id', null)
+        .maybeSingle();
+
+      if (existingByTerm) {
+        const updatePayload: any = {
+          ready_for_grading: existingByTerm.ready_for_grading === true ? true : readyForGrading,
+          current_belt: currentBelt,
+          target_belt: targetBelt,
+          invoice_item_id: item.id,
+        };
+        if (!existingByTerm.grading_slot_id && slotId) updatePayload.grading_slot_id = slotId;
+        await supabase.from('grading_registrations').update(updatePayload).eq('id', existingByTerm.id);
+      } else {
+        await supabase.from('grading_registrations').insert([{
+          student_id: invoice.student_id,
+          term_id: termId,
+          current_belt: currentBelt,
+          target_belt: targetBelt,
+          ready_for_grading: readyForGrading,
+          invoice_item_id: item.id,
+          grading_slot_id: slotId,
+          result: null,
+          created_by: createdByEmail,
+        }]);
+      }
+    }
+  } catch (err) {
+    logger.error('syncGradingRegistrationsForInvoice failed (non-fatal)', err);
+  }
+};
