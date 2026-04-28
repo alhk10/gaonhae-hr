@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllTermsForBranch, type Term } from '@/services/termCalendarService';
+import { backfillOrphanGradingRegistrationsForBranch } from '@/services/invoiceService';
 import { formatBeltLevel, isFoundationToBlackTip, getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 const beltRank = (belt: string | null | undefined): number => {
@@ -225,6 +226,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     queryKey: ['grading-list-students', branchId, selectedTerm],
     queryFn: async () => {
       if (!branchId || !selectedTerm) return [];
+
+      // Self-heal: backfill any grading registrations missing for invoices in this branch
+      // (e.g. invoices created before the auto-create logic landed).
+      await backfillOrphanGradingRegistrationsForBranch(branchId);
 
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
