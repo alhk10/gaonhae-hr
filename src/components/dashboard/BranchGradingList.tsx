@@ -947,7 +947,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
               {/* Mobile cards */}
               <div className="sm:hidden space-y-1.5">
-                {students.map((student) => {
+                {displayedStudents.map((student) => {
                   const ready = displayReady(student);
                   const isSelected = selectedIds.has(student.student_id);
                   const result = student.result;
