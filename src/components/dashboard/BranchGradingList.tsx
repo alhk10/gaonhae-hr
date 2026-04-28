@@ -935,6 +935,11 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                               {formatBeltLevel(student.current_belt)}
                             </Badge>
                           )}
+                          {student.student_status && student.student_status !== 'active' && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0 capitalize border-amber-400 text-amber-700">
+                              {student.student_status}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Checkbox
