@@ -791,6 +791,7 @@ const GradingListTab: React.FC = () => {
                   <TabsTrigger value="all" className="text-xs h-6 px-2">All</TabsTrigger>
                   <TabsTrigger value="missing" className="text-xs h-6 px-2">Missing Details</TabsTrigger>
                   <TabsTrigger value="ready_print" className="text-xs h-6 px-2">Ready for Printing</TabsTrigger>
+                  <TabsTrigger value="yet_to_receive" className="text-xs h-6 px-2">Yet to Receive</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
