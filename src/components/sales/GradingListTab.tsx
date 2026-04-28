@@ -709,7 +709,7 @@ const GradingListTab: React.FC = () => {
               </Select>
             </div>
             <div className="w-64">
-              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); }} disabled={!selectedBranch}>
+              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); setCompletionFilter('all'); }} disabled={!selectedBranch}>
                 <SelectTrigger><SelectValue placeholder="Select Term" /></SelectTrigger>
                 <SelectContent>
                   {branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
