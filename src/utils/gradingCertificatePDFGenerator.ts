@@ -160,19 +160,19 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   // WT logo — left-anchored, bottom-aligned to footerY + 24mm baseline
   // Logos shifted +5mm right and scaled +10%
   const wtBox = fitBox(WT_NATIVE.w, WT_NATIVE.h, 35.2, 26.4);
-  const wtX = 27;
+  const wtX = 32;
   const wtY = footerY + (24 - wtBox.h) / 2; // vertically centre within 24mm strip
   doc.addImage(worldTaekwondoLogo, 'JPEG', wtX, wtY, wtBox.w, wtBox.h, undefined, 'FAST');
 
   // Kukkiwon logo — placed beside WT, same vertical strip
   const kwBox = fitBox(KW_NATIVE.w, KW_NATIVE.h, 39.6, 26.4);
-  const kwX = 65;
+  const kwX = 70;
   const kwY = footerY + (24 - kwBox.h) / 2;
   doc.addImage(kukkiwonLogo, 'JPEG', kwX, kwY, kwBox.w, kwBox.h, undefined, 'FAST');
 
   // Signature on the right — shifted 5mm left and scaled +10%
   const sigBox = fitBox(SIG_NATIVE.w, SIG_NATIVE.h, 55, 30.8);
-  const sigRightEdge = A4_W - 35;
+  const sigRightEdge = A4_W - 40;
   const sigX = sigRightEdge - sigBox.w;
   const sigY = footerY - 4 + (28 - sigBox.h) / 2;
   doc.addImage(masterSignature, 'JPEG', sigX, sigY, sigBox.w, sigBox.h, undefined, 'FAST');
