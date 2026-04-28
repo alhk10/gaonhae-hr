@@ -1,28 +1,38 @@
-## Plan — Fix grading list row ordering by belt rank
+## Plan — Auto-create grading registration on invoice edit
 
 ### Problem
-In the grading list, rows within the same grading slot (and across slots that share the same time) are sorted alphabetically by slot title and then by student name. This produces incorrect ordering:
-- Kayden HII (Blue belt) appears before Yui Cheung (Blue Tip) because they sit in different slots whose titles sort alphabetically.
-- Earl John Lucero II (White), Henry Morgan (Foundation), Teo Olivere Tabigue (Foundation) appear in the wrong belt order for the same reason — alphabetical title/name sort ignores belt rank.
+When Rory's invoice was **edited** (not newly created) to add a Foundation grading line item, the grading list for Term 1 did not show the registration, even after dialog save and refresh.
 
-The slot title and the student name don't reflect the official belt progression (Foundation 1/2/3 → Foundation → White → Yellow Tip → … → Blue Tip → Blue → Red Tip → … → Dan ranks).
+Root cause: only `createInvoice` (in `src/services/invoiceService.ts`) auto-creates `grading_registrations` rows for Grading-category line items. The **edit save** path in `src/components/sales/InvoiceDialog.tsx` (`handleSave`, ~line 1178) inserts new `invoice_items` directly via `supabase.from('invoice_items').insert(...)` and never runs the grading-registration sync. So the new Grading line item exists but no registration row is written → student does not appear in the grading list.
 
 ### Fix
-Sort rows within each grading date by the student's **current belt rank** (lowest belt first, following the canonical `BELT_LEVELS` order from `@/constants/beltLevels`), then by name as a tiebreaker. Slot title is no longer used as a sort key — the belt rank already gives the correct visual grouping.
 
-New sort order:
-1. Unassigned (no slot date) first, sorted by name (unchanged).
-2. Then by `grading_slot_date` ascending.
-3. Then by **current belt rank ascending** using the index from `BELT_LEVELS` (Foundation 1 → … → 5th Dan). `null` / "No belt" sorts first.
-4. Then by `student_name` ascending.
+**1. New shared service helper** (already drafted in `invoiceService.ts`):
+- `syncGradingRegistrationsForInvoice(invoiceId)` — re-derives registrations from the invoice's current Grading-category items.
+- Idempotent: skips items that already have a registration via `invoice_item_id`, claims any existing `(student_id, term_id)` row with no `invoice_item_id`, otherwise inserts a fresh row.
+- Resolves `term_id` in this priority: grading slot → item metadata → any lesson term on the invoice.
+- Belt transition parsed from product name (e.g. "White >> Yellow Tip"); falls back to student's current belt.
+- `ready_for_grading` flips true only when the term has started; preserves an already-true flag.
 
-### Files to edit
-- `src/components/dashboard/BranchGradingList.tsx` — replace the slot-title-based comparator (~line 407) with belt-rank comparator.
-- `src/components/sales/GradingListTab.tsx` — same change (~line 416).
+**2. Wire it into the edit save flow** in `src/components/sales/InvoiceDialog.tsx`:
+- Import `syncGradingRegistrationsForInvoice` from `@/services/invoiceService` and `useQueryClient`.
+- Inside `handleSave`, after the existing item insert/update/delete + `invoices` update + class-slot sync, call:
+  ```ts
+  await syncGradingRegistrationsForInvoice(invoice.id);
+  queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
+  queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
+  queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
+  ```
+- This guarantees the grading list reflects the change immediately on the next read (no manual reload needed).
 
-Both files will import a small helper that returns the belt rank index from `BELT_LEVELS_ARRAY`, with unknown/null belts sorting before "Foundation 1".
+**3. Edit cleanup for removed grading items**:
+- When a Grading line item is removed during edit (already tracked as `removedIds`), also delete its linked `grading_registrations` row (where `invoice_item_id IN removedIds`) before the items themselves are deleted, so a later re-add doesn't get blocked by an orphan FK and the list stays consistent.
 
 ### Out of scope
-- No changes to the grading slot data model, slot titles, or filtering.
-- No changes to the bulk certificate printing feature.
-- No changes to column widths.
+- No DB schema changes (the existing `grading_registrations` table already has `invoice_item_id`, `term_id`, `student_id`, etc.).
+- No change to `createInvoice` — its inline auto-create block already works and is idempotent. The new helper is only invoked from the edit path; we can refactor `createInvoice` to use it later if desired, but not in this change.
+- No change to the bulk certificate or column-width work from earlier.
+
+### Files
+- `src/services/invoiceService.ts` — add exported `syncGradingRegistrationsForInvoice` (already appended).
+- `src/components/sales/InvoiceDialog.tsx` — import the helper + `useQueryClient`, add `const queryClient = useQueryClient()`, call sync + invalidations at the end of `handleSave`, and delete grading_registrations for `removedIds` before deleting invoice_items.

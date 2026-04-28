@@ -17,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
+import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
@@ -328,6 +329,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [mode, setMode] = useState<'create' | 'view' | 'edit'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   // ─── Shared Data ────────────────────────────────────────────────
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string, allowed_class_types?: string[]}>>([]);
@@ -1185,6 +1187,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       if (removedIds.length > 0) {
         await supabase.from('entitlements').update({ is_active: false, notes: 'Deactivated - invoice item removed' }).in('source_id', removedIds).eq('source_type', 'invoice_item');
+        // Clean up any grading registrations linked to removed items so re-adds aren't blocked
+        await supabase.from('grading_registrations').delete().in('invoice_item_id', removedIds);
         await supabase.from('invoice_items').delete().in('id', removedIds);
       }
 
@@ -1270,6 +1274,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           }
         }
       }
+
+      // Sync grading registrations from current items (handles newly-added Grading line items)
+      await syncGradingRegistrationsForInvoice(invoice.id);
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
+      queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
 
       toast.success('Invoice updated successfully');
       setMode('view');
