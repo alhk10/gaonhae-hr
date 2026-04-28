@@ -764,6 +764,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             <div className="text-center py-8 text-muted-foreground">
               No active students found with invoices for this term.
             </div>
+          ) : displayedStudents.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {completionFilter === 'missing'
+                ? 'No students with missing details — all good!'
+                : 'No students ready for printing yet.'}
+            </div>
           ) : (
             <>
               {/* Desktop compact 1-line table */}
