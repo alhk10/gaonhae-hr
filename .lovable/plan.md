@@ -1,84 +1,45 @@
-## Add status filter + age sort to the Grading List
+## Problem
 
-Apply identical changes to both grading list components:
+The Grading tab (Branch Dashboard and Sales) takes a long time to show any data. The spinner stays until everything finishes.
+
+Root cause in `src/services/invoiceService.ts` + `BranchGradingList.tsx` / `GradingListTab.tsx`:
+
+1. Every time the Grading tab opens, the query function `awaits` `backfillOrphanGradingRegistrationsForBranch(branchId)` **before** loading the list.
+2. That backfill loops through **every grading invoice in the branch** and calls `syncGradingRegistrationsForInvoice` one-by-one with `for … await` (no parallelism).
+3. Each `syncGradingRegistrationsForInvoice` call performs ~5–10 Supabase round-trips (invoice, items, products, student, slot→term, term started, existing reg lookups, update/insert).
+
+With Morley's 42 grading registrations + 24 invoices, that's hundreds of serial requests on every tab load → multi-second spinner.
+
+The backfill is a "self-heal" that is only needed when something is genuinely orphaned. It should not block the initial render every time.
+
+## Fix
+
+### 1. `src/services/invoiceService.ts` — make the backfill lighter and parallel
+
+- Add an early-exit fast path: query `grading_registrations` for invoice items in this branch and only re-sync invoices that are **actually missing a registration** (orphans), instead of re-syncing every grading invoice in the branch. Today the function name says "orphan" but it actually re-syncs everything.
+- Run the remaining `syncGradingRegistrationsForInvoice` calls in parallel with `Promise.all` (chunked at e.g. 8 at a time to avoid hammering Supabase).
+- Inside `syncGradingRegistrationsForInvoice`, replace the sequential per-item `await resolveTermFromSlot` / `existingByItem` / `existingByTerm` lookups with batched queries when there are multiple grading items on one invoice (single `.in(...)` calls), so each invoice resolves in 1–2 round-trips instead of 5–10.
+
+### 2. `BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx` — don't block render on the heal
+
+- Remove `await backfillOrphanGradingRegistrationsForBranch(branchId)` from inside the list `queryFn`.
+- Instead, fire it from a separate `useEffect` (fire-and-forget). When it finishes and reports any changes, invalidate `['grading-list-students', branchId, selectedTerm]` so the list refreshes silently.
+- The user sees data immediately; any belated repairs appear in a follow-up refetch without a spinner.
+
+### 3. Cache the branch's grading-product lookup
+
+The first two queries in `backfillOrphanGradingRegistrationsForBranch` (grading category id + grading product ids) are constant per session. Cache them in a module-level promise so repeated calls are instant.
+
+## Expected result
+
+- Grading tab shows the list as soon as the main data query returns (typically <500 ms).
+- The self-heal still runs in the background on first open and only re-syncs invoices that are genuinely orphaned (usually zero), so it's effectively free after the initial repair.
+- Behaviour for Earl/Rory and any future fixes is unchanged — they're already healed; subsequent loads simply skip the heavy work.
+
+## Files to edit
+
+- `src/services/invoiceService.ts`
 - `src/components/dashboard/BranchGradingList.tsx`
 - `src/components/sales/GradingListTab.tsx`
 
-### 1. Fetch `date_of_birth`
-Extend the `students` select (line ~271 / ~280) to include `date_of_birth`, and add it to the `GradingListStudent` type and result mapping (both reg-based and lesson-fallback branches).
-
-### 2. New helper: scorecard completeness
-Add a small helper near the top of each file:
-```ts
-const getScorecardValue = (scorecard: ScorecardRow[], label: RegExp): string =>
-  (scorecard.find(r => label.test(r.label))?.value || '').trim();
-
-const isFieldFilled = (v: string) => v !== '' && v !== '-';
-
-const getCompleteness = (s: GradingListStudent) => {
-  const h = getScorecardValue(s.scorecard, /height/i);
-  const w = getScorecardValue(s.scorecard, /weight/i);
-  const p = getScorecardValue(s.scorecard, /poomsae/i);
-  const k = getScorecardValue(s.scorecard, /kyorugi/i);
-  const required = [h, w, p, k];
-  const allFilled = required.every(isFieldFilled);
-  const hasResult = !!s.result; // 'pass' | 'double' | 'fail'
-  return { allFilled, hasResult };
-};
-```
-The four required fields (Height, Weight, Poomsae, Kyorugi) match existing scorecard label patterns already used in the file (lines 672-673, 662-663).
-
-### 3. Sort: belt asc, then age asc (youngest first)
-Replace the current sort (lines ~420-430 / ~428) with a single rule applied to all rows:
-```ts
-result.sort((a, b) => {
-  const beltCmp = beltRank(a.current_belt) - beltRank(b.current_belt);
-  if (beltCmp !== 0) return beltCmp;
-  // Age ascending = DOB descending (younger first)
-  const aDob = a.date_of_birth || '';
-  const bDob = b.date_of_birth || '';
-  if (aDob !== bDob) return bDob.localeCompare(aDob);
-  return a.student_name.localeCompare(b.student_name);
-});
-```
-This removes the previous "unassigned-first / by slot date" grouping per the user's "Always sort" instruction.
-
-### 4. Filter UI
-Add `const [completionFilter, setCompletionFilter] = useState<'all' | 'missing' | 'ready_print'>('all');` and render a small `Tabs` (or segmented `Select`) next to the term selector in the CardHeader (line ~684):
-```tsx
-<Tabs value={completionFilter} onValueChange={v => setCompletionFilter(v as any)}>
-  <TabsList className="h-8">
-    <TabsTrigger value="all" className="text-xs h-6">All</TabsTrigger>
-    <TabsTrigger value="missing" className="text-xs h-6">Missing Details</TabsTrigger>
-    <TabsTrigger value="ready_print" className="text-xs h-6">Ready for Printing</TabsTrigger>
-  </TabsList>
-</Tabs>
-```
-
-### 5. Apply filter to displayed rows
-Derive a `displayedStudents` memo from `students`:
-```ts
-const displayedStudents = useMemo(() => {
-  if (completionFilter === 'all') return students;
-  return students.filter(s => {
-    const { allFilled, hasResult } = getCompleteness(s);
-    if (completionFilter === 'missing') return !allFilled;
-    return allFilled && hasResult; // ready_print
-  });
-}, [students, completionFilter]);
-```
-Use `displayedStudents` everywhere the desktop and mobile lists currently render `students` (table body, mobile cards, "no rows" empty state, bulk-select helpers).
-
-Reset filter to `'all'` when the term changes (alongside `setSelectedIds(new Set())`).
-
-### Files touched
-- `src/components/dashboard/BranchGradingList.tsx`
-- `src/components/sales/GradingListTab.tsx`
-
-### Verification
-- All tab → shows every student as before, sorted by belt then youngest-first.
-- Missing Details → only students with empty Height, Weight, Poomsae, or Kyorugi.
-- Ready for Printing → only students whose four fields AND Result are populated.
-- Sort persists across filter changes.
-
-Approve to implement.
+Approve to switch to default mode and apply the fix.
