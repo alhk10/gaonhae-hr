@@ -1,24 +1,30 @@
-## Problem
+## Goal
 
-On the grading certificate footer, the World Taekwondo logo, Kukkiwon logo, and Master Alvin Lee signature are drawn into fixed-size boxes (36×24mm for logos, 50×28mm for signature) that don't match the source image proportions. The signature is the worst offender — its source is roughly square (456×466) but it's stretched into 50×28, making it look unnaturally wide.
+Add a fourth filter tab — **"Yet to Receive"** — to the Students for Grading list, alongside the existing All / Missing Details / Ready for Printing tabs. It surfaces students who are ready for printing, have a passing result, and have not yet had their belt and certificate confirmed as received.
 
-## Source image aspect ratios
+## Filter definition
 
-- World Taekwondo: 484×231 → ratio ~2.10 (wide)
-- Kukkiwon: 347×244 → ratio ~1.42
-- Master signature: 456×466 → ratio ~0.98 (nearly square)
+A student is "Yet to Receive" when ALL hold:
+- They pass the existing **Ready for Printing** condition (`allFilled && hasResult` from `getCompleteness`)
+- Their result is `pass` or `double` (fails never receive a new belt/cert)
+- The certificate has NOT been confirmed yet:
+  - Single (`pass`): `certificate_issued === false`
+  - Double: `!(certificate_issued && certificate_ii_issued)`
 
-## Fix
+This exactly mirrors the disabled-state logic already used by the green Award confirmation button (`BranchGradingList.tsx` lines 884–885 / `GradingListTab.tsx` lines 875–876), so the tab disappears a row the moment confirmation is made.
 
-In `src/utils/gradingCertificatePDFGenerator.ts` (footer block around lines 137–152), constrain each image to a max width AND max height box, then compute the actual draw size from its true aspect ratio so it fits inside the box without stretching. Keep the existing left/right anchor positions and vertically align logos along the same baseline.
+## Files to edit
 
-Target bounding boxes (chosen to keep the current footprint):
-- WT logo: max 32w × 24h → renders ~32×15.3
-- Kukkiwon logo: max 36w × 24h → renders ~34×24
-- Signature: max 50w × 28h → renders ~27.4×28 (no longer stretched)
+Apply identical changes to both list components (they're parallel implementations):
 
-Anchor positions stay roughly the same; the signature is right-aligned to its existing right edge so the layout shifts inward rather than overlapping other elements.
+1. **`src/components/sales/GradingListTab.tsx`**
+   - Line 75: extend `CompletionFilter` type to include `'yet_to_receive'`
+   - Lines 482–489: extend `displayedStudents` filter to handle the new value
+   - Line 785 area: add a new `<TabsTrigger value="yet_to_receive">Yet to Receive</TabsTrigger>` after Ready for Printing
 
-No other files change. Bulk and single certificate flows both use this generator, so both are covered.
+2. **`src/components/dashboard/BranchGradingList.tsx`**
+   - Line 75, 474–481, 773 area — same three changes
 
-**Approve to switch to default mode and apply the fix.**
+No service, schema, or query changes — all required fields (`result`, `certificate_issued`, `certificate_ii_issued`) are already selected.
+
+**Approve to switch to default mode and implement.**

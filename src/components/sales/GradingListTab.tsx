@@ -72,7 +72,7 @@ interface GradingListStudent {
   date_of_birth?: string | null;
 }
 
-type CompletionFilter = 'all' | 'missing' | 'ready_print';
+type CompletionFilter = 'all' | 'missing' | 'ready_print' | 'yet_to_receive';
 
 // Required scorecard fields. Kyorugi/Balchagi are alternatives — lower belts use
 // Balchagi, higher belts use Kyorugi. Either counts as the sparring field.
@@ -483,8 +483,16 @@ const GradingListTab: React.FC = () => {
     if (completionFilter === 'all') return students;
     return students.filter(s => {
       const { allFilled, hasResult } = getCompleteness(s);
+      const readyForPrinting = allFilled && hasResult;
       if (completionFilter === 'missing') return !allFilled;
-      return allFilled && hasResult; // ready_print
+      if (completionFilter === 'ready_print') return readyForPrinting;
+      // yet_to_receive: ready for printing, pass/double, certificate not yet confirmed
+      if (!readyForPrinting) return false;
+      if (s.result !== 'pass' && s.result !== 'double') return false;
+      const received = s.result === 'double'
+        ? (s.certificate_issued && s.certificate_ii_issued)
+        : s.certificate_issued;
+      return !received;
     });
   }, [students, completionFilter]);
 
@@ -783,6 +791,7 @@ const GradingListTab: React.FC = () => {
                   <TabsTrigger value="all" className="text-xs h-6 px-2">All</TabsTrigger>
                   <TabsTrigger value="missing" className="text-xs h-6 px-2">Missing Details</TabsTrigger>
                   <TabsTrigger value="ready_print" className="text-xs h-6 px-2">Ready for Printing</TabsTrigger>
+                  <TabsTrigger value="yet_to_receive" className="text-xs h-6 px-2">Yet to Receive</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
