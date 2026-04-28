@@ -66,6 +66,7 @@ interface GradingListStudent {
   grading_slot_date: string | null;
   grading_slot_id: string | null;
   scorecard: ScorecardRow[];
+  student_status?: string | null;
 }
 
 /** Phase 1 — only Morley (AU) gets the AU certificate template. */
