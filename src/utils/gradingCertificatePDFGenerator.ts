@@ -274,7 +274,14 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
     doc.text(labelWithUnit(row.label), tableX + 4, y + 7.2);
     const isResultsRow = row.label === 'Results';
     const isPass = isResultsRow && row.value === 'PASS';
-    if (isPass) {
+    const isBmiRow = row.label.toLowerCase() === 'bmi';
+    const bmiNum = isBmiRow ? parseFloat(row.value) : NaN;
+    if (isBmiRow && !isNaN(bmiNum) && bmiNum >= 25) {
+      doc.setFont('helvetica', 'bold');
+      if (bmiNum >= 32) doc.setTextColor(220, 38, 38);        // red
+      else if (bmiNum >= 28) doc.setTextColor(234, 88, 12);   // orange
+      else doc.setTextColor(202, 138, 4);                     // yellow/amber
+    } else if (isPass) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(34, 139, 34);
     } else {
