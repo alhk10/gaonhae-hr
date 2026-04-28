@@ -269,8 +269,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       const { data: studentsData } = await supabase
         .from('students')
         .select('id, first_name, last_name, current_belt, status')
-        .in('id', candidateStudentIds)
-        .ilike('status', 'active');
+        .in('id', candidateStudentIds);
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
         return acc;
