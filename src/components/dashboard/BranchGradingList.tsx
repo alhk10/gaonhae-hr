@@ -134,6 +134,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
 
   const isMorley = branchId === MORLEY_BRANCH_ID;
 
