@@ -17,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
+import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
