@@ -229,13 +229,27 @@ const GradingListTab: React.FC = () => {
   const todayStr = new Date().toISOString().split('T')[0];
   const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
 
+  // Fire-and-forget self-heal: backfill orphan grading registrations in the background.
+  React.useEffect(() => {
+    if (!selectedBranch) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const repaired = await backfillOrphanGradingRegistrationsForBranch(selectedBranch);
+        if (!cancelled && repaired > 0) {
+          queryClient.invalidateQueries({ queryKey: ['grading-list-students', selectedBranch] });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedBranch, queryClient]);
+
   const { data: students = [], isLoading } = useQuery<GradingListStudent[]>({
     queryKey: ['grading-list-students', selectedBranch, selectedTerm],
     queryFn: async () => {
       if (!selectedBranch || !selectedTerm) return [];
-
-      // Self-heal: backfill any grading registrations missing for invoices in this branch.
-      await backfillOrphanGradingRegistrationsForBranch(selectedBranch);
 
       const { data: regs, error: regErr } = await supabase
         .from('grading_registrations')
