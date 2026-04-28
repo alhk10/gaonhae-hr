@@ -1350,3 +1350,61 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
     logger.error('syncGradingRegistrationsForInvoice failed (non-fatal)', err);
   }
 };
+
+/**
+ * Backfill grading_registrations for any non-cancelled invoices in the given branch
+ * that have a Grading-category line item without a corresponding registration.
+ * Returns the number of invoices that were synced.
+ */
+export const backfillOrphanGradingRegistrationsForBranch = async (branchId: string): Promise<number> => {
+  try {
+    if (!branchId) return 0;
+
+    // 1. Find all Grading-category product ids
+    const { data: gradingCat } = await supabase
+      .from('product_categories')
+      .select('id')
+      .ilike('name', 'grading')
+      .maybeSingle();
+    if (!gradingCat?.id) return 0;
+
+    const { data: gradingProducts } = await supabase
+      .from('products')
+      .select('id')
+      .eq('category_id', gradingCat.id);
+    const gradingProductIds = (gradingProducts || []).map(p => p.id);
+    if (gradingProductIds.length === 0) return 0;
+
+    // 2. Fetch all grading invoice items for active invoices in this branch
+    const { data: gradingItems } = await supabase
+      .from('invoice_items')
+      .select('id, invoice_id, invoices!inner(id, branch_id, status)')
+      .in('product_id', gradingProductIds)
+      .eq('invoices.branch_id', branchId)
+      .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+    const items = gradingItems || [];
+    if (items.length === 0) return 0;
+
+    // 3. Find which item ids already have a registration
+    const itemIds = items.map((i: any) => i.id);
+    const { data: existingRegs } = await supabase
+      .from('grading_registrations')
+      .select('invoice_item_id')
+      .in('invoice_item_id', itemIds);
+    const haveReg = new Set((existingRegs || []).map((r: any) => r.invoice_item_id).filter(Boolean));
+
+    // 4. Collect orphan invoice ids and sync each once
+    const orphanInvoiceIds = [...new Set(
+      items.filter((it: any) => !haveReg.has(it.id)).map((it: any) => it.invoice_id)
+    )] as string[];
+    if (orphanInvoiceIds.length === 0) return 0;
+
+    for (const invoiceId of orphanInvoiceIds) {
+      await syncGradingRegistrationsForInvoice(invoiceId);
+    }
+    return orphanInvoiceIds.length;
+  } catch (err) {
+    logger.error('backfillOrphanGradingRegistrationsForBranch failed (non-fatal)', err);
+    return 0;
+  }
+};
