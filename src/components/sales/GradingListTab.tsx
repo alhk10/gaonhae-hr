@@ -661,7 +661,7 @@ const GradingListTab: React.FC = () => {
         columnOrder: scorecardColumns.map(c => c.label),
       });
       if (isDouble) {
-        const secondBelt = getNextBeltLevel(baseBelt, 'AU');
+        const secondBelt = getNextBeltLevel(baseBelt, 'Australia');
         if (secondBelt) {
           inputs.push({
             studentName: student.student_name,
