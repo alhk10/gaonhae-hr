@@ -321,3 +321,25 @@ export const downloadBulkGradingCertificatesPDF = (inputs: GradingCertificateInp
   const doc = generateBulkGradingCertificatesPDF(inputs);
   doc.save(filename);
 };
+
+/**
+ * Async variant of {@link generateBulkGradingCertificatesPDF} that yields to
+ * the browser between certificates so the UI stays responsive and a progress
+ * callback can be invoked. Use this for any non-trivial batch (≥ ~5 inputs)
+ * to avoid the "Page Unresponsive" dialog.
+ */
+export const generateBulkGradingCertificatesPDFAsync = async (
+  inputs: GradingCertificateInput[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<jsPDF> => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+  for (let idx = 0; idx < inputs.length; idx++) {
+    if (idx > 0) doc.addPage('a4', 'portrait');
+    drawCertificatePage(doc, inputs[idx]);
+    drawScorecardPage(doc, inputs[idx]);
+    onProgress?.(idx + 1, inputs.length);
+    // Yield to the event loop so the browser can repaint and stay responsive.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+  }
+  return doc;
+};
