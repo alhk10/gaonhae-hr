@@ -578,6 +578,7 @@ const GradingListTab: React.FC = () => {
         gradingDate: student.grading_slot_date,
         scorecard: student.scorecard,
         result: student.result === 'pass' || student.result === 'double' || student.result === 'fail' ? student.result : null,
+        columnOrder: scorecardColumns.map(c => c.label),
       },
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
@@ -625,6 +626,7 @@ const GradingListTab: React.FC = () => {
         gradingDate: student.grading_slot_date,
         scorecard: student.scorecard,
         result: isDouble ? 'double' : 'pass',
+        columnOrder: scorecardColumns.map(c => c.label),
       });
       if (isDouble) {
         const secondBelt = getNextBeltLevel(baseBelt, 'AU');
@@ -635,6 +637,7 @@ const GradingListTab: React.FC = () => {
             gradingDate: student.grading_slot_date,
             scorecard: student.scorecard,
             result: 'double',
+            columnOrder: scorecardColumns.map(c => c.label),
           });
         }
       }
