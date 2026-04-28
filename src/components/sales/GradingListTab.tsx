@@ -41,7 +41,7 @@ import GradingBulkEditDialog, { type BulkEditStudent } from '@/components/gradin
 import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineScorecardCell';
 import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
 import { listColumns } from '@/services/gradingScorecardColumnService';
-import { downloadGradingCertificatePDF, downloadBulkGradingCertificatesPDF, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
+import { downloadGradingCertificatePDF, generateBulkGradingCertificatesPDFAsync, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
