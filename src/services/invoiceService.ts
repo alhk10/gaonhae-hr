@@ -1308,12 +1308,27 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
       const targetBelt = parsedTo || studentCurrentBelt || 'White';
       const readyForGrading = await isTermStarted(termId);
 
+      // If a registration is already linked to this invoice item, update it
+      // so changes to the invoice (term, slot, belts) reflect immediately.
       const { data: existingByItem } = await supabase
         .from('grading_registrations')
-        .select('id')
+        .select('id, ready_for_grading, result')
         .eq('invoice_item_id', item.id)
         .maybeSingle();
-      if (existingByItem) continue;
+      if (existingByItem) {
+        const updatePayload: any = {
+          term_id: termId,
+          current_belt: currentBelt,
+          target_belt: targetBelt,
+          grading_slot_id: slotId,
+        };
+        // Only escalate ready flag; never demote a manually-set true.
+        if (existingByItem.ready_for_grading !== true) {
+          updatePayload.ready_for_grading = readyForGrading;
+        }
+        await supabase.from('grading_registrations').update(updatePayload).eq('id', existingByItem.id);
+        continue;
+      }
 
       const { data: existingByTerm } = await supabase
         .from('grading_registrations')
@@ -1385,24 +1400,16 @@ export const backfillOrphanGradingRegistrationsForBranch = async (branchId: stri
     const items = gradingItems || [];
     if (items.length === 0) return 0;
 
-    // 3. Find which item ids already have a registration
-    const itemIds = items.map((i: any) => i.id);
-    const { data: existingRegs } = await supabase
-      .from('grading_registrations')
-      .select('invoice_item_id')
-      .in('invoice_item_id', itemIds);
-    const haveReg = new Set((existingRegs || []).map((r: any) => r.invoice_item_id).filter(Boolean));
+    // 3. Re-sync EVERY grading invoice in this branch so stale/wrong-term
+    // registrations get repaired (not just orphan items). syncGradingRegistrationsForInvoice
+    // is idempotent and now updates already-linked registrations as well.
+    const invoiceIds = [...new Set(items.map((it: any) => it.invoice_id))] as string[];
+    if (invoiceIds.length === 0) return 0;
 
-    // 4. Collect orphan invoice ids and sync each once
-    const orphanInvoiceIds = [...new Set(
-      items.filter((it: any) => !haveReg.has(it.id)).map((it: any) => it.invoice_id)
-    )] as string[];
-    if (orphanInvoiceIds.length === 0) return 0;
-
-    for (const invoiceId of orphanInvoiceIds) {
+    for (const invoiceId of invoiceIds) {
       await syncGradingRegistrationsForInvoice(invoiceId);
     }
-    return orphanInvoiceIds.length;
+    return invoiceIds.length;
   } catch (err) {
     logger.error('backfillOrphanGradingRegistrationsForBranch failed (non-fatal)', err);
     return 0;
