@@ -135,7 +135,7 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   // ── Footer block ──
   // "In Affiliation With" + WT/Kukkiwon logos on the left
   // Footer shifted up 30mm; logos shifted left 10mm
-  const footerY = 200;
+  const footerY = 210;
 
   // Fit-into-box helper that preserves the image's native aspect ratio.
   const fitBox = (

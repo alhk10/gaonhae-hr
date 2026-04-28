@@ -1,9 +1,7 @@
-## Shift Footer Logos & Affiliation Text Right by 2cm
+## Move footer down 1cm
 
-In `src/utils/gradingCertificatePDFGenerator.ts`, shift the World Taekwondo logo, Kukkiwon logo, and the centered "In Affiliation With" text 20mm to the right. Signature stays where it is.
+In `src/utils/gradingCertificatePDFGenerator.ts`, change `footerY` from `200` to `210`.
 
-### Changes
-- `wtX`: `22` → `42`
-- `kwX`: `60` → `80`
-- `affiliationCenterX` recalculates automatically from the new logo positions, keeping the text centered between them.
-- Signature coordinates untouched.
+This shifts the entire footer block (WT/Kukkiwon logos, "In Affiliation With" text, and master signature) down by 10mm (1cm), since all footer Y-coordinates are derived from `footerY`.
+
+No other coordinates change.
