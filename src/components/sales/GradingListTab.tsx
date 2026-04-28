@@ -269,7 +269,7 @@ const GradingListTab: React.FC = () => {
 
       const { data: studentsData } = await supabase
         .from('students')
-        .select('id, first_name, last_name, current_belt, status')
+        .select('id, first_name, last_name, current_belt, status, date_of_birth')
         .in('id', candidateStudentIds);
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
