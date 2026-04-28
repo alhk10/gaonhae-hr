@@ -407,6 +407,7 @@ const GradingListTab: React.FC = () => {
             ? ((reg as any).scorecard as any[]).map((r: any) => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
             : [],
           student_status: student.status || null,
+          date_of_birth: student.date_of_birth || null,
         });
       }
 
