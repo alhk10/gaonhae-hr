@@ -572,7 +572,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         studentId: student.student_id,
         currentBelt: student.current_belt,
         isDouble,
-        country: 'AU',
+        country: 'Australia',
       });
     },
     onSuccess: ({ newBelt }, student) => {
@@ -587,7 +587,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     const baseBelt = student.current_belt || '';
     const beltAchieved = certificateNumber === 2
-      ? getNextBeltLevel(baseBelt, 'AU')
+      ? getNextBeltLevel(baseBelt, 'Australia')
       : baseBelt;
     if (!beltAchieved) {
       toast.error('Student has no current belt recorded');
@@ -658,7 +658,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         columnOrder: scorecardColumns.map(c => c.label),
       });
       if (isDouble) {
-        const secondBelt = getNextBeltLevel(baseBelt, 'AU');
+        const secondBelt = getNextBeltLevel(baseBelt, 'Australia');
         if (secondBelt) {
           inputs.push({
             studentName: student.student_name,
@@ -1267,8 +1267,8 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                 const isDouble = confirmBeltTarget.result === 'double';
                 const cur = confirmBeltTarget.current_belt || '';
                 const next = isDouble
-                  ? getDoubleBeltLevel(cur, 'AU')
-                  : getNextBeltLevel(cur, 'AU');
+                  ? getDoubleBeltLevel(cur, 'Australia')
+                  : getNextBeltLevel(cur, 'Australia');
                 return (
                   <>
                     Confirm that <span className="font-semibold">{confirmBeltTarget.student_name}</span> has received their belt and certificate{isDouble ? 's' : ''}.
