@@ -980,6 +980,20 @@ const GradingListTab: React.FC = () => {
                                 <FileText className="w-3.5 h-3.5" />
                               </Button>
                             )}
+                            {beltConfirmEligible && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 w-6 p-0 ${beltAlreadyConfirmed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700'}`}
+                                disabled={beltAlreadyConfirmed || confirmBeltMutation.isPending}
+                                title={beltAlreadyConfirmed ? 'Belt and certificate already confirmed' : 'Confirm receipt of belt & certificate'}
+                                onClick={() => setConfirmBeltTarget(student)}
+                              >
+                                {confirmBeltMutation.isPending && confirmBeltMutation.variables?.student_id === student.student_id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <Award className="w-3.5 h-3.5" />}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
