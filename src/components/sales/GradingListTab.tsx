@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,7 +68,23 @@ interface GradingListStudent {
   grading_slot_id: string | null;
   scorecard: ScorecardRow[];
   student_status?: string | null;
+  date_of_birth?: string | null;
 }
+
+type CompletionFilter = 'all' | 'missing' | 'ready_print';
+
+const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i, /kyorugi/i] as const;
+
+const isScorecardFieldFilled = (scorecard: ScorecardRow[], rx: RegExp): boolean => {
+  const v = (scorecard.find(r => rx.test(r.label))?.value || '').trim();
+  return v !== '' && v !== '-';
+};
+
+const getCompleteness = (s: { scorecard: ScorecardRow[]; result: string | null }) => {
+  const allFilled = SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx));
+  const hasResult = !!s.result;
+  return { allFilled, hasResult };
+};
 
 interface Branch { id: string; name: string }
 
@@ -88,6 +105,7 @@ const GradingListTab: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStudentIds, setBulkStudentIds] = useState<string[] | null>(null);
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
   const isMorley = selectedBranch === MORLEY_BRANCH_ID;
 
   const { data: availableSlots = [] } = useQuery({
@@ -252,7 +270,7 @@ const GradingListTab: React.FC = () => {
 
       const { data: studentsData } = await supabase
         .from('students')
-        .select('id, first_name, last_name, current_belt, status')
+        .select('id, first_name, last_name, current_belt, status, date_of_birth')
         .in('id', candidateStudentIds);
       const studentMap = (studentsData || []).reduce((acc: Record<string, any>, s) => {
         acc[s.id] = s;
@@ -390,6 +408,7 @@ const GradingListTab: React.FC = () => {
             ? ((reg as any).scorecard as any[]).map((r: any) => ({ label: String(r?.label ?? ''), value: String(r?.value ?? '') }))
             : [],
           student_status: student.status || null,
+          date_of_birth: student.date_of_birth || null,
         });
       }
 
@@ -420,26 +439,34 @@ const GradingListTab: React.FC = () => {
           grading_slot_id: null,
           scorecard: [],
           student_status: student.status || null,
+          date_of_birth: student.date_of_birth || null,
         });
       }
 
       const result = Array.from(studentResultMap.values());
-      // Sort: unassigned first, then by slot date asc, belt rank asc, name
+      // Sort: belt asc (lowest first), then age asc (youngest first = DOB desc), then name
       result.sort((a, b) => {
-        const aHas = !!a.grading_slot_date;
-        const bHas = !!b.grading_slot_date;
-        if (aHas !== bHas) return aHas ? 1 : -1;
-        if (!aHas && !bHas) return a.student_name.localeCompare(b.student_name);
-        const dateCmp = (a.grading_slot_date || '').localeCompare(b.grading_slot_date || '');
-        if (dateCmp !== 0) return dateCmp;
         const beltCmp = beltRank(a.current_belt) - beltRank(b.current_belt);
         if (beltCmp !== 0) return beltCmp;
+        const aDob = a.date_of_birth || '';
+        const bDob = b.date_of_birth || '';
+        if (aDob !== bDob) return bDob.localeCompare(aDob);
         return a.student_name.localeCompare(b.student_name);
       });
       return result;
     },
     enabled: !!selectedBranch && !!selectedTerm
   });
+
+  // Apply All / Missing Details / Ready for Printing filter
+  const displayedStudents = useMemo(() => {
+    if (completionFilter === 'all') return students;
+    return students.filter(s => {
+      const { allFilled, hasResult } = getCompleteness(s);
+      if (completionFilter === 'missing') return !allFilled;
+      return allFilled && hasResult; // ready_print
+    });
+  }, [students, completionFilter]);
 
   const displayReady = useCallback((student: GradingListStudent) => {
     if (student.ready_for_grading) return true;
@@ -621,13 +648,13 @@ const GradingListTab: React.FC = () => {
     runBulkDownload(inputs);
   };
 
-  const allVisibleSelected = students.length > 0 && students.every(s => selectedIds.has(s.student_id));
-  const someVisibleSelected = students.some(s => selectedIds.has(s.student_id));
+  const allVisibleSelected = displayedStudents.length > 0 && displayedStudents.every(s => selectedIds.has(s.student_id));
+  const someVisibleSelected = displayedStudents.some(s => selectedIds.has(s.student_id));
   const toggleAll = () => {
     setSelectedIds(prev => {
       if (allVisibleSelected) return new Set();
       const next = new Set(prev);
-      students.forEach(s => next.add(s.student_id));
+      displayedStudents.forEach(s => next.add(s.student_id));
       return next;
     });
   };
@@ -682,7 +709,7 @@ const GradingListTab: React.FC = () => {
               </Select>
             </div>
             <div className="w-64">
-              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); }} disabled={!selectedBranch}>
+              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); setCompletionFilter('all'); }} disabled={!selectedBranch}>
                 <SelectTrigger><SelectValue placeholder="Select Term" /></SelectTrigger>
                 <SelectContent>
                   {branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -696,13 +723,22 @@ const GradingListTab: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <CardTitle>Students for Grading</CardTitle>
-              <CardDescription>
-                {selectedTermData
-                  ? `${students.length} grading registration${students.length !== 1 ? 's' : ''} for ${selectedTermData.name}`
-                  : 'Select a branch and term to view students'}
-              </CardDescription>
+            <div className="flex flex-col gap-2">
+              <div>
+                <CardTitle>Students for Grading</CardTitle>
+                <CardDescription>
+                  {selectedTermData
+                    ? `${displayedStudents.length} of ${students.length} grading registration${students.length !== 1 ? 's' : ''} for ${selectedTermData.name}`
+                    : 'Select a branch and term to view students'}
+                </CardDescription>
+              </div>
+              <Tabs value={completionFilter} onValueChange={(v) => { setCompletionFilter(v as CompletionFilter); setSelectedIds(new Set()); }}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-xs h-6 px-2">All</TabsTrigger>
+                  <TabsTrigger value="missing" className="text-xs h-6 px-2">Missing Details</TabsTrigger>
+                  <TabsTrigger value="ready_print" className="text-xs h-6 px-2">Ready for Printing</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
@@ -735,6 +771,12 @@ const GradingListTab: React.FC = () => {
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No grading registrations for this term yet.</div>
+          ) : displayedStudents.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {completionFilter === 'missing'
+                ? 'No students with missing details — all good!'
+                : 'No students ready for printing yet.'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -769,7 +811,7 @@ const GradingListTab: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((student) => {
+                  {displayedStudents.map((student) => {
                     const result = student.result;
                     const ready = displayReady(student);
                     const isSelected = selectedIds.has(student.student_id);
