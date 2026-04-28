@@ -771,6 +771,12 @@ const GradingListTab: React.FC = () => {
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No grading registrations for this term yet.</div>
+          ) : displayedStudents.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {completionFilter === 'missing'
+                ? 'No students with missing details — all good!'
+                : 'No students ready for printing yet.'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
