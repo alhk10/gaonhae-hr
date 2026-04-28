@@ -555,6 +555,29 @@ const GradingListTab: React.FC = () => {
   // Pending certificate request awaiting payment-reminder confirmation.
   const [pendingCert, setPendingCert] = useState<{ student: GradingListStudent; certificateNumber: 1 | 2 } | null>(null);
 
+  // Pending "confirm receipt of belt + certificate" target.
+  const [confirmBeltTarget, setConfirmBeltTarget] = useState<GradingListStudent | null>(null);
+  const confirmBeltMutation = useMutation({
+    mutationFn: async (student: GradingListStudent) => {
+      if (!student.registration_id) throw new Error('No grading registration found');
+      if (!student.current_belt) throw new Error('Student has no current belt recorded');
+      const isDouble = student.result === 'double';
+      return confirmBeltAndCertificate({
+        registrationId: student.registration_id,
+        studentId: student.student_id,
+        currentBelt: student.current_belt,
+        isDouble,
+        country: 'AU',
+      });
+    },
+    onSuccess: ({ newBelt }, student) => {
+      toast.success(`Belt updated to ${formatBeltLevel(newBelt)} for ${student.student_name}`);
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', selectedBranch, selectedTerm] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', selectedBranch] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to confirm belt & certificate'),
+  });
+
   /** Actually generate and download the certificate PDF. */
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
     const baseBelt = student.current_belt || '';
