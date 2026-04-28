@@ -35,6 +35,14 @@ export interface GradingCertificateInput {
   scorecard: ScorecardRow[];    // editable list rendered on page 2
   examinerName?: string;        // (no longer printed) kept for backwards compat
   result?: 'pass' | 'double' | 'fail' | null; // displayed in final scorecard row
+  /**
+   * Ordered list of column labels from the grading list header (left → right).
+   * When supplied, scorecard rows on page 2 are sorted to match this order
+   * (with Height, Weight, BMI always pinned to the top in that sequence).
+   * Rows whose label isn't in `columnOrder` go to the end, preserving their
+   * original relative order.
+   */
+  columnOrder?: string[];
 }
 
 const A4_W = 210;
@@ -161,9 +169,39 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.addPage();
 
   // Filter out blank/dash-only scorecard rows
-  const dataRows = withDerivedBmi(
+  const filteredRows = withDerivedBmi(
     input.scorecard.filter(r => (r.label?.trim() ?? '') !== '' && !isBlankValue(r.value)),
   );
+
+  // Sort to match grading list column order (Height → Weight → BMI → columnOrder → rest).
+  const norm = (s: string) => (s || '').trim().toLowerCase();
+  const pinnedRank = (label: string): number => {
+    const l = norm(label);
+    if (l === 'height') return 0;
+    if (l === 'weight') return 1;
+    if (l === 'bmi') return 2;
+    return -1;
+  };
+  const orderIndex = new Map<string, number>();
+  (input.columnOrder || []).forEach((label, idx) => {
+    orderIndex.set(norm(label), idx);
+  });
+  const dataRows = filteredRows
+    .map((row, originalIdx) => ({ row, originalIdx }))
+    .sort((a, b) => {
+      const ap = pinnedRank(a.row.label);
+      const bp = pinnedRank(b.row.label);
+      if (ap !== -1 || bp !== -1) {
+        if (ap === -1) return 1;
+        if (bp === -1) return -1;
+        return ap - bp;
+      }
+      const ai = orderIndex.has(norm(a.row.label)) ? orderIndex.get(norm(a.row.label))! : Number.MAX_SAFE_INTEGER;
+      const bi = orderIndex.has(norm(b.row.label)) ? orderIndex.get(norm(b.row.label))! : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.originalIdx - b.originalIdx;
+    })
+    .map(x => x.row);
 
   // Build full row list: 3 structural header rows + scorecard rows + Results row
   const allRows: ScorecardRow[] = [
