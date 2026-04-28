@@ -553,12 +553,12 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
   /** Actually generate and download the certificate PDF. */
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
-    const baseBelt = student.target_belt || getNextBeltLevel(student.current_belt || '', 'AU');
+    const baseBelt = student.current_belt || '';
     const beltAchieved = certificateNumber === 2
       ? getNextBeltLevel(baseBelt, 'AU')
       : baseBelt;
     if (!beltAchieved) {
-      toast.error('Could not determine target belt');
+      toast.error('Student has no current belt recorded');
       return;
     }
     if (!student.grading_slot_date) {

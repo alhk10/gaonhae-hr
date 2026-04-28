@@ -1,45 +1,24 @@
-## Problem
+## Goal
 
-Henry, Teo, Zuhayr, Elliot, Kalli, Daniel and Iqraa all have completed scorecards and a result, but they don't appear in **Ready for Printing**.
+Make the AU grading certificate print the belt the student **just passed** (their `current_belt`) instead of the next/target belt. This fixes Teo Olivere ("White" → "Foundation") and Earl John ("Foundation 1" → "Foundation"), and aligns all future certificates with the same convention.
 
-I checked their `grading_registrations.scorecard` data:
+## Changes
 
-- All seven have **Height, Weight, Poomsae, and Balchagi** filled in, plus a `result` of `pass`.
-- None of them have a `Kyorugi` value (the field is either absent or filled with `-`).
+### 1. `src/components/dashboard/BranchGradingList.tsx` (single-cert + bulk)
+- In `runCertificate`: replace the `target_belt`/`getNextBeltLevel(current_belt)` derivation with `student.current_belt` as the base belt. Cert II (double promotion) becomes `getNextBeltLevel(current_belt, 'AU')`.
+- In `buildBulkInputs`: same swap — `baseBelt = student.current_belt`. Keep the `isFoundationToBlackTip` gating, but check it against `current_belt` instead of `target_belt || current_belt`. Cert II for doubles becomes `getNextBeltLevel(current_belt, 'AU')`.
 
-The current filter requires Kyorugi specifically:
+### 2. `src/components/sales/GradingListTab.tsx`
+- Apply the identical changes to the mirrored `runCertificate` and `buildBulkInputs` functions.
 
-```ts
-const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i, /kyorugi/i];
-```
+### 3. No DB changes
+The two affected registrations don't need editing — re-downloading the cert after this fix will produce the correct output (both students already have `current_belt = 'Foundation'`).
 
-But for lower belts (Foundation → Yellow Tip → Yellow), the sparring assessment is **Balchagi**, not Kyorugi. Higher belts use Kyorugi. They're alternatives — only one is expected per student depending on belt level.
+### Notes / safeguards
+- If `student.current_belt` is empty/null, show the existing "Could not determine target belt" toast (updated message: "Student has no current belt recorded").
+- For the bulk filename and per-row filename, the slugified belt now reflects the achieved (current) belt, e.g. `Certificate_TEO_OLIVERE_TABIGUE_Foundation_2026-04-11.pdf`.
+- All other certificate logic (scorecard page, signatures, paid-status confirmation popup, Morley-only gating) remains unchanged.
 
-## Fix
-
-Update `getCompleteness` in both grading list components to require:
-
-- Height, Weight, Poomsae (always)
-- **Either** Kyorugi **or** Balchagi (whichever the scorecard has)
-- A non-null `result`
-
-```ts
-const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i];
-const SPARRING_REGEXES = [/kyorugi/i, /balchagi/i];
-
-const getCompleteness = (s) => {
-  const allFilled =
-    SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx)) &&
-    SPARRING_REGEXES.some(rx => isScorecardFieldFilled(s.scorecard, rx));
-  return { allFilled, hasResult: !!s.result };
-};
-```
-
-After this, the seven students will move into **Ready for Printing**, and **Missing Details** will only flag students truly missing a sparring score.
-
-## Files to edit
-
+## Affected files
 - `src/components/dashboard/BranchGradingList.tsx`
 - `src/components/sales/GradingListTab.tsx`
-
-Approve to switch to default mode and apply.
