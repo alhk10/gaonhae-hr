@@ -329,6 +329,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [mode, setMode] = useState<'create' | 'view' | 'edit'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   // ─── Shared Data ────────────────────────────────────────────────
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string, allowed_class_types?: string[]}>>([]);
