@@ -1187,6 +1187,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       if (removedIds.length > 0) {
         await supabase.from('entitlements').update({ is_active: false, notes: 'Deactivated - invoice item removed' }).in('source_id', removedIds).eq('source_type', 'invoice_item');
+        // Clean up any grading registrations linked to removed items so re-adds aren't blocked
+        await supabase.from('grading_registrations').delete().in('invoice_item_id', removedIds);
         await supabase.from('invoice_items').delete().in('id', removedIds);
       }
 
@@ -1272,6 +1274,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           }
         }
       }
+
+      // Sync grading registrations from current items (handles newly-added Grading line items)
+      await syncGradingRegistrationsForInvoice(invoice.id);
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students'] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
+      queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
 
       toast.success('Invoice updated successfully');
       setMode('view');
