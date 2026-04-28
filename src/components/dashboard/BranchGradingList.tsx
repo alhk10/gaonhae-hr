@@ -706,10 +706,10 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <CardTitle>Students for Grading</CardTitle>
               <div className="w-48">
-                <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); }}>
+                <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setSelectedIds(new Set()); setCompletionFilter('all'); }}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
@@ -720,6 +720,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                   </SelectContent>
                 </Select>
               </div>
+              <Tabs value={completionFilter} onValueChange={(v) => { setCompletionFilter(v as CompletionFilter); setSelectedIds(new Set()); }}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-xs h-6 px-2">All</TabsTrigger>
+                  <TabsTrigger value="missing" className="text-xs h-6 px-2">Missing Details</TabsTrigger>
+                  <TabsTrigger value="ready_print" className="text-xs h-6 px-2">Ready for Printing</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
