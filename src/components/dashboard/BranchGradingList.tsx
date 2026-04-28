@@ -875,6 +875,14 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                       const canViewCertificateII = result === 'double' && beltInRange;
                       const certDisabled = !isMorley;
                       const certTitle = certDisabled ? 'Template pending for this branch' : 'Generate certificate';
+                      const isDoubleResult = result === 'double';
+                      const beltConfirmEligible = (result === 'pass' || result === 'double')
+                        && isFoundationToBlackTip(student.current_belt)
+                        && !!student.current_belt
+                        && !!student.registration_id;
+                      const beltAlreadyConfirmed = isDoubleResult
+                        ? (student.certificate_issued && student.certificate_ii_issued)
+                        : student.certificate_issued;
 
                       return (
                         <TableRow key={student.student_id} className={isSelected ? 'bg-accent/30' : undefined}>
