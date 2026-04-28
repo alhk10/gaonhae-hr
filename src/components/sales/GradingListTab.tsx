@@ -73,7 +73,10 @@ interface GradingListStudent {
 
 type CompletionFilter = 'all' | 'missing' | 'ready_print';
 
-const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i, /kyorugi/i] as const;
+// Required scorecard fields. Kyorugi/Balchagi are alternatives — lower belts use
+// Balchagi, higher belts use Kyorugi. Either counts as the sparring field.
+const SCORECARD_REQUIRED_REGEXES = [/height/i, /weight/i, /poomsae/i] as const;
+const SPARRING_REGEXES = [/kyorugi/i, /balchagi/i] as const;
 
 const isScorecardFieldFilled = (scorecard: ScorecardRow[], rx: RegExp): boolean => {
   const v = (scorecard.find(r => rx.test(r.label))?.value || '').trim();
@@ -81,7 +84,9 @@ const isScorecardFieldFilled = (scorecard: ScorecardRow[], rx: RegExp): boolean 
 };
 
 const getCompleteness = (s: { scorecard: ScorecardRow[]; result: string | null }) => {
-  const allFilled = SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx));
+  const allFilled =
+    SCORECARD_REQUIRED_REGEXES.every(rx => isScorecardFieldFilled(s.scorecard, rx)) &&
+    SPARRING_REGEXES.some(rx => isScorecardFieldFilled(s.scorecard, rx));
   const hasResult = !!s.result;
   return { allFilled, hasResult };
 };
