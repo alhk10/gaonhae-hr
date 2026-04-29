@@ -242,6 +242,9 @@ export const approveInventoryOrder = async (
 
     if (statusError) throw statusError;
 
+    // Phase 3: post accounting journal for inventory received
+    void postInventoryReceivedJournal(orderId);
+
     toast.success('Order approved and inventory updated');
     return true;
   } catch (error) {
