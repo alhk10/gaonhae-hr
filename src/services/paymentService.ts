@@ -295,6 +295,10 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       }
     });
 
+    // Phase 3: post payment + re-post invoice (its status may now be paid/partial)
+    void postPaymentJournal(payment.id);
+    void postInvoiceIssuedJournal(paymentData.invoice_id);
+
     return {
       ...payment,
       invoice_number: payment.invoices?.invoice_number,
