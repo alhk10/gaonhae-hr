@@ -133,15 +133,20 @@ export async function postInvoiceIssuedJournal(invoiceId: string): Promise<void>
       });
     }
 
-    // GST Output
+    // GST Output (tagged with standard-rated tax code so Tax Centre can aggregate it)
     const tax = r2(inv.tax_amount || 0);
     if (tax !== 0) {
+      const taxCodeId = await standardOutputTaxCode(country);
+      const netSupply = r2(Number(inv.subtotal || 0) - Number(inv.discount_amount || 0));
       lines.push({
         account_id: await getAccountId(country, ACC.GST_OUTPUT),
         credit: tax > 0 ? tax : 0,
         debit: tax < 0 ? Math.abs(tax) : 0,
         description: 'GST collected',
         branch_id: inv.branch_id,
+        tax_code_id: taxCodeId,
+        tax_amount: tax,
+        tax_base_amount: netSupply,
       });
     }
 
