@@ -705,6 +705,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       }
     });
 
+    // Phase 3: post accounting journal (non-fatal)
+    void postInvoiceIssuedJournal(invoice.id);
+
     return {
       ...invoice,
       student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
