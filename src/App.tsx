@@ -10,6 +10,7 @@ import AuthGuard from './components/auth/AuthGuard';
 import PageAccessGuard from './components/auth/PageAccessGuard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { QUERY_CONFIG } from './config/constants';
+import { FinanceBasisProvider } from './contexts/FinanceBasisContext';
 import './App.css';
 
 // Lazy load all page components for better performance
@@ -56,7 +57,7 @@ const BranchPnlLive = lazy(() => import('./pages/finance/BranchPnlLive'));
 const TaxCentre = lazy(() => import('./pages/finance/TaxCentre'));
 const TrialBalance = lazy(() => import('./pages/finance/TrialBalance'));
 const BalanceSheet = lazy(() => import('./pages/finance/BalanceSheet'));
-import { FinanceBasisProvider } from './contexts/FinanceBasisContext';
+
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
