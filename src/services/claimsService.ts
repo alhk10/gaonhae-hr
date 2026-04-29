@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { postClaimJournal } from './accountingPostings';
 
 export interface Claim {
   id: number;
