@@ -201,6 +201,9 @@ export const updateClaimStatus = async (
       await syncClaimToBranchPL(claimData);
     }
 
+    // Phase 3: post accounting journal
+    void postClaimJournal(id);
+
     logger.info('Claim status updated successfully');
   } catch (error) {
     logger.error('Error in updateClaimStatus:', error);
