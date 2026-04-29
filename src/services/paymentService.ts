@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { addOverpaymentCredit } from './studentCreditService';
+import { postPaymentJournal, voidPaymentJournal, postInvoiceIssuedJournal } from './accountingPostings';
 
 export interface Payment {
   id: string;
