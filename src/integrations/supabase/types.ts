@@ -2515,6 +2515,7 @@ export type Database = {
           journal_id: string
           line_no: number
           tax_amount: number
+          tax_base_amount: number
           tax_code_id: string | null
         }
         Insert: {
@@ -2530,6 +2531,7 @@ export type Database = {
           journal_id: string
           line_no?: number
           tax_amount?: number
+          tax_base_amount?: number
           tax_code_id?: string | null
         }
         Update: {
@@ -2545,6 +2547,7 @@ export type Database = {
           journal_id?: string
           line_no?: number
           tax_amount?: number
+          tax_base_amount?: number
           tax_code_id?: string | null
         }
         Relationships: [
@@ -5373,6 +5376,54 @@ export type Database = {
           name?: string
           rate?: number
           report_box?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tax_returns: {
+        Row: {
+          branch_id: string
+          country: string
+          created_at: string
+          created_by: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          pdf_path: string | null
+          period_from: string
+          period_to: string
+          status: string
+          totals: Json
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          country: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          pdf_path?: string | null
+          period_from: string
+          period_to: string
+          status?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          pdf_path?: string | null
+          period_from?: string
+          period_to?: string
+          status?: string
+          totals?: Json
           updated_at?: string
         }
         Relationships: []
