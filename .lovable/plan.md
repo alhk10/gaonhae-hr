@@ -1,108 +1,131 @@
-# Phase 6 — Cash vs Accrual toggle + Trial Balance + Balance Sheet
+# Phase 6 Plan: Reporting Basis + Trial Balance + Balance Sheet
 
-Add the two foundational accounting reports (Trial Balance and Balance Sheet) and a global Cash vs Accrual basis toggle that re-bases every finance report (P&L, Tax, TB, BS) from the same posted ledger.
+## Goal
+Add proper accounting reports on top of the ledger already built in earlier phases:
 
-## Goals
+- A finance-wide Cash / Accrual basis toggle
+- Trial Balance report
+- Balance Sheet report
+- Drill-down from reports into underlying ledger lines
+- CSV/PDF exports for the new reports
 
-- Single basis toggle (Accrual | Cash) that all finance reports respect.
-  - Accrual: use journal lines as posted (invoice date / bill date).
-  - Cash: only recognise income/expense when the matching cash movement (payment received / bill paid) is posted; AR/AP balances replace income/expense until then.
-- Trial Balance at `/finance/reports/trial-balance` — every account, period debit / credit / net, with drill-down to GL.
-- Balance Sheet at `/finance/reports/balance-sheet` — Assets / Liabilities / Equity as at a date, with comparative column and "must balance" indicator.
-- All reports honour branch filter (single, multi, consolidated) and respect access rules already used by P&L Live.
+## User-facing changes
 
-## Page layouts
+### 1. Finance basis toggle
+Add a visible toggle in the Finance area:
 
-```text
-/finance/reports/trial-balance
-┌─────────────────────────────────────────────────────────────┐
-│ Branch ▾  Period ▾  Basis [Accrual|Cash]  [Export] [PDF]    │
-├─────────────────────────────────────────────────────────────┤
-│ Code  Account                 Debit       Credit     Net    │
-│ 1000  Cash on hand          12,300.00         0.00 12,300Dr │
-│ 1100  Bank — DBS             8,420.50         0.00  8,420Dr │
-│ 4000  Tuition income              0.00   45,000.00 45,000Cr │
-│ ...                                                         │
-│ TOTALS                      57,820.50    57,820.50      0.00│
-└─────────────────────────────────────────────────────────────┘
+- Accrual basis: reports use posted journal dates and outstanding receivables/payables.
+- Cash basis: reports are adjusted to reflect received/paid cash timing where possible.
 
-/finance/reports/balance-sheet
-As-at: 30/06/2026   Compare: 31/03/2026   Basis: Accrual
-ASSETS
-  Current assets
-    Cash on hand .......... 12,300   8,150
-    Bank — DBS ............  8,420   6,200
-    AR ....................  3,100   2,400
-  Total current assets ...  23,820  16,750
-  ...
-LIABILITIES
-EQUITY
-  Retained earnings, P&L YTD
-TOTAL L+E vs TOTAL ASSETS  → balanced ✓
-```
+The selected basis should persist per browser session so Finance, P&L, Tax, Trial Balance, and Balance Sheet stay consistent while navigating.
 
-Mobile: cards per section, sticky filter bar.
+### 2. Trial Balance
+Create a new Finance report page:
 
-## Data model
+- Route: `/finance/reports/trial-balance`
+- Shows all ledger accounts for a selected period and branch.
+- Columns: Account Code, Account Name, Account Type, Debit, Credit, Net Balance.
+- Totals must balance: total debits = total credits.
+- Account rows are clickable to show the contributing journal lines.
+- Export to CSV and PDF.
 
-No new tables. Add a small reporting view to keep service code tidy:
+### 3. Balance Sheet
+Create a new Finance report page:
 
-```text
-v_ledger_lines  (security_invoker)
-  branch_id, account_id, account_code, account_name, account_type,
-  entry_date, debit, credit, signed_amount, journal_entry_id
-```
+- Route: `/finance/reports/balance-sheet`
+- Shows Assets, Liabilities, and Equity as of a selected date.
+- Includes subtotals per section and final accounting equation check:
+  - Assets = Liabilities + Equity
+- Supports branch filtering.
+- Optional comparison against prior month/period if cleanly supported by existing ledger data.
+- Export to CSV and PDF.
 
-Cash basis is computed by service-side mapping:
-- Income lines (account_type = income) are deferred until the payment journal that settles the originating invoice is posted; we trace via `journal_entries.source_table='payments'` + `source_id`.
-- Expense lines (account_type = expense) are deferred until the bill payment is posted (later phase still uses cash already, so behaviour unchanged for now).
-- Until cash event happens, the offsetting AR / AP line stays on the balance sheet.
+### 4. Navigation updates
+Update the Finance dashboard so users can access:
 
-## Services & components
+- Live Branch P&L
+- Tax Centre
+- Trial Balance
+- Balance Sheet
+- Backfill tools
 
-```text
-src/services/reportingBasisService.ts
-  - applyBasis(rows, basis): rewrites entry_date / inclusion based on cash settlement
-  - getSettlementMap(branchId, range): map invoice_id → cash date for income
-src/services/trialBalanceService.ts
-  - getTrialBalance({ branchId, from, to, basis })
-src/services/balanceSheetService.ts
-  - getBalanceSheet({ branchId, asAt, compareAsAt, basis })
-src/utils/financeReportExport.ts
-  - CSV + PDF for TB and BS (jsPDF)
+## Technical implementation
 
-src/contexts/FinanceBasisContext.tsx       (basis stored in localStorage, default 'accrual')
+### 1. Reporting basis context
+Add a small shared context/service:
 
-src/pages/finance/TrialBalance.tsx         (new, /finance/reports/trial-balance)
-src/pages/finance/BalanceSheet.tsx         (new, /finance/reports/balance-sheet)
-src/components/finance/BasisToggle.tsx     (shared switch, used in P&L, Tax, TB, BS)
-```
+- `FinanceBasisContext.tsx`
+- Tracks `cash` or `accrual`
+- Persists selection in `localStorage`
+- Used by Finance reports and tax/P&L pages where applicable
 
-Wire-up:
-- New routes in `App.tsx`.
-- Activate the two existing "coming soon" tiles on `FinanceDashboard.tsx` (P&L + Balance Sheet); add a Trial Balance tile.
-- Drop `<BasisToggle/>` into `BranchPnlLive.tsx` and `TaxCentre.tsx` so the same toggle drives all four reports.
+### 2. Ledger reporting view
+Add a database migration for a normalized reporting view, likely:
 
-## Access control
+- `v_ledger_lines`
 
-Same rules as Branch P&L Live:
-- Superadmin: all branches, both bases.
-- Partner: own branches only.
-- Other staff: hidden.
+The view should join journal lines with:
 
-## Validation
+- journal entries
+- chart of accounts
+- branches where needed
+- tax code fields already added in Phase 5
 
-- TB total debit = total credit (assert and surface a red warning if not).
-- BS Assets = Liabilities + Equity + YTD P&L (red badge if not).
-- Comparative period uses same basis.
+This keeps reports consistent and reduces duplicate query logic.
 
-## Out of scope this phase
+### 3. Reporting services
+Add focused services:
 
-- Budget vs Actual columns.
-- Departmental / class tracking dimensions.
-- Multi-currency revaluation (still single-currency per branch).
-- Cash basis for AP (bills) — deferred until Phase 8 Bills/AP module.
+- `reportingBasisService.ts`
+  - Applies accrual/cash reporting rules.
+- `trialBalanceService.ts`
+  - Aggregates debits and credits by account.
+- `balanceSheetService.ts`
+  - Aggregates balances by account type and section.
 
----
+Services should use existing Supabase patterns and respect branch access/RLS.
 
-Approve to implement Phase 6.
+### 4. Export utilities
+Add or extend report export utilities:
+
+- Trial Balance CSV/PDF
+- Balance Sheet CSV/PDF
+
+Exports should use existing date formatting rules: DD/MM/YYYY via `@/utils/dateFormat` helpers.
+
+## Data and compliance rules
+
+- All report data remains stored in Supabase.
+- Reports derive from posted ledger/journal data, not from separate duplicated totals.
+- Existing country tax rules from Phase 5 remain intact.
+- No roles are stored on user/profile tables.
+- Existing branch access and RLS patterns must be respected.
+- User-facing dates must use DD/MM/YYYY helpers.
+
+## Validation checklist
+
+Before completion:
+
+- Confirm Finance navigation exposes the new reports.
+- Confirm Trial Balance totals balance.
+- Confirm Balance Sheet equation is shown and calculated.
+- Confirm basis toggle changes report output where cash/accrual differences exist.
+- Confirm CSV/PDF exports generate successfully.
+- Check affected integrations step by step:
+  - Finance dashboard navigation
+  - Ledger view/query service
+  - P&L/Tax compatibility with basis toggle
+  - Report drill-downs
+  - Export utilities
+
+## Implementation order
+
+1. Add database reporting view migration and Supabase types updates.
+2. Add reporting basis context and wrap Finance routes.
+3. Build Trial Balance service and page.
+4. Build Balance Sheet service and page.
+5. Add navigation cards/buttons in Finance dashboard.
+6. Add CSV/PDF exports.
+7. Validate report calculations and routing.
+
+Approve this plan to implement Phase 6.
