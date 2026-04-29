@@ -172,6 +172,10 @@ function App() {
                     {/* Finance / Accounting Routes (superadmin) */}
                     <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
                     <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
+                    <Route path="/finance/journals" element={<ProtectedRoute><Journals /></ProtectedRoute>} />
+                    <Route path="/finance/journals/new" element={<ProtectedRoute><NewJournal /></ProtectedRoute>} />
+                    <Route path="/finance/journals/:id" element={<ProtectedRoute><JournalDetail /></ProtectedRoute>} />
+                    <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
