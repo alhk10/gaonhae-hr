@@ -2563,6 +2563,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "journal_lines_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "v_pnl_lines"
+            referencedColumns: ["journal_id"]
+          },
+          {
             foreignKeyName: "journal_lines_tax_code_id_fkey"
             columns: ["tax_code_id"]
             isOneToOne: false
@@ -5681,6 +5688,35 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      v_pnl_lines: {
+        Row: {
+          account_code: string | null
+          account_id: string | null
+          account_name: string | null
+          account_sort_order: number | null
+          account_subtype: string | null
+          account_type: string | null
+          branch_id: string | null
+          country: string | null
+          credit: number | null
+          debit: number | null
+          entry_date: string | null
+          journal_id: string | null
+          line_id: string | null
+          period: string | null
+          signed_amount: number | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
