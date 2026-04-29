@@ -156,6 +156,7 @@ export interface JournalLineDraft {
   credit?: number;
   tax_code_id?: string | null;
   tax_amount?: number;
+  tax_base_amount?: number;
   branch_id?: string | null;
   contact_type?: string | null;
   contact_ref?: string | null;
