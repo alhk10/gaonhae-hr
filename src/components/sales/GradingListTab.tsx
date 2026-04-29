@@ -588,6 +588,9 @@ const GradingListTab: React.FC = () => {
 
   /** Actually generate and download the certificate PDF. */
   const runCertificate = (student: GradingListStudent, certificateNumber: 1 | 2) => {
+    // Certificate prints the belt the student PASSED FROM (their pre-grading belt).
+    // Cert I = current_belt. Cert II = next belt up (only meaningful for double passes,
+    // representing the intermediate belt also passed FROM on the way to a double promotion).
     const baseBelt = student.current_belt || '';
     const beltAchieved = certificateNumber === 2
       ? getNextBeltLevel(baseBelt, 'Australia')

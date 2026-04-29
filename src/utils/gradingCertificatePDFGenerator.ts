@@ -30,7 +30,7 @@ import {
 
 export interface GradingCertificateInput {
   studentName: string;          // pre-formatted full name
-  beltAchieved: string;         // e.g. "Yellow Belt" — printed verbatim
+  beltAchieved: string;         // The belt the student PASSED FROM (pre-grading belt), e.g. "White" → printed as "White Belt"
   gradingDate: Date | string;   // long format on the cert
   scorecard: ScorecardRow[];    // editable list rendered on page 2
   examinerName?: string;        // (no longer printed) kept for backwards compat
