@@ -1,112 +1,141 @@
-# Phase 4 — Real-time Branch P&L (live ledger view)
+# Phase 5 — Tax Modules (GST F5 for Singapore, BAS for Australia)
 
-A new `/finance/branch-pl-live` page that builds the Profit & Loss statement directly from the new accounting ledger (`journal_entries` + `journal_lines`), updates in real time via Supabase Realtime, and runs alongside the legacy Branch P&L page until Phase 10 reconciliation.
+Build country-aware tax reporting that derives indirect-tax figures directly from the new ledger and produces filing-ready reports for Singapore (GST F5) and Australia (BAS). Reports are read-only outputs of posted journals; no manual GST data entry.
 
 ## Goals
 
-- Show a true accounting-grade P&L (Income → COGS → Gross Profit → Expenses → Net Profit) sourced from posted journals only.
-- Filter by **branch**, **period** (month / quarter / FY / custom range), and **comparison period** (prior month / prior year).
-- Update live as new invoices, payments, expenses, payroll get posted (via Realtime subscription on `journal_lines`).
-- Drill-down: click any line → opens the General Ledger page filtered to that account + period.
-- Respect access rules: superadmin sees all branches; partner sees only their owned branches; staff cannot access.
+- One unified Tax Centre at `/finance/tax` that auto-switches form layout based on the selected branch's country (SGD branches → GST F5, AUD branches → BAS).
+- Compute boxes/labels directly from posted `journal_lines` tagged with a `tax_code` (e.g. `SR` standard-rated, `ZR` zero-rated, `ES` exempt, `OS` out-of-scope, `TX` input tax, `BL` blocked input, plus AU `GST`, `FRE`, `INP`, `EXP`).
+- Period support: monthly, quarterly (default for SG quarterly filers), custom; lock filed periods.
+- Export filing-ready PDF + CSV; store snapshot in `tax_returns` so a filed return is immutable even if journals are later edited.
+- Drill-down: every box → list of contributing journal lines → journal detail page.
 
 ## Page layout
 
 ```text
-/finance/branch-pl-live
-┌─────────────────────────────────────────────────────────┐
-│ Branch ▾   Period ▾   Compare to ▾   [Export PDF] [CSV] │
-├─────────────────────────────────────────────────────────┤
-│ INCOME                              This period   Prior │
-│   School Fees (4000)                  12,340     10,200 │
-│   Grading Fees (4010)                    980        750 │
-│   Ad-Hoc Lessons (4020)                  216          0 │
-│   Uniform & Gear (4030)                1,420      1,100 │
-│   Trial (4040)                            90        180 │
-│   Other Income (4090)                      0          0 │
-│   (-) Sales Discounts (4900)            (240)      (180)│
-│   Total Income                        14,806     12,050 │
-│                                                          │
-│ COST OF SALES                                            │
-│   COGS (5000)                            860        710 │
-│   Gross Profit                        13,946     11,340 │
-│                                                          │
-│ EXPENSES                                                 │
-│   Wages (6000)                         5,200      4,800 │
-│   Casual Coaching (6010)               1,100        900 │
-│   Staff Claims (6040)                    220        160 │
-│   Rent (6100)                          2,000      2,000 │
-│   Utilities (6110)                       340        310 │
-│   Marketing (6120)                       180         50 │
-│   Other Expenses (6190)                   60          0 │
-│   Total Expenses                       9,100      8,220 │
-│                                                          │
-│ NET PROFIT                             4,846      3,120 │
-│ Margin                                32.7%      25.9%  │
-└─────────────────────────────────────────────────────────┘
+/finance/tax
+┌────────────────────────────────────────────────────────────┐
+│ Branch ▾   Period ▾   [Recalculate] [Export PDF] [Lock]    │
+├────────────────────────────────────────────────────────────┤
+│ GST F5 (Singapore) — Quarter Apr–Jun 2026   Status: Draft  │
+│  Box 1  Standard-rated supplies          12,450.00         │
+│  Box 2  Zero-rated supplies                   0.00         │
+│  Box 3  Exempt supplies                       0.00         │
+│  Box 4  Total supplies (1+2+3)           12,450.00         │
+│  Box 5  Taxable purchases                 3,210.00         │
+│  Box 6  Output tax due                    1,120.50         │
+│  Box 7  Input tax & refunds claimed         288.90         │
+│  Box 8  Net GST payable / (refund)          831.60         │
+│  Box 9  Total value of goods imported         0.00         │
+│ ─────────────────────────────────────────────────────────  │
+│  History: previously locked returns (click to view PDF)    │
+└────────────────────────────────────────────────────────────┘
 ```
 
-Mobile: single column, sticky filter bar, rows collapse into "Income / GP / Net" summary cards with expandable detail.
+AU branches show BAS labels: G1 total sales, 1A GST on sales, G10/G11 capital/non-capital purchases, 1B GST on purchases, 7A/7C, plus W1/W2 PAYG (later phase) — this phase does GST labels only.
 
-## Data flow
+Mobile: cards per box, sticky branch/period filter.
 
-1. New service `src/services/branchPnlLiveService.ts`:
-   - `getBranchPnl({ branchId, from, to })` → SQL aggregate on `journal_lines` joined to `journal_entries` filtered by `entry_date`, `branch_id`, `status='posted'`, joined to `chart_of_accounts` for code/name/type.
-   - Returns `{ income[], cogs[], expenses[], totals: { income, cogs, grossProfit, expenses, netProfit, margin } }`.
-   - Comparison period fetched in parallel via the same query with shifted dates.
-2. A Postgres view `v_pnl_lines` (read-only) precomputes `branch_id, account_code, account_name, account_type, entry_date, signed_amount` to keep the client query simple. Created in a new migration. RLS: superadmin always; partners limited to branches in `partner_branch_access`.
-3. Realtime: subscribe to `journal_lines` insert/update/delete; on event, debounce 800 ms and refetch the current view's totals only.
-4. PDF export reuses the existing PDF utility (`@/utils/pdf*`) to render the same layout; CSV export streams a flat row list.
+## Data model
 
-## Files
+New tables (migration):
 
 ```text
-src/pages/finance/BranchPnlLive.tsx           (new — page)
-src/components/finance/PnlTable.tsx           (new — desktop table)
-src/components/finance/PnlMobileCards.tsx     (new — mobile)
-src/components/finance/PnlFilterBar.tsx       (new — branch / period / compare)
-src/services/branchPnlLiveService.ts          (new — query + realtime)
-src/utils/pnlExport.ts                        (new — PDF + CSV)
+tax_codes
+  code         text PK              -- 'SR','ZR','ES','OS','TX','BL','GST','FRE','INP','EXP'
+  country      text                 -- 'SG' | 'AU'
+  rate         numeric(6,4)         -- 0.09, 0.10, 0
+  direction    text                 -- 'output' | 'input' | 'none'
+  description  text
+  active       boolean default true
 
-src/App.tsx                                   (route /finance/branch-pl-live)
-src/pages/finance/FinanceDashboard.tsx        (new tile "Live Branch P&L")
-
-supabase/migrations/<timestamp>_pnl_view.sql  (v_pnl_lines view + RLS-equivalent policy via security definer function)
+tax_returns
+  id           uuid PK
+  country      text
+  branch_id    text
+  period_from  date
+  period_to    date
+  status       text                 -- 'draft' | 'locked' | 'filed'
+  totals       jsonb                -- snapshot of every box
+  pdf_path     text
+  locked_at    timestamptz
+  locked_by    text
+  created_at, updated_at
+  unique (branch_id, period_from, period_to)
 ```
+
+Add columns to existing `journal_lines`:
+
+```text
+tax_code        text references tax_codes(code)
+tax_amount      numeric(14,2) default 0
+tax_base_amount numeric(14,2) default 0   -- net amount the tax was computed on
+```
+
+Auto-posting (Phase 3) is updated to populate `tax_code`, `tax_base_amount`, `tax_amount` for invoice / payment / expense / payroll journals based on country + product/account mapping.
+
+## Services & components
+
+```text
+src/services/taxService.ts
+  - getTaxReturn({ branchId, from, to })   -> computed boxes from journal_lines
+  - listTaxReturns({ branchId })
+  - lockTaxReturn(id)                       -- snapshots totals into tax_returns.totals
+  - getBoxDrilldown({ branchId, from, to, boxKey })
+src/services/taxMappings.ts
+  - SG_BOXES, AU_LABELS  (box → set of (account_type, tax_code, direction) rules)
+src/utils/taxExport.ts
+  - PDF (filing-ready layout per country) + CSV
+
+src/pages/finance/TaxCentre.tsx              (new, route /finance/tax)
+src/components/finance/TaxFormSG.tsx         (GST F5 layout)
+src/components/finance/TaxFormAU.tsx         (BAS GST labels layout)
+src/components/finance/TaxBoxRow.tsx         (clickable drill-down row)
+src/components/finance/TaxReturnHistory.tsx
+```
+
+Wire-up:
+- New tile on `FinanceDashboard.tsx` ("Tax Centre — GST F5 / BAS").
+- New route in `App.tsx`.
+- Update `accountingPostings.ts` to set tax fields on every relevant line; backfill runner (Phase 3) re-posts historical journals so old data appears in tax reports.
 
 ## Access control
 
-- Route guarded same as `/finance/general-ledger`.
-- Branch dropdown is filtered to:
-  - Superadmin → all branches.
-  - Partner → only branches where they appear in `partner_branch_access` (matches the existing Partner Branch P&L memory rule — for partners, totals are shown 100 %; ownership-% adjustment happens only on the dedicated Partner P&L PDF, not here).
-  - Other staff → page hidden / 403.
+- Superadmin: all branches, can lock/unlock.
+- Partner: only their branches, view only (cannot lock).
+- Other staff: hidden.
 
-## Date / period helpers
+## Defaults seeded by migration
 
-- Use `@/utils/dateFormat` for all displayed dates (DD/MM/YYYY).
-- "Current month" defaults to today's month; FY = configurable via `accounting_settings.fiscal_year_start_month` (added in Phase 1).
+```text
+SG: SR 0.09 output, ZR 0 output, ES 0 output, OS 0 none, TX 0.09 input, BL 0 input
+AU: GST 0.10 output, FRE 0 output, INP 0 input, EXP 0 output
+```
 
-## Out of scope for this phase
+These rates live in `tax_codes.rate` so the SG GST hike or AU rate change is a one-row update, not a code change.
 
-- Cash vs accrual toggle (Phase 6).
-- Multi-currency consolidation (Phase 8).
-- Reconciliation diff vs legacy `branch_profit_loss_entries` (Phase 10).
-- Budget vs actual columns (Phase 5).
+## Out of scope this phase
 
----
-
-Approve to implement Phase 4.
-
+- IRAS/ATO API submission (manual upload remains).
+- PAYG W1/W2 on BAS (Phase 7 — payroll tax).
+- Reverse-charge / imported services (later).
+- Customer-level tax invoice formatting changes (already handled in invoice PDF).
 
 ---
 
-## Phase 4 — DONE
+Approve to implement Phase 5.
 
-Implemented real-time Branch P&L at /finance/branch-pl-live:
-- Postgres view v_pnl_lines (security_invoker) aggregates posted income/expense lines with signed amounts.
-- branchPnlLiveService.ts: getBranchPnl, periodFromPreset, shiftPriorPeriod, subscribePnlChanges (realtime via journal_lines + journal_entries channels, 800ms debounce).
-- pnlExport.ts: CSV + PDF export (jsPDF, no autotable dep).
-- BranchPnlLive page: branch / period / compare-to filters, live indicator, drill-down per row to General Ledger.
-- Wired into App.tsx route + FinanceDashboard tile (ready=true).
+---
 
+## Phase 5 — DONE
+
+Implemented Tax Centre at /finance/tax:
+- Migration: tax_returns table (locked snapshots, RLS) + tax_base_amount column on journal_lines.
+- Reused existing tax_codes (Singapore SG-SR/ZR/ES/OS/TX/BL/NR + Australia AU-GST/FRE/EXP/INP/CAP/NT).
+- taxService.ts: getTaxReturn computes GST F5 boxes 1–9 (SG) or BAS labels G1/G2/G3/G10/G11/1A/1B/Net (AU) directly from posted journal_lines aggregated by tax_code_id; lock/unlock; period presets.
+- taxExport.ts: filing-ready PDF + CSV (jsPDF, no autotable dep).
+- TaxCentre.tsx: branch-driven country auto-switch, period presets, lock period, return history table.
+- accountingMappings: added getTaxCodeId + standardOutputTaxCode helpers and a tax-code cache.
+- accountingPostings (invoice): GST output line now tagged with country's standard-rated tax code, tax_amount and tax_base_amount (net supply) — feeds the Tax Centre automatically. Backfill (Phase 3) re-runs to historise tax tagging on past invoices.
+- accountingService: JournalLineDraft + insert payload extended with tax_base_amount.
+- Wired into App.tsx route + FinanceDashboard tile (replaces the two "coming soon" GST-F5 / BAS tiles).

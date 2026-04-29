@@ -156,6 +156,7 @@ export interface JournalLineDraft {
   credit?: number;
   tax_code_id?: string | null;
   tax_amount?: number;
+  tax_base_amount?: number;
   branch_id?: string | null;
   contact_type?: string | null;
   contact_ref?: string | null;
@@ -279,6 +280,7 @@ export async function createJournal(input: {
     credit: Number(l.credit || 0),
     tax_code_id: l.tax_code_id ?? null,
     tax_amount: Number(l.tax_amount || 0),
+    tax_base_amount: Number(l.tax_base_amount || 0),
     branch_id: l.branch_id ?? input.branch_id ?? null,
     contact_type: l.contact_type ?? null,
     contact_ref: l.contact_ref ?? null,

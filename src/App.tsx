@@ -53,6 +53,7 @@ const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
 const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
 const BackfillRunner = lazy(() => import('./pages/finance/BackfillRunner'));
 const BranchPnlLive = lazy(() => import('./pages/finance/BranchPnlLive'));
+const TaxCentre = lazy(() => import('./pages/finance/TaxCentre'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -180,6 +181,7 @@ function App() {
                     <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
                     <Route path="/finance/backfill" element={<ProtectedRoute><BackfillRunner /></ProtectedRoute>} />
                     <Route path="/finance/branch-pl-live" element={<ProtectedRoute><BranchPnlLive /></ProtectedRoute>} />
+                    <Route path="/finance/tax" element={<ProtectedRoute><TaxCentre /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
