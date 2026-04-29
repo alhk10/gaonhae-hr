@@ -177,6 +177,7 @@ function App() {
                     <Route path="/finance/journals/new" element={<ProtectedRoute><NewJournal /></ProtectedRoute>} />
                     <Route path="/finance/journals/:id" element={<ProtectedRoute><JournalDetail /></ProtectedRoute>} />
                     <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
+                    <Route path="/finance/backfill" element={<ProtectedRoute><BackfillRunner /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
