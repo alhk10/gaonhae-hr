@@ -53,6 +53,7 @@ const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
 const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
 const BackfillRunner = lazy(() => import('./pages/finance/BackfillRunner'));
 const BranchPnlLive = lazy(() => import('./pages/finance/BranchPnlLive'));
+const TaxCentre = lazy(() => import('./pages/finance/TaxCentre'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
