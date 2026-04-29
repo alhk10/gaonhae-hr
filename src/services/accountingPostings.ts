@@ -257,26 +257,27 @@ export async function voidPaymentJournal(paymentId: string): Promise<void> {
  * Approved: Dr Staff Claims expense  Cr Claims Payable
  * Paid:     Dr Claims Payable        Cr Bank
  */
-export async function postClaimJournal(claimId: string): Promise<void> {
+export async function postClaimJournal(claimId: string | number): Promise<void> {
   await safePost(`claim ${claimId}`, async () => {
+    const idAsNum = typeof claimId === 'string' ? parseInt(claimId, 10) : claimId;
     const { data: cl, error } = await supabase
       .from('claims')
       .select('id, employee_id, amount, status, submitted_date, branch_id, type, description')
-      .eq('id', claimId)
+      .eq('id', idAsNum)
       .maybeSingle();
     if (error) throw error;
     if (!cl) return null;
 
+    const clIdStr = String(cl.id);
     const country = await getBranchCountry(cl.branch_id);
     const amount = r2(cl.amount || 0);
     const status = (cl.status || '').toLowerCase();
 
     if (amount <= 0 || status === 'rejected' || status === 'pending') {
-      await voidJournalsForSource('claim', cl.id);
+      await voidJournalsForSource('claim', clIdStr);
       return null;
     }
 
-    // Approved (or paid): record liability for the expense
     const accruedLines: JournalLineDraft[] = [
       {
         account_id: await getAccountId(country, ACC.STAFF_CLAIMS),
@@ -295,16 +296,15 @@ export async function postClaimJournal(claimId: string): Promise<void> {
     ];
     await postJournalForSource({
       sourceType: 'claim',
-      sourceId: cl.id,
+      sourceId: clIdStr,
       subEvent: 'approved',
-      entry_date: cl.submitted_date || new Date().toISOString().slice(0, 10),
+      entry_date: (cl.submitted_date || new Date().toISOString()).slice(0, 10),
       country,
       branch_id: cl.branch_id,
-      narration: `Claim approved ${cl.id}`,
+      narration: `Claim approved ${clIdStr}`,
       lines: accruedLines,
     });
 
-    // If paid → settle liability
     if (status === 'paid' || status === 'reimbursed') {
       const paidLines: JournalLineDraft[] = [
         {
@@ -322,12 +322,12 @@ export async function postClaimJournal(claimId: string): Promise<void> {
       ];
       await postJournalForSource({
         sourceType: 'claim',
-        sourceId: cl.id,
+        sourceId: clIdStr,
         subEvent: 'paid',
         entry_date: new Date().toISOString().slice(0, 10),
         country,
         branch_id: cl.branch_id,
-        narration: `Claim paid ${cl.id}`,
+        narration: `Claim paid ${clIdStr}`,
         lines: paidLines,
       });
     }
