@@ -130,7 +130,7 @@ P&L and Balance Sheet filterable by **country** (default SG), **branch**, or **c
 ## Phased delivery (each phase shippable)
 
 1. **Foundation** — schema, CoA seed (SG+AU), tax codes, RLS, sidebar entry, CoA UI. ✅ done
-2. **Journals** — entries/lines tables, manual journal UI, GL drilldown.
+2. **Journals** — entries/lines tables, manual journal UI, GL drilldown. ✅ done
 3. **Auto-posting + backfill** — wire existing modules; backfill edge function.
 4. **Real-time Branch P&L** — new page, realtime subscriptions, drilldown, PDF.
 5. **P&L + Balance Sheet (country/consolidated)** + comparatives.
@@ -146,4 +146,4 @@ Multi-currency revaluation, fixed-asset depreciation schedules, e-invoicing/PEPP
 
 ---
 
-Phase 1 is complete. Approve to continue with **Phase 2 (Journals)**.
+Phases 1–2 complete. Approve to continue with **Phase 3 (Auto-posting + backfill)**.
