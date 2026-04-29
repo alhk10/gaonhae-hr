@@ -2396,6 +2396,139 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          branch_id: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          entry_number: string | null
+          id: string
+          narration: string | null
+          period: string
+          posted_at: string | null
+          posted_by: string | null
+          reference: string | null
+          source_id: string | null
+          source_type: string
+          status: string
+          updated_at: string
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          country: string
+          created_at?: string
+          created_by?: string | null
+          entry_date: string
+          entry_number?: string | null
+          id?: string
+          narration?: string | null
+          period: string
+          posted_at?: string | null
+          posted_by?: string | null
+          reference?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          entry_number?: string | null
+          id?: string
+          narration?: string | null
+          period?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          reference?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          branch_id: string | null
+          contact_ref: string | null
+          contact_type: string | null
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          journal_id: string
+          line_no: number
+          tax_amount: number
+          tax_code_id: string | null
+        }
+        Insert: {
+          account_id: string
+          branch_id?: string | null
+          contact_ref?: string | null
+          contact_type?: string | null
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_id: string
+          line_no?: number
+          tax_amount?: number
+          tax_code_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          branch_id?: string | null
+          contact_ref?: string | null
+          contact_type?: string | null
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_id?: string
+          line_no?: number
+          tax_amount?: number
+          tax_code_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tax_code_id_fkey"
+            columns: ["tax_code_id"]
+            isOneToOne: false
+            referencedRelation: "tax_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_encashment_config: {
         Row: {
           created_at: string

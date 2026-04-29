@@ -47,6 +47,10 @@ const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
 // Finance / Accounting module
 const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
 const ChartOfAccounts = lazy(() => import('./pages/finance/ChartOfAccounts'));
+const Journals = lazy(() => import('./pages/finance/Journals'));
+const NewJournal = lazy(() => import('./pages/finance/NewJournal'));
+const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
+const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -168,6 +172,10 @@ function App() {
                     {/* Finance / Accounting Routes (superadmin) */}
                     <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
                     <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
+                    <Route path="/finance/journals" element={<ProtectedRoute><Journals /></ProtectedRoute>} />
+                    <Route path="/finance/journals/new" element={<ProtectedRoute><NewJournal /></ProtectedRoute>} />
+                    <Route path="/finance/journals/:id" element={<ProtectedRoute><JournalDetail /></ProtectedRoute>} />
+                    <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
