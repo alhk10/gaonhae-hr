@@ -1,0 +1,1 @@
+ALTER VIEW public.v_pnl_lines SET (security_invoker = true);
