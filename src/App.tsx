@@ -47,6 +47,10 @@ const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
 // Finance / Accounting module
 const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
 const ChartOfAccounts = lazy(() => import('./pages/finance/ChartOfAccounts'));
+const Journals = lazy(() => import('./pages/finance/Journals'));
+const NewJournal = lazy(() => import('./pages/finance/NewJournal'));
+const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
+const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
