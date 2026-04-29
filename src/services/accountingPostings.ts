@@ -19,6 +19,7 @@ import {
   incomeCodeForProduct,
   expenseCodeForBranchCategory,
   resolveBankAccount,
+  standardOutputTaxCode,
 } from './accountingMappings';
 
 type Money = number;
