@@ -181,6 +181,7 @@ function App() {
                     <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
                     <Route path="/finance/backfill" element={<ProtectedRoute><BackfillRunner /></ProtectedRoute>} />
                     <Route path="/finance/branch-pl-live" element={<ProtectedRoute><BranchPnlLive /></ProtectedRoute>} />
+                    <Route path="/finance/tax" element={<ProtectedRoute><TaxCentre /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
