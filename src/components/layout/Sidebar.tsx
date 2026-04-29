@@ -23,7 +23,8 @@ import {
   Award,
   FileCheck,
   Building2,
-  Video
+  Video,
+  BookOpen
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -149,6 +150,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
       adminItems.push(
         { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
         { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' },
+        { icon: BookOpen, label: 'Finance', path: '/finance' },
         { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
 

@@ -44,6 +44,10 @@ const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
 const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
 
+// Finance / Accounting module
+const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
+const ChartOfAccounts = lazy(() => import('./pages/finance/ChartOfAccounts'));
+
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
 
@@ -161,6 +165,10 @@ function App() {
                       </AuthGuard>
                     } />
                     
+                    {/* Finance / Accounting Routes (superadmin) */}
+                    <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
+                    <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
+
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
                     <Route path="/sales/dashboard" element={<SalesRoute><SalesDashboard /></SalesRoute>} />

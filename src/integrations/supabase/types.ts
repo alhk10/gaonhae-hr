@@ -671,6 +671,72 @@ export type Database = {
           },
         ]
       }
+      chart_of_accounts: {
+        Row: {
+          code: string
+          country: string
+          created_at: string
+          default_tax_code_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          parent_id: string | null
+          sort_order: number
+          subtype: string | null
+          system_account: boolean
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          country: string
+          created_at?: string
+          default_tax_code_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          subtype?: string | null
+          system_account?: boolean
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          country?: string
+          created_at?: string
+          default_tax_code_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          subtype?: string | null
+          system_account?: boolean
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_default_tax_code_id_fkey"
+            columns: ["default_tax_code_id"]
+            isOneToOne: false
+            referencedRelation: "tax_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_types: {
         Row: {
           co_pay: number
@@ -1336,6 +1402,42 @@ export type Database = {
           email?: string
           id?: string
           ip_address?: string | null
+        }
+        Relationships: []
+      }
+      fiscal_periods: {
+        Row: {
+          country: string
+          created_at: string
+          id: string
+          is_locked: boolean
+          locked_at: string | null
+          locked_by: string | null
+          notes: string | null
+          period: string
+          updated_at: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          period: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          period?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5050,6 +5152,45 @@ export type Database = {
           id?: string
           setting_key?: string
           setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tax_codes: {
+        Row: {
+          code: string
+          country: string
+          created_at: string
+          direction: string
+          id: string
+          is_active: boolean
+          name: string
+          rate: number
+          report_box: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          country: string
+          created_at?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          rate?: number
+          report_box?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          country?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          rate?: number
+          report_box?: string | null
           updated_at?: string
         }
         Relationships: []
