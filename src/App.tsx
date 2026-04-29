@@ -54,6 +54,9 @@ const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
 const BackfillRunner = lazy(() => import('./pages/finance/BackfillRunner'));
 const BranchPnlLive = lazy(() => import('./pages/finance/BranchPnlLive'));
 const TaxCentre = lazy(() => import('./pages/finance/TaxCentre'));
+const TrialBalance = lazy(() => import('./pages/finance/TrialBalance'));
+const BalanceSheet = lazy(() => import('./pages/finance/BalanceSheet'));
+import { FinanceBasisProvider } from './contexts/FinanceBasisContext';
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -173,15 +176,17 @@ function App() {
                     } />
                     
                     {/* Finance / Accounting Routes (superadmin) */}
-                    <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
-                    <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
-                    <Route path="/finance/journals" element={<ProtectedRoute><Journals /></ProtectedRoute>} />
-                    <Route path="/finance/journals/new" element={<ProtectedRoute><NewJournal /></ProtectedRoute>} />
-                    <Route path="/finance/journals/:id" element={<ProtectedRoute><JournalDetail /></ProtectedRoute>} />
-                    <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
-                    <Route path="/finance/backfill" element={<ProtectedRoute><BackfillRunner /></ProtectedRoute>} />
-                    <Route path="/finance/branch-pl-live" element={<ProtectedRoute><BranchPnlLive /></ProtectedRoute>} />
-                    <Route path="/finance/tax" element={<ProtectedRoute><TaxCentre /></ProtectedRoute>} />
+                    <Route path="/finance" element={<ProtectedRoute><FinanceBasisProvider><FinanceDashboard /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><FinanceBasisProvider><ChartOfAccounts /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/journals" element={<ProtectedRoute><FinanceBasisProvider><Journals /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/journals/new" element={<ProtectedRoute><FinanceBasisProvider><NewJournal /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/journals/:id" element={<ProtectedRoute><FinanceBasisProvider><JournalDetail /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/general-ledger" element={<ProtectedRoute><FinanceBasisProvider><GeneralLedger /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/backfill" element={<ProtectedRoute><FinanceBasisProvider><BackfillRunner /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/branch-pl-live" element={<ProtectedRoute><FinanceBasisProvider><BranchPnlLive /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/tax" element={<ProtectedRoute><FinanceBasisProvider><TaxCentre /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/reports/trial-balance" element={<ProtectedRoute><FinanceBasisProvider><TrialBalance /></FinanceBasisProvider></ProtectedRoute>} />
+                    <Route path="/finance/reports/balance-sheet" element={<ProtectedRoute><FinanceBasisProvider><BalanceSheet /></FinanceBasisProvider></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />
