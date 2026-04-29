@@ -280,6 +280,7 @@ export async function createJournal(input: {
     credit: Number(l.credit || 0),
     tax_code_id: l.tax_code_id ?? null,
     tax_amount: Number(l.tax_amount || 0),
+    tax_base_amount: Number(l.tax_base_amount || 0),
     branch_id: l.branch_id ?? input.branch_id ?? null,
     contact_type: l.contact_type ?? null,
     contact_ref: l.contact_ref ?? null,
