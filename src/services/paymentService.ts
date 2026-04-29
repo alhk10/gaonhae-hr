@@ -342,6 +342,9 @@ export const updatePayment = async (
       throw new Error(`Failed to update payment: ${error.message}`);
     }
 
+    // Phase 3: re-post in case verification status flipped
+    void postPaymentJournal(paymentId);
+
     return {
       ...data,
       invoice_number: data.invoices?.invoice_number,
