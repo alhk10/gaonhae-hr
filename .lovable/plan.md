@@ -1,131 +1,54 @@
-# Phase 6 Plan: Reporting Basis + Trial Balance + Balance Sheet
-
 ## Goal
-Add proper accounting reports on top of the ledger already built in earlier phases:
 
-- A finance-wide Cash / Accrual basis toggle
-- Trial Balance report
-- Balance Sheet report
-- Drill-down from reports into underlying ledger lines
-- CSV/PDF exports for the new reports
+Fix the Grade Certificate so it shows the belt the student **passed FROM** (their `current_belt` at the time of grading), not the new belt awarded.
 
-## User-facing changes
+For Kalli (current_belt = White, target = Yellow Tip, result = pass), the certificate should read:
 
-### 1. Finance basis toggle
-Add a visible toggle in the Finance area:
+> Has successfully passed the **White Belt**
 
-- Accrual basis: reports use posted journal dates and outstanding receivables/payables.
-- Cash basis: reports are adjusted to reflect received/paid cash timing where possible.
+…instead of "Yellow Tip Belt".
 
-The selected basis should persist per browser session so Finance, P&L, Tax, Trial Balance, and Balance Sheet stay consistent while navigating.
+## Root cause
 
-### 2. Trial Balance
-Create a new Finance report page:
+In `src/components/dashboard/BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx`:
 
-- Route: `/finance/reports/trial-balance`
-- Shows all ledger accounts for a selected period and branch.
-- Columns: Account Code, Account Name, Account Type, Debit, Credit, Net Balance.
-- Totals must balance: total debits = total credits.
-- Account rows are clickable to show the contributing journal lines.
-- Export to CSV and PDF.
+- **Certificate I** uses `beltAchieved = student.current_belt`. This is correct in spirit, but if a user clicked **Certificate II** (which uses `getNextBeltLevel(current_belt)`), or if `current_belt` had already been promoted via "Confirm Belt", the cert prints the next belt — which the user is interpreting as wrong.
+- The Kalli certificate in the screenshot shows "Yellow Tip", which means either Cert II was used OR the bulk-double path printed the next belt.
+- The user's rule: the certificate should always print the belt the student **passed (i.e. their pre-grading belt = `current_belt` on the grading registration)**.
 
-### 3. Balance Sheet
-Create a new Finance report page:
+## Changes
 
-- Route: `/finance/reports/balance-sheet`
-- Shows Assets, Liabilities, and Equity as of a selected date.
-- Includes subtotals per section and final accounting equation check:
-  - Assets = Liabilities + Equity
-- Supports branch filtering.
-- Optional comparison against prior month/period if cleanly supported by existing ledger data.
-- Export to CSV and PDF.
+### 1. `gradingCertificatePDFGenerator.ts`
+- No structural change needed. The text "Has successfully passed the {belt}" stays the same.
+- Add a clarifying JSDoc on `beltAchieved` so future devs know it should be the **belt passed FROM (pre-grading belt)**.
 
-### 4. Navigation updates
-Update the Finance dashboard so users can access:
+### 2. `src/components/dashboard/BranchGradingList.tsx`
+- `runCertificate(student, certificateNumber)`:
+  - Single certificate (Cert I) → `beltAchieved = registration.current_belt` (the belt at time of grading), falling back to `student.current_belt`.
+  - Cert II button → also use `current_belt` (since the rule is "passed FROM"). Effectively Cert II becomes a duplicate for single-pass students. **For double-pass students**, Cert II = `getNextBeltLevel(current_belt)` (the intermediate belt they also passed FROM on the way to double promotion).
+- `buildBulkInputs` (bulk print):
+  - Primary cert → `beltAchieved = current_belt` (already correct).
+  - Double-pass second cert → `beltAchieved = getNextBeltLevel(current_belt)` (already correct — this is the intermediate "passed FROM" belt for the second jump).
+  - No change needed for bulk; already aligned with new rule.
 
-- Live Branch P&L
-- Tax Centre
-- Trial Balance
-- Balance Sheet
-- Backfill tools
+### 3. `src/components/sales/GradingListTab.tsx`
+- Mirror the same fix as `BranchGradingList.tsx` (file is structurally identical for cert logic).
 
-## Technical implementation
+## Behaviour after fix
 
-### 1. Reporting basis context
-Add a small shared context/service:
+| Scenario | Cert I | Cert II |
+|---|---|---|
+| Single pass (e.g. Kalli, White → Yellow Tip) | "passed the **White Belt**" | "passed the **White Belt**" (same — Cert II only meaningful for doubles) |
+| Double pass (e.g. White → Yellow) | "passed the **White Belt**" | "passed the **Yellow Tip Belt**" (the intermediate belt) |
 
-- `FinanceBasisContext.tsx`
-- Tracks `cash` or `accrual`
-- Persists selection in `localStorage`
-- Used by Finance reports and tax/P&L pages where applicable
+## Out of scope
 
-### 2. Ledger reporting view
-Add a database migration for a normalized reporting view, likely:
+- No DB migration. Kalli's record is correct (current_belt=White, target=Yellow Tip, pass).
+- No change to the "Confirm Belt" flow that promotes `student.current_belt` after grading.
+- No change to certificate layout, fonts, or footer.
 
-- `v_ledger_lines`
+## Files to edit
 
-The view should join journal lines with:
-
-- journal entries
-- chart of accounts
-- branches where needed
-- tax code fields already added in Phase 5
-
-This keeps reports consistent and reduces duplicate query logic.
-
-### 3. Reporting services
-Add focused services:
-
-- `reportingBasisService.ts`
-  - Applies accrual/cash reporting rules.
-- `trialBalanceService.ts`
-  - Aggregates debits and credits by account.
-- `balanceSheetService.ts`
-  - Aggregates balances by account type and section.
-
-Services should use existing Supabase patterns and respect branch access/RLS.
-
-### 4. Export utilities
-Add or extend report export utilities:
-
-- Trial Balance CSV/PDF
-- Balance Sheet CSV/PDF
-
-Exports should use existing date formatting rules: DD/MM/YYYY via `@/utils/dateFormat` helpers.
-
-## Data and compliance rules
-
-- All report data remains stored in Supabase.
-- Reports derive from posted ledger/journal data, not from separate duplicated totals.
-- Existing country tax rules from Phase 5 remain intact.
-- No roles are stored on user/profile tables.
-- Existing branch access and RLS patterns must be respected.
-- User-facing dates must use DD/MM/YYYY helpers.
-
-## Validation checklist
-
-Before completion:
-
-- Confirm Finance navigation exposes the new reports.
-- Confirm Trial Balance totals balance.
-- Confirm Balance Sheet equation is shown and calculated.
-- Confirm basis toggle changes report output where cash/accrual differences exist.
-- Confirm CSV/PDF exports generate successfully.
-- Check affected integrations step by step:
-  - Finance dashboard navigation
-  - Ledger view/query service
-  - P&L/Tax compatibility with basis toggle
-  - Report drill-downs
-  - Export utilities
-
-## Implementation order
-
-1. Add database reporting view migration and Supabase types updates.
-2. Add reporting basis context and wrap Finance routes.
-3. Build Trial Balance service and page.
-4. Build Balance Sheet service and page.
-5. Add navigation cards/buttons in Finance dashboard.
-6. Add CSV/PDF exports.
-7. Validate report calculations and routing.
-
-Approve this plan to implement Phase 6.
+- `src/utils/gradingCertificatePDFGenerator.ts` (doc only)
+- `src/components/dashboard/BranchGradingList.tsx` (runCertificate)
+- `src/components/sales/GradingListTab.tsx` (runCertificate)
