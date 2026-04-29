@@ -562,6 +562,18 @@ export const updateSalaryPaymentStatus = async (
     }
     
     logger.info('Salary payment status updated successfully', { employeeId, isPaid });
+
+    // Phase 3: re-post payroll journals for this employee/period
+    try {
+      const { data: empRec } = await supabase
+        .from('payroll_records')
+        .select('id')
+        .eq('id', recordId)
+        .maybeSingle();
+      if (empRec?.id) void postPayrollJournals(empRec.id);
+    } catch (e) {
+      logger.error('Failed to post payroll journal after salary status change', e);
+    }
   });
 };
 
