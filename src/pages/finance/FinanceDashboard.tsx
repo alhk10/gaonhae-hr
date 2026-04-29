@@ -20,8 +20,7 @@ const TILES: Tile[] = [
   { to: '/finance/branch-pl-live',     title: 'Branch P&L (Live)',  desc: 'Real-time branch profit & loss', icon: Activity, ready: true },
   { to: '/finance/reports/profit-loss',title: 'Profit & Loss',      desc: 'Country / branch / consolidated', icon: BarChart3, ready: false },
   { to: '/finance/reports/balance-sheet', title: 'Balance Sheet',   desc: 'As-at date, comparative', icon: FileSpreadsheet, ready: false },
-  { to: '/finance/reports/gst-f5',     title: 'GST F5 (SG)',        desc: 'Singapore GST return', icon: Receipt, ready: false },
-  { to: '/finance/reports/bas',        title: 'BAS (AU)',           desc: 'Australian Business Activity Statement', icon: Receipt, ready: false },
+  { to: '/finance/tax',                title: 'Tax Centre',         desc: 'GST F5 (SG) and BAS (AU) returns from posted journals', icon: Receipt, ready: true },
   { to: '/finance/bank-accounts',      title: 'Bank Accounts',      desc: 'Statements & reconciliation', icon: Landmark, ready: false },
   { to: '/finance/branch-sales-import',title: 'Branch Sales Import',desc: 'CSV import for off-system branches', icon: Banknote, ready: false },
 ];
