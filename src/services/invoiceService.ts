@@ -763,6 +763,13 @@ export const updateInvoiceStatus = async (
       });
     }
 
+    // Phase 3: re-post accounting journal (or void on cancellation)
+    if (status === 'cancelled' || status === 'draft') {
+      void voidInvoiceJournal(invoiceId);
+    } else {
+      void postInvoiceIssuedJournal(invoiceId);
+    }
+
     return {
       ...data,
       student_name: data.students ? `${data.students.first_name} ${data.students.last_name}` : 'Unknown Student'
