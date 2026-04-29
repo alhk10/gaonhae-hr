@@ -4,6 +4,13 @@ import { formatDate } from '@/utils/dateFormat';
 const fmt = (n: number) =>
   n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+type Section = 'income' | 'cogs' | 'expenses';
+
+function findPrior(prior: PnlResult | null | undefined, section: Section, accountId: string): PnlRow | undefined {
+  if (!prior) return undefined;
+  return prior[section].find((x) => x.account_id === accountId);
+}
+
 export function exportPnlCsv(opts: {
   current: PnlResult;
   prior?: PnlResult | null;
@@ -18,17 +25,17 @@ export function exportPnlCsv(opts: {
   rows.push('');
   rows.push('"Section","Code","Account","This period","Prior"');
 
-  const writeSection = (label: string, list: PnlRow[]) => {
+  const writeSection = (label: string, section: Section, list: PnlRow[]) => {
     list.forEach((r) => {
-      const p = prior?.[sectionToKey(label)]?.find((x) => x.account_id === r.account_id);
+      const p = findPrior(prior, section, r.account_id);
       rows.push(`"${label}","${r.account_code}","${r.account_name.replace(/"/g, '""')}","${fmt(r.amount)}","${p ? fmt(p.amount) : ''}"`);
     });
   };
-  writeSection('Income', current.income);
+  writeSection('Income', 'income', current.income);
   rows.push(`"Total Income","","","${fmt(current.totals.income)}","${prior ? fmt(prior.totals.income) : ''}"`);
-  writeSection('Cost of Sales', current.cogs);
+  writeSection('Cost of Sales', 'cogs', current.cogs);
   rows.push(`"Gross Profit","","","${fmt(current.totals.grossProfit)}","${prior ? fmt(prior.totals.grossProfit) : ''}"`);
-  writeSection('Expenses', current.expenses);
+  writeSection('Expenses', 'expenses', current.expenses);
   rows.push(`"Total Expenses","","","${fmt(current.totals.expenses)}","${prior ? fmt(prior.totals.expenses) : ''}"`);
   rows.push(`"Net Profit","","","${fmt(current.totals.netProfit)}","${prior ? fmt(prior.totals.netProfit) : ''}"`);
 
@@ -42,12 +49,6 @@ export function exportPnlCsv(opts: {
   URL.revokeObjectURL(url);
 }
 
-function sectionToKey(label: string): keyof PnlResult {
-  if (label === 'Income') return 'income';
-  if (label === 'Cost of Sales') return 'cogs';
-  return 'expenses';
-}
-
 export async function exportPnlPdf(opts: {
   current: PnlResult;
   prior?: PnlResult | null;
@@ -55,46 +56,65 @@ export async function exportPnlPdf(opts: {
   from: string;
   to: string;
 }) {
-  const { jsPDF } = await import('jspdf');
-  const autoTable = (await import('jspdf-autotable')).default;
-  const doc = new jsPDF();
+  const jsPDFModule = await import('jspdf');
+  const JsPDFCtor = (jsPDFModule as any).default || (jsPDFModule as any).jsPDF;
+  const doc = new JsPDFCtor();
   const { current, prior, branchName, from, to } = opts;
 
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const leftX = 14;
+  const amtX = pageWidth - 60;
+  const priorX = pageWidth - 14;
+  let y = 16;
+
   doc.setFontSize(14);
-  doc.text(`Branch P&L — ${branchName}`, 14, 16);
+  doc.text(`Branch P&L — ${branchName}`, leftX, y);
+  y += 6;
   doc.setFontSize(10);
-  doc.text(`${formatDate(from)} to ${formatDate(to)}`, 14, 22);
+  doc.text(`${formatDate(from)} to ${formatDate(to)}`, leftX, y);
+  y += 8;
 
-  const buildBody = (rows: PnlRow[], section: keyof PnlResult) =>
-    rows.map((r) => {
-      const p = prior?.[section]?.find((x) => x.account_id === r.account_id);
-      return [`${r.account_code}  ${r.account_name}`, fmt(r.amount), p ? fmt(p.amount) : ''];
-    });
+  const writeHeader = (label: string) => {
+    doc.setFillColor(240, 240, 240);
+    doc.rect(leftX - 2, y - 4, pageWidth - leftX - 12, 6, 'F');
+    doc.setFont(undefined, 'bold');
+    doc.text(label, leftX, y);
+    doc.setFont(undefined, 'normal');
+    y += 6;
+  };
+  const writeRow = (label: string, amt: number, priorAmt?: number, bold = false) => {
+    if (y > 280) { doc.addPage(); y = 20; }
+    if (bold) doc.setFont(undefined, 'bold');
+    doc.text(label.slice(0, 60), leftX, y);
+    doc.text(fmt(amt), amtX, y, { align: 'right' });
+    if (priorAmt !== undefined) doc.text(fmt(priorAmt), priorX, y, { align: 'right' });
+    if (bold) doc.setFont(undefined, 'normal');
+    y += 5;
+  };
 
-  const body: any[] = [];
-  body.push([{ content: 'INCOME', colSpan: 3, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-  body.push(...buildBody(current.income, 'income'));
-  body.push([{ content: 'Total Income', styles: { fontStyle: 'bold' } }, { content: fmt(current.totals.income), styles: { fontStyle: 'bold' } }, prior ? fmt(prior.totals.income) : '']);
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'bold');
+  doc.text('Account', leftX, y);
+  doc.text('This period', amtX, y, { align: 'right' });
+  doc.text('Prior', priorX, y, { align: 'right' });
+  doc.setFont(undefined, 'normal');
+  y += 5;
 
-  if (current.cogs.length) {
-    body.push([{ content: 'COST OF SALES', colSpan: 3, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-    body.push(...buildBody(current.cogs, 'cogs'));
-  }
-  body.push([{ content: 'Gross Profit', styles: { fontStyle: 'bold' } }, { content: fmt(current.totals.grossProfit), styles: { fontStyle: 'bold' } }, prior ? fmt(prior.totals.grossProfit) : '']);
+  const renderSection = (sectionLabel: string, section: Section, list: PnlRow[]) => {
+    writeHeader(sectionLabel);
+    list.forEach((r) => writeRow(`${r.account_code}  ${r.account_name}`, r.amount, findPrior(prior, section, r.account_id)?.amount));
+  };
 
-  body.push([{ content: 'EXPENSES', colSpan: 3, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-  body.push(...buildBody(current.expenses, 'expenses'));
-  body.push([{ content: 'Total Expenses', styles: { fontStyle: 'bold' } }, { content: fmt(current.totals.expenses), styles: { fontStyle: 'bold' } }, prior ? fmt(prior.totals.expenses) : '']);
-
-  body.push([{ content: 'NET PROFIT', styles: { fontStyle: 'bold', fillColor: [220, 240, 220] } }, { content: fmt(current.totals.netProfit), styles: { fontStyle: 'bold', fillColor: [220, 240, 220] } }, { content: prior ? fmt(prior.totals.netProfit) : '', styles: { fillColor: [220, 240, 220] } }]);
-
-  autoTable(doc, {
-    head: [['Account', 'This period', 'Prior']],
-    body,
-    startY: 28,
-    styles: { fontSize: 9 },
-    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
-  });
+  renderSection('INCOME', 'income', current.income);
+  writeRow('Total Income', current.totals.income, prior?.totals.income, true);
+  if (current.cogs.length) renderSection('COST OF SALES', 'cogs', current.cogs);
+  writeRow('Gross Profit', current.totals.grossProfit, prior?.totals.grossProfit, true);
+  renderSection('EXPENSES', 'expenses', current.expenses);
+  writeRow('Total Expenses', current.totals.expenses, prior?.totals.expenses, true);
+  y += 2;
+  doc.setFillColor(220, 240, 220);
+  doc.rect(leftX - 2, y - 4, pageWidth - leftX - 12, 6, 'F');
+  writeRow('NET PROFIT', current.totals.netProfit, prior?.totals.netProfit, true);
 
   doc.save(`branch-pnl-${branchName}-${from}-to-${to}.pdf`);
 }
