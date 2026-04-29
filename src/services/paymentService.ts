@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { addOverpaymentCredit } from './studentCreditService';
+import { postPaymentJournal, voidPaymentJournal, postInvoiceIssuedJournal } from './accountingPostings';
 
 export interface Payment {
   id: string;
@@ -294,6 +295,10 @@ export const createPayment = async (paymentData: CreatePaymentData): Promise<Pay
       }
     });
 
+    // Phase 3: post payment + re-post invoice (its status may now be paid/partial)
+    void postPaymentJournal(payment.id);
+    void postInvoiceIssuedJournal(paymentData.invoice_id);
+
     return {
       ...payment,
       invoice_number: payment.invoices?.invoice_number,
@@ -336,6 +341,9 @@ export const updatePayment = async (
     if (error) {
       throw new Error(`Failed to update payment: ${error.message}`);
     }
+
+    // Phase 3: re-post in case verification status flipped
+    void postPaymentJournal(paymentId);
 
     return {
       ...data,
@@ -427,6 +435,10 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
         payment_method: payment.payment_method
       }
     });
+
+    // Phase 3: void payment journal & re-post invoice
+    void voidPaymentJournal(paymentId);
+    void postInvoiceIssuedJournal(payment.invoice_id);
   } catch (error) {
     logger.error('Error in deletePayment', error);
     throw error;

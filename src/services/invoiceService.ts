@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { createEnrollment, createScheduledClass } from './classEnrollmentService';
+import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
@@ -704,6 +705,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       }
     });
 
+    // Phase 3: post accounting journal (non-fatal)
+    void postInvoiceIssuedJournal(invoice.id);
+
     return {
       ...invoice,
       student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
@@ -757,6 +761,13 @@ export const updateInvoiceStatus = async (
         old_value: oldStatus,
         new_value: status
       });
+    }
+
+    // Phase 3: re-post accounting journal (or void on cancellation)
+    if (status === 'cancelled' || status === 'draft') {
+      void voidInvoiceJournal(invoiceId);
+    } else {
+      void postInvoiceIssuedJournal(invoiceId);
     }
 
     return {
@@ -956,6 +967,9 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     if (invoiceError) {
       throw new Error(`Failed to delete invoice: ${invoiceError.message}`);
     }
+
+    // Phase 3: void any posted accounting journals for this invoice
+    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in deleteInvoice', error);
     throw error;
@@ -1168,6 +1182,9 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
         total_refunded: totalPaid,
       }
     });
+
+    // Phase 3: void accounting journals on cancellation
+    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in cancelInvoice', error);
     throw error;

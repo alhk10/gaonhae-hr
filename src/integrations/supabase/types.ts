@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_backfill_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          force: boolean
+          from_date: string | null
+          id: string
+          modules: string[]
+          run_at: string
+          run_by: string | null
+          status: string
+          summary: Json
+          to_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          force?: boolean
+          from_date?: string | null
+          id?: string
+          modules?: string[]
+          run_at?: string
+          run_by?: string | null
+          status?: string
+          summary?: Json
+          to_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          force?: boolean
+          from_date?: string | null
+          id?: string
+          modules?: string[]
+          run_at?: string
+          run_by?: string | null
+          status?: string
+          summary?: Json
+          to_date?: string | null
+        }
+        Relationships: []
+      }
       admin_access: {
         Row: {
           attendance: boolean | null

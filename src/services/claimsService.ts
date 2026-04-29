@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { postClaimJournal } from './accountingPostings';
 
 export interface Claim {
   id: number;
@@ -199,6 +200,9 @@ export const updateClaimStatus = async (
     if (status === 'Approved' && claimData.branch_id && PARTNER_CLAIM_TYPES.includes(claimData.type)) {
       await syncClaimToBranchPL(claimData);
     }
+
+    // Phase 3: post accounting journal
+    void postClaimJournal(id);
 
     logger.info('Claim status updated successfully');
   } catch (error) {

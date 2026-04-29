@@ -1,149 +1,143 @@
-# Accounting Module (Xero-style) + Real-Time Branch P&L
+# Phase 3 — Auto-posting + Backfill
 
-A double-entry accounting layer on top of existing data (invoices, payments, payroll, claims, expenses, inventory) plus GST/BAS reporting, manual journals, financial statements, and bank reconciliation — separated by country (SG / AU). Also delivers a **new real-time Branch P&L** that replaces the existing manual one once feature-complete.
+Make every financial event in the existing modules automatically create a balanced journal in the new ledger, and provide a one-time backfill so historical data appears in the new reports.
 
-## Scope
+## What gets auto-posted
 
-- **Chart of Accounts** — pre-seeded SG + AU, editable
-- **General Ledger / Journal Entries** — auto-posted from existing modules + manual entries
-- **GST F5 (SG, 9%)** and **BAS (AU, 10% GST + W1/W2 PAYG)**
-- **Profit & Loss** and **Balance Sheet** — per branch, per country, consolidated
-- **Real-time Branch P&L (new page)** — replaces `/branch-profit-loss`
-- **Bank Accounts + CSV statement import + Reconciliation**
-- **Branch sales report import (CSV)** for branches not yet on the system
+| Trigger (existing module) | Journal posted |
+|---|---|
+| Invoice **issued/sent** | Dr A/R · Cr Sales Income (split by product → School Fees / Grading / Ad-Hoc / Uniform / Trial / Other) + Cr GST Payable |
+| Invoice **cancelled / voided** | Reverses the above |
+| Invoice **line refund** | Dr Sales Income + Dr GST Payable · Cr Student Credits (or Bank if cash refund) |
+| Payment **created** (verified or cash) | Dr Bank/Cash/PayNow · Cr A/R |
+| Payment **rejected/deleted** | Reverses |
+| Student **credit applied** to invoice | Dr Student Credits liability · Cr A/R |
+| Claim **approved** | Dr Staff Claims expense · Cr Claims Payable |
+| Claim **paid** (status → paid) | Dr Claims Payable · Cr Bank |
+| Branch **expense** added (`branch_profit_loss_entries` type=expense) | Dr Expense (mapped from category) · Cr Bank/Cash |
+| Inventory **order received** | Dr Inventory · Cr A/P |
+| Inventory **sold** (uniform invoice item) | Dr COGS · Cr Inventory (at cost) |
+| Payroll **finalized** | Dr Wages expense · Dr CPF/Super expense · Cr Wages Payable · Cr CPF/Super/PAYG payable |
+| Payroll **salary paid** | Dr Wages Payable · Cr Bank |
+| Payroll **CPF/Super paid** | Dr CPF/Super Payable · Cr Bank |
 
-## Architecture
+Each posting is tagged with `source_type` + `source_id` so we can detect duplicates and update/reverse cleanly when the source changes.
 
-```text
-                  Existing modules
-   invoices · payments · payroll · claims · branch_expenses · inventory
-                          │
-                          ▼  (auto-post triggers + service)
-                  ┌──────────────────┐
-                  │ journal_entries  │  ◄── manual journals UI
-                  │ + journal_lines  │
-                  └────────┬─────────┘
-                           │
-            ┌──────────────┼──────────────┬─────────────────┐
-            ▼              ▼              ▼                 ▼
-        P&L / BS       GST / BAS      Bank Recon     Real-time Branch P&L
-     (per country)    (per country)  (per bank acct)   (live, drilldown)
-```
+## How it's wired
 
-Every financial event becomes a balanced journal (debits = credits). All reports compute from `journal_lines` filtered by account type, period, branch, country. The new Branch P&L is a derived view of the same ledger, so it always stays in sync.
+**Service layer (`accountingService.ts`)** gains module-specific posters that take a domain object and produce balanced lines:
+- `postInvoiceIssuedJournal(invoice)`
+- `postInvoiceVoidJournal(invoice)`
+- `postPaymentJournal(payment, invoice)`
+- `postPaymentReversalJournal(payment, invoice)`
+- `postClaimApprovedJournal(claim)` / `postClaimPaidJournal(claim)`
+- `postBranchExpenseJournal(expenseRow)`
+- `postInventoryReceivedJournal(order)` / `postInventorySoldJournal(invoiceItem, costPrice)`
+- `postPayrollFinalizedJournal(payrollRecord)` / `postPayrollSalaryPaidJournal(...)` / `postPayrollStatutoryPaidJournal(...)`
 
-## Database (new tables)
+All go through one router: `postJournalForSource(sourceType, sourceId, payload)` which:
+1. Looks up branch + country from `branches`.
+2. Resolves account IDs from `chart_of_accounts` by **system code** (e.g. `1100` A/R, `4000` School Fees) — no hardcoded UUIDs.
+3. Idempotency: if a posted journal already exists for this `(source_type, source_id, sub_event)`, it's voided and replaced (so edits stay consistent).
+4. Posts the journal in `posted` status (no manual draft step for automated entries).
 
-Country derived from `branches.country`. RLS-guarded (superadmin write; branch staff read for their branch).
+**Hook points** — the existing services call the new posters at the end of their own functions, only after their main DB write succeeds:
+- `invoiceService.ts` → after status changes (draft→sent, sent→cancelled), after refund.
+- `paymentService.ts` → after create / verify / delete / reject.
+- `claimsService.ts` → after status update.
+- `branchOperatingService.ts` (and the P&L expense entry path) → after insert/update/delete on `branch_profit_loss_entries`.
+- `inventoryOrderService.ts` → after status → received.
+- `payrollService.ts` → after finalize, after salary_paid / cpf_paid flags flip.
+- Inventory COGS posts when a uniform/gear invoice item is included in a sent invoice (uses product cost from `products`).
 
-- **chart_of_accounts** — code, name, type (asset/liability/equity/income/expense), country, parent_id, gst_code, system_account, is_active
-- **tax_codes** — code, name, country, rate, report_box
-- **journal_entries** — id, entry_date, period, branch_id, country, source_type, source_id, narration, status (draft/posted/void)
-- **journal_lines** — journal_id, account_id, debit, credit, tax_code, tax_amount, branch_id, contact_ref (always balanced per journal)
-- **bank_accounts**, **bank_statements**, **bank_statement_lines**, **bank_csv_mappings**
-- **branch_sales_imports** — for non-system branches
-- **gst_returns** — country, period_start, period_end, status, totals jsonb, filed_at
-- **fiscal_periods** — country, period (YYYY-MM), is_locked
-- **payg_summary** (AU only) — monthly W1/W2 from payroll
+Failures in posting are **logged but do not roll back the source operation** — staff can re-run via the backfill below. A toast warning is shown to superadmins so problems are visible.
 
-## Auto-posting rules
+## Account mapping
 
-| Source | Dr | Cr |
-|---|---|---|
-| Invoice issued | A/R | Sales income + GST payable |
-| Payment received | Bank/Cash + Merchant fees | A/R |
-| Refund / credit | Sales income + GST | Student credits / Bank |
-| Payroll run | Wages expense + PAYG/CPF expense | Wages payable + Statutory payable |
-| Claim approved | Expense (per type) + GST input | Claims payable |
-| Branch expense | Expense + GST input | Bank/Cash payable |
-| Inventory purchase | Inventory + GST input | A/P |
-| Inventory sold | COGS | Inventory |
-| Manual | user-defined | user-defined |
-
-Implemented as `accountingService.postJournalForSource()` called from existing services, plus a one-time `accounting-backfill` edge function to journal historical data from a chosen start date.
-
-## Real-Time Branch P&L (replacement page)
-
-New page at `/finance/branch-pl-live` (eventually swapped into the current `/branch-profit-loss` route).
-
-- Pulls live from `journal_lines` filtered by branch_id + period; no manual entry of revenue figures.
-- **Real-time updates** via Supabase Realtime on `journal_entries` / `journal_lines` — invoice paid, payroll run, expense added → live update without refresh.
-- Period selector: month / quarter / YTD / custom; comparative column vs prior period.
-- Grouping: Income → COGS → Gross Profit → Operating Expenses → Net Profit (mirrors seeded CoA).
-- Drilldown: click any account row to see contributing journals with link back to source invoice/payment/payroll.
-- Manual adjustments still possible via standard manual journals (auditable), not free-text edits in the grid.
-- Partner share view preserved (multiplied by `partner_branch_shares.share_percentage`).
-- PDF export reuses current Branch P&L styling for continuity.
-
-**Migration / phase-out**
-1. Build new page alongside the existing one — both visible, new one labelled "P&L (Live)".
-2. Run `accounting-backfill` over the legacy report's period for side-by-side comparison.
-3. **Reconciliation tool** — variance per category between legacy `branch_profit_loss_entries` and the new ledger; superadmin posts adjustment journals to close gaps.
-4. Once superadmin signs off (per branch), legacy page hidden behind a `legacyBranchPL` flag in `system_settings`.
-5. After 1 full reporting period with no issues, legacy page is removed; `branch_profit_loss_entries` / `pl_categories` / `published_pl_reports` archived (renamed `_legacy`, read-only for audit).
-
-## Pages (new Finance section)
+A single `mapping` table built from the seeded CoA system codes (constants in `accountingMappings.ts`):
 
 ```text
-/finance
-  ├─ /chart-of-accounts
-  ├─ /journals + /journals/new
-  ├─ /bank-accounts
-  ├─ /bank-import                CSV upload + column-mapper
-  ├─ /bank-reconciliation/:id    2-pane match UI
-  ├─ /branch-sales-import        CSV for non-system branches
-  └─ /reports
-       ├─ /branch-pl-live        ← replacement for current Branch P&L
-       ├─ /profit-loss           country/branch/consolidated
-       ├─ /balance-sheet         as-at date, comparative
-       ├─ /general-ledger        account drilldown
-       ├─ /gst-f5  (SG)          Box 1–16, draft → mark filed
-       └─ /bas     (AU)          G1, G2, G3, G10, G11, 1A, 1B, W1, W2
+A/R                = code 1100
+Student Credits    = code 1110 (asset) / 2300 (liability)
+GST Output         = code 2100
+GST Input          = code 2110
+Bank               = code 1010   (PayNow → 1020 SG, fallback 1010)
+Cash               = code 1000
+A/P                = code 2000
+Wages Payable      = code 2200
+CPF Payable        = code 2210 (SG); Super Payable 2230 (AU); PAYG 2150 (AU)
+Claims Payable     = code 2400
+Inventory          = code 1200
+COGS               = code 5000
+Wages              = code 6000
+Casual Coaching    = code 6010
+Staff Claims       = code 6040
+School Fees        = code 4000   (Term)
+Grading Fees       = code 4010
+Ad-Hoc Lessons     = code 4020
+Uniform & Gear     = code 4030
+Trial              = code 4040
+Other Income       = code 4090
+Sales Discounts    = code 4900   (contra-income)
 ```
 
-Sidebar gains a **Finance** section, gated to superadmin (and roles via a new `admin_access.finance` flag).
+Income classification picks the right code per invoice line by inspecting `product_id` → product `category` (Term / Grading / Ad-Hoc / Uniform / Trial). For branch expenses, a category-to-code table maps existing P&L categories ("Rent", "Utilities", "Marketing", etc.) to existing or auto-created expense accounts under code range 6100+.
 
-## Bank CSV import flow
+## Backfill — `accounting-backfill` Edge Function
 
-1. Pick bank account, upload CSV.
-2. Saved mapping for that bank auto-applies; otherwise show column-mapper (date, description, amount OR debit/credit, balance, date format).
-3. Preview rows → Commit → land in `bank_statement_lines` as `unmatched`.
-4. Reconciliation: suggest matches by amount + date proximity; user clicks **Match**, **Create journal**, or **Transfer**. Matched lines become `reconciled`.
+A single edge function (`supabase/functions/accounting-backfill/index.ts`) that superadmins can run from a new **Backfill** card in `/finance` (date range + module checkboxes).
 
-Pre-seeded mappings: **SG** DBS, OCBC, UOB. **AU** CBA, NAB, ANZ, Westpac.
+**Behaviour**
+- Idempotent: scans existing posted journals by `(source_type, source_id)` and skips ones already booked unless `force=true`.
+- Modules selectable: `invoices`, `payments`, `claims`, `branch_expenses`, `inventory`, `payroll` — or `all`.
+- Date range: `from` / `to` (default = current fiscal year).
+- Runs in batches of 200 and streams progress (returns `{module, total, posted, skipped, failed}`).
+- Auth: requires JWT + checks the caller is in `superadmin_users` (uses service-role client internally).
+- Logs each failure into the existing `security_audit_log` with `action='backfill_failure'`.
 
-## Tax computation
+A small `BackfillRunner.tsx` UI under `/finance/backfill` lets superadmins:
+- Pick date range, modules, force re-post checkbox.
+- Click Run → shows per-module summary table.
+- Lists last 5 runs (stored in a new `accounting_backfill_runs` table).
 
-- **GST F5 (SG)**: Box 1 Standard-rated · Box 2 Zero-rated · Box 3 Exempt · Box 5 Taxable purchases · Box 6 Output tax · Box 7 Input tax · Box 8 Net.
-- **BAS (AU)**: G1 Total sales · G2 Export · G3 GST-free · G10 Capital · G11 Non-capital · 1A GST on sales · 1B GST on purchases · W1 Gross wages (from payroll) · W2 PAYG withheld. Quarterly or monthly, lockable once filed.
+## New / changed files
 
-## Reports — country separation
+```text
+src/services/accountingMappings.ts         (new — code→accountId resolver, cached)
+src/services/accountingPostings.ts         (new — module-specific posters)
+src/services/accountingService.ts          (extend: postJournalForSource router + idempotency helper)
+src/services/invoiceService.ts             (call postings after status/refund changes)
+src/services/paymentService.ts             (call postings on create/verify/delete)
+src/services/claimsService.ts              (call postings on approve/paid)
+src/services/branchOperatingService.ts     (call postings on expense entry CRUD)
+src/services/inventoryOrderService.ts      (call postings on received)
+src/services/payrollService.ts             (call postings on finalize / paid flips)
 
-P&L and Balance Sheet filterable by **country** (default SG), **branch**, or **consolidated**. Per-country presentation templates (SGD / AUD, local layout). Comparative columns (vs prior / YTD). Dates use `@/utils/dateFormat` (DD/MM/YYYY).
+supabase/functions/accounting-backfill/index.ts
+src/pages/finance/BackfillRunner.tsx       (UI in /finance/backfill)
+src/App.tsx                                (route)
+src/pages/finance/FinanceDashboard.tsx     (new tile)
+```
 
-## Integration with existing modules
+## Database additions (small)
 
-- Hook into `invoiceService`, `paymentService`, `payrollService`, `claimsService`, branch P&L expenses, `inventoryService` to post journals on every state change.
-- `accounting-backfill` edge function (idempotent, dated range + module list).
-- Supabase Realtime channels broadcast new journals → live P&L reacts.
+- `accounting_backfill_runs` — `id, run_at, run_by, modules, from_date, to_date, summary jsonb` (superadmin-only RLS).
 
-## Phased delivery (each phase shippable)
+No changes to existing tables.
 
-1. **Foundation** — schema, CoA seed (SG+AU), tax codes, RLS, sidebar entry, CoA UI. ✅ done
-2. **Journals** — entries/lines tables, manual journal UI, GL drilldown. ✅ done
-3. **Auto-posting + backfill** — wire existing modules; backfill edge function.
-4. **Real-time Branch P&L** — new page, realtime subscriptions, drilldown, PDF.
-5. **P&L + Balance Sheet (country/consolidated)** + comparatives.
-6. **GST F5 + BAS** — calculation, draft/file, period lock.
-7. **Bank accounts + CSV import** — mapping presets, preview, commit.
-8. **Reconciliation** — 2-pane match UI, suggestions, on-the-fly journals.
-9. **Branch sales import** — CSV → journal for non-system branches.
-10. **Legacy P&L decommission** — reconciliation tool, feature flag, archive tables.
+## Safety & migration
 
-## Out of scope (later)
+- Posting is wrapped in try/catch; failures are surfaced as console + toast for superadmin only.
+- All auto-postings carry `source_type != 'manual'` so they're easy to find and bulk re-issue.
+- Replacing an automated journal: void old (status→void), insert new posted journal — keeps audit trail.
+- The legacy Branch P&L is untouched; new ledger runs in parallel until Phase 10.
 
-Multi-currency revaluation, fixed-asset depreciation schedules, e-invoicing/PEPPOL, direct IRAS/ATO API filing, OCR receipts.
+## Out of scope for this phase
+
+- Reconciliation between legacy P&L and new ledger (Phase 10).
+- The new real-time Branch P&L page (Phase 4).
+- Bank statement import (Phase 7).
 
 ---
 
-Phases 1–2 complete. Approve to continue with **Phase 3 (Auto-posting + backfill)**.
+Approve to implement Phase 3.

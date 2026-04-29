@@ -51,6 +51,7 @@ const Journals = lazy(() => import('./pages/finance/Journals'));
 const NewJournal = lazy(() => import('./pages/finance/NewJournal'));
 const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
 const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
+const BackfillRunner = lazy(() => import('./pages/finance/BackfillRunner'));
 
 // Position-based access guard
 const PositionAccessGuard = lazy(() => import('./components/auth/PositionAccessGuard'));
@@ -176,6 +177,7 @@ function App() {
                     <Route path="/finance/journals/new" element={<ProtectedRoute><NewJournal /></ProtectedRoute>} />
                     <Route path="/finance/journals/:id" element={<ProtectedRoute><JournalDetail /></ProtectedRoute>} />
                     <Route path="/finance/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
+                    <Route path="/finance/backfill" element={<ProtectedRoute><BackfillRunner /></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />

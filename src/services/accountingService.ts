@@ -314,13 +314,93 @@ export async function deleteJournal(id: string): Promise<void> {
 }
 
 /**
- * Stub for Phase 3: every existing module will call this to post a balanced journal
- * for a given source event (invoice paid, payroll run, claim approved, etc).
+ * Find existing posted journal(s) for a source event.
+ * `subEvent`, when supplied, is appended to `reference` to scope the lookup
+ * (e.g. invoice id may have multiple journals: "issued", "void", "refund:itemId").
  */
-export async function postJournalForSource(
-  _sourceType: JournalSourceType,
-  _sourceId: string,
-  _payload: Record<string, unknown>,
-): Promise<void> {
-  // Implemented in Phase 3.
+export async function findJournalsBySource(
+  sourceType: JournalSourceType,
+  sourceId: string,
+  subEvent?: string,
+): Promise<JournalEntry[]> {
+  let q = supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('source_type', sourceType)
+    .eq('source_id', sourceId)
+    .neq('status', 'void');
+  if (subEvent) q = q.eq('reference', subEvent);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as JournalEntry[];
+}
+
+/**
+ * Idempotent posting helper. If a non-void journal already exists for the
+ * (sourceType, sourceId, subEvent) tuple it is voided and replaced.
+ *
+ * Returns the new posted journal id, or null if `lines` was empty.
+ */
+export async function postJournalForSource(input: {
+  sourceType: JournalSourceType;
+  sourceId: string;
+  subEvent?: string;
+  entry_date: string;
+  country: Country;
+  branch_id?: string | null;
+  narration?: string | null;
+  created_by?: string | null;
+  lines: JournalLineDraft[];
+}): Promise<string | null> {
+  if (!input.lines || input.lines.length === 0) return null;
+
+  // Filter zero-amount lines and verify balanced
+  const lines = input.lines.filter(
+    (l) => Math.round((Number(l.debit || 0) + Number(l.credit || 0)) * 100) > 0,
+  );
+  if (lines.length < 2) return null;
+
+  // Void prior matching journals (idempotency)
+  const prior = await findJournalsBySource(input.sourceType, input.sourceId, input.subEvent);
+  for (const p of prior) {
+    if (p.status === 'posted') {
+      await voidJournal(p.id, input.created_by ?? null);
+    } else if (p.status === 'draft') {
+      await deleteJournal(p.id);
+    }
+  }
+
+  const created = await createJournal({
+    entry_date: input.entry_date,
+    country: input.country,
+    branch_id: input.branch_id ?? null,
+    narration: input.narration ?? null,
+    reference: input.subEvent ?? null,
+    source_type: input.sourceType,
+    source_id: input.sourceId,
+    created_by: input.created_by ?? null,
+    lines,
+    post: true,
+  });
+  return created.id;
+}
+
+/** Void all non-void journals for a source event (used on cancel/delete). */
+export async function voidJournalsForSource(
+  sourceType: JournalSourceType,
+  sourceId: string,
+  voidedBy?: string | null,
+): Promise<number> {
+  const prior = await findJournalsBySource(sourceType, sourceId);
+  let n = 0;
+  for (const p of prior) {
+    if (p.status === 'posted') {
+      await voidJournal(p.id, voidedBy ?? null);
+      n++;
+    } else if (p.status === 'draft') {
+      await deleteJournal(p.id);
+      n++;
+    }
+  }
+  return n;
 }

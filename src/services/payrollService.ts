@@ -4,6 +4,7 @@ import { getEmployeeClaims } from './claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { logger } from '@/utils/logger';
 import { withSessionRefresh, ensureValidSession } from './sessionRefreshService';
+import { postPayrollJournals } from './accountingPostings';
 
 export interface PayrollData {
   baseSalary: number;
@@ -428,6 +429,20 @@ export const finalizePayroll = async (period: string, userId: string): Promise<v
       logger.error('Error finalizing payroll:', error);
       throw new Error(`Failed to finalize payroll: ${error.message}`);
     }
+
+    // Phase 3: post journals for every per-employee record in this period
+    try {
+      const { data: empRecs } = await supabase
+        .from('payroll_records')
+        .select('id')
+        .eq('month', period)
+        .neq('id', recordId);
+      for (const r of empRecs || []) {
+        void postPayrollJournals(r.id);
+      }
+    } catch (e) {
+      logger.error('Failed to enqueue payroll postings', e);
+    }
   });
 };
 
@@ -547,6 +562,18 @@ export const updateSalaryPaymentStatus = async (
     }
     
     logger.info('Salary payment status updated successfully', { employeeId, isPaid });
+
+    // Phase 3: re-post payroll journals for this employee/period
+    try {
+      const { data: empRec } = await supabase
+        .from('payroll_records')
+        .select('id')
+        .eq('id', recordId)
+        .maybeSingle();
+      if (empRec?.id) void postPayrollJournals(empRec.id);
+    } catch (e) {
+      logger.error('Failed to post payroll journal after salary status change', e);
+    }
   });
 };
 
@@ -608,6 +635,13 @@ export const updateCpfPaymentStatus = async (
     }
     
     logger.info('CPF payment status updated successfully', { employeeId, isPaid });
+
+    // Phase 3: re-post payroll journals for this employee/period
+    try {
+      void postPayrollJournals(recordId);
+    } catch (e) {
+      logger.error('Failed to post payroll journal after CPF status change', e);
+    }
   });
 };
 

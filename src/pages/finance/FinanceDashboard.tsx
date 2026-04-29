@@ -16,6 +16,7 @@ const TILES: Tile[] = [
   { to: '/finance/chart-of-accounts', title: 'Chart of Accounts', desc: 'Manage GL accounts (SG + AU)', icon: BookOpen, ready: true },
   { to: '/finance/journals',           title: 'Journals',           desc: 'View and post journal entries', icon: FileText, ready: true },
   { to: '/finance/general-ledger',     title: 'General Ledger',     desc: 'Account drill-down (posted entries)', icon: BookOpen, ready: true },
+  { to: '/finance/backfill',           title: 'Accounting Backfill', desc: 'Scan historical records into the new ledger', icon: Activity, ready: true },
   { to: '/finance/branch-pl-live',     title: 'Branch P&L (Live)',  desc: 'Real-time branch profit & loss', icon: Activity, ready: false },
   { to: '/finance/reports/profit-loss',title: 'Profit & Loss',      desc: 'Country / branch / consolidated', icon: BarChart3, ready: false },
   { to: '/finance/reports/balance-sheet', title: 'Balance Sheet',   desc: 'As-at date, comparative', icon: FileSpreadsheet, ready: false },
