@@ -429,6 +429,20 @@ export const finalizePayroll = async (period: string, userId: string): Promise<v
       logger.error('Error finalizing payroll:', error);
       throw new Error(`Failed to finalize payroll: ${error.message}`);
     }
+
+    // Phase 3: post journals for every per-employee record in this period
+    try {
+      const { data: empRecs } = await supabase
+        .from('payroll_records')
+        .select('id')
+        .eq('month', period)
+        .neq('id', recordId);
+      for (const r of empRecs || []) {
+        void postPayrollJournals(r.id);
+      }
+    } catch (e) {
+      logger.error('Failed to enqueue payroll postings', e);
+    }
   });
 };
 
