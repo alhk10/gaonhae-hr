@@ -461,13 +461,18 @@ export async function postInventoryReceivedJournal(orderId: string): Promise<voi
  */
 interface PayrollDataLite {
   grossPay?: number;
+  grossSalary?: number;
   netPay?: number;
+  employerCPF?: number;
+  employeeCPF?: number;
   cpfEmployer?: number;
   cpfEmployee?: number;
   sdl?: number;
   super?: number;
+  superannuation?: number;
   payg?: number;
   branchId?: string | null;
+  branch_id?: string | null;
 }
 
 export async function postPayrollJournals(payrollRecordId: string): Promise<void> {
