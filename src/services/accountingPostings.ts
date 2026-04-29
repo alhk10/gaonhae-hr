@@ -414,7 +414,8 @@ export async function postInventoryReceivedJournal(orderId: string): Promise<voi
     if (error) throw error;
     if (!o) return null;
 
-    if ((o.status || '').toLowerCase() !== 'received') {
+    const status = (o.status || '').toLowerCase();
+    if (status !== 'received' && status !== 'approved') {
       await voidJournalsForSource('inventory', o.id);
       return null;
     }
