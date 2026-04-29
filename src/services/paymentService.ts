@@ -435,6 +435,10 @@ export const deletePayment = async (paymentId: string): Promise<void> => {
         payment_method: payment.payment_method
       }
     });
+
+    // Phase 3: void payment journal & re-post invoice
+    void voidPaymentJournal(paymentId);
+    void postInvoiceIssuedJournal(payment.invoice_id);
   } catch (error) {
     logger.error('Error in deletePayment', error);
     throw error;
