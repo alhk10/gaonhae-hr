@@ -499,15 +499,15 @@ export async function postPayrollJournals(payrollRecordId: string): Promise<void
       .maybeSingle();
 
     const pd = (rec.payroll_data || {}) as PayrollDataLite;
-    const branchId = pd.branchId || null;
+    const branchId = pd.branchId || pd.branch_id || null;
     const country = await getBranchCountry(branchId);
 
-    const gross = r2(pd.grossPay || 0);
-    const net = r2(pd.netPay || gross);
-    const cpfEr = r2(pd.cpfEmployer || 0);
-    const cpfEe = r2(pd.cpfEmployee || 0);
-    const sdl = r2(pd.sdl || 0);
-    const sup = r2(pd.super || 0);
+    const gross = r2(pd.grossPay ?? pd.grossSalary ?? 0);
+    const net = r2(pd.netPay ?? gross);
+    const cpfEr = r2(pd.employerCPF ?? pd.cpfEmployer ?? 0);
+    const cpfEe = r2(pd.employeeCPF ?? pd.cpfEmployee ?? 0);
+    const sdl = r2(pd.sdl ?? 0);
+    const sup = r2(pd.super ?? pd.superannuation ?? 0);
     const payg = r2(pd.payg || 0);
 
     const dateBase = parsePayrollMonth(String(rec.month), rec.year);
