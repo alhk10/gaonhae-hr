@@ -967,6 +967,9 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     if (invoiceError) {
       throw new Error(`Failed to delete invoice: ${invoiceError.message}`);
     }
+
+    // Phase 3: void any posted accounting journals for this invoice
+    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in deleteInvoice', error);
     throw error;
