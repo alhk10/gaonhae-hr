@@ -635,6 +635,13 @@ export const updateCpfPaymentStatus = async (
     }
     
     logger.info('CPF payment status updated successfully', { employeeId, isPaid });
+
+    // Phase 3: re-post payroll journals for this employee/period
+    try {
+      void postPayrollJournals(recordId);
+    } catch (e) {
+      logger.error('Failed to post payroll journal after CPF status change', e);
+    }
   });
 };
 
