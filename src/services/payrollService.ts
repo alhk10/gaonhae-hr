@@ -4,6 +4,7 @@ import { getEmployeeClaims } from './claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { logger } from '@/utils/logger';
 import { withSessionRefresh, ensureValidSession } from './sessionRefreshService';
+import { postPayrollJournals } from './accountingPostings';
 
 export interface PayrollData {
   baseSalary: number;
