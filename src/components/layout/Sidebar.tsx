@@ -23,7 +23,8 @@ import {
   Award,
   FileCheck,
   Building2,
-  Video
+  Video,
+  BookOpen
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
