@@ -1182,6 +1182,9 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
         total_refunded: totalPaid,
       }
     });
+
+    // Phase 3: void accounting journals on cancellation
+    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in cancelInvoice', error);
     throw error;
