@@ -124,3 +124,18 @@ These rates live in `tax_codes.rate` so the SG GST hike or AU rate change is a o
 ---
 
 Approve to implement Phase 5.
+
+---
+
+## Phase 5 — DONE
+
+Implemented Tax Centre at /finance/tax:
+- Migration: tax_returns table (locked snapshots, RLS) + tax_base_amount column on journal_lines.
+- Reused existing tax_codes (Singapore SG-SR/ZR/ES/OS/TX/BL/NR + Australia AU-GST/FRE/EXP/INP/CAP/NT).
+- taxService.ts: getTaxReturn computes GST F5 boxes 1–9 (SG) or BAS labels G1/G2/G3/G10/G11/1A/1B/Net (AU) directly from posted journal_lines aggregated by tax_code_id; lock/unlock; period presets.
+- taxExport.ts: filing-ready PDF + CSV (jsPDF, no autotable dep).
+- TaxCentre.tsx: branch-driven country auto-switch, period presets, lock period, return history table.
+- accountingMappings: added getTaxCodeId + standardOutputTaxCode helpers and a tax-code cache.
+- accountingPostings (invoice): GST output line now tagged with country's standard-rated tax code, tax_amount and tax_base_amount (net supply) — feeds the Tax Centre automatically. Backfill (Phase 3) re-runs to historise tax tagging on past invoices.
+- accountingService: JournalLineDraft + insert payload extended with tax_base_amount.
+- Wired into App.tsx route + FinanceDashboard tile (replaces the two "coming soon" GST-F5 / BAS tiles).
