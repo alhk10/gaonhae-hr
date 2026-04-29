@@ -78,6 +78,28 @@ export function clearAccountCache(country?: Country) {
   else cache.clear();
 }
 
+/** Tax-code id cache by country+code. */
+const taxCache = new Map<Country, Map<string, string>>();
+async function loadTaxCodes(country: Country): Promise<Map<string, string>> {
+  if (taxCache.has(country)) return taxCache.get(country)!;
+  const { data, error } = await supabase.from('tax_codes').select('id, code').eq('country', country);
+  if (error) throw error;
+  const m = new Map<string, string>();
+  (data || []).forEach((r: { id: string; code: string }) => m.set(r.code, r.id));
+  taxCache.set(country, m);
+  return m;
+}
+
+export async function getTaxCodeId(country: Country, code: string): Promise<string | null> {
+  const m = await loadTaxCodes(country);
+  return m.get(code) || null;
+}
+
+/** Standard-rated output tax code for the given country. */
+export async function standardOutputTaxCode(country: Country): Promise<string | null> {
+  return getTaxCodeId(country, country === 'Singapore' ? 'SG-SR' : 'AU-GST');
+}
+
 /** Resolve the bank-side account from a payment method. */
 export async function resolveBankAccount(country: Country, method?: string | null): Promise<string> {
   const m = (method || '').toLowerCase();
