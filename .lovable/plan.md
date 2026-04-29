@@ -97,3 +97,16 @@ supabase/migrations/<timestamp>_pnl_view.sql  (v_pnl_lines view + RLS-equivalent
 ---
 
 Approve to implement Phase 4.
+
+
+---
+
+## Phase 4 — DONE
+
+Implemented real-time Branch P&L at /finance/branch-pl-live:
+- Postgres view v_pnl_lines (security_invoker) aggregates posted income/expense lines with signed amounts.
+- branchPnlLiveService.ts: getBranchPnl, periodFromPreset, shiftPriorPeriod, subscribePnlChanges (realtime via journal_lines + journal_entries channels, 800ms debounce).
+- pnlExport.ts: CSV + PDF export (jsPDF, no autotable dep).
+- BranchPnlLive page: branch / period / compare-to filters, live indicator, drill-down per row to General Ledger.
+- Wired into App.tsx route + FinanceDashboard tile (ready=true).
+
