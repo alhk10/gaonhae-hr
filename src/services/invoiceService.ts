@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { createEnrollment, createScheduledClass } from './classEnrollmentService';
+import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
