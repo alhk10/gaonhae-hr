@@ -115,6 +115,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <Router>
           <AuthProvider>
+            <AuthQueryCacheBridge />
             <ScreenLockProvider>
                 <div className="min-h-screen bg-background">
                 <Suspense fallback={<LoadingFallback />}>
