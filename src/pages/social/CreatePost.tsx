@@ -20,7 +20,7 @@ import CopyButton from '@/components/social/CopyButton';
 import PlatformBadge from '@/components/social/PlatformBadge';
 import { generateCaption, type RegenMode } from '@/services/social/aiService';
 import {
-  createDraftPost, updatePost, uploadMedia, markPlatformPosted,
+  createDraftPost, updatePost, uploadMedia, markPlatformPosted, registerExistingMedia,
 } from '@/services/social/postService';
 import { listBrandSettings } from '@/services/social/brandService';
 import {
@@ -28,6 +28,7 @@ import {
   type Platform, type PlatformCaption, type PlatformCaptions, type PostedPlatforms,
 } from '@/lib/social/platforms';
 import { downloadMediaBundle, formatCaptionForCopy, formatHashtagsForCopy } from '@/lib/social/exportHelpers';
+import AiImageGenerator from '@/components/social/AiImageGenerator';
 
 const CONTENT_TYPES = [
   'Achievement', 'Grading', 'Kids Class', 'Sparring', 'Poomsae',
@@ -86,6 +87,30 @@ const CreatePost = () => {
       if (it) URL.revokeObjectURL(it.url);
       return m.filter((x) => x.id !== id);
     });
+  };
+
+  const addAiGeneratedImage = async (img: { url: string; path: string; mime: string }) => {
+    try {
+      const resp = await fetch(img.url);
+      const blob = await resp.blob();
+      const ext = (img.mime.split('/')[1] || 'png').split(';')[0];
+      const fname = `ai-${Date.now()}.${ext}`;
+      const file = new File([blob], fname, { type: img.mime });
+      const localUrl = URL.createObjectURL(blob);
+      // Register in sm_media_assets so ensureMediaUploaded skips re-upload
+      const reg = await registerExistingMedia(branch, img.path, img.mime);
+      setMedia((m) => [
+        ...m,
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          file,
+          url: localUrl,
+          uploaded: { path: reg.path, assetId: reg.assetId },
+        },
+      ]);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to attach generated image');
+    }
   };
 
   const togglePlatform = (p: Platform) => {
