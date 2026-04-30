@@ -376,7 +376,7 @@ export function SlotBreakdownDialog({
                       </div>
                     ))}
                   </div>
-                  {fullSlotRate && (
+                  {typeof fullSlotRate === 'number' && fullSlotRate > 0 && (
                     <div className="flex justify-between text-sm font-bold border-t border-border pt-1.5 mt-1.5">
                       <span>Total Rate</span>
                       <span className="text-primary">S${fullSlotRate.toFixed(2)}</span>
@@ -384,7 +384,7 @@ export function SlotBreakdownDialog({
                   )}
                   <p className="text-xs text-muted-foreground italic">Pay is prorated based on hours worked</p>
                 </div>
-              ) : fullSlotRate ? (
+              ) : typeof fullSlotRate === 'number' && fullSlotRate > 0 ? (
                 <p className="text-muted-foreground">
                   Full slot rate (inc. bonuses): <span className="font-semibold text-primary">S${fullSlotRate.toFixed(2)}</span>
                   <span className="text-xs ml-1">(prorated based on hours worked)</span>
