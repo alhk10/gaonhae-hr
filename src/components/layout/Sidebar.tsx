@@ -24,7 +24,9 @@ import {
   FileCheck,
   Building2,
   Video,
-  BookOpen
+  BookOpen,
+  Share2,
+  ChevronRight,
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -37,6 +39,35 @@ interface MenuItem {
   label: string;
   path: string;
 }
+
+interface MenuGroup {
+  type: 'group';
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  basePath: string;
+  storageKey: string;
+  children: MenuItem[];
+}
+
+type MenuEntry = MenuItem | MenuGroup;
+const isGroup = (e: MenuEntry): e is MenuGroup => (e as MenuGroup).type === 'group';
+
+const SOCIAL_MEDIA_GROUP: MenuGroup = {
+  type: 'group',
+  icon: Share2,
+  label: 'Social Media',
+  basePath: '/social',
+  storageKey: 'sidebar.socialMedia.open',
+  children: [
+    { icon: BarChart3, label: 'Dashboard', path: '/social/dashboard' },
+    { icon: FileText, label: 'Create Post', path: '/social/create' },
+    { icon: CalendarClock, label: 'Scheduled Posts', path: '/social/scheduled' },
+    { icon: Calendar, label: 'Content Calendar', path: '/social/calendar' },
+    { icon: Settings, label: 'Brand Settings', path: '/social/brand' },
+    { icon: BarChart3, label: 'Analytics', path: '/social/analytics' },
+    { icon: Award, label: 'AI Suggestions', path: '/social/suggestions' },
+  ],
+};
 
 import { validateSuperadminAccess, logAuthState } from '@/utils/authValidation';
 import { systemValidator } from '@/utils/systemTestValidator';
