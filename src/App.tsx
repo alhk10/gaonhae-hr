@@ -7,6 +7,7 @@ import { ScreenLockProvider } from './contexts/ScreenLockContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner";
 import AuthGuard from './components/auth/AuthGuard';
+import AuthQueryCacheBridge from './components/auth/AuthQueryCacheBridge';
 import PageAccessGuard from './components/auth/PageAccessGuard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { QUERY_CONFIG } from './config/constants';
