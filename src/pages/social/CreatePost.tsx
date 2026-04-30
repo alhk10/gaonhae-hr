@@ -403,6 +403,22 @@ const CreatePost = () => {
                 />
               </div>
 
+              {media.length === 0 && (
+                <div className="mt-4">
+                  <AiImageGenerator
+                    branch={branch}
+                    defaultPrompt={[
+                      contentType,
+                      eventName && `Event: ${eventName}`,
+                      studentName && `Student: ${studentName}`,
+                      instructorName && `Instructor: ${instructorName}`,
+                      notes,
+                    ].filter(Boolean).join(' — ')}
+                    onGenerated={addAiGeneratedImage}
+                  />
+                </div>
+              )}
+
               {media.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
                   {media.map((m) => (
