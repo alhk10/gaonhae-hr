@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Save, Sparkles, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Save, Sparkles } from 'lucide-react';
 import SocialLayout from '@/components/layout/SocialLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -25,7 +24,6 @@ import {
   type SmBranch,
 } from '@/services/social/brandService';
 import { generateCaption } from '@/services/social/aiService';
-import { listIgAccounts, disconnectIgAccount } from '@/services/social/igAccountService';
 
 const BRANCHES: SmBranch[] = ['Perth', 'Singapore'];
 
@@ -58,11 +56,6 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
     if (data) setForm(data);
   }, [data]);
 
-  const { data: igAccounts = [] } = useQuery({
-    queryKey: ['sm-ig-accounts', branch],
-    queryFn: () => listIgAccounts(branch),
-  });
-
   const save = useMutation({
     mutationFn: () => upsertBrandSettings(branch, form),
     onSuccess: () => {
@@ -83,28 +76,26 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
     setTesting(true);
     setTestResult('');
     try {
-      // Save unsaved changes first so the AI uses what's on screen
       await upsertBrandSettings(branch, form);
       const out = await generateCaption({
         branch,
         content_type: 'Educational',
+        platforms: ['instagram'],
         notes_for_ai: testNotes,
         mode: 'tone-test',
       });
-      setTestResult(`${out.caption}\n\n${out.cta}\n\n${out.hashtags.map((h) => `#${h.replace(/^#/, '')}`).join(' ')}`);
+      const ig = out.instagram;
+      if (!ig) throw new Error('No caption returned');
+      setTestResult(
+        `${ig.caption}\n\n${ig.cta}\n\n${(ig.hashtags ?? [])
+          .map((h) => `#${h.replace(/^#/, '')}`)
+          .join(' ')}`,
+      );
     } catch (e: any) {
       toast.error(e?.message ?? 'Tone test failed');
     } finally {
       setTesting(false);
     }
-  };
-
-  const connectIg = () => {
-    const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/social-ig-oauth-start?branch=${encodeURIComponent(branch)}`;
-    // Fall back path if env isn't set
-    void projectRef;
-    window.open(url, '_blank', 'width=600,height=700');
   };
 
   if (isLoading) {
@@ -121,7 +112,7 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
         <CardHeader>
           <CardTitle className="text-base">Brand voice — {branch}</CardTitle>
           <CardDescription>
-            These rules guide every AI-generated caption for this branch.
+            These rules guide every AI-generated caption for this branch, across Instagram, Facebook and TikTok.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -171,7 +162,7 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Caption length</Label>
+              <Label>Default caption length (Instagram)</Label>
               <Select
                 value={form.preferred_caption_length ?? 'medium'}
                 onValueChange={(v) => set('preferred_caption_length', v)}
@@ -244,7 +235,7 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Test AI tone</CardTitle>
-            <CardDescription>Generate a sample caption using current settings.</CardDescription>
+            <CardDescription>Generate a sample Instagram caption using current settings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
@@ -267,45 +258,18 @@ const BrandForm = ({ branch }: { branch: SmBranch }) => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Instagram accounts</CardTitle>
-            <CardDescription>Connect this branch's Instagram Business profile.</CardDescription>
+            <CardTitle className="text-base">Manual posting workflow</CardTitle>
+            <CardDescription>How publishing works in this module.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {igAccounts.length === 0 && (
-              <div className="text-xs text-muted-foreground flex items-center gap-2">
-                <WifiOff className="h-4 w-4" /> No accounts connected.
-              </div>
-            )}
-            {igAccounts.map((a) => (
-              <div key={a.id} className="flex items-center justify-between border rounded-md px-3 py-2">
-                <div className="text-sm">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Wifi className="h-4 w-4 text-green-600" />@{a.ig_username ?? a.ig_user_id}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {a.page_name ?? 'Page'} · {a.status}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    await disconnectIgAccount(a.id);
-                    toast.success('Disconnected');
-                    location.reload();
-                  }}
-                >
-                  Disconnect
-                </Button>
-              </div>
-            ))}
-            <Button onClick={connectIg} variant="outline" className="w-full">
-              Connect Instagram
-            </Button>
-            <p className="text-[11px] text-muted-foreground">
-              Requires <Badge variant="secondary" className="text-[10px]">META_APP_ID</Badge>,{' '}
-              <Badge variant="secondary" className="text-[10px]">META_APP_SECRET</Badge>, and{' '}
-              <Badge variant="secondary" className="text-[10px]">META_REDIRECT_URI</Badge> secrets.
+          <CardContent className="text-xs text-muted-foreground space-y-2">
+            <p>
+              You generate captions and queue posts here. When it's time, the Posting Queue lets you
+              <strong> download the media</strong>, <strong>copy the platform-specific caption</strong>,
+              and post it manually on Instagram, Facebook, or TikTok.
+            </p>
+            <p>
+              After posting, hit <strong>Mark as posted</strong> to log it. You can later record real
+              engagement numbers in the Analytics page.
             </p>
           </CardContent>
         </Card>
@@ -318,7 +282,7 @@ const BrandSettingsPage = () => {
   return (
     <SocialLayout
       title="Brand Settings"
-      description="Define the voice, keywords and Instagram connection per branch. AI captions follow these rules."
+      description="Define the brand voice and defaults per branch. AI follows these rules when generating captions for Instagram, Facebook and TikTok."
     >
       <Tabs defaultValue="Perth">
         <TabsList>
