@@ -1,4 +1,4 @@
-// Social Media — AI Caption Generator (Lovable AI Gateway)
+// Social Media — Multi-platform AI Caption Generator (Lovable AI Gateway)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -13,18 +13,31 @@ const json = (status: number, body: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+type Platform = "instagram" | "facebook" | "tiktok";
+
 interface Body {
   branch: string;
   content_type: string;
+  platforms: Platform[];
   event_name?: string;
   student_name?: string;
   instructor_name?: string;
   notes_for_ai?: string;
   tags?: string[];
   mode?: string;
+  refine_platform?: Platform;
   current_caption?: string;
   post_id?: string;
 }
+
+const PLATFORM_RULES: Record<Platform, string> = {
+  instagram:
+    "Instagram feed/reel: caption up to 2200 chars but punchy hook in first line; 15-25 hashtags (no '#' prefix in array); friendly emoji per brand style; CTA can include 'link in bio' or 'DM us'.",
+  facebook:
+    "Facebook: longer-form storytelling allowed (up to 5000 chars), conversational tone, 3-5 broad hashtags only, links are welcome in CTA, fewer emojis than Instagram.",
+  tiktok:
+    "TikTok: VERY short hook-first caption max 150 chars, 4-6 trending hashtags (no '#' prefix), no external links, energetic playful tone, overlay_text should be a punchy on-screen line.",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -50,6 +63,13 @@ Deno.serve(async (req) => {
 
     const body = (await req.json()) as Body;
     if (!body.branch || !body.content_type) return json(400, { error: "branch and content_type required" });
+    let platforms: Platform[] = Array.isArray(body.platforms) && body.platforms.length
+      ? body.platforms
+      : ["instagram"];
+    // If we're refining, only regenerate that one platform
+    if (body.refine_platform && body.mode && body.mode !== "initial" && body.mode !== "tone-test") {
+      platforms = [body.refine_platform];
+    }
 
     // Load brand settings
     const { data: brand } = await admin
@@ -64,7 +84,6 @@ Deno.serve(async (req) => {
     const keywords = (brand?.brand_keywords ?? []).join(", ") || "none";
     const defaultTags = (brand?.default_hashtags ?? []) as string[];
     const emojiStyle = brand?.emoji_style ?? "moderate";
-    const length = brand?.preferred_caption_length ?? "medium";
     const cta = brand?.cta_style ?? "Encourage a free trial booking via DM.";
 
     const modeInstruction =
@@ -75,15 +94,21 @@ Deno.serve(async (req) => {
       : body.mode === "tone-test" ? "Generate a brand-voice example caption from the notes provided."
       : "Generate a fresh caption from scratch.";
 
+    const platformInstructions = platforms
+      .map((p) => `- ${p.toUpperCase()}: ${PLATFORM_RULES[p]}`)
+      .join("\n");
+
     const system = [
       `You are a social media manager for a Taekwondo school in ${body.branch}.`,
       `Brand tone: ${tone}`,
       `Audience: ${audience}`,
       `Brand keywords to weave in when natural: ${keywords}`,
       `Banned words / phrases (NEVER use): ${banned}`,
-      `Emoji usage: ${emojiStyle}. Caption length target: ${length}.`,
+      `Emoji usage: ${emojiStyle}.`,
       `Default CTA style: ${cta}`,
       `Hard rules: family-friendly, positive reinforcement, professional martial-arts tone, NO aggressive or spammy language, NO political or controversial content, reinforce discipline and confidence.`,
+      `You are writing for these platforms — produce a TAILORED variant for each, following each platform's rules:`,
+      platformInstructions,
       modeInstruction,
     ].join("\n");
 
@@ -95,26 +120,36 @@ Deno.serve(async (req) => {
       body.tags?.length && `Tags: ${body.tags.join(", ")}`,
       body.notes_for_ai && `Notes from staff: ${body.notes_for_ai}`,
       body.current_caption && body.mode && body.mode !== "initial" && body.mode !== "tone-test"
-        ? `Previous caption to rewrite:\n${body.current_caption}` : null,
-      `Default hashtags to consider including: ${defaultTags.join(", ") || "(none preset)"}.`,
-      `Return 10-15 hashtags total in the hashtags array (no '#' prefix).`,
+        ? `Previous caption (for ${body.refine_platform ?? "the post"}) to rewrite:\n${body.current_caption}` : null,
+      `Default hashtags to consider: ${defaultTags.join(", ") || "(none preset)"}.`,
     ].filter(Boolean).join("\n");
+
+    // Build a tool schema dynamically with one property per platform
+    const platformSchema = {
+      type: "object",
+      properties: {
+        caption: { type: "string" },
+        cta: { type: "string" },
+        hashtags: { type: "array", items: { type: "string" }, description: "No '#' prefix." },
+        overlay_text: { type: "string" },
+        reel_title: { type: "string" },
+      },
+      required: ["caption", "cta", "hashtags", "overlay_text", "reel_title"],
+      additionalProperties: false,
+    };
+
+    const properties: Record<string, unknown> = {};
+    for (const p of platforms) properties[p] = platformSchema;
 
     const tools = [{
       type: "function",
       function: {
-        name: "emit_caption",
-        description: "Return the structured Instagram caption package.",
+        name: "emit_captions",
+        description: "Return a tailored caption package per requested platform.",
         parameters: {
           type: "object",
-          properties: {
-            caption: { type: "string", description: "Main Instagram caption body." },
-            cta: { type: "string", description: "Single-sentence call-to-action." },
-            hashtags: { type: "array", items: { type: "string" }, description: "10-15 hashtags, no '#' prefix." },
-            overlay_text: { type: "string", description: "Short overlay text for reels/videos. May be empty." },
-            reel_title: { type: "string", description: "Short title for reels. May be empty." },
-          },
-          required: ["caption", "cta", "hashtags", "overlay_text", "reel_title"],
+          properties,
+          required: platforms,
           additionalProperties: false,
         },
       },
@@ -133,7 +168,7 @@ Deno.serve(async (req) => {
           { role: "user", content: userPrompt },
         ],
         tools,
-        tool_choice: { type: "function", function: { name: "emit_caption" } },
+        tool_choice: { type: "function", function: { name: "emit_captions" } },
       }),
     });
 
@@ -157,18 +192,23 @@ Deno.serve(async (req) => {
     }
     if (!parsed) return json(500, { error: "AI did not return structured data" });
 
-    parsed.hashtags = (parsed.hashtags ?? []).map((h: string) => String(h).replace(/^#/, "").trim()).filter(Boolean);
-    parsed.caption = parsed.caption ?? "";
-    parsed.cta = parsed.cta ?? "";
-    parsed.overlay_text = parsed.overlay_text ?? "";
-    parsed.reel_title = parsed.reel_title ?? "";
+    // Normalize each platform payload
+    for (const p of platforms) {
+      const v = parsed[p] ?? {};
+      v.hashtags = (v.hashtags ?? []).map((h: string) => String(h).replace(/^#/, "").trim()).filter(Boolean);
+      v.caption = v.caption ?? "";
+      v.cta = v.cta ?? "";
+      v.overlay_text = v.overlay_text ?? "";
+      v.reel_title = v.reel_title ?? "";
+      parsed[p] = v;
+    }
 
     // Audit log
     await admin.from("sm_ai_generations").insert({
       post_id: body.post_id ?? null,
       branch_name: body.branch,
       mode: body.mode ?? "initial",
-      prompt: { system, user: userPrompt },
+      prompt: { system, user: userPrompt, platforms },
       response: parsed,
       model: "google/gemini-3-flash-preview",
       tokens_used: aiJson?.usage?.total_tokens ?? null,

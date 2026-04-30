@@ -178,10 +178,11 @@ export async function generateCaption(input: {
   return data as GeneratedCaption;
 }
 
-export async function publishToInstagram(postId: string): Promise<{ success: boolean; message?: string }> {
-  const { data, error } = await supabase.functions.invoke('social-publish-instagram', {
-    body: { post_id: postId },
-  });
-  if (error) throw error;
-  return data as { success: boolean; message?: string };
+export async function publishToInstagram(_postId: string): Promise<{ success: boolean; message?: string }> {
+  // Auto-publishing has been removed. Use the manual export workflow under "Social Media" → "Create Post"
+  // (Download media + Copy caption, then post manually).
+  throw new Error(
+    'Auto-publish to Instagram is disabled. Open Social Media → Create Post to download media and copy the caption for manual posting.',
+  );
 }
+

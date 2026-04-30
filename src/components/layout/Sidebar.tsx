@@ -61,7 +61,7 @@ const SOCIAL_MEDIA_GROUP: MenuGroup = {
   children: [
     { icon: BarChart3, label: 'Dashboard', path: '/social/dashboard' },
     { icon: FileText, label: 'Create Post', path: '/social/create' },
-    { icon: CalendarClock, label: 'Scheduled Posts', path: '/social/scheduled' },
+    { icon: CalendarClock, label: 'Posting Queue', path: '/social/scheduled' },
     { icon: Calendar, label: 'Content Calendar', path: '/social/calendar' },
     { icon: Settings, label: 'Brand Settings', path: '/social/brand' },
     { icon: BarChart3, label: 'Analytics', path: '/social/analytics' },
