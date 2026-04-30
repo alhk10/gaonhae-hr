@@ -160,22 +160,44 @@ export const getSlotBookingPayForPeriod = async (
       totalSlots++;
     }
 
-    // Calculate the employee's full slot rate and rate breakdown for summary display
+    // Calculate the employee's full slot rate and rate breakdown for summary display.
+    // Prefer an attended booking as the sample so expectedHours/fullSlotRate are real values.
     let employeeFullSlotRate: number | undefined;
     let rateBreakdown: Array<{ item: string; amount: number }> | undefined;
     if (breakdown.length > 0) {
-      employeeFullSlotRate = breakdown[0].fullSlotRate;
-      // Get unprorated breakdown using expected hours
-      const sampleDate = breakdown[0].date;
-      const sampleExpectedHours = breakdown[0].expectedHours;
+      const sample = breakdown.find(b => b.hasAttendance) ?? breakdown[0];
+
+      // Use sample's fullSlotRate if it's a real positive number; else recompute below.
+      employeeFullSlotRate = sample.fullSlotRate && sample.fullSlotRate > 0
+        ? sample.fullSlotRate
+        : undefined;
+
+      // Pass undefined when expectedHours is missing/zero so getPayBreakdown
+      // falls back to the slot's own expectedDuration (avoids 0× proration bug).
+      const expectedHoursForBreakdown =
+        sample.expectedHours && sample.expectedHours > 0
+          ? sample.expectedHours
+          : undefined;
+
       const fullBreakdown = await getPayBreakdown(
-        sampleDate,
+        sample.date,
         employee.qualifications,
         employee.joinDate,
-        sampleExpectedHours ?? undefined
+        expectedHoursForBreakdown
       );
       // Filter out the "Prorated" info line
       rateBreakdown = fullBreakdown.filter(item => item.amount !== 0 || !item.item.startsWith('Prorated'));
+
+      // If we still don't have a full slot rate (no attended sample), compute it now.
+      if (!employeeFullSlotRate) {
+        const expectedDuration = await getExpectedSlotDurationAsync(sample.date);
+        employeeFullSlotRate = await calculateSlotPay(
+          sample.date,
+          employee.qualifications,
+          employee.joinDate,
+          expectedDuration
+        );
+      }
     }
 
     // Calculate milestone bonus

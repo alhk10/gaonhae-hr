@@ -1,86 +1,121 @@
-## Confirmed findings
+## Problem
 
-- The database still contains the employees. I checked `employees`: there are 28 total employees, including 12 full-time and 16 casual.
-- `alhk10@gmail.com` is still `SENIOR PARTNER` and is also active in `superadmin_users`.
-- Chloe was added as a casual employee correctly.
-- The screenshot showing only Chloe is not a data-loss issue.
+For Jason Lu (and any casual employee whose earliest booking in the period has no attendance record), the **Full Slot Rate Breakdown** panel in the Slot Booking Breakdown dialog shows:
 
-## Root cause
+- Every line item ("Weekend Base", "Service Bonus (4 years)", "3rd Dan", "Poomsae Coach L2") at **S$0.00**
+- A stray bare "**0**" rendered at the bottom of the breakdown
+- No "Total Rate" line
 
-When adding Chloe, the app created Chloe's Supabase Auth account by calling `supabase.auth.signUp()` from the browser.
+…even though the per-slot pay column correctly shows S$107.45 / S$126.00.
 
-That client-side signup automatically replaced the current browser session with Chloe's new session. Once the browser was logged in as Chloe, row-level security correctly hid the other employees.
+## Root Cause
 
-## Additional issue to include
+Two bugs in `src/services/slotBookingPayrollService.ts` + one rendering bug in `src/components/payroll/SlotBreakdownDialog.tsx`.
 
-Even after signing back in as `alhk10@gmail.com`, React Query can still reuse the cached `['employees']` result that was fetched while the browser was Chloe. That cached result contains only Chloe, so Party Management can continue showing only Chloe until the cache is refreshed or the page is hard-reloaded.
+### Bug 1 — Sample row chosen for rate breakdown can be an unattended booking
 
-## Implementation plan
+In `getSlotBookingPayForPeriod` we build `breakdown[]` by iterating bookings sorted ascending by date. Bookings with **no attendance record** are pushed first as a stub:
 
-### 1. Move new-auth-user creation to the existing admin edge function
+```ts
+breakdown.push({
+  date: booking.date,
+  ...
+  expectedHours: 0,        // ← stub value
+  fullSlotRate: 0,         // ← stub value
+  hasAttendance: false,
+});
+```
 
-Update `supabase/functions/auth-admin/index.ts` to support admin-only user creation without touching the caller's session.
+Then we use `breakdown[0]` as the "sample" for the summary rate breakdown:
 
-Add actions:
+```ts
+employeeFullSlotRate = breakdown[0].fullSlotRate;          // = 0
+const sampleExpectedHours = breakdown[0].expectedHours;     // = 0
+const fullBreakdown = await getPayBreakdown(
+  sampleDate, employee.qualifications, employee.joinDate,
+  sampleExpectedHours ?? undefined,                         // = 0 (nullish coalescing keeps 0!)
+);
+```
 
-- `check_user_exists`
-  - Input: `{ email }`
-  - Uses `auth.admin.listUsers()` with the service role.
-  - Returns whether the user already exists.
+If Jason Lu's earliest April booking has no attendance, `sampleExpectedHours = 0` is passed as `actualHoursWorked` into `getPayBreakdown`. Inside `getPayBreakdown`:
 
-- `create_user`
-  - Input: `{ email, name, employeeId }`
-  - Uses `auth.admin.createUser()` with a secure temporary password.
-  - Does not sign the new user into the current browser.
-  - Sends the password reset / set-password email to the new employee.
+```ts
+const hoursWorked = actualHoursWorked ?? expectedDuration;  // = 0
+const prorationFactor = hoursWorked / expectedDuration;     // = 0
+const isProrated = hoursWorked < expectedDuration;          // = true
+// every breakdown item: applyProration(amount) = amount * 0 = 0
+```
 
-The edge function already verifies the caller is a superadmin, so this keeps auth creation server-side and secure.
+So every line item is multiplied by 0 → all S$0.00.
 
-### 2. Replace browser `signUp()` calls in employee auth creation
+### Bug 2 — `employeeFullSlotRate` is sourced from the same unattended stub
 
-Update `src/services/bulkUserCreationService.ts`:
+`breakdown[0].fullSlotRate` is `0` for an unattended booking, so the dialog receives `fullSlotRate = 0`.
 
-- Replace `checkIfUserExists()` so it calls the `auth-admin` edge function instead of attempting a signup.
-- Replace `createAuthUser()` so it calls the `auth-admin` edge function instead of `supabase.auth.signUp()`.
-- Keep the current return shape and logging so existing employee creation flows continue working.
+### Bug 3 — React renders `0` literally
 
-This fixes:
+In `SlotBreakdownDialog.tsx`:
 
-- Add single employee from Party Management / Employees.
-- Bulk auth user creation.
-- Future employee additions.
+```tsx
+{fullSlotRate && (
+  <div>...Total Rate ... S${fullSlotRate.toFixed(2)}</div>
+)}
+```
 
-### 3. Clear query caches when the authenticated user changes
+When `fullSlotRate === 0`, the expression `0 && (...)` evaluates to `0`, and React renders that `0` as a text node — which is the stray "**0**" the user sees.
 
-Update the app auth/session handling so user-specific cached data cannot survive across account switches.
+## Fix
 
-Use a small bridge component inside `QueryClientProvider` and `AuthProvider` that watches the current authenticated email/user id and clears React Query cache when it changes.
+### File: `src/services/slotBookingPayrollService.ts`
 
-This ensures:
+In the section that picks the sample for the rate breakdown (~lines 163–179), pick the **first booking that has attendance** (a real `expectedHours > 0` and a real `fullSlotRate`), and only fall back to the unattended stub if no attended bookings exist. In that fallback case, recompute the rate breakdown using `expectedDuration` instead of the stub's `0`.
 
-- If the browser switches from Chloe back to Alvin, cached Chloe-only `['employees']` data is discarded.
-- Party Management refetches employees as `alhk10@gmail.com`.
-- Full-time and casual employees reappear without needing a hard reload.
+Outline:
 
-### 4. Recovery guidance after deployment
+```ts
+const sample = breakdown.find(b => b.hasAttendance) ?? breakdown[0];
+employeeFullSlotRate = sample.fullSlotRate || undefined;
 
-After the fix is deployed:
+const expectedHoursForBreakdown =
+  sample.expectedHours && sample.expectedHours > 0
+    ? sample.expectedHours
+    : undefined; // let getPayBreakdown use the slot's own expectedDuration
 
-1. Sign out.
-2. Sign in again as `alhk10@gmail.com`.
-3. Open Party Management.
+const fullBreakdown = await getPayBreakdown(
+  sample.date,
+  employee.qualifications,
+  employee.joinDate,
+  expectedHoursForBreakdown,
+);
+```
 
-The Full-time and Casual counts should return to the full dataset instead of showing only Chloe.
+Also: if `employeeFullSlotRate` is still missing (e.g. no attended slot at all), compute it once via `calculateSlotPay(sample.date, qualifications, joinDate, expectedDuration)` so the dialog can render the "Total Rate" line.
 
-## Files to change
+### File: `src/components/payroll/SlotBreakdownDialog.tsx`
 
-- `supabase/functions/auth-admin/index.ts`
-- `src/services/bulkUserCreationService.ts`
-- `src/App.tsx` or a small new auth-query-cache bridge component
+Replace the truthy-check that triggers the React `0` rendering bug:
 
-## What will not be changed
+```tsx
+{fullSlotRate && (...)}
+```
 
-- No employee records will be modified.
-- No Chloe record deletion is needed.
-- No RLS policy change is needed.
-- No Party Management layout change is needed.
+with an explicit numeric guard:
+
+```tsx
+{typeof fullSlotRate === 'number' && fullSlotRate > 0 && (...)}
+```
+
+Apply the same defensive pattern at line 387 (`fullSlotRate ?` ternary) to be safe.
+
+## Files to Edit
+
+- `src/services/slotBookingPayrollService.ts` — choose attended booking as sample; avoid passing `0` as `actualHoursWorked`.
+- `src/components/payroll/SlotBreakdownDialog.tsx` — guard `fullSlotRate` rendering against `0`.
+
+## Verification
+
+1. Open the Payroll page → Jason Lu → Slot Booking Breakdown dialog.
+2. Confirm the **Full Slot Rate Breakdown** section now shows the proper amounts (e.g. Weekend Base S$85.00, Service Bonus (4 years) S$12.00, 3rd Dan S$15.00, Poomsae Coach L2 S$5.00 → Total S$117.00).
+3. Confirm the stray "0" is gone.
+4. Verify per-slot pay amounts (S$107.45 / S$126.00) and totals are unchanged.
+5. Spot-check another casual employee whose first booking has attendance — behavior must remain identical.
