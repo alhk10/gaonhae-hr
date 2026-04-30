@@ -4348,54 +4348,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sm_ig_accounts: {
-        Row: {
-          access_token: string | null
-          branch_name: string
-          connected_by: string | null
-          created_at: string
-          id: string
-          ig_user_id: string
-          ig_username: string | null
-          last_verified_at: string | null
-          page_id: string | null
-          page_name: string | null
-          status: string
-          token_expires_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          access_token?: string | null
-          branch_name: string
-          connected_by?: string | null
-          created_at?: string
-          id?: string
-          ig_user_id: string
-          ig_username?: string | null
-          last_verified_at?: string | null
-          page_id?: string | null
-          page_name?: string | null
-          status?: string
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          access_token?: string | null
-          branch_name?: string
-          connected_by?: string | null
-          created_at?: string
-          id?: string
-          ig_user_id?: string
-          ig_username?: string | null
-          last_verified_at?: string | null
-          page_id?: string | null
-          page_name?: string | null
-          status?: string
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       sm_media_assets: {
         Row: {
           branch_name: string
@@ -4468,6 +4420,62 @@ export type Database = {
           },
         ]
       }
+      sm_post_metrics: {
+        Row: {
+          comments: number | null
+          created_at: string
+          id: string
+          likes: number | null
+          notes: string | null
+          platform: string
+          post_id: string
+          recorded_at: string
+          recorded_by: string | null
+          saves: number | null
+          shares: number | null
+          updated_at: string
+          views: number | null
+        }
+        Insert: {
+          comments?: number | null
+          created_at?: string
+          id?: string
+          likes?: number | null
+          notes?: string | null
+          platform: string
+          post_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          saves?: number | null
+          shares?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Update: {
+          comments?: number | null
+          created_at?: string
+          id?: string
+          likes?: number | null
+          notes?: string | null
+          platform?: string
+          post_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          saves?: number | null
+          shares?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sm_post_metrics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sm_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sm_posts: {
         Row: {
           approved_by: string | null
@@ -4486,12 +4494,15 @@ export type Database = {
           instructor_name: string | null
           notes_for_ai: string | null
           overlay_text: string | null
+          platform_captions: Json
+          posted_platforms: Json
           published_at: string | null
           reel_title: string | null
           scheduled_for: string | null
           status: string
           student_name: string | null
           tags: string[] | null
+          target_platforms: string[]
           timezone: string | null
           updated_at: string
         }
@@ -4512,12 +4523,15 @@ export type Database = {
           instructor_name?: string | null
           notes_for_ai?: string | null
           overlay_text?: string | null
+          platform_captions?: Json
+          posted_platforms?: Json
           published_at?: string | null
           reel_title?: string | null
           scheduled_for?: string | null
           status?: string
           student_name?: string | null
           tags?: string[] | null
+          target_platforms?: string[]
           timezone?: string | null
           updated_at?: string
         }
@@ -4538,24 +4552,19 @@ export type Database = {
           instructor_name?: string | null
           notes_for_ai?: string | null
           overlay_text?: string | null
+          platform_captions?: Json
+          posted_platforms?: Json
           published_at?: string | null
           reel_title?: string | null
           scheduled_for?: string | null
           status?: string
           student_name?: string | null
           tags?: string[] | null
+          target_platforms?: string[]
           timezone?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sm_posts_ig_account_id_fkey"
-            columns: ["ig_account_id"]
-            isOneToOne: false
-            referencedRelation: "sm_ig_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sm_prompt_presets: {
         Row: {
