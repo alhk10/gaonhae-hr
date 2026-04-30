@@ -139,7 +139,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     loadCurrentEmployee();
   }, [user, userrole]);
 
-  const getMenuItems = useCallback((): MenuItem[] => {
+  const getMenuItems = useCallback((): MenuEntry[] => {
     // Generate menu based on role
     
     // Students don't see the sidebar menu (they have their own portal)
@@ -192,8 +192,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
         adminItems.push({ icon: Settings, label: 'Sales Settings', path: '/sales/settings' });
       }
 
-      console.log('Sidebar: Superladmin menu items:', adminItems.length, 'total items');
-      return adminItems;
+      const entries: MenuEntry[] = [...adminItems, SOCIAL_MEDIA_GROUP];
+      console.log('Sidebar: Superladmin menu items:', entries.length, 'total entries');
+      return entries;
     }
 
     // Manager/Admin role access - prioritize authData.adminAccess as it's more reliable
@@ -363,26 +364,104 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
           <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-lg flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto overscroll-contain p-6 pt-20">
               <nav className="space-y-1">
-                {menuItems.map((item) => (
-                  <Button
-                    key={item.label}
-                    variant={isActive(item.path) ? "default" : "ghost"}
-                    className={`w-full justify-start ${isActive(item.path) ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
-                    asChild
-                    onClick={handleMenuItemClick}
-                  >
-                    <Link to={item.path}>
-                      <item.icon className="mr-3 h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  </Button>
-                ))}
+                {menuItems.map((entry) => {
+                  if (isGroup(entry)) {
+                    return (
+                      <SidebarGroup
+                        key={entry.label}
+                        group={entry}
+                        currentPath={location.pathname}
+                        onNavigate={handleMenuItemClick}
+                      />
+                    );
+                  }
+                  return (
+                    <Button
+                      key={entry.label}
+                      variant={isActive(entry.path) ? 'default' : 'ghost'}
+                      className={`w-full justify-start ${isActive(entry.path) ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                      asChild
+                      onClick={handleMenuItemClick}
+                    >
+                      <Link to={entry.path}>
+                        <entry.icon className="mr-3 h-4 w-4" />
+                        {entry.label}
+                      </Link>
+                    </Button>
+                  );
+                })}
               </nav>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+};
+
+interface SidebarGroupProps {
+  group: MenuGroup;
+  currentPath: string;
+  onNavigate: () => void;
+}
+
+const SidebarGroup = ({ group, currentPath, onNavigate }: SidebarGroupProps) => {
+  const containsActive = currentPath.startsWith(group.basePath);
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(group.storageKey);
+      if (stored !== null) return stored === 'true';
+    } catch { /* ignore */ }
+    return containsActive;
+  });
+
+  useEffect(() => {
+    if (containsActive) setOpen(true);
+  }, [containsActive]);
+
+  const toggle = () => {
+    setOpen((o) => {
+      const next = !o;
+      try { localStorage.setItem(group.storageKey, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  return (
+    <div>
+      <Button
+        variant={containsActive ? 'default' : 'ghost'}
+        className={`w-full justify-start ${containsActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+        onClick={toggle}
+      >
+        <group.icon className="mr-3 h-4 w-4" />
+        <span className="flex-1 text-left">{group.label}</span>
+        <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+      </Button>
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out ${open ? 'max-h-[500px] mt-1' : 'max-h-0'}`}
+      >
+        <div className="ml-3 pl-3 border-l border-gray-200 space-y-1">
+          {group.children.map((child) => {
+            const active = currentPath === child.path;
+            return (
+              <Button
+                key={child.path}
+                variant={active ? 'default' : 'ghost'}
+                className={`w-full justify-start h-8 text-sm ${active ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                asChild
+                onClick={onNavigate}
+              >
+                <Link to={child.path}>
+                  <child.icon className="mr-2 h-3.5 w-3.5" />
+                  {child.label}
+                </Link>
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };
 

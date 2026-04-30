@@ -76,6 +76,16 @@ const GradingManagement = lazy(() => import('./pages/sales/GradingManagement'));
 const CreditManagement = lazy(() => import('./pages/sales/CreditManagement'));
 const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
+// Social Media module
+const SocialRoute = lazy(() => import('./components/auth/SocialRoute'));
+const SocialDashboard = lazy(() => import('./pages/social/SocialDashboard'));
+const SocialBrandSettings = lazy(() => import('./pages/social/BrandSettings'));
+const SocialCreatePost = lazy(() => import('./pages/social/CreatePost'));
+const SocialScheduledPosts = lazy(() => import('./pages/social/ScheduledPosts'));
+const SocialContentCalendar = lazy(() => import('./pages/social/ContentCalendar'));
+const SocialAnalytics = lazy(() => import('./pages/social/Analytics'));
+const SocialSuggestions = lazy(() => import('./pages/social/Suggestions'));
+
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient(QUERY_CONFIG);
 
@@ -203,6 +213,16 @@ function App() {
                     <Route path="/sales/reports" element={<SalesRoute><SalesAnalytics /></SalesRoute>} />
                     <Route path="/sales/grading" element={<SalesRoute><GradingManagement /></SalesRoute>} />
                     <Route path="/sales/credits" element={<SalesRoute><CreditManagement /></SalesRoute>} />
+
+                    {/* Social Media Module Routes (superadmin) */}
+                    <Route path="/social" element={<SocialRoute><SocialDashboard /></SocialRoute>} />
+                    <Route path="/social/dashboard" element={<SocialRoute><SocialDashboard /></SocialRoute>} />
+                    <Route path="/social/create" element={<SocialRoute><SocialCreatePost /></SocialRoute>} />
+                    <Route path="/social/scheduled" element={<SocialRoute><SocialScheduledPosts /></SocialRoute>} />
+                    <Route path="/social/calendar" element={<SocialRoute><SocialContentCalendar /></SocialRoute>} />
+                    <Route path="/social/brand" element={<SocialRoute><SocialBrandSettings /></SocialRoute>} />
+                    <Route path="/social/analytics" element={<SocialRoute><SocialAnalytics /></SocialRoute>} />
+                    <Route path="/social/suggestions" element={<SocialRoute><SocialSuggestions /></SocialRoute>} />
 
                     {/* 404 Route */}
                     <Route path="*" element={<NotFound />} />
