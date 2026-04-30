@@ -40,3 +40,31 @@ export async function generateCaption(input: GenerateCaptionInput): Promise<Capt
   }
   return data as CaptionResponse;
 }
+
+export interface GenerateImageInput {
+  branch: string;
+  caricature_id: string;
+  prompt: string;
+  aspect_ratio?: '1:1' | '4:5' | '9:16';
+  post_id?: string | null;
+}
+
+export interface GeneratedImage {
+  url: string;
+  path: string;
+  mime: string;
+}
+
+export async function generateAiImage(input: GenerateImageInput): Promise<GeneratedImage> {
+  const { data, error } = await supabase.functions.invoke('social-generate-image', {
+    body: input,
+  });
+  if (error) {
+    const msg = (error as any)?.context?.error || error.message || 'AI image generation failed';
+    throw new Error(msg);
+  }
+  if (!data || (data as any).error) {
+    throw new Error((data as any)?.error || 'AI image generation failed');
+  }
+  return data as GeneratedImage;
+}
