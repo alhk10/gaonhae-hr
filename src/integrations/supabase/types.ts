@@ -4247,6 +4247,378 @@ export type Database = {
           },
         ]
       }
+      sm_ai_generations: {
+        Row: {
+          branch_name: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          mode: string | null
+          model: string | null
+          post_id: string | null
+          prompt: Json | null
+          response: Json | null
+          tokens_used: number | null
+        }
+        Insert: {
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode?: string | null
+          model?: string | null
+          post_id?: string | null
+          prompt?: Json | null
+          response?: Json | null
+          tokens_used?: number | null
+        }
+        Update: {
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode?: string | null
+          model?: string | null
+          post_id?: string | null
+          prompt?: Json | null
+          response?: Json | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sm_ai_generations_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sm_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sm_brand_settings: {
+        Row: {
+          banned_words: string[] | null
+          branch_name: string
+          brand_keywords: string[] | null
+          color_palette: Json | null
+          created_at: string
+          cta_style: string | null
+          default_hashtags: string[] | null
+          emoji_style: string | null
+          id: string
+          logo_url: string | null
+          posting_frequency: string | null
+          preferred_caption_length: string | null
+          target_audience: string | null
+          tone_of_voice: string | null
+          updated_at: string
+        }
+        Insert: {
+          banned_words?: string[] | null
+          branch_name: string
+          brand_keywords?: string[] | null
+          color_palette?: Json | null
+          created_at?: string
+          cta_style?: string | null
+          default_hashtags?: string[] | null
+          emoji_style?: string | null
+          id?: string
+          logo_url?: string | null
+          posting_frequency?: string | null
+          preferred_caption_length?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banned_words?: string[] | null
+          branch_name?: string
+          brand_keywords?: string[] | null
+          color_palette?: Json | null
+          created_at?: string
+          cta_style?: string | null
+          default_hashtags?: string[] | null
+          emoji_style?: string | null
+          id?: string
+          logo_url?: string | null
+          posting_frequency?: string | null
+          preferred_caption_length?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sm_ig_accounts: {
+        Row: {
+          access_token: string | null
+          branch_name: string
+          connected_by: string | null
+          created_at: string
+          id: string
+          ig_user_id: string
+          ig_username: string | null
+          last_verified_at: string | null
+          page_id: string | null
+          page_name: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          branch_name: string
+          connected_by?: string | null
+          created_at?: string
+          id?: string
+          ig_user_id: string
+          ig_username?: string | null
+          last_verified_at?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          branch_name?: string
+          connected_by?: string | null
+          created_at?: string
+          id?: string
+          ig_user_id?: string
+          ig_username?: string | null
+          last_verified_at?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sm_media_assets: {
+        Row: {
+          branch_name: string
+          content_kind: string
+          created_at: string
+          duration_seconds: number | null
+          height: number | null
+          id: string
+          mime_type: string
+          storage_path: string
+          uploaded_by: string | null
+          width: number | null
+        }
+        Insert: {
+          branch_name: string
+          content_kind: string
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          mime_type: string
+          storage_path: string
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          branch_name?: string
+          content_kind?: string
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          mime_type?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Relationships: []
+      }
+      sm_post_assets: {
+        Row: {
+          asset_id: string
+          position: number
+          post_id: string
+        }
+        Insert: {
+          asset_id: string
+          position?: number
+          post_id: string
+        }
+        Update: {
+          asset_id?: string
+          position?: number
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sm_post_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "sm_media_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sm_post_assets_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sm_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sm_posts: {
+        Row: {
+          approved_by: string | null
+          branch_name: string
+          caption: string | null
+          content_type: string
+          created_at: string
+          created_by: string | null
+          cta: string | null
+          event_name: string | null
+          failure_reason: string | null
+          hashtags: string[] | null
+          id: string
+          ig_account_id: string | null
+          ig_media_id: string | null
+          instructor_name: string | null
+          notes_for_ai: string | null
+          overlay_text: string | null
+          published_at: string | null
+          reel_title: string | null
+          scheduled_for: string | null
+          status: string
+          student_name: string | null
+          tags: string[] | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          branch_name: string
+          caption?: string | null
+          content_type: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          event_name?: string | null
+          failure_reason?: string | null
+          hashtags?: string[] | null
+          id?: string
+          ig_account_id?: string | null
+          ig_media_id?: string | null
+          instructor_name?: string | null
+          notes_for_ai?: string | null
+          overlay_text?: string | null
+          published_at?: string | null
+          reel_title?: string | null
+          scheduled_for?: string | null
+          status?: string
+          student_name?: string | null
+          tags?: string[] | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          branch_name?: string
+          caption?: string | null
+          content_type?: string
+          created_at?: string
+          created_by?: string | null
+          cta?: string | null
+          event_name?: string | null
+          failure_reason?: string | null
+          hashtags?: string[] | null
+          id?: string
+          ig_account_id?: string | null
+          ig_media_id?: string | null
+          instructor_name?: string | null
+          notes_for_ai?: string | null
+          overlay_text?: string | null
+          published_at?: string | null
+          reel_title?: string | null
+          scheduled_for?: string | null
+          status?: string
+          student_name?: string | null
+          tags?: string[] | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sm_posts_ig_account_id_fkey"
+            columns: ["ig_account_id"]
+            isOneToOne: false
+            referencedRelation: "sm_ig_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sm_prompt_presets: {
+        Row: {
+          branch_name: string
+          created_at: string
+          id: string
+          name: string
+          prompt: string
+          updated_at: string
+        }
+        Insert: {
+          branch_name: string
+          created_at?: string
+          id?: string
+          name: string
+          prompt: string
+          updated_at?: string
+        }
+        Update: {
+          branch_name?: string
+          created_at?: string
+          id?: string
+          name?: string
+          prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sm_publish_logs: {
+        Row: {
+          attempted_at: string
+          error_message: string | null
+          id: string
+          ig_response: Json | null
+          post_id: string | null
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          error_message?: string | null
+          id?: string
+          ig_response?: Json | null
+          post_id?: string | null
+          success: boolean
+        }
+        Update: {
+          attempted_at?: string
+          error_message?: string | null
+          id?: string
+          ig_response?: Json | null
+          post_id?: string | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sm_publish_logs_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sm_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_posts: {
         Row: {
           approved_at: string | null
