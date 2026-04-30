@@ -239,7 +239,89 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action" }), { 
+    // === check_user_exists ===
+    if (body.action === "check_user_exists") {
+      const email = body.email?.trim().toLowerCase();
+      if (!email) {
+        return new Response(JSON.stringify({ error: "Email is required" }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { data, error } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const user = data.users.find((u: any) => (u.email || "").toLowerCase() === email);
+      return new Response(JSON.stringify({ exists: Boolean(user), userId: user?.id ?? null }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // === create_user ===
+    // Creates a new auth user using the admin API. This does NOT alter the
+    // caller's browser session (unlike client-side supabase.auth.signUp()).
+    if (body.action === "create_user") {
+      const email = body.email?.trim().toLowerCase();
+      const name = body.name?.trim() || "";
+      const employeeId = body.employeeId?.trim() || "";
+
+      if (!email || !email.includes("@")) {
+        return new Response(JSON.stringify({ error: "Valid email is required" }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Check if user already exists
+      const { data: listData, error: listErr } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listErr) {
+        return new Response(JSON.stringify({ error: listErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const existing = listData.users.find((u: any) => (u.email || "").toLowerCase() === email);
+      if (existing) {
+        return new Response(JSON.stringify({ success: true, alreadyExisted: true, userId: existing.id }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Generate a secure temporary password (user will reset via email)
+      const tempPassword = crypto.randomUUID() + "Aa1!";
+
+      const { data: createData, error: createErr } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { name, employee_id: employeeId },
+      });
+      if (createErr) {
+        return new Response(JSON.stringify({ error: createErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Send a password reset / set-password email so the new employee can sign in.
+      // Use the user-scoped client (anon, with caller JWT) so it does NOT touch the caller's session.
+      try {
+        const userClientForReset = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const redirectTo = body.redirectTo || `${req.headers.get("origin") || ""}/auth/reset-password`;
+        const { error: resetErr } = await userClientForReset.auth.resetPasswordForEmail(email, { redirectTo });
+        if (resetErr) console.error("Reset email failed (non-fatal):", resetErr.message);
+      } catch (e) {
+        console.error("Reset email exception (non-fatal):", e);
+      }
+
+      return new Response(JSON.stringify({ success: true, alreadyExisted: false, userId: createData.user?.id ?? null }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (e) {
