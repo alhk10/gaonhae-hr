@@ -892,8 +892,9 @@ const PayrollProcessing = () => {
           // matches the values displayed on the Processing/Payment screens
           const effectiveEmployee = {
             ...employee,
-            allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
-            deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+            // Honour empty per-month overrides (cleared lists must stay cleared).
+            allowances: employeeId in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+            deductions: employeeId in employeeDeductions ? (deductions as any) : (employee.deductions || []),
           };
           const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
           payrollDataToSave = {
