@@ -1,54 +1,86 @@
-## Goal
+## Confirmed findings
 
-Fix the Grade Certificate so it shows the belt the student **passed FROM** (their `current_belt` at the time of grading), not the new belt awarded.
-
-For Kalli (current_belt = White, target = Yellow Tip, result = pass), the certificate should read:
-
-> Has successfully passed the **White Belt**
-
-…instead of "Yellow Tip Belt".
+- The database still contains the employees. I checked `employees`: there are 28 total employees, including 12 full-time and 16 casual.
+- `alhk10@gmail.com` is still `SENIOR PARTNER` and is also active in `superadmin_users`.
+- Chloe was added as a casual employee correctly.
+- The screenshot showing only Chloe is not a data-loss issue.
 
 ## Root cause
 
-In `src/components/dashboard/BranchGradingList.tsx` and `src/components/sales/GradingListTab.tsx`:
+When adding Chloe, the app created Chloe's Supabase Auth account by calling `supabase.auth.signUp()` from the browser.
 
-- **Certificate I** uses `beltAchieved = student.current_belt`. This is correct in spirit, but if a user clicked **Certificate II** (which uses `getNextBeltLevel(current_belt)`), or if `current_belt` had already been promoted via "Confirm Belt", the cert prints the next belt — which the user is interpreting as wrong.
-- The Kalli certificate in the screenshot shows "Yellow Tip", which means either Cert II was used OR the bulk-double path printed the next belt.
-- The user's rule: the certificate should always print the belt the student **passed (i.e. their pre-grading belt = `current_belt` on the grading registration)**.
+That client-side signup automatically replaced the current browser session with Chloe's new session. Once the browser was logged in as Chloe, row-level security correctly hid the other employees.
 
-## Changes
+## Additional issue to include
 
-### 1. `gradingCertificatePDFGenerator.ts`
-- No structural change needed. The text "Has successfully passed the {belt}" stays the same.
-- Add a clarifying JSDoc on `beltAchieved` so future devs know it should be the **belt passed FROM (pre-grading belt)**.
+Even after signing back in as `alhk10@gmail.com`, React Query can still reuse the cached `['employees']` result that was fetched while the browser was Chloe. That cached result contains only Chloe, so Party Management can continue showing only Chloe until the cache is refreshed or the page is hard-reloaded.
 
-### 2. `src/components/dashboard/BranchGradingList.tsx`
-- `runCertificate(student, certificateNumber)`:
-  - Single certificate (Cert I) → `beltAchieved = registration.current_belt` (the belt at time of grading), falling back to `student.current_belt`.
-  - Cert II button → also use `current_belt` (since the rule is "passed FROM"). Effectively Cert II becomes a duplicate for single-pass students. **For double-pass students**, Cert II = `getNextBeltLevel(current_belt)` (the intermediate belt they also passed FROM on the way to double promotion).
-- `buildBulkInputs` (bulk print):
-  - Primary cert → `beltAchieved = current_belt` (already correct).
-  - Double-pass second cert → `beltAchieved = getNextBeltLevel(current_belt)` (already correct — this is the intermediate "passed FROM" belt for the second jump).
-  - No change needed for bulk; already aligned with new rule.
+## Implementation plan
 
-### 3. `src/components/sales/GradingListTab.tsx`
-- Mirror the same fix as `BranchGradingList.tsx` (file is structurally identical for cert logic).
+### 1. Move new-auth-user creation to the existing admin edge function
 
-## Behaviour after fix
+Update `supabase/functions/auth-admin/index.ts` to support admin-only user creation without touching the caller's session.
 
-| Scenario | Cert I | Cert II |
-|---|---|---|
-| Single pass (e.g. Kalli, White → Yellow Tip) | "passed the **White Belt**" | "passed the **White Belt**" (same — Cert II only meaningful for doubles) |
-| Double pass (e.g. White → Yellow) | "passed the **White Belt**" | "passed the **Yellow Tip Belt**" (the intermediate belt) |
+Add actions:
 
-## Out of scope
+- `check_user_exists`
+  - Input: `{ email }`
+  - Uses `auth.admin.listUsers()` with the service role.
+  - Returns whether the user already exists.
 
-- No DB migration. Kalli's record is correct (current_belt=White, target=Yellow Tip, pass).
-- No change to the "Confirm Belt" flow that promotes `student.current_belt` after grading.
-- No change to certificate layout, fonts, or footer.
+- `create_user`
+  - Input: `{ email, name, employeeId }`
+  - Uses `auth.admin.createUser()` with a secure temporary password.
+  - Does not sign the new user into the current browser.
+  - Sends the password reset / set-password email to the new employee.
 
-## Files to edit
+The edge function already verifies the caller is a superadmin, so this keeps auth creation server-side and secure.
 
-- `src/utils/gradingCertificatePDFGenerator.ts` (doc only)
-- `src/components/dashboard/BranchGradingList.tsx` (runCertificate)
-- `src/components/sales/GradingListTab.tsx` (runCertificate)
+### 2. Replace browser `signUp()` calls in employee auth creation
+
+Update `src/services/bulkUserCreationService.ts`:
+
+- Replace `checkIfUserExists()` so it calls the `auth-admin` edge function instead of attempting a signup.
+- Replace `createAuthUser()` so it calls the `auth-admin` edge function instead of `supabase.auth.signUp()`.
+- Keep the current return shape and logging so existing employee creation flows continue working.
+
+This fixes:
+
+- Add single employee from Party Management / Employees.
+- Bulk auth user creation.
+- Future employee additions.
+
+### 3. Clear query caches when the authenticated user changes
+
+Update the app auth/session handling so user-specific cached data cannot survive across account switches.
+
+Use a small bridge component inside `QueryClientProvider` and `AuthProvider` that watches the current authenticated email/user id and clears React Query cache when it changes.
+
+This ensures:
+
+- If the browser switches from Chloe back to Alvin, cached Chloe-only `['employees']` data is discarded.
+- Party Management refetches employees as `alhk10@gmail.com`.
+- Full-time and casual employees reappear without needing a hard reload.
+
+### 4. Recovery guidance after deployment
+
+After the fix is deployed:
+
+1. Sign out.
+2. Sign in again as `alhk10@gmail.com`.
+3. Open Party Management.
+
+The Full-time and Casual counts should return to the full dataset instead of showing only Chloe.
+
+## Files to change
+
+- `supabase/functions/auth-admin/index.ts`
+- `src/services/bulkUserCreationService.ts`
+- `src/App.tsx` or a small new auth-query-cache bridge component
+
+## What will not be changed
+
+- No employee records will be modified.
+- No Chloe record deletion is needed.
+- No RLS policy change is needed.
+- No Party Management layout change is needed.

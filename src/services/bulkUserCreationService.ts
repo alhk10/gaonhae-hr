@@ -51,100 +51,64 @@ const validateAndExtractEmployees = (employees: EmployeeProfile[]): ValidatedEmp
   return validatedEmployees;
 };
 
-// Check if user exists by attempting to sign up (this will fail if user exists)
+// Check if user exists by calling the auth-admin edge function (admin API).
+// CRITICAL: Do NOT use supabase.auth.signUp() here — that would replace the
+// caller's browser session with the new user's session.
 const checkIfUserExists = async (email: string): Promise<boolean> => {
   try {
-    logger.debug('Checking if user exists', { email });
-    
-    // Try to sign up with a temporary password - this will fail if user already exists
-    const { error } = await supabase.auth.signUp({
-      email: email.toLowerCase().trim(),
-      password: 'temp_check_password_123',
-      options: {
-        emailRedirectTo: `${window.location.origin}/`
-      }
+    const normalizedEmail = email.toLowerCase().trim();
+    logger.debug('Checking if user exists via auth-admin', { email: normalizedEmail });
+
+    const { data, error } = await supabase.functions.invoke('auth-admin', {
+      body: { action: 'check_user_exists', email: normalizedEmail },
     });
 
     if (error) {
-      // If error message indicates user already exists, return true
-      if (error.message.toLowerCase().includes('already') || 
-          error.message.toLowerCase().includes('exist') ||
-          error.message.toLowerCase().includes('registered')) {
-        logger.debug('User already exists', { email });
-        return true;
-      }
-      // Other errors might indicate the user doesn't exist but signup failed for other reasons
-      logger.debug('User existence check failed', { email, error: error.message });
+      logger.warn('auth-admin check_user_exists failed', { email: normalizedEmail, error: error.message });
       return false;
     }
-
-    // If no error, user was created (didn't exist before)
-    logger.debug('User was created during check', { email });
-    return false;
+    return Boolean(data?.exists);
   } catch (error) {
     logger.error('Error checking user existence', error, { email });
     return false;
   }
 };
 
-// Create auth user using standard signup flow
+// Create auth user via the auth-admin edge function (admin API).
+// CRITICAL: Do NOT use supabase.auth.signUp() here — that would replace the
+// caller's browser session with the new user's session and effectively log
+// out the superadmin who is creating the employee.
 const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCreationResult> => {
   try {
     const normalizedEmail = employee.email.toLowerCase().trim();
-    
-    logger.debug('Creating auth user', { name: employee.name, email: normalizedEmail });
-    
-    // Check if user already exists first
-    const userExists = await checkIfUserExists(normalizedEmail);
-    if (userExists) {
-      logger.info('User already exists, skipping creation', { email: normalizedEmail });
-      return { success: true };
-    }
 
-    // Generate a secure temporary password
-    const tempPassword = generateSecurePassword();
-    
-    // Create the user using standard signup
-    const { data, error } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password: tempPassword,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          name: employee.name,
-          employee_id: employee.id
-        }
-      }
+    logger.debug('Creating auth user via auth-admin', { name: employee.name, email: normalizedEmail });
+
+    const { data, error } = await supabase.functions.invoke('auth-admin', {
+      body: {
+        action: 'create_user',
+        email: normalizedEmail,
+        name: employee.name,
+        employeeId: employee.id,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      },
     });
 
     if (error) {
-      logger.error('Failed to create user', error, { email: normalizedEmail });
+      logger.error('auth-admin create_user failed', error, { email: normalizedEmail });
       return { success: false, error: error.message };
     }
 
-    if (!data.user) {
-      logger.error('User creation failed - no user returned', undefined, { email: normalizedEmail });
-      return { success: false, error: 'User creation failed - no user returned' };
+    if (!data?.success) {
+      const errMsg = data?.error || 'Unknown error creating auth user';
+      logger.error('auth-admin create_user returned failure', undefined, { email: normalizedEmail, error: errMsg });
+      return { success: false, error: errMsg };
     }
 
-    logger.info('Successfully created auth user', { email: normalizedEmail });
-
-    // Send password reset email so user can set their own password
-    try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-          redirectTo: `${window.location.origin}/auth/reset-password`
-        }
-      );
-
-      if (resetError) {
-        logger.warn('Failed to send reset email', { email: normalizedEmail, error: resetError });
-      } else {
-        logger.debug('Password reset email sent', { email: normalizedEmail });
-      }
-    } catch (resetEmailError) {
-      logger.warn('Error sending reset email', resetEmailError, { email: normalizedEmail });
+    if (data.alreadyExisted) {
+      logger.info('Auth user already existed', { email: normalizedEmail });
+    } else {
+      logger.info('Successfully created auth user via admin API', { email: normalizedEmail });
     }
 
     return { success: true };
