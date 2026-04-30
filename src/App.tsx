@@ -85,6 +85,7 @@ const SocialScheduledPosts = lazy(() => import('./pages/social/ScheduledPosts'))
 const SocialContentCalendar = lazy(() => import('./pages/social/ContentCalendar'));
 const SocialAnalytics = lazy(() => import('./pages/social/Analytics'));
 const SocialSuggestions = lazy(() => import('./pages/social/Suggestions'));
+const SocialCaricatureLibrary = lazy(() => import('./pages/social/CaricatureLibrary'));
 
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient(QUERY_CONFIG);
@@ -223,6 +224,7 @@ function App() {
                     <Route path="/social/brand" element={<SocialRoute><SocialBrandSettings /></SocialRoute>} />
                     <Route path="/social/analytics" element={<SocialRoute><SocialAnalytics /></SocialRoute>} />
                     <Route path="/social/suggestions" element={<SocialRoute><SocialSuggestions /></SocialRoute>} />
+                    <Route path="/social/caricatures" element={<SocialRoute><SocialCaricatureLibrary /></SocialRoute>} />
 
                     {/* 404 Route */}
                     <Route path="*" element={<NotFound />} />

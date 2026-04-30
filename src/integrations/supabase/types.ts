@@ -4348,6 +4348,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sm_caricatures: {
+        Row: {
+          branch_name: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string
+          is_active: boolean
+          name: string
+          storage_path: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url: string
+          is_active?: boolean
+          name: string
+          storage_path: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          branch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          name?: string
+          storage_path?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sm_media_assets: {
         Row: {
           branch_name: string

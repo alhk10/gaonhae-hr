@@ -27,6 +27,7 @@ import {
   BookOpen,
   Share2,
   ChevronRight,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -63,6 +64,7 @@ const SOCIAL_MEDIA_GROUP: MenuGroup = {
     { icon: FileText, label: 'Create Post', path: '/social/create' },
     { icon: CalendarClock, label: 'Posting Queue', path: '/social/scheduled' },
     { icon: Calendar, label: 'Content Calendar', path: '/social/calendar' },
+    { icon: ImageIcon, label: 'Caricatures', path: '/social/caricatures' },
     { icon: Settings, label: 'Brand Settings', path: '/social/brand' },
     { icon: BarChart3, label: 'Analytics', path: '/social/analytics' },
     { icon: Award, label: 'AI Suggestions', path: '/social/suggestions' },
