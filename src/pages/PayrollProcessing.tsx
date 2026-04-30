@@ -1586,10 +1586,11 @@ const PayrollProcessing = () => {
         // Recompute using merged override allowances/deductions for consistency with Processing step
         const effectiveEmployee = employeeInfo ? {
           ...employeeInfo,
-          allowances: (employeeAllowances[empId] && employeeAllowances[empId].length > 0)
+          // Honour empty per-month overrides (cleared lists must stay cleared).
+          allowances: empId in employeeAllowances
             ? (employeeAllowances[empId] as any)
             : (employeeInfo.allowances || []),
-          deductions: (employeeDeductions[empId] && employeeDeductions[empId].length > 0)
+          deductions: empId in employeeDeductions
             ? (employeeDeductions[empId] as any)
             : (employeeInfo.deductions || []),
         } : null;
