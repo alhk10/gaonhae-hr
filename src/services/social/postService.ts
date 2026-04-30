@@ -126,6 +126,26 @@ export async function uploadMedia(
   return { path, assetId: data.id };
 }
 
+export async function registerExistingMedia(
+  branch: string,
+  storagePath: string,
+  mimeType: string,
+): Promise<{ path: string; assetId: string }> {
+  const kind: 'image' | 'video' | 'reel' = mimeType.startsWith('video') ? 'video' : 'image';
+  const { data, error } = await (supabase as any)
+    .from('sm_media_assets')
+    .insert({
+      branch_name: branch,
+      storage_path: storagePath,
+      mime_type: mimeType,
+      content_kind: kind,
+    })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return { path: storagePath, assetId: data.id };
+}
+
 export async function getSignedMediaUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from('social-media').createSignedUrl(path, 60 * 60);
   if (error) throw error;
