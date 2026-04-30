@@ -1153,8 +1153,9 @@ const PayrollProcessing = () => {
                         // so Net Pay matches the displayed Allowances/Deductions columns
                         const effectiveEmployee = {
                           ...employee,
-                          allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
-                          deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+                          // Honour empty per-month overrides (cleared lists must stay cleared).
+                          allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+                          deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
                         };
                         
                         // Calculate net pay using proper payroll calculation
