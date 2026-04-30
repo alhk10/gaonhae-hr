@@ -2,6 +2,8 @@
 // Edge function to perform auth admin actions securely for superadmins only
 // Actions supported:
 // - check_user: { email }
+// - check_user_exists: { email }
+// - create_user: { email, name, employeeId, redirectTo? }
 // - update_email: { oldEmail, newEmail }
 // - updateUserEmail: { userId, email }
 // - reset_password: { email, newPassword }
