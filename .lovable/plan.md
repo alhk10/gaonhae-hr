@@ -1,121 +1,102 @@
 ## Problem
 
-For Jason Lu (and any casual employee whose earliest booking in the period has no attendance record), the **Full Slot Rate Breakdown** panel in the Slot Booking Breakdown dialog shows:
-
-- Every line item ("Weekend Base", "Service Bonus (4 years)", "3rd Dan", "Poomsae Coach L2") at **S$0.00**
-- A stray bare "**0**" rendered at the bottom of the breakdown
-- No "Total Rate" line
-
-…even though the per-slot pay column correctly shows S$107.45 / S$126.00.
+CORPUZ ALBERT JR TIGGANGAY shows **Basic S$3,700, Allowances "None", Deductions "None", Claims S$0.00 → Net Pay S$4,000** for April 2026. Net Pay should be **S$3,700**.
 
 ## Root Cause
 
-Two bugs in `src/services/slotBookingPayrollService.ts` + one rendering bug in `src/components/payroll/SlotBreakdownDialog.tsx`.
+Albert has a row in the `allowances` table:
 
-### Bug 1 — Sample row chosen for rate breakdown can be an unattended booking
+| name | amount | type |
+|---|---|---|
+| Grading Allowance | 300.00 | Adhoc |
 
-In `getSlotBookingPayForPeriod` we build `breakdown[]` by iterating bookings sorted ascending by date. Bookings with **no attendance record** are pushed first as a stub:
+He also has a `payroll_monthly_overrides` row for **2026-04** with `allowances: []` (the user explicitly cleared April's allowances in the UI).
 
-```ts
-breakdown.push({
-  date: booking.date,
-  ...
-  expectedHours: 0,        // ← stub value
-  fullSlotRate: 0,         // ← stub value
-  hasAttendance: false,
-});
-```
-
-Then we use `breakdown[0]` as the "sample" for the summary rate breakdown:
+The merge logic that combines base `allowances` with the per-month override has a bug — it only honours an override when the override array is **non-empty**:
 
 ```ts
-employeeFullSlotRate = breakdown[0].fullSlotRate;          // = 0
-const sampleExpectedHours = breakdown[0].expectedHours;     // = 0
-const fullBreakdown = await getPayBreakdown(
-  sampleDate, employee.qualifications, employee.joinDate,
-  sampleExpectedHours ?? undefined,                         // = 0 (nullish coalescing keeps 0!)
-);
+// PayrollProcessing.tsx (load paths around lines 173, 555)
+if (override.allowances && (override.allowances as any[]).length > 0) {
+  mergedAllowances[empId] = override.allowances...;
+}
+// else: keep base allowances ($300)  ← BUG
 ```
 
-If Jason Lu's earliest April booking has no attendance, `sampleExpectedHours = 0` is passed as `actualHoursWorked` into `getPayBreakdown`. Inside `getPayBreakdown`:
+The same buggy fallback exists everywhere `effectiveEmployee` is built for net-pay recalculation:
 
 ```ts
-const hoursWorked = actualHoursWorked ?? expectedDuration;  // = 0
-const prorationFactor = hoursWorked / expectedDuration;     // = 0
-const isProrated = hoursWorked < expectedDuration;          // = true
-// every breakdown item: applyProration(amount) = amount * 0 = 0
+// lines 885, 1145, 1577-1582
+allowances: allowances.length > 0 ? allowances : (employee.allowances || [])
+deductions: deductions.length > 0 ? deductions : (employee.deductions || [])
 ```
 
-So every line item is multiplied by 0 → all S$0.00.
+So for April 2026:
+- The **UI display** uses `employeeAllowances[empId]`, which is `[]` (set by `handleAllowancesSave` after the user cleared) → shows "None". ✓ correct.
+- The **Net Pay calculation** uses `effectiveEmployee.allowances`, which falls back to `employee.allowances` (the un-period-aware row from the `allowances` table = $300) → adds $300 → Net Pay $4,000. ✗ wrong.
+- After a fresh page reload, the merge logic at lines 173/555 also falls back to base, so even the displayed "None" would flip back to "$300". A second silent symptom.
 
-### Bug 2 — `employeeFullSlotRate` is sourced from the same unattended stub
-
-`breakdown[0].fullSlotRate` is `0` for an unattended booking, so the dialog receives `fullSlotRate = 0`.
-
-### Bug 3 — React renders `0` literally
-
-In `SlotBreakdownDialog.tsx`:
-
-```tsx
-{fullSlotRate && (
-  <div>...Total Rate ... S${fullSlotRate.toFixed(2)}</div>
-)}
-```
-
-When `fullSlotRate === 0`, the expression `0 && (...)` evaluates to `0`, and React renders that `0` as a text node — which is the stray "**0**" the user sees.
+The fundamental problem: an empty override is indistinguishable from "no override", but they mean different things. An existing override row with `allowances: []` means "user explicitly cleared this month".
 
 ## Fix
 
-### File: `src/services/slotBookingPayrollService.ts`
+Treat the **presence of a `payroll_monthly_overrides` row** for the period as the source of truth for that month's allowances/deductions, regardless of whether the override array is empty.
 
-In the section that picks the sample for the rate breakdown (~lines 163–179), pick the **first booking that has attendance** (a real `expectedHours > 0` and a real `fullSlotRate`), and only fall back to the unattended stub if no attended bookings exist. In that fallback case, recompute the rate breakdown using `expectedDuration` instead of the stub's `0`.
+### 1. `src/pages/PayrollProcessing.tsx` — load/merge paths (≈ lines 172–195 and 555–581)
 
-Outline:
-
+Replace:
 ```ts
-const sample = breakdown.find(b => b.hasAttendance) ?? breakdown[0];
-employeeFullSlotRate = sample.fullSlotRate || undefined;
+if (override.allowances && (override.allowances as any[]).length > 0) {
+  mergedAllowances[empId] = ...override...;
+}
+```
+with:
+```ts
+if (Array.isArray(override.allowances)) {
+  mergedAllowances[empId] = (override.allowances as any[]).map(...);
+}
+```
+Same change for `override.deductions`. This makes an empty override array correctly clear the month's allowances/deductions, instead of silently reverting to the base table.
 
-const expectedHoursForBreakdown =
-  sample.expectedHours && sample.expectedHours > 0
-    ? sample.expectedHours
-    : undefined; // let getPayBreakdown use the slot's own expectedDuration
+### 2. `src/pages/PayrollProcessing.tsx` — `effectiveEmployee` builders (lines 885, 1145, 1577–1582)
 
-const fullBreakdown = await getPayBreakdown(
-  sample.date,
-  employee.qualifications,
-  employee.joinDate,
-  expectedHoursForBreakdown,
-);
+The "fallback to `employee.allowances` only when override is empty" pattern is also wrong. After fix #1, the merged `employeeAllowances[empId]` is already authoritative for the current period (empty means cleared, non-empty means use those values, missing key means no override → use base).
+
+Change all three call sites from:
+```ts
+allowances: allowances.length > 0 ? allowances : (employee.allowances || [])
+deductions: deductions.length > 0 ? deductions : (employee.deductions || [])
+```
+to:
+```ts
+allowances: empId in employeeAllowances ? (employeeAllowances[empId] || []) : (employee.allowances || []),
+deductions: empId in employeeDeductions ? (employeeDeductions[empId] || []) : (employee.deductions || []),
 ```
 
-Also: if `employeeFullSlotRate` is still missing (e.g. no attended slot at all), compute it once via `calculateSlotPay(sample.date, qualifications, joinDate, expectedDuration)` so the dialog can render the "Total Rate" line.
+This makes the calculation match exactly what the UI displays — including when the user has explicitly emptied the list for the current month.
 
-### File: `src/components/payroll/SlotBreakdownDialog.tsx`
+### 3. No DB migration needed
 
-Replace the truthy-check that triggers the React `0` rendering bug:
-
-```tsx
-{fullSlotRate && (...)}
-```
-
-with an explicit numeric guard:
-
-```tsx
-{typeof fullSlotRate === 'number' && fullSlotRate > 0 && (...)}
-```
-
-Apply the same defensive pattern at line 387 (`fullSlotRate ?` ternary) to be safe.
+Albert's existing override row (`allowances: []` for 2026-04) is already correct — the bug is purely in the merge/effective-employee logic.
 
 ## Files to Edit
 
-- `src/services/slotBookingPayrollService.ts` — choose attended booking as sample; avoid passing `0` as `actualHoursWorked`.
-- `src/components/payroll/SlotBreakdownDialog.tsx` — guard `fullSlotRate` rendering against `0`.
+- `src/pages/PayrollProcessing.tsx`
+  - Lines ~172–195: merge logic in `forceRecalculatePayroll`
+  - Lines ~555–581: merge logic in initial load
+  - Line ~885: `effectiveEmployee` for save snapshot
+  - Line ~1145: `effectiveEmployee` for displayed Net Pay
+  - Lines ~1577–1582: `effectiveEmployee` for Payment summary
 
 ## Verification
 
-1. Open the Payroll page → Jason Lu → Slot Booking Breakdown dialog.
-2. Confirm the **Full Slot Rate Breakdown** section now shows the proper amounts (e.g. Weekend Base S$85.00, Service Bonus (4 years) S$12.00, 3rd Dan S$15.00, Poomsae Coach L2 S$5.00 → Total S$117.00).
-3. Confirm the stray "0" is gone.
-4. Verify per-slot pay amounts (S$107.45 / S$126.00) and totals are unchanged.
-5. Spot-check another casual employee whose first booking has attendance — behavior must remain identical.
+1. Navigate to Payroll → April 2026.
+2. CORPUZ ALBERT JR TIGGANGAY row should show:
+   - Basic Salary S$3,700
+   - Allowances "None" (override is empty)
+   - Deductions "None"
+   - Claims S$0.00
+   - **Net Pay S$3,700** ✓
+3. Switch to **March 2026** for the same employee — the override there contains Grading Allowance S$300 + Private Lesson Allowance S$340. Verify Allowances column shows "S$640, 2 item(s)" and Net Pay reflects those allowances.
+4. Pick a month with **no override row** (e.g., a future month with no edits) — verify base allowances from the `allowances` table still apply correctly.
+5. Edit allowances for any employee, save with an empty list, refresh the page — list must remain empty (no silent revert), and Net Pay must reflect the empty list.
+6. Confirm the Payment screen shows the same Net Pay as the Processing screen.

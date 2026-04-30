@@ -170,12 +170,14 @@ const PayrollProcessing = () => {
       const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
       
       Object.entries(overrides).forEach(([empId, override]) => {
-        if (override.allowances && (override.allowances as any[]).length > 0) {
+        // Honour the presence of an override row: an empty array explicitly clears
+        // that month's allowances/deductions and must NOT silently revert to base.
+        if (Array.isArray(override.allowances)) {
           mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
             id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
           }));
         }
-        if (override.deductions && (override.deductions as any[]).length > 0) {
+        if (Array.isArray(override.deductions)) {
           mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
             id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
           }));
@@ -185,10 +187,10 @@ const PayrollProcessing = () => {
           if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
           if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
           // Sync override allowances/deductions onto employee object so calculators see the same source of truth
-          if (mergedAllowances[empId]) {
+          if (Array.isArray(override.allowances)) {
             employees[empIdx] = { ...employees[empIdx], allowances: mergedAllowances[empId] as any };
           }
-          if (mergedDeductions[empId]) {
+          if (Array.isArray(override.deductions)) {
             employees[empIdx] = { ...employees[empIdx], deductions: mergedDeductions[empId] as any };
           }
         }
@@ -553,12 +555,14 @@ const PayrollProcessing = () => {
           const mergedDeductions = { ...(optimizedPayrollData?.deductions || {}) };
           
           Object.entries(overrides).forEach(([empId, override]) => {
-            if (override.allowances && (override.allowances as any[]).length > 0) {
+            // Honour the presence of an override row: an empty array explicitly clears
+            // that month's allowances/deductions and must NOT silently revert to base.
+            if (Array.isArray(override.allowances)) {
               mergedAllowances[empId] = (override.allowances as any[]).map((a: any, idx: number) => ({
                 id: idx, employee_id: empId, name: a.name, amount: a.amount, type: a.type || 'Fixed'
               }));
             }
-            if (override.deductions && (override.deductions as any[]).length > 0) {
+            if (Array.isArray(override.deductions)) {
               mergedDeductions[empId] = (override.deductions as any[]).map((d: any, idx: number) => ({
                 id: idx, employee_id: empId, name: d.name, amount: d.amount, type: d.type || 'Fixed'
               }));
@@ -577,6 +581,12 @@ const PayrollProcessing = () => {
             if (empIdx >= 0) {
               if (override.base_salary != null) employees[empIdx] = { ...employees[empIdx], baseSalary: Number(override.base_salary) };
               if (override.hourly_rate != null) employees[empIdx] = { ...employees[empIdx], hourlyRate: Number(override.hourly_rate) };
+              if (Array.isArray(override.allowances)) {
+                employees[empIdx] = { ...employees[empIdx], allowances: mergedAllowances[empId] as any };
+              }
+              if (Array.isArray(override.deductions)) {
+                employees[empIdx] = { ...employees[empIdx], deductions: mergedDeductions[empId] as any };
+              }
             }
           });
           
@@ -882,8 +892,9 @@ const PayrollProcessing = () => {
           // matches the values displayed on the Processing/Payment screens
           const effectiveEmployee = {
             ...employee,
-            allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
-            deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+            // Honour empty per-month overrides (cleared lists must stay cleared).
+            allowances: employeeId in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+            deductions: employeeId in employeeDeductions ? (deductions as any) : (employee.deductions || []),
           };
           const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
           payrollDataToSave = {
@@ -1142,8 +1153,9 @@ const PayrollProcessing = () => {
                         // so Net Pay matches the displayed Allowances/Deductions columns
                         const effectiveEmployee = {
                           ...employee,
-                          allowances: allowances.length > 0 ? (allowances as any) : (employee.allowances || []),
-                          deductions: deductions.length > 0 ? (deductions as any) : (employee.deductions || []),
+                          // Honour empty per-month overrides (cleared lists must stay cleared).
+                          allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+                          deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
                         };
                         
                         // Calculate net pay using proper payroll calculation
@@ -1574,10 +1586,11 @@ const PayrollProcessing = () => {
         // Recompute using merged override allowances/deductions for consistency with Processing step
         const effectiveEmployee = employeeInfo ? {
           ...employeeInfo,
-          allowances: (employeeAllowances[empId] && employeeAllowances[empId].length > 0)
+          // Honour empty per-month overrides (cleared lists must stay cleared).
+          allowances: empId in employeeAllowances
             ? (employeeAllowances[empId] as any)
             : (employeeInfo.allowances || []),
-          deductions: (employeeDeductions[empId] && employeeDeductions[empId].length > 0)
+          deductions: empId in employeeDeductions
             ? (employeeDeductions[empId] as any)
             : (employeeInfo.deductions || []),
         } : null;
