@@ -1,19 +1,29 @@
-## Problem
+## Issue
 
-Clicking **Generate** in the AI Image Generator on `/social/create` shows: "Failed to send a request to the Edge Function".
+On the Branch Dashboard's "Invoices & Payments" list, the "Add Payment" ($) icon does not appear for invoices with status `partially_paid`. In the screenshot, Emily Hana Horsfall's invoice (`partially_paid`) is missing the $ button while all `draft` invoices have it.
 
-Root cause: the `social-generate-image` edge function exists in the repo (`supabase/functions/social-generate-image/index.ts`) but was **never actually deployed** to Lovable Cloud. A direct curl returns `404 NOT_FOUND`, and there are zero log entries for the function.
+## Root cause
+
+In `src/components/dashboard/BranchDashboard.tsx` (line 1729), the conditional uses `'partial'`:
+
+```ts
+['draft', 'sent', 'unpaid', 'partial', 'overdue'].includes(invoice.status)
+```
+
+But the actual status string saved in the DB (per memory & `InvoiceManagementList`) is `'partially_paid'`, so the check fails and the button is hidden.
 
 ## Fix
 
-1. **Deploy `social-generate-image`** to Lovable Cloud so the gateway can route to it.
-2. **Verify deployment** with a direct curl test (expect 401 Unauthorized for an unauthenticated call — proving the function is live).
-3. **Test end-to-end** from the preview: pick a caricature, enter a scene prompt, click Generate, and confirm the image attaches to the post.
-4. **Improve the client error toast** in `AiImageGenerator.tsx` so future failures surface the actual error from the edge function (status + message) instead of the generic Supabase wrapper text — makes debugging far easier next time.
+Update the whitelist in `BranchDashboard.tsx` to include `'partially_paid'`:
 
-## Technical notes
+```ts
+['draft', 'sent', 'unpaid', 'partially_paid', 'partial', 'overdue'].includes(invoice.status)
+```
 
-- No code changes to `index.ts` itself are needed — the function source is correct (uses `google/gemini-2.5-flash-image` via Lovable AI Gateway, validates superadmin, uploads to `social-media` bucket, audits to `sm_ai_generations`).
-- No `config.toml` edit needed — defaults are fine (verify_jwt handled in code via `auth.getUser()`).
-- The `LOVABLE_API_KEY` secret is already provisioned (used by `social-generate-caption`).
-- After deploy, rate-limit (429) and credit-exhausted (402) responses are already handled and surfaced.
+(Keeping `'partial'` as a safe fallback in case any legacy rows use it.)
+
+## Scope
+
+- Single-line frontend change in `src/components/dashboard/BranchDashboard.tsx` around line 1729.
+- No DB, service, or business-logic changes.
+- Verify by checking that Emily's `partially_paid` invoice now shows the $ icon and opens `CreatePaymentDialog` with the remaining balance.
