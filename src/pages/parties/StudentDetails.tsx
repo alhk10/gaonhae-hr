@@ -29,6 +29,7 @@ import { StudentInvoices } from '@/components/sales/StudentInvoices';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
 import { StudentChangeLog } from '@/components/sales/StudentChangeLog';
 import StudentPortalAccessManager from '@/components/sales/StudentPortalAccessManager';
+import PersonDocumentsTab from '@/components/documents/PersonDocumentsTab';
 
 // Services
 import {
