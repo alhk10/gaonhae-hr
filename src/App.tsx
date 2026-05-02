@@ -170,6 +170,7 @@ function App() {
                     <Route path="/admin-slot-booking" element={<ProtectedRoute permission="slotBooking"><AdminSlotBooking /></ProtectedRoute>} />
                     <Route path="/casual-employees" element={<ProtectedRoute permission="employees"><CasualEmployees /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                    <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
                     
                     {/* Branch Dashboard Route */}
                     <Route path="/branch-dashboard" element={<ProtectedRoute><BranchDashboardPage /></ProtectedRoute>} />
