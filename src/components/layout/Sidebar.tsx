@@ -187,6 +187,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
         { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
 
+      adminItems.push({ icon: FileText, label: 'Documents', path: '/documents' });
       adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
 
       // Add Sales Settings if user has access
