@@ -496,14 +496,11 @@ const StudentDetails: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No documents uploaded</p>
-                <p className="text-sm mt-2">Upload certificates and documents for this student</p>
-                <Button variant="outline" className="mt-4">
-                  Upload Document
-                </Button>
-              </div>
+              <PersonDocumentsTab
+                linkedType="student"
+                linkedId={student.id}
+                branchId={(student as any).branch_id || null}
+              />
             </CardContent>
           </Card>
 

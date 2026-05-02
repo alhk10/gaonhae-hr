@@ -10,7 +10,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Calendar, Ticket, Receipt, Settings } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, Ticket, Receipt, Settings, FileText } from 'lucide-react';
+import PersonDocumentsTab from '@/components/documents/PersonDocumentsTab';
 import { toast } from 'sonner';
 
 // Components
@@ -225,7 +226,7 @@ const StudentProfile: React.FC = () => {
 
         {/* Tabbed Content */}
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Overview</span>
@@ -241,6 +242,10 @@ const StudentProfile: React.FC = () => {
             <TabsTrigger value="invoices" className="flex items-center gap-2">
               <Receipt className="w-4 h-4" />
               <span className="hidden sm:inline">Invoices</span>
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Documents</span>
             </TabsTrigger>
           </TabsList>
 
@@ -287,6 +292,14 @@ const StudentProfile: React.FC = () => {
             <StudentInvoices 
               invoices={invoices} 
               loading={invoicesLoading} 
+            />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            <PersonDocumentsTab
+              linkedType="student"
+              linkedId={student.id}
+              branchId={(student as any).branch_id || null}
             />
           </TabsContent>
         </Tabs>

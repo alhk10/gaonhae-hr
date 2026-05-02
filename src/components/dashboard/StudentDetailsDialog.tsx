@@ -28,6 +28,7 @@ import {
 
 import { Student } from '@/services/studentService';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
+import PersonDocumentsTab from '@/components/documents/PersonDocumentsTab';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -330,6 +331,17 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
                     ))}
                   </div>
                 )}
+              </div>
+            </section>
+
+            {/* Documents */}
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
+                <FileText className="w-4 h-4" />
+                Documents
+              </h3>
+              <div className="bg-muted/50 rounded-lg p-2">
+                <PersonDocumentsTab linkedType="student" linkedId={student.id} branchId={branchId || null} />
               </div>
             </section>
 
