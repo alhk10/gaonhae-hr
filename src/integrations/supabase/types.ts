@@ -1071,6 +1071,75 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          ai_suggestion: Json | null
+          branch_id: string | null
+          created_at: string
+          custom_label: string | null
+          document_level: string | null
+          document_type: string
+          extracted_data: Json | null
+          file_mime: string | null
+          file_name: string
+          file_path: string
+          file_size_bytes: number | null
+          file_url: string
+          id: string
+          linked_id: string | null
+          linked_type: string | null
+          match_confidence: number | null
+          match_status: string
+          notes: string | null
+          updated_at: string
+          uploaded_by_email: string | null
+        }
+        Insert: {
+          ai_suggestion?: Json | null
+          branch_id?: string | null
+          created_at?: string
+          custom_label?: string | null
+          document_level?: string | null
+          document_type: string
+          extracted_data?: Json | null
+          file_mime?: string | null
+          file_name: string
+          file_path: string
+          file_size_bytes?: number | null
+          file_url: string
+          id?: string
+          linked_id?: string | null
+          linked_type?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          notes?: string | null
+          updated_at?: string
+          uploaded_by_email?: string | null
+        }
+        Update: {
+          ai_suggestion?: Json | null
+          branch_id?: string | null
+          created_at?: string
+          custom_label?: string | null
+          document_level?: string | null
+          document_type?: string
+          extracted_data?: Json | null
+          file_mime?: string | null
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number | null
+          file_url?: string
+          id?: string
+          linked_id?: string | null
+          linked_type?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          notes?: string | null
+          updated_at?: string
+          uploaded_by_email?: string | null
+        }
+        Relationships: []
+      }
       education_resources: {
         Row: {
           created_at: string
