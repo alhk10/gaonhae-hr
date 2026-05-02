@@ -266,6 +266,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     if (hasBranchAccess) {
       console.log('Sidebar: Employee has branch dashboard access');
       menuItems.push({ icon: Building2, label: 'Branch Dashboard', path: '/branch-dashboard' });
+      menuItems.push({ icon: FileText, label: 'Documents', path: '/documents' });
     }
 
     // Add regular employee page access items - prioritize authData.pageAccess as it's more reliable
