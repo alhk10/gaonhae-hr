@@ -45,6 +45,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
 const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
+const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary'));
 
 // Finance / Accounting module
 const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
