@@ -45,6 +45,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
 const CctvMonitoring = lazy(() => import('./pages/CctvMonitoring'));
+const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary'));
 
 // Finance / Accounting module
 const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
@@ -169,6 +170,7 @@ function App() {
                     <Route path="/admin-slot-booking" element={<ProtectedRoute permission="slotBooking"><AdminSlotBooking /></ProtectedRoute>} />
                     <Route path="/casual-employees" element={<ProtectedRoute permission="employees"><CasualEmployees /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                    <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
                     
                     {/* Branch Dashboard Route */}
                     <Route path="/branch-dashboard" element={<ProtectedRoute><BranchDashboardPage /></ProtectedRoute>} />

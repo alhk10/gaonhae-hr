@@ -187,6 +187,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
         { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
 
+      adminItems.push({ icon: FileText, label: 'Documents', path: '/documents' });
       adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
 
       // Add Sales Settings if user has access
@@ -265,6 +266,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     if (hasBranchAccess) {
       console.log('Sidebar: Employee has branch dashboard access');
       menuItems.push({ icon: Building2, label: 'Branch Dashboard', path: '/branch-dashboard' });
+      menuItems.push({ icon: FileText, label: 'Documents', path: '/documents' });
     }
 
     // Add regular employee page access items - prioritize authData.pageAccess as it's more reliable
