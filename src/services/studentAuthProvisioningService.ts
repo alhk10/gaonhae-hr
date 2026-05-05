@@ -11,9 +11,11 @@ import { logger } from '@/utils/logger';
  */
 const generateSecurePassword = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  const buf = new Uint32Array(16);
+  crypto.getRandomValues(buf);
   let password = '';
   for (let i = 0; i < 16; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(buf[i] % chars.length);
   }
   return password;
 };
