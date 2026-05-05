@@ -119,7 +119,13 @@ const createAuthUser = async (employee: ValidatedEmployee): Promise<AuthUserCrea
   }
 };
 
-// Generate a secure temporary password
+// Generate a secure temporary password using crypto.getRandomValues
+const randomInt = (max: number): number => {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] % max;
+};
+
 const generateSecurePassword = (): string => {
   const length = 12;
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -127,22 +133,24 @@ const generateSecurePassword = (): string => {
   const numbers = '0123456789';
   const symbols = '!@#$%^&*';
   const allChars = uppercase + lowercase + numbers + symbols;
-  
+
   let password = '';
-  
-  // Ensure at least one character from each category
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += symbols[Math.floor(Math.random() * symbols.length)];
-  
-  // Fill the rest randomly
+  password += uppercase[randomInt(uppercase.length)];
+  password += lowercase[randomInt(lowercase.length)];
+  password += numbers[randomInt(numbers.length)];
+  password += symbols[randomInt(symbols.length)];
+
   for (let i = 4; i < length; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
+    password += allChars[randomInt(allChars.length)];
   }
-  
-  // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+
+  // Cryptographic Fisher-Yates shuffle
+  const arr = password.split('');
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
 };
 
 export const createBulkSupabaseAuthUsers = async (): Promise<BulkUserCreationResult> => {
