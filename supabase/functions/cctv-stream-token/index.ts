@@ -2,7 +2,7 @@
 // Verifies caller has access to the requested camera's branch and returns a
 // short-lived signed playback URL pointing at the self-hosted MediaMTX server.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
-import { create, getNumericDate } from 'https://deno.land/x/[email protected]/mod.ts';
+import { create, getNumericDate } from 'https://deno.land/x/djwt@v3.0.2/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
