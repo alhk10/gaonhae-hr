@@ -6341,6 +6341,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_password_to_history: {
+        Args: { p_email: string; p_hash: string; p_salt: string }
+        Returns: undefined
+      }
       admin_reset_password: {
         Args: {
           new_password_hash: string
@@ -6373,7 +6377,12 @@ export type Database = {
         Args: { join_date: string; reference_date?: string }
         Returns: number
       }
+      can_subscribe_topic: { Args: { _topic: string }; Returns: boolean }
       check_employee_admin_access: { Args: never; Returns: boolean }
+      check_password_history: {
+        Args: { p_email: string; p_new_hash: string }
+        Returns: boolean
+      }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
       generate_payment_number: { Args: never; Returns: string }
