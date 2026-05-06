@@ -227,7 +227,10 @@ const ResetPassword = () => {
           </div>
           <CardTitle className="text-2xl">Set New Password</CardTitle>
           <CardDescription>
-            Enter your new password below
+            Enter your new password below.
+            <span className="block mt-1 text-xs text-muted-foreground">
+              Tip: open the reset link in the same browser where you requested it.
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
