@@ -1,57 +1,64 @@
+## Diagnosis
 
-# Final security wrap-up
+Jason's account (`jasonlulijie@gmail.com`, auth id `11c639c2-3e7e-468a-a8f4-a81ed7aedc6c`) is healthy at the auth layer:
 
-## 1. Realtime channel authorization (lock by topic prefix)
+- Email confirmed, not banned, has an `encrypted_password`.
+- `auth.users.updated_at` = 2026-05-05 15:13 → password was changed yesterday.
+- `recovery_sent_at` = NULL → **no password recovery email was ever sent** for this account.
+- `last_sign_in_at` = 2026-03-15 → he has not successfully logged in since the change.
+- `user_passwords`: `failed_attempts=0`, `locked_until=NULL`, `must_change_password=false` — no app-level lock.
 
-Migration adds RLS on `realtime.messages` with topic-prefix rules:
+Conclusion: the password really was updated server-side (almost certainly via the `auth-admin` edge function's `reset_password` action used by a superadmin), but the value Jason is now typing does not match what is stored. The "Forgot password email" he remembers either was never actually sent or the link was used by someone else / replaced by a later admin reset. The "Invalid login credentials" toast comes straight from `supabase.auth.signInWithPassword`.
 
-| Topic prefix | Who can subscribe |
-|---|---|
-| `student:<id>` | Owning student (via `student_auth`) + branch staff with access to that student's branch |
-| `branch:<id>` | Superadmin + employees with `employee_branch_access` for that branch |
-| `employee:<id>` | The employee themself + superadmin |
-| `superadmin:*` | Superadmin only |
-| `public:*` | Any authenticated user (for non-sensitive broadcasts) |
-| anything else | Denied |
+## Fix plan
 
-Implementation uses `realtime.topic()` and a SECURITY DEFINER helper `public.can_subscribe_topic(topic text)`. INSERT policy on `realtime.messages` calls it.
+### 1. Immediate recovery for Jason
 
-**Code follow-up:** Audit `supabase.channel(...)` calls — any that don't already use a `student:`, `branch:`, `employee:`, or `public:` prefix will silently stop receiving messages. I'll grep, list them, and rename them in the same change.
+Issue a fresh password via the existing superadmin tooling (Bulk User Creation Manager → "Reset Password" for `jasonlulijie@gmail.com`). This:
+- Calls `auth-admin` `reset_password` → `auth.admin.updateUserById` with the new password.
+- Globally signs him out of all sessions.
+- Communicate the new temporary password directly (out-of-band), and ask him to log in and change it from Profile.
 
-## 2. password_history — block all client SELECT
+Alternative: trigger the standard "Forgot password" email from the login screen for him, and confirm he opens it in the **same browser** where he requests it (implicit flow requires that). If he opens it in a different browser/email app, `setSession` from the hash succeeds but the email-app browser is the one logged in.
 
-Migration:
-- Drop existing SELECT/INSERT policies on `password_history`.
-- Add `REVOKE SELECT, INSERT, UPDATE, DELETE ON public.password_history FROM authenticated, anon`.
-- Create SECURITY DEFINER RPCs:
-  - `check_password_history(p_email text, p_hash text) RETURNS boolean` — true if hash matches any of the last N entries.
-  - `add_password_to_history(p_email text, p_hash text, p_salt text) RETURNS void` — caller must match `auth.email()` or be superadmin; trims history to last 5.
+### 2. Make future password resets unambiguous
 
-**Code follow-up:** update `src/services/securityService.ts`:
-- `checkPasswordHistory()` → `supabase.rpc('check_password_history', { p_email, p_hash })`
-- `addPasswordToHistory()` → `supabase.rpc('add_password_to_history', ...)`
+Three small product changes so this cannot recur silently:
 
-## 3. Public registration — leave as-is
+**a. Surface "last password change" + source in the admin reset UI.** When a superadmin opens Jason's row in `BulkUserCreationManager`, show `auth.users.updated_at` and the last admin who reset it (we already log via `log_security_event` — display the most recent `password_reset` event).
 
-Marked as ignored in the scanner with reason "Public student registration is an intentional product feature; abuse will be addressed reactively."
+**b. Always send a notification email on password change.** Edge function `auth-admin` `reset_password` should, after `updateUserById`, send a transactional email ("Your password was reset by an administrator. If this wasn't expected, contact support.") so the user is never confused about which password is current.
 
-## 4. Dashboard / DBA toggles — checklist for you
+**c. Forgot-password UX hardening on `/auth/reset-password`.** The page already supports both hash tokens and `PASSWORD_RECOVERY` events, but:
+- Add explicit messaging: "Open this link in the same browser where you requested it."
+- After successful update, also call `auth-admin` to globally sign out other sessions (defense in depth).
 
-Output a final summary with direct dashboard links for the three you must do yourself:
+### 3. Verify and monitor
 
-- **Postgres upgrade** → https://supabase.com/dashboard/project/qwdcbfnuywgubumlgscy/settings/infrastructure → "Upgrade project". Backup first; ~2 min downtime.
-- **Leaked password protection** → https://supabase.com/dashboard/project/qwdcbfnuywgubumlgscy/auth/providers → Email → toggle "Prevent use of leaked passwords".
-- **Extension in public schema** → Run in [SQL Editor](https://supabase.com/dashboard/project/qwdcbfnuywgubumlgscy/sql/new):
-  ```sql
-  CREATE SCHEMA IF NOT EXISTS extensions;
-  ALTER EXTENSION pg_net SET SCHEMA extensions;  -- (or whichever extension is flagged)
-  ```
-  I'll detect which extension first and give the exact statement.
+- After Jason logs in once, query `auth.users.last_sign_in_at` to confirm.
+- Add a tiny diagnostic in `LoginForm` (only in dev/superadmin impersonation) that shows the raw Supabase error code, so future "invalid credentials vs not confirmed vs rate-limited" cases are distinguishable at a glance.
 
-## Order of execution
+## Technical details
 
-1. Migration: realtime RLS + password_history lockdown + revoke/RPCs.
-2. Update `securityService.ts` to use the new RPCs.
-3. Audit and rename `supabase.channel()` calls to the new topic naming convention.
-4. Mark `student_registrations` finding as ignored with justification.
-5. Print the dashboard checklist (Postgres upgrade, leaked password protection, extension move SQL).
+Files touched if you approve:
+
+- `src/components/admin/BulkUserCreationManager.tsx` — show "Password last changed" column from `auth.users.updated_at` (via a new `auth-admin` action `get_user_meta`), and the last reset actor from `security_audit_log`.
+- `supabase/functions/auth-admin/index.ts` — 
+  - new `get_user_meta` action returning `last_sign_in_at`, `updated_at`, `email_confirmed_at`.
+  - in `reset_password`, after success, send notification email via existing `send-approval-email` (or a new `send-password-reset-notice`) function.
+  - log `password_reset` to `security_audit_log` with the acting superadmin's email.
+- `src/pages/auth/ResetPassword.tsx` — add same-browser hint; on success, invoke `auth-admin` `signout_all` for the user.
+- No DB migration required.
+
+## Out of scope
+
+- Changing the auth flow type (currently `implicit`, which is the right call for email-app compatibility per `client.ts`).
+- Migrating off the custom `user_passwords` table — it's only used for lockout/complexity bookkeeping, not for actual auth.
+
+## Action you can take right now (no code change needed)
+
+1. Open the superadmin Bulk User Creation page → reset Jason's password to a known value.
+2. Send him the new password through a trusted channel.
+3. Ask him to log in once and change it from Profile.
+
+If that works, we proceed with steps 2 and 3 above to prevent recurrence.
