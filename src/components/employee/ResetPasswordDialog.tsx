@@ -169,6 +169,32 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
         <div className="space-y-4">
           {!isComplete ? (
             <>
+              {/* Auth account diagnostics */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 space-y-0.5 flex-1">
+                    <p className="font-medium text-slate-800 mb-1">Account status</p>
+                    {metaLoading && <p>Loading…</p>}
+                    {!metaLoading && !meta && <p className="text-slate-500">No diagnostics available.</p>}
+                    {!metaLoading && meta && (
+                      <>
+                        <p>Password last changed: <strong>{meta.passwordUpdatedAt ? formatDateTime(meta.passwordUpdatedAt) : '—'}</strong></p>
+                        <p>Last successful sign-in: <strong>{meta.lastSignInAt ? formatDateTime(meta.lastSignInAt) : 'Never'}</strong></p>
+                        <p>Email confirmed: <strong>{meta.emailConfirmedAt ? 'Yes' : 'No'}</strong></p>
+                        {meta.bannedUntil && <p className="text-red-600">Banned until: {formatDateTime(meta.bannedUntil)}</p>}
+                        {meta.lastReset && (
+                          <p>
+                            Last admin reset by <strong>{meta.lastReset.details?.reset_by || 'unknown'}</strong>
+                            {' '}on {formatDateTime(meta.lastReset.created_at)}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Warning Notice */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
