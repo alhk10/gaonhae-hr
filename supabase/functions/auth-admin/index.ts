@@ -212,6 +212,31 @@ serve(async (req) => {
 
       console.log(`Password reset successful for ${email} (user ${targetUser.id})`);
 
+      // Audit log: who reset whose password
+      try {
+        const callerEmailForLog = (() => {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              return payload?.email || 'service_role';
+            }
+          } catch (_) {}
+          return 'service_role';
+        })();
+        await adminClient.rpc('log_security_event', {
+          p_user_email: email,
+          p_action: 'PASSWORD_RESET_BY_ADMIN_AUTH',
+          p_details: {
+            target_user_id: targetUser.id,
+            reset_by: callerEmailForLog,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (logErr) {
+        console.error('Failed to write security audit log (non-fatal):', logErr);
+      }
+
       return new Response(JSON.stringify({ 
         success: true, 
         userId: targetUser.id,
