@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock } from 'lucide-react';
+import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { logSecurityEvent } from '@/services/securityService';
+import { formatDateTime } from '@/utils/dateFormat';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -24,9 +25,42 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  
+  const [meta, setMeta] = useState<any>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
+
   // Default password for all resets
   const defaultPassword = 'password';
+
+  // Fetch auth-side metadata when dialog opens so superadmin can see whether
+  // the password was already reset, when, and by whom.
+  useEffect(() => {
+    if (!open || !employeeEmail) {
+      setMeta(null);
+      return;
+    }
+    let cancelled = false;
+    setMetaLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('auth-admin', {
+          body: { action: 'get_user_meta', email: employeeEmail },
+        });
+        if (!cancelled) {
+          if (error || data?.error) {
+            console.warn('get_user_meta failed:', error?.message || data?.error);
+            setMeta(null);
+          } else {
+            setMeta(data);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setMeta(null);
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, employeeEmail]);
 
   const handleResetPassword = async () => {
     console.log('ResetPasswordDialog: Starting password reset for:', employeeEmail);
@@ -135,6 +169,32 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
         <div className="space-y-4">
           {!isComplete ? (
             <>
+              {/* Auth account diagnostics */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 space-y-0.5 flex-1">
+                    <p className="font-medium text-slate-800 mb-1">Account status</p>
+                    {metaLoading && <p>Loading…</p>}
+                    {!metaLoading && !meta && <p className="text-slate-500">No diagnostics available.</p>}
+                    {!metaLoading && meta && (
+                      <>
+                        <p>Password last changed: <strong>{meta.passwordUpdatedAt ? formatDateTime(meta.passwordUpdatedAt) : '—'}</strong></p>
+                        <p>Last successful sign-in: <strong>{meta.lastSignInAt ? formatDateTime(meta.lastSignInAt) : 'Never'}</strong></p>
+                        <p>Email confirmed: <strong>{meta.emailConfirmedAt ? 'Yes' : 'No'}</strong></p>
+                        {meta.bannedUntil && <p className="text-red-600">Banned until: {formatDateTime(meta.bannedUntil)}</p>}
+                        {meta.lastReset && (
+                          <p>
+                            Last admin reset by <strong>{meta.lastReset.details?.reset_by || 'unknown'}</strong>
+                            {' '}on {formatDateTime(meta.lastReset.created_at)}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Warning Notice */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">

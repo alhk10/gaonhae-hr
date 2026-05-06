@@ -8,6 +8,7 @@
 // - updateUserEmail: { userId, email }
 // - reset_password: { email, newPassword }
 // - sign_out_user: { userId }
+// - get_user_meta: { email }
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.1";
@@ -211,11 +212,89 @@ serve(async (req) => {
 
       console.log(`Password reset successful for ${email} (user ${targetUser.id})`);
 
+      // Audit log: who reset whose password
+      try {
+        const callerEmailForLog = (() => {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              return payload?.email || 'service_role';
+            }
+          } catch (_) {}
+          return 'service_role';
+        })();
+        await adminClient.rpc('log_security_event', {
+          p_user_email: email,
+          p_action: 'PASSWORD_RESET_BY_ADMIN_AUTH',
+          p_details: {
+            target_user_id: targetUser.id,
+            reset_by: callerEmailForLog,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (logErr) {
+        console.error('Failed to write security audit log (non-fatal):', logErr);
+      }
+
       return new Response(JSON.stringify({ 
         success: true, 
         userId: targetUser.id,
         message: "Password updated and user signed out from all sessions" 
       }), { 
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // === get_user_meta ===
+    // Returns auth-side metadata for an account so superadmins can see when the
+    // password was last changed and when the user last signed in. Helpful when
+    // diagnosing "I changed my password but still can't log in" tickets.
+    if (body.action === "get_user_meta") {
+      const email = body.email?.trim().toLowerCase();
+      if (!email) {
+        return new Response(JSON.stringify({ error: "email is required" }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { data: listData, error: listErr } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listErr) {
+        return new Response(JSON.stringify({ error: listErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const u = listData.users.find((x: any) => (x.email || "").toLowerCase() === email);
+      if (!u) {
+        return new Response(JSON.stringify({ error: `No auth user found for email: ${email}` }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      let lastResetEvent: any = null;
+      try {
+        const { data: auditRows } = await adminClient
+          .from('security_audit_log')
+          .select('action, details, created_at')
+          .eq('user_email', email)
+          .in('action', ['PASSWORD_RESET_BY_ADMIN', 'PASSWORD_RESET_BY_ADMIN_AUTH'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+        lastResetEvent = auditRows?.[0] ?? null;
+      } catch (e) {
+        console.error('Audit lookup failed (non-fatal):', e);
+      }
+
+      return new Response(JSON.stringify({
+        userId: u.id,
+        email: u.email,
+        lastSignInAt: u.last_sign_in_at ?? null,
+        emailConfirmedAt: u.email_confirmed_at ?? null,
+        bannedUntil: (u as any).banned_until ?? null,
+        passwordUpdatedAt: u.updated_at ?? null,
+        lastReset: lastResetEvent,
+      }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
