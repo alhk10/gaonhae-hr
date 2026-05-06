@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock } from 'lucide-react';
+import { AlertTriangle, Copy, RefreshCw, Eye, EyeOff, CheckCircle2, Lock, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { logSecurityEvent } from '@/services/securityService';
+import { formatDateTime } from '@/utils/dateFormat';
 
 interface ResetPasswordDialogProps {
   open: boolean;
