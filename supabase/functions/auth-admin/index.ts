@@ -246,6 +246,59 @@ serve(async (req) => {
       });
     }
 
+    // === get_user_meta ===
+    // Returns auth-side metadata for an account so superadmins can see when the
+    // password was last changed and when the user last signed in. Helpful when
+    // diagnosing "I changed my password but still can't log in" tickets.
+    if (body.action === "get_user_meta") {
+      const email = body.email?.trim().toLowerCase();
+      if (!email) {
+        return new Response(JSON.stringify({ error: "email is required" }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { data: listData, error: listErr } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listErr) {
+        return new Response(JSON.stringify({ error: listErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const u = listData.users.find((x: any) => (x.email || "").toLowerCase() === email);
+      if (!u) {
+        return new Response(JSON.stringify({ error: `No auth user found for email: ${email}` }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      let lastResetEvent: any = null;
+      try {
+        const { data: auditRows } = await adminClient
+          .from('security_audit_log')
+          .select('action, details, created_at')
+          .eq('user_email', email)
+          .in('action', ['PASSWORD_RESET_BY_ADMIN', 'PASSWORD_RESET_BY_ADMIN_AUTH'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+        lastResetEvent = auditRows?.[0] ?? null;
+      } catch (e) {
+        console.error('Audit lookup failed (non-fatal):', e);
+      }
+
+      return new Response(JSON.stringify({
+        userId: u.id,
+        email: u.email,
+        lastSignInAt: u.last_sign_in_at ?? null,
+        emailConfirmedAt: u.email_confirmed_at ?? null,
+        bannedUntil: (u as any).banned_until ?? null,
+        passwordUpdatedAt: u.updated_at ?? null,
+        lastReset: lastResetEvent,
+      }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // === sign_out_user ===
     if (body.action === "sign_out_user") {
       const userId = body.userId?.trim();
