@@ -8,6 +8,7 @@
 // - updateUserEmail: { userId, email }
 // - reset_password: { email, newPassword }
 // - sign_out_user: { userId }
+// - get_user_meta: { email }
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.1";
