@@ -25,9 +25,42 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  
+  const [meta, setMeta] = useState<any>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
+
   // Default password for all resets
   const defaultPassword = 'password';
+
+  // Fetch auth-side metadata when dialog opens so superadmin can see whether
+  // the password was already reset, when, and by whom.
+  useEffect(() => {
+    if (!open || !employeeEmail) {
+      setMeta(null);
+      return;
+    }
+    let cancelled = false;
+    setMetaLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('auth-admin', {
+          body: { action: 'get_user_meta', email: employeeEmail },
+        });
+        if (!cancelled) {
+          if (error || data?.error) {
+            console.warn('get_user_meta failed:', error?.message || data?.error);
+            setMeta(null);
+          } else {
+            setMeta(data);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setMeta(null);
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, employeeEmail]);
 
   const handleResetPassword = async () => {
     console.log('ResetPasswordDialog: Starting password reset for:', employeeEmail);
