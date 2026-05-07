@@ -6484,6 +6484,7 @@ export type Database = {
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
       has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
+      is_partner: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
       is_superadmin: { Args: { user_email: string }; Returns: boolean }
       is_valid_belt_level: { Args: { belt_value: string }; Returns: boolean }
@@ -6522,6 +6523,17 @@ export type Database = {
           p_user_email: string
         }
         Returns: undefined
+      }
+      partner_create_approved_claim: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_description: string
+          p_receipt_url: string
+          p_submitted_date: string
+          p_type: string
+        }
+        Returns: string
       }
       process_leave_encashment: {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
