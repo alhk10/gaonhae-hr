@@ -6533,7 +6533,7 @@ export type Database = {
           p_submitted_date: string
           p_type: string
         }
-        Returns: string
+        Returns: number
       }
       process_leave_encashment: {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
