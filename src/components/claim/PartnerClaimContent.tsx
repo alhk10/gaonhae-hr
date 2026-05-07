@@ -19,6 +19,7 @@ import ReceiptUpload from '@/components/claim/ReceiptUpload';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/utils/dateFormat';
+import { SignedImage } from '@/components/common/SignedMedia';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -476,9 +477,9 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
           </AlertDialogHeader>
           <div className="overflow-auto max-h-[60vh]">
             {viewingReceiptUrl && (
-              <img 
-                src={viewingReceiptUrl} 
-                alt="Receipt" 
+              <SignedImage
+                src={viewingReceiptUrl}
+                alt="Receipt"
                 className="w-full h-auto object-contain"
               />
             )}

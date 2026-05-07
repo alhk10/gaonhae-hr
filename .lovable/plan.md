@@ -1,64 +1,84 @@
-## Diagnosis
+# Security Hardening — Final Pass
 
-Jason's account (`jasonlulijie@gmail.com`, auth id `11c639c2-3e7e-468a-a8f4-a81ed7aedc6c`) is healthy at the auth layer:
+Buckets are already private and most RLS gaps were closed in the previous migration. This pass closes the remaining scanner findings, refactors UI to use signed URLs (so private buckets actually work), and tightens RPC exposure.
 
-- Email confirmed, not banned, has an `encrypted_password`.
-- `auth.users.updated_at` = 2026-05-05 15:13 → password was changed yesterday.
-- `recovery_sent_at` = NULL → **no password recovery email was ever sent** for this account.
-- `last_sign_in_at` = 2026-03-15 → he has not successfully logged in since the change.
-- `user_passwords`: `failed_attempts=0`, `locked_until=NULL`, `must_change_password=false` — no app-level lock.
+## Goal
 
-Conclusion: the password really was updated server-side (almost certainly via the `auth-admin` edge function's `reset_password` action used by a superadmin), but the value Jason is now typing does not match what is stored. The "Forgot password email" he remembers either was never actually sent or the link was used by someone else / replaced by a later admin reset. The "Invalid login credentials" toast comes straight from `supabase.auth.signInWithPassword`.
+Drive remaining `error`-level findings to zero and reduce `warn` findings to only those that require the Supabase Dashboard.
 
-## Fix plan
+## Scope
 
-### 1. Immediate recovery for Jason
+### 1. Database / RLS migration
 
-Issue a fresh password via the existing superadmin tooling (Bulk User Creation Manager → "Reset Password" for `jasonlulijie@gmail.com`). This:
-- Calls `auth-admin` `reset_password` → `auth.admin.updateUserById` with the new password.
-- Globally signs him out of all sessions.
-- Communicate the new temporary password directly (out-of-band), and ask him to log in and change it from Profile.
+**Verify previous fixes landed** (re-query `pg_policies`); re-apply if missing:
+- `published_pl_reports` writes → superadmin / branch finance only
+- `student_class_enrollments` writes → branch staff / superadmin
+- `student_scheduled_classes` all CRUD → branch staff / student-self for SELECT
+- `letter_templates` writes → admin/superadmin
+- `leave_encashment_config` / `leave_encashment_records` SELECT → owner or payroll admin
+- `monday_holiday_leave_adjustments` SELECT → owner or payroll admin
+- `grading_term_scorecard_columns` writes → superadmin (kept SELECT auth)
+- `students` INSERT → fix `eia.branch_id = students.branch_id` bug
+- `slot_booking_edit_requests` / `grading_deletion_requests` UPDATE → superadmin/admin only
+- `invoice_action_requests` SELECT → requester, branch staff, or superadmin
+- `claims` INSERT → already enforces `status='Pending'` ✓
 
-Alternative: trigger the standard "Forgot password" email from the login screen for him, and confirm he opens it in the **same browser** where he requests it (implicit flow requires that). If he opens it in a different browser/email app, `setSession` from the hash succeeds but the email-app browser is the one logged in.
+**New tightening:**
+- Tighten remaining `WITH CHECK true` INSERT policies that don't need it:
+  - `inventory_orders` INSERT/UPDATE → require admin
+  - `invoice_deletion_requests`, `payment_deletion_requests`, `invoice_discount_approvals` INSERT → require requester = current user / branch staff
+  - `notice_payments` INSERT → require `student_id = current_student_id()` or branch staff
+  - `superadmin_users` INSERT → drop `with_check true`, restrict to existing superadmin
+- Fix three remaining functions missing `SET search_path`: `get_current_user_role`, `get_current_employee_id`, `has_admin_access`.
+- Revoke `EXECUTE` on sensitive SECURITY DEFINER aggregation functions from `anon` and `authenticated`:
+  - `get_eligible_employees_with_entitlements`, `calculate_unused_leave_for_encashment`, `process_leave_encashment`, `force_book_*`, `admin_reset_password`.
 
-### 2. Make future password resets unambiguous
+### 2. Storage URL refactor (signed URLs)
 
-Three small product changes so this cannot recur silently:
+Buckets are already private. Existing components still call `getPublicUrl` on them, which returns dead links. Refactor to use the existing `resolveStorageUrl` helper (from `src/utils/storageUrl.ts`) which produces signed URLs.
 
-**a. Surface "last password change" + source in the admin reset UI.** When a superadmin opens Jason's row in `BulkUserCreationManager`, show `auth.users.updated_at` and the last admin who reset it (we already log via `log_security_event` — display the most recent `password_reset` event).
+Files to update:
+- `src/components/dashboard/StudentDashboard.tsx` (passport photos)
+- `src/components/dashboard/StudentProfileCompletionDialog.tsx`
+- `src/components/notices/NoticePopupDialog.tsx`, `CreateEditNoticeDialog.tsx` (notice attachments)
+- `src/components/sales/ViewEditPaymentDialog.tsx`, `CreatePaymentDialog.tsx` (payment proofs)
+- `src/components/dashboard/PaySchoolFeesDialog.tsx`, `PayGradingDialog.tsx`, `SubmitClaimDialog.tsx`
+- `src/components/claim/ClaimsManagementContent.tsx`, `AddClaimDialog.tsx`, `EmployeeClaimHistory.tsx`, `ClaimsApprovals.tsx`
+- `src/services/noticeService.ts`, `claimsService.ts`, `documentService.ts`
+- `src/pages/StudentRegistration.tsx`, `SubmitClaim.tsx`, `Claims.tsx`, `PayrollProcessing.tsx`
 
-**b. Always send a notification email on password change.** Edge function `auth-admin` `reset_password` should, after `updateUserById`, send a transactional email ("Your password was reset by an administrator. If this wasn't expected, contact support.") so the user is never confused about which password is current.
+Pattern: replace `supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl` with `await resolveStorageUrl(bucket, path)` which returns a 1-hour signed URL for private buckets and the public URL otherwise.
 
-**c. Forgot-password UX hardening on `/auth/reset-password`.** The page already supports both hash tokens and `PASSWORD_RECOVERY` events, but:
-- Add explicit messaging: "Open this link in the same browser where you requested it."
-- After successful update, also call `auth-admin` to globally sign out other sessions (defense in depth).
+### 3. Edge Function
 
-### 3. Verify and monitor
+`documents-ai-match` already had JWT auth added previously. Verify and additionally check the caller has access to the document (superadmin or branch access on the document's branch).
 
-- After Jason logs in once, query `auth.users.last_sign_in_at` to confirm.
-- Add a tiny diagnostic in `LoginForm` (only in dev/superadmin impersonation) that shows the raw Supabase error code, so future "invalid credentials vs not confirmed vs rate-limited" cases are distinguishable at a glance.
+### 4. Security memory
 
-## Technical details
+Update `mem://security` (via `security--update_memory`) to record:
+- All five sensitive buckets are private; UI must use `resolveStorageUrl`.
+- `claims` INSERT enforces `Pending`; partner auto-approval only via `partner_create_approved_claim` RPC.
+- Aggregation/admin RPCs are not directly callable by `authenticated`.
+- Remaining warnings (Postgres upgrade, leaked-password protection, extension-in-public) require Dashboard action by the user.
 
-Files touched if you approve:
+### 5. Mark findings fixed / dashboard items
 
-- `src/components/admin/BulkUserCreationManager.tsx` — show "Password last changed" column from `auth.users.updated_at` (via a new `auth-admin` action `get_user_meta`), and the last reset actor from `security_audit_log`.
-- `supabase/functions/auth-admin/index.ts` — 
-  - new `get_user_meta` action returning `last_sign_in_at`, `updated_at`, `email_confirmed_at`.
-  - in `reset_password`, after success, send notification email via existing `send-approval-email` (or a new `send-password-reset-notice`) function.
-  - log `password_reset` to `security_audit_log` with the acting superadmin's email.
-- `src/pages/auth/ResetPassword.tsx` — add same-browser hint; on success, invoke `auth-admin` `signout_all` for the user.
-- No DB migration required.
+Mark `manage_security_finding` for items resolved; leave Dashboard-only items (Postgres upgrade, leaked-password protection, extension move) as open with a clear note for the user.
+
+## Manual steps required (user action)
+
+1. Supabase Dashboard → **Auth → Policies** → enable **Leaked Password Protection**.
+2. Supabase Dashboard → **Settings → Infrastructure** → upgrade Postgres to latest.
+3. Supabase Dashboard → **Database → Extensions** → move extensions from `public` to `extensions` schema.
 
 ## Out of scope
 
-- Changing the auth flow type (currently `implicit`, which is the right call for email-app compatibility per `client.ts`).
-- Migrating off the custom `user_passwords` table — it's only used for lockout/complexity bookkeeping, not for actual auth.
+- Rewriting client-side role checks (informational finding; RLS is the real boundary).
+- Penetration testing / integration tests for RLS.
 
-## Action you can take right now (no code change needed)
+## Deliverables
 
-1. Open the superadmin Bulk User Creation page → reset Jason's password to a known value.
-2. Send him the new password through a trusted channel.
-3. Ask him to log in once and change it from Profile.
-
-If that works, we proceed with steps 2 and 3 above to prevent recurrence.
+- 1 migration file (RLS fixes + REVOKEs + search_path fixes).
+- ~15-20 frontend file edits switching to `resolveStorageUrl`.
+- Updated security memory.
+- Findings marked fixed where applicable.

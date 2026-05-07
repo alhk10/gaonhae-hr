@@ -18,6 +18,7 @@ import { getClaims, updateClaimStatus, updateClaim } from '@/services/claimsServ
 import { getClaimTypes } from '@/services/claimTypesService';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate } from '@/utils/dateFormat';
+import { SignedLink } from '@/components/common/SignedMedia';
 
 const ClaimsApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -218,9 +219,9 @@ const ClaimsApprovals: React.FC = () => {
                       )}
                       <span className="text-muted-foreground">{formatDate(claim.date)}</span>
                       {claim.receipt_url && (
-                        <a href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5">
+                        <SignedLink href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5">
                           <ExternalLink className="h-3 w-3" />Receipt
-                        </a>
+                        </SignedLink>
                       )}
                     </div>
                     {isEditing ? (
@@ -282,9 +283,9 @@ const ClaimsApprovals: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           {claim.receipt_url ? (
-                            <a href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                            <SignedLink href={claim.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
                               <ExternalLink className="h-3 w-3" />View
-                            </a>
+                            </SignedLink>
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className="text-right">

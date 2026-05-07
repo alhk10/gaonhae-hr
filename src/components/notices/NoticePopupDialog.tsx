@@ -13,6 +13,7 @@ import { Notice, uploadNoticeFile } from '@/services/noticeService';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { openSignedUrl } from '@/components/common/SignedMedia';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -126,11 +127,13 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
             )}
 
             {notice.attachment_url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={notice.attachment_url} target="_blank" rel="noopener noreferrer" download>
-                  <Download className="w-4 h-4 mr-2" />
-                  {notice.attachment_name || 'Download Attachment'}
-                </a>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openSignedUrl(notice.attachment_url)}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {notice.attachment_name || 'Download Attachment'}
               </Button>
             )}
 
