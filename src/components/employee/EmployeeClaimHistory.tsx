@@ -9,6 +9,7 @@ import { getEmployeeClaims, Claim } from '@/services/claimsService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatDate } from '@/utils/dateFormat';
+import { openSignedUrl } from '@/components/common/SignedMedia';
 
 interface EmployeeClaimHistoryProps {
   employeeId: string;
@@ -190,7 +191,7 @@ const EmployeeClaimHistory: React.FC<EmployeeClaimHistoryProps> = ({
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => window.open(selectedClaim.receipt_url, '_blank')}
+                                      onClick={() => openSignedUrl(selectedClaim.receipt_url)}
                                     >
                                       View Receipt
                                     </Button>
