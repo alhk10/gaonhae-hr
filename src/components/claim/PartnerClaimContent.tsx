@@ -175,7 +175,7 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
       const { data: insertedClaim } = await supabase
         .from('claims')
         .select('*')
-        .eq('id', String(newClaimId))
+        .eq('id', Number(newClaimId))
         .maybeSingle();
 
       // Sync to Branch P&L as expense
