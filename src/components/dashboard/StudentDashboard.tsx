@@ -46,6 +46,7 @@ import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDF
 import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
 import StudentProfileCompletionDialog from './StudentProfileCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { SignedImage } from '@/components/common/SignedMedia';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -995,10 +996,16 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
               <div className="flex items-start gap-4 pb-4 border-b">
                 <div className="relative shrink-0">
                   {(student as any).passport_photo_url ? (
-                    <img
+                    <SignedImage
                       src={(student as any).passport_photo_url}
                       alt="Passport photo"
                       className="w-20 h-28 object-cover rounded-lg border"
+                      fallback={
+                        <div className="w-20 h-28 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center bg-muted/50">
+                          <Camera className="w-6 h-6 text-muted-foreground/50" />
+                          <span className="text-xs text-muted-foreground/50 mt-1">No photo</span>
+                        </div>
+                      }
                     />
                   ) : (
                     <div className="w-20 h-28 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center bg-muted/50">
