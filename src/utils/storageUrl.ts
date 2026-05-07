@@ -30,8 +30,8 @@ interface ParsedUrl {
 const parseStoragePath = (urlOrPath: string): ParsedUrl | null => {
   if (!urlOrPath) return null;
 
-  // Public-format URL
-  const publicMatch = urlOrPath.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+  // Public-format URL — strip query/hash before treating as path
+  const publicMatch = urlOrPath.match(/\/storage\/v1\/object\/public\/([^/]+)\/([^?#]+)/);
   if (publicMatch) {
     return { bucket: publicMatch[1], path: decodeURIComponent(publicMatch[2]) };
   }
