@@ -160,20 +160,23 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
       const claimAmount = parseFloat(formData.amount);
       const claimDescription = `${formData.vendor ? `Vendor: ${formData.vendor} - ` : ''}${formData.description}`;
 
-      // Insert claim as auto-approved
-      const { data: insertedClaim, error } = await supabase.from('claims').insert({
-        employee_id: currentEmployee.id,
-        type: formData.type,
-        amount: claimAmount,
-        description: claimDescription,
-        status: 'Approved',
-        submitted_date: formData.date,
-        reviewed_date: new Date().toISOString(),
-        receipt_url: receiptUrl,
-        branch_id: formData.branch_id
-      }).select().single();
+      // Insert claim as auto-approved via SECURITY DEFINER RPC (server-side partner check)
+      const { data: newClaimId, error } = await supabase.rpc('partner_create_approved_claim', {
+        p_type: formData.type,
+        p_amount: claimAmount,
+        p_description: claimDescription,
+        p_submitted_date: formData.date,
+        p_receipt_url: receiptUrl,
+        p_branch_id: formData.branch_id,
+      });
 
       if (error) throw error;
+
+      const { data: insertedClaim } = await supabase
+        .from('claims')
+        .select('*')
+        .eq('id', newClaimId as string)
+        .maybeSingle();
 
       // Sync to Branch P&L as expense
       if (insertedClaim) {
