@@ -18,6 +18,7 @@ import { getPaymentById, updatePayment, type Payment } from '@/services/paymentS
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { SignedImage, openSignedUrl } from '@/components/common/SignedMedia';
 import { Loader2, Edit, Save, X, Calendar, FileText, CreditCard, Receipt, Upload } from 'lucide-react';
 import { formatDate } from '@/utils/dateFormat';
 
@@ -301,11 +302,19 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
             {mode === 'edit' && isSuperadmin ? (
               <div className="space-y-2">
                 {(newProofPreview || payment.proof_of_payment_url) && (
-                  <img
-                    src={newProofPreview || payment.proof_of_payment_url || ''}
-                    alt="Proof of payment"
-                    className="max-h-32 rounded border object-contain"
-                  />
+                  newProofPreview ? (
+                    <img
+                      src={newProofPreview}
+                      alt="Proof of payment"
+                      className="max-h-32 rounded border object-contain"
+                    />
+                  ) : (
+                    <SignedImage
+                      src={payment.proof_of_payment_url}
+                      alt="Proof of payment"
+                      className="max-h-32 rounded border object-contain"
+                    />
+                  )
                 )}
                 <input
                   ref={fileInputRef}
@@ -328,11 +337,13 @@ const ViewEditPaymentDialog: React.FC<ViewEditPaymentDialogProps> = ({
                 )}
               </div>
             ) : payment.proof_of_payment_url ? (
-              <Button variant="outline" size="sm" asChild>
-                <a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer">
-                  <Receipt className="h-4 w-4 mr-2" />
-                  View Attachment
-                </a>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openSignedUrl(payment.proof_of_payment_url)}
+              >
+                <Receipt className="h-4 w-4 mr-2" />
+                View Attachment
               </Button>
             ) : (
               <p className="text-sm text-muted-foreground">No proof attached</p>
