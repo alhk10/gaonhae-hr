@@ -223,18 +223,19 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
 
     logger.info('File uploaded successfully', { data });
 
-    // Step 5: Generate public URL
-    logger.debug('Generating public URL');
-    const { data: { publicUrl } } = supabase.storage
+    // Step 5: Generate signed URL (claim-receipts is a private bucket)
+    logger.debug('Generating signed URL');
+    const { data: signed, error: signErr } = await supabase.storage
       .from('claim-receipts')
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year
 
-    if (!publicUrl) {
-      logger.error('Failed to generate public URL');
+    const publicUrl = signed?.signedUrl;
+    if (signErr || !publicUrl) {
+      logger.error('Failed to generate signed URL', signErr);
       return { success: false, error: 'Upload completed but failed to generate file URL. Please try again.' };
     }
 
-    logger.info('Public URL generated successfully', { publicUrl });
+    logger.info('Signed URL generated successfully');
 
     // Step 6: Verify the uploaded file can be accessed
     logger.debug('Verifying file accessibility');
