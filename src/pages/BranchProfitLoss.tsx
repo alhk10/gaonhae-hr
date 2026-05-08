@@ -196,9 +196,10 @@ const BranchProfitLoss = () => {
   });
 
   const [publishedReports, setPublishedReports] = useState<{ branch_id: string; month: number; year: number }[]>([]);
-  const [showCopyExpensesDialog, setShowCopyExpensesDialog] = useState(false);
-  const [copyExpensesCount, setCopyExpensesCount] = useState(0);
-  const [copyExpensesMonth, setCopyExpensesMonth] = useState('');
+  const [copyDialogType, setCopyDialogType] = useState<'revenue' | 'expense' | null>(null);
+  const [copySourceLabel, setCopySourceLabel] = useState('');
+  const [copyCandidates, setCopyCandidates] = useState<any[]>([]);
+  const [copySelectedIds, setCopySelectedIds] = useState<Set<string>>(new Set());
   const [isCopying, setIsCopying] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
