@@ -2052,19 +2052,68 @@ const BranchProfitLoss = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Copy Previous Expenses Confirmation Dialog */}
-        <Dialog open={showCopyExpensesDialog} onOpenChange={setShowCopyExpensesDialog}>
-          <DialogContent className="max-w-md">
+        {/* Copy Previous Entries Selection Dialog */}
+        <Dialog open={copyDialogType !== null} onOpenChange={(open) => { if (!open) { setCopyDialogType(null); setCopyCandidates([]); setCopySelectedIds(new Set()); } }}>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Copy Previous Month Expenses</DialogTitle>
+              <DialogTitle>
+                Copy Previous Month {copyDialogType === 'revenue' ? 'Revenue' : 'Expenses'}
+                {copySourceLabel && <span className="text-sm font-normal text-muted-foreground ml-2">from {copySourceLabel}</span>}
+              </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Copy <strong>{copyExpensesCount}</strong> expense entries from <strong>{copyExpensesMonth}</strong> into the current month?
-            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{copySelectedIds.size} of {copyCandidates.length} selected</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" className="h-7 text-xs"
+                  onClick={() => setCopySelectedIds(new Set(copyCandidates.map((c: any) => c.id)))}>
+                  Select All
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs"
+                  onClick={() => setCopySelectedIds(new Set())}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto border rounded">
+              <Table className="text-xs">
+                <TableHeader>
+                  <TableRow className="h-8">
+                    <TableHead className="w-8 py-1"></TableHead>
+                    <TableHead className="py-1">Category</TableHead>
+                    <TableHead className="py-1">Description</TableHead>
+                    {copyDialogType === 'revenue' && <TableHead className="text-right py-1">Qty</TableHead>}
+                    {copyDialogType === 'revenue' && <TableHead className="text-right py-1">Sales</TableHead>}
+                    <TableHead className="text-right py-1">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {copyCandidates.map((entry: any) => {
+                    const checked = copySelectedIds.has(entry.id);
+                    const toggle = () => {
+                      const next = new Set(copySelectedIds);
+                      if (checked) next.delete(entry.id); else next.add(entry.id);
+                      setCopySelectedIds(next);
+                    };
+                    return (
+                      <TableRow key={entry.id} className="h-8 cursor-pointer" onClick={toggle}>
+                        <TableCell className="py-1">
+                          <input type="checkbox" checked={checked} onChange={toggle} onClick={(e) => e.stopPropagation()} />
+                        </TableCell>
+                        <TableCell className="py-1">{entry.subcategory || entry.category}</TableCell>
+                        <TableCell className="py-1 max-w-[280px] truncate">{entry.description || '-'}</TableCell>
+                        {copyDialogType === 'revenue' && <TableCell className="text-right py-1">{Number(entry.quantity) || 1}</TableCell>}
+                        {copyDialogType === 'revenue' && <TableCell className="text-right py-1">{entry.sales_amount != null ? `S$${Number(entry.sales_amount).toFixed(2)}` : '-'}</TableCell>}
+                        <TableCell className="text-right py-1">S${Number(entry.amount).toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCopyExpensesDialog(false)} disabled={isCopying}>Cancel</Button>
-              <Button onClick={confirmCopyExpenses} disabled={isCopying}>
-                {isCopying ? 'Copying...' : 'Copy'}
+              <Button variant="outline" onClick={() => setCopyDialogType(null)} disabled={isCopying}>Cancel</Button>
+              <Button onClick={confirmCopySelected} disabled={isCopying || copySelectedIds.size === 0}>
+                {isCopying ? 'Copying...' : `Copy Selected (${copySelectedIds.size})`}
               </Button>
             </DialogFooter>
           </DialogContent>
