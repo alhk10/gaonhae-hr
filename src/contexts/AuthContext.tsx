@@ -190,23 +190,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const updatePassword = async (newPassword: string): Promise<boolean> => {
+  const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // Ensure we have a live session before attempting updateUser.
+      // On mobile, recovery links sometimes open in a new browser context where the
+      // session was not persisted; updateUser then fails with "Auth session missing".
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) {
+        logger.error('getSession before updatePassword failed', sessionErr);
+      }
+      if (!sessionData?.session) {
+        const msg = 'Your reset link session has expired. Please request a new password reset email and open the link in the same browser.';
+        logger.warn('updatePassword aborted: no active session');
+        return { success: false, error: msg };
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (error) {
         logger.error('Password update error', error);
-        return false;
+        return { success: false, error: error.message || 'Failed to update password.' };
       }
 
       setRequiresPasswordChange(false);
       sessionStorage.removeItem(RECOVERY_FLAG_KEY);
-      return true;
-    } catch (error) {
+      return { success: true };
+    } catch (error: any) {
       logger.error('Unexpected password update error', error);
-      return false;
+      return { success: false, error: error?.message || 'Unexpected error while updating password.' };
     }
   };
 
