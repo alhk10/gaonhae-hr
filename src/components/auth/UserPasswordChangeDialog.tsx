@@ -61,25 +61,25 @@ const UserPasswordChangeDialog: React.FC<UserPasswordChangeDialogProps> = ({ ope
     console.log('UserPasswordChangeDialog: Calling updatePassword...');
     
     try {
-      const success = await updatePassword(newPassword);
-      
-      if (success) {
+      const result = await updatePassword(newPassword);
+
+      if (result.success) {
         console.log('UserPasswordChangeDialog: Password updated successfully');
         toast({
           title: "Password Updated",
           description: "Your password has been successfully updated.",
         });
-        
+
         // Reset form and close dialog
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         onOpenChange(false);
       } else {
-        console.log('UserPasswordChangeDialog: Password update failed');
+        console.log('UserPasswordChangeDialog: Password update failed', result.error);
         toast({
           title: "Update Failed",
-          description: "Failed to update password. Please try again.",
+          description: result.error || "Failed to update password. Please try again.",
           variant: "destructive",
         });
       }

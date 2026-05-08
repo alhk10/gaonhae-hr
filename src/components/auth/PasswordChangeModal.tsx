@@ -56,27 +56,22 @@ const PasswordChangeModal: React.FC = () => {
     console.log('PasswordChangeModal: Calling updatePassword...');
     
     try {
-      const success = await updatePassword(newPassword);
-      
-      if (success) {
+      const result = await updatePassword(newPassword);
+
+      if (result.success) {
         console.log('PasswordChangeModal: Password updated successfully');
         toast({
           title: "Password Updated",
           description: "Your password has been successfully updated. You can now access the system.",
         });
-        
+
         setNewPassword('');
         setConfirmPassword('');
-        
-        // Small delay to let the user see the success message
-        setTimeout(() => {
-          console.log('PasswordChangeModal: Password change completed, modal should close automatically');
-        }, 1000);
       } else {
-        console.log('PasswordChangeModal: Password update failed');
+        console.log('PasswordChangeModal: Password update failed', result.error);
         toast({
           title: "Update Failed",
-          description: "Failed to update password. Please try again.",
+          description: result.error || "Failed to update password. Please try again.",
           variant: "destructive",
         });
       }
