@@ -196,9 +196,10 @@ const BranchProfitLoss = () => {
   });
 
   const [publishedReports, setPublishedReports] = useState<{ branch_id: string; month: number; year: number }[]>([]);
-  const [showCopyExpensesDialog, setShowCopyExpensesDialog] = useState(false);
-  const [copyExpensesCount, setCopyExpensesCount] = useState(0);
-  const [copyExpensesMonth, setCopyExpensesMonth] = useState('');
+  const [copyDialogType, setCopyDialogType] = useState<'revenue' | 'expense' | null>(null);
+  const [copySourceLabel, setCopySourceLabel] = useState('');
+  const [copyCandidates, setCopyCandidates] = useState<any[]>([]);
+  const [copySelectedIds, setCopySelectedIds] = useState<Set<string>>(new Set());
   const [isCopying, setIsCopying] = useState(false);
 
   const isSuperadmin = userrole === 'superadmin';
@@ -447,7 +448,7 @@ const BranchProfitLoss = () => {
   };
 
   // Handle copy previous month expenses
-  const handleCopyPreviousExpenses = async () => {
+  const handleOpenCopyPrevious = async (type: 'revenue' | 'expense') => {
     if (!selectedBranch) {
       toast.error('Please select a branch first');
       return;
@@ -457,6 +458,7 @@ const BranchProfitLoss = () => {
     const prevYear = prevMonth === 0 ? parseInt(selectedYear) - 1 : parseInt(selectedYear);
     const actualPrevMonth = prevMonth === 0 ? 12 : prevMonth;
     const prevMonthName = MONTHS[actualPrevMonth - 1];
+    const label = `${prevMonthName} ${prevYear}`;
 
     try {
       const { data, error } = await supabase
@@ -465,43 +467,37 @@ const BranchProfitLoss = () => {
         .eq('branch_id', selectedBranch)
         .eq('month', actualPrevMonth)
         .eq('year', prevYear)
-        .eq('type', 'expense');
+        .eq('type', type);
 
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        toast.error(`No expenses found for ${prevMonthName} ${prevYear}`);
+        toast.error(`No ${type === 'revenue' ? 'revenue' : 'expense'} entries found for ${label}`);
         return;
       }
 
-      setCopyExpensesCount(data.length);
-      setCopyExpensesMonth(`${prevMonthName} ${prevYear}`);
-      setShowCopyExpensesDialog(true);
+      setCopyCandidates(data);
+      setCopySelectedIds(new Set(data.map((d: any) => d.id)));
+      setCopySourceLabel(label);
+      setCopyDialogType(type);
     } catch (error: any) {
-      console.error('Error fetching previous expenses:', error);
-      toast.error('Failed to fetch previous month expenses');
+      console.error('Error fetching previous entries:', error);
+      toast.error(`Failed to fetch previous month ${type} entries`);
     }
   };
 
-  const confirmCopyExpenses = async () => {
+  const confirmCopySelected = async () => {
+    if (!copyDialogType) return;
+    const type = copyDialogType;
+    const selected = copyCandidates.filter((c: any) => copySelectedIds.has(c.id));
+    if (selected.length === 0) {
+      toast.error('Select at least one entry to copy');
+      return;
+    }
+
     setIsCopying(true);
     try {
-      const prevMonth = parseInt(selectedMonth) - 1;
-      const prevYear = prevMonth === 0 ? parseInt(selectedYear) - 1 : parseInt(selectedYear);
-      const actualPrevMonth = prevMonth === 0 ? 12 : prevMonth;
-
-      const { data: prevEntries, error: fetchError } = await supabase
-        .from('branch_profit_loss_entries')
-        .select('*')
-        .eq('branch_id', selectedBranch)
-        .eq('month', actualPrevMonth)
-        .eq('year', prevYear)
-        .eq('type', 'expense');
-
-      if (fetchError) throw fetchError;
-      if (!prevEntries || prevEntries.length === 0) return;
-
-      const newEntries = prevEntries.map(entry => ({
+      const newEntries = selected.map((entry: any) => ({
         branch_id: selectedBranch,
         month: parseInt(selectedMonth),
         year: parseInt(selectedYear),
@@ -514,7 +510,7 @@ const BranchProfitLoss = () => {
         discount_percentage: entry.discount_percentage,
         amount: entry.amount,
         share_percentage: entry.share_percentage,
-        type: 'expense',
+        type,
         created_by: user?.email
       }));
 
@@ -526,7 +522,7 @@ const BranchProfitLoss = () => {
       if (insertError) throw insertError;
 
       if (inserted) {
-        const mappedEntries = inserted.map(item => ({
+        const mappedEntries = inserted.map((item: any) => ({
           id: item.id,
           category: item.category,
           subcategory: item.subcategory,
@@ -537,16 +533,18 @@ const BranchProfitLoss = () => {
           discount_percentage: item.discount_percentage ? Number(item.discount_percentage) : null,
           amount: Number(item.amount),
           share_percentage: Number(item.share_percentage) || 100,
-          type: 'expense' as const
+          type: type as 'revenue' | 'expense'
         }));
         setProfitLossData(prev => [...prev, ...mappedEntries]);
       }
 
-      toast.success(`Copied ${inserted?.length || 0} expense entries from ${copyExpensesMonth}`);
-      setShowCopyExpensesDialog(false);
+      toast.success(`Copied ${inserted?.length || 0} ${type} entries from ${copySourceLabel}`);
+      setCopyDialogType(null);
+      setCopyCandidates([]);
+      setCopySelectedIds(new Set());
     } catch (error: any) {
-      console.error('Error copying expenses:', error);
-      toast.error('Failed to copy expenses');
+      console.error('Error copying entries:', error);
+      toast.error(`Failed to copy ${type} entries`);
     } finally {
       setIsCopying(false);
     }
@@ -1788,6 +1786,10 @@ const BranchProfitLoss = () => {
                           <Settings className="w-4 h-4" />
                           Categories
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleOpenCopyPrevious('revenue')} className="gap-1">
+                          <Copy className="w-4 h-4" />
+                          Copy Previous
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => startAddingEntry('revenue')} className="gap-1" disabled={isAdding !== null}>
                           <Plus className="w-4 h-4" />
                           Add
@@ -1857,7 +1859,7 @@ const BranchProfitLoss = () => {
                           <Settings className="w-4 h-4" />
                           Categories
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={handleCopyPreviousExpenses} className="gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleOpenCopyPrevious('expense')} className="gap-1">
                           <Copy className="w-4 h-4" />
                           Copy Previous
                         </Button>
@@ -2050,19 +2052,68 @@ const BranchProfitLoss = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Copy Previous Expenses Confirmation Dialog */}
-        <Dialog open={showCopyExpensesDialog} onOpenChange={setShowCopyExpensesDialog}>
-          <DialogContent className="max-w-md">
+        {/* Copy Previous Entries Selection Dialog */}
+        <Dialog open={copyDialogType !== null} onOpenChange={(open) => { if (!open) { setCopyDialogType(null); setCopyCandidates([]); setCopySelectedIds(new Set()); } }}>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Copy Previous Month Expenses</DialogTitle>
+              <DialogTitle>
+                Copy Previous Month {copyDialogType === 'revenue' ? 'Revenue' : 'Expenses'}
+                {copySourceLabel && <span className="text-sm font-normal text-muted-foreground ml-2">from {copySourceLabel}</span>}
+              </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Copy <strong>{copyExpensesCount}</strong> expense entries from <strong>{copyExpensesMonth}</strong> into the current month?
-            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{copySelectedIds.size} of {copyCandidates.length} selected</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" className="h-7 text-xs"
+                  onClick={() => setCopySelectedIds(new Set(copyCandidates.map((c: any) => c.id)))}>
+                  Select All
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs"
+                  onClick={() => setCopySelectedIds(new Set())}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto border rounded">
+              <Table className="text-xs">
+                <TableHeader>
+                  <TableRow className="h-8">
+                    <TableHead className="w-8 py-1"></TableHead>
+                    <TableHead className="py-1">Category</TableHead>
+                    <TableHead className="py-1">Description</TableHead>
+                    {copyDialogType === 'revenue' && <TableHead className="text-right py-1">Qty</TableHead>}
+                    {copyDialogType === 'revenue' && <TableHead className="text-right py-1">Sales</TableHead>}
+                    <TableHead className="text-right py-1">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {copyCandidates.map((entry: any) => {
+                    const checked = copySelectedIds.has(entry.id);
+                    const toggle = () => {
+                      const next = new Set(copySelectedIds);
+                      if (checked) next.delete(entry.id); else next.add(entry.id);
+                      setCopySelectedIds(next);
+                    };
+                    return (
+                      <TableRow key={entry.id} className="h-8 cursor-pointer" onClick={toggle}>
+                        <TableCell className="py-1">
+                          <input type="checkbox" checked={checked} onChange={toggle} onClick={(e) => e.stopPropagation()} />
+                        </TableCell>
+                        <TableCell className="py-1">{entry.subcategory || entry.category}</TableCell>
+                        <TableCell className="py-1 max-w-[280px] truncate">{entry.description || '-'}</TableCell>
+                        {copyDialogType === 'revenue' && <TableCell className="text-right py-1">{Number(entry.quantity) || 1}</TableCell>}
+                        {copyDialogType === 'revenue' && <TableCell className="text-right py-1">{entry.sales_amount != null ? `S$${Number(entry.sales_amount).toFixed(2)}` : '-'}</TableCell>}
+                        <TableCell className="text-right py-1">S${Number(entry.amount).toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCopyExpensesDialog(false)} disabled={isCopying}>Cancel</Button>
-              <Button onClick={confirmCopyExpenses} disabled={isCopying}>
-                {isCopying ? 'Copying...' : 'Copy'}
+              <Button variant="outline" onClick={() => setCopyDialogType(null)} disabled={isCopying}>Cancel</Button>
+              <Button onClick={confirmCopySelected} disabled={isCopying || copySelectedIds.size === 0}>
+                {isCopying ? 'Copying...' : `Copy Selected (${copySelectedIds.size})`}
               </Button>
             </DialogFooter>
           </DialogContent>
