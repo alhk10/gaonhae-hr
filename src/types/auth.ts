@@ -26,7 +26,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   requiresPasswordChange: boolean;
-  updatePassword: (newPassword: string) => Promise<boolean>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
   userType: UserType | null;
   userDetails: any;
