@@ -1,84 +1,31 @@
-# Security Hardening — Final Pass
+## Findings
 
-Buckets are already private and most RLS gaps were closed in the previous migration. This pass closes the remaining scanner findings, refactors UI to use signed URLs (so private buckets actually work), and tightens RPC exposure.
+- Jason Lu’s Auth account exists and is confirmed: `jasonlulijie@gmail.com`.
+- He successfully used the reset link/sign-in flow at `08/05/2026 06:29 UTC`, but there is no recorded password-update event afterward.
+- The “Password Change Required” screen currently calls `supabase.auth.updateUser({ password })`, then only clears a browser `sessionStorage` flag.
+- Two likely issues are present:
+  1. The forced-change requirement is not reliably persisted/cleared in the database, so reset/default-password flows can become inconsistent across browsers.
+  2. The UI hides the real Supabase update error behind a generic “Failed to update password”, making it look like the button does nothing.
 
-## Goal
+## Plan
 
-Drive remaining `error`-level findings to zero and reduce `warn` findings to only those that require the Supabase Dashboard.
+1. **Make forced password-change state server-backed**
+   - Add/repair secure RPCs to read and clear `user_passwords.must_change_password` / `requires_change` for the authenticated user only.
+   - Keep service-role/admin reset logic able to mark an account as requiring a password change after default-password reset.
 
-## Scope
+2. **Fix `AuthContext.updatePassword`**
+   - Before calling `updateUser`, confirm there is a valid Supabase session.
+   - After a successful password update, clear the server-side forced-change flags and the local recovery flag.
+   - Return the actual error message to the UI instead of just `false`.
 
-### 1. Database / RLS migration
+3. **Fix the password-change UI feedback**
+   - Update `PasswordChangeModal` and the profile `UserPasswordChangeDialog` to display the real reason when Supabase rejects the update.
+   - Prevent silent/no-op behavior on mobile by keeping the button in a normal submit-safe flow and showing loading/error states clearly.
 
-**Verify previous fixes landed** (re-query `pg_policies`); re-apply if missing:
-- `published_pl_reports` writes → superadmin / branch finance only
-- `student_class_enrollments` writes → branch staff / superadmin
-- `student_scheduled_classes` all CRUD → branch staff / student-self for SELECT
-- `letter_templates` writes → admin/superadmin
-- `leave_encashment_config` / `leave_encashment_records` SELECT → owner or payroll admin
-- `monday_holiday_leave_adjustments` SELECT → owner or payroll admin
-- `grading_term_scorecard_columns` writes → superadmin (kept SELECT auth)
-- `students` INSERT → fix `eia.branch_id = students.branch_id` bug
-- `slot_booking_edit_requests` / `grading_deletion_requests` UPDATE → superadmin/admin only
-- `invoice_action_requests` SELECT → requester, branch staff, or superadmin
-- `claims` INSERT → already enforces `status='Pending'` ✓
+4. **Repair admin reset consistency**
+   - Ensure the admin reset flow that sets the temporary/default password also updates `user_passwords` to `must_change_password = true`.
+   - After Jason changes the password, the flag will be cleared so he can log in normally.
 
-**New tightening:**
-- Tighten remaining `WITH CHECK true` INSERT policies that don't need it:
-  - `inventory_orders` INSERT/UPDATE → require admin
-  - `invoice_deletion_requests`, `payment_deletion_requests`, `invoice_discount_approvals` INSERT → require requester = current user / branch staff
-  - `notice_payments` INSERT → require `student_id = current_student_id()` or branch staff
-  - `superadmin_users` INSERT → drop `with_check true`, restrict to existing superadmin
-- Fix three remaining functions missing `SET search_path`: `get_current_user_role`, `get_current_employee_id`, `has_admin_access`.
-- Revoke `EXECUTE` on sensitive SECURITY DEFINER aggregation functions from `anon` and `authenticated`:
-  - `get_eligible_employees_with_entitlements`, `calculate_unused_leave_for_encashment`, `process_leave_encashment`, `force_book_*`, `admin_reset_password`.
-
-### 2. Storage URL refactor (signed URLs)
-
-Buckets are already private. Existing components still call `getPublicUrl` on them, which returns dead links. Refactor to use the existing `resolveStorageUrl` helper (from `src/utils/storageUrl.ts`) which produces signed URLs.
-
-Files to update:
-- `src/components/dashboard/StudentDashboard.tsx` (passport photos)
-- `src/components/dashboard/StudentProfileCompletionDialog.tsx`
-- `src/components/notices/NoticePopupDialog.tsx`, `CreateEditNoticeDialog.tsx` (notice attachments)
-- `src/components/sales/ViewEditPaymentDialog.tsx`, `CreatePaymentDialog.tsx` (payment proofs)
-- `src/components/dashboard/PaySchoolFeesDialog.tsx`, `PayGradingDialog.tsx`, `SubmitClaimDialog.tsx`
-- `src/components/claim/ClaimsManagementContent.tsx`, `AddClaimDialog.tsx`, `EmployeeClaimHistory.tsx`, `ClaimsApprovals.tsx`
-- `src/services/noticeService.ts`, `claimsService.ts`, `documentService.ts`
-- `src/pages/StudentRegistration.tsx`, `SubmitClaim.tsx`, `Claims.tsx`, `PayrollProcessing.tsx`
-
-Pattern: replace `supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl` with `await resolveStorageUrl(bucket, path)` which returns a 1-hour signed URL for private buckets and the public URL otherwise.
-
-### 3. Edge Function
-
-`documents-ai-match` already had JWT auth added previously. Verify and additionally check the caller has access to the document (superadmin or branch access on the document's branch).
-
-### 4. Security memory
-
-Update `mem://security` (via `security--update_memory`) to record:
-- All five sensitive buckets are private; UI must use `resolveStorageUrl`.
-- `claims` INSERT enforces `Pending`; partner auto-approval only via `partner_create_approved_claim` RPC.
-- Aggregation/admin RPCs are not directly callable by `authenticated`.
-- Remaining warnings (Postgres upgrade, leaked-password protection, extension-in-public) require Dashboard action by the user.
-
-### 5. Mark findings fixed / dashboard items
-
-Mark `manage_security_finding` for items resolved; leave Dashboard-only items (Postgres upgrade, leaked-password protection, extension move) as open with a clear note for the user.
-
-## Manual steps required (user action)
-
-1. Supabase Dashboard → **Auth → Policies** → enable **Leaked Password Protection**.
-2. Supabase Dashboard → **Settings → Infrastructure** → upgrade Postgres to latest.
-3. Supabase Dashboard → **Database → Extensions** → move extensions from `public` to `extensions` schema.
-
-## Out of scope
-
-- Rewriting client-side role checks (informational finding; RLS is the real boundary).
-- Penetration testing / integration tests for RLS.
-
-## Deliverables
-
-- 1 migration file (RLS fixes + REVOKEs + search_path fixes).
-- ~15-20 frontend file edits switching to `resolveStorageUrl`.
-- Updated security memory.
-- Findings marked fixed where applicable.
+5. **Validate with targeted checks**
+   - Verify Jason’s auth/user records and `user_passwords` flags after implementation.
+   - Check that reset/change-password flows no longer depend only on same-browser `sessionStorage`.
