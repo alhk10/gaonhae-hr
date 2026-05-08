@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   requiresPasswordChange: false,
   login: async () => ({ success: false }),
   logout: async () => {},
-  updatePassword: async () => false,
+  updatePassword: async () => ({ success: false }),
   linkedStudents: [],
   selectedStudentId: null,
   setSelectedStudent: () => {},
