@@ -1859,7 +1859,7 @@ const BranchProfitLoss = () => {
                           <Settings className="w-4 h-4" />
                           Categories
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={handleCopyPreviousExpenses} className="gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleOpenCopyPrevious('expense')} className="gap-1">
                           <Copy className="w-4 h-4" />
                           Copy Previous
                         </Button>
