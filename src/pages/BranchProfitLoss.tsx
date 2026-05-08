@@ -1786,6 +1786,10 @@ const BranchProfitLoss = () => {
                           <Settings className="w-4 h-4" />
                           Categories
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleOpenCopyPrevious('revenue')} className="gap-1">
+                          <Copy className="w-4 h-4" />
+                          Copy Previous
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => startAddingEntry('revenue')} className="gap-1" disabled={isAdding !== null}>
                           <Plus className="w-4 h-4" />
                           Add
