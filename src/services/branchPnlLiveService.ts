@@ -96,13 +96,26 @@ export async function getBranchPnl(q: PnlQuery): Promise<PnlResult> {
   };
 }
 
-export type PnlPeriodPreset = 'this_month' | 'last_month' | 'this_quarter' | 'this_fy' | 'custom';
+export type PnlPeriodPreset =
+  | 'this_month' | 'last_month'
+  | 'this_quarter' | 'last_quarter'
+  | 'q1' | 'q2' | 'q3' | 'q4'
+  | 'this_fy' | 'custom';
 
 export function periodFromPreset(preset: PnlPeriodPreset, fyStartMonth = 1): { from: string; to: string } {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => {
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  };
+  const quarter = (year: number, qIdx: number) => ({
+    from: fmt(new Date(year, qIdx * 3, 1)),
+    to: fmt(new Date(year, qIdx * 3 + 3, 0)),
+  });
 
   switch (preset) {
     case 'last_month': {
@@ -110,10 +123,16 @@ export function periodFromPreset(preset: PnlPeriodPreset, fyStartMonth = 1): { f
       const end = new Date(y, m, 0);
       return { from: fmt(start), to: fmt(end) };
     }
-    case 'this_quarter': {
-      const qStart = Math.floor(m / 3) * 3;
-      return { from: fmt(new Date(y, qStart, 1)), to: fmt(new Date(y, qStart + 3, 0)) };
+    case 'this_quarter':
+      return quarter(y, Math.floor(m / 3));
+    case 'last_quarter': {
+      const cur = Math.floor(m / 3);
+      return cur === 0 ? quarter(y - 1, 3) : quarter(y, cur - 1);
     }
+    case 'q1': return quarter(y, 0);
+    case 'q2': return quarter(y, 1);
+    case 'q3': return quarter(y, 2);
+    case 'q4': return quarter(y, 3);
     case 'this_fy': {
       const startMonth = fyStartMonth - 1;
       const startYear = m >= startMonth ? y : y - 1;

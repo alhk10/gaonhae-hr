@@ -16,6 +16,7 @@ import {
 } from '@/services/branchPnlLiveService';
 import { exportPnlCsv, exportPnlPdf } from '@/utils/pnlExport';
 import { formatDate } from '@/utils/dateFormat';
+import PnlAccountDrilldownDialog from '@/components/finance/PnlAccountDrilldownDialog';
 
 interface Branch { id: string; name: string; country: string }
 
@@ -35,6 +36,7 @@ const BranchPnlLive: React.FC = () => {
   const [prior, setPrior] = useState<PnlResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [liveTick, setLiveTick] = useState(0);
+  const [drill, setDrill] = useState<{ accountId: string; code: string; name: string; amount: number } | null>(null);
 
   useEffect(() => {
     supabase.from('branches').select('id, name, country').order('name')
@@ -88,7 +90,15 @@ const BranchPnlLive: React.FC = () => {
             {r.account_name}
           </Link>
         </td>
-        <td className="py-1.5 px-2 text-right text-xs tabular-nums">{fmtAmt(r.amount)}</td>
+        <td className="py-1.5 px-2 text-right text-xs tabular-nums">
+          <button
+            type="button"
+            className="hover:underline hover:text-primary"
+            onClick={() => setDrill({ accountId: r.account_id, code: r.account_code, name: r.account_name, amount: r.amount })}
+          >
+            {fmtAmt(r.amount)}
+          </button>
+        </td>
         {prior && <td className="py-1.5 px-2 text-right text-xs tabular-nums text-muted-foreground">{p ? fmtAmt(p.amount) : '—'}</td>}
       </tr>
     );
@@ -151,6 +161,11 @@ const BranchPnlLive: React.FC = () => {
                   <SelectItem value="this_month">This month</SelectItem>
                   <SelectItem value="last_month">Last month</SelectItem>
                   <SelectItem value="this_quarter">This quarter</SelectItem>
+                  <SelectItem value="last_quarter">Last quarter</SelectItem>
+                  <SelectItem value="q1">Q1 (Jan – Mar)</SelectItem>
+                  <SelectItem value="q2">Q2 (Apr – Jun)</SelectItem>
+                  <SelectItem value="q3">Q3 (Jul – Sep)</SelectItem>
+                  <SelectItem value="q4">Q4 (Oct – Dec)</SelectItem>
                   <SelectItem value="this_fy">This FY</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
@@ -237,6 +252,18 @@ const BranchPnlLive: React.FC = () => {
         <p className="text-[11px] text-muted-foreground">
           Sourced from posted journals (Phase 4). The legacy Branch P&L page remains available until reconciliation in Phase 10.
         </p>
+
+        <PnlAccountDrilldownDialog
+          open={!!drill}
+          onClose={() => setDrill(null)}
+          accountId={drill?.accountId || null}
+          accountCode={drill?.code}
+          accountName={drill?.name}
+          branchId={branchId === 'all' ? null : branchId}
+          from={from}
+          to={to}
+          expectedTotal={drill?.amount}
+        />
       </div>
     </ResponsiveLayout>
   );
