@@ -1042,7 +1042,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       if (bundleDiscount.amount > 0) {
         for (const desc of bundleDiscount.descriptions) {
-          invoiceItems.push({ product_id: items[0].product_id, description: `Bundle Discount: ${desc}`, quantity: 1, unit_price: -10, size_variant: undefined, total_override: -10, metadata: { is_bundle_discount: true, bundle_description: desc } as any });
+          const amt = BUNDLE_AMOUNTS[desc] ?? 10;
+          invoiceItems.push({ product_id: items[0].product_id, description: `Bundle Discount: ${desc}`, quantity: 1, unit_price: -amt, size_variant: undefined, total_override: -amt, metadata: { is_bundle_discount: true, bundle_description: desc } as any });
         }
       }
 
