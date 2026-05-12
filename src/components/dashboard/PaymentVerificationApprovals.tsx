@@ -89,6 +89,8 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
+      void postPaymentJournal(payment.id);
+      if (payment.invoice_id) void postInvoiceIssuedJournal(payment.invoice_id);
       toast.success('Payment verified successfully');
     } catch (error) {
       toast.error('Failed to verify payment');
