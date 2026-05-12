@@ -1,28 +1,50 @@
-## Backfill journals for already-paid Morley invoices
+## Branch P&L (Live) — Quarter preset + drill-down dialog
 
-### Diagnosis
-Morley (`BR1768967806476`) has **45 postable invoices** (44 paid/verified) and **45 postable payments**, but only **1 journal each** has been posted. The Branch P&L (Live) is sourced from `journal_entries`, so it shows almost nothing.
+### 1. Quarter period preset
 
-The existing `accounting-backfill` edge function only **manifests** counts — its comment says actual posting "happens client-side via the already-deployed hooks when records are next touched". Nothing currently triggers a re-post for historical paid records, so the ledger is empty.
+In `src/services/branchPnlLiveService.ts` and `src/pages/finance/BranchPnlLive.tsx`:
 
-### Fix
-Upgrade `src/pages/finance/BackfillRunner.tsx` so superadmins can actually post the missing journals, scoped to a branch:
+- Confirm calendar quarters: Q1 Jan–Mar, Q2 Apr–Jun, Q3 Jul–Sep, Q4 Oct–Dec.
+- Expand the "Period" Select with explicit quarters for the current year:
+  - This month / Last month
+  - This quarter (auto)
+  - Q1 / Q2 / Q3 / Q4 (current year)
+  - Last quarter
+  - This FY / Custom
+- Update `PnlPeriodPreset` type and `periodFromPreset()` to compute `from = first day of quarter`, `to = last day of quarter` for each option. (Existing `this_quarter` math is already correct — just adding more options.)
 
-1. **Branch filter dropdown** (loads from `branches`, with "All branches" default).
-2. **Two-mode action**:
-   - "Scan only" → keeps existing dry-run behaviour (calls edge function).
-   - "Post journals now" → runs **client-side** using already-tested service functions:
-     - For each selected module (`invoices` / `payments` for now), query IDs from Supabase filtered by branch + date range:
-       - `invoices`: `status IN ('sent','unpaid','partially_paid','paid','verified','overdue')` and `issue_date` in range, and (if not Force) only those without an existing non-void `journal_entries` row.
-       - `payments`: `payment_date` in range, joined to invoices for branch filter; only verified or cash/credit; and (if not Force) only those without an existing journal.
-     - Loop with concurrency limit (e.g. 5) calling `postInvoiceIssuedJournal(id)` / `postPaymentJournal(id)` from `@/services/accountingPostings`. Both are already idempotent and `safePost`-wrapped.
-   - Show running progress (`X / Y posted`, error count) and a final toast.
-3. Persist the run via the same `accounting_backfill_runs` insert (mode + branch added to `summary`).
+### 2. Click-to-drill dialog
+
+When the user clicks an amount in any P&L row (Income, COGS, Expenses), open a dialog listing every contributing transaction with:
+
+| Date | Invoice # | Student | Amount |
+|------|-----------|---------|--------|
+
+Implementation:
+
+- Add `getPnlAccountTransactions({ accountId, branchId, from, to })` in `branchPnlLiveService.ts`:
+  1. Query `journal_lines` joined with `journal_entries` (filter by account_id, entry_date range, branch, posted/non-void).
+  2. For each line: `source_type` + `source_id` → if `invoice` or `payment`, look up `invoices` table (invoice_number, invoice_date, student_id) and `students` (full_name).
+  3. For `payment` source, resolve via `payments.invoice_id → invoices`.
+  4. Return rows: `{ date, invoice_number, invoice_id, student_name, amount, journal_id, narration }`.
+
+- New component `src/components/finance/PnlAccountDrilldownDialog.tsx`:
+  - Props: `open, onClose, accountCode, accountName, branchId, from, to, accountId`.
+  - Loads transactions on open, shows table with Date (DD/MM/YYYY via `formatDate`), Invoice # (link to invoice), Student name, Amount (right-aligned, tabular).
+  - Footer shows total matching the row amount.
+  - Handles non-invoice sources (e.g. expenses, manual journals) gracefully — show narration instead of student/invoice.
+
+- In `BranchPnlLive.tsx`:
+  - Make the amount cells in `renderRow` clickable buttons that open the drilldown dialog with the clicked account context.
+  - Keep existing GL link on the account name (left column) — drill-down is a quick in-page view, GL link remains for full ledger.
 
 ### Out of scope
-- No DB schema changes. No edge function rewrite. Other modules (claims, payroll, inventory, branch_expenses) keep scan-only for now — can be wired up identically later if needed.
+- No DB schema changes.
+- Prior-period column stays read-only (clicking "This period" only).
+- No changes to PDF/CSV export.
 
-### Immediate user action after merge
-1. Open `/finance/backfill` (existing route).
-2. Select branch = Morley, From = `2026-01-01` (or earlier), To = today, modules = invoices + payments.
-3. Click "Post journals now". Reload Branch P&L (Live) — Morley figures will reflect the full posted ledger.
+### Files
+
+- `src/services/branchPnlLiveService.ts` — extend presets + add `getPnlAccountTransactions`.
+- `src/pages/finance/BranchPnlLive.tsx` — Period dropdown options + click handler.
+- `src/components/finance/PnlAccountDrilldownDialog.tsx` — new dialog component.
