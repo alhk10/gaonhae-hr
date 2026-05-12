@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { postPaymentJournal, postInvoiceIssuedJournal } from '@/services/accountingPostings';
 import { useSessionState } from '@/hooks/useSessionState';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
@@ -277,6 +278,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryPrefix });
       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
       queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
+      void postPaymentJournal(payment.id);
+      if (payment.invoice_id) void postInvoiceIssuedJournal(payment.invoice_id);
       toast.success('Payment verified successfully');
     } catch (error) {
       queryClient.setQueryData(paymentsQueryKey, previousPayments);
@@ -325,6 +328,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
       queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+      void postPaymentJournal(rejectingPayment.id);
+      if (rejectingPayment.invoice_id) void postInvoiceIssuedJournal(rejectingPayment.invoice_id);
       toast.success('Payment verification rejected');
       setRejectingPayment(null);
       setRejectionReason('');

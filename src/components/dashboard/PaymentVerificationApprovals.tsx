@@ -13,6 +13,7 @@ import { ShieldCheck, CheckCircle, Pencil, XCircle } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
+import { postPaymentJournal, postInvoiceIssuedJournal } from '@/services/accountingPostings';
 
 const PaymentVerificationApprovals = () => {
   const { user } = useAuth();
@@ -88,6 +89,8 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
+      void postPaymentJournal(payment.id);
+      if (payment.invoice_id) void postInvoiceIssuedJournal(payment.invoice_id);
       toast.success('Payment verified successfully');
     } catch (error) {
       toast.error('Failed to verify payment');
@@ -137,6 +140,8 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
+      void postPaymentJournal(rejectingPayment.id);
+      if (rejectingPayment.invoice_id) void postInvoiceIssuedJournal(rejectingPayment.invoice_id);
       toast.success('Payment verification rejected');
       setRejectingPayment(null);
       setRejectionReason('');
