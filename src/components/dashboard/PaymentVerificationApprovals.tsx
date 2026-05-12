@@ -140,6 +140,8 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
+      void postPaymentJournal(rejectingPayment.id);
+      if (rejectingPayment.invoice_id) void postInvoiceIssuedJournal(rejectingPayment.invoice_id);
       toast.success('Payment verification rejected');
       setRejectingPayment(null);
       setRejectionReason('');
