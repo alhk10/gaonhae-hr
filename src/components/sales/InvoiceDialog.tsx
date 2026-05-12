@@ -948,11 +948,24 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   // Bundle discount
+  const BUNDLE_AMOUNTS: Record<string, number> = {
+    'Headgear + Chestguard bundle': 10,
+    'Arm + Shin + Groin Guard bundle': 10,
+    'Gaonhae Arm + Shin + Groin Guard bundle': 20,
+  };
   const calculateBundleDiscount = (): { amount: number; descriptions: string[] } => {
     let discount = 0; const descriptions: string[] = [];
     const names = items.map(i => i.product_name.toLowerCase());
     if (names.some(n => n.includes('adidas headgear')) && names.some(n => n.includes('adidas chestguard'))) { discount += 10; descriptions.push('Headgear + Chestguard bundle'); }
     if (names.some(n => n.includes('adidas arm guard')) && names.some(n => n.includes('adidas shin guard')) && names.some(n => n.includes('adidas groin guard'))) { discount += 10; descriptions.push('Arm + Shin + Groin Guard bundle'); }
+    const selectedBranch = branches.find(b => b.id === formData.branch_id);
+    const isMorley = selectedBranch?.name?.toLowerCase() === 'morley';
+    if (isMorley
+      && names.some(n => n.includes('gaonhae arm guard'))
+      && names.some(n => n.includes('gaonhae shin guard'))
+      && names.some(n => n.includes('gaonhae male groin guard') || n.includes('gaonhae female groin guard'))) {
+      discount += 20; descriptions.push('Gaonhae Arm + Shin + Groin Guard bundle');
+    }
     return { amount: discount, descriptions };
   };
   const bundleDiscount = calculateBundleDiscount();
