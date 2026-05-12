@@ -13,6 +13,7 @@ import { ShieldCheck, CheckCircle, Pencil, XCircle } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
+import { postPaymentJournal, postInvoiceIssuedJournal } from '@/services/accountingPostings';
 
 const PaymentVerificationApprovals = () => {
   const { user } = useAuth();
