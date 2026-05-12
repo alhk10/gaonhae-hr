@@ -1,51 +1,20 @@
-## Goal
+## Add Gaonhae Guard Bundle Discount (Morley only)
 
-Extend the "Copy Previous" feature on the Branch Profit & Loss page to:
-1. Also work for the **Revenue** section (currently only Expenses).
-2. Replace the simple confirm dialog with a **selectable list** so the user can tick which previous-month entries to copy into the current month.
-3. Reuse the same selectable dialog for **Expenses**.
+Extend the existing bundle discount logic in `src/components/sales/InvoiceDialog.tsx` (around `calculateBundleDiscount`, line 950) to add a new automatic $20 discount when:
 
-All work stays in `src/pages/BranchProfitLoss.tsx` (frontend/presentation only — no schema changes).
+- The selected branch is **Morley**, AND
+- The invoice contains all three: **Gaonhae Arm Guard**, **Gaonhae Shin Guard**, AND **Gaonhae Male Groin Guard** OR **Gaonhae Female Groin Guard**
 
-## Changes
+### Behavior
+- Discount appears as a separate negative line item on save: `Bundle Discount: Gaonhae Arm + Shin + Groin Guard bundle` at `-$20`.
+- Reflected live in the dialog totals (green "Bundle Discount" row), same UX as existing Adidas bundle.
+- Only applies when branch name (or branch lookup) resolves to "Morley". Other branches: no discount.
 
-### 1. Revenue header — add a "Copy Previous" button
-In the Revenue card header (around line 1783), add a `Copy Previous` button next to `Categories` / `Add`, mirroring the Expenses header at line 1860.
+### Technical changes
+- In `calculateBundleDiscount()`:
+  - Look up the selected branch via `branches.find(b => b.id === formData.branch_id)`.
+  - If `branch.name?.toLowerCase() === 'morley'`, check item names for `gaonhae arm guard`, `gaonhae shin guard`, and (`gaonhae male groin guard` OR `gaonhae female groin guard`). If all present, add `$20` and push description `'Gaonhae Arm + Shin + Groin Guard bundle'`.
+- Update the negative line-item push (line 1030–1032) to use the per-description amount instead of hardcoded `-10`. Change `unit_price: -10, total_override: -10` to a per-bundle amount map (Adidas bundles = 10, Gaonhae bundle = 20), so each discount row carries its correct value.
 
-### 2. Generalize the copy-previous handler
-Replace `handleCopyPreviousExpenses` / `confirmCopyExpenses` with a generic version parameterised by `type: 'revenue' | 'expense'`:
-
-- `handleOpenCopyPrevious(type)` — fetches previous-month entries for the given type, opens the dialog with the list. Shows "No entries found" toast if empty.
-- `confirmCopySelected(type, selectedIds)` — inserts only the selected previous entries into the current month (same field mapping as today, with `type` preserved). Updates `profitLossData` with the inserted rows.
-
-### 3. New selectable dialog
-Replace the existing confirmation dialog (lines 2053-2070ish) with a single dialog that:
-
-- Title: `Copy Previous Month {Revenue|Expenses}` plus the source month label (e.g. "from April 2026").
-- Body: a scrollable list of previous-month entries. Each row shows a checkbox + Category + Description + Amount (formatted via `formatCurrency`). For Revenue rows, also show Qty and Sales Amount inline so the user can distinguish entries.
-- Top controls: **Select All** / **Clear** toggle, plus a count like "3 of 12 selected".
-- Footer: `Cancel` and `Copy Selected (N)`. Button disabled when none selected or while copying.
-- State additions:
-  - `copyDialogType: 'revenue' | 'expense' | null`
-  - `copySourceLabel: string` (e.g. "April 2026")
-  - `copyCandidates: PreviousEntry[]` (raw rows fetched from Supabase)
-  - `copySelectedIds: Set<string>` (defaults to all selected on open)
-
-### 4. Wire up
-- Revenue button → `handleOpenCopyPrevious('revenue')`.
-- Existing Expenses button → `handleOpenCopyPrevious('expense')` (replaces current call).
-- Drop the now-unused `showCopyExpensesDialog` / `copyExpensesCount` / `copyExpensesMonth` state.
-
-## Out of scope
-
-- No DB schema, RLS, or service-layer changes.
-- No change to default categories, PDF export, or P&L calculations.
-- No bulk-copy across multiple months.
-
-## Open question
-
-If the previous month has **no** entries of the requested type, should we:
-- (a) Show a toast and not open the dialog (current behaviour for expenses), or
-- (b) Open the dialog with an empty state and a "look back further" month picker?
-
-Default plan assumes (a). Let me know if you'd prefer (b).
+### Out of scope
+- No DB/schema changes. No changes to product catalog. Existing Adidas bundles stay as-is.
