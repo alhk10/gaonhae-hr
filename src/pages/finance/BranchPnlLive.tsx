@@ -252,6 +252,18 @@ const BranchPnlLive: React.FC = () => {
         <p className="text-[11px] text-muted-foreground">
           Sourced from posted journals (Phase 4). The legacy Branch P&L page remains available until reconciliation in Phase 10.
         </p>
+
+        <PnlAccountDrilldownDialog
+          open={!!drill}
+          onClose={() => setDrill(null)}
+          accountId={drill?.accountId || null}
+          accountCode={drill?.code}
+          accountName={drill?.name}
+          branchId={branchId === 'all' ? null : branchId}
+          from={from}
+          to={to}
+          expectedTotal={drill?.amount}
+        />
       </div>
     </ResponsiveLayout>
   );
