@@ -278,6 +278,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryPrefix });
       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
       queryClient.invalidateQueries({ queryKey: ['grading-list-count', branchId] });
+      void postPaymentJournal(payment.id);
+      if (payment.invoice_id) void postInvoiceIssuedJournal(payment.invoice_id);
       toast.success('Payment verified successfully');
     } catch (error) {
       queryClient.setQueryData(paymentsQueryKey, previousPayments);
