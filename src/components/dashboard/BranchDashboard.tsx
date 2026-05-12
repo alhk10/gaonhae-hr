@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { postPaymentJournal, postInvoiceIssuedJournal } from '@/services/accountingPostings';
 import { useSessionState } from '@/hooks/useSessionState';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
