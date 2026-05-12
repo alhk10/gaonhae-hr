@@ -328,6 +328,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['branch-payments', branchId] });
       queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
       queryClient.invalidateQueries({ queryKey: ['outstanding-invoices', branchId] });
+      void postPaymentJournal(rejectingPayment.id);
+      if (rejectingPayment.invoice_id) void postInvoiceIssuedJournal(rejectingPayment.invoice_id);
       toast.success('Payment verification rejected');
       setRejectingPayment(null);
       setRejectionReason('');
