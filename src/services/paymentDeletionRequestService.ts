@@ -38,6 +38,20 @@ export const createDeletionRequest = async (
       throw new Error('User not authenticated');
     }
 
+    // If a pending request already exists for this payment, return it instead of inserting a duplicate
+    const { data: existing } = await supabase
+      .from('payment_deletion_requests')
+      .select('*')
+      .eq('payment_id', paymentId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return existing as PaymentDeletionRequest;
+    }
+
     // Get employee ID from email
     const { data: employee } = await supabase
       .from('employees')
@@ -94,7 +108,7 @@ export const getPendingDeletionRequests = async (): Promise<PaymentDeletionReque
     }
 
     // Transform the data to include joined fields
-    return (data || []).map((request: any) => ({
+    const mapped = (data || []).map((request: any) => ({
       ...request,
       payment_number: request.payments?.payment_number,
       payment_amount: request.payments?.amount,
@@ -103,6 +117,14 @@ export const getPendingDeletionRequests = async (): Promise<PaymentDeletionReque
         ? `${request.payments.invoices.students.first_name} ${request.payments.invoices.students.last_name}`
         : 'Unknown Student'
     })) as PaymentDeletionRequest[];
+
+    // Defensive dedupe: keep only the most recent pending request per payment_id
+    const seen = new Set<string>();
+    return mapped.filter((r) => {
+      if (seen.has(r.payment_id)) return false;
+      seen.add(r.payment_id);
+      return true;
+    });
   } catch (error) {
     logger.error('Error in getPendingDeletionRequests', error);
     throw error;
