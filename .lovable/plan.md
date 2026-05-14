@@ -1,50 +1,50 @@
-## Branch P&L (Live) — Quarter preset + drill-down dialog
+## Problem
 
-### 1. Quarter period preset
+Asher's payment (PAY-202605-0006 on INV-2026-00302) was rejected, but the invoice still shows `paid` with `amount_paid=0`, `balance_due=0`. It should be `unpaid` with `balance_due=235`.
 
-In `src/services/branchPnlLiveService.ts` and `src/pages/finance/BranchPnlLive.tsx`:
+## Root cause
 
-- Confirm calendar quarters: Q1 Jan–Mar, Q2 Apr–Jun, Q3 Jul–Sep, Q4 Oct–Dec.
-- Expand the "Period" Select with explicit quarters for the current year:
-  - This month / Last month
-  - This quarter (auto)
-  - Q1 / Q2 / Q3 / Q4 (current year)
-  - Last quarter
-  - This FY / Custom
-- Update `PnlPeriodPreset` type and `periodFromPreset()` to compute `from = first day of quarter`, `to = last day of quarter` for each option. (Existing `this_quarter` math is already correct — just adding more options.)
+`handleRejectPayment` in `src/components/dashboard/BranchDashboard.tsx` reads `rejectingPayment.invoices?.total_amount` to recompute the invoice. But the branch payments query (line 793) does NOT select `total_amount`:
 
-### 2. Click-to-drill dialog
+```
+.select('*, invoices!inner(invoice_number, branch_id, students(...))')
+```
 
-When the user clicks an amount in any P&L row (Income, COGS, Expenses), open a dialog listing every contributing transaction with:
+So `invoiceTotal` evaluates to `0` → `balanceDue = max(0, 0 - 0) = 0` → `status = 'paid'`. The invoice gets stamped paid even though the payment was rejected.
 
-| Date | Invoice # | Student | Amount |
-|------|-----------|---------|--------|
+The superadmin `PaymentVerificationApprovals.tsx` already selects `total_amount`, so it's only the BranchDashboard reject path that's broken.
 
-Implementation:
+## Fix
 
-- Add `getPnlAccountTransactions({ accountId, branchId, from, to })` in `branchPnlLiveService.ts`:
-  1. Query `journal_lines` joined with `journal_entries` (filter by account_id, entry_date range, branch, posted/non-void).
-  2. For each line: `source_type` + `source_id` → if `invoice` or `payment`, look up `invoices` table (invoice_number, invoice_date, student_id) and `students` (full_name).
-  3. For `payment` source, resolve via `payments.invoice_id → invoices`.
-  4. Return rows: `{ date, invoice_number, invoice_id, student_name, amount, journal_id, narration }`.
+1. **`src/components/dashboard/BranchDashboard.tsx`**
+   - Line 793: add `total_amount, status` to the invoices sub-select.
+   - In `handleRejectPayment`, as a defensive measure, fetch the invoice total fresh from `invoices` before recomputing (covers any stale cached row).
 
-- New component `src/components/finance/PnlAccountDrilldownDialog.tsx`:
-  - Props: `open, onClose, accountCode, accountName, branchId, from, to, accountId`.
-  - Loads transactions on open, shows table with Date (DD/MM/YYYY via `formatDate`), Invoice # (link to invoice), Student name, Amount (right-aligned, tabular).
-  - Footer shows total matching the row amount.
-  - Handles non-invoice sources (e.g. expenses, manual journals) gracefully — show narration instead of student/invoice.
+2. **Data backfill (migration)** — restore Asher's invoice:
+   ```
+   UPDATE invoices
+     SET amount_paid = 0, balance_due = total_amount, status = 'unpaid'
+     WHERE id = 'e0beaa07-73b5-40b0-8c79-bc52ba8216c4';
+   ```
+   Then re-post journals via the existing accounting backfill flow (no code change needed; payment journal will be reversed automatically by `postPaymentJournal` since `verification_status='rejected'`).
 
-- In `BranchPnlLive.tsx`:
-  - Make the amount cells in `renderRow` clickable buttons that open the drilldown dialog with the clicked account context.
-  - Keep existing GL link on the account name (left column) — drill-down is a quick in-page view, GL link remains for full ledger.
+3. **Sweep** for any other invoices in the same broken state (rejected payment but invoice still `paid`) and apply the same correction:
+   ```
+   UPDATE invoices i SET amount_paid = ..., balance_due = ..., status = ...
+   WHERE i.id IN (
+     SELECT DISTINCT p.invoice_id FROM payments p
+     WHERE p.verification_status = 'rejected'
+       AND NOT EXISTS (
+         SELECT 1 FROM payments p2
+         WHERE p2.invoice_id = p.invoice_id
+           AND COALESCE(p2.verification_status,'') <> 'rejected'
+       )
+       AND i.id = p.invoice_id
+       AND i.status IN ('paid','verified','partially_paid')
+   );
+   ```
+   Recompute per invoice based on remaining non-rejected payments.
 
-### Out of scope
-- No DB schema changes.
-- Prior-period column stays read-only (clicking "This period" only).
-- No changes to PDF/CSV export.
+## Out of scope
 
-### Files
-
-- `src/services/branchPnlLiveService.ts` — extend presets + add `getPnlAccountTransactions`.
-- `src/pages/finance/BranchPnlLive.tsx` — Period dropdown options + click handler.
-- `src/components/finance/PnlAccountDrilldownDialog.tsx` — new dialog component.
+No UI/layout changes; no schema changes; no changes to the superadmin verification dialog (already correct).
