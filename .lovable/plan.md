@@ -1,50 +1,17 @@
 ## Problem
 
-Asher's payment (PAY-202605-0006 on INV-2026-00302) was rejected, but the invoice still shows `paid` with `amount_paid=0`, `balance_due=0`. It should be `unpaid` with `balance_due=235`.
+In `Superadmin Dashboard → Payment Verification`, payment proof images render broken (alt text shown). The `payment-proofs` storage bucket is **private**, but `PaymentVerificationApprovals.tsx` uses the raw `payment.proof_of_payment_url` directly as `<img src>` and as the `<a href>` — so the public URL 404s.
 
-## Root cause
-
-`handleRejectPayment` in `src/components/dashboard/BranchDashboard.tsx` reads `rejectingPayment.invoices?.total_amount` to recompute the invoice. But the branch payments query (line 793) does NOT select `total_amount`:
-
-```
-.select('*, invoices!inner(invoice_number, branch_id, students(...))')
-```
-
-So `invoiceTotal` evaluates to `0` → `balanceDue = max(0, 0 - 0) = 0` → `status = 'paid'`. The invoice gets stamped paid even though the payment was rejected.
-
-The superadmin `PaymentVerificationApprovals.tsx` already selects `total_amount`, so it's only the BranchDashboard reject path that's broken.
+The project already has the right helpers for this case: `SignedImage` and `SignedLink` from `@/components/common/SignedMedia`, which resolve a stored URL into a short-lived signed URL.
 
 ## Fix
 
-1. **`src/components/dashboard/BranchDashboard.tsx`**
-   - Line 793: add `total_amount, status` to the invoices sub-select.
-   - In `handleRejectPayment`, as a defensive measure, fetch the invoice total fresh from `invoices` before recomputing (covers any stale cached row).
+In `src/components/dashboard/PaymentVerificationApprovals.tsx` (lines ~223–234):
+- Replace the raw `<a href={payment.proof_of_payment_url}>` with `<SignedLink href={payment.proof_of_payment_url} target="_blank" ...>`.
+- Replace the raw `<img src={payment.proof_of_payment_url}>` with `<SignedImage src={payment.proof_of_payment_url} fallback={<div className="...">Payment proof</div>} ... />`.
+- Add the import: `import { SignedImage, SignedLink } from '@/components/common/SignedMedia';`.
 
-2. **Data backfill (migration)** — restore Asher's invoice:
-   ```
-   UPDATE invoices
-     SET amount_paid = 0, balance_due = total_amount, status = 'unpaid'
-     WHERE id = 'e0beaa07-73b5-40b0-8c79-bc52ba8216c4';
-   ```
-   Then re-post journals via the existing accounting backfill flow (no code change needed; payment journal will be reversed automatically by `postPaymentJournal` since `verification_status='rejected'`).
-
-3. **Sweep** for any other invoices in the same broken state (rejected payment but invoice still `paid`) and apply the same correction:
-   ```
-   UPDATE invoices i SET amount_paid = ..., balance_due = ..., status = ...
-   WHERE i.id IN (
-     SELECT DISTINCT p.invoice_id FROM payments p
-     WHERE p.verification_status = 'rejected'
-       AND NOT EXISTS (
-         SELECT 1 FROM payments p2
-         WHERE p2.invoice_id = p.invoice_id
-           AND COALESCE(p2.verification_status,'') <> 'rejected'
-       )
-       AND i.id = p.invoice_id
-       AND i.status IN ('paid','verified','partially_paid')
-   );
-   ```
-   Recompute per invoice based on remaining non-rejected payments.
+No other files change. No DB or RLS changes (bucket stays private; signed URLs are the intended access path).
 
 ## Out of scope
-
-No UI/layout changes; no schema changes; no changes to the superadmin verification dialog (already correct).
+No layout changes; no other proof-rendering surfaces touched in this pass (they may already use SignedImage; can audit separately if needed).

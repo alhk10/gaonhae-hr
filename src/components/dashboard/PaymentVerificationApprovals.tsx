@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SignedImage, SignedLink } from '@/components/common/SignedMedia';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -220,18 +221,23 @@ const PaymentVerificationApprovals = () => {
               key={payment.id}
               className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-background rounded-lg border"
             >
-              <a
+              <SignedLink
                 href={payment.proof_of_payment_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0 w-full sm:w-[200px] rounded border overflow-hidden hover:opacity-80 transition-opacity cursor-pointer"
               >
-                <img
+                <SignedImage
                   src={payment.proof_of_payment_url}
                   alt="Payment proof"
                   className="w-full h-auto max-h-[150px] sm:max-h-none object-contain"
+                  fallback={
+                    <div className="w-full h-[100px] flex items-center justify-center text-xs text-muted-foreground bg-muted">
+                      Payment proof
+                    </div>
+                  }
                 />
-              </a>
+              </SignedLink>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">
                   {payment.invoices?.invoice_number || 'N/A'}
