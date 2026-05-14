@@ -13,7 +13,7 @@ import { Notice, uploadNoticeFile } from '@/services/noticeService';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { openSignedUrl } from '@/components/common/SignedMedia';
+import { openSignedUrl, SignedImage } from '@/components/common/SignedMedia';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -111,7 +111,7 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
                 className="relative cursor-pointer group"
                 onClick={() => setShowFullImage(true)}
               >
-                <img
+                <SignedImage
                   src={notice.image_url}
                   alt={notice.subject}
                   className="w-full max-w-full rounded-md object-contain max-h-80"
@@ -220,7 +220,7 @@ const NoticePopupDialog: React.FC<NoticePopupDialogProps> = ({ open, onOpenChang
             <DialogTitle className="text-sm">{notice.subject}</DialogTitle>
           </DialogHeader>
           {notice.image_url && (
-            <img
+            <SignedImage
               src={notice.image_url}
               alt={notice.subject}
               className="w-full h-auto max-h-[85vh] object-contain rounded-md"
