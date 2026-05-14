@@ -30,6 +30,7 @@ import BranchProfitLossDialog from './BranchProfitLossDialog';
 import BranchDashboard from './BranchDashboard';
 import StudentDashboard from './StudentDashboard';
 import SlotBookingBranchChangeDialog from './SlotBookingBranchChangeDialog';
+import ViewPricingRatesDialog from './ViewPricingRatesDialog';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -81,6 +82,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showApplyLeave, setShowApplyLeave] = useState(false);
   const [showBranchProfitLoss, setShowBranchProfitLoss] = useState(false);
   const [showBranchChange, setShowBranchChange] = useState(false);
+  const [showPricingRates, setShowPricingRates] = useState(false);
 
 
   useEffect(() => {
@@ -710,6 +712,17 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                   </div>
                 </Button>
               )}
+
+              <Button
+                className={`justify-start h-auto p-3 md:p-4`}
+                variant="outline"
+                onClick={() => setShowPricingRates(true)}
+              >
+                <DollarSign className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                <div className="text-left">
+                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Pricing Rates</p>
+                </div>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -806,6 +819,11 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
           employeeName={employeeData.display_name || employeeData.name}
         />
       )}
+
+      <ViewPricingRatesDialog
+        open={showPricingRates}
+        onOpenChange={setShowPricingRates}
+      />
 
     </>
   );
