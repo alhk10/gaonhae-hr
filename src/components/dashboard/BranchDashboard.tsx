@@ -790,7 +790,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('*, invoices!inner(invoice_number, branch_id, students(first_name, last_name))')
+        .select('*, invoices!inner(invoice_number, branch_id, total_amount, status, students(first_name, last_name))')
         .eq('invoices.branch_id', branchId)
         .order('payment_date', { ascending: false });
       if (error) throw error;
