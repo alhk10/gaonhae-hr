@@ -38,6 +38,20 @@ export const createDeletionRequest = async (
       throw new Error('User not authenticated');
     }
 
+    // If a pending request already exists for this payment, return it instead of inserting a duplicate
+    const { data: existing } = await supabase
+      .from('payment_deletion_requests')
+      .select('*')
+      .eq('payment_id', paymentId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return existing as PaymentDeletionRequest;
+    }
+
     // Get employee ID from email
     const { data: employee } = await supabase
       .from('employees')
