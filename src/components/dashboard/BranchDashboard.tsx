@@ -306,6 +306,13 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       if (paymentError) throw paymentError;
 
       if (rejectingPayment.invoice_id) {
+        // Fetch the invoice fresh to ensure we have the correct total_amount
+        const { data: invoiceRow } = await supabase
+          .from('invoices')
+          .select('total_amount')
+          .eq('id', rejectingPayment.invoice_id)
+          .maybeSingle();
+
         const { data: validPayments } = await supabase
           .from('payments')
           .select('amount, verification_status')
@@ -314,10 +321,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
         const totalPaid = (validPayments || [])
           .filter((p: any) => p.verification_status !== 'rejected')
-          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        const invoiceTotal = rejectingPayment.invoices?.total_amount || 0;
+          .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        const invoiceTotal = Number(invoiceRow?.total_amount ?? rejectingPayment.invoices?.total_amount ?? 0);
         const balanceDue = Math.max(0, invoiceTotal - totalPaid);
-        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
+        const newStatus = invoiceTotal > 0 && balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
 
         await supabase
           .from('invoices')
