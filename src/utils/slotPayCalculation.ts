@@ -755,24 +755,7 @@ export const getEmployeeDayRates = async (
         weekendAmount: config.qualificationBonuses.stfCoachInduction
       });
     }
-    if (qualifications.stfPoomsaeCoachLevel1) {
-      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-      breakdown.push({
-        item: 'Poomsae Coach L1',
-        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1,
-        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1
-      });
-    }
-    if (qualifications.stfPoomsaeCoachLevel2) {
-      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-      breakdown.push({
-        item: 'Poomsae Coach L2',
-        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2,
-        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2
-      });
-    }
+    // Poomsae Coach: non-stackable, highest level only
     if (qualifications.stfPoomsaeCoachLevel3) {
       weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
       weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
@@ -781,16 +764,24 @@ export const getEmployeeDayRates = async (
         weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3,
         weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3
       });
-    }
-    if (qualifications.sgCoachLevel1) {
-      weekdayRate += config.qualificationBonuses.sgCoachLevel1;
-      weekendRate += config.qualificationBonuses.sgCoachLevel1;
+    } else if (qualifications.stfPoomsaeCoachLevel2) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
       breakdown.push({
-        item: 'SG Coach L1',
-        weekdayAmount: config.qualificationBonuses.sgCoachLevel1,
-        weekendAmount: config.qualificationBonuses.sgCoachLevel1
+        item: 'Poomsae Coach L2',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2
+      });
+    } else if (qualifications.stfPoomsaeCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      breakdown.push({
+        item: 'Poomsae Coach L1',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1
       });
     }
+    // SG Coach: non-stackable, highest level only
     if (qualifications.sgCoachLevel2) {
       weekdayRate += config.qualificationBonuses.sgCoachLevel2;
       weekendRate += config.qualificationBonuses.sgCoachLevel2;
@@ -798,6 +789,14 @@ export const getEmployeeDayRates = async (
         item: 'SG Coach L2',
         weekdayAmount: config.qualificationBonuses.sgCoachLevel2,
         weekendAmount: config.qualificationBonuses.sgCoachLevel2
+      });
+    } else if (qualifications.sgCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.sgCoachLevel1;
+      weekendRate += config.qualificationBonuses.sgCoachLevel1;
+      breakdown.push({
+        item: 'SG Coach L1',
+        weekdayAmount: config.qualificationBonuses.sgCoachLevel1,
+        weekendAmount: config.qualificationBonuses.sgCoachLevel1
       });
     }
     if (qualifications.stfPoomsaeReferee) {
