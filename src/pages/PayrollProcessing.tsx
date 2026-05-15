@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight, RefreshCw, History, AlertCircle } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard, FileText, Users, Calculator, Edit, Trash2, UserPlus, Save, ArrowRight, RefreshCw, History, AlertCircle, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePayroll } from '@/contexts/PayrollContext';
