@@ -10,7 +10,7 @@ interface SlotBookingPayData {
   fullSlotRate?: number;
   rateBreakdown?: Array<{ item: string; amount: number }>;
   milestoneBonus?: number;
-  milestoneBonusThreshold?: number; // 5, 10, or 16
+  milestoneBonusThreshold?: number; // 6, 12, or 16
   breakdown: Array<{
     date: string;
     branchName: string;
