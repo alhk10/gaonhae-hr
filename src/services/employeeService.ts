@@ -653,7 +653,13 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     email: employeeData.email,
     join_date: employeeData.joinDate || null,
     resign_date: employeeData.resignDate || null,
-    qualifications: employeeData.qualifications || {}
+    qualifications: employeeData.qualifications || {},
+    pr_start_date: employeeData.prStartDate || null,
+    cpf_contribution_type: employeeData.cpfContributionType || null,
+    additional_wages_default: employeeData.additionalWagesDefault ?? 0,
+    self_help_group: employeeData.selfHelpGroup || null,
+    agency_fund_amount: employeeData.agencyFundAmount ?? null,
+    sdl_payable: employeeData.sdlPayable ?? true
   };
   
   // Normalize all text fields to uppercase
