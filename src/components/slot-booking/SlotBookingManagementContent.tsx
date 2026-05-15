@@ -1026,7 +1026,36 @@ const SlotBookingManagementContent = () => {
               </Button>
             </TabsContent>
             <TabsContent value="pricing">
-              <PricingSettingsTab />
+              <PricingSettingsTab onConfigChange={(c) => setPricingConfig(c)} />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!pricingConfig || isSavingSettings}
+                  onClick={async () => {
+                    if (!pricingConfig) return;
+                    setIsSavingSettings(true);
+                    try {
+                      const ok = await updatePricingConfig(pricingConfig);
+                      if (ok) {
+                        clearPricingCache();
+                        toast.success('Pricing rates saved');
+                        setPricingConfig(null);
+                        setIsSettingsDialogOpen(false);
+                      } else {
+                        toast.error('Failed to save pricing rates');
+                      }
+                    } catch (err) {
+                      toast.error('Failed to save pricing rates');
+                    } finally {
+                      setIsSavingSettings(false);
+                    }
+                  }}
+                >
+                  {isSavingSettings ? 'Saving...' : 'Save Pricing'}
+                </Button>
+              </div>
             </TabsContent>
             <TabsContent value="timing">
               <SlotTimingSettingsTab />

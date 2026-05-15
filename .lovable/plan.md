@@ -1,26 +1,35 @@
-## Goal
-Add a read-only "View Pricing Rates" quick action in the Employee Dashboard so any employee can see the current dynamic pricing configuration (the same config superadmins edit in `PricingSettingsTab`).
+## Problem
+On `/slot-booking`, the Settings dialog's **Pricing** tab renders `<PricingSettingsTab />` with no `onConfigChange` and no Save button, so edits to dynamic pricing rates can't be persisted. (The same component on the admin page in `AdminSlotBooking.tsx` is wired up correctly with a save handler.)
 
-## Changes
+## Fix
 
-### 1. New file: `src/components/dashboard/ViewPricingRatesDialog.tsx`
-Read-only dialog that:
-- Calls `getActivePricingConfig()` from `@/services/slotPricingService` on open.
-- Renders the active `SlotPricingConfig` grouped into the same sections as `PricingSettingsTab`, but as static labelled rows (no inputs, no save):
-  - Base Rates: Weekday, Weekend, Years-of-service bonus / yr
-  - Monthly Milestone Bonuses: 5 / 10 / 16 slots
-  - Dan Level Bonuses: 1st / 2nd / 3rd & above
-  - Coach Certifications: STF Induction, STF Poomsae L1/L2/L3, SG Coach L1/L2
-  - Referee Certifications: STF Poomsae, STF Kyorugi
-- All amounts shown as `$X.XX` using a small helper.
-- Mobile-friendly compact layout (`max-w-lg`, `max-h-[85vh] overflow-y-auto`, text-sm grid 2-col).
-- Loading skeleton + "No pricing configuration found" empty state.
-
-### 2. `src/components/dashboard/EmployeeDashboard.tsx`
-- Import `ViewPricingRatesDialog` and a `DollarSign` icon (already used elsewhere if not imported).
-- Add `const [showPricingRates, setShowPricingRates] = useState(false);`.
-- In the Quick Actions grid (after Attendance History / Branch P&L block, ~line 712), add a new outline button "View Pricing Rates" with the DollarSign icon, visible to all employees (no role gate).
-- Render `<ViewPricingRatesDialog open={showPricingRates} onOpenChange={setShowPricingRates} />` alongside the other dialogs.
+### `src/components/slot-booking/SlotBookingManagementContent.tsx`
+1. Import `updatePricingConfig` and `SlotPricingConfig` from `@/services/slotPricingService`.
+2. Add local state: `pendingPricingConfig: Partial<SlotPricingConfig> | null` and `isSavingPricing: boolean`.
+3. Update the Pricing tab:
+   ```tsx
+   <TabsContent value="pricing">
+     <PricingSettingsTab onConfigChange={(c) => setPendingPricingConfig(c)} />
+     <div className="flex justify-end gap-2 mt-4">
+       <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>Cancel</Button>
+       <Button
+         disabled={!pendingPricingConfig || isSavingPricing}
+         onClick={async () => {
+           setIsSavingPricing(true);
+           const ok = await updatePricingConfig(pendingPricingConfig!);
+           setIsSavingPricing(false);
+           if (ok) { toast.success('Pricing rates saved'); setPendingPricingConfig(null); }
+           else toast.error('Failed to save pricing rates');
+         }}
+       >
+         {isSavingPricing ? 'Saving...' : 'Save Pricing'}
+       </Button>
+     </div>
+   </TabsContent>
+   ```
+4. Reset `pendingPricingConfig` when the dialog closes.
 
 ## Out of scope
-- No edit capability, no role-based hiding, no changes to `PricingSettingsTab` or the underlying service/table.
+- Timing tab save button (not mentioned by user).
+- Read-only `ViewPricingRatesDialog` on Employee Dashboard (unchanged).
+- No backend / RLS changes — `updatePricingConfig` and superadmin gating already exist.
