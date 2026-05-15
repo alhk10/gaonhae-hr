@@ -208,9 +208,9 @@ export const calculateMilestoneBonus = async (slotCount: number): Promise<number
   
   if (slotCount >= 16) {
     return config.milestoneBonuses.slots16;
-  } else if (slotCount >= 10) {
+  } else if (slotCount >= 12) {
     return config.milestoneBonuses.slots10;
-  } else if (slotCount >= 5) {
+  } else if (slotCount >= 6) {
     return config.milestoneBonuses.slots5;
   }
   

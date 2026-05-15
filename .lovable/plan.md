@@ -1,35 +1,23 @@
-## Problem
-On `/slot-booking`, the Settings dialog's **Pricing** tab renders `<PricingSettingsTab />` with no `onConfigChange` and no Save button, so edits to dynamic pricing rates can't be persisted. (The same component on the admin page in `AdminSlotBooking.tsx` is wired up correctly with a save handler.)
+## Goal
+Change monthly slot milestone tiers from **5 / 10 / 16** to **6 / 12 / 16** (only the first two thresholds shift; 16 is unchanged).
 
-## Fix
+## Approach
+Keep existing DB columns (`milestone_5_slots_bonus`, `milestone_10_slots_bonus`, `milestone_16_slots_bonus`) — they continue to store the bonus amounts but now correspond to the 6 / 12 / 16-slot tiers. This avoids a risky column rename + types regen and preserves historical values.
 
-### `src/components/slot-booking/SlotBookingManagementContent.tsx`
-1. Import `updatePricingConfig` and `SlotPricingConfig` from `@/services/slotPricingService`.
-2. Add local state: `pendingPricingConfig: Partial<SlotPricingConfig> | null` and `isSavingPricing: boolean`.
-3. Update the Pricing tab:
-   ```tsx
-   <TabsContent value="pricing">
-     <PricingSettingsTab onConfigChange={(c) => setPendingPricingConfig(c)} />
-     <div className="flex justify-end gap-2 mt-4">
-       <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>Cancel</Button>
-       <Button
-         disabled={!pendingPricingConfig || isSavingPricing}
-         onClick={async () => {
-           setIsSavingPricing(true);
-           const ok = await updatePricingConfig(pendingPricingConfig!);
-           setIsSavingPricing(false);
-           if (ok) { toast.success('Pricing rates saved'); setPendingPricingConfig(null); }
-           else toast.error('Failed to save pricing rates');
-         }}
-       >
-         {isSavingPricing ? 'Saving...' : 'Save Pricing'}
-       </Button>
-     </div>
-   </TabsContent>
-   ```
-4. Reset `pendingPricingConfig` when the dialog closes.
+## Edits
+
+1. **`src/utils/slotPayCalculation.ts`** (line ~209)
+   - Update thresholds in `calculateMilestoneBonus`: `>= 10` → `>= 12`, `>= 5` → `>= 6`. (>= 16 unchanged.)
+
+2. **`src/services/slotBookingPayrollService.ts`** (lines ~203–212)
+   - Mirror the same threshold change: 10 → 12, 5 → 6 for `milestoneBonusThreshold` assignment. Update the inline comment "5, 10, or 16" to "6, 12, or 16".
+
+3. **`src/components/slot-booking/PricingSettingsTab.tsx`** (lines ~130–160)
+   - Labels: "5 Slots Bonus ($)" → "6 Slots Bonus ($)", "10 Slots Bonus ($)" → "12 Slots Bonus ($)". 16 unchanged.
+
+4. **`src/components/dashboard/ViewPricingRatesDialog.tsx`** (lines ~79–81)
+   - Row labels: "5 Slots" → "6 Slots", "10 Slots" → "12 Slots".
 
 ## Out of scope
-- Timing tab save button (not mentioned by user).
-- Read-only `ViewPricingRatesDialog` on Employee Dashboard (unchanged).
-- No backend / RLS changes — `updatePricingConfig` and superadmin gating already exist.
+- No DB migration / column rename.
+- No changes to `SlotBreakdownDialog` (it displays the dynamic threshold value, which now flows through correctly).
