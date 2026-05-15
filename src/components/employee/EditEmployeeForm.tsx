@@ -94,7 +94,13 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     phone: employee.phone || '',
     address: employee.address || '',
     email: employee.email || '',
-    joinDate: employee.joinDate || ''
+    joinDate: employee.joinDate || '',
+    prStartDate: (employee as any).prStartDate || '',
+    cpfContributionType: (employee as any).cpfContributionType || '',
+    additionalWagesDefault: (employee as any).additionalWagesDefault != null ? String((employee as any).additionalWagesDefault) : '0',
+    selfHelpGroup: (employee as any).selfHelpGroup || '',
+    agencyFundAmount: (employee as any).agencyFundAmount != null ? String((employee as any).agencyFundAmount) : '',
+    sdlPayable: (employee as any).sdlPayable !== false,
   });
 
   // Convert EmployeeAllowance[] to AllowanceDeduction[]
