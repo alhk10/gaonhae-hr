@@ -2026,10 +2026,16 @@ const PayrollProcessing = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <Button onClick={handleCPFSubmission}>
-              <FileText className="w-4 h-4 mr-2" />
-              Submit CPF Contributions
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCpfEzpay}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CPF ezpay
+              </Button>
+              <Button onClick={handleCPFSubmission}>
+                <FileText className="w-4 h-4 mr-2" />
+                Submit CPF Contributions
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
