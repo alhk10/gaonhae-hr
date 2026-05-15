@@ -1873,6 +1873,106 @@ const PayrollProcessing = () => {
         }));
       }
     };
+
+    const handleExportCpfEzpay = async () => {
+      try {
+        if (cpfEligibleEmployees.length === 0) {
+          toast.error('No CPF-eligible employees to export');
+          return;
+        }
+        const ids = cpfEligibleEmployees.map(e => e.id);
+        const { data: rows, error } = await supabase
+          .from('employees')
+          .select('id, nric, name, date_of_birth, residency_status, join_date, resign_date, pr_start_date, cpf_contribution_type, additional_wages_default, self_help_group, agency_fund_amount, sdl_payable')
+          .in('id', ids);
+        if (error) throw error;
+
+        const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        const fmtDate = (d?: string | null) => {
+          if (!d) return '';
+          const dt = new Date(d);
+          if (isNaN(dt.getTime())) return '';
+          const dd = String(dt.getDate()).padStart(2, '0');
+          return `${dd}.${MONTHS[dt.getMonth()]}.${dt.getFullYear()}`;
+        };
+        const csvEscape = (v: any) => {
+          const s = v === null || v === undefined ? '' : String(v);
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+
+        // Period bounds from selectedPeriod (supports 'YYYY-MM' or 'Month YYYY')
+        let periodStart: Date, periodEnd: Date;
+        const ymMatch = /^(\d{4})-(\d{2})$/.exec(selectedPeriod);
+        if (ymMatch) {
+          const y = Number(ymMatch[1]); const m = Number(ymMatch[2]) - 1;
+          periodStart = new Date(y, m, 1);
+          periodEnd = new Date(y, m + 1, 0);
+        } else {
+          const dt = new Date(selectedPeriod + ' 1');
+          periodStart = new Date(dt.getFullYear(), dt.getMonth(), 1);
+          periodEnd = new Date(dt.getFullYear(), dt.getMonth() + 1, 0);
+        }
+        const periodKey = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
+
+        const citizenshipFor = (status?: string | null) => {
+          const s = (status || '').toLowerCase();
+          if (s.includes('pr yr 1') || s.includes('pr year 1')) return '1';
+          if (s.includes('pr yr 2') || s.includes('pr year 2')) return '2';
+          return '3';
+        };
+
+        const headers = [
+          'CPF Account No', 'Name of Employee (as per NRIC)', 'Ordinary Wages ($)',
+          'Additional Wages ($)', 'Agency Fund ($)', 'Agency (CDAC/MBMF/SINDA/ECF)',
+          'Citizenship', 'PR Start Date', 'Type (F/G or G/G)', 'Employment Status',
+          'Date Left Employment', 'Date of Birth', 'SDL Payable'
+        ];
+
+        const lines = [headers.join(',')];
+        for (const cpfRow of cpfEligibleEmployees) {
+          const e: any = (rows || []).find(r => r.id === cpfRow.id) || {};
+          const join = e.join_date ? new Date(e.join_date) : null;
+          const resign = e.resign_date ? new Date(e.resign_date) : null;
+          const joinedInPeriod = join && join >= periodStart && join <= periodEnd;
+          const leftInPeriod = resign && resign >= periodStart && resign <= periodEnd;
+          const employmentStatus = joinedInPeriod && leftInPeriod ? 'New & Leaving'
+            : joinedInPeriod ? 'New'
+            : leftInPeriod ? 'Left'
+            : 'Existing';
+
+          const row = [
+            e.nric || '',
+            (e.name || cpfRow.name || '').toUpperCase(),
+            Number(cpfRow.grossPay || 0).toFixed(2),
+            Number(e.additional_wages_default || 0).toFixed(2),
+            e.agency_fund_amount !== null && e.agency_fund_amount !== undefined ? Number(e.agency_fund_amount).toFixed(2) : '',
+            e.self_help_group || '',
+            citizenshipFor(e.residency_status),
+            fmtDate(e.pr_start_date),
+            e.cpf_contribution_type || '',
+            employmentStatus,
+            leftInPeriod ? fmtDate(e.resign_date) : '',
+            fmtDate(e.date_of_birth),
+            e.sdl_payable === false ? 'No' : 'Yes',
+          ].map(csvEscape);
+          lines.push(row.join(','));
+        }
+
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `CPF_ezpay_${periodKey}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('CPF ezpay CSV exported');
+      } catch (err: any) {
+        console.error('Export CPF ezpay failed:', err);
+        toast.error(err?.message || 'Failed to export CPF ezpay CSV');
+      }
+    };
     
     return (
       <Card>
