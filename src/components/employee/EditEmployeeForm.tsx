@@ -132,7 +132,7 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
     loadBranches();
   }, []);
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     console.log(`Updating field ${field} with value:`, value);
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
