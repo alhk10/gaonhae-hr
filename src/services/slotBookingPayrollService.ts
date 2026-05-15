@@ -205,10 +205,10 @@ export const getSlotBookingPayForPeriod = async (
     let milestoneBonusThreshold: number | undefined;
     if (totalSlots >= 16) {
       milestoneBonusThreshold = 16;
-    } else if (totalSlots >= 10) {
-      milestoneBonusThreshold = 10;
-    } else if (totalSlots >= 5) {
-      milestoneBonusThreshold = 5;
+    } else if (totalSlots >= 12) {
+      milestoneBonusThreshold = 12;
+    } else if (totalSlots >= 6) {
+      milestoneBonusThreshold = 6;
     }
 
     console.log('[SlotBookingPayroll] Total slots with attendance:', totalSlots, 'Total pay:', totalPay, 'Milestone bonus:', milestoneBonus);
