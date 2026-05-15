@@ -504,30 +504,29 @@ export const calculateSlotPay = async (
     qualBonus += config.qualificationBonuses.stfCoachInduction;
     console.log(`[SlotPayCalc]   Coach Induction: +$${config.qualificationBonuses.stfCoachInduction}`);
   }
-  if (qualifications.stfPoomsaeCoachLevel1) {
-    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-    console.log(`[SlotPayCalc]   Poomsae Coach L1: +$${config.qualificationBonuses.stfPoomsaeCoachLevel1}`);
-  }
-  if (qualifications.stfPoomsaeCoachLevel2) {
-    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-    console.log(`[SlotPayCalc]   Poomsae Coach L2: +$${config.qualificationBonuses.stfPoomsaeCoachLevel2}`);
-  }
+  // Poomsae Coach: non-stackable, highest level only
   if (qualifications.stfPoomsaeCoachLevel3) {
     totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel3;
     qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel3;
     console.log(`[SlotPayCalc]   Poomsae Coach L3: +$${config.qualificationBonuses.stfPoomsaeCoachLevel3}`);
+  } else if (qualifications.stfPoomsaeCoachLevel2) {
+    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    console.log(`[SlotPayCalc]   Poomsae Coach L2: +$${config.qualificationBonuses.stfPoomsaeCoachLevel2}`);
+  } else if (qualifications.stfPoomsaeCoachLevel1) {
+    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    console.log(`[SlotPayCalc]   Poomsae Coach L1: +$${config.qualificationBonuses.stfPoomsaeCoachLevel1}`);
   }
-  if (qualifications.sgCoachLevel1) {
-    totalPay += config.qualificationBonuses.sgCoachLevel1;
-    qualBonus += config.qualificationBonuses.sgCoachLevel1;
-    console.log(`[SlotPayCalc]   SG Coach L1: +$${config.qualificationBonuses.sgCoachLevel1}`);
-  }
+  // SG Coach: non-stackable, highest level only
   if (qualifications.sgCoachLevel2) {
     totalPay += config.qualificationBonuses.sgCoachLevel2;
     qualBonus += config.qualificationBonuses.sgCoachLevel2;
     console.log(`[SlotPayCalc]   SG Coach L2: +$${config.qualificationBonuses.sgCoachLevel2}`);
+  } else if (qualifications.sgCoachLevel1) {
+    totalPay += config.qualificationBonuses.sgCoachLevel1;
+    qualBonus += config.qualificationBonuses.sgCoachLevel1;
+    console.log(`[SlotPayCalc]   SG Coach L1: +$${config.qualificationBonuses.sgCoachLevel1}`);
   }
   if (qualifications.stfPoomsaeReferee) {
     totalPay += config.qualificationBonuses.stfPoomsaeReferee;
