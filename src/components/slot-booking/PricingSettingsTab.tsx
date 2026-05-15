@@ -232,7 +232,8 @@ const PricingSettingsTab: React.FC<PricingSettingsTabProps> = ({ onConfigChange 
           <div className="space-y-6">
             {/* Coach Certifications */}
             <div>
-              <h4 className="text-sm font-semibold mb-3">Coach Certifications</h4>
+              <h4 className="text-sm font-semibold mb-1">Coach Certifications</h4>
+              <p className="text-xs text-muted-foreground mb-3">Poomsae Coach (L1/L2/L3) and SG Coach (L1/L2) are non-stackable — only the highest level held is paid.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="stf_induction">STF Coach Induction ($)</Label>

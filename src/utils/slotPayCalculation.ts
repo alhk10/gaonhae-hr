@@ -504,30 +504,29 @@ export const calculateSlotPay = async (
     qualBonus += config.qualificationBonuses.stfCoachInduction;
     console.log(`[SlotPayCalc]   Coach Induction: +$${config.qualificationBonuses.stfCoachInduction}`);
   }
-  if (qualifications.stfPoomsaeCoachLevel1) {
-    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-    console.log(`[SlotPayCalc]   Poomsae Coach L1: +$${config.qualificationBonuses.stfPoomsaeCoachLevel1}`);
-  }
-  if (qualifications.stfPoomsaeCoachLevel2) {
-    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-    console.log(`[SlotPayCalc]   Poomsae Coach L2: +$${config.qualificationBonuses.stfPoomsaeCoachLevel2}`);
-  }
+  // Poomsae Coach: non-stackable, highest level only
   if (qualifications.stfPoomsaeCoachLevel3) {
     totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel3;
     qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel3;
     console.log(`[SlotPayCalc]   Poomsae Coach L3: +$${config.qualificationBonuses.stfPoomsaeCoachLevel3}`);
+  } else if (qualifications.stfPoomsaeCoachLevel2) {
+    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+    console.log(`[SlotPayCalc]   Poomsae Coach L2: +$${config.qualificationBonuses.stfPoomsaeCoachLevel2}`);
+  } else if (qualifications.stfPoomsaeCoachLevel1) {
+    totalPay += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    qualBonus += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+    console.log(`[SlotPayCalc]   Poomsae Coach L1: +$${config.qualificationBonuses.stfPoomsaeCoachLevel1}`);
   }
-  if (qualifications.sgCoachLevel1) {
-    totalPay += config.qualificationBonuses.sgCoachLevel1;
-    qualBonus += config.qualificationBonuses.sgCoachLevel1;
-    console.log(`[SlotPayCalc]   SG Coach L1: +$${config.qualificationBonuses.sgCoachLevel1}`);
-  }
+  // SG Coach: non-stackable, highest level only
   if (qualifications.sgCoachLevel2) {
     totalPay += config.qualificationBonuses.sgCoachLevel2;
     qualBonus += config.qualificationBonuses.sgCoachLevel2;
     console.log(`[SlotPayCalc]   SG Coach L2: +$${config.qualificationBonuses.sgCoachLevel2}`);
+  } else if (qualifications.sgCoachLevel1) {
+    totalPay += config.qualificationBonuses.sgCoachLevel1;
+    qualBonus += config.qualificationBonuses.sgCoachLevel1;
+    console.log(`[SlotPayCalc]   SG Coach L1: +$${config.qualificationBonuses.sgCoachLevel1}`);
   }
   if (qualifications.stfPoomsaeReferee) {
     totalPay += config.qualificationBonuses.stfPoomsaeReferee;
@@ -620,20 +619,19 @@ export const getPayBreakdown = async (
     if (qualifications.stfCoachInduction) {
       breakdown.push({ item: 'Coach Induction', amount: applyProration(config.qualificationBonuses.stfCoachInduction) });
     }
-    if (qualifications.stfPoomsaeCoachLevel1) {
-      breakdown.push({ item: 'Poomsae Coach L1', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel1) });
-    }
-    if (qualifications.stfPoomsaeCoachLevel2) {
-      breakdown.push({ item: 'Poomsae Coach L2', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel2) });
-    }
+    // Poomsae Coach: non-stackable, highest level only
     if (qualifications.stfPoomsaeCoachLevel3) {
       breakdown.push({ item: 'Poomsae Coach L3', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel3) });
+    } else if (qualifications.stfPoomsaeCoachLevel2) {
+      breakdown.push({ item: 'Poomsae Coach L2', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel2) });
+    } else if (qualifications.stfPoomsaeCoachLevel1) {
+      breakdown.push({ item: 'Poomsae Coach L1', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel1) });
     }
-    if (qualifications.sgCoachLevel1) {
-      breakdown.push({ item: 'SG Coach L1', amount: applyProration(config.qualificationBonuses.sgCoachLevel1) });
-    }
+    // SG Coach: non-stackable, highest level only
     if (qualifications.sgCoachLevel2) {
       breakdown.push({ item: 'SG Coach L2', amount: applyProration(config.qualificationBonuses.sgCoachLevel2) });
+    } else if (qualifications.sgCoachLevel1) {
+      breakdown.push({ item: 'SG Coach L1', amount: applyProration(config.qualificationBonuses.sgCoachLevel1) });
     }
     if (qualifications.stfPoomsaeReferee) {
       breakdown.push({ item: 'STF Poomsae Referee', amount: applyProration(config.qualificationBonuses.stfPoomsaeReferee) });
@@ -757,24 +755,7 @@ export const getEmployeeDayRates = async (
         weekendAmount: config.qualificationBonuses.stfCoachInduction
       });
     }
-    if (qualifications.stfPoomsaeCoachLevel1) {
-      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
-      breakdown.push({
-        item: 'Poomsae Coach L1',
-        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1,
-        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1
-      });
-    }
-    if (qualifications.stfPoomsaeCoachLevel2) {
-      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
-      breakdown.push({
-        item: 'Poomsae Coach L2',
-        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2,
-        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2
-      });
-    }
+    // Poomsae Coach: non-stackable, highest level only
     if (qualifications.stfPoomsaeCoachLevel3) {
       weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
       weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel3;
@@ -783,16 +764,24 @@ export const getEmployeeDayRates = async (
         weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3,
         weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel3
       });
-    }
-    if (qualifications.sgCoachLevel1) {
-      weekdayRate += config.qualificationBonuses.sgCoachLevel1;
-      weekendRate += config.qualificationBonuses.sgCoachLevel1;
+    } else if (qualifications.stfPoomsaeCoachLevel2) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel2;
       breakdown.push({
-        item: 'SG Coach L1',
-        weekdayAmount: config.qualificationBonuses.sgCoachLevel1,
-        weekendAmount: config.qualificationBonuses.sgCoachLevel1
+        item: 'Poomsae Coach L2',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel2
+      });
+    } else if (qualifications.stfPoomsaeCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      weekendRate += config.qualificationBonuses.stfPoomsaeCoachLevel1;
+      breakdown.push({
+        item: 'Poomsae Coach L1',
+        weekdayAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1,
+        weekendAmount: config.qualificationBonuses.stfPoomsaeCoachLevel1
       });
     }
+    // SG Coach: non-stackable, highest level only
     if (qualifications.sgCoachLevel2) {
       weekdayRate += config.qualificationBonuses.sgCoachLevel2;
       weekendRate += config.qualificationBonuses.sgCoachLevel2;
@@ -800,6 +789,14 @@ export const getEmployeeDayRates = async (
         item: 'SG Coach L2',
         weekdayAmount: config.qualificationBonuses.sgCoachLevel2,
         weekendAmount: config.qualificationBonuses.sgCoachLevel2
+      });
+    } else if (qualifications.sgCoachLevel1) {
+      weekdayRate += config.qualificationBonuses.sgCoachLevel1;
+      weekendRate += config.qualificationBonuses.sgCoachLevel1;
+      breakdown.push({
+        item: 'SG Coach L1',
+        weekdayAmount: config.qualificationBonuses.sgCoachLevel1,
+        weekendAmount: config.qualificationBonuses.sgCoachLevel1
       });
     }
     if (qualifications.stfPoomsaeReferee) {
