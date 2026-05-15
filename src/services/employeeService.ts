@@ -528,7 +528,13 @@ export const createEmployee = async (employeeData: any) => {
       phone: employeeData.phone || '',
       address: employeeData.address || '',
       email: employeeData.email,
-      join_date: employeeData.joinDate || null
+      join_date: employeeData.joinDate || null,
+      pr_start_date: employeeData.prStartDate || null,
+      cpf_contribution_type: employeeData.cpfContributionType || null,
+      additional_wages_default: employeeData.additionalWagesDefault ?? 0,
+      self_help_group: employeeData.selfHelpGroup || null,
+      agency_fund_amount: employeeData.agencyFundAmount ?? null,
+      sdl_payable: employeeData.sdlPayable ?? true
     };
     
     // Normalize all text fields to uppercase
