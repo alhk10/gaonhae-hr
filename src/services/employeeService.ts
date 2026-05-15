@@ -458,6 +458,12 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       reports: false
     },
     qualifications: (employee.qualifications as any) || {},
+    prStartDate: employee.pr_start_date || null,
+    cpfContributionType: (employee.cpf_contribution_type as any) || null,
+    additionalWagesDefault: Number(employee.additional_wages_default || 0),
+    selfHelpGroup: (employee.self_help_group as any) || null,
+    agencyFundAmount: employee.agency_fund_amount !== null && employee.agency_fund_amount !== undefined ? Number(employee.agency_fund_amount) : null,
+    sdlPayable: employee.sdl_payable ?? true,
     pageAccess: pageAccess ? {
       profile: pageAccess.profile ?? true,
       applyLeave: pageAccess.apply_leave ?? true,
