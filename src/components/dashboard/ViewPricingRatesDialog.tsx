@@ -87,7 +87,7 @@ const ViewPricingRatesDialog: React.FC<Props> = ({ open, onOpenChange }) => {
               <Row label="3rd Dan & Above" value={config.dan_third_above_bonus} />
             </Section>
 
-            <Section icon={<GraduationCap className="w-4 h-4" />} title="Coach Certifications (stackable)">
+            <Section icon={<GraduationCap className="w-4 h-4" />} title="Coach Certifications (highest level only)">
               <Row label="STF Coach Induction" value={config.stf_coach_induction_bonus} />
               <Row label="STF Poomsae Coach Level 1" value={config.stf_poomsae_coach_level1_bonus} />
               <Row label="STF Poomsae Coach Level 2" value={config.stf_poomsae_coach_level2_bonus} />
