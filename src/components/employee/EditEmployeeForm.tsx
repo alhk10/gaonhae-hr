@@ -319,6 +319,85 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
               </Select>
             </div>
 
+            <div className="border-t pt-4 mt-2">
+              <h4 className="text-sm font-semibold mb-3">CPF / ezpay Details</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="prStartDate">PR Start Date</Label>
+                  <Input
+                    id="prStartDate"
+                    type="date"
+                    value={formData.prStartDate}
+                    onChange={(e) => handleInputChange('prStartDate', e.target.value)}
+                    disabled={!formData.residencyStatus?.toLowerCase().includes('permanent resident')}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpfContributionType">CPF Contribution Type</Label>
+                  <Select
+                    value={formData.cpfContributionType || 'none'}
+                    onValueChange={(v) => handleInputChange('cpfContributionType', v === 'none' ? '' : v)}
+                    disabled={!formData.residencyStatus?.toLowerCase().includes('permanent resident')}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      <SelectItem value="F/G">F/G (Full Employer / Graduated Employee)</SelectItem>
+                      <SelectItem value="G/G">G/G (Graduated / Graduated)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="additionalWagesDefault">Additional Wages ($)</Label>
+                  <Input
+                    id="additionalWagesDefault"
+                    type="number"
+                    step="0.01"
+                    value={formData.additionalWagesDefault}
+                    onChange={(e) => handleInputChange('additionalWagesDefault', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="selfHelpGroup">Self-Help Group (Agency)</Label>
+                  <Select
+                    value={formData.selfHelpGroup || 'none'}
+                    onValueChange={(v) => handleInputChange('selfHelpGroup', v === 'none' ? '' : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      <SelectItem value="CDAC">CDAC</SelectItem>
+                      <SelectItem value="MBMF">MBMF</SelectItem>
+                      <SelectItem value="SINDA">SINDA</SelectItem>
+                      <SelectItem value="ECF">ECF</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="agencyFundAmount">Agency Fund ($) override</Label>
+                  <Input
+                    id="agencyFundAmount"
+                    type="number"
+                    step="0.01"
+                    placeholder="Auto-computed if blank"
+                    value={formData.agencyFundAmount}
+                    onChange={(e) => handleInputChange('agencyFundAmount', e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.sdlPayable}
+                      onChange={(e) => handleInputChange('sdlPayable', e.target.checked as any)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    SDL Payable
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
