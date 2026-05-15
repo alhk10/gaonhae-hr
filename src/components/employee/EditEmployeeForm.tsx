@@ -214,6 +214,12 @@ const EditEmployeeForm: React.FC<EditEmployeeFormProps> = ({ employee, onSave, o
         ...formData,
         baseSalary: formData.baseSalary && formData.baseSalary.trim() !== '' ? Number(formData.baseSalary) : null,
         hourlyRate: formData.hourlyRate && formData.hourlyRate.trim() !== '' ? Number(formData.hourlyRate) : null,
+        prStartDate: formData.prStartDate || null,
+        cpfContributionType: formData.cpfContributionType || null,
+        additionalWagesDefault: formData.additionalWagesDefault && String(formData.additionalWagesDefault).trim() !== '' ? Number(formData.additionalWagesDefault) : 0,
+        selfHelpGroup: formData.selfHelpGroup || null,
+        agencyFundAmount: formData.agencyFundAmount && String(formData.agencyFundAmount).trim() !== '' ? Number(formData.agencyFundAmount) : null,
+        sdlPayable: !!formData.sdlPayable,
       };
 
       console.log('Processed update data with converted numbers:', updateData);
