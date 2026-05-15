@@ -619,20 +619,19 @@ export const getPayBreakdown = async (
     if (qualifications.stfCoachInduction) {
       breakdown.push({ item: 'Coach Induction', amount: applyProration(config.qualificationBonuses.stfCoachInduction) });
     }
-    if (qualifications.stfPoomsaeCoachLevel1) {
-      breakdown.push({ item: 'Poomsae Coach L1', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel1) });
-    }
-    if (qualifications.stfPoomsaeCoachLevel2) {
-      breakdown.push({ item: 'Poomsae Coach L2', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel2) });
-    }
+    // Poomsae Coach: non-stackable, highest level only
     if (qualifications.stfPoomsaeCoachLevel3) {
       breakdown.push({ item: 'Poomsae Coach L3', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel3) });
+    } else if (qualifications.stfPoomsaeCoachLevel2) {
+      breakdown.push({ item: 'Poomsae Coach L2', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel2) });
+    } else if (qualifications.stfPoomsaeCoachLevel1) {
+      breakdown.push({ item: 'Poomsae Coach L1', amount: applyProration(config.qualificationBonuses.stfPoomsaeCoachLevel1) });
     }
-    if (qualifications.sgCoachLevel1) {
-      breakdown.push({ item: 'SG Coach L1', amount: applyProration(config.qualificationBonuses.sgCoachLevel1) });
-    }
+    // SG Coach: non-stackable, highest level only
     if (qualifications.sgCoachLevel2) {
       breakdown.push({ item: 'SG Coach L2', amount: applyProration(config.qualificationBonuses.sgCoachLevel2) });
+    } else if (qualifications.sgCoachLevel1) {
+      breakdown.push({ item: 'SG Coach L1', amount: applyProration(config.qualificationBonuses.sgCoachLevel1) });
     }
     if (qualifications.stfPoomsaeReferee) {
       breakdown.push({ item: 'STF Poomsae Referee', amount: applyProration(config.qualificationBonuses.stfPoomsaeReferee) });
