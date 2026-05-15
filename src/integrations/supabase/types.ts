@@ -1332,10 +1332,13 @@ export type Database = {
       }
       employees: {
         Row: {
+          additional_wages_default: number | null
           address: string | null
+          agency_fund_amount: number | null
           bank_account: string
           bank_name: string
           base_salary: number | null
+          cpf_contribution_type: string | null
           created_at: string | null
           date_of_birth: string
           department: string | null
@@ -1351,18 +1354,24 @@ export type Database = {
           payment_type: string | null
           phone: string | null
           position: string | null
+          pr_start_date: string | null
           qualifications: Json | null
           residency_status: string
           resign_date: string | null
+          sdl_payable: boolean
           security_pin: string | null
+          self_help_group: string | null
           type: string
           updated_at: string | null
         }
         Insert: {
+          additional_wages_default?: number | null
           address?: string | null
+          agency_fund_amount?: number | null
           bank_account: string
           bank_name: string
           base_salary?: number | null
+          cpf_contribution_type?: string | null
           created_at?: string | null
           date_of_birth: string
           department?: string | null
@@ -1378,18 +1387,24 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          pr_start_date?: string | null
           qualifications?: Json | null
           residency_status: string
           resign_date?: string | null
+          sdl_payable?: boolean
           security_pin?: string | null
+          self_help_group?: string | null
           type: string
           updated_at?: string | null
         }
         Update: {
+          additional_wages_default?: number | null
           address?: string | null
+          agency_fund_amount?: number | null
           bank_account?: string
           bank_name?: string
           base_salary?: number | null
+          cpf_contribution_type?: string | null
           created_at?: string | null
           date_of_birth?: string
           department?: string | null
@@ -1405,10 +1420,13 @@ export type Database = {
           payment_type?: string | null
           phone?: string | null
           position?: string | null
+          pr_start_date?: string | null
           qualifications?: Json | null
           residency_status?: string
           resign_date?: string | null
+          sdl_payable?: boolean
           security_pin?: string | null
+          self_help_group?: string | null
           type?: string
           updated_at?: string | null
         }

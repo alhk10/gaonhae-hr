@@ -196,6 +196,12 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           fileType: cert.file_type
         })),
         qualifications: (emp.qualifications as any) || {},
+        prStartDate: emp.pr_start_date || null,
+        cpfContributionType: emp.cpf_contribution_type || null,
+        additionalWagesDefault: Number(emp.additional_wages_default || 0),
+        selfHelpGroup: emp.self_help_group || null,
+        agencyFundAmount: emp.agency_fund_amount !== null && emp.agency_fund_amount !== undefined ? Number(emp.agency_fund_amount) : null,
+        sdlPayable: emp.sdl_payable ?? true,
         adminAccess: emp.admin_access ? {
           employees: emp.admin_access.employees || false,
           payroll: emp.admin_access.payroll || false,
@@ -452,6 +458,12 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
       reports: false
     },
     qualifications: (employee.qualifications as any) || {},
+    prStartDate: employee.pr_start_date || null,
+    cpfContributionType: (employee.cpf_contribution_type as any) || null,
+    additionalWagesDefault: Number(employee.additional_wages_default || 0),
+    selfHelpGroup: (employee.self_help_group as any) || null,
+    agencyFundAmount: employee.agency_fund_amount !== null && employee.agency_fund_amount !== undefined ? Number(employee.agency_fund_amount) : null,
+    sdlPayable: employee.sdl_payable ?? true,
     pageAccess: pageAccess ? {
       profile: pageAccess.profile ?? true,
       applyLeave: pageAccess.apply_leave ?? true,
@@ -516,7 +528,13 @@ export const createEmployee = async (employeeData: any) => {
       phone: employeeData.phone || '',
       address: employeeData.address || '',
       email: employeeData.email,
-      join_date: employeeData.joinDate || null
+      join_date: employeeData.joinDate || null,
+      pr_start_date: employeeData.prStartDate || null,
+      cpf_contribution_type: employeeData.cpfContributionType || null,
+      additional_wages_default: employeeData.additionalWagesDefault ?? 0,
+      self_help_group: employeeData.selfHelpGroup || null,
+      agency_fund_amount: employeeData.agencyFundAmount ?? null,
+      sdl_payable: employeeData.sdlPayable ?? true
     };
     
     // Normalize all text fields to uppercase
@@ -635,7 +653,13 @@ export const updateEmployee = async (id: string, employeeData: any) => {
     email: employeeData.email,
     join_date: employeeData.joinDate || null,
     resign_date: employeeData.resignDate || null,
-    qualifications: employeeData.qualifications || {}
+    qualifications: employeeData.qualifications || {},
+    pr_start_date: employeeData.prStartDate || null,
+    cpf_contribution_type: employeeData.cpfContributionType || null,
+    additional_wages_default: employeeData.additionalWagesDefault ?? 0,
+    self_help_group: employeeData.selfHelpGroup || null,
+    agency_fund_amount: employeeData.agencyFundAmount ?? null,
+    sdl_payable: employeeData.sdlPayable ?? true
   };
   
   // Normalize all text fields to uppercase

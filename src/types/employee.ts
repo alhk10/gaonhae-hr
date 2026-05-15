@@ -159,6 +159,13 @@ export interface EmployeeProfile {
   adminAccess: AdminAccessPermissions;
   pageAccess: EmployeePageAccessPermissions;
   qualifications?: EmployeeQualifications;
+  // CPF ezpay fields
+  prStartDate?: string | null;
+  cpfContributionType?: 'F/G' | 'G/G' | null;
+  additionalWagesDefault?: number;
+  selfHelpGroup?: 'CDAC' | 'MBMF' | 'SINDA' | 'ECF' | null;
+  agencyFundAmount?: number | null;
+  sdlPayable?: boolean;
 }
 
 export interface InvoiceAccessPermission {
