@@ -196,6 +196,12 @@ export const getEmployeesForPayroll = async (): Promise<EmployeeProfile[]> => {
           fileType: cert.file_type
         })),
         qualifications: (emp.qualifications as any) || {},
+        prStartDate: emp.pr_start_date || null,
+        cpfContributionType: emp.cpf_contribution_type || null,
+        additionalWagesDefault: Number(emp.additional_wages_default || 0),
+        selfHelpGroup: emp.self_help_group || null,
+        agencyFundAmount: emp.agency_fund_amount !== null && emp.agency_fund_amount !== undefined ? Number(emp.agency_fund_amount) : null,
+        sdlPayable: emp.sdl_payable ?? true,
         adminAccess: emp.admin_access ? {
           employees: emp.admin_access.employees || false,
           payroll: emp.admin_access.payroll || false,
