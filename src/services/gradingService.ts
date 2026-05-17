@@ -25,6 +25,7 @@ export interface GradingSlot {
   min_age?: number | null;
   max_age?: number | null;
   available_branch_ids?: string[] | null;
+  grading_product_ids?: string[] | null;
   // Computed fields
   branch_name?: string;
   registration_count?: number;
@@ -62,6 +63,7 @@ export interface CreateGradingSlotData {
   min_age?: number;
   max_age?: number;
   available_branch_ids?: string[];
+  grading_product_ids?: string[];
 }
 
 export interface UpdateGradingSlotData extends Partial<CreateGradingSlotData> {

@@ -1811,6 +1811,7 @@ export type Database = {
           end_time: string | null
           examiner_name: string | null
           grading_date: string
+          grading_product_ids: string[] | null
           id: string
           location: string | null
           max_age: number | null
@@ -1832,6 +1833,7 @@ export type Database = {
           end_time?: string | null
           examiner_name?: string | null
           grading_date: string
+          grading_product_ids?: string[] | null
           id?: string
           location?: string | null
           max_age?: number | null
@@ -1853,6 +1855,7 @@ export type Database = {
           end_time?: string | null
           examiner_name?: string | null
           grading_date?: string
+          grading_product_ids?: string[] | null
           id?: string
           location?: string | null
           max_age?: number | null
