@@ -265,14 +265,14 @@ const PublicGradingPayment: React.FC = () => {
 
   const dobIso = useMemo(() => (dob ? dob.toISOString().split('T')[0] : null), [dob]);
 
-  // Reset slot when product selection or DOB changes
+  // Reset slot when product selection, DOB, or current belt changes
   useEffect(() => {
     setSelectedSlotId('');
-  }, [selectedProductIds.join(','), dobIso]);
+  }, [selectedProductIds.join(','), dobIso, currentBelt]);
 
   const { data: slotList = [] } = useQuery({
-    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(','), dobIso],
-    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds, dobIso),
+    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(','), dobIso, currentBelt],
+    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds, dobIso, currentBelt || null),
     enabled: !!branchId,
   });
 

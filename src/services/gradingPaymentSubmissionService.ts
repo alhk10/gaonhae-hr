@@ -81,12 +81,14 @@ export const getPublicGradingSlots = async (
   branchId: string,
   productIds: string[],
   dob?: string | null,
+  currentBelt?: string | null,
 ): Promise<PublicGradingSlot[]> => {
   if (!branchId) return [];
   const { data, error } = await supabase.rpc('get_public_grading_slots', {
     p_branch_id: branchId,
     p_product_ids: productIds.length > 0 ? productIds : null,
     p_dob: dob ?? null,
+    p_current_belt: currentBelt ?? null,
   } as any);
   if (error) throw error;
   return (data || []) as PublicGradingSlot[];

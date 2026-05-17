@@ -6660,6 +6660,25 @@ export type Database = {
               title: string
             }[]
           }
+        | {
+            Args: {
+              p_branch_id: string
+              p_current_belt?: string
+              p_dob?: string
+              p_product_ids: string[]
+            }
+            Returns: {
+              branch_address: string
+              branch_id: string
+              branch_name: string
+              end_time: string
+              grading_date: string
+              id: string
+              location: string
+              start_time: string
+              title: string
+            }[]
+          }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {

@@ -1,25 +1,31 @@
-## Required fields + age-based belt filtering
+## Filter grading slots by current belt
 
-**File:** `src/pages/public/PublicGradingPayment.tsx`
+### Problem
+Slot "Stage 11 - 26" (belt_levels: `[3rd Poom, 3rd Dan]`, `grading_product_ids: NULL`) is visible to a Blue belt user. The RPC `get_public_grading_slots` only filters by branch, age, and product IDs — it ignores the `belt_levels` column. When `grading_product_ids` is NULL the slot passes the product check and shows for everyone.
 
-### Required fields
-Add `*` markers to labels for Student Name, Email, Date of Birth, Branch. Add `required` to Branch and DOB validation (DOB already required in `canSubmit`; surface visual cue + block belt selection until DOB present).
+### Fix
 
-### Age-based belt filter
-Compute `age` from DOB (already available). Filter `beltOptions` before rendering the Current Belt `Select`:
-- Foundation 1/2/3 (and AU "Foundation"): visible only if `age <= 5`
-- 1st–4th Poom: visible only if `age < 15`
-- 1st–4th Dan, 5th Dan: visible only if `age >= 15`
-- All other belts (White → Black Tip, plus no DOB yet): always visible
+**1. Migration — update `get_public_grading_slots` RPC**
 
-Disable the Current Belt select until both Branch AND DOB are set (placeholder: "Select date of birth first" when DOB missing).
+Add a new parameter `p_current_belt text DEFAULT NULL` and an extra WHERE clause:
+```
+AND (
+  p_current_belt IS NULL
+  OR gs.belt_levels IS NULL
+  OR array_length(gs.belt_levels, 1) IS NULL
+  OR p_current_belt = ANY(gs.belt_levels)
+)
+```
+Keep the existing signature working by creating the new overload (or replacing it — there are already two overloads in the DB, so we replace the latest 3-arg one and add `p_current_belt` as a 4th optional arg).
 
-If currentBelt becomes invalid after DOB change, reset it (extend existing reset effect at line 192).
+**2. Service — `src/services/gradingPaymentSubmissionService.ts`**
 
-### Implementation details
-- Add helper `filterBeltsByAge(belts, age)` near `resolveAgeGating`.
-- Apply filter in the `beltOptions` memo (line 149).
-- Update labels at lines 414, 426, 439, 455 to append ` *`.
-- Update Select trigger at line 466 to be `disabled={!branchId || !dob}` and change placeholder dynamically.
+Add `currentBelt` arg to `getPublicGradingSlots` and pass `p_current_belt` to the RPC.
 
-No backend/schema changes.
+**3. Page — `src/pages/public/PublicGradingPayment.tsx`**
+
+- Pass `currentBelt` into `getPublicGradingSlots(branchId, selectedProductIds, dobIso, currentBelt)`.
+- Add `currentBelt` to the React Query `queryKey` and reset `selectedSlotId` when it changes.
+
+### Result
+A Blue belt user will no longer see slots restricted to `3rd Poom / 3rd Dan` (or any other mismatched belt). Slots with no `belt_levels` set remain visible to everyone (unchanged behaviour).
