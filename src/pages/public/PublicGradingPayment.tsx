@@ -65,6 +65,20 @@ const resolveAgeGating = (
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
+const DAN_BELTS = new Set(['1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan']);
+const FOUNDATION_ALL = new Set(['Foundation', 'Foundation 1', 'Foundation 2', 'Foundation 3']);
+
+const filterBeltsByAge = (belts: string[], age: number | null): string[] => {
+  if (age === null) return belts;
+  return belts.filter((b) => {
+    if (FOUNDATION_ALL.has(b)) return age <= 5;
+    if (POOM_BELTS.has(b)) return age < 15;
+    if (DAN_BELTS.has(b)) return age >= 15;
+    return true;
+  });
+};
+
 const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefined) => void }> = ({ value, onChange }) => {
   const currentYear = new Date().getFullYear();
   const [day, setDay] = useState<string>(value ? String(value.getDate()) : '');
