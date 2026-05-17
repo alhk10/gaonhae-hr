@@ -115,11 +115,6 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.branch_id) {
-      toast.error('Please select a branch');
-      return;
-    }
-
     if (!formData.grading_date) {
       toast.error('Please select a grading date');
       return;
