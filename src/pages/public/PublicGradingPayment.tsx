@@ -208,9 +208,38 @@ const PublicGradingPayment: React.FC = () => {
     }
   }, [isFoundation, productList]);
 
+  // Foundation: filter to transitions whose source-belt index >= currentBelt index, sorted.
+  const visibleProducts = useMemo(() => {
+    if (!isFoundation) return productList;
+    const currentIdx = FOUNDATION_BELTS.indexOf(currentBelt);
+    const withIdx = productList
+      .map((p) => {
+        const m = /Foundation\s*(\d)/i.exec(p.product_name || '');
+        const srcIdx = m ? Number(m[1]) - 1 : -1;
+        return { p, srcIdx };
+      })
+      .filter((x) => x.srcIdx >= 0 && x.srcIdx >= currentIdx)
+      .sort((a, b) => a.srcIdx - b.srcIdx);
+    return withIdx.map((x) => x.p);
+  }, [productList, isFoundation, currentBelt]);
+
   const toggleProduct = (productId: string, checked: boolean) => {
-    setSelectedProductIds(prev =>
-      checked ? Array.from(new Set([...prev, productId])) : prev.filter(id => id !== productId),
+    if (isFoundation) {
+      const idx = visibleProducts.findIndex((p) => p.product_id === productId);
+      if (idx === -1) return;
+      if (checked) {
+        // Include this and all preceding visible items
+        const idsToAdd = visibleProducts.slice(0, idx + 1).map((p) => p.product_id);
+        setSelectedProductIds((prev) => Array.from(new Set([...prev, ...idsToAdd])));
+      } else {
+        // Remove this and all following visible items
+        const idsToRemove = new Set(visibleProducts.slice(idx).map((p) => p.product_id));
+        setSelectedProductIds((prev) => prev.filter((id) => !idsToRemove.has(id)));
+      }
+      return;
+    }
+    setSelectedProductIds((prev) =>
+      checked ? Array.from(new Set([...prev, productId])) : prev.filter((id) => id !== productId),
     );
   };
 
@@ -460,21 +489,25 @@ const PublicGradingPayment: React.FC = () => {
                       <p className="text-xs text-muted-foreground">
                         Select one or more gradings
                       </p>
-                      {productList.length === 0 ? (
+                      {visibleProducts.length === 0 ? (
                         <p className="text-sm text-destructive">
                           No grading fees configured for this branch.
                         </p>
                       ) : (
-                        productList.map((p) => {
+                        visibleProducts.map((p, idx) => {
                           const checked = selectedProductIds.includes(p.product_id);
+                          const prev = idx === 0 ? null : visibleProducts[idx - 1];
+                          const prevChecked = prev ? selectedProductIds.includes(prev.product_id) : true;
+                          const disabled = !prevChecked && !checked;
                           return (
                             <label
                               key={p.product_id}
-                              className="flex items-center justify-between gap-2 cursor-pointer text-sm py-1"
+                              className={`flex items-center justify-between gap-2 text-sm py-1 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <Checkbox
                                   checked={checked}
+                                  disabled={disabled}
                                   onCheckedChange={(v) => toggleProduct(p.product_id, !!v)}
                                 />
                                 <span>{p.product_name}</span>
