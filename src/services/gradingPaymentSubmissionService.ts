@@ -74,6 +74,7 @@ export interface PublicGradingSlot {
   start_time: string | null;
   end_time: string | null;
   location: string | null;
+  title: string | null;
 }
 
 export const getPublicGradingSlots = async (
