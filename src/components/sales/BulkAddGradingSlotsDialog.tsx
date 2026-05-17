@@ -303,7 +303,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-6xl w-full">
+      <DialogContent className="max-w-6xl w-full" ref={setPopoverContainer}>
         <DialogHeader>
           <DialogTitle>Add Grading Slots</DialogTitle>
           <DialogDescription>Add multiple grading slots at once. Fill in the rows below and click Save All.</DialogDescription>
