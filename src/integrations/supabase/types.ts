@@ -6657,6 +6657,7 @@ export type Database = {
               id: string
               location: string
               start_time: string
+              title: string
             }[]
           }
       get_public_payment_options: {
