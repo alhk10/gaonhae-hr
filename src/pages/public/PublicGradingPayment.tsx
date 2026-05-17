@@ -443,6 +443,30 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
+              {selectedProductIds.length > 0 && !gating.blocked && (
+                <div className="space-y-2">
+                  <Label htmlFor="slot">Grading Slot</Label>
+                  <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
+                    <SelectTrigger id="slot">
+                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {slotList.map((s) => {
+                        const [y, m, d] = s.grading_date.split('-');
+                        const dateLbl = `${d}/${m}/${y}`;
+                        const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
+                        const where = s.location || s.branch_name;
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            {dateLbl}{timeLbl} — {where}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {branchId && currentBelt && gating.blocked && (
                 <Alert variant="destructive">
                   <AlertDescription className="text-sm">{BLOCK_MSG}</AlertDescription>
