@@ -568,11 +568,10 @@ const PublicGradingPayment: React.FC = () => {
                         const [y, m, d] = s.grading_date.split('-');
                         const dateLbl = `${d}/${m}/${y}`;
                         const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
-                        const where = s.location || s.branch_name;
                         const label = s.title?.trim() || `${dateLbl}${timeLbl}`;
                         return (
                           <SelectItem key={s.id} value={s.id}>
-                            {label} — {where}
+                            {label}
                           </SelectItem>
                         );
                       })}
