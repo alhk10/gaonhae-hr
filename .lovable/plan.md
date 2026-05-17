@@ -1,33 +1,47 @@
-## Plan — Derive grading slot eligibility from slot config, not requesting branch
+## Problem
 
-### Problem
-On `/pay`, slot list uses `get_public_grading_slots` which currently requires the slot's `branch_id` to match the chosen branch (or appear in `available_branch_ids`). So a Kembangan 1st Poom student can't see a Balmoral 1st Poom slot, even though both belts are eligible.
+On `/pay`, an under-15 student at **1st Poom** at Balmoral only sees one slot:
+`Balmoral - 28/06/2026 - 1st Poom >> 2nd Poom`
 
-The user wants eligibility derived purely from what the slot itself accepts:
-- **Belt** → slot's `belt_levels`
-- **Age** → slot's `min_age` / `max_age` evaluated on `grading_date`
-- **Product/transition** → slot's `grading_product_ids`
+The Stage 1-3 slot for 1st Poom/1st Dan exists and is correctly configured (belt_levels=[1st Poom, 1st Dan], product=[Stage 1-3]), but it never appears. Same hidden-slot problem affects:
+- **2nd Poom / 2nd Dan** → Stage 4-10 slot is hidden
+- **3rd Poom / 3rd Dan** → Stage 11-26 slot is hidden
 
-Branch should no longer gate visibility.
+### Root cause
 
-### DB change — replace `get_public_grading_slots(p_branch_id, p_product_ids, p_dob, p_current_belt)`
+`PublicGradingPayment.tsx` auto-selects the single transition product returned by `getPublicGradingProducts` (e.g. `1st Poom >> 2nd Poom`) and passes `selectedProductIds` into `get_public_grading_slots`. The RPC requires `grading_product_ids && p_product_ids` overlap, so the Stage 1-3 slot — whose `grading_product_ids` only contains `Stage 1-3` — is filtered out.
 
-Same signature/return shape (UI keeps working). Rules:
+The Stage slots already self-describe their eligibility via `belt_levels` + `min_age`/`max_age`, and the RPC's `stage_product_id` lateral join overrides product + price at booking time. The product-overlap pre-filter is redundant and actively wrong for Stage slots.
 
-1. **Drop the branch filter entirely.** Remove the `gs.branch_id = p_branch_id OR p_branch_id = ANY(available_branch_ids)` clause. `p_branch_id` is kept only to resolve `stage_product_branch_price` via `price_rules` (already lateral-joined).
-2. **Belt gating (hard)** — if `gs.belt_levels` is non-empty AND `p_current_belt` is provided, require `p_current_belt = ANY(gs.belt_levels)`. If `gs.belt_levels` is empty/NULL, the slot is open to any belt.
-3. **Age gating (hard)** — when `p_dob` is provided and `min_age`/`max_age` are set, age on `grading_date` must fall in range. (Same as today.)
-4. **Product gating (soft, slot-driven)** — if `gs.grading_product_ids` is non-empty, require overlap with `p_product_ids` **only when** `p_product_ids` is non-empty. If the caller passes an empty/null product list (Foundation case, or any case where we want all eligible slots), don't filter by product. If `gs.grading_product_ids` is empty/NULL, the slot is open to any transition.
-5. **Date + status** unchanged: `grading_date >= CURRENT_DATE`, `status <> 'cancelled'`.
-6. Keep `ORDER BY grading_date, start_time`. Optional: secondary sort to surface the requesting branch's own slots first (`(gs.branch_id = p_branch_id) DESC`) so local slots show on top while cross-branch slots are still listed.
+## Plan
 
-Result: a 1st Poom slot at Balmoral lists for any 1st Poom student regardless of their selected branch, as long as age/product rules also pass.
+Treat slot eligibility as **belt + age + branch driven**, not driven by the user's auto-selected transition product. The selected product becomes the *default* line item; if the chosen slot is a Stage slot, its `stage_product_id`/price override applies (already implemented in `effectiveItems`).
 
-### Frontend — no code changes required
-`PublicGradingPayment.tsx` already calls `getPublicGradingSlots(branchId, productIds, dobIso, currentBelt)` and renders `s.location || s.branch_name`, which will naturally show the slot's hosting branch. The Foundation flow (which passes empty `productIds`) keeps working because product filter is skipped when caller provides none.
+### 1. Frontend — `src/pages/public/PublicGradingPayment.tsx`
+
+- Remove the `selectedProductIds` filter when querying slots for non-Foundation belts. Pass `[]` to `getPublicGradingSlots` for everyone, same way Foundation already does.
+- Drop `slotProductIds` and update the query key to remove `selectedProductIds.join(',')` (keep `branchId`, `dobIso`, `currentBelt`).
+- Keep `effectiveItems` logic unchanged — Stage slot still overrides product + price; transition slot still falls back to `selectedItems`.
+- No changes to product checkbox UI, foundation flow, or submission payload.
+
+### 2. Backend
+
+No DB changes. The current `get_public_grading_slots(p_branch_id, p_product_ids, p_dob, p_current_belt)` already:
+- Skips product filter when `p_product_ids` is empty.
+- Hard-gates by `belt_levels` (open when null/empty).
+- Hard-gates by `min_age`/`max_age`.
+- Joins `stage_product_id`/`stage_product_branch_price` for Stage slots.
+
+### Result
+
+For Alvin (1st Poom, Balmoral, under 15), the slot dropdown will show both:
+- `28/06/2026 - 1st Poom >> 2nd Poom` (transition slot, $470 + GST)
+- `28/06/2026 - Stage 1-3` (stage slot, price from `Stage 1-3` product / branch price rule)
+
+Selecting the Stage slot rewrites the invoice line item to "Stage 1-3" automatically via existing `effectiveItems` logic. Same behavior cascades to 2nd Poom/2nd Dan (Stage 4-10) and 3rd Poom/3rd Dan (Stage 11-26).
 
 ### Out of scope
-- No change to `get_public_payment_options` (still scoped to chosen branch for bank/PayNow details and pricing).
-- No change to `get_public_grading_products` (pricing still uses the chosen branch's `price_rules`).
-- No change to grading registration / payment submission write paths.
-- No UI restructuring beyond what's already shipped.
+
+- Changes to `get_public_grading_products`, `get_public_payment_options`, or grading write paths.
+- UI restructuring of the payment form.
+- Foundation flow (already working).
