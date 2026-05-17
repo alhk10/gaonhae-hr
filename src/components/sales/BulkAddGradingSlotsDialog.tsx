@@ -97,7 +97,8 @@ const GradingProductPopover: React.FC<{
   selected: string[];
   products: GradingProduct[];
   onChange: (ids: string[]) => void;
-}> = ({ selected, products, onChange }) => {
+  container?: HTMLElement | null;
+}> = ({ selected, products, onChange, container }) => {
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter(p => p !== id) : [...selected, id]);
   };
@@ -112,8 +113,8 @@ const GradingProductPopover: React.FC<{
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start" collisionPadding={8}>
-        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+      <PopoverContent className="w-72 p-0" align="start" collisionPadding={8} container={container}>
+        <div className="max-h-72 overflow-y-auto overscroll-contain touch-pan-y p-2 space-y-1">
           {products.length === 0 && (
             <div className="px-2 py-1 text-xs text-muted-foreground">No grading products found</div>
           )}
@@ -136,7 +137,8 @@ const BranchMultiSelectPopover: React.FC<{
   selected: string[];
   branches: Branch[];
   onChange: (ids: string[]) => void;
-}> = ({ selected, branches, onChange }) => {
+  container?: HTMLElement | null;
+}> = ({ selected, branches, onChange, container }) => {
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter(b => b !== id) : [...selected, id]);
   };
@@ -155,8 +157,8 @@ const BranchMultiSelectPopover: React.FC<{
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="start" collisionPadding={8}>
-        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+      <PopoverContent className="w-56 p-0" align="start" collisionPadding={8} container={container}>
+        <div className="max-h-72 overflow-y-auto overscroll-contain touch-pan-y p-2 space-y-1">
           {branches.map(branch => (
             <label key={branch.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
               <Checkbox
@@ -179,6 +181,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   const [rows, setRows] = useState<BulkRow[]>([createEmptyRow()]);
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
+  const [popoverContainer, setPopoverContainer] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -300,7 +303,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-6xl w-full">
+      <DialogContent className="max-w-6xl w-full" ref={setPopoverContainer}>
         <DialogHeader>
           <DialogTitle>Add Grading Slots</DialogTitle>
           <DialogDescription>Add multiple grading slots at once. Fill in the rows below and click Save All.</DialogDescription>
@@ -374,6 +377,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                       selected={row.grading_product_ids}
                       products={gradingProducts}
                       onChange={ids => updateRow(row.id, 'grading_product_ids', ids)}
+                      container={popoverContainer}
                     />
                   </td>
                   {/* Available to Branches */}
@@ -382,6 +386,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                       selected={row.available_branch_ids}
                       branches={branches}
                       onChange={ids => updateRow(row.id, 'available_branch_ids', ids)}
+                      container={popoverContainer}
                     />
                   </td>
                   {/* Min Age */}
