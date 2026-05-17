@@ -518,6 +518,29 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
+              {isFoundation && branchId && !gating.blocked && visibleProducts.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Grading</Label>
+                  <div className="space-y-2 rounded-md border p-3">
+                    {visibleProducts.map((p) => {
+                      const checked = selectedProductIds.includes(p.product_id);
+                      return (
+                        <div key={p.product_id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`grading-${p.product_id}`}
+                            checked={checked}
+                            onCheckedChange={(c) => toggleProduct(p.product_id, c === true)}
+                          />
+                          <Label htmlFor={`grading-${p.product_id}`} className="text-sm font-normal cursor-pointer">
+                            {p.product_name} — ${Number(p.branch_price ?? 0).toFixed(2)}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {branchId && currentBelt && gating.blocked && (
                 <Alert variant="destructive">
                   <AlertDescription className="text-sm">{BLOCK_MSG}</AlertDescription>
