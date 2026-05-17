@@ -277,11 +277,12 @@ const PublicGradingPayment: React.FC = () => {
     setSelectedSlotId('');
   }, [selectedProductIds.join(','), dobIso, currentBelt]);
 
-  // Foundation: don't filter slots by product so Foundation Video Test (stage) slot is included for F1/F2/F3.
-  const slotProductIds = isFoundation ? [] : selectedProductIds;
+  // Slot eligibility is driven by belt + age + branch (and the slot's own gating).
+  // We intentionally do NOT filter by selected transition product, so Stage slots
+  // (Stage 1-3, Stage 4-10, Stage 11-26, Foundation Video Test) remain visible.
   const { data: slotList = [] } = useQuery({
-    queryKey: ['public-grading-slots', branchId, slotProductIds.join(','), dobIso, currentBelt, isFoundation],
-    queryFn: () => getPublicGradingSlots(branchId, slotProductIds, dobIso, currentBelt || null),
+    queryKey: ['public-grading-slots', branchId, dobIso, currentBelt],
+    queryFn: () => getPublicGradingSlots(branchId, [], dobIso, currentBelt || null),
     enabled: !!branchId,
   });
 
