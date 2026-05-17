@@ -34,6 +34,7 @@ export interface PublicGradingListRow {
   start_time: string | null;
   end_time: string | null;
   location: string | null;
+  slot_title: string | null;
   student_name: string;
   current_belt: string | null;
   target_belt: string | null;
