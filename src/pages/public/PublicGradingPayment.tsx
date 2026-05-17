@@ -28,6 +28,41 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
+const GST_RATE = 0.09;
+
+const calcAge = (dob: Date, ref: Date = new Date()): number => {
+  let age = ref.getFullYear() - dob.getFullYear();
+  const m = ref.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && ref.getDate() < dob.getDate())) age--;
+  return age;
+};
+
+const BLOCK_MSG = 'We are unable to process your grading. Please speak to a master for more information.';
+
+/**
+ * Resolve target belt and block-state for age-gated current belts.
+ * Returns { target: string | null, blocked: boolean }.
+ * target = null when no age gating applies (use existing prefix match).
+ */
+const resolveAgeGating = (
+  currentBelt: string,
+  age: number | null,
+): { target: string | null; blocked: boolean } => {
+  if (age === null) return { target: null, blocked: false };
+  const under15 = age < 15;
+  switch (currentBelt) {
+    case 'Black Tip':
+      return { target: under15 ? '1st Poom' : '1st Dan', blocked: false };
+    case '1st Poom':
+      return under15 ? { target: '2nd Poom', blocked: false } : { target: null, blocked: true };
+    case '2nd Poom':
+      return under15 ? { target: '3rd Poom', blocked: false } : { target: null, blocked: true };
+    case '3rd Poom':
+      return under15 ? { target: '4th Poom', blocked: false } : { target: null, blocked: true };
+    default:
+      return { target: null, blocked: false };
+  }
+};
 
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
