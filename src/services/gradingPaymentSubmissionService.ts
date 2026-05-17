@@ -26,6 +26,7 @@ export interface PublicPaymentOptions {
 
 export interface PublicGradingListRow {
   source: 'registration' | 'submission';
+  submission_id: string | null;
   slot_id: string | null;
   branch_id: string | null;
   branch_name: string | null;
@@ -37,7 +38,22 @@ export interface PublicGradingListRow {
   current_belt: string | null;
   target_belt: string | null;
   paid_status: string;
+  amount: number | null;
+  proof_url: string | null;
 }
+
+export const adminUpdateGradingSubmissionSlot = async (id: string, slotId: string) => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_slot' as any, {
+    p_id: id,
+    p_slot_id: slotId,
+  });
+  if (error) throw error;
+};
+
+export const adminDeleteGradingSubmission = async (id: string) => {
+  const { error } = await supabase.rpc('admin_delete_grading_submission' as any, { p_id: id });
+  if (error) throw error;
+};
 
 export interface PublicGradingProduct {
   current_belt: string;
