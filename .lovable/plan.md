@@ -1,47 +1,37 @@
-## Problem
+# Grading List redesign
 
-On `/pay`, an under-15 student at **1st Poom** at Balmoral only sees one slot:
-`Balmoral - 28/06/2026 - 1st Poom >> 2nd Poom`
+Convert the per-slot card list at `/grading-list` into a numbered table per slot, headed by the slot's title and sorted by branch then student (no branch grouping).
 
-The Stage 1-3 slot for 1st Poom/1st Dan exists and is correctly configured (belt_levels=[1st Poom, 1st Dan], product=[Stage 1-3]), but it never appears. Same hidden-slot problem affects:
-- **2nd Poom / 2nd Dan** → Stage 4-10 slot is hidden
-- **3rd Poom / 3rd Dan** → Stage 11-26 slot is hidden
+## Changes
 
-### Root cause
+### 1. Backend — expose slot title
 
-`PublicGradingPayment.tsx` auto-selects the single transition product returned by `getPublicGradingProducts` (e.g. `1st Poom >> 2nd Poom`) and passes `selectedProductIds` into `get_public_grading_slots`. The RPC requires `grading_product_ids && p_product_ids` overlap, so the Stage 1-3 slot — whose `grading_product_ids` only contains `Stage 1-3` — is filtered out.
+Migration on `get_public_grading_list`:
+- Add `slot_title text` column to the RETURNS TABLE (selected from `grading_slots.title`).
+- Selected in both the registration and submission UNION branches.
+- No logic change otherwise.
 
-The Stage slots already self-describe their eligibility via `belt_levels` + `min_age`/`max_age`, and the RPC's `stage_product_id` lateral join overrides product + price at booking time. The product-overlap pre-filter is redundant and actively wrong for Stage slots.
+### 2. Service type
 
-## Plan
+`src/services/gradingPaymentSubmissionService.ts`:
+- Add `slot_title: string | null` to `PublicGradingListRow`.
 
-Treat slot eligibility as **belt + age + branch driven**, not driven by the user's auto-selected transition product. The selected product becomes the *default* line item; if the chosen slot is a Stage slot, its `stage_product_id`/price override applies (already implemented in `effectiveItems`).
+### 3. UI — `src/pages/public/PublicGradingList.tsx`
 
-### 1. Frontend — `src/pages/public/PublicGradingPayment.tsx`
+Replace the existing per-slot `Card` rendering with a table per slot:
 
-- Remove the `selectedProductIds` filter when querying slots for non-Foundation belts. Pass `[]` to `getPublicGradingSlots` for everyone, same way Foundation already does.
-- Drop `slotProductIds` and update the query key to remove `selectedProductIds.join(',')` (keep `branchId`, `dobIso`, `currentBelt`).
-- Keep `effectiveItems` logic unchanged — Stage slot still overrides product + price; transition slot still falls back to `selectedItems`.
-- No changes to product checkbox UI, foundation flow, or submission payload.
+- **Grouping key** unchanged: `grading_date | start_time | slot_id` (so each grading slot remains one group, but no branch grouping).
+- **Header per group**: slot title (fallback to `formatDate(date) HH:MM` when title is missing). Date + time stay as a subdued line beside/under the title.
+- **Sort within group**: by `branch_name` asc, then `student_name` asc. No visual branch grouping — branch is just the first data column.
+- **Table** (shadcn `Table`):
+  - Columns: `#` (1-based row number), `Branch`, `Student`, `Belt` (current → target), `Status` badge.
+  - In edit mode, append: `Amount`, `Proof`, `Edit`, `Delete` (only meaningful for `source === 'submission'` rows; cells render `—` for registration rows).
+  - Alternating row shading via `odd:bg-muted/40` on `TableRow`.
+  - Compact: `text-xs`, `py-1.5` cells.
+- Keep the top date filter, unlock/edit-mode flow, slot-edit dialog, and delete-confirm dialog unchanged.
+- Widen container from `max-w-3xl` to `max-w-5xl` to fit the table comfortably.
 
-### 2. Backend
+## Out of scope
 
-No DB changes. The current `get_public_grading_slots(p_branch_id, p_product_ids, p_dob, p_current_belt)` already:
-- Skips product filter when `p_product_ids` is empty.
-- Hard-gates by `belt_levels` (open when null/empty).
-- Hard-gates by `min_age`/`max_age`.
-- Joins `stage_product_id`/`stage_product_branch_price` for Stage slots.
-
-### Result
-
-For Alvin (1st Poom, Balmoral, under 15), the slot dropdown will show both:
-- `28/06/2026 - 1st Poom >> 2nd Poom` (transition slot, $470 + GST)
-- `28/06/2026 - Stage 1-3` (stage slot, price from `Stage 1-3` product / branch price rule)
-
-Selecting the Stage slot rewrites the invoice line item to "Stage 1-3" automatically via existing `effectiveItems` logic. Same behavior cascades to 2nd Poom/2nd Dan (Stage 4-10) and 3rd Poom/3rd Dan (Stage 11-26).
-
-### Out of scope
-
-- Changes to `get_public_grading_products`, `get_public_payment_options`, or grading write paths.
-- UI restructuring of the payment form.
-- Foundation flow (already working).
+- No change to data sources, eligibility logic, or admin password flow.
+- No change to `PublicGradingPayment` page.
