@@ -164,6 +164,7 @@ export const submitGradingPayment = async (
 
   const rows = input.items.map((item) => ({
     student_name: input.student_name.trim().toUpperCase(),
+    email: input.email.trim().toLowerCase() || null,
     branch_id: input.branch_id,
     date_of_birth: input.date_of_birth,
     current_belt: item.current_belt || input.current_belt || null,
