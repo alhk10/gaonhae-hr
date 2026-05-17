@@ -216,7 +216,7 @@ const PublicGradingPayment: React.FC = () => {
     setSelectedSlotId('');
   }, [currentBelt, branchId, gating.target]);
 
-  // For non-foundation, auto-select the single matching product
+  // Auto-select products: single match for non-foundation; all visible for foundation
   useEffect(() => {
     if (!isFoundation && productList.length === 1) {
       setSelectedProductIds([productList[0].product_id]);
