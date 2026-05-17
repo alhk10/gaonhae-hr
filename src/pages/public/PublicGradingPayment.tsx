@@ -445,7 +445,7 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {selectedProductIds.length > 0 && !gating.blocked && (
+              {branchId && currentBelt && !gating.blocked && (
                 <div className="space-y-2">
                   <Label htmlFor="slot">Grading Slot</Label>
                   <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
