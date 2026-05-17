@@ -18,7 +18,9 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Lock, Unlock, Trash2, Pencil, ExternalLink } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, ExternalLink, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
 import {
