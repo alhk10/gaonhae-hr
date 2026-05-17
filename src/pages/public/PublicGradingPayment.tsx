@@ -495,12 +495,6 @@ const PublicGradingPayment: React.FC = () => {
                       <p className="text-lg font-semibold">
                         ${Number(productList[0].branch_price ?? 0).toFixed(2)}
                       </p>
-                      {options?.slot_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Next slot: {formatDate(options.slot_date)}
-                          {options.slot_start ? ` at ${options.slot_start.slice(0, 5)}` : ''}
-                        </p>
-                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-destructive">

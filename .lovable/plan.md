@@ -1,17 +1,5 @@
-## Fix: "Failed to update grading slot"
+## Remove "Next slot: ..." text from public grading payment
 
-### Root cause
-Postgres log: `invalid input syntax for type time: ""`. The edit dialog submits `start_time: ''` (empty string) for the `time` column, which Postgres rejects. Same risk for `end_time`.
+**File:** `src/pages/public/PublicGradingPayment.tsx`
 
-### Fix
-
-**File:** `src/components/sales/AddGradingSlotDialog.tsx` — `handleSubmit` (around line 128)
-
-Before calling `createGradingSlot` / `updateGradingSlot`, normalize the payload:
-- `start_time`: `''` → `null`
-- `end_time`: `''` → `null`
-- (Optional, defensive) `location`, `examiner_name`, `notes`, `title`: `''` → `null`
-
-Pass the sanitized object instead of the raw `formData`.
-
-No DB migration, no service or RPC changes.
+Delete the `options?.slot_date` block (the `<p className="text-xs text-muted-foreground">Next slot: ...</p>`) from the non-foundation product display card. Keeps product name and price; removes the suggested next-slot line since the dedicated Grading Slot dropdown below already lets the user pick.
