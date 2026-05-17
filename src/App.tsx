@@ -125,6 +125,14 @@ const PayrollRoute = ({ permission, children }: { permission?: keyof AdminAccess
   </ProtectedRoute>
 );
 
+// Hostname-aware root: payment.* → /pay, gradinglist.* → /grading-list
+const HostnameRouter = () => {
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  if (host.startsWith('payment.')) return <PublicGradingPayment />;
+  if (host.startsWith('gradinglist.')) return <PublicGradingList />;
+  return <Index />;
+};
+
 function App() {
   return (
     <ErrorBoundary>
