@@ -162,9 +162,6 @@ const PublicGradingList: React.FC = () => {
 
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Grading List</h1>
-          <p className="text-sm text-muted-foreground">
-            Upcoming gradings and payment status
-          </p>
         </div>
 
         <Card>
