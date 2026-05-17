@@ -227,7 +227,7 @@ const PublicGradingPayment: React.FC = () => {
   const { data: slotList = [] } = useQuery({
     queryKey: ['public-grading-slots', branchId, selectedProductIds.join(',')],
     queryFn: () => getPublicGradingSlots(branchId, selectedProductIds),
-    enabled: !!branchId && selectedProductIds.length > 0,
+    enabled: !!branchId,
   });
 
   const selectedSlot = useMemo(
@@ -445,7 +445,7 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {selectedProductIds.length > 0 && !gating.blocked && (
+              {branchId && currentBelt && !gating.blocked && (
                 <div className="space-y-2">
                   <Label htmlFor="slot">Grading Slot</Label>
                   <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
