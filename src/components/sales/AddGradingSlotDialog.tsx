@@ -127,11 +127,21 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
     setLoading(true);
     try {
+      const emptyToNull = (v: any) => (v === '' ? null : v);
+      const payload: any = {
+        ...formData,
+        start_time: emptyToNull(formData.start_time),
+        end_time: emptyToNull((formData as any).end_time),
+        location: emptyToNull((formData as any).location),
+        examiner_name: emptyToNull((formData as any).examiner_name),
+        notes: emptyToNull((formData as any).notes),
+        title: emptyToNull((formData as any).title),
+      };
       if (isEditMode && editSlot) {
-        await updateGradingSlot(editSlot.id, formData);
+        await updateGradingSlot(editSlot.id, payload);
         toast.success('Grading slot updated successfully');
       } else {
-        await createGradingSlot(formData);
+        await createGradingSlot(payload);
         toast.success(isDuplicateMode ? 'Grading slot duplicated successfully' : 'Grading slot created successfully');
       }
       setOpen(false);
