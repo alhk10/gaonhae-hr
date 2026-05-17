@@ -75,6 +75,9 @@ export interface PublicGradingSlot {
   end_time: string | null;
   location: string | null;
   title: string | null;
+  stage_product_id?: string | null;
+  stage_product_name?: string | null;
+  stage_product_branch_price?: number | null;
 }
 
 export const getPublicGradingSlots = async (
