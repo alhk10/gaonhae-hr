@@ -97,9 +97,24 @@ export const getPublicGradingList = async (params: {
   return (data || []) as PublicGradingListRow[];
 };
 
+export const getPublicGradingProducts = async (
+  branchId: string,
+  currentBelts: string[],
+): Promise<PublicGradingProduct[]> => {
+  if (!branchId || currentBelts.length === 0) return [];
+  const { data, error } = await supabase.rpc('get_public_grading_products', {
+    p_branch_id: branchId,
+    p_current_belts: currentBelts,
+  });
+  if (error) throw error;
+  return (data || []) as PublicGradingProduct[];
+};
+
 export const submitGradingPayment = async (
   input: SubmitGradingPaymentInput,
-): Promise<{ id: string; reference_number: string }> => {
+): Promise<{ reference_numbers: string[]; ids: string[] }> => {
+  if (!input.items.length) throw new Error('No items selected');
+
   // Upload proof first
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
   const ts = Date.now();
@@ -117,23 +132,28 @@ export const submitGradingPayment = async (
 
   const proofUrl = signed?.signedUrl ?? path;
 
+  const rows = input.items.map((item) => ({
+    student_name: input.student_name.trim().toUpperCase(),
+    branch_id: input.branch_id,
+    date_of_birth: input.date_of_birth,
+    current_belt: item.current_belt || input.current_belt || null,
+    resolved_product_id: item.product_id,
+    resolved_grading_slot_id: input.resolved_grading_slot_id,
+    amount: item.amount,
+    payment_method: input.payment_method,
+    proof_url: proofUrl,
+    status: 'pending_verification' as const,
+  }));
+
   const { data, error } = await supabase
     .from('grading_payment_submissions')
-    .insert({
-      student_name: input.student_name.trim().toUpperCase(),
-      branch_id: input.branch_id,
-      date_of_birth: input.date_of_birth,
-      current_belt: input.current_belt || null,
-      resolved_product_id: input.resolved_product_id,
-      resolved_grading_slot_id: input.resolved_grading_slot_id,
-      amount: input.amount,
-      payment_method: 'paynow',
-      proof_url: proofUrl,
-      status: 'pending_verification',
-    })
-    .select('id, reference_number')
-    .single();
+    .insert(rows)
+    .select('id, reference_number');
 
   if (error) throw error;
-  return data as { id: string; reference_number: string };
+  const inserted = (data || []) as { id: string; reference_number: string }[];
+  return {
+    reference_numbers: inserted.map(r => r.reference_number),
+    ids: inserted.map(r => r.id),
+  };
 };
