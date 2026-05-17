@@ -6586,6 +6586,14 @@ export type Database = {
           submit_claim: boolean
         }[]
       }
+      get_public_branches: {
+        Args: never
+        Returns: {
+          country: string
+          id: string
+          name: string
+        }[]
+      }
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
@@ -6601,6 +6609,22 @@ export type Database = {
           start_time: string
           student_name: string
           target_belt: string
+        }[]
+      }
+      get_public_payment_options: {
+        Args: { p_branch_id: string; p_current_belt: string }
+        Returns: {
+          bank_transfer_info: string
+          branch_country: string
+          paynow_qr_url: string
+          product_id: string
+          product_name: string
+          product_price: number
+          slot_date: string
+          slot_end: string
+          slot_id: string
+          slot_location: string
+          slot_start: string
         }[]
       }
       get_student_by_auth_id_for_auth: {
