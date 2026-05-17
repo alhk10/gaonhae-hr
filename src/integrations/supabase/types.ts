@@ -6464,12 +6464,20 @@ export type Database = {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
+      admin_delete_grading_submission: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       admin_reset_password: {
         Args: {
           new_password_hash: string
           new_salt: string
           target_email: string
         }
+        Returns: undefined
+      }
+      admin_update_grading_submission_slot: {
+        Args: { p_id: string; p_slot_id: string }
         Returns: undefined
       }
       calculate_annual_leave_entitlement: {
@@ -6603,6 +6611,7 @@ export type Database = {
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
+          amount: number
           branch_id: string
           branch_name: string
           current_belt: string
@@ -6610,10 +6619,12 @@ export type Database = {
           grading_date: string
           location: string
           paid_status: string
+          proof_url: string
           slot_id: string
           source: string
           start_time: string
           student_name: string
+          submission_id: string
           target_belt: string
         }[]
       }
