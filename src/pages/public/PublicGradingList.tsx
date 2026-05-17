@@ -149,7 +149,7 @@ const PublicGradingList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
-      <div className="max-w-3xl mx-auto space-y-4 relative">
+      <div className="max-w-5xl mx-auto space-y-4 relative">
         {/* Discrete unlock button */}
         <button
           type="button"
