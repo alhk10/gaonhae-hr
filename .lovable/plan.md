@@ -1,5 +1,10 @@
-## Remove "Next slot: ..." text from public grading payment
+## Goal
+Show the grading slot **title** in the public grading payment dropdown instead of the `DD/MM/YYYY HH:MM` text. Location/branch suffix remains.
 
-**File:** `src/pages/public/PublicGradingPayment.tsx`
+## Changes
 
-Delete the `options?.slot_date` block (the `<p className="text-xs text-muted-foreground">Next slot: ...</p>`) from the non-foundation product display card. Keeps product name and price; removes the suggested next-slot line since the dedicated Grading Slot dropdown below already lets the user pick.
+1. **DB migration** — update `get_public_grading_slots` RPC to also return `gs.title`.
+2. **Service type** (`src/services/gradingPaymentSubmissionService.ts`) — add `title: string | null` to `PublicGradingSlot`.
+3. **Dropdown** (`src/pages/public/PublicGradingPayment.tsx`, ~line 515-525) — render `{title || dateLbl+timeLbl} — {where}`. Fallback to existing date/time format when title is missing so legacy slots still display.
+
+No other UI or business logic changes.
