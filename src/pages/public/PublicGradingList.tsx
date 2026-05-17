@@ -250,7 +250,24 @@ const PublicGradingList: React.FC = () => {
     groups.forEach(renderGroup);
 
     const fname = `grading-list-${dateFilter === 'all' ? 'all' : dateFilter}.pdf`;
-    doc.save(fname);
+    try {
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      a.rel = 'noopener';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (e) {
+      try { doc.save(fname); } catch { /* noop */ }
+      toast.error('Could not download PDF in this view');
+    }
   };
 
   return (
