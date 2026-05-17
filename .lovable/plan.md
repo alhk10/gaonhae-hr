@@ -1,24 +1,21 @@
-## Root cause
+## Plan: Fix grading confirmation email via Resend
 
-The grading payment flow calls `send-transactional-email` after a successful submission, but the email backend has never been provisioned for this project:
+### 1. Add secret
+Request `RESEND_API_KEY` via the secrets tool. User obtains it from https://resend.com/api-keys.
 
-- The `email_send_log` table does not exist
-- The `enqueue_email` RPC does not exist
-- The pgmq queues and cron dispatcher are missing
+### 2. Rewrite `supabase/functions/send-transactional-email/index.ts`
+Replace the broken queue-based implementation with a direct Resend send, mirroring existing `send-invoice-email` / `send-payslip-email` patterns:
+- Keep the same request contract (`templateName`, `recipientEmail`, `templateData`, `idempotencyKey`) so the call site in `gradingPaymentSubmissionService.ts` and `PublicGradingPayment.tsx` needs no changes.
+- Look up template from existing `_shared/transactional-email-templates/registry.ts` (keeps `grading-confirmation.tsx` React Email template intact).
+- Render to HTML via `@react-email/render`.
+- Send via Resend API using `from: "Gaonhae Taekwondo <noreply@notify.gaonhaetaekwondo.com>"` (verified domain).
+- Drop suppression checks, pgmq enqueue, unsubscribe footer injection (infra doesn't exist; not needed for this transactional use case).
+- Return 200 with Resend message id; log errors but don't throw to caller (call site already swallows errors).
 
-The send call is wrapped in `try/catch` and only logs `console.warn`, so the user sees "Payment Submitted" but no email is ever delivered.
+### 3. Deploy & test
+Deploy the function, then re-test the grading payment submission flow to `alhk10@gmail.com` via the live form and confirm delivery + check function logs.
 
-The email domain `notify.gaonhaetaekwondo.com` is already verified — only the queue/table infrastructure and Edge Function deployment are missing.
-
-## Fix
-
-1. **Provision email infrastructure** (`setup_email_infra`) — creates `email_send_log`, `suppressed_emails`, `email_unsubscribe_tokens`, the `auth_emails` / `transactional_emails` pgmq queues, the `enqueue_email` / `read_email_batch` / `delete_email` / `move_to_dlq` RPC wrappers, the `process-email-queue` cron job (every 5s), and the vault secret. Safe/idempotent.
-
-2. **Deploy the Edge Functions** that already exist in the repo but were never deployed: `send-transactional-email`, `handle-email-unsubscribe`, `handle-email-suppression`, `process-email-queue`.
-
-3. **Re-test** the grading payment submission to `alhk10@gmail.com` and verify the email arrives. Confirm with a query on `email_send_log` (filtered by `template_name = 'grading-confirmation'`).
-
-## Notes
-
-- No code changes to `PublicGradingPayment.tsx` are needed — the call site is correct.
-- One small caveat: the email is only sent when `selectedSlot` is truthy. If a Foundation submission ever completes without a chosen slot, no email goes out. We can extend the send to cover that case in a follow-up if desired, but it is out of scope for this fix.
+### Out of scope
+- Other broken email functions (`send-invoice-email`, etc.) — only fix if user asks.
+- pgmq queue infrastructure, unsubscribe page, suppression table — not needed for grading confirmation.
+- No frontend/UI changes.
