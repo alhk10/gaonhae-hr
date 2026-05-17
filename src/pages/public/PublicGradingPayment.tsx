@@ -28,6 +28,41 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
+const GST_RATE = 0.09;
+
+const calcAge = (dob: Date, ref: Date = new Date()): number => {
+  let age = ref.getFullYear() - dob.getFullYear();
+  const m = ref.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && ref.getDate() < dob.getDate())) age--;
+  return age;
+};
+
+const BLOCK_MSG = 'We are unable to process your grading. Please speak to a master for more information.';
+
+/**
+ * Resolve target belt and block-state for age-gated current belts.
+ * Returns { target: string | null, blocked: boolean }.
+ * target = null when no age gating applies (use existing prefix match).
+ */
+const resolveAgeGating = (
+  currentBelt: string,
+  age: number | null,
+): { target: string | null; blocked: boolean } => {
+  if (age === null) return { target: null, blocked: false };
+  const under15 = age < 15;
+  switch (currentBelt) {
+    case 'Black Tip':
+      return { target: under15 ? '1st Poom' : '1st Dan', blocked: false };
+    case '1st Poom':
+      return under15 ? { target: '2nd Poom', blocked: false } : { target: null, blocked: true };
+    case '2nd Poom':
+      return under15 ? { target: '3rd Poom', blocked: false } : { target: null, blocked: true };
+    case '3rd Poom':
+      return under15 ? { target: '4th Poom', blocked: false } : { target: null, blocked: true };
+    default:
+      return { target: null, blocked: false };
+  }
+};
 
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
@@ -58,6 +93,10 @@ const PublicGradingPayment: React.FC = () => {
 
   const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
 
+  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
+  const gating = useMemo(() => resolveAgeGating(currentBelt, age), [currentBelt, age]);
+  const isSingapore = (selectedBranch?.country || '').toLowerCase() === 'singapore';
+
   // For non-foundation: keep existing single-product + slot lookup
   const { data: options, isFetching: loadingOptions } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
@@ -66,16 +105,27 @@ const PublicGradingPayment: React.FC = () => {
   });
 
   // Foundation: fetch all three transitions with branch pricing.
-  // Non-foundation: fetch single matching product with branch pricing.
+  // Non-foundation: fetch single matching product (with optional explicit target for age-gated belts).
   const beltsForLookup = useMemo(
     () => (isFoundation ? FOUNDATION_BELTS : currentBelt ? [currentBelt] : []),
     [isFoundation, currentBelt],
   );
 
+  const targetsForLookup = useMemo<(string | null)[] | undefined>(() => {
+    if (isFoundation || !currentBelt) return undefined;
+    if (gating.target) return [gating.target];
+    return undefined;
+  }, [isFoundation, currentBelt, gating.target]);
+
   const { data: productList = [] } = useQuery({
-    queryKey: ['public-grading-products', branchId, beltsForLookup.join(',')],
-    queryFn: () => getPublicGradingProducts(branchId, beltsForLookup),
-    enabled: !!branchId && beltsForLookup.length > 0,
+    queryKey: [
+      'public-grading-products',
+      branchId,
+      beltsForLookup.join(','),
+      (targetsForLookup || []).join(','),
+    ],
+    queryFn: () => getPublicGradingProducts(branchId, beltsForLookup, targetsForLookup),
+    enabled: !!branchId && beltsForLookup.length > 0 && !gating.blocked,
   });
 
   // Reset belt if branch country changes and current belt is invalid
@@ -85,10 +135,10 @@ const PublicGradingPayment: React.FC = () => {
     }
   }, [beltOptions, currentBelt]);
 
-  // Reset selections when belt or branch changes
+  // Reset selections when belt, branch, or age-gating target changes
   useEffect(() => {
     setSelectedProductIds([]);
-  }, [currentBelt, branchId]);
+  }, [currentBelt, branchId, gating.target]);
 
   // For non-foundation, auto-select the single matching product
   useEffect(() => {
@@ -108,16 +158,19 @@ const PublicGradingPayment: React.FC = () => {
     [productList, selectedProductIds],
   );
 
-  const totalAmount = useMemo(
+  const subtotal = useMemo(
     () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
     [selectedItems],
   );
+  const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
+  const totalAmount = subtotal + gstAmount;
 
   const canSubmit =
     !!studentName.trim() &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
+    !gating.blocked &&
     selectedItems.length > 0 &&
     !!proofFile &&
     !submitting;
@@ -297,7 +350,13 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {branchId && currentBelt && (
+              {branchId && currentBelt && gating.blocked && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm">{BLOCK_MSG}</AlertDescription>
+                </Alert>
+              )}
+
+              {branchId && currentBelt && !gating.blocked && (
                 <div className="rounded-md border p-3 bg-background space-y-2">
                   {isFoundation ? (
                     <>
@@ -330,12 +389,6 @@ const PublicGradingPayment: React.FC = () => {
                           );
                         })
                       )}
-                      {selectedItems.length > 0 && (
-                        <div className="flex items-center justify-between border-t pt-2 text-sm font-semibold">
-                          <span>Total</span>
-                          <span>${totalAmount.toFixed(2)}</span>
-                        </div>
-                      )}
                     </>
                   ) : loadingOptions ? (
                     <p className="text-sm text-muted-foreground">Loading...</p>
@@ -356,6 +409,25 @@ const PublicGradingPayment: React.FC = () => {
                     <p className="text-sm text-destructive">
                       No grading fee configured for this belt. Please contact your branch.
                     </p>
+                  )}
+
+                  {selectedItems.length > 0 && (
+                    <div className="border-t pt-2 text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                      </div>
+                      {isSingapore && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">GST (9%)</span>
+                          <span>${gstAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between font-semibold border-t pt-1">
+                        <span>Total</span>
+                        <span>${totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

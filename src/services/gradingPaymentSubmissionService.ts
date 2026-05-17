@@ -100,12 +100,17 @@ export const getPublicGradingList = async (params: {
 export const getPublicGradingProducts = async (
   branchId: string,
   currentBelts: string[],
+  targetBelts?: (string | null)[],
 ): Promise<PublicGradingProduct[]> => {
   if (!branchId || currentBelts.length === 0) return [];
-  const { data, error } = await supabase.rpc('get_public_grading_products', {
+  const params: Record<string, unknown> = {
     p_branch_id: branchId,
     p_current_belts: currentBelts,
-  });
+  };
+  if (targetBelts && targetBelts.length === currentBelts.length) {
+    params.p_target_belts = targetBelts;
+  }
+  const { data, error } = await supabase.rpc('get_public_grading_products', params as any);
   if (error) throw error;
   return (data || []) as PublicGradingProduct[];
 };

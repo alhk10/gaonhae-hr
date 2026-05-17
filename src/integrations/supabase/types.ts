@@ -6611,16 +6611,31 @@ export type Database = {
           target_belt: string
         }[]
       }
-      get_public_grading_products: {
-        Args: { p_branch_id: string; p_current_belts: string[] }
-        Returns: {
-          base_price: number
-          branch_price: number
-          current_belt: string
-          product_id: string
-          product_name: string
-        }[]
-      }
+      get_public_grading_products:
+        | {
+            Args: { p_branch_id: string; p_current_belts: string[] }
+            Returns: {
+              base_price: number
+              branch_price: number
+              current_belt: string
+              product_id: string
+              product_name: string
+            }[]
+          }
+        | {
+            Args: {
+              p_branch_id: string
+              p_current_belts: string[]
+              p_target_belts?: string[]
+            }
+            Returns: {
+              base_price: number
+              branch_price: number
+              current_belt: string
+              product_id: string
+              product_name: string
+            }[]
+          }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {
