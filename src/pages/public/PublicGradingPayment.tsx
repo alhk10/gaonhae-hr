@@ -21,8 +21,10 @@ import {
   getPublicBranches,
   getPublicPaymentOptions,
   getPublicGradingProducts,
+  getPublicGradingSlots,
   submitGradingPayment,
 } from '@/services/gradingPaymentSubmissionService';
+import { supabase } from '@/integrations/supabase/client';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 const GST_RATE = 0.09;
