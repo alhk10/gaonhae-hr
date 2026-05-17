@@ -350,7 +350,13 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {branchId && currentBelt && (
+              {branchId && currentBelt && gating.blocked && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm">{BLOCK_MSG}</AlertDescription>
+                </Alert>
+              )}
+
+              {branchId && currentBelt && !gating.blocked && (
                 <div className="rounded-md border p-3 bg-background space-y-2">
                   {isFoundation ? (
                     <>
@@ -383,12 +389,6 @@ const PublicGradingPayment: React.FC = () => {
                           );
                         })
                       )}
-                      {selectedItems.length > 0 && (
-                        <div className="flex items-center justify-between border-t pt-2 text-sm font-semibold">
-                          <span>Total</span>
-                          <span>${totalAmount.toFixed(2)}</span>
-                        </div>
-                      )}
                     </>
                   ) : loadingOptions ? (
                     <p className="text-sm text-muted-foreground">Loading...</p>
@@ -409,6 +409,25 @@ const PublicGradingPayment: React.FC = () => {
                     <p className="text-sm text-destructive">
                       No grading fee configured for this belt. Please contact your branch.
                     </p>
+                  )}
+
+                  {selectedItems.length > 0 && (
+                    <div className="border-t pt-2 text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                      </div>
+                      {isSingapore && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">GST (9%)</span>
+                          <span>${gstAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between font-semibold border-t pt-1">
+                        <span>Total</span>
+                        <span>${totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
