@@ -10,16 +10,19 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createGradingSlot } from '@/services/gradingService';
-import { BELT_LEVELS } from '@/constants/beltLevels';
 import { Plus, Trash2, Copy, Loader2, ChevronDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { formatDate } from '@/utils/dateFormat';
 
 interface Branch {
+  id: string;
+  name: string;
+}
+
+interface GradingProduct {
   id: string;
   name: string;
 }
@@ -30,6 +33,7 @@ interface BulkRow {
   grading_date: string;
   start_time: string;
   title: string;
+  grading_product_ids: string[];
   belt_levels: string[];
   max_capacity: number;
   min_age: string;
@@ -49,6 +53,7 @@ const createEmptyRow = (): BulkRow => ({
   grading_date: '',
   start_time: '',
   title: '',
+  grading_product_ids: [],
   belt_levels: [],
   max_capacity: 20,
   min_age: '',
@@ -56,23 +61,45 @@ const createEmptyRow = (): BulkRow => ({
   available_branch_ids: [],
 });
 
-const generateTitle = (branchName: string, date: string, time: string, belts: string[]): string => {
-  const dateStr = date
-    ? formatDate(date + 'T00:00:00')
-    : '';
-  const timeStr = time ? time.slice(0, 5) : '';
-  const beltStr = belts.length > 0
-    ? belts.slice(0, 3).join(', ') + (belts.length > 3 ? '...' : '')
-    : '';
-  return [branchName, dateStr, timeStr, beltStr].filter(Boolean).join(' - ');
+// Map a Grading product name → belt levels that should be eligible for this slot.
+// "<From> >> <To>" contributes <From>. Stage products map to explicit poom/dan belts.
+const beltsForProductName = (name: string): string[] => {
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('stage 1')) return ['1st Poom', '1st Dan'];
+  if (lower.startsWith('stage 4')) return ['2nd Poom', '2nd Dan'];
+  if (lower.startsWith('stage 11')) return ['3rd Poom', '3rd Dan'];
+  const idx = trimmed.indexOf('>>');
+  if (idx > 0) return [trimmed.slice(0, idx).trim()];
+  return [];
 };
 
-const BeltLevelPopover: React.FC<{
+const deriveBeltLevels = (selectedIds: string[], products: GradingProduct[]): string[] => {
+  const set = new Set<string>();
+  for (const id of selectedIds) {
+    const p = products.find(p => p.id === id);
+    if (!p) continue;
+    beltsForProductName(p.name).forEach(b => set.add(b));
+  }
+  return Array.from(set);
+};
+
+const generateTitle = (branchName: string, date: string, time: string, productNames: string[]): string => {
+  const dateStr = date ? formatDate(date + 'T00:00:00') : '';
+  const timeStr = time ? time.slice(0, 5) : '';
+  const productStr = productNames.length > 0
+    ? productNames.slice(0, 3).join(', ') + (productNames.length > 3 ? '...' : '')
+    : '';
+  return [branchName, dateStr, timeStr, productStr].filter(Boolean).join(' - ');
+};
+
+const GradingProductPopover: React.FC<{
   selected: string[];
-  onChange: (belts: string[]) => void;
-}> = ({ selected, onChange }) => {
-  const toggle = (belt: string) => {
-    onChange(selected.includes(belt) ? selected.filter(b => b !== belt) : [...selected, belt]);
+  products: GradingProduct[];
+  onChange: (ids: string[]) => void;
+}> = ({ selected, products, onChange }) => {
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(p => p !== id) : [...selected, id]);
   };
 
   return (
@@ -80,20 +107,23 @@ const BeltLevelPopover: React.FC<{
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-9 w-full justify-between text-xs">
           <span className="truncate">
-            {selected.length === 0 ? 'Select belts' : `${selected.length} belt${selected.length > 1 ? 's' : ''}`}
+            {selected.length === 0 ? 'Select products' : `${selected.length} product${selected.length > 1 ? 's' : ''}`}
           </span>
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2 max-h-72 overflow-y-auto" align="start">
-        <div className="space-y-1">
-          {BELT_LEVELS.map(belt => (
-            <label key={belt} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
+      <PopoverContent className="w-72 p-0" align="start" collisionPadding={8}>
+        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+          {products.length === 0 && (
+            <div className="px-2 py-1 text-xs text-muted-foreground">No grading products found</div>
+          )}
+          {products.map(product => (
+            <label key={product.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
               <Checkbox
-                checked={selected.includes(belt)}
-                onCheckedChange={() => toggle(belt)}
+                checked={selected.includes(product.id)}
+                onCheckedChange={() => toggle(product.id)}
               />
-              {belt}
+              {product.name}
             </label>
           ))}
         </div>
@@ -125,8 +155,8 @@ const BranchMultiSelectPopover: React.FC<{
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2 max-h-72 overflow-y-auto" align="start">
-        <div className="space-y-1">
+      <PopoverContent className="w-56 p-0" align="start" collisionPadding={8}>
+        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
           {branches.map(branch => (
             <label key={branch.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
               <Checkbox
@@ -145,6 +175,7 @@ const BranchMultiSelectPopover: React.FC<{
 const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ trigger, onSlotsSaved }) => {
   const [open, setOpen] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [gradingProducts, setGradingProducts] = useState<GradingProduct[]>([]);
   const [rows, setRows] = useState<BulkRow[]>([createEmptyRow()]);
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
@@ -152,6 +183,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   useEffect(() => {
     if (open) {
       loadBranches();
+      loadGradingProducts();
       setRows([createEmptyRow()]);
       setSaveProgress(null);
     }
@@ -166,18 +198,38 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
     }
   };
 
+  const loadGradingProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, product_categories!inner(name)')
+        .eq('is_active', true)
+        .eq('product_categories.name', 'Grading')
+        .order('name');
+      if (error) throw error;
+      setGradingProducts((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    } catch (err) {
+      console.error('Error loading grading products:', err);
+    }
+  };
+
   const updateRow = (rowId: string, field: keyof BulkRow, value: any) => {
     setRows(prev => prev.map(row => {
       if (row.id !== rowId) return row;
-      const updated = { ...row, [field]: value, hasError: false };
-      // Auto-generate title when key fields change
-      if (['branch_id', 'grading_date', 'start_time', 'belt_levels'].includes(field as string)) {
+      const updated: BulkRow = { ...row, [field]: value, hasError: false };
+      if (field === 'grading_product_ids') {
+        updated.belt_levels = deriveBeltLevels(value as string[], gradingProducts);
+      }
+      if (['branch_id', 'grading_date', 'start_time', 'grading_product_ids'].includes(field as string)) {
         const branchName = branches.find(b => b.id === (field === 'branch_id' ? value : updated.branch_id))?.name || '';
+        const productNames = updated.grading_product_ids
+          .map(id => gradingProducts.find(p => p.id === id)?.name)
+          .filter((n): n is string => !!n);
         updated.title = generateTitle(
           branchName,
           field === 'grading_date' ? value : updated.grading_date,
           field === 'start_time' ? value : updated.start_time,
-          field === 'belt_levels' ? value : updated.belt_levels,
+          productNames,
         );
       }
       return updated;
@@ -200,7 +252,6 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   };
 
   const handleSaveAll = async () => {
-    // Validate
     const validated = rows.map(row => ({
       ...row,
       hasError: !row.branch_id || !row.grading_date,
@@ -225,6 +276,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
           start_time: row.start_time || undefined,
           title: row.title || undefined,
           belt_levels: row.belt_levels.length > 0 ? row.belt_levels : undefined,
+          grading_product_ids: row.grading_product_ids.length > 0 ? row.grading_product_ids : undefined,
           max_capacity: row.max_capacity,
           min_age: row.min_age !== '' ? parseInt(row.min_age) : undefined,
           max_age: row.max_age !== '' ? parseInt(row.max_age) : undefined,
@@ -262,7 +314,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-36">Date *</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-28">Time</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground">Title (auto)</th>
-                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-32">Belt Levels</th>
+                <th className="text-left py-2 px-2 font-medium text-muted-foreground w-40">Grading Products</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-40">Avail. to Branches</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Min Age</th>
                 <th className="text-left py-2 px-2 font-medium text-muted-foreground w-16">Max Age</th>
@@ -271,7 +323,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => (
+              {rows.map((row) => (
                 <tr
                   key={row.id}
                   className={`border-b last:border-0 ${row.hasError ? 'bg-destructive/5' : 'hover:bg-muted/30'}`}
@@ -316,11 +368,12 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                       className="h-9 text-xs"
                     />
                   </td>
-                  {/* Belt Levels */}
+                  {/* Grading Products */}
                   <td className="py-1.5 px-2">
-                    <BeltLevelPopover
-                      selected={row.belt_levels}
-                      onChange={belts => updateRow(row.id, 'belt_levels', belts)}
+                    <GradingProductPopover
+                      selected={row.grading_product_ids}
+                      products={gradingProducts}
+                      onChange={ids => updateRow(row.id, 'grading_product_ids', ids)}
                     />
                   </td>
                   {/* Available to Branches */}
