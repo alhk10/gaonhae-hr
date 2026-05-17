@@ -97,7 +97,8 @@ const GradingProductPopover: React.FC<{
   selected: string[];
   products: GradingProduct[];
   onChange: (ids: string[]) => void;
-}> = ({ selected, products, onChange }) => {
+  container?: HTMLElement | null;
+}> = ({ selected, products, onChange, container }) => {
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter(p => p !== id) : [...selected, id]);
   };
@@ -112,8 +113,8 @@ const GradingProductPopover: React.FC<{
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start" collisionPadding={8}>
-        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+      <PopoverContent className="w-72 p-0" align="start" collisionPadding={8} container={container}>
+        <div className="max-h-72 overflow-y-auto overscroll-contain touch-pan-y p-2 space-y-1">
           {products.length === 0 && (
             <div className="px-2 py-1 text-xs text-muted-foreground">No grading products found</div>
           )}
