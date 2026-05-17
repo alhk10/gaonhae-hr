@@ -300,34 +300,7 @@ const PublicGradingPayment: React.FC = () => {
 
               <div className="space-y-2">
                 <Label>Date of Birth</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !dob && 'text-muted-foreground',
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dob ? formatDate(dob) : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dob}
-                      onSelect={setDob}
-                      disabled={(d) => d > new Date()}
-                      initialFocus
-                      captionLayout="dropdown-buttons"
-                      fromYear={1950}
-                      toYear={new Date().getFullYear()}
-                      className={cn('p-3 pointer-events-auto')}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DobPicker value={dob} onChange={setDob} />
               </div>
 
               <div className="space-y-2">
