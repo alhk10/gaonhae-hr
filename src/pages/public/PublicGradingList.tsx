@@ -162,9 +162,6 @@ const PublicGradingList: React.FC = () => {
 
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Grading List</h1>
-          <p className="text-sm text-muted-foreground">
-            Upcoming gradings and payment status
-          </p>
         </div>
 
         <Card>
@@ -220,17 +217,17 @@ const PublicGradingList: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="h-8 w-10 px-2 text-xs">#</TableHead>
-                      <TableHead className="h-8 px-2 text-xs">Branch</TableHead>
-                      <TableHead className="h-8 px-2 text-xs">Student</TableHead>
-                      <TableHead className="h-8 px-2 text-xs">Belt</TableHead>
-                      <TableHead className="h-8 px-2 text-xs">Status</TableHead>
+                      <TableHead className="h-7 w-8 px-2 text-xs">#</TableHead>
+                      <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
+                      <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
+                      <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
+                      <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
                       {editMode && (
                         <>
-                          <TableHead className="h-8 px-2 text-xs text-right">Amount</TableHead>
-                          <TableHead className="h-8 px-2 text-xs">Proof</TableHead>
-                          <TableHead className="h-8 px-2 text-xs w-8"></TableHead>
-                          <TableHead className="h-8 px-2 text-xs w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                         </>
                       )}
                     </TableRow>
@@ -238,23 +235,23 @@ const PublicGradingList: React.FC = () => {
                   <TableBody>
                     {g.items.map((r, i) => (
                       <TableRow key={i} className="odd:bg-muted/40">
-                        <TableCell className="px-2 py-1.5 text-xs tabular-nums">{i + 1}</TableCell>
-                        <TableCell className="px-2 py-1.5 text-xs">{r.branch_name || '—'}</TableCell>
-                        <TableCell className="px-2 py-1.5 text-xs font-medium">{r.student_name}</TableCell>
-                        <TableCell className="px-2 py-1.5 text-xs text-muted-foreground">
+                        <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
+                        <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
+                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
+                        <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
-                        <TableCell className="px-2 py-1.5">
-                          <Badge variant="outline" className={statusVariant(r.paid_status)}>
+                        <TableCell className="px-2 py-0.5">
+                          <Badge variant="outline" className={`${statusVariant(r.paid_status)} text-[10px] px-1.5 py-0 whitespace-nowrap`}>
                             {r.paid_status}
                           </Badge>
                         </TableCell>
                         {editMode && (
                           <>
-                            <TableCell className="px-2 py-1.5 text-xs tabular-nums text-right">
+                            <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
                               {r.source === 'submission' && r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
                             </TableCell>
-                            <TableCell className="px-2 py-1.5">
+                            <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && r.proof_url ? (
                                 <a
                                   href={r.proof_url}
@@ -269,7 +266,7 @@ const PublicGradingList: React.FC = () => {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-1.5">
+                            <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && (
                                 <button
                                   type="button"
@@ -284,7 +281,7 @@ const PublicGradingList: React.FC = () => {
                                 </button>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-1.5">
+                            <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && (
                                 <button
                                   type="button"
