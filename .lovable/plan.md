@@ -1,12 +1,13 @@
-## Goal
-On `/grading-list`, replace the branch filter with a **grading date** filter, and sort slot cards by **earliest slot timing first** (date asc → start_time asc).
+## Make Branch optional on Grading Slot
 
-## Changes (file: `src/pages/public/PublicGradingList.tsx`)
+**File:** `src/components/sales/AddGradingSlotDialog.tsx`
+- Change label `Branch *` → `Branch`.
+- Remove the `if (!formData.branch_id) { toast.error(...) }` guard in `handleSubmit`.
+- Pass `branch_id: formData.branch_id || null` in the payload so empty isn't sent as ''.
 
-1. Drop the branches query and branch `Select`.
-2. Fetch full grading list (`getPublicGradingList({})` — no branch filter).
-3. Derive distinct upcoming `grading_date` values from the rows, sorted ascending. Render them as the dropdown options (label via `formatDate`, value = ISO date). Add an "All dates" option. Default to the earliest upcoming date if available.
-4. Filter `rows` client-side by selected date before grouping.
-5. After grouping, sort groups by `grading_date` asc, then `start_time` asc (nulls last) so the earliest slot appears first.
+**Migration:** Make `grading_slots.branch_id` nullable.
+```sql
+ALTER TABLE public.grading_slots ALTER COLUMN branch_id DROP NOT NULL;
+```
 
-No backend/RPC changes.
+No changes to filtering/listing logic — slots without a branch will simply have no branch label.

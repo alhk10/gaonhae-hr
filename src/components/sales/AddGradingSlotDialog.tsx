@@ -115,11 +115,6 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.branch_id) {
-      toast.error('Please select a branch');
-      return;
-    }
-
     if (!formData.grading_date) {
       toast.error('Please select a grading date');
       return;
@@ -130,6 +125,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       const emptyToNull = (v: any) => (v === '' ? null : v);
       const payload: any = {
         ...formData,
+        branch_id: emptyToNull(formData.branch_id),
         start_time: emptyToNull(formData.start_time),
         end_time: emptyToNull((formData as any).end_time),
         location: emptyToNull((formData as any).location),
@@ -230,7 +226,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="branch_id">Branch *</Label>
+              <Label htmlFor="branch_id">Branch</Label>
               <Select value={formData.branch_id} onValueChange={(value) => handleInputChange('branch_id', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select branch" />
