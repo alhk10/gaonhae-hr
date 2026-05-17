@@ -1805,7 +1805,7 @@ export type Database = {
         Row: {
           available_branch_ids: string[] | null
           belt_levels: string[] | null
-          branch_id: string
+          branch_id: string | null
           created_at: string | null
           created_by: string | null
           end_time: string | null
@@ -1827,7 +1827,7 @@ export type Database = {
         Insert: {
           available_branch_ids?: string[] | null
           belt_levels?: string[] | null
-          branch_id: string
+          branch_id?: string | null
           created_at?: string | null
           created_by?: string | null
           end_time?: string | null
@@ -1849,7 +1849,7 @@ export type Database = {
         Update: {
           available_branch_ids?: string[] | null
           belt_levels?: string[] | null
-          branch_id?: string
+          branch_id?: string | null
           created_at?: string | null
           created_by?: string | null
           end_time?: string | null
