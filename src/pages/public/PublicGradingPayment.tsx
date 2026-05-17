@@ -426,7 +426,7 @@ const PublicGradingPayment: React.FC = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Student Name</Label>
+                <Label htmlFor="name">Student Name *</Label>
                 <Input
                   id="name"
                   required
@@ -438,7 +438,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -451,7 +451,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="branch">Branch</Label>
+                <Label htmlFor="branch">Branch *</Label>
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger id="branch">
                     <SelectValue placeholder="Select branch" />
@@ -467,7 +467,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Date of Birth</Label>
+                <Label>Date of Birth *</Label>
                 <DobPicker value={dob} onChange={setDob} />
               </div>
 
@@ -476,10 +476,10 @@ const PublicGradingPayment: React.FC = () => {
                 <Select
                   value={currentBelt}
                   onValueChange={setCurrentBelt}
-                  disabled={!branchId}
+                  disabled={!branchId || !dob}
                 >
                   <SelectTrigger id="belt">
-                    <SelectValue placeholder="Select current belt" />
+                    <SelectValue placeholder={!dob ? 'Select date of birth first' : 'Select current belt'} />
                   </SelectTrigger>
                   <SelectContent>
                     {beltOptions.map((b) => (
