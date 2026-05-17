@@ -77,6 +77,10 @@ const GradingManagement = lazy(() => import('./pages/sales/GradingManagement'));
 const CreditManagement = lazy(() => import('./pages/sales/CreditManagement'));
 const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
+// Public grading payment module
+const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
+const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
+
 // Social Media module
 const SocialRoute = lazy(() => import('./components/auth/SocialRoute'));
 const SocialDashboard = lazy(() => import('./pages/social/SocialDashboard'));
