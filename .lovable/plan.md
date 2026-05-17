@@ -1,10 +1,12 @@
 ## Goal
-Show the grading slot **title** in the public grading payment dropdown instead of the `DD/MM/YYYY HH:MM` text. Location/branch suffix remains.
+On `/grading-list`, replace the branch filter with a **grading date** filter, and sort slot cards by **earliest slot timing first** (date asc → start_time asc).
 
-## Changes
+## Changes (file: `src/pages/public/PublicGradingList.tsx`)
 
-1. **DB migration** — update `get_public_grading_slots` RPC to also return `gs.title`.
-2. **Service type** (`src/services/gradingPaymentSubmissionService.ts`) — add `title: string | null` to `PublicGradingSlot`.
-3. **Dropdown** (`src/pages/public/PublicGradingPayment.tsx`, ~line 515-525) — render `{title || dateLbl+timeLbl} — {where}`. Fallback to existing date/time format when title is missing so legacy slots still display.
+1. Drop the branches query and branch `Select`.
+2. Fetch full grading list (`getPublicGradingList({})` — no branch filter).
+3. Derive distinct upcoming `grading_date` values from the rows, sorted ascending. Render them as the dropdown options (label via `formatDate`, value = ISO date). Add an "All dates" option. Default to the earliest upcoming date if available.
+4. Filter `rows` client-side by selected date before grouping.
+5. After grouping, sort groups by `grading_date` asc, then `start_time` asc (nulls last) so the earliest slot appears first.
 
-No other UI or business logic changes.
+No backend/RPC changes.

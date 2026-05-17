@@ -5,14 +5,13 @@
  * Shows upcoming grading registrations and unmatched public payment
  * submissions, grouped by grading slot (date → start_time → branch).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/utils/dateFormat';
 import {
-  getPublicBranches,
   getPublicGradingList,
   type PublicGradingListRow,
 } from '@/services/gradingPaymentSubmissionService';
@@ -29,35 +28,54 @@ const statusVariant = (status: string) => {
 };
 
 const PublicGradingList: React.FC = () => {
-  const [branchId, setBranchId] = useState<string>('all');
-
-  const { data: branches = [] } = useQuery({
-    queryKey: ['public-branches'],
-    queryFn: getPublicBranches,
-    staleTime: 5 * 60 * 1000,
-  });
+  const [dateFilter, setDateFilter] = useState<string>('all');
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-grading-list', branchId],
-    queryFn: () =>
-      getPublicGradingList({
-        branch_id: branchId === 'all' ? null : branchId,
-      }),
+    queryKey: ['public-grading-list'],
+    queryFn: () => getPublicGradingList({}),
     staleTime: 30 * 1000,
   });
 
-  // Group rows by slot (date + branch + start_time)
+  // Distinct upcoming grading dates, sorted ascending
+  const dateOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      if (r.grading_date) set.add(r.grading_date);
+    }
+    return Array.from(set).sort();
+  }, [rows]);
+
+  // Default to earliest upcoming date once data arrives
+  useEffect(() => {
+    if (dateFilter === 'all' && dateOptions.length > 0) {
+      setDateFilter(dateOptions[0]);
+    }
+  }, [dateOptions, dateFilter]);
+
+  const filteredRows = useMemo(
+    () => (dateFilter === 'all' ? rows : rows.filter((r) => r.grading_date === dateFilter)),
+    [rows, dateFilter],
+  );
+
+  // Group rows by slot (date + branch + start_time), sorted earliest first
   const groups = useMemo(() => {
     const map = new Map<string, { header: PublicGradingListRow; items: PublicGradingListRow[] }>();
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const key = `${r.grading_date || 'unscheduled'}|${r.start_time || ''}|${r.branch_id || ''}`;
       if (!map.has(key)) {
         map.set(key, { header: r, items: [] });
       }
       map.get(key)!.items.push(r);
     }
-    return Array.from(map.values());
-  }, [rows]);
+    return Array.from(map.values()).sort((a, b) => {
+      const da = a.header.grading_date || '9999-12-31';
+      const db = b.header.grading_date || '9999-12-31';
+      if (da !== db) return da.localeCompare(db);
+      const ta = a.header.start_time || '99:99:99';
+      const tb = b.header.start_time || '99:99:99';
+      return ta.localeCompare(tb);
+    });
+  }, [filteredRows]);
 
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
@@ -71,15 +89,15 @@ const PublicGradingList: React.FC = () => {
 
         <Card>
           <CardContent className="p-3">
-            <Select value={branchId} onValueChange={setBranchId}>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="All branches" />
+                <SelectValue placeholder="All dates" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All branches</SelectItem>
-                {branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name}
+                <SelectItem value="all">All dates</SelectItem>
+                {dateOptions.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {formatDate(d)}
                   </SelectItem>
                 ))}
               </SelectContent>
