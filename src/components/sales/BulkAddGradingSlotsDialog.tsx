@@ -137,7 +137,8 @@ const BranchMultiSelectPopover: React.FC<{
   selected: string[];
   branches: Branch[];
   onChange: (ids: string[]) => void;
-}> = ({ selected, branches, onChange }) => {
+  container?: HTMLElement | null;
+}> = ({ selected, branches, onChange, container }) => {
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter(b => b !== id) : [...selected, id]);
   };
@@ -156,8 +157,8 @@ const BranchMultiSelectPopover: React.FC<{
           <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="start" collisionPadding={8}>
-        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+      <PopoverContent className="w-56 p-0" align="start" collisionPadding={8} container={container}>
+        <div className="max-h-72 overflow-y-auto overscroll-contain touch-pan-y p-2 space-y-1">
           {branches.map(branch => (
             <label key={branch.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm">
               <Checkbox
