@@ -149,6 +149,110 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (groups.length === 0) return;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const gutter = 6;
+    const colW = (pageW - margin * 2 - gutter) / 2;
+    const colX = [margin, margin + colW + gutter];
+
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Grading List', pageW / 2, margin + 4, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const subtitle = dateFilter === 'all' ? 'All dates' : formatDate(dateFilter);
+    doc.text(subtitle, pageW / 2, margin + 9, { align: 'center' });
+
+    const contentTop = margin + 14;
+    const contentBottom = pageH - margin;
+    const colY = [contentTop, contentTop];
+
+    const renderGroup = (g: typeof groups[number]) => {
+      const sub = [
+        g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled',
+        g.header.start_time
+          ? `${g.header.start_time.slice(0, 5)}${g.header.end_time ? `–${g.header.end_time.slice(0, 5)}` : ''}`
+          : null,
+      ].filter(Boolean).join(' · ');
+      const title = g.header.slot_title || sub || 'Grading';
+
+      const body = g.items.map((r, i) => [
+        String(i + 1),
+        r.branch_name || '—',
+        r.student_name,
+        `${r.current_belt || '—'}${r.target_belt ? ` → ${r.target_belt}` : ''}`,
+        r.paid_status,
+      ]);
+
+      // Estimate height: title (~5mm) + subtitle (~3.5mm) + table rows
+      const estRowH = 4.2;
+      const headH = 5.5;
+      const estH = 4.5 + (g.header.slot_title ? 3.2 : 0) + headH + body.length * estRowH + 4;
+
+      // Pick column: prefer one with room; else the shorter; else new page
+      let ci = colY[0] <= colY[1] ? 0 : 1;
+      if (colY[ci] + estH > contentBottom && colY[1 - ci] + estH <= contentBottom) {
+        ci = 1 - ci;
+      }
+      if (colY[ci] + estH > contentBottom) {
+        // New page
+        doc.addPage();
+        colY[0] = margin;
+        colY[1] = margin;
+        ci = 0;
+      }
+
+      const x = colX[ci];
+      let y = colY[ci];
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      const titleLines = doc.splitTextToSize(title, colW);
+      doc.text(titleLines, x, y + 3.5);
+      y += titleLines.length * 4;
+
+      if (g.header.slot_title) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(120);
+        doc.text(sub, x, y + 3);
+        doc.setTextColor(0);
+        y += 3.5;
+      }
+
+      autoTable(doc, {
+        startY: y + 1,
+        margin: { left: x, right: pageW - x - colW },
+        tableWidth: colW,
+        head: [['#', 'Branch', 'Student', 'Belt', 'Status']],
+        body,
+        styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak' },
+        headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        columnStyles: {
+          0: { cellWidth: 6, halign: 'right' },
+          1: { cellWidth: 18 },
+          2: { cellWidth: 'auto' },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 18 },
+        },
+      });
+
+      // @ts-ignore lastAutoTable is attached by plugin
+      colY[ci] = (doc as any).lastAutoTable.finalY + 4;
+    };
+
+    groups.forEach(renderGroup);
+
+    const fname = `grading-list-${dateFilter === 'all' ? 'all' : dateFilter}.pdf`;
+    doc.save(fname);
+  };
+
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4 relative">
