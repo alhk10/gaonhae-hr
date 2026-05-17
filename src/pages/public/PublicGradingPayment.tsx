@@ -489,21 +489,25 @@ const PublicGradingPayment: React.FC = () => {
                       <p className="text-xs text-muted-foreground">
                         Select one or more gradings
                       </p>
-                      {productList.length === 0 ? (
+                      {visibleProducts.length === 0 ? (
                         <p className="text-sm text-destructive">
                           No grading fees configured for this branch.
                         </p>
                       ) : (
-                        productList.map((p) => {
+                        visibleProducts.map((p, idx) => {
                           const checked = selectedProductIds.includes(p.product_id);
+                          const prev = idx === 0 ? null : visibleProducts[idx - 1];
+                          const prevChecked = prev ? selectedProductIds.includes(prev.product_id) : true;
+                          const disabled = !prevChecked && !checked;
                           return (
                             <label
                               key={p.product_id}
-                              className="flex items-center justify-between gap-2 cursor-pointer text-sm py-1"
+                              className={`flex items-center justify-between gap-2 text-sm py-1 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <Checkbox
                                   checked={checked}
+                                  disabled={disabled}
                                   onCheckedChange={(v) => toggleProduct(p.product_id, !!v)}
                                 />
                                 <span>{p.product_name}</span>
