@@ -1,25 +1,46 @@
-## Fix: Grading Slot dropdown not visible
+## Filter grading slots by student age (DOB vs slot min_age/max_age)
 
 ### Problem
-On `/pay`, after choosing Current Belt (e.g. Blue → Red Tip), the Grading Slot dropdown does not appear between Current Belt and the pricing card. It is currently rendered only when `selectedProductIds.length > 0`, which means:
-- Foundation belts: hidden until user ticks a product checkbox.
-- Non-foundation belts: depends on auto-select effect firing before render — fragile.
-- Also, the RPC `get_public_grading_slots` filters by `gs.grading_product_ids && p_product_ids`, so slots without product tagging never appear.
+`/pay` shows all grading slots for the branch regardless of the student's age. `grading_slots` already has `min_age` and `max_age` columns, but the public RPC ignores them.
 
 ### Fix
-In `src/pages/public/PublicGradingPayment.tsx`:
 
-1. **Move the Grading Slot block** to render whenever `branchId && currentBelt && !gating.blocked` (drop the `selectedProductIds.length > 0` gate). Keep it positioned directly after the Current Belt field, before the pricing card.
-2. **Enable the slot query on branch alone** — `enabled: !!branchId` — and pass `selectedProductIds` only as an optional filter.
-3. **Loosen the RPC filter** in a new migration so a slot is returned when EITHER:
-   - no product ids were passed, OR
-   - the slot has no `grading_product_ids` (untagged → assume open to all), OR
-   - the slot's `grading_product_ids` overlaps with `p_product_ids`.
-4. Keep `selectedSlotId` required in `canSubmit` (already the case).
+**1. New migration** — overload `get_public_grading_slots` to accept a date of birth and filter by it:
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_public_grading_slots(
+  p_branch_id text,
+  p_product_ids uuid[],
+  p_dob date DEFAULT NULL
+) RETURNS TABLE (...same as today...)
+```
+
+Add to the WHERE clause:
+```sql
+AND (
+  p_dob IS NULL
+  OR (
+    (gs.min_age IS NULL
+      OR date_part('year', age(gs.grading_date, p_dob)) >= gs.min_age)
+    AND
+    (gs.max_age IS NULL
+      OR date_part('year', age(gs.grading_date, p_dob)) <= gs.max_age)
+  )
+)
+```
+
+Age is computed at the slot's `grading_date` (not today), which matches how grading eligibility is determined elsewhere. Slots with NULL min/max stay open. Grant execute to `anon` and `authenticated`.
+
+**2. `src/pages/public/PublicGradingPayment.tsx`**
+- Compute `dobIso` from the existing DOB day/month/year selects (only when all three are set and form a valid date).
+- Pass it to the RPC call (`p_dob: dobIso ?? null`).
+- Add `dobIso` to the React Query `queryKey` so the slot list refreshes when DOB changes.
+- Keep the existing render gate (`branchId && currentBelt && !gating.blocked`); also require a valid DOB before showing the slot dropdown, since age filtering depends on it.
+- If `selectedSlotId` no longer appears in the refreshed list (DOB change made it ineligible), clear it.
 
 ### Files
-- `src/pages/public/PublicGradingPayment.tsx` — reposition + un-gate the slot Select; relax query `enabled`.
-- New migration — update `get_public_grading_slots` with the looser product filter.
+- New migration: extend `get_public_grading_slots` with `p_dob` + age filter.
+- `src/pages/public/PublicGradingPayment.tsx`: pass DOB to the RPC, gate dropdown on DOB, clear stale selection.
 
 ### Out of scope
-Email field placement, DOB picker, email sending, pricing logic — already implemented and untouched.
+Email field, email sending, pricing, belt logic — untouched.
