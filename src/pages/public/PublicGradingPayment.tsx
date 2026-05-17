@@ -356,7 +356,7 @@ const PublicGradingPayment: React.FC = () => {
               idempotencyKey: `grading-${result.ids[0]}`,
               templateData: {
                 studentName: studentName.trim().toUpperCase(),
-                products: selectedItems.map(p => p.product_name),
+                products: effectiveItems.map(p => p.product_name),
                 dateTime: `${dateStr}${timeStr ? ' at ' + timeStr : ''}`,
                 branchName: selectedSlot.branch_name,
                 branchAddress: selectedSlot.branch_address || '',
