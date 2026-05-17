@@ -55,6 +55,7 @@ export interface SubmitGradingPaymentItem {
 
 export interface SubmitGradingPaymentInput {
   student_name: string;
+  email: string;
   branch_id: string;
   date_of_birth: string; // ISO yyyy-MM-dd
   current_belt: string;
@@ -63,6 +64,30 @@ export interface SubmitGradingPaymentInput {
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
 }
+
+export interface PublicGradingSlot {
+  id: string;
+  branch_id: string;
+  branch_name: string;
+  branch_address: string | null;
+  grading_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+}
+
+export const getPublicGradingSlots = async (
+  branchId: string,
+  productIds: string[],
+): Promise<PublicGradingSlot[]> => {
+  if (!branchId || productIds.length === 0) return [];
+  const { data, error } = await supabase.rpc('get_public_grading_slots', {
+    p_branch_id: branchId,
+    p_product_ids: productIds,
+  } as any);
+  if (error) throw error;
+  return (data || []) as PublicGradingSlot[];
+};
 
 export const getPublicBranches = async (): Promise<PublicBranch[]> => {
   const { data, error } = await supabase.rpc('get_public_branches');
