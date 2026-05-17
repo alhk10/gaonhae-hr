@@ -377,6 +377,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                       selected={row.grading_product_ids}
                       products={gradingProducts}
                       onChange={ids => updateRow(row.id, 'grading_product_ids', ids)}
+                      container={popoverContainer}
                     />
                   </td>
                   {/* Available to Branches */}
@@ -385,6 +386,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
                       selected={row.available_branch_ids}
                       branches={branches}
                       onChange={ids => updateRow(row.id, 'available_branch_ids', ids)}
+                      container={popoverContainer}
                     />
                   </td>
                   {/* Min Age */}
