@@ -21,8 +21,10 @@ import {
   getPublicBranches,
   getPublicPaymentOptions,
   getPublicGradingProducts,
+  getPublicGradingSlots,
   submitGradingPayment,
 } from '@/services/gradingPaymentSubmissionService';
+import { supabase } from '@/integrations/supabase/client';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 const GST_RATE = 0.09;
@@ -122,10 +124,12 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
 
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
+  const [email, setEmail] = useState('');
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -194,6 +198,7 @@ const PublicGradingPayment: React.FC = () => {
   // Reset selections when belt, branch, or age-gating target changes
   useEffect(() => {
     setSelectedProductIds([]);
+    setSelectedSlotId('');
   }, [currentBelt, branchId, gating.target]);
 
   // For non-foundation, auto-select the single matching product
@@ -214,6 +219,22 @@ const PublicGradingPayment: React.FC = () => {
     [productList, selectedProductIds],
   );
 
+  // Reset slot when product selection changes
+  useEffect(() => {
+    setSelectedSlotId('');
+  }, [selectedProductIds.join(',')]);
+
+  const { data: slotList = [] } = useQuery({
+    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(',')],
+    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds),
+    enabled: !!branchId && selectedProductIds.length > 0,
+  });
+
+  const selectedSlot = useMemo(
+    () => slotList.find(s => s.id === selectedSlotId) || null,
+    [slotList, selectedSlotId],
+  );
+
   const subtotal = useMemo(
     () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
     [selectedItems],
@@ -221,13 +242,17 @@ const PublicGradingPayment: React.FC = () => {
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   const canSubmit =
     !!studentName.trim() &&
+    emailValid &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
     !gating.blocked &&
     selectedItems.length > 0 &&
+    !!selectedSlotId &&
     !!proofFile &&
     !submitting;
 
@@ -238,6 +263,7 @@ const PublicGradingPayment: React.FC = () => {
     try {
       const result = await submitGradingPayment({
         student_name: studentName,
+        email: email.trim(),
         branch_id: branchId,
         date_of_birth: dob.toISOString().split('T')[0],
         current_belt: currentBelt,
@@ -246,12 +272,37 @@ const PublicGradingPayment: React.FC = () => {
           amount: Number(p.branch_price ?? 0),
           current_belt: p.current_belt,
         })),
-        resolved_grading_slot_id: options?.slot_id ?? null,
+        resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
       setSuccess({ refs: result.reference_numbers });
       toast.success('Payment submitted successfully');
+
+      // Fire-and-forget confirmation email
+      if (selectedSlot) {
+        const dt = new Date(`${selectedSlot.grading_date}T${(selectedSlot.start_time || '00:00:00').slice(0,8)}`);
+        const dateStr = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+        const timeStr = selectedSlot.start_time ? selectedSlot.start_time.slice(0,5) : '';
+        try {
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'grading-confirmation',
+              recipientEmail: email.trim(),
+              idempotencyKey: `grading-${result.ids[0]}`,
+              templateData: {
+                studentName: studentName.trim().toUpperCase(),
+                products: selectedItems.map(p => p.product_name),
+                dateTime: `${dateStr}${timeStr ? ' at ' + timeStr : ''}`,
+                branchName: selectedSlot.branch_name,
+                branchAddress: selectedSlot.branch_address || '',
+              },
+            },
+          });
+        } catch (mailErr) {
+          console.warn('Failed to send confirmation email', mailErr);
+        }
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to submit payment');
@@ -290,10 +341,12 @@ const PublicGradingPayment: React.FC = () => {
                 onClick={() => {
                   setSuccess(null);
                   setStudentName('');
+                  setEmail('');
                   setBranchId('');
                   setDob(undefined);
                   setCurrentBelt('');
                   setSelectedProductIds([]);
+                  setSelectedSlotId('');
                   setProofFile(null);
                 }}
                 className="w-full"
@@ -339,6 +392,19 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  maxLength={255}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="branch">Branch</Label>
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger id="branch">
@@ -378,6 +444,30 @@ const PublicGradingPayment: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedProductIds.length > 0 && !gating.blocked && (
+                <div className="space-y-2">
+                  <Label htmlFor="slot">Grading Slot</Label>
+                  <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
+                    <SelectTrigger id="slot">
+                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {slotList.map((s) => {
+                        const [y, m, d] = s.grading_date.split('-');
+                        const dateLbl = `${d}/${m}/${y}`;
+                        const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
+                        const where = s.location || s.branch_name;
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            {dateLbl}{timeLbl} — {where}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {branchId && currentBelt && gating.blocked && (
                 <Alert variant="destructive">
