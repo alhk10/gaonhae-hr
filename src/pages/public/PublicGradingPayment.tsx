@@ -447,30 +447,6 @@ const PublicGradingPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {branchId && currentBelt && !gating.blocked && (
-                <div className="space-y-2">
-                  <Label htmlFor="slot">Grading Slot</Label>
-                  <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
-                    <SelectTrigger id="slot">
-                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {slotList.map((s) => {
-                        const [y, m, d] = s.grading_date.split('-');
-                        const dateLbl = `${d}/${m}/${y}`;
-                        const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
-                        const where = s.location || s.branch_name;
-                        return (
-                          <SelectItem key={s.id} value={s.id}>
-                            {dateLbl}{timeLbl} — {where}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
               {branchId && currentBelt && gating.blocked && (
                 <Alert variant="destructive">
                   <AlertDescription className="text-sm">{BLOCK_MSG}</AlertDescription>
@@ -531,25 +507,49 @@ const PublicGradingPayment: React.FC = () => {
                       No grading fee configured for this belt. Please contact your branch.
                     </p>
                   )}
+                </div>
+              )}
 
-                  {selectedItems.length > 0 && (
-                    <div className="border-t pt-2 text-sm space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      {isSingapore && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">GST (9%)</span>
-                          <span>${gstAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between font-semibold border-t pt-1">
-                        <span>Total</span>
-                        <span>${totalAmount.toFixed(2)}</span>
-                      </div>
+              {branchId && currentBelt && !gating.blocked && selectedProductIds.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="slot">Grading Slot</Label>
+                  <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
+                    <SelectTrigger id="slot">
+                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {slotList.map((s) => {
+                        const [y, m, d] = s.grading_date.split('-');
+                        const dateLbl = `${d}/${m}/${y}`;
+                        const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
+                        const where = s.location || s.branch_name;
+                        return (
+                          <SelectItem key={s.id} value={s.id}>
+                            {dateLbl}{timeLbl} — {where}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedItems.length > 0 && (
+                <div className="rounded-md border p-3 bg-background text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  {isSingapore && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">GST (9%)</span>
+                      <span>${gstAmount.toFixed(2)}</span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between font-semibold border-t pt-1">
+                    <span>Total</span>
+                    <span>${totalAmount.toFixed(2)}</span>
+                  </div>
                 </div>
               )}
 
