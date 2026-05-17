@@ -1620,6 +1620,101 @@ export type Database = {
           },
         ]
       }
+      grading_payment_submissions: {
+        Row: {
+          amount: number | null
+          branch_id: string
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string
+          id: string
+          matched_invoice_id: string | null
+          matched_student_id: string | null
+          notes: string | null
+          payment_method: string
+          proof_url: string | null
+          reference_number: string | null
+          resolved_grading_slot_id: string | null
+          resolved_product_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_name: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          branch_id: string
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth: string
+          id?: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          proof_url?: string | null
+          reference_number?: string | null
+          resolved_grading_slot_id?: string | null
+          resolved_product_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          branch_id?: string
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string
+          id?: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          proof_url?: string | null
+          reference_number?: string | null
+          resolved_grading_slot_id?: string | null
+          resolved_product_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_payment_submissions_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_payment_submissions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_payment_submissions_resolved_grading_slot_id_fkey"
+            columns: ["resolved_grading_slot_id"]
+            isOneToOne: false
+            referencedRelation: "grading_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grading_payment_submissions_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grading_registrations: {
         Row: {
           certificate_ii_issued: boolean | null
@@ -6403,6 +6498,7 @@ export type Database = {
       }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
+      generate_grading_payment_reference: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_student_number: { Args: never; Returns: string }
       get_admin_access_for_auth: {
@@ -6488,6 +6584,47 @@ export type Database = {
           slot_booking_employee: boolean
           social_media: boolean
           submit_claim: boolean
+        }[]
+      }
+      get_public_branches: {
+        Args: never
+        Returns: {
+          country: string
+          id: string
+          name: string
+        }[]
+      }
+      get_public_grading_list: {
+        Args: { p_branch_id?: string; p_from?: string; p_to?: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          current_belt: string
+          end_time: string
+          grading_date: string
+          location: string
+          paid_status: string
+          slot_id: string
+          source: string
+          start_time: string
+          student_name: string
+          target_belt: string
+        }[]
+      }
+      get_public_payment_options: {
+        Args: { p_branch_id: string; p_current_belt: string }
+        Returns: {
+          bank_transfer_info: string
+          branch_country: string
+          paynow_qr_url: string
+          product_id: string
+          product_name: string
+          product_price: number
+          slot_date: string
+          slot_end: string
+          slot_id: string
+          slot_location: string
+          slot_start: string
         }[]
       }
       get_student_by_auth_id_for_auth: {

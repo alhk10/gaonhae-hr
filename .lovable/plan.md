@@ -1,56 +1,101 @@
-## Goal
-Add an **Export CPF ezpay (CSV)** button on the CPF Contribution Submission step of Payroll Processing that produces a CSV matching the provided ESS Employee Template, pre-filled from each employee's profile and the current payroll period. Also extend the **Employee profile** to capture the fields currently missing for ezpay.
+# Public Grading Payment Module
 
-## Part A — New employee profile fields
+Two new fully-public pages within this app (route to subdomains via DNS) plus a backend queue + matcher.
 
-Add these columns to `public.employees` (nullable, no defaults that distort existing rows):
+## Routes (public, no auth)
+- `/pay` → mounted on `payment.gaonhae.app`
+- `/grading-list` → mounted on `gradinglist.gaonhae.app`
 
-| Field | DB column | Type | UI input |
-|---|---|---|---|
-| PR Start Date | `pr_start_date` | `date` | Date picker, only enabled when residency is PR Yr 1/2 |
-| CPF Contribution Type | `cpf_contribution_type` | `text` (`F/G` or `G/G`) | Select, only for PR Yr 1/2 |
-| Additional Wages (monthly default) | `additional_wages_default` | `numeric(10,2)` default `0` | Number input (used as fallback when no per-month AW recorded) |
-| Self-Help Group (Agency) | `self_help_group` | `text` (`CDAC` / `MBMF` / `SINDA` / `ECF` / null) | Select; auto-suggested from race but editable |
-| Agency Fund Amount override | `agency_fund_amount` | `numeric(10,2)` nullable | Optional override; if blank, ezpay export leaves it blank and CPF Board auto-computes |
-| SDL Payable | `sdl_payable` | `boolean` default `true` | Checkbox |
+(SPA routing already handles deep links; subdomains are wired via Lovable custom-domain settings, both pointed at the same project.)
 
-Surface all new fields in:
-- `src/components/employee/EditEmployeeForm.tsx` — add a **CPF / ezpay Details** section grouping NRIC, DOB, residency status, the new fields, join date, resign date.
-- `src/components/employee/EmployeeProfileForm.tsx` — show the same fields read-only for self-service profile view.
-- `src/services/employeeService.ts` — extend the select lists, mappers, create/update payloads, and the `EmployeeProfile` type in `src/types/employee.ts` with the new keys (camelCase).
+## Page 1 — `/pay` (Public Grading Payment)
+Single-screen form, mobile-first, no login.
 
-No data backfill required — null/false values mean the export simply omits that column for the row.
+Fields:
+1. **Student name** (uppercased on save)
+2. **Branch** — select from active branches (`useBranches`)
+3. **Date of birth** — DD/MM/YYYY picker (shadcn datepicker)
+4. **Current belt** — uses `beltLevels` filtered by branch country (`useBranchCountry`)
+5. **Grading product** — auto-resolved server-side from (branch, current belt) using existing grading-fee lookup pattern (mem: `grading-fee-product-lookup-pattern`). Show resolved product name + price read-only; if no match, show "No grading fee configured — contact branch".
+6. **Payment method** — PayNow only (matches student-portal restriction; Cash hidden).
+7. **PayNow QR** — reuse `PaymentInfoDisplay` with branch's active `invoice_templates.paynow_qr_url`.
+8. **Proof of payment** — reuse `ProofOfPaymentUpload` (image/* only, mem: proof rules).
 
-## Part B — Export CPF ezpay CSV button
+Submit → inserts a `grading_payment_submissions` row (status `pending_verification`) + uploads proof to `payment-proofs` bucket. Shows confirmation screen with reference number.
 
-Location: `src/pages/PayrollProcessing.tsx`, CPF step card (around line 1924), new outline button between **Back** and **Submit CPF Contributions**, labelled **Export CPF ezpay** with a `Download` icon.
+## Page 2 — `/grading-list` (Public Grading List)
+Read-only list of upcoming grading registrations, **sorted by grading slot date + start_time, then branch**.
 
-### Column mapping (template → source)
+For each slot, list: branch, slot date/time, then students with:
+- Name (uppercase)
+- Branch
+- Belt transition (current → target)
+- **Paid status badge**: `Pending verification` / `Paid` / `Unmatched`
 
-| Template column | Source |
+Data source: union of
+- existing `grading_registrations` (joined with student + slot)
+- `grading_payment_submissions` not yet matched to a student (shown with "Unmatched – add profile" tag)
+
+Filters: branch, date range. No PII beyond name/branch/belt.
+
+## Backend
+
+### New table `grading_payment_submissions`
+| col | type |
 |---|---|
-| CPF Account No | `employee.nric` |
-| Name of Employee (as per NRIC) | `employee.name` (uppercase) |
-| Ordinary Wages ($) | CPF row `grossPay` (basic/rate, 2dp) |
-| Additional Wages ($) | `employee.additional_wages_default` (or 0 if null) |
-| Agency Fund ($) | `employee.agency_fund_amount` (blank if null) |
-| Agency (CDAC/MBMF/SINDA/ECF) | `employee.self_help_group` (blank if null) |
-| Citizenship | mapped from `residency_status`: Singaporean / PR Yr 3+ → `3`, PR Yr 1 → `1`, PR Yr 2 → `2` |
-| PR Start Date | `employee.pr_start_date` formatted `DD.MMM.YYYY` |
-| Type (F/G or G/G) | `employee.cpf_contribution_type` (blank for citizens / PR Yr 3+) |
-| Employment Status | derived from selected period vs `join_date` / `resign_date`: both in-period → `New & Leaving`; join in-period → `New`; resign in-period → `Left`; else → `Existing` |
-| Date Left Employment | `resign_date` formatted `DD.MMM.YYYY` if within period, else blank |
-| Date of Birth | `employee.date_of_birth` formatted `DD.MMM.YYYY` |
-| SDL Payable | `Yes` if `sdl_payable` true, else `No` |
+| id | uuid pk |
+| student_name | text (uppercased) |
+| branch_id | text (fk branches) |
+| date_of_birth | date |
+| current_belt | text |
+| resolved_product_id | uuid nullable |
+| resolved_grading_slot_id | uuid nullable (auto-matched: next upcoming slot for branch where `belt_levels` contains current_belt) |
+| amount | numeric |
+| payment_method | text default 'paynow' |
+| proof_url | text |
+| matched_student_id | uuid nullable |
+| matched_invoice_id | uuid nullable |
+| status | text — `pending_verification` | `verified` | `rejected` | `needs_profile` |
+| reference_number | text unique (`GP-YYYYMM-####`) |
+| created_at, updated_at, reviewed_by, reviewed_at |
 
-CSV rules: header line copied verbatim from the template; each field CSV-escaped (quote + double quotes if containing comma/quote); month abbreviation uppercase (`JAN`, `FEB`, …). Filename `CPF_ezpay_{YYYY-MM}.csv` from `selectedPeriod`. Download via Blob + temporary `<a download>`.
+RLS:
+- `INSERT`: allow anon (public payment).
+- `SELECT`: superadmin + branch staff via `has_branch_access(branch_id)`; **public grading-list page uses a SECURITY DEFINER RPC** `get_public_grading_list(branch_id?, from?, to?)` that returns only the safe columns (name, branch, belt transition, paid status, slot time). No direct anon select.
+- `UPDATE`: superadmin only.
 
-## Implementation order
-1. **Migration** (Part A schema) — single migration adding the six columns. RLS already covers `employees`; no new policies needed.
-2. **Types & service** — extend `EmployeeProfile` and `employeeService.ts` mappers and create/update payloads.
-3. **Forms** — add the new fields to `EditEmployeeForm.tsx` and surface read-only on `EmployeeProfileForm.tsx`.
-4. **Export button & helper** — add `handleExportCpfEzpay()` in `PayrollProcessing.tsx`, plus the new `Button` in the CPF step.
+Storage: extend `payment-proofs` bucket policy to allow anonymous insert under prefix `public-grading/`.
+
+### Auto-matching logic (on submission)
+1. Resolve grading product by (branch, current_belt) via existing helper.
+2. Resolve grading slot: earliest `grading_slots` where `branch_id` matches (or branch in `available_branch_ids`), `grading_date >= today`, status active, and `current_belt = ANY(belt_levels)`.
+3. Match student: case-insensitive name match on `students` + same `date_of_birth` + same `branch_id`.
+   - **Match found** → create invoice (status `pending_verification` per mem `invoice-status-verified`), single line item = resolved grading product, payment record attached with proof_url, link `matched_invoice_id` + `matched_student_id`, also insert `grading_registrations` row (existing invoice flow already does this when category=grading).
+   - **No match** → status `needs_profile`; surfaces in Approvals queue for staff to either (a) create student, (b) link to existing student (fuzzy suggestions by name only), (c) reject.
+
+### Approvals integration
+Add a new section "Grading Payment Submissions" in superadmin Approvals (mem: `approval-sections`). Two queues: `pending_verification` (verify/reject proof) and `needs_profile` (link or create student). Verifying flips linked invoice to `verified`.
+
+## Technical Plan
+
+```
+supabase/migrations/<ts>_grading_payment_module.sql
+src/pages/public/PublicGradingPayment.tsx        // /pay
+src/pages/public/PublicGradingList.tsx           // /grading-list
+src/services/gradingPaymentSubmissionService.ts  // insert + matcher + RPC reads
+src/components/approvals/GradingPaymentApprovalsSection.tsx
+src/utils/gradingSlotAutoMatch.ts
+```
+
+Reuse: `PaymentInfoDisplay`, `ProofOfPaymentUpload`, `useBranches`, `useBranchCountry`, `beltLevels`, existing invoice creation (`invoiceService.createInvoice`) which already auto-creates `grading_registrations` for grading-category items.
+
+Add routes in `App.tsx`. Render outside main authed layout (no sidebar/navbar) — minimal public shell with logo.
 
 ## Out of scope
-- No RLS changes; no edge function; no per-month AW table (uses the single default field — can be expanded later if you need different bonus amounts per month).
-- No automatic backfill of new fields — admins fill them in via the employee profile screen.
+- No subdomain DNS config in code (user wires custom domains in Lovable).
+- No automated proof verification (always manual via Approvals).
+- No edits to existing grading flow for logged-in students.
+- No payment gateway integration — PayNow QR + manual proof only.
+
+## Required user action after build
+Add `payment.gaonhae.app` and `gradinglist.gaonhae.app` as custom domains pointing to this project; both resolve to the same app and React Router uses `window.location.hostname` to land on the right default route (or simply share the bare paths `/pay` and `/grading-list`).

@@ -77,6 +77,10 @@ const GradingManagement = lazy(() => import('./pages/sales/GradingManagement'));
 const CreditManagement = lazy(() => import('./pages/sales/CreditManagement'));
 const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
+// Public grading payment module
+const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
+const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
+
 // Social Media module
 const SocialRoute = lazy(() => import('./components/auth/SocialRoute'));
 const SocialDashboard = lazy(() => import('./pages/social/SocialDashboard'));
@@ -121,6 +125,14 @@ const PayrollRoute = ({ permission, children }: { permission?: keyof AdminAccess
   </ProtectedRoute>
 );
 
+// Hostname-aware root: payment.* → /pay, gradinglist.* → /grading-list
+const HostnameRouter = () => {
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  if (host.startsWith('payment.')) return <PublicGradingPayment />;
+  if (host.startsWith('gradinglist.')) return <PublicGradingList />;
+  return <Index />;
+};
+
 function App() {
   return (
     <ErrorBoundary>
@@ -133,8 +145,10 @@ function App() {
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}
-                    <Route path="/" element={<Index />} />
+                    <Route path="/" element={<HostnameRouter />} />
                     <Route path="/register" element={<StudentRegistration />} />
+                    <Route path="/pay" element={<PublicGradingPayment />} />
+                    <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     
                     {/* Protected Employee Routes */}
