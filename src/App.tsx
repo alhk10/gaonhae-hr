@@ -80,6 +80,7 @@ const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 // Public grading payment module
 const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 
 // Social Media module
 const SocialRoute = lazy(() => import('./components/auth/SocialRoute'));
@@ -150,6 +151,7 @@ function App() {
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
+                    <Route path="/unsubscribe" element={<Unsubscribe />} />
                     
                     {/* Protected Employee Routes */}
                     <Route path="/profile" element={<ProtectedRoute permission="profile"><Profile /></ProtectedRoute>} />
