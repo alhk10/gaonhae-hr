@@ -1,0 +1,1 @@
+ALTER TABLE public.grading_slots ADD COLUMN IF NOT EXISTS grading_product_ids uuid[];

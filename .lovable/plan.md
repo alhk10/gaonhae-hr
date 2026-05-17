@@ -1,44 +1,55 @@
-## Changes to `PublicGradingPayment.tsx`
+## Goal
 
-### 1. Age-based belt transition logic
+In the **Add Grading Slots** dialog (`BulkAddGradingSlotsDialog.tsx`):
 
-Compute student age (in years) from DOB. Apply age gating before product lookup:
+1. Fix the dropdown so it scrolls properly (currently the popover clips the list).
+2. Replace the **Belt Levels** column with a **Grading Products** multi-select (e.g. "White >> Yellow Tip", "Stage 1 - 3").
+3. Persist the selected product IDs on the slot, and automatically derive `belt_levels` from each product so existing student eligibility filtering keeps working.
 
-- **Black Tip** → if age < 15 → target `Black Tip >> 1st Poom`; if age ≥ 15 → target `Black Tip >> 1st Dan`
-- **1st Poom** → if age < 15 → `1st Poom >> 2nd Poom`; else block with message
-- **2nd Poom** → if age < 15 → `2nd Poom >> 3rd Poom`; else block
-- **3rd Poom** → if age < 15 → `3rd Poom >> 4th Poom`; else block
+## Belt derivation rules
 
-When blocked, show: "We are unable to process your grading. Please speak to a master for more information." and disable submit.
+For each selected grading product, the slot's `belt_levels` is the union of:
 
-For these belts, pass an explicit target product name to `getPublicGradingProducts` rather than relying on the generic `belt >>%` LIKE match. Two options:
-- (a) Extend RPC `get_public_grading_products` to accept optional explicit target product names per belt and match `lower(p.name) = lower(target)`.
-- (b) Keep RPC as-is; fetch all matching variants and filter client-side by chosen target.
+- Products named `"<From> >> <To>"` → contributes `<From>` (e.g. `White >> Yellow Tip` → `White`).
+- `Stage 1 - 3` → `1st Poom`, `1st Dan`
+- `Stage 4 - 10` → `2nd Poom`, `2nd Dan`
+- `Stage 11-26` → `3rd Poom`, `3rd Dan`
 
-Plan: **option (a)** — add a second optional parameter `p_target_belts text[]` (parallel array). When provided for a belt, match exact `current >> target` instead of prefix. Foundation belts and others pass NULL to keep current behaviour.
+This keeps all downstream filters (My Classes, slot eligibility, public payment lookup, etc.) unchanged.
 
-### 2. GST (9%) for Singapore branches
+## Database change
 
-Read `selectedBranch.country`. If country === `'Singapore'`:
-- Display GST line (9% of subtotal) and a new Total in the product summary card.
-- Submit button shows GST-inclusive total.
+Add a nullable column on `grading_slots`:
 
-GST handling on backend submissions: the per-item `amount` continues to be the branch price (pre-GST). Add an aggregate `gst_amount` and `total_amount` only for display — no schema change. (Tax accounting on the verified invoice side is already handled when staff convert the submission.)
+- `grading_product_ids uuid[]` — IDs of the grading-category products this slot is for.
 
-If you'd like GST persisted on each `grading_payment_submissions` row, say so and I'll add a nullable `gst_amount` column.
+No backfill required (existing slots stay belt-only). `belt_levels` remains the source of truth for eligibility.
 
-### 3. UI
+## UI / column change
 
-- Add a "Target Grading" line under product card when age-resolved.
-- Block message rendered as `<Alert variant="destructive">`.
-- Subtotal / GST 9% / Total breakdown shown when SG branch.
+- Rename column header **Belt Levels** → **Grading Products**.
+- New `GradingProductPopover` component:
+  - Fetches all active products in the `Grading` category, ordered by name.
+  - Renders a scrollable checkbox list inside `PopoverContent`.
+  - Fix scrolling: wrap the list in an inner `<div className="max-h-72 overflow-y-auto">` (the current `PopoverContent max-h-72 overflow-y-auto` is overridden by Radix' own positioning when the popover bumps the viewport bottom — keeping the scroll on an inner div fixes it). Also set `collisionPadding={8}` on `PopoverContent`.
+- Trigger label: "Select products" / "N product(s)".
+- Selecting products updates two fields on the row:
+  - `grading_product_ids` (new)
+  - `belt_levels` (derived via the rules above, deduplicated)
+- Title auto-generation uses the selected product names (slice 3 + "…") instead of belt names.
 
-## Files
+## Service / write path
 
-- `supabase/migrations/<new>.sql` — replace `get_public_grading_products` to accept optional `p_target_belts text[]`.
-- `src/services/gradingPaymentSubmissionService.ts` — extend `getPublicGradingProducts` signature.
-- `src/pages/public/PublicGradingPayment.tsx` — age helper, target resolution, GST math, blocked-state UI.
+`createGradingSlot` (in `gradingService.ts`) — add optional `grading_product_ids?: string[]` to its payload and pass it through to the insert. `belt_levels` is still sent (derived in the dialog).
+
+## Files to edit
+
+- `supabase/migrations/<new>.sql` — `ALTER TABLE grading_slots ADD COLUMN grading_product_ids uuid[];`
+- `src/services/gradingService.ts` — accept and persist `grading_product_ids`.
+- `src/components/sales/BulkAddGradingSlotsDialog.tsx` — replace `BeltLevelPopover` with `GradingProductPopover`, derive belts, fix scroll, rename column, update title generator and row state shape.
 
 ## Out of scope
-- No changes to non-public grading flows.
-- No changes to invoice/tax accounting downstream.
+
+- Editing existing slots elsewhere (only the bulk-add dialog is affected).
+- Changing how `belt_levels` is consumed in other components.
+- Changing the "Avail. to Branches" dropdown.
