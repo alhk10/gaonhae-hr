@@ -341,10 +341,12 @@ const PublicGradingPayment: React.FC = () => {
                 onClick={() => {
                   setSuccess(null);
                   setStudentName('');
+                  setEmail('');
                   setBranchId('');
                   setDob(undefined);
                   setCurrentBelt('');
                   setSelectedProductIds([]);
+                  setSelectedSlotId('');
                   setProofFile(null);
                 }}
                 className="w-full"
