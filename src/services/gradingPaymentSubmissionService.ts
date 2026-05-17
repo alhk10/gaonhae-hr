@@ -39,14 +39,28 @@ export interface PublicGradingListRow {
   paid_status: string;
 }
 
+export interface PublicGradingProduct {
+  current_belt: string;
+  product_id: string;
+  product_name: string;
+  base_price: number;
+  branch_price: number;
+}
+
+export interface SubmitGradingPaymentItem {
+  product_id: string;
+  amount: number | null;
+  current_belt: string;
+}
+
 export interface SubmitGradingPaymentInput {
   student_name: string;
   branch_id: string;
   date_of_birth: string; // ISO yyyy-MM-dd
   current_belt: string;
-  resolved_product_id: string | null;
+  items: SubmitGradingPaymentItem[];
   resolved_grading_slot_id: string | null;
-  amount: number | null;
+  payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
 }
 
