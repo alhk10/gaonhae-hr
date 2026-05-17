@@ -80,9 +80,16 @@ const PublicGradingList: React.FC = () => {
   const groups = useMemo(() => {
     const map = new Map<string, { header: PublicGradingListRow; items: PublicGradingListRow[] }>();
     for (const r of filteredRows) {
-      const key = `${r.grading_date || 'unscheduled'}|${r.start_time || ''}|${r.branch_id || ''}`;
+      const key = `${r.grading_date || 'unscheduled'}|${r.start_time || ''}|${r.slot_id || ''}`;
       if (!map.has(key)) map.set(key, { header: r, items: [] });
       map.get(key)!.items.push(r);
+    }
+    for (const g of map.values()) {
+      g.items.sort((a, b) => {
+        const ba = (a.branch_name || '').localeCompare(b.branch_name || '');
+        if (ba !== 0) return ba;
+        return (a.student_name || '').localeCompare(b.student_name || '');
+      });
     }
     return Array.from(map.values()).sort((a, b) => {
       const da = a.header.grading_date || '9999-12-31';
