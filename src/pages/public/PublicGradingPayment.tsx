@@ -160,14 +160,15 @@ const PublicGradingPayment: React.FC = () => {
     [branches, branchId],
   );
 
+  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
+
   const beltOptions = useMemo(
-    () => getBeltLevelsForCountry(selectedBranch?.country),
-    [selectedBranch?.country],
+    () => filterBeltsByAge(getBeltLevelsForCountry(selectedBranch?.country), age),
+    [selectedBranch?.country, age],
   );
 
   const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
 
-  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
   const gating = useMemo(() => resolveAgeGating(currentBelt, age), [currentBelt, age]);
   const isSingapore = (selectedBranch?.country || '').toLowerCase() === 'singapore';
 
