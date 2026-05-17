@@ -6621,6 +6621,7 @@ export type Database = {
           paid_status: string
           proof_url: string
           slot_id: string
+          slot_title: string
           source: string
           start_time: string
           student_name: string
