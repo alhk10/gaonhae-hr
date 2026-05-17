@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,17 +23,22 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
+  getPublicGradingProducts,
   submitGradingPayment,
 } from '@/services/gradingPaymentSubmissionService';
+
+const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<{ ref: string } | null>(null);
+  const [success, setSuccess] = useState<{ refs: string[] } | null>(null);
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -50,10 +56,26 @@ const PublicGradingPayment: React.FC = () => {
     [selectedBranch?.country],
   );
 
+  const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
+
+  // For non-foundation: keep existing single-product + slot lookup
   const { data: options, isFetching: loadingOptions } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
     queryFn: () => getPublicPaymentOptions(branchId, currentBelt),
     enabled: !!branchId && !!currentBelt,
+  });
+
+  // Foundation: fetch all three transitions with branch pricing.
+  // Non-foundation: fetch single matching product with branch pricing.
+  const beltsForLookup = useMemo(
+    () => (isFoundation ? FOUNDATION_BELTS : currentBelt ? [currentBelt] : []),
+    [isFoundation, currentBelt],
+  );
+
+  const { data: productList = [] } = useQuery({
+    queryKey: ['public-grading-products', branchId, beltsForLookup.join(',')],
+    queryFn: () => getPublicGradingProducts(branchId, beltsForLookup),
+    enabled: !!branchId && beltsForLookup.length > 0,
   });
 
   // Reset belt if branch country changes and current belt is invalid
@@ -63,18 +85,46 @@ const PublicGradingPayment: React.FC = () => {
     }
   }, [beltOptions, currentBelt]);
 
+  // Reset selections when belt or branch changes
+  useEffect(() => {
+    setSelectedProductIds([]);
+  }, [currentBelt, branchId]);
+
+  // For non-foundation, auto-select the single matching product
+  useEffect(() => {
+    if (!isFoundation && productList.length === 1) {
+      setSelectedProductIds([productList[0].product_id]);
+    }
+  }, [isFoundation, productList]);
+
+  const toggleProduct = (productId: string, checked: boolean) => {
+    setSelectedProductIds(prev =>
+      checked ? Array.from(new Set([...prev, productId])) : prev.filter(id => id !== productId),
+    );
+  };
+
+  const selectedItems = useMemo(
+    () => productList.filter(p => selectedProductIds.includes(p.product_id)),
+    [productList, selectedProductIds],
+  );
+
+  const totalAmount = useMemo(
+    () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
+    [selectedItems],
+  );
+
   const canSubmit =
     !!studentName.trim() &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
-    !!options?.product_id &&
+    selectedItems.length > 0 &&
     !!proofFile &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !options?.product_id || !proofFile) return;
+    if (!canSubmit || !dob || !proofFile) return;
     setSubmitting(true);
     try {
       const result = await submitGradingPayment({
@@ -82,12 +132,16 @@ const PublicGradingPayment: React.FC = () => {
         branch_id: branchId,
         date_of_birth: dob.toISOString().split('T')[0],
         current_belt: currentBelt,
-        resolved_product_id: options.product_id,
-        resolved_grading_slot_id: options.slot_id ?? null,
-        amount: options.product_price ?? null,
+        items: selectedItems.map(p => ({
+          product_id: p.product_id,
+          amount: Number(p.branch_price ?? 0),
+          current_belt: p.current_belt,
+        })),
+        resolved_grading_slot_id: options?.slot_id ?? null,
+        payment_method: paymentMethod,
         proof_file: proofFile,
       });
-      setSuccess({ ref: result.reference_number });
+      setSuccess({ refs: result.reference_numbers });
       toast.success('Payment submitted successfully');
     } catch (err: any) {
       console.error(err);
@@ -106,11 +160,15 @@ const PublicGradingPayment: React.FC = () => {
               <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto" />
               <h1 className="text-2xl font-semibold">Payment Submitted</h1>
               <p className="text-muted-foreground">
-                Your reference number is
+                Your reference {success.refs.length > 1 ? 'numbers are' : 'number is'}
               </p>
-              <p className="text-3xl font-mono font-bold tracking-wider">
-                {success.ref}
-              </p>
+              <div className="space-y-1">
+                {success.refs.map(r => (
+                  <p key={r} className="text-2xl font-mono font-bold tracking-wider">
+                    {r}
+                  </p>
+                ))}
+              </div>
               <Alert>
                 <AlertDescription className="text-left text-sm">
                   Your payment will be verified by our staff. You will receive
@@ -126,6 +184,7 @@ const PublicGradingPayment: React.FC = () => {
                   setBranchId('');
                   setDob(undefined);
                   setCurrentBelt('');
+                  setSelectedProductIds([]);
                   setProofFile(null);
                 }}
                 className="w-full"
@@ -138,6 +197,9 @@ const PublicGradingPayment: React.FC = () => {
       </div>
     );
   }
+
+  const bankInfo = options?.bank_transfer_info;
+  const qrUrl = options?.paynow_qr_url;
 
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4">
@@ -236,16 +298,54 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               {branchId && currentBelt && (
-                <div className="rounded-md border p-3 bg-background">
-                  {loadingOptions ? (
-                    <p className="text-sm text-muted-foreground">Loading...</p>
-                  ) : options?.product_id ? (
-                    <div className="space-y-1 text-sm">
-                      <p className="font-medium">{options.product_name}</p>
-                      <p className="text-lg font-semibold">
-                        ${Number(options.product_price ?? 0).toFixed(2)}
+                <div className="rounded-md border p-3 bg-background space-y-2">
+                  {isFoundation ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Select one or more gradings
                       </p>
-                      {options.slot_date && (
+                      {productList.length === 0 ? (
+                        <p className="text-sm text-destructive">
+                          No grading fees configured for this branch.
+                        </p>
+                      ) : (
+                        productList.map((p) => {
+                          const checked = selectedProductIds.includes(p.product_id);
+                          return (
+                            <label
+                              key={p.product_id}
+                              className="flex items-center justify-between gap-2 cursor-pointer text-sm py-1"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={(v) => toggleProduct(p.product_id, !!v)}
+                                />
+                                <span>{p.product_name}</span>
+                              </div>
+                              <span className="font-medium">
+                                ${Number(p.branch_price ?? 0).toFixed(2)}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                      {selectedItems.length > 0 && (
+                        <div className="flex items-center justify-between border-t pt-2 text-sm font-semibold">
+                          <span>Total</span>
+                          <span>${totalAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : loadingOptions ? (
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  ) : productList.length > 0 ? (
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium">{productList[0].product_name}</p>
+                      <p className="text-lg font-semibold">
+                        ${Number(productList[0].branch_price ?? 0).toFixed(2)}
+                      </p>
+                      {options?.slot_date && (
                         <p className="text-xs text-muted-foreground">
                           Next slot: {formatDate(options.slot_date)}
                           {options.slot_start ? ` at ${options.slot_start.slice(0, 5)}` : ''}
@@ -260,11 +360,41 @@ const PublicGradingPayment: React.FC = () => {
                 </div>
               )}
 
-              {options?.product_id && (
-                <PaymentInfoDisplay
-                  paymentMethod="paynow"
-                  paynowQrUrl={options.paynow_qr_url}
-                />
+              {selectedItems.length > 0 && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment Method</Label>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(v) => setPaymentMethod(v as 'paynow' | 'bank_transfer')}
+                    >
+                      <SelectTrigger id="payment-method">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paynow">PayNow</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {paymentMethod === 'paynow' ? (
+                    <PaymentInfoDisplay
+                      paymentMethod="paynow"
+                      paynowQrUrl={qrUrl}
+                    />
+                  ) : bankInfo ? (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm whitespace-pre-wrap">
+                      {bankInfo}
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription className="text-sm">
+                        Bank transfer details are not configured for this branch.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
 
               <ProofOfPaymentUpload
@@ -279,7 +409,7 @@ const PublicGradingPayment: React.FC = () => {
                 className="w-full"
                 disabled={!canSubmit}
               >
-                {submitting ? 'Submitting...' : 'Submit Payment'}
+                {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
               </Button>
             </form>
           </CardContent>
