@@ -1,37 +1,23 @@
-# Grading List redesign
+## Add PDF download for filtered grading list
 
-Convert the per-slot card list at `/grading-list` into a numbered table per slot, headed by the slot's title and sorted by branch then student (no branch grouping).
+Add a "Download PDF" button on `/grading-list` that exports the currently filtered date's groups as a 2-column PDF document.
 
-## Changes
+### UI
 
-### 1. Backend — expose slot title
+- In `src/pages/public/PublicGradingList.tsx`, add a `Download` icon button next to the date filter (top of page).
+- Button is disabled when `groups.length === 0` or while loading.
+- Filename: `grading-list-{date or 'all'}.pdf` (date in DD/MM/YYYY → `28-06-2026`).
 
-Migration on `get_public_grading_list`:
-- Add `slot_title text` column to the RETURNS TABLE (selected from `grading_slots.title`).
-- Selected in both the registration and submission UNION branches.
-- No logic change otherwise.
+### PDF generation
 
-### 2. Service type
+- Use `jsPDF` + `jspdf-autotable` (already used elsewhere in the project for PDFs — will verify; otherwise add).
+- A4 portrait, margins ~12mm.
+- **Title**: "Grading List" centered, with selected date (or "All dates") as subtitle.
+- **2-column layout**: page split into two equal columns. Each slot group is rendered as a small block (title + mini table of #, Branch, Student, Belt, Status). Blocks flow top-to-bottom in the left column, then continue into the right column, then onto the next page.
+- Groups are kept intact (no splitting a group across columns). If a group is taller than a column, it spans naturally to the next column.
+- Same sort order as the screen view (branch asc, then student asc within each slot).
 
-`src/services/gradingPaymentSubmissionService.ts`:
-- Add `slot_title: string | null` to `PublicGradingListRow`.
+### Out of scope
 
-### 3. UI — `src/pages/public/PublicGradingList.tsx`
-
-Replace the existing per-slot `Card` rendering with a table per slot:
-
-- **Grouping key** unchanged: `grading_date | start_time | slot_id` (so each grading slot remains one group, but no branch grouping).
-- **Header per group**: slot title (fallback to `formatDate(date) HH:MM` when title is missing). Date + time stay as a subdued line beside/under the title.
-- **Sort within group**: by `branch_name` asc, then `student_name` asc. No visual branch grouping — branch is just the first data column.
-- **Table** (shadcn `Table`):
-  - Columns: `#` (1-based row number), `Branch`, `Student`, `Belt` (current → target), `Status` badge.
-  - In edit mode, append: `Amount`, `Proof`, `Edit`, `Delete` (only meaningful for `source === 'submission'` rows; cells render `—` for registration rows).
-  - Alternating row shading via `odd:bg-muted/40` on `TableRow`.
-  - Compact: `text-xs`, `py-1.5` cells.
-- Keep the top date filter, unlock/edit-mode flow, slot-edit dialog, and delete-confirm dialog unchanged.
-- Widen container from `max-w-3xl` to `max-w-5xl` to fit the table comfortably.
-
-## Out of scope
-
-- No change to data sources, eligibility logic, or admin password flow.
-- No change to `PublicGradingPayment` page.
+- No edit-mode columns (Amount / Proof / actions) in the PDF — public-facing summary only.
+- No backend or data changes.
