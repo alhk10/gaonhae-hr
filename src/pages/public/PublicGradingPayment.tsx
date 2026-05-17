@@ -227,7 +227,7 @@ const PublicGradingPayment: React.FC = () => {
   const { data: slotList = [] } = useQuery({
     queryKey: ['public-grading-slots', branchId, selectedProductIds.join(',')],
     queryFn: () => getPublicGradingSlots(branchId, selectedProductIds),
-    enabled: !!branchId && selectedProductIds.length > 0,
+    enabled: !!branchId,
   });
 
   const selectedSlot = useMemo(
