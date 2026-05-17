@@ -137,7 +137,7 @@ function App() {
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}
-                    <Route path="/" element={<Index />} />
+                    <Route path="/" element={<HostnameRouter />} />
                     <Route path="/register" element={<StudentRegistration />} />
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
