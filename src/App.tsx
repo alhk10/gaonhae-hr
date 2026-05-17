@@ -139,6 +139,8 @@ function App() {
                     {/* Public routes */}
                     <Route path="/" element={<Index />} />
                     <Route path="/register" element={<StudentRegistration />} />
+                    <Route path="/pay" element={<PublicGradingPayment />} />
+                    <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     
                     {/* Protected Employee Routes */}
