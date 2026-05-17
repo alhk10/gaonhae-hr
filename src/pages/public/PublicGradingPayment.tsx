@@ -93,6 +93,10 @@ const PublicGradingPayment: React.FC = () => {
 
   const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
 
+  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
+  const gating = useMemo(() => resolveAgeGating(currentBelt, age), [currentBelt, age]);
+  const isSingapore = (selectedBranch?.country || '').toLowerCase() === 'singapore';
+
   // For non-foundation: keep existing single-product + slot lookup
   const { data: options, isFetching: loadingOptions } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
@@ -101,16 +105,27 @@ const PublicGradingPayment: React.FC = () => {
   });
 
   // Foundation: fetch all three transitions with branch pricing.
-  // Non-foundation: fetch single matching product with branch pricing.
+  // Non-foundation: fetch single matching product (with optional explicit target for age-gated belts).
   const beltsForLookup = useMemo(
     () => (isFoundation ? FOUNDATION_BELTS : currentBelt ? [currentBelt] : []),
     [isFoundation, currentBelt],
   );
 
+  const targetsForLookup = useMemo<(string | null)[] | undefined>(() => {
+    if (isFoundation || !currentBelt) return undefined;
+    if (gating.target) return [gating.target];
+    return undefined;
+  }, [isFoundation, currentBelt, gating.target]);
+
   const { data: productList = [] } = useQuery({
-    queryKey: ['public-grading-products', branchId, beltsForLookup.join(',')],
-    queryFn: () => getPublicGradingProducts(branchId, beltsForLookup),
-    enabled: !!branchId && beltsForLookup.length > 0,
+    queryKey: [
+      'public-grading-products',
+      branchId,
+      beltsForLookup.join(','),
+      (targetsForLookup || []).join(','),
+    ],
+    queryFn: () => getPublicGradingProducts(branchId, beltsForLookup, targetsForLookup),
+    enabled: !!branchId && beltsForLookup.length > 0 && !gating.blocked,
   });
 
   // Reset belt if branch country changes and current belt is invalid
@@ -120,10 +135,10 @@ const PublicGradingPayment: React.FC = () => {
     }
   }, [beltOptions, currentBelt]);
 
-  // Reset selections when belt or branch changes
+  // Reset selections when belt, branch, or age-gating target changes
   useEffect(() => {
     setSelectedProductIds([]);
-  }, [currentBelt, branchId]);
+  }, [currentBelt, branchId, gating.target]);
 
   // For non-foundation, auto-select the single matching product
   useEffect(() => {
@@ -143,16 +158,19 @@ const PublicGradingPayment: React.FC = () => {
     [productList, selectedProductIds],
   );
 
-  const totalAmount = useMemo(
+  const subtotal = useMemo(
     () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
     [selectedItems],
   );
+  const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
+  const totalAmount = subtotal + gstAmount;
 
   const canSubmit =
     !!studentName.trim() &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
+    !gating.blocked &&
     selectedItems.length > 0 &&
     !!proofFile &&
     !submitting;
