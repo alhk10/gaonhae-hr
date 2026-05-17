@@ -277,9 +277,11 @@ const PublicGradingPayment: React.FC = () => {
     setSelectedSlotId('');
   }, [selectedProductIds.join(','), dobIso, currentBelt]);
 
+  // Foundation: don't filter slots by product so Foundation Video Test (stage) slot is included for F1/F2/F3.
+  const slotProductIds = isFoundation ? [] : selectedProductIds;
   const { data: slotList = [] } = useQuery({
-    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(','), dobIso, currentBelt],
-    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds, dobIso, currentBelt || null),
+    queryKey: ['public-grading-slots', branchId, slotProductIds.join(','), dobIso, currentBelt, isFoundation],
+    queryFn: () => getPublicGradingSlots(branchId, slotProductIds, dobIso, currentBelt || null),
     enabled: !!branchId,
   });
 
