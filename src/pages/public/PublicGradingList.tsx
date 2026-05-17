@@ -195,84 +195,117 @@ const PublicGradingList: React.FC = () => {
           </Card>
         )}
 
-        {groups.map((g, idx) => (
-          <Card key={idx}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center justify-between flex-wrap gap-2">
-                <span>
-                  {g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled'}
-                  {g.header.start_time && (
-                    <span className="text-muted-foreground ml-2 font-normal">
-                      {g.header.start_time.slice(0, 5)}
-                      {g.header.end_time ? `–${g.header.end_time.slice(0, 5)}` : ''}
-                    </span>
+        {groups.map((g, idx) => {
+          const subtitle = [
+            g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled',
+            g.header.start_time
+              ? `${g.header.start_time.slice(0, 5)}${g.header.end_time ? `–${g.header.end_time.slice(0, 5)}` : ''}`
+              : null,
+          ].filter(Boolean).join(' · ');
+          return (
+            <Card key={idx}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">
+                  <div className="font-semibold">
+                    {g.header.slot_title || subtitle || 'Grading'}
+                  </div>
+                  {g.header.slot_title && (
+                    <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                      {subtitle}
+                    </div>
                   )}
-                </span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  {g.header.branch_name || g.header.branch_id || '—'}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ul className="divide-y">
-                {g.items.map((r, i) => (
-                  <li key={i} className="py-2 flex items-center gap-2 text-sm">
-                    <span className="font-medium truncate flex-1 min-w-0">
-                      {r.student_name}
-                      <span className="text-muted-foreground font-normal ml-2">
-                        · {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
-                      </span>
-                    </span>
-
-                    {editMode && r.source === 'submission' && (
-                      <>
-                        <span className="text-xs tabular-nums w-14 text-right">
-                          {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
-                        </span>
-                        {r.proof_url ? (
-                          <a
-                            href={r.proof_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800"
-                            title="View proof"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        ) : (
-                          <span className="w-3.5" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-8 w-10 px-2 text-xs">#</TableHead>
+                      <TableHead className="h-8 px-2 text-xs">Branch</TableHead>
+                      <TableHead className="h-8 px-2 text-xs">Student</TableHead>
+                      <TableHead className="h-8 px-2 text-xs">Belt</TableHead>
+                      <TableHead className="h-8 px-2 text-xs">Status</TableHead>
+                      {editMode && (
+                        <>
+                          <TableHead className="h-8 px-2 text-xs text-right">Amount</TableHead>
+                          <TableHead className="h-8 px-2 text-xs">Proof</TableHead>
+                          <TableHead className="h-8 px-2 text-xs w-8"></TableHead>
+                          <TableHead className="h-8 px-2 text-xs w-8"></TableHead>
+                        </>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {g.items.map((r, i) => (
+                      <TableRow key={i} className="odd:bg-muted/40">
+                        <TableCell className="px-2 py-1.5 text-xs tabular-nums">{i + 1}</TableCell>
+                        <TableCell className="px-2 py-1.5 text-xs">{r.branch_name || '—'}</TableCell>
+                        <TableCell className="px-2 py-1.5 text-xs font-medium">{r.student_name}</TableCell>
+                        <TableCell className="px-2 py-1.5 text-xs text-muted-foreground">
+                          {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5">
+                          <Badge variant="outline" className={statusVariant(r.paid_status)}>
+                            {r.paid_status}
+                          </Badge>
+                        </TableCell>
+                        {editMode && (
+                          <>
+                            <TableCell className="px-2 py-1.5 text-xs tabular-nums text-right">
+                              {r.source === 'submission' && r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              {r.source === 'submission' && r.proof_url ? (
+                                <a
+                                  href={r.proof_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 inline-flex"
+                                  title="View proof"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              {r.source === 'submission' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSlotEditRow(r);
+                                    setSlotChoice(r.slot_id || '');
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Update slot"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              {r.source === 'submission' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteRow(r)}
+                                  className="text-red-600 hover:text-red-800"
+                                  title="Delete submission"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSlotEditRow(r);
-                            setSlotChoice(r.slot_id || '');
-                          }}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="Update slot"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteRow(r)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete submission"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
-
-                    <Badge variant="outline" className={statusVariant(r.paid_status)}>
-                      {r.paid_status}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Unlock dialog */}
