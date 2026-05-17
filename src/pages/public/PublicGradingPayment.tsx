@@ -64,6 +64,65 @@ const resolveAgeGating = (
   }
 };
 
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefined) => void }> = ({ value, onChange }) => {
+  const currentYear = new Date().getFullYear();
+  const [day, setDay] = useState<string>(value ? String(value.getDate()) : '');
+  const [month, setMonth] = useState<string>(value ? String(value.getMonth()) : '');
+  const [year, setYear] = useState<string>(value ? String(value.getFullYear()) : '');
+
+  const years = useMemo(() => {
+    const arr: number[] = [];
+    for (let y = currentYear; y >= 1950; y--) arr.push(y);
+    return arr;
+  }, [currentYear]);
+
+  const daysInMonth = useMemo(() => {
+    const m = month === '' ? 0 : parseInt(month);
+    const y = year === '' ? 2000 : parseInt(year);
+    return new Date(y, m + 1, 0).getDate();
+  }, [month, year]);
+
+  const commit = (d: string, m: string, y: string) => {
+    if (d && m !== '' && y) {
+      const dayNum = Math.min(parseInt(d), new Date(parseInt(y), parseInt(m) + 1, 0).getDate());
+      onChange(new Date(parseInt(y), parseInt(m), dayNum));
+    } else {
+      onChange(undefined);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <Select value={day} onValueChange={(v) => { setDay(v); commit(v, month, year); }}>
+        <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={month} onValueChange={(v) => { setMonth(v); commit(day, v, year); }}>
+        <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+        <SelectContent>
+          {MONTHS.map((name, i) => (
+            <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={year} onValueChange={(v) => { setYear(v); commit(day, month, v); }}>
+        <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+        <SelectContent>
+          {years.map(y => (
+            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
+
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
   const [branchId, setBranchId] = useState<string>('');
