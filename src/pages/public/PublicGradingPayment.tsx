@@ -390,6 +390,19 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  maxLength={255}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="branch">Branch</Label>
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger id="branch">
