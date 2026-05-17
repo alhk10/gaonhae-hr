@@ -277,9 +277,11 @@ const PublicGradingPayment: React.FC = () => {
     setSelectedSlotId('');
   }, [selectedProductIds.join(','), dobIso, currentBelt]);
 
+  // Foundation: don't filter slots by product so Foundation Video Test (stage) slot is included for F1/F2/F3.
+  const slotProductIds = isFoundation ? [] : selectedProductIds;
   const { data: slotList = [] } = useQuery({
-    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(','), dobIso, currentBelt],
-    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds, dobIso, currentBelt || null),
+    queryKey: ['public-grading-slots', branchId, slotProductIds.join(','), dobIso, currentBelt, isFoundation],
+    queryFn: () => getPublicGradingSlots(branchId, slotProductIds, dobIso, currentBelt || null),
     enabled: !!branchId,
   });
 
@@ -515,6 +517,29 @@ const PublicGradingPayment: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {isFoundation && branchId && !gating.blocked && visibleProducts.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Grading</Label>
+                  <div className="space-y-2 rounded-md border p-3">
+                    {visibleProducts.map((p) => {
+                      const checked = selectedProductIds.includes(p.product_id);
+                      return (
+                        <div key={p.product_id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`grading-${p.product_id}`}
+                            checked={checked}
+                            onCheckedChange={(c) => toggleProduct(p.product_id, c === true)}
+                          />
+                          <Label htmlFor={`grading-${p.product_id}`} className="text-sm font-normal cursor-pointer">
+                            {p.product_name} — ${Number(p.branch_price ?? 0).toFixed(2)}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {branchId && currentBelt && gating.blocked && (
                 <Alert variant="destructive">
