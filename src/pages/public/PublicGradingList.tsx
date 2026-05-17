@@ -322,11 +322,6 @@ const PublicGradingList: React.FC = () => {
                   <div className="font-semibold">
                     {g.header.slot_title || subtitle || 'Grading'}
                   </div>
-                  {g.header.slot_title && (
-                    <div className="text-xs text-muted-foreground font-normal mt-0.5">
-                      {subtitle}
-                    </div>
-                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
