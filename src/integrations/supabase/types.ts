@@ -6628,19 +6628,37 @@ export type Database = {
           product_name: string
         }[]
       }
-      get_public_grading_slots: {
-        Args: { p_branch_id: string; p_product_ids: string[] }
-        Returns: {
-          branch_address: string
-          branch_id: string
-          branch_name: string
-          end_time: string
-          grading_date: string
-          id: string
-          location: string
-          start_time: string
-        }[]
-      }
+      get_public_grading_slots:
+        | {
+            Args: { p_branch_id: string; p_product_ids: string[] }
+            Returns: {
+              branch_address: string
+              branch_id: string
+              branch_name: string
+              end_time: string
+              grading_date: string
+              id: string
+              location: string
+              start_time: string
+            }[]
+          }
+        | {
+            Args: {
+              p_branch_id: string
+              p_dob?: string
+              p_product_ids: string[]
+            }
+            Returns: {
+              branch_address: string
+              branch_id: string
+              branch_name: string
+              end_time: string
+              grading_date: string
+              id: string
+              location: string
+              start_time: string
+            }[]
+          }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {
