@@ -181,6 +181,7 @@ const BulkAddGradingSlotsDialog: React.FC<BulkAddGradingSlotsDialogProps> = ({ t
   const [rows, setRows] = useState<BulkRow[]>([createEmptyRow()]);
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
+  const [popoverContainer, setPopoverContainer] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (open) {
