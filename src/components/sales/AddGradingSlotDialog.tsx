@@ -125,6 +125,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       const emptyToNull = (v: any) => (v === '' ? null : v);
       const payload: any = {
         ...formData,
+        branch_id: emptyToNull(formData.branch_id),
         start_time: emptyToNull(formData.start_time),
         end_time: emptyToNull((formData as any).end_time),
         location: emptyToNull((formData as any).location),
