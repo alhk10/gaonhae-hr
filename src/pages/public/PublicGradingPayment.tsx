@@ -238,6 +238,13 @@ const PublicGradingPayment: React.FC = () => {
     return withIdx.map((x) => x.p);
   }, [productList, isFoundation, currentBelt]);
 
+  // Foundation: auto-select all visible grading transitions
+  useEffect(() => {
+    if (isFoundation && visibleProducts.length > 0) {
+      setSelectedProductIds(visibleProducts.map((p) => p.product_id));
+    }
+  }, [isFoundation, visibleProducts]);
+
   const toggleProduct = (productId: string, checked: boolean) => {
     if (isFoundation) {
       const idx = visibleProducts.findIndex((p) => p.product_id === productId);
