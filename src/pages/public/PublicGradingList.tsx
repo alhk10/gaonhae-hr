@@ -271,9 +271,9 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Card>
-          <CardContent className="p-3">
+          <CardContent className="p-3 flex gap-2">
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="All dates" />
               </SelectTrigger>
               <SelectContent>
@@ -283,6 +283,16 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleDownloadPdf}
+              disabled={isLoading || groups.length === 0}
+              title="Download PDF"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
 
