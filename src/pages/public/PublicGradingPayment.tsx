@@ -198,6 +198,7 @@ const PublicGradingPayment: React.FC = () => {
   // Reset selections when belt, branch, or age-gating target changes
   useEffect(() => {
     setSelectedProductIds([]);
+    setSelectedSlotId('');
   }, [currentBelt, branchId, gating.target]);
 
   // For non-foundation, auto-select the single matching product
@@ -218,6 +219,22 @@ const PublicGradingPayment: React.FC = () => {
     [productList, selectedProductIds],
   );
 
+  // Reset slot when product selection changes
+  useEffect(() => {
+    setSelectedSlotId('');
+  }, [selectedProductIds.join(',')]);
+
+  const { data: slotList = [] } = useQuery({
+    queryKey: ['public-grading-slots', branchId, selectedProductIds.join(',')],
+    queryFn: () => getPublicGradingSlots(branchId, selectedProductIds),
+    enabled: !!branchId && selectedProductIds.length > 0,
+  });
+
+  const selectedSlot = useMemo(
+    () => slotList.find(s => s.id === selectedSlotId) || null,
+    [slotList, selectedSlotId],
+  );
+
   const subtotal = useMemo(
     () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
     [selectedItems],
@@ -225,13 +242,17 @@ const PublicGradingPayment: React.FC = () => {
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   const canSubmit =
     !!studentName.trim() &&
+    emailValid &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
     !gating.blocked &&
     selectedItems.length > 0 &&
+    !!selectedSlotId &&
     !!proofFile &&
     !submitting;
 
@@ -242,6 +263,7 @@ const PublicGradingPayment: React.FC = () => {
     try {
       const result = await submitGradingPayment({
         student_name: studentName,
+        email: email.trim(),
         branch_id: branchId,
         date_of_birth: dob.toISOString().split('T')[0],
         current_belt: currentBelt,
@@ -250,12 +272,37 @@ const PublicGradingPayment: React.FC = () => {
           amount: Number(p.branch_price ?? 0),
           current_belt: p.current_belt,
         })),
-        resolved_grading_slot_id: options?.slot_id ?? null,
+        resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
       setSuccess({ refs: result.reference_numbers });
       toast.success('Payment submitted successfully');
+
+      // Fire-and-forget confirmation email
+      if (selectedSlot) {
+        const dt = new Date(`${selectedSlot.grading_date}T${(selectedSlot.start_time || '00:00:00').slice(0,8)}`);
+        const dateStr = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+        const timeStr = selectedSlot.start_time ? selectedSlot.start_time.slice(0,5) : '';
+        try {
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'grading-confirmation',
+              recipientEmail: email.trim(),
+              idempotencyKey: `grading-${result.ids[0]}`,
+              templateData: {
+                studentName: studentName.trim().toUpperCase(),
+                products: selectedItems.map(p => p.product_name),
+                dateTime: `${dateStr}${timeStr ? ' at ' + timeStr : ''}`,
+                branchName: selectedSlot.branch_name,
+                branchAddress: selectedSlot.branch_address || '',
+              },
+            },
+          });
+        } catch (mailErr) {
+          console.warn('Failed to send confirmation email', mailErr);
+        }
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to submit payment');
