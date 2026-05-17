@@ -522,59 +522,12 @@ const PublicGradingPayment: React.FC = () => {
                 </Alert>
               )}
 
-              {branchId && currentBelt && !gating.blocked && (
-                <div className="rounded-md border p-3 bg-background space-y-2">
-                  {isFoundation ? (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Select one or more gradings
-                      </p>
-                      {visibleProducts.length === 0 ? (
-                        <p className="text-sm text-destructive">
-                          No grading fees configured for this branch.
-                        </p>
-                      ) : (
-                        visibleProducts.map((p, idx) => {
-                          const checked = selectedProductIds.includes(p.product_id);
-                          const prev = idx === 0 ? null : visibleProducts[idx - 1];
-                          const prevChecked = prev ? selectedProductIds.includes(prev.product_id) : true;
-                          const disabled = !prevChecked && !checked;
-                          return (
-                            <label
-                              key={p.product_id}
-                              className={`flex items-center justify-between gap-2 text-sm py-1 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={checked}
-                                  disabled={disabled}
-                                  onCheckedChange={(v) => toggleProduct(p.product_id, !!v)}
-                                />
-                                <span>{p.product_name}</span>
-                              </div>
-                              <span className="font-medium">
-                                ${Number(p.branch_price ?? 0).toFixed(2)}
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </>
-                  ) : loadingOptions ? (
-                    <p className="text-sm text-muted-foreground">Loading...</p>
-                  ) : productList.length > 0 ? (
-                    <div className="space-y-1 text-sm">
-                      <p className="font-medium">{productList[0].product_name}</p>
-                      <p className="text-lg font-semibold">
-                        ${Number(productList[0].branch_price ?? 0).toFixed(2)}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-destructive">
-                      No grading fee configured for this belt. Please contact your branch.
-                    </p>
-                  )}
-                </div>
+              {branchId && currentBelt && !gating.blocked && !loadingOptions && productList.length === 0 && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm">
+                    No grading fee configured for this belt. Please contact your branch.
+                  </AlertDescription>
+                </Alert>
               )}
 
               {branchId && currentBelt && !gating.blocked && selectedProductIds.length > 0 && (
