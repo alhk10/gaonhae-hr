@@ -1,60 +1,27 @@
-# Stage-slot product override
+## Hide the product/price card on /pay
 
-## Goal
+Remove the box that displays the grading product name and price (e.g. "Green Tip >> Green" and "$90.00") from the public grading payment form. The selection logic, slot dropdown, and totals summary card below remain intact.
 
-On the public `/pay` page, when a user selects a grading slot whose `grading_product_ids` reference a Stage product (e.g. "Stage 1 - 3"), the selected product and pricing should switch from the belt-transition product (e.g. "1st Poom >> 2nd Poom" @ $470) to the Stage product (e.g. "Stage 1 - 3" @ $55).
+### Change
 
-Mapping (already in DB):
-- Stage 1 - 3 → 1st Poom / 1st Dan slots
-- Stage 4 - 10 → 2nd Poom / 2nd Dan slots
-- Stage 11 - 26 → 3rd Poom / 3rd Dan slots
+**File:** `src/pages/public/PublicGradingPayment.tsx`
 
-## Approach
+Delete the JSX block at lines 518–571 (the `<div className="rounded-md border p-3 bg-background space-y-2">` that branches into the Foundation checklist and the non-Foundation single product display).
 
-The slot row already carries `grading_product_ids` pointing at the Stage product. The cleanest fix is to surface that on the slot returned by the RPC and let the frontend override the selection when a slot with stage products is chosen.
+### Implications
 
-## Changes
+- Foundation users will no longer see the multi-select grading checklist on this page. Since product selection happens implicitly via `selectedProductIds` (auto-populated from `productList` for non-Foundation; first product for Foundation), we will preload Foundation's `selectedProductIds` with all available products by default so the slot dropdown and totals still work.
+- Specifically, when `isFoundation` is true and `selectedProductIds` is empty, initialise it to all `visibleProducts` ids (or just the first one — to be confirmed). Default proposal: select **all** visible Foundation products so the experience matches today's "checked from top down" behaviour.
+- The bottom Subtotal/GST/Total card (line 598+) continues to show what is being paid, so the user still sees the price before submitting.
 
-### 1. DB migration — extend `get_public_grading_slots`
+### Verification
 
-Add new returned columns:
-- `stage_product_id uuid`
-- `stage_product_name text`
-- `stage_product_branch_price numeric`
+- Open `/pay`, fill branch + DOB + belt = "Green Tip" → the "Green Tip >> Green / $90.00" card no longer appears; slot dropdown and totals card still show $90.00.
+- Belt = "1st Poom" with a Stage 1-3 slot → Stage override still flows into the totals card.
+- Foundation belt (e.g. "No Belt") → totals card shows all Foundation grading fees summed; submission still works.
 
-For each slot row, if `grading_product_ids` is not empty and the first product's name matches `Stage%`, join `products` (and `price_rules` for branch override) to populate the three new fields. Otherwise leave them NULL.
+### Out of scope
 
-Keep the existing 4-arg signature and existing filter logic untouched.
-
-### 2. `src/services/gradingPaymentSubmissionService.ts`
-
-Extend `PublicGradingSlot` interface with the three new optional fields.
-
-### 3. `src/pages/public/PublicGradingPayment.tsx`
-
-After the existing `selectedSlot` memo, add an effect:
-
-```text
-when selectedSlot changes and selectedSlot.stage_product_id is set
-and current selectedProductIds does not equal [stage_product_id]:
-  setSelectedProductIds([stage_product_id])
-```
-
-Then derive `selectedItems` to prefer the stage product data when present so the Subtotal / GST / Total reflect the Stage price ($55) instead of the belt-transition price. Concretely: build a synthetic item `{ product_id, product_name, branch_price, current_belt }` from `selectedSlot.stage_*` when applicable, and use it in place of the productList lookup.
-
-Submission already sends `items[].product_id` + `amount`, so swapping in the stage product flows through to `grading_payment_submissions.resolved_product_id` and `amount` with no further changes.
-
-Also guard the slot-reset effect so changing the slot does not wipe the override loop (only reset when belt/branch/product-driver changes, not on every slot pick).
-
-## Out of scope
-
-- Foundation flow (no Stage slots apply).
-- Admin grading management screens.
-- Dan-side pricing is identical to Poom-side Stage products in DB, so no extra branching needed.
-
-## Verification
-
-After applying:
-- Pick 1st Poom, choose the "Stage 1 - 3" slot → product card shows "Stage 1 - 3", total $55 (+GST in SG).
-- Pick 1st Poom, choose the "1st Poom >> 2nd Poom" slot → unchanged ($470).
-- Same checks for 2nd Poom (Stage 4 - 10) and 3rd Poom (Stage 11 - 26).
+- Any RPC / DB change.
+- The bottom totals/summary card.
+- Removing Foundation logic entirely.
