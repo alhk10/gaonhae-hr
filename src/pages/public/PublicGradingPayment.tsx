@@ -65,6 +65,20 @@ const resolveAgeGating = (
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
+const DAN_BELTS = new Set(['1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan']);
+const FOUNDATION_ALL = new Set(['Foundation', 'Foundation 1', 'Foundation 2', 'Foundation 3']);
+
+const filterBeltsByAge = (belts: string[], age: number | null): string[] => {
+  if (age === null) return belts;
+  return belts.filter((b) => {
+    if (FOUNDATION_ALL.has(b)) return age <= 5;
+    if (POOM_BELTS.has(b)) return age < 15;
+    if (DAN_BELTS.has(b)) return age >= 15;
+    return true;
+  });
+};
+
 const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefined) => void }> = ({ value, onChange }) => {
   const currentYear = new Date().getFullYear();
   const [day, setDay] = useState<string>(value ? String(value.getDate()) : '');
@@ -146,14 +160,15 @@ const PublicGradingPayment: React.FC = () => {
     [branches, branchId],
   );
 
+  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
+
   const beltOptions = useMemo(
-    () => getBeltLevelsForCountry(selectedBranch?.country),
-    [selectedBranch?.country],
+    () => filterBeltsByAge(getBeltLevelsForCountry(selectedBranch?.country), age),
+    [selectedBranch?.country, age],
   );
 
   const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
 
-  const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
   const gating = useMemo(() => resolveAgeGating(currentBelt, age), [currentBelt, age]);
   const isSingapore = (selectedBranch?.country || '').toLowerCase() === 'singapore';
 
@@ -411,7 +426,7 @@ const PublicGradingPayment: React.FC = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Student Name</Label>
+                <Label htmlFor="name">Student Name *</Label>
                 <Input
                   id="name"
                   required
@@ -423,7 +438,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -436,7 +451,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="branch">Branch</Label>
+                <Label htmlFor="branch">Branch *</Label>
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger id="branch">
                     <SelectValue placeholder="Select branch" />
@@ -452,7 +467,7 @@ const PublicGradingPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Date of Birth</Label>
+                <Label>Date of Birth *</Label>
                 <DobPicker value={dob} onChange={setDob} />
               </div>
 
@@ -461,10 +476,10 @@ const PublicGradingPayment: React.FC = () => {
                 <Select
                   value={currentBelt}
                   onValueChange={setCurrentBelt}
-                  disabled={!branchId}
+                  disabled={!branchId || !dob}
                 >
                   <SelectTrigger id="belt">
-                    <SelectValue placeholder="Select current belt" />
+                    <SelectValue placeholder={!dob ? 'Select date of birth first' : 'Select current belt'} />
                   </SelectTrigger>
                   <SelectContent>
                     {beltOptions.map((b) => (
