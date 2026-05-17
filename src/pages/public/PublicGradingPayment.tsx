@@ -124,10 +124,12 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
 
 const PublicGradingPayment: React.FC = () => {
   const [studentName, setStudentName] = useState('');
+  const [email, setEmail] = useState('');
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
