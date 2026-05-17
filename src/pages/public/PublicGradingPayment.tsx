@@ -402,9 +402,9 @@ const PublicGradingPayment: React.FC = () => {
               </div>
               <Alert>
                 <AlertDescription className="text-left text-sm">
-                  Your payment will be verified by our staff. You will receive
-                  an invoice in your student profile once verified. Please keep
-                  your reference number for your records.
+                  Your registration has been recorded and payment will be
+                  verified by our staff. Please keep your reference number for
+                  your records.
                 </AlertDescription>
               </Alert>
               <Button
