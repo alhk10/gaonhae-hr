@@ -6675,6 +6675,9 @@ export type Database = {
               grading_date: string
               id: string
               location: string
+              stage_product_branch_price: number
+              stage_product_id: string
+              stage_product_name: string
               start_time: string
               title: string
             }[]
