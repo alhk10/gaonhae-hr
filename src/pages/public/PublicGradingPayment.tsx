@@ -4,18 +4,15 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarIcon, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
@@ -62,6 +59,65 @@ const resolveAgeGating = (
     default:
       return { target: null, blocked: false };
   }
+};
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefined) => void }> = ({ value, onChange }) => {
+  const currentYear = new Date().getFullYear();
+  const [day, setDay] = useState<string>(value ? String(value.getDate()) : '');
+  const [month, setMonth] = useState<string>(value ? String(value.getMonth()) : '');
+  const [year, setYear] = useState<string>(value ? String(value.getFullYear()) : '');
+
+  const years = useMemo(() => {
+    const arr: number[] = [];
+    for (let y = currentYear; y >= 1950; y--) arr.push(y);
+    return arr;
+  }, [currentYear]);
+
+  const daysInMonth = useMemo(() => {
+    const m = month === '' ? 0 : parseInt(month);
+    const y = year === '' ? 2000 : parseInt(year);
+    return new Date(y, m + 1, 0).getDate();
+  }, [month, year]);
+
+  const commit = (d: string, m: string, y: string) => {
+    if (d && m !== '' && y) {
+      const dayNum = Math.min(parseInt(d), new Date(parseInt(y), parseInt(m) + 1, 0).getDate());
+      onChange(new Date(parseInt(y), parseInt(m), dayNum));
+    } else {
+      onChange(undefined);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <Select value={day} onValueChange={(v) => { setDay(v); commit(v, month, year); }}>
+        <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={month} onValueChange={(v) => { setMonth(v); commit(day, v, year); }}>
+        <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+        <SelectContent>
+          {MONTHS.map((name, i) => (
+            <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={year} onValueChange={(v) => { setYear(v); commit(day, month, v); }}>
+        <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+        <SelectContent>
+          {years.map(y => (
+            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 };
 
 const PublicGradingPayment: React.FC = () => {
@@ -300,34 +356,7 @@ const PublicGradingPayment: React.FC = () => {
 
               <div className="space-y-2">
                 <Label>Date of Birth</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !dob && 'text-muted-foreground',
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dob ? formatDate(dob) : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dob}
-                      onSelect={setDob}
-                      disabled={(d) => d > new Date()}
-                      initialFocus
-                      captionLayout="dropdown-buttons"
-                      fromYear={1950}
-                      toYear={new Date().getFullYear()}
-                      className={cn('p-3 pointer-events-auto')}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DobPicker value={dob} onChange={setDob} />
               </div>
 
               <div className="space-y-2">
