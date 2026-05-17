@@ -1,0 +1,1 @@
+ALTER TABLE public.grading_payment_submissions ADD COLUMN IF NOT EXISTS email text;

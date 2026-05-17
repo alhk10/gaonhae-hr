@@ -1627,6 +1627,7 @@ export type Database = {
           created_at: string
           current_belt: string | null
           date_of_birth: string
+          email: string | null
           id: string
           matched_invoice_id: string | null
           matched_student_id: string | null
@@ -1648,6 +1649,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth: string
+          email?: string | null
           id?: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
@@ -1669,6 +1671,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth?: string
+          email?: string | null
           id?: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
