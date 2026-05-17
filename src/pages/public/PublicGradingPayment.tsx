@@ -281,9 +281,27 @@ const PublicGradingPayment: React.FC = () => {
     [slotList, selectedSlotId],
   );
 
+  // When the selected slot is a Stage slot, override the product/price with the Stage product.
+  const effectiveItems = useMemo(() => {
+    if (selectedSlot?.stage_product_id) {
+      return [{
+        product_id: selectedSlot.stage_product_id,
+        product_name: selectedSlot.stage_product_name || 'Stage',
+        branch_price: Number(selectedSlot.stage_product_branch_price ?? 0),
+        current_belt: currentBelt,
+      }];
+    }
+    return selectedItems.map(p => ({
+      product_id: p.product_id,
+      product_name: p.product_name,
+      branch_price: Number(p.branch_price ?? 0),
+      current_belt: p.current_belt,
+    }));
+  }, [selectedSlot, selectedItems, currentBelt]);
+
   const subtotal = useMemo(
-    () => selectedItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
-    [selectedItems],
+    () => effectiveItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
+    [effectiveItems],
   );
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
@@ -297,7 +315,7 @@ const PublicGradingPayment: React.FC = () => {
     !!dob &&
     !!currentBelt &&
     !gating.blocked &&
-    selectedItems.length > 0 &&
+    effectiveItems.length > 0 &&
     !!selectedSlotId &&
     !!proofFile &&
     !submitting;
@@ -313,7 +331,7 @@ const PublicGradingPayment: React.FC = () => {
         branch_id: branchId,
         date_of_birth: dob.toISOString().split('T')[0],
         current_belt: currentBelt,
-        items: selectedItems.map(p => ({
+        items: effectiveItems.map(p => ({
           product_id: p.product_id,
           amount: Number(p.branch_price ?? 0),
           current_belt: p.current_belt,
