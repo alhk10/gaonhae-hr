@@ -534,7 +534,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                              {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
                                   onClick={() => handleVerify(r)}
@@ -547,7 +547,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                              {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
                                   onClick={() => setRejectRow(r)}
