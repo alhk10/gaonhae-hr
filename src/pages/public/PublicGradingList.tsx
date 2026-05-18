@@ -401,10 +401,162 @@ const PublicGradingList: React.FC = () => {
     } catch (e) {
       try { doc.save(fname); } catch { /* noop */ }
       toast.error('Could not download PDF in this view');
-    }
   };
 
-  return (
+  const handleDownloadSummaryPdf = async () => {
+    if (groups.length === 0) return;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 10;
+
+    const titleText = `GRADING SUMMARY FOR ${dateFilter === 'all' ? 'ALL DATES' : formatDate(dateFilter)}`;
+    const titleY = margin + 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(titleText, pageW / 2, titleY, { align: 'center' });
+
+    const logo = await loadLogoDataUrl();
+    if (logo) {
+      const logoW = 22;
+      const logoH = (logo.h / logo.w) * logoW;
+      const logoX = pageW - margin - logoW;
+      const logoY = titleY - logoH + 1;
+      try { doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoW, logoH); } catch { /* noop */ }
+    }
+
+    // Unique branches across filtered rows
+    const branches = Array.from(
+      new Set(filteredRows.map((r) => r.branch_name || '—'))
+    ).sort((a, b) => a.localeCompare(b));
+
+    // Table 1: students per slot by branch (exclude rejected)
+    const slotHead = ['Slot', ...branches, 'Total'];
+    const colTotals = new Array(branches.length).fill(0);
+    let grandTotalStudents = 0;
+    const slotBody = groups.map((g) => {
+      const items = g.items.filter((r) => (r.paid_status || '').toLowerCase() !== 'rejected');
+      const label = [
+        g.header.slot_title || 'Grading',
+        g.header.grading_date ? formatDate(g.header.grading_date) : null,
+        g.header.start_time ? g.header.start_time.slice(0, 5) : null,
+      ].filter(Boolean).join(' — ');
+      const counts = branches.map((b) => items.filter((r) => (r.branch_name || '—') === b).length);
+      counts.forEach((c, i) => { colTotals[i] += c; });
+      const rowTotal = counts.reduce((s, n) => s + n, 0);
+      grandTotalStudents += rowTotal;
+      return [label, ...counts.map(String), String(rowTotal)];
+    });
+    slotBody.push(['Total', ...colTotals.map(String), String(grandTotalStudents)]);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text('Students per slot by branch', margin, titleY + 10);
+
+    autoTable(doc, {
+      startY: titleY + 13,
+      margin: { left: margin, right: margin },
+      head: [slotHead],
+      body: slotBody,
+      styles: { fontSize: 8, cellPadding: 1.5, halign: 'center', valign: 'middle', overflow: 'linebreak' },
+      headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'center', valign: 'middle' },
+      alternateRowStyles: { fillColor: [250, 250, 250] },
+      columnStyles: { 0: { halign: 'left', cellWidth: 'auto', fontStyle: 'bold' } },
+      didParseCell: (data) => {
+        if (data.section === 'head' && data.column.index >= 1 && data.column.index <= branches.length) {
+          const c = branchColor(branches[data.column.index - 1]);
+          data.cell.styles.fillColor = c.fill;
+          data.cell.styles.textColor = c.text;
+        }
+        if (data.section === 'body' && data.row.index === slotBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [230, 230, 230];
+        }
+      },
+    });
+
+    // Table 2: amount collected by branch (paid + verified only)
+    let y2 = (doc as any).lastAutoTable.finalY + 10;
+    const amountByBranch: Record<string, number> = {};
+    branches.forEach((b) => { amountByBranch[b] = 0; });
+    for (const r of filteredRows) {
+      const s = (r.paid_status || '').toLowerCase();
+      if (s !== 'paid' && s !== 'verified') continue;
+      const b = r.branch_name || '—';
+      amountByBranch[b] = (amountByBranch[b] || 0) + (Number(r.amount) || 0);
+    }
+    const amounts = branches.map((b) => amountByBranch[b] || 0);
+    const grandTotalAmount = amounts.reduce((s, n) => s + n, 0);
+    const amountHead = [...branches, 'Total'];
+    const amountBody = [[
+      ...amounts.map((v) => formatCurrency(v)),
+      formatCurrency(grandTotalAmount),
+    ]];
+
+    if (y2 + 30 > pageH - margin - 8) {
+      doc.addPage();
+      y2 = margin + 8;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text('Amount collected by branch (paid + verified)', margin, y2);
+
+    autoTable(doc, {
+      startY: y2 + 3,
+      margin: { left: margin, right: margin },
+      head: [amountHead],
+      body: amountBody,
+      styles: { fontSize: 8, cellPadding: 1.5, halign: 'center', valign: 'middle' },
+      headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'center', valign: 'middle' },
+      didParseCell: (data) => {
+        if (data.section === 'head' && data.column.index < branches.length) {
+          const c = branchColor(branches[data.column.index]);
+          data.cell.styles.fillColor = c.fill;
+          data.cell.styles.textColor = c.text;
+        }
+        if (data.section === 'body' && data.column.index === branches.length) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [230, 230, 230];
+        }
+      },
+    });
+
+    // Footers
+    const totalPages = doc.getNumberOfPages();
+    const generatedAt = `Generated ${formatDateTime(new Date())}`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      const footerY = pageH - 6;
+      doc.text(`Page ${p} of ${totalPages}`, pageW / 2, footerY, { align: 'center' });
+      doc.text(generatedAt, pageW - margin, footerY, { align: 'right' });
+    }
+    doc.setTextColor(0);
+
+    const fname = `grading-summary-${dateFilter === 'all' ? 'all' : dateFilter}.pdf`;
+    try {
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      a.rel = 'noopener';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (e) {
+      try { doc.save(fname); } catch { /* noop */ }
+      toast.error('Could not download PDF in this view');
+    }
+  };
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4 relative">
         {/* Discrete unlock button */}
