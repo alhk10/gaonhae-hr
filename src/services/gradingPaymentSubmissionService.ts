@@ -81,20 +81,47 @@ export interface SubmissionStudentMatch {
 export const getPendingGradingSubmissions = async (branchId?: string): Promise<PendingGradingSubmission[]> => {
   let q = supabase
     .from('grading_payment_submissions')
-    .select('*, branches:branch_id(name), products:resolved_product_id(name), grading_slots:resolved_grading_slot_id(grading_date, start_time, end_time, title, location)')
+    .select('*')
     .eq('status', 'pending_verification')
     .order('created_at', { ascending: false });
   if (branchId) q = q.eq('branch_id', branchId);
   const { data, error } = await q;
   if (error) throw error;
-  return (data || []).map((r: any) => ({
-    ...r,
-    branch_name: r.branches?.name ?? null,
-    product_name: r.products?.name ?? null,
-    slot_label: r.grading_slots
-      ? `${r.grading_slots.grading_date}${r.grading_slots.start_time ? ' ' + String(r.grading_slots.start_time).slice(0,5) : ''}${r.grading_slots.title ? ' — ' + r.grading_slots.title : ''}`
-      : null,
-  }));
+  const rows = (data || []) as any[];
+  if (rows.length === 0) return [];
+
+  const branchIds = Array.from(new Set(rows.map(r => r.branch_id).filter(Boolean)));
+  const productIds = Array.from(new Set(rows.map(r => r.resolved_product_id).filter(Boolean)));
+  const slotIds = Array.from(new Set(rows.map(r => r.resolved_grading_slot_id).filter(Boolean)));
+
+  const [branchesRes, productsRes, slotsRes] = await Promise.all([
+    branchIds.length
+      ? supabase.from('branches').select('id, name').in('id', branchIds)
+      : Promise.resolve({ data: [] as any[] }),
+    productIds.length
+      ? supabase.from('products').select('id, name').in('id', productIds)
+      : Promise.resolve({ data: [] as any[] }),
+    slotIds.length
+      ? supabase.from('grading_slots').select('id, grading_date, start_time, end_time, title, location').in('id', slotIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const branchMap = new Map<string, any>((branchesRes.data || []).map((b: any) => [b.id, b]));
+  const productMap = new Map<string, any>((productsRes.data || []).map((p: any) => [p.id, p]));
+  const slotMap = new Map<string, any>((slotsRes.data || []).map((s: any) => [s.id, s]));
+
+  return rows.map((r: any) => {
+    const slot = r.resolved_grading_slot_id ? slotMap.get(r.resolved_grading_slot_id) : null;
+    return {
+      ...r,
+      student_name: r.student_name,
+      branch_name: branchMap.get(r.branch_id)?.name ?? null,
+      product_name: r.resolved_product_id ? (productMap.get(r.resolved_product_id)?.name ?? null) : null,
+      slot_label: slot
+        ? `${slot.grading_date}${slot.start_time ? ' ' + String(slot.start_time).slice(0, 5) : ''}${slot.title ? ' — ' + slot.title : ''}`
+        : null,
+    };
+  });
 };
 
 export const getPendingGradingSubmissionsCount = async (branchId?: string): Promise<number> => {
