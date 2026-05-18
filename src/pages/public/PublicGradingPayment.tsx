@@ -658,6 +658,10 @@ const PublicGradingPayment: React.FC = () => {
             </form>
           </CardContent>
         </Card>
+
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          Gaonhae Taekwondo LLP | www.gaonhaetaekwondo.com
+        </p>
       </div>
     </div>
   );
