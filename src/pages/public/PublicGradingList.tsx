@@ -336,7 +336,7 @@ const PublicGradingList: React.FC = () => {
         <button
           type="button"
           aria-label={editMode ? 'Lock edit mode' : 'Unlock edit mode'}
-          onClick={() => (editMode ? setEditMode(false) : setUnlockOpen(true))}
+          onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
           className="absolute right-0 top-0 p-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
         >
           {editMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-3.5 w-3.5" />}
