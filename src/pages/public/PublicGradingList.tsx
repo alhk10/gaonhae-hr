@@ -118,14 +118,14 @@ const PublicGradingList: React.FC = () => {
     });
   }, [filteredRows]);
 
-  // Slots for the edit-slot dialog (per row's branch)
+  // Slots for the edit-slot dialog (all branches, by the row's grading_date)
   const { data: editableSlots = [] } = useQuery({
-    queryKey: ['public-grading-slots', slotEditRow?.branch_id],
+    queryKey: ['public-grading-slots-by-date', slotEditRow?.grading_date],
     queryFn: () =>
-      slotEditRow?.branch_id
-        ? getPublicGradingSlots(slotEditRow.branch_id, [], null, slotEditRow.current_belt)
-        : Promise.resolve([] as PublicGradingSlot[]),
-    enabled: !!slotEditRow?.branch_id,
+      slotEditRow?.grading_date
+        ? getPublicGradingSlotsByDate(slotEditRow.grading_date)
+        : Promise.resolve([] as PublicGradingSlotByDate[]),
+    enabled: !!slotEditRow?.grading_date,
   });
 
   const handleUnlock = () => {
