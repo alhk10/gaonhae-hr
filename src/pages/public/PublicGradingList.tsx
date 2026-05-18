@@ -64,6 +64,8 @@ const PublicGradingList: React.FC = () => {
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>('none');
   const editMode = unlockLevel !== 'none';
   const canDelete = unlockLevel === 'full';
