@@ -1,10 +1,9 @@
-## Add helper text to PublicGradingPayment form
+## Center-align PDF grading list cells; wrap long student names
 
-File: `src/pages/public/PublicGradingPayment.tsx`
+File: `src/pages/public/PublicGradingList.tsx` — autoTable config (~lines 339-348)
 
-1. Under the First Name / Last Name row (col-span-2), add a small muted helper:
-   `Please use your full name.` (`text-xs text-muted-foreground`)
-2. Under the Email input, add helper:
-   `Please ensure email is correct, confirmation will be sent to this email.` (`text-xs text-muted-foreground`)
+1. Base `styles`: add `halign: 'center'`, `valign: 'middle'` (keep `overflow: 'linebreak'` so long Student names wrap onto multiple lines).
+2. `headStyles`: add `halign: 'center'`, `valign: 'middle'`.
+3. `columnStyles`: change col 0 (`#`) from `halign: 'right'` to `halign: 'center'`; remove explicit alignment from others so they inherit center.
 
-No logic, validation, or backend changes.
+No changes to on-screen UI, DB, or data layer — PDF-only.
