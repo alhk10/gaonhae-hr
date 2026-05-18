@@ -354,7 +354,7 @@ export const generateBulkGradingCertificatesPDFAsync = async (
   for (let idx = 0; idx < inputs.length; idx++) {
     if (idx > 0) doc.addPage('a4', 'portrait');
     drawCertificatePage(doc, inputs[idx]);
-    drawScorecardPage(doc, inputs[idx]);
+    if (hasScorecardContent(inputs[idx])) drawScorecardPage(doc, inputs[idx]);
     onProgress?.(idx + 1, inputs.length);
     // Yield to the event loop so the browser can repaint and stay responsive.
     await new Promise<void>(resolve => setTimeout(resolve, 0));
