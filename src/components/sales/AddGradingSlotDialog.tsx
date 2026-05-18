@@ -143,6 +143,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     setLoading(true);
     try {
       const emptyToNull = (v: any) => (v === '' ? null : v);
+      const emptyArrToNull = (v: any) => (Array.isArray(v) && v.length === 0 ? null : v);
       const payload: any = {
         ...formData,
         branch_id: emptyToNull(formData.branch_id),
@@ -152,6 +153,9 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
         examiner_name: emptyToNull((formData as any).examiner_name),
         notes: emptyToNull((formData as any).notes),
         title: emptyToNull((formData as any).title),
+        grading_product_ids: emptyArrToNull(formData.grading_product_ids),
+        belt_levels: emptyArrToNull(formData.belt_levels),
+        available_branch_ids: emptyArrToNull(formData.available_branch_ids),
       };
       if (isEditMode && editSlot) {
         await updateGradingSlot(editSlot.id, payload);
