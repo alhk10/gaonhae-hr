@@ -164,7 +164,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
             </div>
 
             {sub.proof_url && (
-              <SignedImage path={sub.proof_url} alt="Proof of payment" className="max-h-48 rounded border" />
+              <SignedImage src={sub.proof_url} alt="Proof of payment" className="max-h-48 rounded border" />
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
