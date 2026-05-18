@@ -434,17 +434,47 @@ const PublicGradingList: React.FC = () => {
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && r.proof_url ? (
-                                <a
-                                  href={r.proof_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 inline-flex"
-                                  title="View proof"
+                                <button
+                                  type="button"
+                                  onClick={() => openLightbox(r.proof_url!)}
+                                  className="block"
+                                  title="Click to enlarge"
                                 >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
+                                  <SignedImage
+                                    src={r.proof_url}
+                                    alt="Proof"
+                                    className="h-8 w-8 object-cover rounded border cursor-zoom-in hover:opacity-80"
+                                    fallback={<span className="text-muted-foreground text-xs">—</span>}
+                                  />
+                                </button>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerify(r)}
+                                  disabled={busyId === r.submission_id}
+                                  className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                                  title="Verify payment"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRejectRow(r)}
+                                  disabled={busyId === r.submission_id}
+                                  className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                  title="Reject submission"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </button>
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
