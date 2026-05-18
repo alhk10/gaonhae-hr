@@ -40,6 +40,16 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    first_name: '', last_name: '', date_of_birth: '', email: '', branch_id: '', gender: '', current_belt: '',
+  });
+  const [creating, setCreating] = useState(false);
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches-for-submission-create'],
+    queryFn: getBranches,
+  });
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['pending-grading-submissions', branchId],
