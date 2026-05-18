@@ -117,6 +117,21 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     }
   };
 
+  const loadGradingProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, product_categories!inner(name)')
+        .eq('is_active', true)
+        .eq('product_categories.name', 'Grading')
+        .order('name');
+      if (error) throw error;
+      setGradingProducts((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    } catch (error) {
+      console.error('Error loading grading products:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
