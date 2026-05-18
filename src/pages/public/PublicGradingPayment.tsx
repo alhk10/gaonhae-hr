@@ -441,9 +441,14 @@ const PublicGradingPayment: React.FC = () => {
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="max-w-md mx-auto space-y-4">
         <div className="text-center">
+          <img
+            src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png"
+            alt="Gaonhae Taekwondo"
+            className="h-16 w-16 mx-auto mb-3"
+          />
           <h1 className="text-2xl font-semibold">Grading Payment</h1>
           <p className="text-sm text-muted-foreground">
-            Pay your grading fee securely
+            Pay your Gaonhae Taekwondo grading fee securely
           </p>
         </div>
 
@@ -653,6 +658,10 @@ const PublicGradingPayment: React.FC = () => {
             </form>
           </CardContent>
         </Card>
+
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          Gaonhae Taekwondo LLP | www.gaonhaetaekwondo.com
+        </p>
       </div>
     </div>
   );
