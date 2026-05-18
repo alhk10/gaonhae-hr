@@ -29,16 +29,17 @@ import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicGradingList,
-  getPublicGradingSlots,
+  getPublicGradingSlotsByDate,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
   verifyGradingSubmission,
   rejectGradingSubmission,
   type PublicGradingListRow,
-  type PublicGradingSlot,
+  type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
+const ADMIN_FULL_UNLOCK_PASSWORD = '39SeagullWalk';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -56,7 +57,9 @@ const PublicGradingList: React.FC = () => {
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [dateFilter, setDateFilter] = useState<string>('all');
-  const [editMode, setEditMode] = useState(false);
+  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>('none');
+  const editMode = unlockLevel !== 'none';
+  const canDelete = unlockLevel === 'full';
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [pwInput, setPwInput] = useState('');
 
@@ -115,19 +118,24 @@ const PublicGradingList: React.FC = () => {
     });
   }, [filteredRows]);
 
-  // Slots for the edit-slot dialog (per row's branch)
+  // Slots for the edit-slot dialog (all branches, by the row's grading_date)
   const { data: editableSlots = [] } = useQuery({
-    queryKey: ['public-grading-slots', slotEditRow?.branch_id],
+    queryKey: ['public-grading-slots-by-date', slotEditRow?.grading_date],
     queryFn: () =>
-      slotEditRow?.branch_id
-        ? getPublicGradingSlots(slotEditRow.branch_id, [], null, slotEditRow.current_belt)
-        : Promise.resolve([] as PublicGradingSlot[]),
-    enabled: !!slotEditRow?.branch_id,
+      slotEditRow?.grading_date
+        ? getPublicGradingSlotsByDate(slotEditRow.grading_date)
+        : Promise.resolve([] as PublicGradingSlotByDate[]),
+    enabled: !!slotEditRow?.grading_date,
   });
 
   const handleUnlock = () => {
-    if (pwInput === ADMIN_UNLOCK_PASSWORD) {
-      setEditMode(true);
+    if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
+      setUnlockLevel('full');
+      setUnlockOpen(false);
+      setPwInput('');
+      toast.success('Full edit mode enabled');
+    } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
+      setUnlockLevel('standard');
       setUnlockOpen(false);
       setPwInput('');
       toast.success('Edit mode enabled');
@@ -328,7 +336,7 @@ const PublicGradingList: React.FC = () => {
         <button
           type="button"
           aria-label={editMode ? 'Lock edit mode' : 'Unlock edit mode'}
-          onClick={() => (editMode ? setEditMode(false) : setUnlockOpen(true))}
+          onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
           className="absolute right-0 top-0 p-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
         >
           {editMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-3.5 w-3.5" />}
@@ -493,7 +501,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && (
+                              {canDelete && r.source === 'submission' && (
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteRow(r)}
@@ -549,11 +557,14 @@ const PublicGradingList: React.FC = () => {
               <SelectValue placeholder="Select slot" />
             </SelectTrigger>
             <SelectContent>
-              {editableSlots.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {formatDate(s.grading_date)} {s.start_time?.slice(0, 5)} · {s.branch_name}
-                </SelectItem>
-              ))}
+              {editableSlots.map((s) => {
+                const fallback = `${formatDate(s.grading_date)} ${s.start_time?.slice(0, 5) || ''} · ${s.branch_name}`;
+                return (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.title || fallback}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <DialogFooter>

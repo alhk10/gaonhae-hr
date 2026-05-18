@@ -6728,6 +6728,18 @@ export type Database = {
               title: string
             }[]
           }
+      get_public_grading_slots_by_date: {
+        Args: { p_date: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          end_time: string
+          grading_date: string
+          id: string
+          start_time: string
+          title: string
+        }[]
+      }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {
