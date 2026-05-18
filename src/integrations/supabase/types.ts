@@ -1628,7 +1628,9 @@ export type Database = {
           current_belt: string | null
           date_of_birth: string
           email: string | null
+          first_name: string
           id: string
+          last_name: string
           matched_invoice_id: string | null
           matched_student_id: string | null
           notes: string | null
@@ -1640,7 +1642,6 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
-          student_name: string
           updated_at: string
         }
         Insert: {
@@ -1650,7 +1651,9 @@ export type Database = {
           current_belt?: string | null
           date_of_birth: string
           email?: string | null
+          first_name: string
           id?: string
+          last_name: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
@@ -1662,7 +1665,6 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
-          student_name: string
           updated_at?: string
         }
         Update: {
@@ -1672,7 +1674,9 @@ export type Database = {
           current_belt?: string | null
           date_of_birth?: string
           email?: string | null
+          first_name?: string
           id?: string
+          last_name?: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
@@ -1684,7 +1688,6 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
-          student_name?: string
           updated_at?: string
         }
         Relationships: [
