@@ -401,6 +401,7 @@ const PublicGradingList: React.FC = () => {
     } catch (e) {
       try { doc.save(fname); } catch { /* noop */ }
       toast.error('Could not download PDF in this view');
+    }
   };
 
   const handleDownloadSummaryPdf = async () => {
