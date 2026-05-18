@@ -18,16 +18,22 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Lock, Unlock, Trash2, Pencil, ExternalLink, Download } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
+import { SignedImage } from '@/components/common/SignedMedia';
+import { resolveStorageUrl } from '@/utils/storageUrl';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicGradingList,
   getPublicGradingSlots,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
+  verifyGradingSubmission,
+  rejectGradingSubmission,
   type PublicGradingListRow,
   type PublicGradingSlot,
 } from '@/services/gradingPaymentSubmissionService';
