@@ -442,9 +442,9 @@ const PublicGradingPayment: React.FC = () => {
       <div className="max-w-md mx-auto space-y-4">
         <div className="text-center">
           <img
-            src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png"
+            src="/lovable-uploads/gaonhae-logo-transparent.png"
             alt="Gaonhae Taekwondo"
-            className="h-16 w-16 mx-auto mb-3"
+            className="h-[67px] w-auto mx-auto mb-3"
           />
           <h1 className="text-2xl font-semibold">Grading Payment</h1>
           <p className="text-sm text-muted-foreground">
