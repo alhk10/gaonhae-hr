@@ -314,6 +314,49 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
           </div>
 
           <div className="space-y-2">
+            <Label>Grading Products</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between" type="button">
+                  <span className="truncate text-sm">
+                    {(formData.grading_product_ids || []).length === 0
+                      ? 'Select grading products'
+                      : (formData.grading_product_ids || []).length === 1
+                        ? gradingProducts.find(p => p.id === formData.grading_product_ids![0])?.name ?? '1 product'
+                        : `${formData.grading_product_ids!.length} products selected`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-60 overflow-y-auto bg-popover border shadow-md z-50" align="start">
+                <div className="space-y-1">
+                  {gradingProducts.length === 0 && (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">No grading products found</div>
+                  )}
+                  {gradingProducts.map(product => (
+                    <label key={product.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={(formData.grading_product_ids || []).includes(product.id)}
+                        onCheckedChange={() => {
+                          const current = formData.grading_product_ids || [];
+                          handleInputChange(
+                            'grading_product_ids',
+                            current.includes(product.id)
+                              ? current.filter(id => id !== product.id)
+                              : [...current, product.id]
+                          );
+                        }}
+                      />
+                      {product.name}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">Belt levels auto-derive from selected products</p>
+          </div>
+
+          <div className="space-y-2">
             <Label>Belt Levels</Label>
             <Popover>
               <PopoverTrigger asChild>
