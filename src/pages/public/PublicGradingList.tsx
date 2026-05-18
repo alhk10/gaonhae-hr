@@ -19,7 +19,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  downloadGradingCertificatePDF,
+  generateBulkGradingCertificatesPDFAsync,
+  type GradingCertificateInput,
+} from '@/utils/gradingCertificatePDFGenerator';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
