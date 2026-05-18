@@ -187,6 +187,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       min_age: undefined,
       max_age: undefined,
       available_branch_ids: [],
+      grading_product_ids: [],
     });
   };
 
