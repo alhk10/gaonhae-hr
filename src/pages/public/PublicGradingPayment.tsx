@@ -486,6 +486,7 @@ const PublicGradingPayment: React.FC = () => {
                   />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground -mt-2">Please use your full name.</p>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email *</Label>
@@ -498,6 +499,7 @@ const PublicGradingPayment: React.FC = () => {
                   placeholder="you@example.com"
                   maxLength={255}
                 />
+                <p className="text-xs text-muted-foreground">Please ensure email is correct, confirmation will be sent to this email.</p>
               </div>
 
               <div className="space-y-2">
