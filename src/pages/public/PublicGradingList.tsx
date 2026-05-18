@@ -208,7 +208,55 @@ const PublicGradingList: React.FC = () => {
     setLightboxUrl(resolved || storedUrl);
   };
 
-  const handleDownloadPdf = () => {
+  const loadLogoDataUrl = (): Promise<{ dataUrl: string; w: number; h: number } | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          const ctx = c.getContext('2d');
+          if (!ctx) return resolve(null);
+          ctx.drawImage(img, 0, 0);
+          resolve({ dataUrl: c.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = '/lovable-uploads/gaonhae-logo-transparent.png';
+    });
+
+  // Deterministic palette for branches
+  const BRANCH_PALETTE: Array<{ fill: [number, number, number]; text: [number, number, number] }> = [
+    { fill: [219, 234, 254], text: [30, 64, 175] },   // blue
+    { fill: [220, 252, 231], text: [22, 101, 52] },   // green
+    { fill: [254, 226, 226], text: [153, 27, 27] },   // red
+    { fill: [254, 243, 199], text: [146, 64, 14] },   // amber
+    { fill: [237, 233, 254], text: [91, 33, 182] },   // violet
+    { fill: [207, 250, 254], text: [14, 116, 144] },  // cyan
+    { fill: [252, 231, 243], text: [157, 23, 77] },   // pink
+    { fill: [255, 237, 213], text: [154, 52, 18] },   // orange
+    { fill: [220, 252, 244], text: [17, 94, 89] },    // teal
+    { fill: [233, 213, 255], text: [107, 33, 168] },  // purple
+  ];
+  const branchColor = (name: string) => {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return BRANCH_PALETTE[h % BRANCH_PALETTE.length];
+  };
+  const statusColor = (s: string): { fill: [number, number, number]; text: [number, number, number] } => {
+    const k = (s || '').toLowerCase();
+    if (k === 'paid') return { fill: [220, 252, 231], text: [22, 101, 52] };
+    if (k === 'verified') return { fill: [219, 234, 254], text: [30, 64, 175] };
+    if (k.includes('pending')) return { fill: [254, 243, 199], text: [146, 64, 14] };
+    if (k === 'rejected') return { fill: [254, 226, 226], text: [153, 27, 27] };
+    return { fill: [241, 245, 249], text: [51, 65, 85] };
+  };
+
+  const handleDownloadPdf = async () => {
     if (groups.length === 0) return;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -219,16 +267,24 @@ const PublicGradingList: React.FC = () => {
     const colX = [margin, margin + colW + gutter];
 
     // Title
+    const titleText = `GRADING LIST FOR ${dateFilter === 'all' ? 'ALL DATES' : formatDate(dateFilter)}`;
+    const titleY = margin + 8;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('Grading List', pageW / 2, margin + 4, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    const subtitle = dateFilter === 'all' ? 'All dates' : formatDate(dateFilter);
-    doc.text(subtitle, pageW / 2, margin + 9, { align: 'center' });
+    doc.text(titleText, pageW / 2, titleY, { align: 'center' });
+
+    // Logo top-right, baseline-aligned with title
+    const logo = await loadLogoDataUrl();
+    if (logo) {
+      const logoW = 22;
+      const logoH = (logo.h / logo.w) * logoW;
+      const logoX = pageW - margin - logoW;
+      const logoY = titleY - logoH + 1; // baseline align with title
+      try { doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoW, logoH); } catch { /* noop */ }
+    }
 
     const contentTop = margin + 14;
-    const contentBottom = pageH - margin;
+    const contentBottom = pageH - margin - 8;
     const colY = [contentTop, contentTop];
 
     const renderGroup = (g: typeof groups[number]) => {
@@ -248,21 +304,19 @@ const PublicGradingList: React.FC = () => {
         r.paid_status,
       ]);
 
-      // Estimate height: title (~5mm) + subtitle (~3.5mm) + table rows
+      // Estimate height
       const estRowH = 4.2;
       const headH = 5.5;
-      const estH = 4.5 + (g.header.slot_title ? 3.2 : 0) + headH + body.length * estRowH + 4;
+      const estH = 4.5 + headH + body.length * estRowH + 4;
 
-      // Pick column: prefer one with room; else the shorter; else new page
       let ci = colY[0] <= colY[1] ? 0 : 1;
       if (colY[ci] + estH > contentBottom && colY[1 - ci] + estH <= contentBottom) {
         ci = 1 - ci;
       }
       if (colY[ci] + estH > contentBottom) {
-        // New page
         doc.addPage();
-        colY[0] = margin;
-        colY[1] = margin;
+        colY[0] = contentTop;
+        colY[1] = contentTop;
         ci = 0;
       }
 
@@ -271,18 +325,10 @@ const PublicGradingList: React.FC = () => {
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
+      doc.setTextColor(0);
       const titleLines = doc.splitTextToSize(title, colW);
       doc.text(titleLines, x, y + 3.5);
       y += titleLines.length * 4;
-
-      if (g.header.slot_title) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(120);
-        doc.text(sub, x, y + 3);
-        doc.setTextColor(0);
-        y += 3.5;
-      }
 
       autoTable(doc, {
         startY: y + 1,
@@ -300,6 +346,20 @@ const PublicGradingList: React.FC = () => {
           3: { cellWidth: 22 },
           4: { cellWidth: 18 },
         },
+        didParseCell: (data) => {
+          if (data.section !== 'body') return;
+          if (data.column.index === 1) {
+            const c = branchColor(String(data.cell.raw ?? ''));
+            data.cell.styles.fillColor = c.fill;
+            data.cell.styles.textColor = c.text;
+            data.cell.styles.fontStyle = 'bold';
+          } else if (data.column.index === 4) {
+            const c = statusColor(String(data.cell.raw ?? ''));
+            data.cell.styles.fillColor = c.fill;
+            data.cell.styles.textColor = c.text;
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
       });
 
       // @ts-ignore lastAutoTable is attached by plugin
@@ -307,6 +367,20 @@ const PublicGradingList: React.FC = () => {
     };
 
     groups.forEach(renderGroup);
+
+    // Footers
+    const totalPages = doc.getNumberOfPages();
+    const generatedAt = `Generated ${formatDateTime(new Date())}`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      const footerY = pageH - 6;
+      doc.text(`Page ${p} of ${totalPages}`, pageW / 2, footerY, { align: 'center' });
+      doc.text(generatedAt, pageW - margin, footerY, { align: 'right' });
+    }
+    doc.setTextColor(0);
 
     const fname = `grading-list-${dateFilter === 'all' ? 'all' : dateFilter}.pdf`;
     try {
