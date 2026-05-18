@@ -46,7 +46,7 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
-const ADMIN_FULL_UNLOCK_PASSWORD = '39SeagullWalk';
+const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
 
 const statusVariant = (status: string) => {
   switch (status) {
