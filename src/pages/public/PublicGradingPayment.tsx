@@ -137,7 +137,8 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
 };
 
 const PublicGradingPayment: React.FC = () => {
-  const [studentName, setStudentName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
@@ -319,7 +320,8 @@ const PublicGradingPayment: React.FC = () => {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const canSubmit =
-    !!studentName.trim() &&
+    !!firstName.trim() &&
+    !!lastName.trim() &&
     emailValid &&
     !!branchId &&
     !!dob &&
@@ -336,7 +338,8 @@ const PublicGradingPayment: React.FC = () => {
     setSubmitting(true);
     try {
       const result = await submitGradingPayment({
-        student_name: studentName,
+        first_name: firstName,
+        last_name: lastName,
         email: email.trim(),
         branch_id: branchId,
         date_of_birth: dob.toISOString().split('T')[0],
@@ -365,7 +368,7 @@ const PublicGradingPayment: React.FC = () => {
               recipientEmail: email.trim(),
               idempotencyKey: `grading-${result.ids[0]}`,
               templateData: {
-                studentName: studentName.trim().toUpperCase(),
+                studentName: `${firstName.trim()} ${lastName.trim()}`.toUpperCase(),
                 products: effectiveItems.map(p => p.product_name),
                 dateTime: `${dateStr}${timeStr ? ' at ' + timeStr : ''}`,
                 branchName: selectedSlot.branch_name,
@@ -458,16 +461,29 @@ const PublicGradingPayment: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Student Name *</Label>
-                <Input
-                  id="name"
-                  required
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  placeholder="Full name"
-                  maxLength={100}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value.toUpperCase())}
+                    placeholder="First name"
+                    maxLength={60}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value.toUpperCase())}
+                    placeholder="Last name"
+                    maxLength={60}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
