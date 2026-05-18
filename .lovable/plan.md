@@ -1,42 +1,49 @@
 ## Goal
 
-When no fuzzy match and no search result fits, allow staff to create a new student directly from the submission, then auto-match the submission to the new student.
+Enhance the public Grading List (`/grading-list`) with:
+1. **Inline certificate download** per registration row (gated behind admin unlock).
+2. **Multi-select + mass certificate download** in the page header.
+3. **Branch filter** next to the existing date filter (default: All branches).
 
-## UI changes — `src/components/dashboard/PublicGradingSubmissionApprovals.tsx`
+All changes are scoped to `src/pages/public/PublicGradingList.tsx`. No backend/schema/service changes.
 
-Inside the existing Match dialog, add a third section at the bottom: **"Create new student from submission"**.
+## 1. Inline PDF certificate download (per row)
 
-- Header + helper text: "No matching student? Create one using the submission details."
-- Toggle button "Create new student" reveals a compact inline form.
-- Form fields, prefilled from `matchingSub`:
-  - First Name (required) — `matchingSub.first_name`, auto-uppercase on save
-  - Last Name (required) — `matchingSub.last_name`, auto-uppercase
-  - Date of Birth (required) — `matchingSub.date_of_birth`, DD/MM/YYYY via existing date helpers
-  - Email (required) — `matchingSub.email`
-  - Branch (required) — preselected to `matchingSub.branch_id`, editable via `branches` dropdown
-  - Gender (optional) — male/female/other select (left blank if not provided)
-  - Current belt (optional, readonly hint) — carried over from `matchingSub.current_belt`
-- Inline validation: all 5 required fields must be present; email basic format; DOB not in future.
-- Submit button "Create & Match" (single action) and Cancel collapses the form.
+- Visible only when `editMode === true` (i.e. either password unlocked: `ADMIN_UNLOCK_PASSWORD` `Hp97533488` standard, or `ADMIN_FULL_UNLOCK_PASSWORD` `39SeagullWalk` full). Hidden on the fully public/locked view.
+- Add a trailing icon-button column (`Cert`) inside the existing `editMode` action group in each slot table.
+- Rendered only when `r.source === 'registration'`. Submission rows show nothing.
+- Handler `handleDownloadCertificate(row)`:
+  - Build `GradingCertificateInput` from `r.student_name`, `r.current_belt` (pre-grading belt), `r.grading_date`, `scorecard: []`.
+  - Toast error if `grading_date` missing.
+  - Call `downloadGradingCertificatePDF(input, "Certificate_{NAME}_{BELT}_{DDMMYYYY}.pdf")` matching the sanitization used in `GradingListTab.runCertificate`.
+- Skip page 2 (scorecard) in `src/utils/gradingCertificatePDFGenerator.ts → generateGradingCertificatePDF` when `scorecard` is empty AND no `result` is supplied. Existing call sites (which pass scorecard) are unaffected.
 
-## Logic
+## 2. Multi-select + mass certificate download
 
-New handler `handleCreateAndMatch()`:
-1. Validate required fields.
-2. Call `createStudent` (from `@/services/studentService`) with:
-   - `first_name`, `last_name` (uppercased)
-   - `certificate_name` and `display_name` defaulted to `"${first} ${last}"` uppercase
-   - `date_of_birth`, `email`, `branch_id`, `gender`, `current_belt`
-   - `status: 'active'`
-3. On success, call existing `matchGradingSubmission(matchingSub.id, newStudent.id)`.
-4. Toast success, close dialog, invalidate queries (same as `handleMatch`).
-5. On error, surface message; keep form open.
+- Visible only when `editMode === true`, placed in the header `Card` next to the existing Summary PDF download button.
+- Per-row checkbox in a new leading column of each slot table (registration rows only; submissions show blank). Checked-state tracked in a `Set<string>` keyed by a stable row id (`${r.source}:${r.submission_id ?? `${r.student_name}|${r.grading_date}|${r.current_belt}`}`).
+- Add "Select all" checkbox in each slot's table header that toggles all eligible registration rows in that slot.
+- New header button "Download selected certificates" (`Award` icon + count badge). Disabled when zero selected.
+- Handler `handleDownloadSelectedCertificates()`:
+  - Map selected rows to `GradingCertificateInput[]` (same field mapping as single).
+  - Call `generateBulkGradingCertificatesPDFAsync(inputs, onProgress)` from `gradingCertificatePDFGenerator`.
+  - Toast progress (loading id) like `GradingListTab.runBulkDownload`.
+  - Save as `Certificates_Bulk_{YYYYMMDD}.pdf`.
 
-No backend / schema changes. No edits to other pages.
+## 3. Branch filter
+
+- Add `branchFilter` state (default `'all'`) and a `Select` next to the existing date `Select` in the header `Card`.
+- Options derived from filtered rows' `branch_name` (unique, sorted, exclude null → `'—'`).
+- Apply filter in the existing `useMemo` that builds `filteredRows`, AFTER the date filter:
+  - `branchFilter === 'all' ? rows : rows.filter(r => (r.branch_name || '—') === branchFilter)`.
+- Layout: header `Card` becomes `flex flex-wrap gap-2` so date + branch + buttons wrap nicely on mobile (925px viewport).
+- Branch filter is **always visible** (not gated by edit mode).
 
 ## Verification
 
-- Open an unmatched submission → Match dialog → expand "Create new student" → fields prefilled → submit → student appears in DB and submission flips to "Matched" badge with the new student.
-- Re-open same submission: shows now matched; "Verify & Import" enabled.
-- Required-field validation blocks submit with clear errors.
-- Names persisted uppercase (per project memory).
+- `/grading-list` locked: branch filter shows; cert and mass-cert buttons hidden.
+- Unlock with `Hp97533488`: cert icon per registration row, Summary PDF button, mass-cert button + checkboxes appear.
+- Select 3 registration rows across different slots → click mass download → bulk PDF with 3 certificate pages saves.
+- Single row download → certificate-only PDF (no scorecard page) with correct name/belt/date.
+- Branch filter `Balmoral`: only Balmoral grouped slots render; date filter still works in combination.
+- Row missing `grading_date` → toast error, nothing downloads.
