@@ -1,39 +1,47 @@
-## Changes to `/grading-list` (PublicGradingList.tsx)
+## PDF redesign for `/grading-list` Download (PublicGradingList.tsx → `handleDownloadPdf`)
 
-### 1. Password gating — two-tier unlock for all inline actions
-All inline action buttons and sensitive columns (amount, payment proof, verify, reject, update-slot, delete) are hidden by default. They render only after the user clicks the lock icon and enters a valid password. Once unlocked, the level persists for the session; locking again clears it.
+### 1. Header
+- Replace the current centered "Grading List" + subtitle stack with a single centered title: **`GRADING LIST FOR <DD/MM/YYYY>`** (uses `formatDate(dateFilter)`). If `dateFilter === 'all'`, title is `GRADING LIST FOR ALL DATES`.
+- Add **Gaonhae Taekwondo logo** in the top-right corner, proportionate (≈18mm wide, height auto from aspect ratio), bottom-aligned with the header text baseline.
+  - Source: `public/lovable-uploads/gaonhae-logo-transparent.png` — preloaded into an `<img>`, drawn into a canvas to get a base64 PNG, then `doc.addImage(...)`.
+  - Loaded once before `doc.output()`.
 
-Two valid passwords:
+### 2. Per-group card header (in-body)
+- Remove the secondary `28/06/2026 · 10:00` subtitle line under each group title. Only `slot_title || fallback` remains as the bold group heading.
+- Drop the related `sub` rendering and the `g.header.slot_title ? 3.2 : 0` height fudge in the layout estimate.
 
-- **`Hp97533488` → standard unlock**: shows amount, payment proof, verify, reject, update-slot.
-- **`39SeagullWalk` → full unlock**: everything in standard unlock **plus** delete and any other admin-only functions.
+### 3. Footer (every page)
+After all groups render, iterate `1..doc.getNumberOfPages()` and draw:
+- **Center**: `Page X of N` (8pt, muted grey).
+- **Bottom-right**: `Generated DD/MM/YYYY HH:mm` (8pt, muted grey) — uses `formatDateTime(new Date())`.
+- **Bottom-left**: leave empty (or repeat doc title — choose empty for cleanliness).
+Footer baseline at `pageH - 6mm`.
 
-Delete is the only action gated exclusively behind `39SeagullWalk`. Every other inline action is available under either password.
+### 4. Color-code Branches and Status
 
-### 2. Update-slot dialog — show every slot on the row's grading date
-Currently the dropdown only lists slots for the row's branch filtered by the student's belt. Replace with a fetch of every active grading slot on that row's `grading_date`, across all branches, with no belt filter.
+Add deterministic hash → palette helpers (kept local to the PDF function):
 
-Implementation:
-- Add new public RPC `get_public_grading_slots_by_date(p_date date)` returning `id, branch_id, branch_name, grading_date, start_time, end_time, title` for all active slots on that date.
-- Add `getPublicGradingSlotsByDate(date)` helper in `gradingPaymentSubmissionService.ts`.
-- In the dialog, replace the existing `useQuery` (keyed by `branch_id`) with one keyed by `slotEditRow.grading_date`.
+- **Branch chip**: derive an HSL from `branch_name` (stable hash mod N over a curated palette of 10 light-fill / dark-text pairs). Render the branch cell as a small filled rectangle with the branch name in dark text. Use `autoTable`'s `didParseCell` hook to set `cell.styles.fillColor` and `textColor` for column index 1.
+- **Status chip**: fixed mapping
+  - `paid` → green fill `#DCFCE7`, text `#166534`
+  - `verified` → blue fill `#DBEAFE`, text `#1E40AF`
+  - `pending_verification` → amber fill `#FEF3C7`, text `#92400E`
+  - `rejected` → red fill `#FEE2E2`, text `#991B1B`
+  - default → grey fill `#F1F5F9`, text `#334155`
+  Applied via the same `didParseCell` hook on column index 4.
 
-### 3. Dropdown label — show slot title
-Replace `{formatDate(s.grading_date)} {s.start_time} · {s.branch_name}` with `{s.title || fallback}` where fallback = existing date/time/branch string (for slots without a title). Apply to both `SelectValue` (current selection) and `SelectItem` rows.
+### 5. Layout adjustments
+- Bump `contentTop` slightly (header height grows with the logo): `contentTop = margin + 18`.
+- Footer reserves bottom space: `contentBottom = pageH - margin - 8`.
+- Remove the per-group subtitle height (`3.5mm`) from `estH`.
 
 ### Files
-
 ```text
-src/pages/public/PublicGradingList.tsx       — two-tier password unlock; gate all inline
-                                                 actions + amount/proof columns behind
-                                                 unlock level; swap slot dialog query +
-                                                 dropdown label
-src/services/gradingPaymentSubmissionService.ts
-                                              — add getPublicGradingSlotsByDate()
-supabase migration                            — create get_public_grading_slots_by_date RPC
-                                                 (SECURITY DEFINER, returns active slots
-                                                 joined to branches)
+src/pages/public/PublicGradingList.tsx   — handleDownloadPdf rewrite (header, footer,
+                                            logo, status/branch color hooks, drop
+                                            per-group subtitle)
 ```
 
 ### Out of scope
-No changes to rejection logic, PDF export, or other unrelated UI.
+- No changes to on-screen table rendering (web UI keeps the existing group subtitle).
+- No new assets — uses existing `gaonhae-logo-transparent.png`.
