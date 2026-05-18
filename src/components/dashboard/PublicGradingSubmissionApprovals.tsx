@@ -334,6 +334,81 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                 ))}
               </div>
             </div>
+
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <Label className="text-xs">No matching student?</Label>
+                  <div className="text-xs text-muted-foreground">Create one from the submission details.</div>
+                </div>
+                {!showCreate && (
+                  <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
+                    <UserPlus className="w-3.5 h-3.5 mr-1" />
+                    Create new student
+                  </Button>
+                )}
+              </div>
+
+              {showCreate && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">First name *</Label>
+                    <Input className="h-8" value={newStudent.first_name}
+                      onChange={(e) => setNewStudent(s => ({ ...s, first_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Last name *</Label>
+                    <Input className="h-8" value={newStudent.last_name}
+                      onChange={(e) => setNewStudent(s => ({ ...s, last_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Date of birth *</Label>
+                    <Input type="date" className="h-8" value={newStudent.date_of_birth}
+                      onChange={(e) => setNewStudent(s => ({ ...s, date_of_birth: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Email *</Label>
+                    <Input type="email" className="h-8" value={newStudent.email}
+                      onChange={(e) => setNewStudent(s => ({ ...s, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Branch *</Label>
+                    <Select value={newStudent.branch_id}
+                      onValueChange={(v) => setNewStudent(s => ({ ...s, branch_id: v }))}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b: any) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Gender</Label>
+                    <Select value={newStudent.gender}
+                      onValueChange={(v) => setNewStudent(s => ({ ...s, gender: v }))}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="Optional" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {newStudent.current_belt && (
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Current belt from submission: <span className="font-medium">{newStudent.current_belt}</span>
+                    </div>
+                  )}
+                  <div className="sm:col-span-2 flex justify-end gap-2 mt-1">
+                    <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} disabled={creating}>Cancel</Button>
+                    <Button size="sm" onClick={handleCreateAndMatch} disabled={creating}>
+                      {creating ? 'Creating…' : 'Create & Match'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
