@@ -477,32 +477,48 @@ const PublicGradingList: React.FC = () => {
       },
     });
 
-    // Table 2: amount collected by branch (paid + verified only)
+    // Table 2: amount collected by branch — subtotal (paid+verified), GST 9%, total, unverified
     let y2 = (doc as any).lastAutoTable.finalY + 10;
-    const amountByBranch: Record<string, number> = {};
-    branches.forEach((b) => { amountByBranch[b] = 0; });
+    const paidByBranch: Record<string, number> = {};
+    const pendingByBranch: Record<string, number> = {};
+    branches.forEach((b) => { paidByBranch[b] = 0; pendingByBranch[b] = 0; });
     for (const r of filteredRows) {
       const s = (r.paid_status || '').toLowerCase();
-      if (s !== 'paid' && s !== 'verified') continue;
       const b = r.branch_name || '—';
-      amountByBranch[b] = (amountByBranch[b] || 0) + (Number(r.amount) || 0);
+      const amt = Number(r.amount) || 0;
+      if (s === 'paid' || s === 'verified') {
+        paidByBranch[b] = (paidByBranch[b] || 0) + amt;
+      } else if (s === 'pending_verification' || s === 'pending verification') {
+        pendingByBranch[b] = (pendingByBranch[b] || 0) + amt;
+      }
     }
-    const amounts = branches.map((b) => amountByBranch[b] || 0);
-    const grandTotalAmount = amounts.reduce((s, n) => s + n, 0);
-    const amountHead = [...branches, 'Total'];
-    const amountBody = [[
-      ...amounts.map((v) => formatCurrency(v)),
-      formatCurrency(grandTotalAmount),
-    ]];
+    const subtotals = branches.map((b) => paidByBranch[b] || 0);
+    const gsts = subtotals.map((v) => v * 0.09);
+    const totals = subtotals.map((v) => v * 1.09);
+    const unverifieds = branches.map((b) => pendingByBranch[b] || 0);
+    const sumOf = (arr: number[]) => arr.reduce((s, n) => s + n, 0);
 
-    if (y2 + 30 > pageH - margin - 8) {
+    const amountHead = ['', ...branches, 'Total'];
+    const fmtRow = (label: string, vals: number[]) => [
+      label,
+      ...vals.map((v) => formatCurrency(v)),
+      formatCurrency(sumOf(vals)),
+    ];
+    const amountBody = [
+      fmtRow('Subtotal (paid + verified)', subtotals),
+      fmtRow('GST 9%', gsts),
+      fmtRow('Total (incl. GST)', totals),
+      fmtRow('Unverified (pending)', unverifieds),
+    ];
+
+    if (y2 + 40 > pageH - margin - 8) {
       doc.addPage();
       y2 = margin + 8;
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text('Amount collected by branch (paid + verified)', margin, y2);
+    doc.text('Amount collected by branch', margin, y2);
 
     autoTable(doc, {
       startY: y2 + 3,
@@ -511,15 +527,20 @@ const PublicGradingList: React.FC = () => {
       body: amountBody,
       styles: { fontSize: 8, cellPadding: 1.5, halign: 'center', valign: 'middle' },
       headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'center', valign: 'middle' },
+      columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 'auto' } },
       didParseCell: (data) => {
-        if (data.section === 'head' && data.column.index < branches.length) {
-          const c = branchColor(branches[data.column.index]);
+        if (data.section === 'head' && data.column.index >= 1 && data.column.index <= branches.length) {
+          const c = branchColor(branches[data.column.index - 1]);
           data.cell.styles.fillColor = c.fill;
           data.cell.styles.textColor = c.text;
         }
-        if (data.section === 'body' && data.column.index === branches.length) {
+        if (data.section === 'body' && data.column.index === branches.length + 1) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fillColor = [230, 230, 230];
+        }
+        if (data.section === 'body' && data.row.index === 2) {
+          // Total (incl. GST) row emphasized
+          data.cell.styles.fontStyle = 'bold';
         }
       },
     });
