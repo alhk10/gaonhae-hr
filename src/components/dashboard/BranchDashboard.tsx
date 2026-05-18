@@ -89,6 +89,7 @@ import { Student } from '@/services/studentService';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
+import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
