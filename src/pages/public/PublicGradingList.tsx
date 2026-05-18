@@ -718,15 +718,26 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Card>
-          <CardContent className="p-3 flex gap-2">
+          <CardContent className="p-3 flex flex-wrap gap-2">
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 min-w-[140px]">
                 <SelectValue placeholder="All dates" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All dates</SelectItem>
                 {dateOptions.map((d) => (
                   <SelectItem key={d} value={d}>{formatDate(d)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="flex-1 min-w-[140px]">
+                <SelectValue placeholder="All branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All branches</SelectItem>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -750,6 +761,20 @@ const PublicGradingList: React.FC = () => {
                 title="Download Summary PDF"
               >
                 <Download className="h-4 w-4" />
+              </Button>
+            )}
+            {editMode && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleDownloadSelectedCertificates}
+                disabled={selectedRows.length === 0}
+                title="Download selected certificates"
+                className="gap-1"
+              >
+                <Award className="h-4 w-4" />
+                <span className="text-xs">Certificates ({selectedRows.length})</span>
               </Button>
             )}
           </CardContent>
