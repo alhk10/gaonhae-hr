@@ -417,7 +417,8 @@ const PublicGradingPayment: React.FC = () => {
                 variant="outline"
                 onClick={() => {
                   setSuccess(null);
-                  setStudentName('');
+                  setFirstName('');
+                  setLastName('');
                   setEmail('');
                   setBranchId('');
                   setDob(undefined);
