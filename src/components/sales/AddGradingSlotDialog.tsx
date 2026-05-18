@@ -17,6 +17,7 @@ import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type 
 import { Loader2, ChevronDown } from 'lucide-react';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { formatDate } from '@/utils/dateFormat';
+import { deriveBeltLevels, type NamedGradingProduct } from '@/utils/gradingProductBelts';
 
 interface GradingSlotDialogProps {
   trigger: React.ReactNode;
@@ -40,6 +41,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
+  const [gradingProducts, setGradingProducts] = useState<NamedGradingProduct[]>([]);
   
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
@@ -58,12 +60,13 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     min_age: undefined,
     max_age: undefined,
     available_branch_ids: [],
+    grading_product_ids: [],
   });
 
   useEffect(() => {
     if (open) {
       const initForm = async () => {
-        await loadBranches();
+        await Promise.all([loadBranches(), loadGradingProducts()]);
         if (duplicateSlot) {
           setFormData({
             branch_id: duplicateSlot.branch_id,
@@ -76,6 +79,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
             min_age: (duplicateSlot as any).min_age ?? undefined,
             max_age: (duplicateSlot as any).max_age ?? undefined,
             available_branch_ids: (duplicateSlot as any).available_branch_ids || [],
+            grading_product_ids: (duplicateSlot as any).grading_product_ids || [],
           });
         } else if (editSlot && mode === 'edit') {
           setFormData({
@@ -89,6 +93,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
             min_age: (editSlot as any).min_age ?? undefined,
             max_age: (editSlot as any).max_age ?? undefined,
             available_branch_ids: (editSlot as any).available_branch_ids || [],
+            grading_product_ids: (editSlot as any).grading_product_ids || [],
           });
         } else {
           resetForm();
@@ -112,6 +117,21 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     }
   };
 
+  const loadGradingProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, product_categories!inner(name)')
+        .eq('is_active', true)
+        .eq('product_categories.name', 'Grading')
+        .order('name');
+      if (error) throw error;
+      setGradingProducts((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    } catch (error) {
+      console.error('Error loading grading products:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -123,6 +143,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     setLoading(true);
     try {
       const emptyToNull = (v: any) => (v === '' ? null : v);
+      const emptyArrToNull = (v: any) => (Array.isArray(v) && v.length === 0 ? null : v);
       const payload: any = {
         ...formData,
         branch_id: emptyToNull(formData.branch_id),
@@ -132,6 +153,9 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
         examiner_name: emptyToNull((formData as any).examiner_name),
         notes: emptyToNull((formData as any).notes),
         title: emptyToNull((formData as any).title),
+        grading_product_ids: emptyArrToNull(formData.grading_product_ids),
+        belt_levels: emptyArrToNull(formData.belt_levels),
+        available_branch_ids: emptyArrToNull(formData.available_branch_ids),
       };
       if (isEditMode && editSlot) {
         await updateGradingSlot(editSlot.id, payload);
@@ -163,6 +187,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
       min_age: undefined,
       max_age: undefined,
       available_branch_ids: [],
+      grading_product_ids: [],
     });
   };
 
@@ -179,18 +204,23 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
   const handleInputChange = (field: keyof CreateGradingSlotData, value: any) => {
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      
+      const updated: any = { ...prev, [field]: value };
+
+      // When grading products change, auto-derive belt_levels
+      if (field === 'grading_product_ids') {
+        updated.belt_levels = deriveBeltLevels(value as string[], gradingProducts);
+      }
+
       // Always auto-generate title when key fields change
-      if (['branch_id', 'grading_date', 'start_time', 'belt_levels'].includes(field)) {
+      if (['branch_id', 'grading_date', 'start_time', 'belt_levels', 'grading_product_ids'].includes(field as string)) {
         updated.title = generateDefaultTitle(
           field === 'branch_id' ? value : updated.branch_id,
           field === 'grading_date' ? value : updated.grading_date,
           field === 'start_time' ? value : updated.start_time || '',
-          field === 'belt_levels' ? value : updated.belt_levels || []
+          updated.belt_levels || []
         );
       }
-      
+
       return updated;
     });
   };
@@ -281,6 +311,49 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
               placeholder="Auto-generated from selections above"
             />
             <p className="text-xs text-muted-foreground">Auto-fills based on branch, date, time, and belt levels</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Grading Products</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between" type="button">
+                  <span className="truncate text-sm">
+                    {(formData.grading_product_ids || []).length === 0
+                      ? 'Select grading products'
+                      : (formData.grading_product_ids || []).length === 1
+                        ? gradingProducts.find(p => p.id === formData.grading_product_ids![0])?.name ?? '1 product'
+                        : `${formData.grading_product_ids!.length} products selected`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2 max-h-60 overflow-y-auto bg-popover border shadow-md z-50" align="start">
+                <div className="space-y-1">
+                  {gradingProducts.length === 0 && (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">No grading products found</div>
+                  )}
+                  {gradingProducts.map(product => (
+                    <label key={product.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={(formData.grading_product_ids || []).includes(product.id)}
+                        onCheckedChange={() => {
+                          const current = formData.grading_product_ids || [];
+                          handleInputChange(
+                            'grading_product_ids',
+                            current.includes(product.id)
+                              ? current.filter(id => id !== product.id)
+                              : [...current, product.id]
+                          );
+                        }}
+                      />
+                      {product.name}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">Belt levels auto-derive from selected products</p>
           </div>
 
           <div className="space-y-2">

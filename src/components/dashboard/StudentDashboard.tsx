@@ -196,18 +196,24 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         status: 'active',
         from_date: today,
       });
+      // Filter by belt level: if slot restricts belts, student's current_belt must be in the list
+      const beltFiltered = slots.filter(slot => {
+        const belts = slot.belt_levels;
+        if (!belts || belts.length === 0) return true;
+        return belts.includes(student.current_belt!);
+      });
       // Filter by student age
       if (student.date_of_birth) {
         const now = new Date();
         const dob = new Date(student.date_of_birth);
         const ageInYears = (now.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-        return slots.filter(slot => {
+        return beltFiltered.filter(slot => {
           if (slot.min_age != null && ageInYears < slot.min_age) return false;
           if (slot.max_age != null && ageInYears > slot.max_age) return false;
           return true;
         });
       }
-      return slots;
+      return beltFiltered;
     },
     enabled: !!student?.branch_id && !!student?.current_belt,
   });
