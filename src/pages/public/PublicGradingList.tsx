@@ -161,6 +161,45 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const handleVerify = async (row: PublicGradingListRow) => {
+    if (!row.submission_id) return;
+    setBusyId(row.submission_id);
+    try {
+      await verifyGradingSubmission(row.submission_id, verifiedBy);
+      toast.success('Marked as verified');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to verify');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectRow?.submission_id) return;
+    setBusyId(rejectRow.submission_id);
+    try {
+      await rejectGradingSubmission(rejectRow.submission_id, rejectReason.trim() || 'Rejected', verifiedBy);
+      toast.success('Submission rejected');
+      setRejectRow(null);
+      setRejectReason('');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to reject');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openLightbox = async (storedUrl: string) => {
+    const resolved = await resolveStorageUrl(storedUrl);
+    setLightboxUrl(resolved || storedUrl);
+  };
+
   const handleDownloadPdf = () => {
     if (groups.length === 0) return;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
