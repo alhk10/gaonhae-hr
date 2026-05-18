@@ -599,6 +599,18 @@ const PublicGradingList: React.FC = () => {
             >
               <Download className="h-4 w-4" />
             </Button>
+            {canDelete && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={handleDownloadSummaryPdf}
+                disabled={isLoading || groups.length === 0}
+                title="Download Summary PDF"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
           </CardContent>
         </Card>
 
