@@ -41,6 +41,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Array<{id: string, name: string}>>([]);
+  const [gradingProducts, setGradingProducts] = useState<NamedGradingProduct[]>([]);
   
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
@@ -59,6 +60,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
     min_age: undefined,
     max_age: undefined,
     available_branch_ids: [],
+    grading_product_ids: [],
   });
 
   useEffect(() => {
