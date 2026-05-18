@@ -298,10 +298,18 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
   doc.rect(tableX, startY, tableW, y - startY, 'S');
 };
 
+/** True when no meaningful scorecard data is supplied (skip page 2). */
+const hasScorecardContent = (input: GradingCertificateInput): boolean => {
+  if (input.result) return true;
+  return (input.scorecard || []).some(
+    r => (r.label?.trim() ?? '') !== '' && !isBlankValue(r.value),
+  );
+};
+
 export const generateGradingCertificatePDF = (input: GradingCertificateInput): jsPDF => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
   drawCertificatePage(doc, input);
-  drawScorecardPage(doc, input);
+  if (hasScorecardContent(input)) drawScorecardPage(doc, input);
   return doc;
 };
 
@@ -321,7 +329,7 @@ export const generateBulkGradingCertificatesPDF = (inputs: GradingCertificateInp
   inputs.forEach((input, idx) => {
     if (idx > 0) doc.addPage('a4', 'portrait');
     drawCertificatePage(doc, input);
-    drawScorecardPage(doc, input); // internally calls addPage()
+    if (hasScorecardContent(input)) drawScorecardPage(doc, input);
   });
   return doc;
 };
@@ -346,7 +354,7 @@ export const generateBulkGradingCertificatesPDFAsync = async (
   for (let idx = 0; idx < inputs.length; idx++) {
     if (idx > 0) doc.addPage('a4', 'portrait');
     drawCertificatePage(doc, inputs[idx]);
-    drawScorecardPage(doc, inputs[idx]);
+    if (hasScorecardContent(inputs[idx])) drawScorecardPage(doc, inputs[idx]);
     onProgress?.(idx + 1, inputs.length);
     // Yield to the event loop so the browser can repaint and stay responsive.
     await new Promise<void>(resolve => setTimeout(resolve, 0));

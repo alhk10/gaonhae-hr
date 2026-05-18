@@ -19,7 +19,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  downloadGradingCertificatePDF,
+  generateBulkGradingCertificatesPDFAsync,
+  type GradingCertificateInput,
+} from '@/utils/gradingCertificatePDFGenerator';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
@@ -58,6 +64,8 @@ const PublicGradingList: React.FC = () => {
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>('none');
   const editMode = unlockLevel !== 'none';
   const canDelete = unlockLevel === 'full';
@@ -90,10 +98,17 @@ const PublicGradingList: React.FC = () => {
     }
   }, [dateOptions, dateFilter]);
 
-  const filteredRows = useMemo(
-    () => (dateFilter === 'all' ? rows : rows.filter((r) => r.grading_date === dateFilter)),
-    [rows, dateFilter],
-  );
+  const branchOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) set.add(r.branch_name || '—');
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    let res = dateFilter === 'all' ? rows : rows.filter((r) => r.grading_date === dateFilter);
+    if (branchFilter !== 'all') res = res.filter((r) => (r.branch_name || '—') === branchFilter);
+    return res;
+  }, [rows, dateFilter, branchFilter]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { header: PublicGradingListRow; items: PublicGradingListRow[] }>();
@@ -580,6 +595,111 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  // ---- Certificate download (inline + bulk) -------------------------------
+  const rowCertKey = (r: PublicGradingListRow): string =>
+    `${r.source}:${r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
+
+  const rowToCertInput = (r: PublicGradingListRow): GradingCertificateInput | null => {
+    if (!r.grading_date || !r.current_belt) return null;
+    return {
+      studentName: r.student_name,
+      beltAchieved: r.current_belt,
+      gradingDate: r.grading_date,
+      scorecard: [],
+    };
+  };
+
+  const certFilename = (r: PublicGradingListRow): string => {
+    const safeName = (r.student_name || 'Student').replace(/[^\w\-]+/g, '_');
+    const safeBelt = (r.current_belt || 'Belt').replace(/[^\w\-]+/g, '_');
+    const dateStr = (r.grading_date || '').replace(/-/g, '');
+    return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
+  };
+
+  const handleDownloadCertificate = (r: PublicGradingListRow) => {
+    const input = rowToCertInput(r);
+    if (!input) {
+      toast.error('Missing grading date or belt — cannot generate certificate');
+      return;
+    }
+    try {
+      downloadGradingCertificatePDF(input, certFilename(r));
+      toast.success('Certificate generated');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate certificate');
+    }
+  };
+
+  const toggleCert = (r: PublicGradingListRow) => {
+    const key = rowCertKey(r);
+    setSelectedCerts((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const eligibleSlotRows = (items: PublicGradingListRow[]) =>
+    items.filter((r) => r.source === 'registration' && r.grading_date && r.current_belt);
+
+  const allSelectedInSlot = (items: PublicGradingListRow[]) => {
+    const elig = eligibleSlotRows(items);
+    return elig.length > 0 && elig.every((r) => selectedCerts.has(rowCertKey(r)));
+  };
+
+  const toggleSlotAll = (items: PublicGradingListRow[]) => {
+    const elig = eligibleSlotRows(items);
+    const allSel = allSelectedInSlot(items);
+    setSelectedCerts((prev) => {
+      const next = new Set(prev);
+      for (const r of elig) {
+        const k = rowCertKey(r);
+        if (allSel) next.delete(k);
+        else next.add(k);
+      }
+      return next;
+    });
+  };
+
+  const selectedRows = useMemo(() => {
+    const out: PublicGradingListRow[] = [];
+    for (const g of groups) {
+      for (const r of g.items) {
+        if (r.source !== 'registration') continue;
+        if (selectedCerts.has(rowCertKey(r))) out.push(r);
+      }
+    }
+    return out;
+  }, [groups, selectedCerts]);
+
+  const handleDownloadSelectedCertificates = async () => {
+    const inputs: GradingCertificateInput[] = [];
+    let skipped = 0;
+    for (const r of selectedRows) {
+      const inp = rowToCertInput(r);
+      if (inp) inputs.push(inp);
+      else skipped++;
+    }
+    if (inputs.length === 0) {
+      toast.error('No eligible rows selected');
+      return;
+    }
+    const toastId = 'bulk-cert';
+    toast.loading(`Generating certificates… 0 / ${inputs.length} (0%)`, { id: toastId });
+    try {
+      const doc = await generateBulkGradingCertificatesPDFAsync(inputs, (done, total) => {
+        const pct = Math.round((done / total) * 100);
+        toast.loading(`Generating certificates… ${done} / ${total} (${pct}%)`, { id: toastId });
+      });
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      doc.save(`Certificates_Bulk_${stamp}.pdf`);
+      toast.success(`Generated ${inputs.length} certificate${inputs.length > 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate certificates', { id: toastId });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4 relative">
@@ -598,15 +718,26 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Card>
-          <CardContent className="p-3 flex gap-2">
+          <CardContent className="p-3 flex flex-wrap gap-2">
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 min-w-[140px]">
                 <SelectValue placeholder="All dates" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All dates</SelectItem>
                 {dateOptions.map((d) => (
                   <SelectItem key={d} value={d}>{formatDate(d)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="flex-1 min-w-[140px]">
+                <SelectValue placeholder="All branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All branches</SelectItem>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -630,6 +761,20 @@ const PublicGradingList: React.FC = () => {
                 title="Download Summary PDF"
               >
                 <Download className="h-4 w-4" />
+              </Button>
+            )}
+            {editMode && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleDownloadSelectedCertificates}
+                disabled={selectedRows.length === 0}
+                title="Download selected certificates"
+                className="gap-1"
+              >
+                <Award className="h-4 w-4" />
+                <span className="text-xs">Certificates ({selectedRows.length})</span>
               </Button>
             )}
           </CardContent>
@@ -667,6 +812,15 @@ const PublicGradingList: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {editMode && (
+                        <TableHead className="h-7 w-8 px-2">
+                          <Checkbox
+                            checked={allSelectedInSlot(g.items)}
+                            onCheckedChange={() => toggleSlotAll(g.items)}
+                            aria-label="Select all in slot"
+                          />
+                        </TableHead>
+                      )}
                       <TableHead className="h-7 w-8 px-2 text-xs">#</TableHead>
                       <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
                       <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
@@ -680,6 +834,7 @@ const PublicGradingList: React.FC = () => {
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                         </>
                       )}
                     </TableRow>
@@ -687,6 +842,17 @@ const PublicGradingList: React.FC = () => {
                   <TableBody>
                     {g.items.map((r, i) => (
                       <TableRow key={i} className="odd:bg-muted/40">
+                        {editMode && (
+                          <TableCell className="px-2 py-0.5">
+                            {r.source === 'registration' && r.grading_date && r.current_belt ? (
+                              <Checkbox
+                                checked={selectedCerts.has(rowCertKey(r))}
+                                onCheckedChange={() => toggleCert(r)}
+                                aria-label="Select for certificate"
+                              />
+                            ) : null}
+                          </TableCell>
+                        )}
                         <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
@@ -772,6 +938,18 @@ const PublicGradingList: React.FC = () => {
                                   title="Delete submission"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'registration' && r.grading_date && r.current_belt && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadCertificate(r)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Download certificate"
+                                >
+                                  <Award className="h-3.5 w-3.5" />
                                 </button>
                               )}
                             </TableCell>
