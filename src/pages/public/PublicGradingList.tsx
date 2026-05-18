@@ -941,6 +941,18 @@ const PublicGradingList: React.FC = () => {
                                 </button>
                               )}
                             </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'registration' && r.grading_date && r.current_belt && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadCertificate(r)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Download certificate"
+                                >
+                                  <Award className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
                           </>
                         )}
                       </TableRow>
