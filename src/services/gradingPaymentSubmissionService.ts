@@ -115,9 +115,12 @@ export const getPendingGradingSubmissions = async (branchId?: string): Promise<P
 
   return rows.map((r: any) => {
     const slot = r.resolved_grading_slot_id ? slotMap.get(r.resolved_grading_slot_id) : null;
+    const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
     return {
       ...r,
-      student_name: r.student_name,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      student_name: composed,
       branch_name: branchMap.get(r.branch_id)?.name ?? null,
       product_name: r.resolved_product_id ? (productMap.get(r.resolved_product_id)?.name ?? null) : null,
       slot_label: slot
