@@ -101,7 +101,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
         available_variants: formData.available_variants,
         requires_size: enabledVariantTypes.size,
         requires_color: enabledVariantTypes.color,
-        allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : undefined,
+        allowed_belt_levels: formData.requires_belt_level && formData.allowed_belt_levels.length > 0 ? formData.allowed_belt_levels : null as any,
         requires_belt_level: formData.requires_belt_level,
         min_age: formData.min_age !== '' ? Number(formData.min_age) : null,
         max_age: formData.max_age !== '' ? Number(formData.max_age) : null,
