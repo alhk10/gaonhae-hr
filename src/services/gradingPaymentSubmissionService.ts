@@ -235,6 +235,27 @@ export const getPublicGradingSlots = async (
   return (data || []) as PublicGradingSlot[];
 };
 
+export interface PublicGradingSlotByDate {
+  id: string;
+  branch_id: string;
+  branch_name: string;
+  grading_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  title: string | null;
+}
+
+export const getPublicGradingSlotsByDate = async (
+  date: string,
+): Promise<PublicGradingSlotByDate[]> => {
+  if (!date) return [];
+  const { data, error } = await supabase.rpc('get_public_grading_slots_by_date' as any, {
+    p_date: date,
+  });
+  if (error) throw error;
+  return (data || []) as PublicGradingSlotByDate[];
+};
+
 export const getPublicBranches = async (): Promise<PublicBranch[]> => {
   const { data, error } = await supabase.rpc('get_public_branches');
   if (error) throw error;
