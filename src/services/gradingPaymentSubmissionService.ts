@@ -46,6 +46,8 @@ export interface PublicGradingListRow {
 export interface PendingGradingSubmission {
   id: string;
   reference_number: string;
+  first_name: string;
+  last_name: string;
   student_name: string;
   email: string | null;
   branch_id: string;
@@ -113,9 +115,12 @@ export const getPendingGradingSubmissions = async (branchId?: string): Promise<P
 
   return rows.map((r: any) => {
     const slot = r.resolved_grading_slot_id ? slotMap.get(r.resolved_grading_slot_id) : null;
+    const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
     return {
       ...r,
-      student_name: r.student_name,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      student_name: composed,
       branch_name: branchMap.get(r.branch_id)?.name ?? null,
       product_name: r.resolved_product_id ? (productMap.get(r.resolved_product_id)?.name ?? null) : null,
       slot_label: slot
@@ -192,7 +197,8 @@ export interface SubmitGradingPaymentItem {
 }
 
 export interface SubmitGradingPaymentInput {
-  student_name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   branch_id: string;
   date_of_birth: string; // ISO yyyy-MM-dd
@@ -315,7 +321,9 @@ export const submitGradingPayment = async (
   // Upload proof first
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
   const ts = Date.now();
-  const safeName = input.student_name.replace(/[^a-z0-9]/gi, '_').toUpperCase();
+  const fn = (input.first_name || '').trim().toUpperCase();
+  const ln = (input.last_name || '').trim().toUpperCase();
+  const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
   const path = `public-grading/${input.branch_id}/${ts}_${safeName}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
@@ -330,7 +338,8 @@ export const submitGradingPayment = async (
   const proofUrl = signed?.signedUrl ?? path;
 
   const rows = input.items.map((item) => ({
-    student_name: input.student_name.trim().toUpperCase(),
+    first_name: fn,
+    last_name: ln,
     email: input.email.trim().toLowerCase() || null,
     branch_id: input.branch_id,
     date_of_birth: input.date_of_birth,
