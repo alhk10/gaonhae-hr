@@ -321,7 +321,9 @@ export const submitGradingPayment = async (
   // Upload proof first
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
   const ts = Date.now();
-  const safeName = input.student_name.replace(/[^a-z0-9]/gi, '_').toUpperCase();
+  const fn = (input.first_name || '').trim().toUpperCase();
+  const ln = (input.last_name || '').trim().toUpperCase();
+  const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
   const path = `public-grading/${input.branch_id}/${ts}_${safeName}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
@@ -336,7 +338,8 @@ export const submitGradingPayment = async (
   const proofUrl = signed?.signedUrl ?? path;
 
   const rows = input.items.map((item) => ({
-    student_name: input.student_name.trim().toUpperCase(),
+    first_name: fn,
+    last_name: ln,
     email: input.email.trim().toLowerCase() || null,
     branch_id: input.branch_id,
     date_of_birth: input.date_of_birth,
