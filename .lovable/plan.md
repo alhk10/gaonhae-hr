@@ -1,47 +1,38 @@
-## PDF redesign for `/grading-list` Download (PublicGradingList.tsx → `handleDownloadPdf`)
+## Split `student_name` into First Name + Last Name (UI + DB)
 
-### 1. Header
-- Replace the current centered "Grading List" + subtitle stack with a single centered title: **`GRADING LIST FOR <DD/MM/YYYY>`** (uses `formatDate(dateFilter)`). If `dateFilter === 'all'`, title is `GRADING LIST FOR ALL DATES`.
-- Add **Gaonhae Taekwondo logo** in the top-right corner, proportionate (≈18mm wide, height auto from aspect ratio), bottom-aligned with the header text baseline.
-  - Source: `public/lovable-uploads/gaonhae-logo-transparent.png` — preloaded into an `<img>`, drawn into a canvas to get a base64 PNG, then `doc.addImage(...)`.
-  - Loaded once before `doc.output()`.
+### Database (`grading_payment_submissions`)
 
-### 2. Per-group card header (in-body)
-- Remove the secondary `28/06/2026 · 10:00` subtitle line under each group title. Only `slot_title || fallback` remains as the bold group heading.
-- Drop the related `sub` rendering and the `g.header.slot_title ? 3.2 : 0` height fudge in the layout estimate.
+1. **Migration** — add columns and backfill:
+   - `ALTER TABLE public.grading_payment_submissions ADD COLUMN first_name text, ADD COLUMN last_name text;`
+   - Backfill: set `first_name = upper(split_part(student_name,' ',1))`, `last_name = upper(NULLIF(substring(student_name from position(' ' in student_name)+1), ''))` for existing rows.
+   - Make `first_name NOT NULL`; `last_name NOT NULL` (defaults to empty string for any remaining nulls before constraint).
+   - Drop `student_name` column.
 
-### 3. Footer (every page)
-After all groups render, iterate `1..doc.getNumberOfPages()` and draw:
-- **Center**: `Page X of N` (8pt, muted grey).
-- **Bottom-right**: `Generated DD/MM/YYYY HH:mm` (8pt, muted grey) — uses `formatDateTime(new Date())`.
-- **Bottom-left**: leave empty (or repeat doc title — choose empty for cleanliness).
-Footer baseline at `pageH - 6mm`.
+2. **Update RPCs** that currently SELECT/return `student_name` from this table (keep the returned field name `student_name` so consumers don't break):
+   - `get_grading_list_combined` (migration 20260517062227 / 20260517174940) — replace `upper(gps.student_name)` with `upper(coalesce(gps.first_name,'') || ' ' || coalesce(gps.last_name,''))` aliased as `student_name`.
+   - Any other function in `supabase/migrations` referencing `gps.student_name` (search: `grading_payment_submissions` + `student_name`) — same replacement.
 
-### 4. Color-code Branches and Status
+### Backend service (`src/services/gradingPaymentSubmissionService.ts`)
 
-Add deterministic hash → palette helpers (kept local to the PDF function):
+3. Update `CreateGradingPaymentSubmissionInput` and the insert call to use `first_name` + `last_name` instead of `student_name`.
+4. `safeName` for the storage path: derive from `${first_name}_${last_name}`.
+5. `PublicGradingSubmission` interface: keep exposing `student_name` (concatenated) for compatibility with `PublicGradingList`, or expose both — recommend expose both `first_name`, `last_name`, and derived `student_name` getter.
 
-- **Branch chip**: derive an HSL from `branch_name` (stable hash mod N over a curated palette of 10 light-fill / dark-text pairs). Render the branch cell as a small filled rectangle with the branch name in dark text. Use `autoTable`'s `didParseCell` hook to set `cell.styles.fillColor` and `textColor` for column index 1.
-- **Status chip**: fixed mapping
-  - `paid` → green fill `#DCFCE7`, text `#166534`
-  - `verified` → blue fill `#DBEAFE`, text `#1E40AF`
-  - `pending_verification` → amber fill `#FEF3C7`, text `#92400E`
-  - `rejected` → red fill `#FEE2E2`, text `#991B1B`
-  - default → grey fill `#F1F5F9`, text `#334155`
-  Applied via the same `didParseCell` hook on column index 4.
+### UI (`src/pages/public/PublicGradingPayment.tsx`)
 
-### 5. Layout adjustments
-- Bump `contentTop` slightly (header height grows with the logo): `contentTop = margin + 18`.
-- Footer reserves bottom space: `contentBottom = pageH - margin - 8`.
-- Remove the per-group subtitle height (`3.5mm`) from `estH`.
+6. Replace `studentName` state with `firstName` + `lastName`.
+7. Replace the single "Student Name *" input with two side-by-side fields ("First Name *", "Last Name *") in a 2-col grid (stacks on mobile). Auto-uppercase on input.
+8. `canSubmit` requires both trimmed.
+9. Submit passes `first_name` and `last_name` (uppercased) to the service.
+10. Email confirmation `studentName` prop becomes `${firstName} ${lastName}`.
 
-### Files
-```text
-src/pages/public/PublicGradingList.tsx   — handleDownloadPdf rewrite (header, footer,
-                                            logo, status/branch color hooks, drop
-                                            per-group subtitle)
-```
+### Consumers to verify (no expected changes)
 
-### Out of scope
-- No changes to on-screen table rendering (web UI keeps the existing group subtitle).
-- No new assets — uses existing `gaonhae-logo-transparent.png`.
+- `PublicGradingList.tsx` — continues to read `student_name` from RPC payload (now computed).
+- `check-grading-reminders` edge function — reads from `students` table (uses `student.name`), unaffected.
+- Other `student_name` usages elsewhere in the codebase refer to the `students` table (which already has `first_name`/`last_name`), not the submissions table — no change needed.
+
+### Notes
+
+- All names stored uppercase per project convention.
+- This is a destructive column drop; the backfill must run in the same migration before the drop.
