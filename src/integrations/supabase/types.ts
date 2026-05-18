@@ -6493,6 +6493,10 @@ export type Database = {
         Args: { p_id: string; p_slot_id: string }
         Returns: undefined
       }
+      admin_verify_grading_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: undefined
+      }
       calculate_annual_leave_entitlement: {
         Args: { employee_id: string; reference_year?: number }
         Returns: {
