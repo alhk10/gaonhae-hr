@@ -29,16 +29,17 @@ import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicGradingList,
-  getPublicGradingSlots,
+  getPublicGradingSlotsByDate,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
   verifyGradingSubmission,
   rejectGradingSubmission,
   type PublicGradingListRow,
-  type PublicGradingSlot,
+  type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
+const ADMIN_FULL_UNLOCK_PASSWORD = '39SeagullWalk';
 
 const statusVariant = (status: string) => {
   switch (status) {
