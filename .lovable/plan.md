@@ -1,9 +1,10 @@
-## Remove "Singapore MOM & CPF Compliant HR System" copy
+## Logo proportion + transparency fix
 
-Only matches are in `index.html` meta tags (no visible UI usage).
+**`src/pages/public/PublicGradingPayment.tsx`:**
+- Change logo `<img>` from `h-16 w-16` (forced square, distorts the wide logo) to `h-[67px] w-auto` (~5% bigger than 64px, natural aspect ratio).
+- Swap `src` to a new transparent-background version of the logo at `/lovable-uploads/gaonhae-logo-transparent.png`.
 
-**`index.html`:**
-- `<meta name="description">` → `"Gaonhae Taekwondo"` → replace with a neutral description: `"Gaonhae Taekwondo management system"`.
-- `<meta property="og:description">` → replace with `"Gaonhae Taekwondo management system"`.
+**Asset prep:**
+- Use `imagegen--edit_image` on the existing `/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png` with `transparent_background: true` to strip the white square and save as `public/lovable-uploads/gaonhae-logo-transparent.png`.
 
-No component or route changes needed.
+No other pages touched.
