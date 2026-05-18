@@ -129,8 +129,13 @@ const PublicGradingList: React.FC = () => {
   });
 
   const handleUnlock = () => {
-    if (pwInput === ADMIN_UNLOCK_PASSWORD) {
-      setEditMode(true);
+    if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
+      setUnlockLevel('full');
+      setUnlockOpen(false);
+      setPwInput('');
+      toast.success('Full edit mode enabled');
+    } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
+      setUnlockLevel('standard');
       setUnlockOpen(false);
       setPwInput('');
       toast.success('Edit mode enabled');
