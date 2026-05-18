@@ -204,18 +204,23 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
 
   const handleInputChange = (field: keyof CreateGradingSlotData, value: any) => {
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      
+      const updated: any = { ...prev, [field]: value };
+
+      // When grading products change, auto-derive belt_levels
+      if (field === 'grading_product_ids') {
+        updated.belt_levels = deriveBeltLevels(value as string[], gradingProducts);
+      }
+
       // Always auto-generate title when key fields change
-      if (['branch_id', 'grading_date', 'start_time', 'belt_levels'].includes(field)) {
+      if (['branch_id', 'grading_date', 'start_time', 'belt_levels', 'grading_product_ids'].includes(field as string)) {
         updated.title = generateDefaultTitle(
           field === 'branch_id' ? value : updated.branch_id,
           field === 'grading_date' ? value : updated.grading_date,
           field === 'start_time' ? value : updated.start_time || '',
-          field === 'belt_levels' ? value : updated.belt_levels || []
+          updated.belt_levels || []
         );
       }
-      
+
       return updated;
     });
   };
