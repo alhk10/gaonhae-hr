@@ -53,6 +53,8 @@ const statusVariant = (status: string) => {
 
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const verifiedBy = user?.employeeId || user?.email || 'system';
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [editMode, setEditMode] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -61,6 +63,10 @@ const PublicGradingList: React.FC = () => {
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<PublicGradingListRow | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list'],
