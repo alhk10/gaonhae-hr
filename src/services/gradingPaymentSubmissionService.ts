@@ -82,7 +82,8 @@ export const getPendingGradingSubmissions = async (branchId?: string): Promise<P
   let q = supabase
     .from('grading_payment_submissions')
     .select('*')
-    .eq('status', 'pending_verification')
+    .in('status', ['pending_verification', 'verified'])
+    .is('matched_invoice_id', null)
     .order('created_at', { ascending: false });
   if (branchId) q = q.eq('branch_id', branchId);
   const { data, error } = await q;
@@ -128,11 +129,17 @@ export const getPendingGradingSubmissionsCount = async (branchId?: string): Prom
   let q = supabase
     .from('grading_payment_submissions')
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending_verification');
+    .in('status', ['pending_verification', 'verified'])
+    .is('matched_invoice_id', null);
   if (branchId) q = q.eq('branch_id', branchId);
   const { count, error } = await q;
   if (error) return 0;
   return count || 0;
+};
+
+export const verifyGradingSubmission = async (submissionId: string, verifiedBy: string): Promise<void> => {
+  const { error } = await supabase.rpc('admin_verify_grading_submission' as any, { p_id: submissionId, p_verified_by: verifiedBy });
+  if (error) throw error;
 };
 
 export const findStudentMatches = async (submissionId: string): Promise<SubmissionStudentMatch[]> => {

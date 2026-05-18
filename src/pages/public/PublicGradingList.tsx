@@ -18,16 +18,22 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Lock, Unlock, Trash2, Pencil, ExternalLink, Download } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
+import { SignedImage } from '@/components/common/SignedMedia';
+import { resolveStorageUrl } from '@/utils/storageUrl';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicGradingList,
   getPublicGradingSlots,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
+  verifyGradingSubmission,
+  rejectGradingSubmission,
   type PublicGradingListRow,
   type PublicGradingSlot,
 } from '@/services/gradingPaymentSubmissionService';
@@ -47,6 +53,8 @@ const statusVariant = (status: string) => {
 
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const verifiedBy = user?.employeeId || user?.email || 'system';
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [editMode, setEditMode] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -55,6 +63,10 @@ const PublicGradingList: React.FC = () => {
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<PublicGradingListRow | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list'],
@@ -147,6 +159,45 @@ const PublicGradingList: React.FC = () => {
     } catch (e: any) {
       toast.error(e?.message || 'Failed to delete');
     }
+  };
+
+  const handleVerify = async (row: PublicGradingListRow) => {
+    if (!row.submission_id) return;
+    setBusyId(row.submission_id);
+    try {
+      await verifyGradingSubmission(row.submission_id, verifiedBy);
+      toast.success('Marked as verified');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to verify');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectRow?.submission_id) return;
+    setBusyId(rejectRow.submission_id);
+    try {
+      await rejectGradingSubmission(rejectRow.submission_id, rejectReason.trim() || 'Rejected', verifiedBy);
+      toast.success('Submission rejected');
+      setRejectRow(null);
+      setRejectReason('');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to reject');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openLightbox = async (storedUrl: string) => {
+    const resolved = await resolveStorageUrl(storedUrl);
+    setLightboxUrl(resolved || storedUrl);
   };
 
   const handleDownloadPdf = () => {
@@ -356,6 +407,8 @@ const PublicGradingList: React.FC = () => {
                           <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                         </>
                       )}
                     </TableRow>
@@ -381,17 +434,47 @@ const PublicGradingList: React.FC = () => {
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && r.proof_url ? (
-                                <a
-                                  href={r.proof_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 inline-flex"
-                                  title="View proof"
+                                <button
+                                  type="button"
+                                  onClick={() => openLightbox(r.proof_url!)}
+                                  className="block"
+                                  title="Click to enlarge"
                                 >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
+                                  <SignedImage
+                                    src={r.proof_url}
+                                    alt="Proof"
+                                    className="h-8 w-8 object-cover rounded border cursor-zoom-in hover:opacity-80"
+                                    fallback={<span className="text-muted-foreground text-xs">—</span>}
+                                  />
+                                </button>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerify(r)}
+                                  disabled={busyId === r.submission_id}
+                                  className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                                  title="Verify payment"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'submission' && r.paid_status === 'pending_verification' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRejectRow(r)}
+                                  disabled={busyId === r.submission_id}
+                                  className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                  title="Reject submission"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </button>
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
@@ -492,6 +575,38 @@ const PublicGradingList: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDeleteRow(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Proof lightbox */}
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Payment proof</DialogTitle>
+          </DialogHeader>
+          {lightboxUrl && (
+            <img src={lightboxUrl} alt="Payment proof" className="w-full h-auto rounded" />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reject submission?</DialogTitle>
+            <DialogDescription>{rejectRow?.student_name}</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectRow(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={busyId === rejectRow?.submission_id}>Reject</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
