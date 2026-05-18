@@ -43,6 +43,93 @@ export interface PublicGradingListRow {
   proof_url: string | null;
 }
 
+export interface PendingGradingSubmission {
+  id: string;
+  reference_number: string;
+  student_name: string;
+  email: string | null;
+  branch_id: string;
+  date_of_birth: string | null;
+  current_belt: string | null;
+  resolved_product_id: string | null;
+  resolved_grading_slot_id: string | null;
+  amount: number | null;
+  payment_method: string;
+  proof_url: string | null;
+  status: string;
+  matched_student_id: string | null;
+  matched_invoice_id: string | null;
+  notes: string | null;
+  created_at: string;
+  branch_name?: string | null;
+  product_name?: string | null;
+  slot_label?: string | null;
+}
+
+export interface SubmissionStudentMatch {
+  student_id: string;
+  student_number: string | null;
+  full_name: string;
+  email: string | null;
+  date_of_birth: string | null;
+  branch_id: string | null;
+  current_belt: string | null;
+  score: number;
+  reason: string | null;
+}
+
+export const getPendingGradingSubmissions = async (branchId?: string): Promise<PendingGradingSubmission[]> => {
+  let q = supabase
+    .from('grading_payment_submissions')
+    .select('*, branches:branch_id(name), products:resolved_product_id(name), grading_slots:resolved_grading_slot_id(grading_date, start_time, end_time, title, location)')
+    .eq('status', 'pending_verification')
+    .order('created_at', { ascending: false });
+  if (branchId) q = q.eq('branch_id', branchId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    ...r,
+    branch_name: r.branches?.name ?? null,
+    product_name: r.products?.name ?? null,
+    slot_label: r.grading_slots
+      ? `${r.grading_slots.grading_date}${r.grading_slots.start_time ? ' ' + String(r.grading_slots.start_time).slice(0,5) : ''}${r.grading_slots.title ? ' — ' + r.grading_slots.title : ''}`
+      : null,
+  }));
+};
+
+export const getPendingGradingSubmissionsCount = async (branchId?: string): Promise<number> => {
+  let q = supabase
+    .from('grading_payment_submissions')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending_verification');
+  if (branchId) q = q.eq('branch_id', branchId);
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+};
+
+export const findStudentMatches = async (submissionId: string): Promise<SubmissionStudentMatch[]> => {
+  const { data, error } = await supabase.rpc('find_grading_submission_student_matches' as any, { p_id: submissionId });
+  if (error) throw error;
+  return (data || []) as SubmissionStudentMatch[];
+};
+
+export const matchGradingSubmission = async (submissionId: string, studentId: string): Promise<void> => {
+  const { error } = await supabase.rpc('admin_match_grading_submission' as any, { p_id: submissionId, p_student_id: studentId });
+  if (error) throw error;
+};
+
+export const importGradingSubmission = async (submissionId: string, verifiedBy: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('admin_import_grading_submission' as any, { p_id: submissionId, p_verified_by: verifiedBy });
+  if (error) throw error;
+  return data as string;
+};
+
+export const rejectGradingSubmission = async (submissionId: string, reason: string, reviewedBy: string): Promise<void> => {
+  const { error } = await supabase.rpc('admin_reject_grading_submission' as any, { p_id: submissionId, p_reason: reason, p_reviewed_by: reviewedBy });
+  if (error) throw error;
+};
+
 export const adminUpdateGradingSubmissionSlot = async (id: string, slotId: string) => {
   const { error } = await supabase.rpc('admin_update_grading_submission_slot' as any, {
     p_id: id,
