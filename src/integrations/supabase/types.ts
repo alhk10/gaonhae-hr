@@ -6828,6 +6828,13 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_grading_payments: {
+        Args: { _rows: Json }
+        Returns: {
+          id: string
+          reference_number: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

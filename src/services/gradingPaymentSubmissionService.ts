@@ -352,10 +352,9 @@ export const submitGradingPayment = async (
     status: 'pending_verification' as const,
   }));
 
-  const { data, error } = await supabase
-    .from('grading_payment_submissions')
-    .insert(rows)
-    .select('id, reference_number');
+  const { data, error } = await supabase.rpc('submit_grading_payments', {
+    _rows: rows as any,
+  });
 
   if (error) throw error;
   const inserted = (data || []) as { id: string; reference_number: string }[];
