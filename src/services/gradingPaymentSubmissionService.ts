@@ -46,6 +46,8 @@ export interface PublicGradingListRow {
 export interface PendingGradingSubmission {
   id: string;
   reference_number: string;
+  first_name: string;
+  last_name: string;
   student_name: string;
   email: string | null;
   branch_id: string;
