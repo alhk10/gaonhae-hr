@@ -557,11 +557,14 @@ const PublicGradingList: React.FC = () => {
               <SelectValue placeholder="Select slot" />
             </SelectTrigger>
             <SelectContent>
-              {editableSlots.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {formatDate(s.grading_date)} {s.start_time?.slice(0, 5)} · {s.branch_name}
-                </SelectItem>
-              ))}
+              {editableSlots.map((s) => {
+                const fallback = `${formatDate(s.grading_date)} ${s.start_time?.slice(0, 5) || ''} · ${s.branch_name}`;
+                return (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.title || fallback}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <DialogFooter>
