@@ -66,7 +66,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
   useEffect(() => {
     if (open) {
       const initForm = async () => {
-        await loadBranches();
+        await Promise.all([loadBranches(), loadGradingProducts()]);
         if (duplicateSlot) {
           setFormData({
             branch_id: duplicateSlot.branch_id,
@@ -79,6 +79,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
             min_age: (duplicateSlot as any).min_age ?? undefined,
             max_age: (duplicateSlot as any).max_age ?? undefined,
             available_branch_ids: (duplicateSlot as any).available_branch_ids || [],
+            grading_product_ids: (duplicateSlot as any).grading_product_ids || [],
           });
         } else if (editSlot && mode === 'edit') {
           setFormData({
@@ -92,6 +93,7 @@ const GradingSlotDialog: React.FC<GradingSlotDialogProps> = ({
             min_age: (editSlot as any).min_age ?? undefined,
             max_age: (editSlot as any).max_age ?? undefined,
             available_branch_ids: (editSlot as any).available_branch_ids || [],
+            grading_product_ids: (editSlot as any).grading_product_ids || [],
           });
         } else {
           resetForm();
