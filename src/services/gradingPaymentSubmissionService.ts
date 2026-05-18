@@ -197,7 +197,8 @@ export interface SubmitGradingPaymentItem {
 }
 
 export interface SubmitGradingPaymentInput {
-  student_name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   branch_id: string;
   date_of_birth: string; // ISO yyyy-MM-dd
