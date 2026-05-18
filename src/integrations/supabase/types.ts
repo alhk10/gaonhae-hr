@@ -6460,12 +6460,25 @@ export type Database = {
       }
     }
     Functions: {
+      _next_invoice_number: { Args: never; Returns: string }
       add_password_to_history: {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
       admin_delete_grading_submission: {
         Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_import_grading_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: string
+      }
+      admin_match_grading_submission: {
+        Args: { p_id: string; p_student_id: string }
+        Returns: undefined
+      }
+      admin_reject_grading_submission: {
+        Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
       admin_reset_password: {
@@ -6509,6 +6522,20 @@ export type Database = {
       check_password_history: {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
+      }
+      find_grading_submission_student_matches: {
+        Args: { p_id: string }
+        Returns: {
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          full_name: string
+          reason: string
+          score: number
+          student_id: string
+          student_number: string
+        }[]
       }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
@@ -6780,6 +6807,8 @@ export type Database = {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
         Returns: string
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
