@@ -1,51 +1,31 @@
 ## Goal
 
-Add a **separate** "Summary PDF" download button on `/grading-list` that is only visible when unlocked with the full-admin password (`39SeagullWalk`, i.e. `unlockLevel === 'full'`). The existing Grading List PDF stays unchanged.
+Extend the Grading Summary PDF's "Amount collected by branch" table to also show GST (9% exclusive, added on top) and the unverified amount per branch.
 
 ## Scope
 
-Single file: `src/pages/public/PublicGradingList.tsx`.
-No service / RPC / DB changes — `PublicGradingListRow.amount` and `branch_name` are already available.
+Frontend only. File: `src/pages/public/PublicGradingList.tsx`, inside `handleDownloadSummaryPdf` — just the second `autoTable` block.
 
-## UI
+## Restructure Table 2
 
-In the toolbar Card (currently holds the date Select + Download icon), conditionally render a second icon button next to the existing one:
+Rename to: **Amount collected by branch**.
 
-- Visible only when `canDelete` (already === `unlockLevel === 'full'`).
-- Icon: `Download` (reuse), `title="Download Summary PDF"`, distinct `variant="secondary"` so it's visually distinguishable.
-- Disabled when `isLoading || groups.length === 0`.
+Add a leading label column and convert the single data row into four rows. Header becomes: `'' | <Branch 1> … <Branch n> | Total`.
 
-## New handler: `handleDownloadSummaryPdf`
+Rows (per branch, plus a Total column):
 
-Builds a small standalone PDF (A4, same margins/title style as the list PDF) containing two tables.
+1. **Subtotal (paid + verified)** — current sum (status `paid` or `verified`).
+2. **GST 9%** — `subtotal × 0.09` (exclusive, added on top).
+3. **Total (incl. GST)** — `subtotal × 1.09`.
+4. **Unverified (pending)** — sum of `amount` where status is `pending_verification` or `pending verification`.
 
-Branch list = unique `branch_name` from `filteredRows`, sorted alphabetically. Used as columns in both tables so colors stay consistent across them.
+All values formatted with `formatCurrency` (SGD). Label column left-aligned and bold; data cells centered. Total column and Total row both bolded with light-grey fill (mirroring Table 1).
 
-### Table 1 — Students per slot by branch
-
-- One row per group (same grouping used for the list).
-- Row label: `{slot_title} — {formatDate(date)} {HH:mm}`.
-- Columns: `Slot | <Branch 1> … <Branch n> | Total`.
-- Cell value = count of `g.items` matching that branch, **excluding `rejected`** (`r.paid_status.toLowerCase() !== 'rejected'`).
-- Footer row: `Total` with column sums; final cell = grand total ("Total number of students this grading").
-
-### Table 2 — Amount collected by branch
-
-- Columns: `<Branch 1> … <Branch n> | Total`.
-- Single data row: sum of `r.amount ?? 0` where `r.paid_status.toLowerCase()` is `paid` or `verified`, grouped by branch.
-- Format with `formatCurrency` (SGD default).
-
-### Styling
-
-- Reuse `autoTable` config (`fontSize: 7`, center/middle aligned, light alt rows).
-- Apply `branchColor()` to branch header cells in both tables so columns visually match the main list PDF.
-- Page-break safe: if Table 2 would overflow, `doc.addPage()` first.
-- Filename: `grading-summary-${dateFilter === 'all' ? 'all' : dateFilter}.pdf`.
-- Same footer pattern (page X of Y + generated timestamp).
+Branch header cells keep `branchColor()` fills so columns visually match Table 1 and the list PDF.
 
 ## Verification
 
-1. Without unlocking → only the original Download button shows.
-2. Unlock with `39SeagullWalk` → second Summary button appears; standard password unlock does **not** show it.
-3. Click Summary → PDF opens with the two tables; counts match the list (rejected excluded); amount row matches manual sum of paid + verified rows; branch colors match the list PDF.
-4. Lock again → Summary button disappears.
+1. `/grading-list` → unlock with `39SeagullWalk` → click Summary PDF.
+2. Confirm Table 2 shows 4 labelled rows, branch columns + Total, correct colors.
+3. Manual check: Subtotal × 0.09 == GST row; Subtotal + GST == Total row; Unverified row matches sum of pending submissions.
+4. Layout still fits A4 width; page-break still works.
