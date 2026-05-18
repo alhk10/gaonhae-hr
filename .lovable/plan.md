@@ -1,9 +1,9 @@
-## Public Grading Payment page polish
+## Remove "Singapore MOM & CPF Compliant HR System" copy
 
-File: `src/pages/public/PublicGradingPayment.tsx`
+Only matches are in `index.html` meta tags (no visible UI usage).
 
-1. **Logo above header**: Add `<img src="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" alt="Gaonhae Taekwondo" className="h-16 w-16 mx-auto mb-3" />` above the "Grading Payment" title.
-2. **Subtitle copy**: Change "Pay your grading fee securely" → "Pay your Gaonhae Taekwondo grading fee securely".
-3. **Footer**: Add a centered footer below the form: `Gaonhae Taekwondo LLP | www.gaonhaetaekwondo.com` using `text-xs text-muted-foreground text-center mt-6`.
+**`index.html`:**
+- `<meta name="description">` → `"Gaonhae Taekwondo"` → replace with a neutral description: `"Gaonhae Taekwondo management system"`.
+- `<meta property="og:description">` → replace with `"Gaonhae Taekwondo management system"`.
 
-No logic, routing, or backend changes.
+No component or route changes needed.
