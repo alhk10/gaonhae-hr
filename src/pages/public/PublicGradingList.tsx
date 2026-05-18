@@ -812,6 +812,15 @@ const PublicGradingList: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {editMode && (
+                        <TableHead className="h-7 w-8 px-2">
+                          <Checkbox
+                            checked={allSelectedInSlot(g.items)}
+                            onCheckedChange={() => toggleSlotAll(g.items)}
+                            aria-label="Select all in slot"
+                          />
+                        </TableHead>
+                      )}
                       <TableHead className="h-7 w-8 px-2 text-xs">#</TableHead>
                       <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
                       <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
@@ -821,6 +830,7 @@ const PublicGradingList: React.FC = () => {
                         <>
                           <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
