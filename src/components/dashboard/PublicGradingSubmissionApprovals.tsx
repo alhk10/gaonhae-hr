@@ -83,6 +83,21 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     enabled: !!matchingSub && searchTerm.trim().length >= 2,
   });
 
+  React.useEffect(() => {
+    if (matchingSub) {
+      setNewStudent({
+        first_name: matchingSub.first_name || '',
+        last_name: matchingSub.last_name || '',
+        date_of_birth: matchingSub.date_of_birth || '',
+        email: matchingSub.email || '',
+        branch_id: matchingSub.branch_id || '',
+        gender: '',
+        current_belt: matchingSub.current_belt || '',
+      });
+      setShowCreate(false);
+    }
+  }, [matchingSub]);
+
   const handleMatch = async (studentId: string) => {
     if (!matchingSub) return;
     setBusyId(matchingSub.id);
@@ -96,6 +111,50 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       toast.error(e.message || 'Failed to match student');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleCreateAndMatch = async () => {
+    if (!matchingSub) return;
+    const { first_name, last_name, date_of_birth, email, branch_id, gender, current_belt } = newStudent;
+    if (!first_name.trim() || !last_name.trim() || !date_of_birth || !email.trim() || !branch_id) {
+      toast.error('First name, last name, DOB, email and branch are required');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error('Invalid email');
+      return;
+    }
+    if (new Date(date_of_birth) > new Date()) {
+      toast.error('DOB cannot be in the future');
+      return;
+    }
+    const fn = first_name.trim().toUpperCase();
+    const ln = last_name.trim().toUpperCase();
+    setCreating(true);
+    try {
+      const student = await createStudent({
+        first_name: fn,
+        last_name: ln,
+        certificate_name: `${fn} ${ln}`,
+        display_name: `${fn} ${ln}`,
+        date_of_birth,
+        email: email.trim(),
+        branch_id,
+        gender: gender || undefined,
+        current_belt: current_belt || undefined,
+        status: 'active',
+      });
+      await matchGradingSubmission(matchingSub.id, student.id);
+      toast.success('Student created and matched');
+      setMatchingSub(null);
+      setSearchTerm('');
+      setShowCreate(false);
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create student');
+    } finally {
+      setCreating(false);
     }
   };
 
