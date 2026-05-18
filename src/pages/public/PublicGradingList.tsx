@@ -98,10 +98,17 @@ const PublicGradingList: React.FC = () => {
     }
   }, [dateOptions, dateFilter]);
 
-  const filteredRows = useMemo(
-    () => (dateFilter === 'all' ? rows : rows.filter((r) => r.grading_date === dateFilter)),
-    [rows, dateFilter],
-  );
+  const branchOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) set.add(r.branch_name || '—');
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    let res = dateFilter === 'all' ? rows : rows.filter((r) => r.grading_date === dateFilter);
+    if (branchFilter !== 'all') res = res.filter((r) => (r.branch_name || '—') === branchFilter);
+    return res;
+  }, [rows, dateFilter, branchFilter]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { header: PublicGradingListRow; items: PublicGradingListRow[] }>();
