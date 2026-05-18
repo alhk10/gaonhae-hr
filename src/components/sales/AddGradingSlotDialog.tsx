@@ -17,6 +17,7 @@ import { createGradingSlot, updateGradingSlot, type CreateGradingSlotData, type 
 import { Loader2, ChevronDown } from 'lucide-react';
 import { BELT_LEVELS } from '@/constants/beltLevels';
 import { formatDate } from '@/utils/dateFormat';
+import { deriveBeltLevels, type NamedGradingProduct } from '@/utils/gradingProductBelts';
 
 interface GradingSlotDialogProps {
   trigger: React.ReactNode;
