@@ -501,7 +501,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && (
+                              {canDelete && r.source === 'submission' && (
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteRow(r)}
