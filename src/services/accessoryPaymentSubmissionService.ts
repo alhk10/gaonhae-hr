@@ -18,6 +18,10 @@ export interface AccessoryItem {
   qty: number;
   unit_price: number;
   line_total: number;
+  bundle_key?: string;
+  bundle_name?: string;
+  size?: string;
+  color?: string;
 }
 
 export interface AccessorySubmissionRow {
