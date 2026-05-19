@@ -163,7 +163,7 @@ const PublicGradingList: React.FC = () => {
     });
   }, [filteredRows]);
 
-  // Slots for the edit-slot dialog (all branches, by the row's grading_date)
+  // Slots for the slot-only edit dialog (legacy submission Pencil)
   const { data: editableSlots = [] } = useQuery({
     queryKey: ['public-grading-slots-by-date', slotEditRow?.grading_date],
     queryFn: () =>
@@ -172,6 +172,31 @@ const PublicGradingList: React.FC = () => {
         : Promise.resolve([] as PublicGradingSlotByDate[]),
     enabled: !!slotEditRow?.grading_date,
   });
+
+  // Slots for the row edit dialog (by the editRow's grading_date)
+  const { data: editRowSlots = [] } = useQuery({
+    queryKey: ['public-grading-slots-by-date', editRow?.grading_date],
+    queryFn: () =>
+      editRow?.grading_date
+        ? getPublicGradingSlotsByDate(editRow.grading_date)
+        : Promise.resolve([] as PublicGradingSlotByDate[]),
+    enabled: !!editRow?.grading_date,
+  });
+
+  // Branches for the row edit + mass edit dialogs
+  const { data: publicBranches = [] } = useQuery({
+    queryKey: ['public-branches'],
+    queryFn: getPublicBranches,
+    enabled: editMode,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // For mass-edit slot select: slots for the (single) shared grading_date
+  const massSelectionDates = useMemo(() => {
+    const dates = new Set<string>();
+    return dates;
+  }, []);
+
 
   const handleUnlock = () => {
     if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
