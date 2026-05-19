@@ -274,7 +274,7 @@ const PublicGradingList: React.FC = () => {
 
   const handleDownloadPdf = async () => {
     if (groups.length === 0) return;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const margin = 10;
