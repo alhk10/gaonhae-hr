@@ -948,7 +948,7 @@ const PublicGradingList: React.FC = () => {
                       <TableRow key={i} className="odd:bg-muted/40">
                         {editMode && (
                           <TableCell className="px-2 py-0.5">
-                            {r.source === 'registration' && r.grading_date && r.current_belt ? (
+                            {isCertEligible(r) ? (
                               <Checkbox
                                 checked={selectedCerts.has(rowCertKey(r))}
                                 onCheckedChange={() => toggleCert(r)}
