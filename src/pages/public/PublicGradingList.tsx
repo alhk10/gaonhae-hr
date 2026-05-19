@@ -887,6 +887,7 @@ const PublicGradingList: React.FC = () => {
     const inputs: GradingCertificateInput[] = [];
     let skipped = 0;
     for (const r of selectedRows) {
+      if (!isCertEligible(r)) { skipped++; continue; }
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
       else { skipped++; continue; }
@@ -898,6 +899,7 @@ const PublicGradingList: React.FC = () => {
         }
       }
     }
+
     if (inputs.length === 0) {
       toast.error('No eligible rows selected');
       return;
