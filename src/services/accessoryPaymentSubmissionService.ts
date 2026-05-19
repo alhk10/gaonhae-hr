@@ -117,7 +117,7 @@ export const submitAccessoryPayment = async (
     .single();
 
   if (error) throw error;
-  return data as { id: string; reference_number: string };
+  return data as unknown as { id: string; reference_number: string };
 };
 
 export const verifyAccessorySubmission = async (
