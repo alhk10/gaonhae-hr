@@ -1,47 +1,94 @@
-## Goal
-On `/grading-list`, allow unlocked admins (either password) to set each registration's **Result** inline and only show the certificate download once the result qualifies. Selection checkboxes also become result-driven.
+## Public Grading List — Mass Edit, Per-Row Edit Dialog, Checkbox on All Rows
 
-## Database / RPC
-Update the `get_public_grading_list` SQL function to also return:
-- `registration_id uuid` (gr.id, NULL for submission rows)
-- `result text` (gr.result, NULL for submission rows)
+### 1. Database
 
-No schema change to `grading_registrations` — `result` already exists. Allowed values used by the UI: `pass`, `fail`, `double`, `confirmed` (free-text column, so no constraint needed; existing scorecard auto-compute still writes `pass`/`fail`).
+**Schema changes**:
+- `grading_registrations.display_name text NULL` — overrides the row's display name on the Grading List only. Does NOT touch `students.name`.
+- `students.certificate_name text NULL` — name printed on certificates for this student. Persisted on the student record so it's reused across all of their grading registrations.
 
-A small migration creates the updated SQL function and an `admin_update_grading_result(p_registration_id uuid, p_result text)` SECURITY DEFINER function so the unauthenticated public page can write the result (mirroring the existing `admin_update_grading_submission_slot` pattern). It also sets `result_manual_override = true` so the auto-compute doesn't overwrite it.
+**Certificate-name default chain** — when no explicit override has been chosen:
+1. If the grading registration is matched to a `students` row AND `students.certificate_name` is set → use it.
+2. Else if matched to a student → use `TRIM(first_name || ' ' || last_name)`.
+3. Else fall back to `students.name`, then finally `gr.display_name`/`student_name` text.
 
-## Frontend (`src/pages/public/PublicGradingList.tsx`)
-1. **Types/service** — extend `PublicGradingListRow` with `registration_id: string | null` and `result: string | null`; add `adminUpdateGradingResult(registration_id, result)` in `gradingPaymentSubmissionService.ts`.
+**RPCs** (new, `SECURITY DEFINER`):
+- `admin_update_grading_registration_slot(p_registration_id, p_slot_id)`
+- `admin_update_grading_registration_branch(p_registration_id, p_branch_id)`
+- `admin_update_grading_registration_display_name(p_registration_id, p_display_name)` — empty string clears.
+- `admin_update_student_certificate_name(p_student_id, p_certificate_name)` — empty string clears.
 
-2. **Result dropdown column** (registration rows only, in editMode under either password):
-   - New `<TableHead>` "Result" placed immediately before the inline action buttons.
-   - Compact Select with options `Double / Pass / Fail / Confirmed` (lowercase values). Empty = unset.
-   - `onValueChange` → calls service → optimistic invalidate of `public-grading-list`.
-   - For submission rows render `—`.
+Reuse: `admin_update_grading_submission_slot`, `admin_update_grading_result`.
 
-3. **Certificate button gating**:
-   - Show the inline `<Award>` button only when `r.result === 'pass'` OR `r.result === 'double'`.
-   - When `result === 'double'`, render two `<Award>` buttons side-by-side:
-     - Button 1 → certificate for `current_belt → target_belt` (current behaviour).
-     - Button 2 → certificate for `target_belt → nextBelt(target_belt)` using the existing `beltLevels` helper to look up the next belt. Disabled with tooltip "No next belt" if none.
-   - `rowToCertInput` gains an optional belt override so the second button can pass the next belt as `beltAchieved`.
+**`get_public_grading_list`** — extend return shape with:
+- `student_id uuid`, `branch_id uuid`
+- `student_name` resolves to `COALESCE(gr.display_name, students.name)` for registrations
+- `certificate_name text` — resolved via the default chain above. NULL for submissions
+- `first_name`, `last_name` (so the dialog can show what the default would be even when `certificate_name` is already overridden)
 
-4. **Checkbox gating** — change `eligibleSlotRows` and the per-row checkbox condition from `r.source==='registration' && r.grading_date && r.current_belt` to additionally require `r.result === 'pass' || r.result === 'double'`. Already on the row; no layout move needed.
+### 2. Service layer (`gradingPaymentSubmissionService.ts`)
 
-5. **Bulk certificate selection** — for `result==='double'` selections, emit two `GradingCertificateInput` entries (current→target and target→next) into the bulk PDF generator.
+Extend `PublicGradingListRow` with `student_id`, `branch_id`, `certificate_name`, `first_name`, `last_name`. Add:
+- `adminUpdateGradingRegistrationSlot`
+- `adminUpdateGradingRegistrationBranch`
+- `adminUpdateGradingRegistrationDisplayName`
+- `adminUpdateStudentCertificateName`
 
-6. **PDF (left/right column layout)** — add the Result column to the per-slot table body. No structural changes to the page-splitting logic; it already remeasures from `body` rows.
+### 3. Per-row Edit dialog (Pencil on every row)
 
-## Out of scope
-- No change to the unlock UI itself (both passwords already grant `editMode`; `canDelete` stays full-only and continues to control trash + summary PDF only).
-- No change to scorecard auto-compute or `result_manual_override` semantics beyond the new manual write path.
+Replace the slot-only Pencil with a unified `RowEditDialog` available on **both registrations and submissions**.
 
-## Technical notes
+Fields (registration rows):
+- **Display name** (text) — both passwords. Writes to `grading_registrations.display_name`. Blank = clear override. Does NOT touch the student record.
+- **Certificate name** (text) — both passwords. Prefills with `r.certificate_name` (already resolved by the RPC: explicit student override → `first_name + last_name` → `students.name`). If the registration is matched to a student, Save writes to `students.certificate_name` (shared across all of that student's grading registrations). Blank = clear the student override (next load falls back to first+last). If the registration has no student match, this field is disabled with a tooltip.
+- **Branch**, **Slot**, **Result** — as previously planned.
+
+Submission rows: dialog shows Branch + Slot only.
+
+Save runs one RPC per changed field, then invalidates `public-grading-list`. The inline Result dropdown remains as a quick-edit.
+
+### 4. Mass Edit button (beside Mass Certificates)
+
+`<Pencil/> Edit (N)` in the edit-mode header. `MassEditDialog` with optional toggled fields:
+- **Result** — applied to registration rows only.
+- **Slot** — limited to slots on selected rows' grading_date(s); disabled with hint if selection spans multiple dates.
+- **Branch** — all branches.
+
+Iterates selected rows, calls the relevant per-row RPC by `source`, reports `Updated X / Skipped Y`.
+
+### 5. Checkbox on all rows
+
+- Checkbox renders for every row in edit mode (drop the `isCertEligible` gate).
+- "Select all in slot" toggles every row in the group.
+- `handleDownloadSelectedCertificates` filters internally to pass/double rows and reports the skipped count.
+
+### 6. Certificate generation
+
+`rowToCertInput` uses `r.certificate_name` directly (already resolved by the RPC default chain). Filename helper uses the same string.
+
+### 7. Out of scope
+
+- No change to PDF page layout, unlock UI, or scorecard auto-compute.
+- Display-name override is per-registration; certificate-name override is per-student (shared across all their gradings).
+- No propagation of either name to invoices, payments, or other records.
+
+### Technical notes
+
 ```text
-Row (registration, editMode):
-[☐?] # Branch Student Belt Status [Amount] [Proof] [Result ▼] [✓] [✗] [✎] [🗑] [🏅] [🏅²]
-                                                                            └ only when result ∈ {pass,double}
-                                                                              two icons only when result==='double'
-```
+Certificate name default (resolved server-side in get_public_grading_list):
+  students.certificate_name
+    ↳ TRIM(students.first_name || ' ' || students.last_name)
+        ↳ students.name
+            ↳ gr.display_name / row student_name text
 
-Next-belt lookup uses `src/constants/beltLevels.ts` (`getNextBelt(belt)` or equivalent — verified to exist in the project).
+RowEditDialog (registration)                    MassEditDialog (N rows)
+┌──────────────────────────────────┐            ┌──────────────────────────┐
+│ Display name [__________________]│            │ ☐ Change Result  [▼]     │
+│ Cert. name   [__________________]│            │ ☐ Change Slot    [▼]     │
+│ Branch       [▼ Balmoral]        │            │ ☐ Change Branch  [▼]     │
+│ Slot         [▼ 10:00]           │            │       [Cancel][Apply to N]│
+│ Result       [▼ Pass]            │            └──────────────────────────┘
+│                  [Cancel][Save]  │
+└──────────────────────────────────┘
+Display name → grading_registrations.display_name (this registration only)
+Cert. name   → students.certificate_name           (all registrations for this student)
+```
