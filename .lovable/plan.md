@@ -1,29 +1,42 @@
 ## Goal
 
-Use a Singapore-specific signature image on the Grade Certificate PDF for SG branches, replacing the AU "Master Alvin Lee / Examiner" signature.
+Suppress certificate generation (inline Award button + bulk download) for grading rows whose product is one of the non-certificate types.
 
-## Scope
+## Excluded products
 
-Visual change to the certificate PDF only. No DB, RPC, or list/dialog changes.
+Match `product_name` (case-insensitive, trimmed) against:
 
-## Changes
+- `Stage 1 - 3`
+- `Stage 4 - 10`
+- `Stage 11-26`
+- `Provisional Pass Confirmation Grading`
 
-1. **Add SG signature asset**
-   - Copy uploaded `image-907.png` (Kang Hyeonman / Headmaster — text is already baked into the image) to `src/assets/certificates/sg/master-signature.png`.
+These are the exact names already in the `products` table.
 
-2. **`src/utils/gradingCertificatePDFGenerator.ts`**
-   - Import the SG signature alongside the existing AU one.
-   - Extend `GradingCertificateInput` with an optional `branchCountry?: string | null`.
-   - In `drawCertificatePage`, pick the signature based on `branchCountry`:
-     - `'SG' | 'Singapore'` (case-insensitive) → SG signature (PNG).
-     - Otherwise → existing AU signature.
-   - Keep `SIG_NATIVE` aspect-ratio logic; if the SG image has a different native aspect ratio, use a separate constant so it isn't stretched. (SG asset is roughly 456×280; AU stays 456×466.)
-   - No standalone "Master Alvin Lee / Examiner" text is drawn by the generator today — that text is baked into the AU image. The SG image likewise has its own "Kang Hyeonman / Headmaster" baked in, so swapping the image alone satisfies "remove Master Alvin Lee and Examiner text".
+## Change
 
-3. **`src/pages/public/PublicGradingList.tsx`**
-   - In `rowToCertInput`, pass `branchCountry: r.branch_country` through to the generator input. No other call-site changes needed.
+**`src/pages/public/PublicGradingList.tsx`** — extend `isCertEligible` (lines 904-907):
+
+```ts
+const NON_CERT_PRODUCTS = new Set([
+  'stage 1 - 3',
+  'stage 4 - 10',
+  'stage 11-26',
+  'provisional pass confirmation grading',
+]);
+
+const isCertEligible = (r: PublicGradingListRow): boolean =>
+  !!r.grading_date
+  && !!r.current_belt
+  && (r.result === 'pass' || r.result === 'double')
+  && !NON_CERT_PRODUCTS.has((r.product_name ?? '').trim().toLowerCase());
+```
+
+This single gate already controls:
+- The inline Award icon (line 1273 `{isCertEligible(r) && ...}`)
+- The bulk "Certificates (N)" download (line 967 skips non-eligible rows)
+- The per-row certificate checkbox visibility (also gated by `isCertEligible`)
 
 ## Out of scope
 
-- Header logo, Kukkiwon / World Taekwondo logos, "In Affiliation With" text, scorecard page.
-- Edit dialog, mass edit, results refresh, certificate eligibility — already addressed in prior turns.
+No DB / RPC / signature / dialog changes. Pass/Double result handling for other products is unchanged.

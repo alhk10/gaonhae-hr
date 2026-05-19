@@ -901,10 +901,21 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
-  const isCertEligible = (r: PublicGradingListRow): boolean =>
-    !!r.grading_date
-    && !!r.current_belt
-    && (r.result === 'pass' || r.result === 'double');
+  const NON_CERT_TITLE_KEYWORDS = [
+    'stage 1 - 3',
+    'stage 4 - 10',
+    'stage 11-26',
+    'stage 11 - 26',
+    'provisional pass confirmation',
+  ];
+
+  const isCertEligible = (r: PublicGradingListRow): boolean => {
+    if (!r.grading_date || !r.current_belt) return false;
+    if (r.result !== 'pass' && r.result !== 'double') return false;
+    const title = (r.slot_title ?? '').trim().toLowerCase();
+    if (NON_CERT_TITLE_KEYWORDS.some((kw) => title.includes(kw))) return false;
+    return true;
+  };
 
   const toggleCert = (r: PublicGradingListRow) => {
     const key = rowCertKey(r);
