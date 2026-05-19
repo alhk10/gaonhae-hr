@@ -1067,15 +1067,30 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'registration' && r.grading_date && r.current_belt && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDownloadCertificate(r)}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Download certificate"
-                                >
-                                  <Award className="h-3.5 w-3.5" />
-                                </button>
+                              {isCertEligible(r) && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadCertificate(r)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title={`Download certificate (${r.current_belt}${r.target_belt ? ` → ${r.target_belt}` : ''})`}
+                                  >
+                                    <Award className="h-3.5 w-3.5" />
+                                  </button>
+                                  {r.result === 'double' && r.target_belt && (() => {
+                                    const next = getNextBeltLevel(r.target_belt);
+                                    return next ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadCertificate(r, next)}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        title={`Download certificate (${r.target_belt} → ${next})`}
+                                      >
+                                        <Award className="h-3.5 w-3.5" />
+                                      </button>
+                                    ) : null;
+                                  })()}
+                                </div>
                               )}
                             </TableCell>
                           </>
