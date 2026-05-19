@@ -277,10 +277,15 @@ const PublicGradingList: React.FC = () => {
   };
 
   const handleResultChange = async (r: PublicGradingListRow, next: string) => {
-    if (!r.registration_id) return;
     const value = next === '__clear__' ? null : next;
     try {
-      await adminUpdateGradingResult(r.registration_id, value);
+      if (r.source === 'registration' && r.registration_id) {
+        await adminUpdateGradingResult(r.registration_id, value);
+      } else if (r.source === 'submission' && r.submission_id) {
+        await adminUpdateGradingSubmissionResult(r.submission_id, value);
+      } else {
+        return;
+      }
       toast.success('Result updated');
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
     } catch (e: any) {
@@ -1195,7 +1200,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'registration' && r.registration_id ? (
+                              {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
