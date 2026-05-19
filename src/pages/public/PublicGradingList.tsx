@@ -282,6 +282,66 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const openRowEdit = (r: PublicGradingListRow) => {
+    setEditRow(r);
+    setEditForm({
+      display_name: r.source === 'registration' ? (r.student_name || '') : '',
+      certificate_name: r.certificate_name || '',
+      branch_id: r.branch_id || '',
+      slot_id: r.slot_id || '',
+      result: r.result || '',
+    });
+  };
+
+  const handleRowEditSave = async () => {
+    if (!editRow) return;
+    setSavingEdit(true);
+    try {
+      const ops: Promise<unknown>[] = [];
+      if (editRow.source === 'registration' && editRow.registration_id) {
+        if ((editRow.student_name || '') !== editForm.display_name) {
+          ops.push(adminUpdateGradingRegistrationDisplayName(editRow.registration_id, editForm.display_name));
+        }
+        if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
+          ops.push(adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id));
+        }
+        if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
+          ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
+        }
+        const currentResult = editRow.result || '';
+        if (editForm.result !== currentResult) {
+          ops.push(adminUpdateGradingResult(editRow.registration_id, editForm.result || null));
+        }
+        if (editRow.student_id && (editRow.certificate_name || '') !== editForm.certificate_name) {
+          ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
+        }
+      } else if (editRow.source === 'submission' && editRow.submission_id) {
+        if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
+          ops.push(adminUpdateGradingSubmissionSlot(editRow.submission_id, editForm.slot_id));
+        }
+        // Branch on submissions is not editable via dedicated RPC; skip.
+      }
+      if (ops.length === 0) {
+        toast.info('Nothing to update');
+      } else {
+        await Promise.all(ops);
+        toast.success('Updated');
+        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      }
+      setEditRow(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const openMassEdit = () => {
+    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    setMassEditOpen(true);
+  };
+
+
   const openLightbox = async (storedUrl: string) => {
     const resolved = await resolveStorageUrl(storedUrl);
     setLightboxUrl(resolved || storedUrl);
