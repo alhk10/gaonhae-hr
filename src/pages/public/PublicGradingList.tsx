@@ -901,10 +901,18 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const NON_CERT_PRODUCTS = new Set([
+    'stage 1 - 3',
+    'stage 4 - 10',
+    'stage 11-26',
+    'provisional pass confirmation grading',
+  ]);
+
   const isCertEligible = (r: PublicGradingListRow): boolean =>
     !!r.grading_date
     && !!r.current_belt
-    && (r.result === 'pass' || r.result === 'double');
+    && (r.result === 'pass' || r.result === 'double')
+    && !NON_CERT_PRODUCTS.has((r.product_name ?? '').trim().toLowerCase());
 
   const toggleCert = (r: PublicGradingListRow) => {
     const key = rowCertKey(r);
