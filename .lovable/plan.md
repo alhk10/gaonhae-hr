@@ -1,35 +1,74 @@
-## Goal
+# Accessories Payment Module
 
-Remove all test grading data from the public Grading List and related database tables.
+Public self-service payment flow for the "Protection Guards & Accessories" product category, mirroring the existing `/pay` (grading) flow.
 
-## Scope (what counts as "test data")
+## Scope
 
-All 17 rows in `grading_payment_submissions` — every record has a `TEST…` name (TEST TEST, TEST 3, TEST5 TEST5, TEST6 TEST6, … TEST 14) and none are linked to a real invoice (`matched_invoice_id` is null on every row). All were created during the recent public-submission testing.
+### 1. Public payment page — `/accessories`
+Mirror of `PublicGradingPayment.tsx`. User keys in:
+- First name, Last name (auto-uppercased)
+- Branch (dropdown from `get_public_branches`)
+- Date of birth (DD/MM/YYYY via dateFormat helpers)
+- Current belt — **optional** dropdown
+- Products: select **one or more** items from the **Protection Guards & Accessories** category (id `117cdc13-1296-4651-bc4b-f0449873cbf1`), with qty per item. Prices use `price_rules` branch overrides. Total auto-calculated.
+- Payment method: PayNow QR / Bank Transfer (same `invoice_templates` lookup, same `PaymentInfoDisplay` blue/purple cards)
+- Proof-of-payment upload — image/* only, no PDF (per global rule)
 
-```
-17 grading_payment_submissions (refs GP-202605-0001 … GP-202605-0017)
-```
+On submit → row in new `accessory_payment_submissions` with `status='pending_verification'`, reference `AP-YYYYMM-####`, proof stored in existing `payment-proofs` bucket.
 
-The 43 rows in `grading_registrations` are real student data (LUCERO, HII, BYEON, SONG, …) from the April 2026 Morley grading and are **not** touched.
+### 2. Admin/public list page — `/accessories-list`
+Mirror of `/grading-list` (PublicGradingList.tsx) layout & approval flow. Table of submissions:
+- Columns: Reference, Date, Branch, Student name, Products (summary), Amount, Paid status (pending / verified / rejected), Match badge
+- Two top-of-page dropdown filters: **Branch** (default "All branches") and **Product** (default "All products")
+- Row actions follow the same approval pattern as `/pay` + `/grading-list`:
+  - View proof
+  - **Verify** → on click, auto-match by `(UPPER(first+last), date_of_birth, branch_id)`:
+    - Match found → create one **combined invoice** under that student with all line items (branch-priced), mark paid, link `proof_url`, set `matched_student_id` + `matched_invoice_id`. Status → `verified`.
+    - No match → status stays `pending_verification`, row shows "No matching profile — **Suggest Add Student**" CTA (same UX as grading-list unmatched flow) which opens the public `/register` form prefilled with name / branch / DOB.
+  - **Reject** (with reason)
 
-## Changes
+### 3. Auto-invoice on match
+Single combined invoice per submission:
+- Line items = submitted products × qty at branch-overridden prices
+- Marked paid, payment method = submission.payment_method, proof_url linked
+- Stored on submission: `matched_student_id`, `matched_invoice_id`
 
-Single migration that runs inside one transaction:
+## Technical Details
 
-1. **Delete proof-of-payment files** from the storage bucket for each submission's `proof_url` (best-effort via `storage.objects` rows matched on the file path).
-2. **Delete** all 17 rows from `public.grading_payment_submissions`.
-3. **Reset** the GP reference sequence for the current YYYYMM so the next public submission starts again at `GP-202605-0001` (handled naturally — the generator computes `MAX(...) + 1`, so no extra action needed once rows are gone).
+### New DB objects
+- Table `public.accessory_payment_submissions`:
+  - `reference_number` (AP-YYYYMM-####)
+  - `first_name`, `last_name`, `display_name`
+  - `branch_id`, `date_of_birth`, `current_belt` (nullable)
+  - `email` (nullable)
+  - `items jsonb` — `[{product_id, name, qty, unit_price, line_total}]`
+  - `amount`, `payment_method`, `proof_url`
+  - `matched_student_id`, `matched_invoice_id`
+  - `status` (pending_verification | verified | rejected), `notes`, `result`
+  - `reviewed_by`, `reviewed_at`, created_at/updated_at
+- Trigger + `generate_accessory_payment_reference()` (same pattern as grading)
+- RLS:
+  - Anonymous INSERT allowed (public submission)
+  - SELECT/UPDATE only for `has_branch_access(branch_id)` or `superadmin`
+- RPCs:
+  - `get_public_accessory_products(p_branch_id text)` → active products in category `117cdc13…` with branch-priced overrides
+  - `admin_verify_accessory_submission(p_id uuid, p_verified_by text)` (mirrors grading verify)
 
-Nothing else is connected:
+### New code
+- `src/pages/public/PublicAccessoriesPayment.tsx`
+- `src/pages/public/PublicAccessoriesList.tsx`
+- `src/services/accessoryPaymentSubmissionService.ts` (submit, list, verify with auto-match → combined invoice, reject)
+- Routes added to `src/App.tsx`: `/accessories`, `/accessories-list`
 
-- No `invoices` / `invoice_items` reference these submissions.
-- No `payments` rows (submissions are pre-payment proof uploads).
-- `grading_slots` are reused by future real bookings — kept as-is.
-- `grading_registrations` left untouched.
+### Reuses
+- `payment-proofs` storage bucket
+- `invoice_templates` for PayNow QR / bank info
+- `PaymentInfoDisplay`, `ProofOfPaymentUpload`
+- `productService` + `priceRulesService` for branch-priced product fetch
+- Existing invoice creation service for matched-student combined invoice
+- `/register` for the "Suggest Add Student" prefilled flow
 
-## Out of scope
-
-- Grading slots, products, real registrations, invoices, payments.
-- UI/code changes — pure data cleanup.
-
-After approval I will issue the migration to delete the 17 submission rows (and their storage objects). Confirm to proceed, or tell me if registrations / slots should also be cleared.
+## Out of Scope
+- Editing/cancelling submissions by the public user
+- Stock decrement (can layer later)
+- Push/email notifications on submission
