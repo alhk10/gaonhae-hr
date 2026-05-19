@@ -1359,6 +1359,182 @@ const PublicGradingList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Row edit dialog (registrations + submissions) */}
+      <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit {editRow?.source === 'registration' ? 'registration' : 'submission'}</DialogTitle>
+            <DialogDescription className="truncate">{editRow?.student_name}</DialogDescription>
+          </DialogHeader>
+          {editRow && (
+            <div className="space-y-3">
+              {editRow.source === 'registration' && (
+                <>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Display name (this registration only)</label>
+                    <Input
+                      value={editForm.display_name}
+                      onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
+                      placeholder="Display name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Certificate name (saved to student)</label>
+                    <Input
+                      value={editForm.certificate_name}
+                      onChange={(e) => setEditForm((f) => ({ ...f, certificate_name: e.target.value }))}
+                      placeholder={
+                        (editRow.first_name || editRow.last_name)
+                          ? `${editRow.first_name || ''} ${editRow.last_name || ''}`.trim()
+                          : (editRow.student_name || 'Certificate name')
+                      }
+                      disabled={!editRow.student_id}
+                    />
+                    {!editRow.student_id && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Branch</label>
+                    <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                      <SelectContent>
+                        {publicBranches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Result</label>
+                    <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="double">Double</SelectItem>
+                        <SelectItem value="pass">Pass</SelectItem>
+                        <SelectItem value="fail">Fail</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="__clear__">—</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="text-xs text-muted-foreground">Slot</label>
+                <Select value={editForm.slot_id} onValueChange={(v) => setEditForm((f) => ({ ...f, slot_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select slot" /></SelectTrigger>
+                  <SelectContent>
+                    {editRowSlots.map((s) => {
+                      const fallback = `${formatDate(s.grading_date)} ${s.start_time?.slice(0, 5) || ''} · ${s.branch_name}`;
+                      return (
+                        <SelectItem key={s.id} value={s.id}>{s.title || fallback}</SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRow(null)}>Cancel</Button>
+            <Button onClick={handleRowEditSave} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mass edit dialog */}
+      <Dialog open={massEditOpen} onOpenChange={setMassEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mass edit ({selectedRows.length})</DialogTitle>
+            <DialogDescription>Toggle fields to apply changes to all selected rows.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={massForm.changeResult}
+                  onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeResult: !!v }))}
+                />
+                Result (registrations only)
+              </label>
+              {massForm.changeResult && (
+                <Select value={massForm.result} onValueChange={(v) => setMassForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="double">Double</SelectItem>
+                    <SelectItem value="pass">Pass</SelectItem>
+                    <SelectItem value="fail">Fail</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="__clear__">—</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={massForm.changeSlot}
+                  onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeSlot: !!v }))}
+                />
+                Slot
+              </label>
+              {massForm.changeSlot && (
+                <Select value={massForm.slot_id} onValueChange={(v) => setMassForm((f) => ({ ...f, slot_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select slot" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from(
+                      new Map(
+                        selectedRows
+                          .map((r) => r.grading_date)
+                          .filter((d): d is string => !!d)
+                          .map((d) => [d, d])
+                      ).keys()
+                    ).length === 1 ? (
+                      <MassEditSlotOptions date={selectedRows.find((r) => r.grading_date)?.grading_date || ''} />
+                    ) : (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">Select rows with the same date.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={massForm.changeBranch}
+                  onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeBranch: !!v }))}
+                />
+                Branch (registrations only)
+              </label>
+              {massForm.changeBranch && (
+                <Select value={massForm.branch_id} onValueChange={(v) => setMassForm((f) => ({ ...f, branch_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                  <SelectContent>
+                    {publicBranches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMassEditOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleMassEditApply}
+              disabled={
+                savingMass ||
+                (!massForm.changeResult && !massForm.changeSlot && !massForm.changeBranch)
+              }
+            >
+              {savingMass ? 'Applying…' : 'Apply'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
