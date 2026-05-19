@@ -1,29 +1,29 @@
-## Problem
+## Goal
 
-On the public Grading List, the inline certificate (Award) button doesn't appear, and "Download selected certificates" shows "No eligible rows selected" — even when the row's Result is set to Pass — for any row that originated from a payment submission (e.g. the verified TEST TEST row in the screenshot).
+Use a Singapore-specific signature image on the Grade Certificate PDF for SG branches, replacing the AU "Master Alvin Lee / Examiner" signature.
 
-Root cause: `isCertEligible` in `src/pages/public/PublicGradingList.tsx` (~line 903) requires `r.source === 'registration'`. Submission rows are excluded from both the inline button render (line 1273) and the bulk picker (line 967), even though they carry a valid `grading_date`, `current_belt`, and `result`.
+## Scope
 
-## Change
+Visual change to the certificate PDF only. No DB, RPC, or list/dialog changes.
 
-In `src/pages/public/PublicGradingList.tsx`, drop the `source === 'registration'` restriction from `isCertEligible`:
+## Changes
 
-```ts
-const isCertEligible = (r: PublicGradingListRow): boolean =>
-  !!r.grading_date
-  && !!r.current_belt
-  && (r.result === 'pass' || r.result === 'double');
-```
+1. **Add SG signature asset**
+   - Copy uploaded `image-907.png` (Kang Hyeonman / Headmaster — text is already baked into the image) to `src/assets/certificates/sg/master-signature.png`.
 
-That alone fixes both symptoms because:
-- The inline Award button block (line 1273) is gated only by `isCertEligible(r)`.
-- `handleDownloadSelectedCertificates` (line 967) skips non-eligible rows via the same helper; once submissions qualify, `rowToCertInput` already handles them (it reads `grading_date`, `current_belt`, and resolves the name from `certificate_name` / `first_name` + `last_name` / `student_name`).
-- `rowCertKey` already keys on `submission_id` when `registration_id` is absent, so selection state is stable.
+2. **`src/utils/gradingCertificatePDFGenerator.ts`**
+   - Import the SG signature alongside the existing AU one.
+   - Extend `GradingCertificateInput` with an optional `branchCountry?: string | null`.
+   - In `drawCertificatePage`, pick the signature based on `branchCountry`:
+     - `'SG' | 'Singapore'` (case-insensitive) → SG signature (PNG).
+     - Otherwise → existing AU signature.
+   - Keep `SIG_NATIVE` aspect-ratio logic; if the SG image has a different native aspect ratio, use a separate constant so it isn't stretched. (SG asset is roughly 456×280; AU stays 456×466.)
+   - No standalone "Master Alvin Lee / Examiner" text is drawn by the generator today — that text is baked into the AU image. The SG image likewise has its own "Kang Hyeonman / Headmaster" baked in, so swapping the image alone satisfies "remove Master Alvin Lee and Examiner text".
 
-No DB, RPC, or service changes. No mass-edit/dialog changes.
+3. **`src/pages/public/PublicGradingList.tsx`**
+   - In `rowToCertInput`, pass `branchCountry: r.branch_country` through to the generator input. No other call-site changes needed.
 
 ## Out of scope
 
-- Showing certificates for `confirmed`/`fail` results.
-- Scorecard data for submissions (cert continues to render with empty scorecard, same as registrations today).
-- Realtime refresh changes.
+- Header logo, Kukkiwon / World Taekwondo logos, "In Affiliation With" text, scorecard page.
+- Edit dialog, mass edit, results refresh, certificate eligibility — already addressed in prior turns.
