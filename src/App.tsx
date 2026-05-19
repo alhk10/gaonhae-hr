@@ -152,6 +152,8 @@ function App() {
                     <Route path="/register" element={<StudentRegistration />} />
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
+                    <Route path="/accessories" element={<PublicAccessoriesPayment />} />
+                    <Route path="/accessories-list" element={<PublicAccessoriesList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     
