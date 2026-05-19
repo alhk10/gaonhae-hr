@@ -27,6 +27,7 @@ export interface PublicPaymentOptions {
 export interface PublicGradingListRow {
   source: 'registration' | 'submission';
   submission_id: string | null;
+  registration_id: string | null;
   slot_id: string | null;
   branch_id: string | null;
   branch_name: string | null;
@@ -41,7 +42,19 @@ export interface PublicGradingListRow {
   paid_status: string;
   amount: number | null;
   proof_url: string | null;
+  result: string | null;
 }
+
+export const adminUpdateGradingResult = async (
+  registrationId: string,
+  result: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_result', {
+    p_registration_id: registrationId,
+    p_result: result,
+  });
+  if (error) throw error;
+};
 
 export interface PendingGradingSubmission {
   id: string;
