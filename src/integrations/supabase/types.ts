@@ -6687,6 +6687,7 @@ export type Database = {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
           amount: number
+          branch_country: string
           branch_id: string
           branch_name: string
           certificate_name: string
