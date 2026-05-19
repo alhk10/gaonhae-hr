@@ -1,42 +1,35 @@
 ## Goal
 
-Suppress certificate generation (inline Award button + bulk download) for grading rows whose product is one of the non-certificate types.
+Remove all test grading data from the public Grading List and related database tables.
 
-## Excluded products
+## Scope (what counts as "test data")
 
-Match `product_name` (case-insensitive, trimmed) against:
+All 17 rows in `grading_payment_submissions` — every record has a `TEST…` name (TEST TEST, TEST 3, TEST5 TEST5, TEST6 TEST6, … TEST 14) and none are linked to a real invoice (`matched_invoice_id` is null on every row). All were created during the recent public-submission testing.
 
-- `Stage 1 - 3`
-- `Stage 4 - 10`
-- `Stage 11-26`
-- `Provisional Pass Confirmation Grading`
-
-These are the exact names already in the `products` table.
-
-## Change
-
-**`src/pages/public/PublicGradingList.tsx`** — extend `isCertEligible` (lines 904-907):
-
-```ts
-const NON_CERT_PRODUCTS = new Set([
-  'stage 1 - 3',
-  'stage 4 - 10',
-  'stage 11-26',
-  'provisional pass confirmation grading',
-]);
-
-const isCertEligible = (r: PublicGradingListRow): boolean =>
-  !!r.grading_date
-  && !!r.current_belt
-  && (r.result === 'pass' || r.result === 'double')
-  && !NON_CERT_PRODUCTS.has((r.product_name ?? '').trim().toLowerCase());
+```
+17 grading_payment_submissions (refs GP-202605-0001 … GP-202605-0017)
 ```
 
-This single gate already controls:
-- The inline Award icon (line 1273 `{isCertEligible(r) && ...}`)
-- The bulk "Certificates (N)" download (line 967 skips non-eligible rows)
-- The per-row certificate checkbox visibility (also gated by `isCertEligible`)
+The 43 rows in `grading_registrations` are real student data (LUCERO, HII, BYEON, SONG, …) from the April 2026 Morley grading and are **not** touched.
+
+## Changes
+
+Single migration that runs inside one transaction:
+
+1. **Delete proof-of-payment files** from the storage bucket for each submission's `proof_url` (best-effort via `storage.objects` rows matched on the file path).
+2. **Delete** all 17 rows from `public.grading_payment_submissions`.
+3. **Reset** the GP reference sequence for the current YYYYMM so the next public submission starts again at `GP-202605-0001` (handled naturally — the generator computes `MAX(...) + 1`, so no extra action needed once rows are gone).
+
+Nothing else is connected:
+
+- No `invoices` / `invoice_items` reference these submissions.
+- No `payments` rows (submissions are pre-payment proof uploads).
+- `grading_slots` are reused by future real bookings — kept as-is.
+- `grading_registrations` left untouched.
 
 ## Out of scope
 
-No DB / RPC / signature / dialog changes. Pass/Double result handling for other products is unchanged.
+- Grading slots, products, real registrations, invoices, payments.
+- UI/code changes — pure data cleanup.
+
+After approval I will issue the migration to delete the 17 submission rows (and their storage objects). Confirm to proceed, or tell me if registrations / slots should also be cleared.
