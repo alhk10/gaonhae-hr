@@ -88,6 +88,27 @@ const PublicGradingList: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Row edit dialog (registrations + submissions)
+  const [editRow, setEditRow] = useState<PublicGradingListRow | null>(null);
+  const [editForm, setEditForm] = useState<{
+    display_name: string;
+    certificate_name: string;
+    branch_id: string;
+    slot_id: string;
+    result: string;
+  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Mass edit dialog
+  const [massEditOpen, setMassEditOpen] = useState(false);
+  const [massForm, setMassForm] = useState<{
+    changeResult: boolean; result: string;
+    changeSlot: boolean; slot_id: string;
+    changeBranch: boolean; branch_id: string;
+  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+  const [savingMass, setSavingMass] = useState(false);
+
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
