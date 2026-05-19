@@ -151,10 +151,11 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
     return { w: nativeW * scale, h: nativeH * scale };
   };
 
-  // Native aspect ratios (pixels) — see source assets in /assets/certificates/au.
+  // Native aspect ratios (pixels) — see source assets in /assets/certificates.
   const WT_NATIVE = { w: 484, h: 231 };
   const KW_NATIVE = { w: 347, h: 244 };
-  const SIG_NATIVE = { w: 456, h: 466 };
+  const SIG_AU_NATIVE = { w: 456, h: 466 };
+  const SIG_SG_NATIVE = { w: 423, h: 269 };
 
   // WT logo
   const wtBox = fitBox(WT_NATIVE.w, WT_NATIVE.h, 35.2, 26.4);
@@ -175,12 +176,16 @@ const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   const affiliationCenterX = (wtX + (kwX + kwBox.w)) / 2;
   doc.text('In Affiliation With', affiliationCenterX, footerY - 6, { align: 'center' });
 
-  // Signature on the right
-  const sigBox = fitBox(SIG_NATIVE.w, SIG_NATIVE.h, 55, 30.8);
+  // Signature on the right — SG branches use a different signature image.
+  const isSG = /^(sg|singapore)$/i.test((input.branchCountry || '').trim());
+  const sigAsset = isSG ? masterSignatureSG : masterSignatureAU;
+  const sigFormat = isSG ? 'PNG' : 'JPEG';
+  const sigNative = isSG ? SIG_SG_NATIVE : SIG_AU_NATIVE;
+  const sigBox = fitBox(sigNative.w, sigNative.h, 55, 30.8);
   const sigRightEdge = A4_W - 40;
   const sigX = sigRightEdge - sigBox.w;
   const sigY = footerY - 4 + (28 - sigBox.h) / 2;
-  doc.addImage(masterSignature, 'JPEG', sigX, sigY, sigBox.w, sigBox.h, undefined, 'FAST');
+  doc.addImage(sigAsset, sigFormat, sigX, sigY, sigBox.w, sigBox.h, undefined, 'FAST');
 };
 
 const isBlankValue = (v?: string): boolean => {
