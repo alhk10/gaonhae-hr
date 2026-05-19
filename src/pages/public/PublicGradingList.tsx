@@ -37,15 +37,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicGradingList,
   getPublicGradingSlotsByDate,
+  getPublicBranches,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
   adminUpdateGradingResult,
+  adminUpdateGradingRegistrationSlot,
+  adminUpdateGradingRegistrationBranch,
+  adminUpdateGradingRegistrationDisplayName,
+  adminUpdateStudentCertificateName,
   verifyGradingSubmission,
   rejectGradingSubmission,
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel } from '@/constants/beltLevels';
+
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
 const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
@@ -81,6 +87,27 @@ const PublicGradingList: React.FC = () => {
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Row edit dialog (registrations + submissions)
+  const [editRow, setEditRow] = useState<PublicGradingListRow | null>(null);
+  const [editForm, setEditForm] = useState<{
+    display_name: string;
+    certificate_name: string;
+    branch_id: string;
+    slot_id: string;
+    result: string;
+  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Mass edit dialog
+  const [massEditOpen, setMassEditOpen] = useState(false);
+  const [massForm, setMassForm] = useState<{
+    changeResult: boolean; result: string;
+    changeSlot: boolean; slot_id: string;
+    changeBranch: boolean; branch_id: string;
+  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+  const [savingMass, setSavingMass] = useState(false);
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list'],
@@ -136,7 +163,7 @@ const PublicGradingList: React.FC = () => {
     });
   }, [filteredRows]);
 
-  // Slots for the edit-slot dialog (all branches, by the row's grading_date)
+  // Slots for the slot-only edit dialog (legacy submission Pencil)
   const { data: editableSlots = [] } = useQuery({
     queryKey: ['public-grading-slots-by-date', slotEditRow?.grading_date],
     queryFn: () =>
@@ -145,6 +172,28 @@ const PublicGradingList: React.FC = () => {
         : Promise.resolve([] as PublicGradingSlotByDate[]),
     enabled: !!slotEditRow?.grading_date,
   });
+
+  // Slots for the row edit dialog (by the editRow's grading_date)
+  const { data: editRowSlots = [] } = useQuery({
+    queryKey: ['public-grading-slots-by-date', editRow?.grading_date],
+    queryFn: () =>
+      editRow?.grading_date
+        ? getPublicGradingSlotsByDate(editRow.grading_date)
+        : Promise.resolve([] as PublicGradingSlotByDate[]),
+    enabled: !!editRow?.grading_date,
+  });
+
+  // Branches for the row edit + mass edit dialogs
+  const { data: publicBranches = [] } = useQuery({
+    queryKey: ['public-branches'],
+    queryFn: getPublicBranches,
+    enabled: editMode,
+    staleTime: 5 * 60 * 1000,
+  });
+
+
+
+
 
   const handleUnlock = () => {
     if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
@@ -232,6 +281,97 @@ const PublicGradingList: React.FC = () => {
       toast.error(e?.message || 'Failed to update result');
     }
   };
+
+  const openRowEdit = (r: PublicGradingListRow) => {
+    setEditRow(r);
+    setEditForm({
+      display_name: r.source === 'registration' ? (r.student_name || '') : '',
+      certificate_name: r.certificate_name || '',
+      branch_id: r.branch_id || '',
+      slot_id: r.slot_id || '',
+      result: r.result || '',
+    });
+  };
+
+  const handleRowEditSave = async () => {
+    if (!editRow) return;
+    setSavingEdit(true);
+    try {
+      const ops: Promise<unknown>[] = [];
+      if (editRow.source === 'registration' && editRow.registration_id) {
+        if ((editRow.student_name || '') !== editForm.display_name) {
+          ops.push(adminUpdateGradingRegistrationDisplayName(editRow.registration_id, editForm.display_name));
+        }
+        if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
+          ops.push(adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id));
+        }
+        if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
+          ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
+        }
+        const currentResult = editRow.result || '';
+        if (editForm.result !== currentResult) {
+          ops.push(adminUpdateGradingResult(editRow.registration_id, editForm.result || null));
+        }
+        if (editRow.student_id && (editRow.certificate_name || '') !== editForm.certificate_name) {
+          ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
+        }
+      } else if (editRow.source === 'submission' && editRow.submission_id) {
+        if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
+          ops.push(adminUpdateGradingSubmissionSlot(editRow.submission_id, editForm.slot_id));
+        }
+        // Branch on submissions is not editable via dedicated RPC; skip.
+      }
+      if (ops.length === 0) {
+        toast.info('Nothing to update');
+      } else {
+        await Promise.all(ops);
+        toast.success('Updated');
+        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      }
+      setEditRow(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const openMassEdit = () => {
+    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    setMassEditOpen(true);
+  };
+
+  const handleMassEditApply = async () => {
+    setSavingMass(true);
+    let updated = 0; let skipped = 0;
+    try {
+      for (const r of selectedRows) {
+        const ops: Promise<unknown>[] = [];
+        if (massForm.changeResult && r.source === 'registration' && r.registration_id) {
+          ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+        }
+        if (massForm.changeSlot && massForm.slot_id) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRegistrationSlot(r.registration_id, massForm.slot_id));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionSlot(r.submission_id, massForm.slot_id));
+          }
+        }
+        if (massForm.changeBranch && massForm.branch_id && r.source === 'registration' && r.registration_id) {
+          ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+        }
+        if (ops.length === 0) { skipped++; continue; }
+        try { await Promise.all(ops); updated++; } catch { skipped++; }
+      }
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      toast.success(`Updated ${updated}${skipped ? ` · Skipped ${skipped}` : ''}`);
+      setMassEditOpen(false);
+    } finally {
+      setSavingMass(false);
+    }
+  };
+
+
 
   const openLightbox = async (storedUrl: string) => {
     const resolved = await resolveStorageUrl(storedUrl);
@@ -684,6 +824,14 @@ const PublicGradingList: React.FC = () => {
   const rowCertKey = (r: PublicGradingListRow): string =>
     `${r.source}:${r.registration_id ?? r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
 
+  const resolveCertName = (r: PublicGradingListRow): string => {
+    const fromOverride = (r.certificate_name || '').trim();
+    if (fromOverride) return fromOverride;
+    const composed = `${r.first_name || ''} ${r.last_name || ''}`.trim();
+    if (composed) return composed;
+    return r.student_name || '';
+  };
+
   const rowToCertInput = (
     r: PublicGradingListRow,
     beltOverride?: string | null,
@@ -691,7 +839,7 @@ const PublicGradingList: React.FC = () => {
     const belt = beltOverride ?? r.current_belt;
     if (!r.grading_date || !belt) return null;
     return {
-      studentName: r.student_name,
+      studentName: resolveCertName(r),
       beltAchieved: belt,
       gradingDate: r.grading_date,
       scorecard: [],
@@ -699,12 +847,13 @@ const PublicGradingList: React.FC = () => {
   };
 
   const certFilename = (r: PublicGradingListRow, beltOverride?: string | null): string => {
-    const safeName = (r.student_name || 'Student').replace(/[^\w\-]+/g, '_');
+    const safeName = (resolveCertName(r) || 'Student').replace(/[^\w\-]+/g, '_');
     const belt = beltOverride ?? r.current_belt ?? 'Belt';
     const safeBelt = belt.replace(/[^\w\-]+/g, '_');
     const dateStr = (r.grading_date || '').replace(/-/g, '');
     return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
   };
+
 
   const handleDownloadCertificate = (r: PublicGradingListRow, beltOverride?: string | null) => {
     const input = rowToCertInput(r, beltOverride);
@@ -736,20 +885,15 @@ const PublicGradingList: React.FC = () => {
     });
   };
 
-  const eligibleSlotRows = (items: PublicGradingListRow[]) =>
-    items.filter(isCertEligible);
-
-  const allSelectedInSlot = (items: PublicGradingListRow[]) => {
-    const elig = eligibleSlotRows(items);
-    return elig.length > 0 && elig.every((r) => selectedCerts.has(rowCertKey(r)));
-  };
+  // Checkbox: every row in edit mode is selectable.
+  const allSelectedInSlot = (items: PublicGradingListRow[]) =>
+    items.length > 0 && items.every((r) => selectedCerts.has(rowCertKey(r)));
 
   const toggleSlotAll = (items: PublicGradingListRow[]) => {
-    const elig = eligibleSlotRows(items);
     const allSel = allSelectedInSlot(items);
     setSelectedCerts((prev) => {
       const next = new Set(prev);
-      for (const r of elig) {
+      for (const r of items) {
         const k = rowCertKey(r);
         if (allSel) next.delete(k);
         else next.add(k);
@@ -757,6 +901,7 @@ const PublicGradingList: React.FC = () => {
       return next;
     });
   };
+
 
   const selectedRows = useMemo(() => {
     const out: PublicGradingListRow[] = [];
@@ -773,6 +918,7 @@ const PublicGradingList: React.FC = () => {
     const inputs: GradingCertificateInput[] = [];
     let skipped = 0;
     for (const r of selectedRows) {
+      if (!isCertEligible(r)) { skipped++; continue; }
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
       else { skipped++; continue; }
@@ -784,6 +930,7 @@ const PublicGradingList: React.FC = () => {
         }
       }
     }
+
     if (inputs.length === 0) {
       toast.error('No eligible rows selected');
       return;
@@ -867,19 +1014,34 @@ const PublicGradingList: React.FC = () => {
               </Button>
             )}
             {editMode && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleDownloadSelectedCertificates}
-                disabled={selectedRows.length === 0}
-                title="Download selected certificates"
-                className="gap-1"
-              >
-                <Award className="h-4 w-4" />
-                <span className="text-xs">Certificates ({selectedRows.length})</span>
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDownloadSelectedCertificates}
+                  disabled={selectedRows.length === 0}
+                  title="Download selected certificates"
+                  className="gap-1"
+                >
+                  <Award className="h-4 w-4" />
+                  <span className="text-xs">Certificates ({selectedRows.length})</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={openMassEdit}
+                  disabled={selectedRows.length === 0}
+                  title="Mass edit selected rows"
+                  className="gap-1"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="text-xs">Edit ({selectedRows.length})</span>
+                </Button>
+              </>
             )}
+
           </CardContent>
         </Card>
 
@@ -948,15 +1110,14 @@ const PublicGradingList: React.FC = () => {
                       <TableRow key={i} className="odd:bg-muted/40">
                         {editMode && (
                           <TableCell className="px-2 py-0.5">
-                            {isCertEligible(r) ? (
-                              <Checkbox
-                                checked={selectedCerts.has(rowCertKey(r))}
-                                onCheckedChange={() => toggleCert(r)}
-                                aria-label="Select for certificate"
-                              />
-                            ) : null}
+                            <Checkbox
+                              checked={selectedCerts.has(rowCertKey(r))}
+                              onCheckedChange={() => toggleCert(r)}
+                              aria-label="Select row"
+                            />
                           </TableCell>
                         )}
+
                         <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
@@ -1040,20 +1201,16 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSlotEditRow(r);
-                                    setSlotChoice(r.slot_id || '');
-                                  }}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Update slot"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => openRowEdit(r)}
+                                className="text-muted-foreground hover:text-foreground"
+                                title="Edit row"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
                             </TableCell>
+
                             <TableCell className="px-2 py-0.5">
                               {canDelete && r.source === 'submission' && (
                                 <button

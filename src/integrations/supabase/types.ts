@@ -1728,6 +1728,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           current_belt: string
+          display_name: string | null
           grading_slot_id: string | null
           id: string
           invoice_item_id: string | null
@@ -1746,6 +1747,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           current_belt: string
+          display_name?: string | null
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -1764,6 +1766,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           current_belt?: string
+          display_name?: string | null
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -6492,12 +6495,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_update_grading_registration_branch: {
+        Args: { p_branch_id: string; p_registration_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_registration_display_name: {
+        Args: { p_display_name: string; p_registration_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_registration_slot: {
+        Args: { p_registration_id: string; p_slot_id: string }
+        Returns: undefined
+      }
       admin_update_grading_result: {
         Args: { p_registration_id: string; p_result: string }
         Returns: undefined
       }
       admin_update_grading_submission_slot: {
         Args: { p_id: string; p_slot_id: string }
+        Returns: undefined
+      }
+      admin_update_student_certificate_name: {
+        Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
       }
       admin_verify_grading_submission: {
@@ -6652,9 +6671,12 @@ export type Database = {
           amount: number
           branch_id: string
           branch_name: string
+          certificate_name: string
           current_belt: string
           end_time: string
+          first_name: string
           grading_date: string
+          last_name: string
           location: string
           paid_status: string
           proof_url: string
@@ -6664,6 +6686,7 @@ export type Database = {
           slot_title: string
           source: string
           start_time: string
+          student_id: string
           student_name: string
           submission_id: string
           target_belt: string

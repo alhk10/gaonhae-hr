@@ -43,6 +43,10 @@ export interface PublicGradingListRow {
   amount: number | null;
   proof_url: string | null;
   result: string | null;
+  student_id: string | null;
+  certificate_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 export const adminUpdateGradingResult = async (
@@ -55,6 +59,51 @@ export const adminUpdateGradingResult = async (
   });
   if (error) throw error;
 };
+
+export const adminUpdateGradingRegistrationSlot = async (
+  registrationId: string,
+  slotId: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_registration_slot' as any, {
+    p_registration_id: registrationId,
+    p_slot_id: slotId,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingRegistrationBranch = async (
+  registrationId: string,
+  branchId: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_registration_branch' as any, {
+    p_registration_id: registrationId,
+    p_branch_id: branchId,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingRegistrationDisplayName = async (
+  registrationId: string,
+  displayName: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_registration_display_name' as any, {
+    p_registration_id: registrationId,
+    p_display_name: displayName,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateStudentCertificateName = async (
+  studentId: string,
+  certificateName: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_student_certificate_name' as any, {
+    p_student_id: studentId,
+    p_certificate_name: certificateName,
+  });
+  if (error) throw error;
+};
+
 
 export interface PendingGradingSubmission {
   id: string;
