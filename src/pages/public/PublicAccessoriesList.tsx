@@ -273,7 +273,7 @@ const PublicAccessoriesList: React.FC = () => {
               )}
               {filtered.map(r => {
                 const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
-                const productsLabel = r.items.map(i => `${i.name} × ${i.qty}`).join(', ');
+                const productsLabel = summarizeItems(r.items);
                 const isPending = r.status === 'pending_verification';
                 const showSuggestAdd = isPending && !r.matched_student_id;
                 return (
