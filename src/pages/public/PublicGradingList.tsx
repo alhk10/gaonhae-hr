@@ -793,6 +793,14 @@ const PublicGradingList: React.FC = () => {
   const rowCertKey = (r: PublicGradingListRow): string =>
     `${r.source}:${r.registration_id ?? r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
 
+  const resolveCertName = (r: PublicGradingListRow): string => {
+    const fromOverride = (r.certificate_name || '').trim();
+    if (fromOverride) return fromOverride;
+    const composed = `${r.first_name || ''} ${r.last_name || ''}`.trim();
+    if (composed) return composed;
+    return r.student_name || '';
+  };
+
   const rowToCertInput = (
     r: PublicGradingListRow,
     beltOverride?: string | null,
@@ -800,7 +808,7 @@ const PublicGradingList: React.FC = () => {
     const belt = beltOverride ?? r.current_belt;
     if (!r.grading_date || !belt) return null;
     return {
-      studentName: r.student_name,
+      studentName: resolveCertName(r),
       beltAchieved: belt,
       gradingDate: r.grading_date,
       scorecard: [],
@@ -808,12 +816,13 @@ const PublicGradingList: React.FC = () => {
   };
 
   const certFilename = (r: PublicGradingListRow, beltOverride?: string | null): string => {
-    const safeName = (r.student_name || 'Student').replace(/[^\w\-]+/g, '_');
+    const safeName = (resolveCertName(r) || 'Student').replace(/[^\w\-]+/g, '_');
     const belt = beltOverride ?? r.current_belt ?? 'Belt';
     const safeBelt = belt.replace(/[^\w\-]+/g, '_');
     const dateStr = (r.grading_date || '').replace(/-/g, '');
     return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
   };
+
 
   const handleDownloadCertificate = (r: PublicGradingListRow, beltOverride?: string | null) => {
     const input = rowToCertInput(r, beltOverride);
