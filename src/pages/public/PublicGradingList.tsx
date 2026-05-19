@@ -341,6 +341,37 @@ const PublicGradingList: React.FC = () => {
     setMassEditOpen(true);
   };
 
+  const handleMassEditApply = async () => {
+    setSavingMass(true);
+    let updated = 0; let skipped = 0;
+    try {
+      for (const r of selectedRows) {
+        const ops: Promise<unknown>[] = [];
+        if (massForm.changeResult && r.source === 'registration' && r.registration_id) {
+          ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+        }
+        if (massForm.changeSlot && massForm.slot_id) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRegistrationSlot(r.registration_id, massForm.slot_id));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionSlot(r.submission_id, massForm.slot_id));
+          }
+        }
+        if (massForm.changeBranch && massForm.branch_id && r.source === 'registration' && r.registration_id) {
+          ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+        }
+        if (ops.length === 0) { skipped++; continue; }
+        try { await Promise.all(ops); updated++; } catch { skipped++; }
+      }
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      toast.success(`Updated ${updated}${skipped ? ` · Skipped ${skipped}` : ''}`);
+      setMassEditOpen(false);
+    } finally {
+      setSavingMass(false);
+    }
+  };
+
+
 
   const openLightbox = async (storedUrl: string) => {
     const resolved = await resolveStorageUrl(storedUrl);
