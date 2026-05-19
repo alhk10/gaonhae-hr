@@ -301,9 +301,78 @@ const PublicGradingList: React.FC = () => {
 
     const contentTop = margin + 14;
     const contentBottom = pageH - margin - 8;
-    const colY = [contentTop, contentTop];
+    const columnCapacity = contentBottom - contentTop;
 
-    const renderGroup = (g: typeof groups[number]) => {
+    // Pre-measure each group's rendered height (matches actual render below)
+    const estRowH = 4.2;
+    const headH = 5.5;
+    const measureGroup = (g: typeof groups[number]) => {
+      const sub = [
+        g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled',
+        g.header.start_time
+          ? `${g.header.start_time.slice(0, 5)}${g.header.end_time ? `–${g.header.end_time.slice(0, 5)}` : ''}`
+          : null,
+      ].filter(Boolean).join(' · ');
+      const title = g.header.slot_title || sub || 'Grading';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      const titleLines = doc.splitTextToSize(title, colW);
+      const titleH = titleLines.length * 4;
+      const tableH = headH + g.items.length * estRowH;
+      // title (with offset) + table + spacing after
+      return 3.5 + titleH + 1 + tableH + 4;
+    };
+    const heights = groups.map(measureGroup);
+
+    // Partition groups into pages (no group split). For each page, find split index
+    // that minimizes |sumLeft - sumRight| subject to both <= columnCapacity.
+    type Page = { items: typeof groups; leftCount: number };
+    const pages: Page[] = [];
+    let idx = 0;
+    while (idx < groups.length) {
+      // Greedily grow the page while groups can still fit somewhere
+      let end = idx;
+      let leftBest = 0;
+      let bestSplit = 1;
+      // include at least one group
+      while (end < groups.length) {
+        const candidateEnd = end + 1;
+        const slice = heights.slice(idx, candidateEnd);
+        // try to find valid split for this slice
+        let valid = false;
+        let bestDiff = Infinity;
+        let bestK = 1;
+        let bestLeft = 0;
+        const total = slice.reduce((a, c) => a + c, 0);
+        let sumLeft = 0;
+        for (let k = 1; k <= slice.length; k++) {
+          sumLeft += slice[k - 1];
+          const sumRight = total - sumLeft;
+          if (sumLeft <= columnCapacity && sumRight <= columnCapacity) {
+            const diff = Math.abs(sumLeft - sumRight);
+            if (diff < bestDiff) {
+              bestDiff = diff;
+              bestK = k;
+              bestLeft = sumLeft;
+              valid = true;
+            }
+          }
+        }
+        if (!valid) break; // can't fit candidateEnd groups on this page
+        end = candidateEnd;
+        bestSplit = bestK;
+        leftBest = bestLeft;
+      }
+      if (end === idx) {
+        // single group doesn't fit even in one column — fallback: place alone in left col
+        end = idx + 1;
+        bestSplit = 1;
+      }
+      pages.push({ items: groups.slice(idx, end), leftCount: bestSplit });
+      idx = end;
+    }
+
+    const renderGroupAt = (g: typeof groups[number], x: number, y: number): number => {
       const sub = [
         g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled',
         g.header.start_time
@@ -319,25 +388,6 @@ const PublicGradingList: React.FC = () => {
         `${r.current_belt || '—'}${r.target_belt ? ` → ${r.target_belt}` : ''}`,
         r.paid_status,
       ]);
-
-      // Estimate height
-      const estRowH = 4.2;
-      const headH = 5.5;
-      const estH = 4.5 + headH + body.length * estRowH + 4;
-
-      let ci = colY[0] <= colY[1] ? 0 : 1;
-      if (colY[ci] + estH > contentBottom && colY[1 - ci] + estH <= contentBottom) {
-        ci = 1 - ci;
-      }
-      if (colY[ci] + estH > contentBottom) {
-        doc.addPage();
-        colY[0] = contentTop;
-        colY[1] = contentTop;
-        ci = 0;
-      }
-
-      const x = colX[ci];
-      let y = colY[ci];
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
@@ -379,10 +429,33 @@ const PublicGradingList: React.FC = () => {
       });
 
       // @ts-ignore lastAutoTable is attached by plugin
-      colY[ci] = (doc as any).lastAutoTable.finalY + 4;
+      return (doc as any).lastAutoTable.finalY + 4;
     };
 
-    groups.forEach(renderGroup);
+    pages.forEach((page, pIdx) => {
+      if (pIdx > 0) {
+        doc.addPage();
+        // Re-draw title + logo on subsequent pages
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text(titleText, pageW / 2, titleY, { align: 'center' });
+        if (logo) {
+          const logoW = 22;
+          const logoH = (logo.h / logo.w) * logoW;
+          const logoX = pageW - margin - logoW;
+          const logoY = titleY - logoH + 1;
+          try { doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoW, logoH); } catch { /* noop */ }
+        }
+      }
+      const leftItems = page.items.slice(0, page.leftCount);
+      const rightItems = page.items.slice(page.leftCount);
+      let yL = contentTop;
+      leftItems.forEach((g) => { yL = renderGroupAt(g, colX[0], yL); });
+      let yR = contentTop;
+      rightItems.forEach((g) => { yR = renderGroupAt(g, colX[1], yR); });
+    });
+
 
     // Footers
     const totalPages = doc.getNumberOfPages();
