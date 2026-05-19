@@ -993,6 +993,27 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
+                              {r.source === 'registration' && r.registration_id ? (
+                                <Select
+                                  value={r.result ?? ''}
+                                  onValueChange={(v) => handleResultChange(r, v)}
+                                >
+                                  <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="double">Double</SelectItem>
+                                    <SelectItem value="pass">Pass</SelectItem>
+                                    <SelectItem value="fail">Fail</SelectItem>
+                                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="__clear__">—</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
                               {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
