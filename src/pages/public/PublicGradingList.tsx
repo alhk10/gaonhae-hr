@@ -1497,7 +1497,7 @@ const PublicGradingList: React.FC = () => {
                   checked={massForm.changeResult}
                   onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeResult: !!v }))}
                 />
-                Result (registrations only)
+                Result
               </label>
               {massForm.changeResult && (
                 <Select value={massForm.result} onValueChange={(v) => setMassForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
@@ -1544,7 +1544,7 @@ const PublicGradingList: React.FC = () => {
                   checked={massForm.changeBranch}
                   onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeBranch: !!v }))}
                 />
-                Branch (registrations only)
+                Branch
               </label>
               {massForm.changeBranch && (
                 <Select value={massForm.branch_id} onValueChange={(v) => setMassForm((f) => ({ ...f, branch_id: v }))}>
