@@ -1014,19 +1014,34 @@ const PublicGradingList: React.FC = () => {
               </Button>
             )}
             {editMode && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleDownloadSelectedCertificates}
-                disabled={selectedRows.length === 0}
-                title="Download selected certificates"
-                className="gap-1"
-              >
-                <Award className="h-4 w-4" />
-                <span className="text-xs">Certificates ({selectedRows.length})</span>
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDownloadSelectedCertificates}
+                  disabled={selectedRows.length === 0}
+                  title="Download selected certificates"
+                  className="gap-1"
+                >
+                  <Award className="h-4 w-4" />
+                  <span className="text-xs">Certificates ({selectedRows.length})</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={openMassEdit}
+                  disabled={selectedRows.length === 0}
+                  title="Mass edit selected rows"
+                  className="gap-1"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="text-xs">Edit ({selectedRows.length})</span>
+                </Button>
+              </>
             )}
+
           </CardContent>
         </Card>
 
