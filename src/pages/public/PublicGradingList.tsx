@@ -39,11 +39,13 @@ import {
   getPublicGradingSlotsByDate,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
+  adminUpdateGradingResult,
   verifyGradingSubmission,
   rejectGradingSubmission,
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
+import { getNextBeltLevel } from '@/constants/beltLevels';
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
 const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
