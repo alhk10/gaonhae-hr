@@ -670,38 +670,49 @@ const PublicGradingList: React.FC = () => {
 
   // ---- Certificate download (inline + bulk) -------------------------------
   const rowCertKey = (r: PublicGradingListRow): string =>
-    `${r.source}:${r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
+    `${r.source}:${r.registration_id ?? r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
 
-  const rowToCertInput = (r: PublicGradingListRow): GradingCertificateInput | null => {
-    if (!r.grading_date || !r.current_belt) return null;
+  const rowToCertInput = (
+    r: PublicGradingListRow,
+    beltOverride?: string | null,
+  ): GradingCertificateInput | null => {
+    const belt = beltOverride ?? r.current_belt;
+    if (!r.grading_date || !belt) return null;
     return {
       studentName: r.student_name,
-      beltAchieved: r.current_belt,
+      beltAchieved: belt,
       gradingDate: r.grading_date,
       scorecard: [],
     };
   };
 
-  const certFilename = (r: PublicGradingListRow): string => {
+  const certFilename = (r: PublicGradingListRow, beltOverride?: string | null): string => {
     const safeName = (r.student_name || 'Student').replace(/[^\w\-]+/g, '_');
-    const safeBelt = (r.current_belt || 'Belt').replace(/[^\w\-]+/g, '_');
+    const belt = beltOverride ?? r.current_belt ?? 'Belt';
+    const safeBelt = belt.replace(/[^\w\-]+/g, '_');
     const dateStr = (r.grading_date || '').replace(/-/g, '');
     return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
   };
 
-  const handleDownloadCertificate = (r: PublicGradingListRow) => {
-    const input = rowToCertInput(r);
+  const handleDownloadCertificate = (r: PublicGradingListRow, beltOverride?: string | null) => {
+    const input = rowToCertInput(r, beltOverride);
     if (!input) {
       toast.error('Missing grading date or belt — cannot generate certificate');
       return;
     }
     try {
-      downloadGradingCertificatePDF(input, certFilename(r));
+      downloadGradingCertificatePDF(input, certFilename(r, beltOverride));
       toast.success('Certificate generated');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to generate certificate');
     }
   };
+
+  const isCertEligible = (r: PublicGradingListRow): boolean =>
+    r.source === 'registration'
+    && !!r.grading_date
+    && !!r.current_belt
+    && (r.result === 'pass' || r.result === 'double');
 
   const toggleCert = (r: PublicGradingListRow) => {
     const key = rowCertKey(r);
@@ -714,7 +725,7 @@ const PublicGradingList: React.FC = () => {
   };
 
   const eligibleSlotRows = (items: PublicGradingListRow[]) =>
-    items.filter((r) => r.source === 'registration' && r.grading_date && r.current_belt);
+    items.filter(isCertEligible);
 
   const allSelectedInSlot = (items: PublicGradingListRow[]) => {
     const elig = eligibleSlotRows(items);
