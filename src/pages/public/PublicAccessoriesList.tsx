@@ -64,16 +64,38 @@ const PublicAccessoriesList: React.FC = () => {
     return Array.from(set).sort();
   }, [rows]);
 
+  /**
+   * Group items by bundle (bundle_name) when present so display + filter
+   * surface the 4 bundle SKUs rather than per-component lines.
+   */
+  const summarizeItems = (items: AccessorySubmissionRow['items']): string => {
+    const groups = new Map<string, number>();
+    for (const i of items) {
+      const label = i.bundle_name || i.name;
+      groups.set(label, (groups.get(label) || 0) + (i.qty || 0));
+    }
+    // bundle qty is duplicated across components — collapse by max instead of sum
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const i of items) {
+      const label = i.bundle_name || i.name;
+      if (seen.has(label)) continue;
+      seen.add(label);
+      out.push(`${label} × ${i.qty || 0}`);
+    }
+    return out.join(', ');
+  };
+
   const productOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const r of rows) for (const i of r.items) set.add(i.name);
+    for (const r of rows) for (const i of r.items) set.add(i.bundle_name || i.name);
     return Array.from(set).sort();
   }, [rows]);
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
       if (branchFilter !== 'all' && r.branch_name !== branchFilter) return false;
-      if (productFilter !== 'all' && !r.items.some(i => i.name === productFilter)) return false;
+      if (productFilter !== 'all' && !r.items.some(i => (i.bundle_name || i.name) === productFilter)) return false;
       return true;
     });
   }, [rows, branchFilter, productFilter]);
@@ -191,7 +213,7 @@ const PublicAccessoriesList: React.FC = () => {
                   )}
                   {filtered.map(r => {
                     const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
-                    const productsLabel = r.items.map(i => `${i.name} × ${i.qty}`).join(', ');
+                    const productsLabel = summarizeItems(r.items);
                     const isPending = r.status === 'pending_verification';
                     const showSuggestAdd = isPending && !r.matched_student_id;
                     return (
@@ -251,7 +273,7 @@ const PublicAccessoriesList: React.FC = () => {
               )}
               {filtered.map(r => {
                 const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
-                const productsLabel = r.items.map(i => `${i.name} × ${i.qty}`).join(', ');
+                const productsLabel = summarizeItems(r.items);
                 const isPending = r.status === 'pending_verification';
                 const showSuggestAdd = isPending && !r.matched_student_id;
                 return (

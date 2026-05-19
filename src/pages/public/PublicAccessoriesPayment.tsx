@@ -1,5 +1,7 @@
 /**
  * Public accessories payment page (no auth). Mounted at /accessories.
+ * Buyers pick from 4 hardcoded bundles; bundles are expanded into per-component
+ * line items on submit so invoices reference real products.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +25,13 @@ import {
 import {
   getPublicAccessoryProducts,
   submitAccessoryPayment,
+  type AccessoryItem,
 } from '@/services/accessoryPaymentSubmissionService';
+import {
+  ACCESSORY_BUNDLES,
+  resolveComponentProductId,
+  type Gender,
+} from '@/constants/accessoryBundles';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -84,6 +92,16 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
   );
 };
 
+/** Per-bundle selection state */
+interface BundleState {
+  qty: number;
+  gender: Gender | null;
+  /** keyed by component index */
+  sizes: Record<number, string>;
+}
+
+const emptyBundleState = (): BundleState => ({ qty: 0, gender: null, sizes: {} });
+
 const PublicAccessoriesPayment: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -91,7 +109,7 @@ const PublicAccessoriesPayment: React.FC = () => {
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
-  const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
+  const [bundleStates, setBundleStates] = useState<Record<string, BundleState>>({});
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -113,13 +131,19 @@ const PublicAccessoriesPayment: React.FC = () => {
     [selectedBranch?.country],
   );
 
+  // Used only to look up branch-overridden prices for component product ids
   const { data: products = [] } = useQuery({
     queryKey: ['public-accessory-products', branchId],
     queryFn: () => getPublicAccessoryProducts(branchId),
     enabled: !!branchId,
   });
 
-  // Payment options (PayNow QR + bank info) — reuse grading RPC; pass any belt
+  const priceById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products) m.set(p.product_id, Number(p.branch_price ?? 0));
+    return m;
+  }, [products]);
+
   const { data: payOptions } = useQuery({
     queryKey: ['public-payment-options', branchId, 'accessory'],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
@@ -131,38 +155,68 @@ const PublicAccessoriesPayment: React.FC = () => {
   }, [beltOptions, currentBelt]);
 
   useEffect(() => {
-    setQtyMap({});
+    setBundleStates({});
   }, [branchId]);
 
-  const setQty = (id: string, qty: number) => {
-    setQtyMap(prev => {
-      const next = { ...prev };
-      if (qty <= 0) delete next[id];
-      else next[id] = qty;
-      return next;
-    });
+  const getState = (key: string): BundleState =>
+    bundleStates[key] ?? emptyBundleState();
+
+  const updateState = (key: string, patch: Partial<BundleState>) => {
+    setBundleStates(prev => ({
+      ...prev,
+      [key]: { ...emptyBundleState(), ...(prev[key] ?? {}), ...patch },
+    }));
   };
 
-  const items = useMemo(() => {
-    return products
-      .filter(p => (qtyMap[p.product_id] || 0) > 0)
-      .map(p => {
-        const qty = qtyMap[p.product_id];
-        const unit = Number(p.branch_price ?? 0);
+  /** Bundle unit price = sum of component branch prices (gender-resolved) */
+  const bundleUnitPrice = (bundleKey: string, gender: Gender | null): number => {
+    const bundle = ACCESSORY_BUNDLES.find(b => b.key === bundleKey);
+    if (!bundle) return 0;
+    let total = 0;
+    for (const c of bundle.components) {
+      const pid = resolveComponentProductId(c, gender);
+      if (pid) total += priceById.get(pid) ?? 0;
+    }
+    return total;
+  };
+
+  const bundleReady = (bundleKey: string): boolean => {
+    const bundle = ACCESSORY_BUNDLES.find(b => b.key === bundleKey);
+    if (!bundle) return false;
+    const s = getState(bundleKey);
+    if (s.qty <= 0) return false;
+    if (bundle.requiresGender && !s.gender) return false;
+    for (let i = 0; i < bundle.components.length; i++) {
+      if (!s.sizes[i]) return false;
+    }
+    return true;
+  };
+
+  /** Cart preview (one line per bundle) */
+  const cart = useMemo(() => {
+    return ACCESSORY_BUNDLES
+      .map(b => {
+        const s = getState(b.key);
+        if (s.qty <= 0) return null;
+        const unit = bundleUnitPrice(b.key, s.gender);
         return {
-          product_id: p.product_id,
-          name: p.product_name,
-          qty,
-          unit_price: unit,
-          line_total: unit * qty,
+          key: b.key,
+          name: b.name,
+          qty: s.qty,
+          unit,
+          line_total: unit * s.qty,
+          ready: bundleReady(b.key),
         };
-      });
-  }, [products, qtyMap]);
+      })
+      .filter(Boolean) as Array<{ key: string; name: string; qty: number; unit: number; line_total: number; ready: boolean }>;
+  }, [bundleStates, priceById]);
 
   const totalAmount = useMemo(
-    () => items.reduce((s, i) => s + i.line_total, 0),
-    [items],
+    () => cart.reduce((s, i) => s + i.line_total, 0),
+    [cart],
   );
+
+  const allCartReady = cart.length > 0 && cart.every(c => c.ready);
 
   const emailValid = !email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -172,15 +226,46 @@ const PublicAccessoriesPayment: React.FC = () => {
     emailValid &&
     !!branchId &&
     !!dob &&
-    items.length > 0 &&
+    allCartReady &&
     !!proofFile &&
     !submitting;
+
+  /** Expand bundles to per-component line items for storage */
+  const buildItems = (): AccessoryItem[] => {
+    const items: AccessoryItem[] = [];
+    for (const b of ACCESSORY_BUNDLES) {
+      const s = getState(b.key);
+      if (s.qty <= 0) continue;
+      b.components.forEach((c, idx) => {
+        const pid = resolveComponentProductId(c, s.gender);
+        if (!pid) return;
+        const unit = priceById.get(pid) ?? 0;
+        const size = s.sizes[idx] || '';
+        const colorSuffix = c.color ? ` (${c.color})` : '';
+        const sizeSuffix = size ? ` – ${size}` : '';
+        items.push({
+          product_id: pid,
+          name: `${c.label}${colorSuffix}${sizeSuffix}`,
+          qty: s.qty,
+          unit_price: unit,
+          line_total: unit * s.qty,
+          // extra bundle metadata for the admin list
+          bundle_key: b.key,
+          bundle_name: b.name,
+          size: size || undefined,
+          color: c.color,
+        } as AccessoryItem);
+      });
+    }
+    return items;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !dob || !proofFile) return;
     setSubmitting(true);
     try {
+      const items = buildItems();
       const result = await submitAccessoryPayment({
         first_name: firstName,
         last_name: lastName,
@@ -225,7 +310,7 @@ const PublicAccessoriesPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setBranchId(''); setDob(undefined); setCurrentBelt('');
-                  setQtyMap({}); setProofFile(null);
+                  setBundleStates({}); setProofFile(null);
                 }}
                 className="w-full"
               >
@@ -315,29 +400,73 @@ const PublicAccessoriesPayment: React.FC = () => {
                 </Select>
               </div>
 
-              {branchId && products.length > 0 && (
+              {branchId && (
                 <div className="space-y-2">
-                  <Label>Products</Label>
-                  <div className="rounded-md border divide-y">
-                    {products.map((p) => {
-                      const qty = qtyMap[p.product_id] || 0;
+                  <Label>Bundles</Label>
+                  <div className="space-y-3">
+                    {ACCESSORY_BUNDLES.map((bundle) => {
+                      const s = getState(bundle.key);
+                      const unit = bundleUnitPrice(bundle.key, s.gender);
                       return (
-                        <div key={p.product_id} className="flex items-center justify-between gap-2 p-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm truncate">{p.product_name}</div>
-                            <div className="text-xs text-muted-foreground">${Number(p.branch_price ?? 0).toFixed(2)}</div>
+                        <div key={bundle.key} className="rounded-md border p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium">{bundle.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                ${unit.toFixed(2)} per set
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button type="button" size="icon" variant="outline" className="h-7 w-7"
+                                onClick={() => updateState(bundle.key, { qty: Math.max(0, s.qty - 1) })}
+                                disabled={s.qty <= 0}>
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm">{s.qty}</span>
+                              <Button type="button" size="icon" variant="outline" className="h-7 w-7"
+                                onClick={() => updateState(bundle.key, { qty: s.qty + 1 })}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button type="button" size="icon" variant="outline" className="h-7 w-7"
-                              onClick={() => setQty(p.product_id, qty - 1)} disabled={qty <= 0}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-6 text-center text-sm">{qty}</span>
-                            <Button type="button" size="icon" variant="outline" className="h-7 w-7"
-                              onClick={() => setQty(p.product_id, qty + 1)}>
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
+
+                          {s.qty > 0 && (
+                            <div className="space-y-2 pt-1">
+                              {bundle.requiresGender && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Gender *</Label>
+                                  <Select
+                                    value={s.gender ?? ''}
+                                    onValueChange={(v) => updateState(bundle.key, { gender: v as Gender })}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="male">Male</SelectItem>
+                                      <SelectItem value="female">Female</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-1 gap-2">
+                                {bundle.components.map((c, idx) => (
+                                  <div key={idx} className="space-y-1">
+                                    <Label className="text-xs">{c.label} – Size *</Label>
+                                    <Select
+                                      value={s.sizes[idx] ?? ''}
+                                      onValueChange={(v) => updateState(bundle.key, { sizes: { ...s.sizes, [idx]: v } })}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select size" /></SelectTrigger>
+                                      <SelectContent>
+                                        {c.sizeOptions.map(sz => (
+                                          <SelectItem key={sz} value={sz}>{sz}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -345,10 +474,10 @@ const PublicAccessoriesPayment: React.FC = () => {
                 </div>
               )}
 
-              {items.length > 0 && (
+              {cart.length > 0 && (
                 <div className="rounded-md border p-3 bg-background text-sm space-y-1">
-                  {items.map(i => (
-                    <div key={i.product_id} className="flex items-center justify-between">
+                  {cart.map(i => (
+                    <div key={i.key} className="flex items-center justify-between">
                       <span className="text-muted-foreground truncate pr-2">{i.name} × {i.qty}</span>
                       <span>${i.line_total.toFixed(2)}</span>
                     </div>
@@ -357,10 +486,15 @@ const PublicAccessoriesPayment: React.FC = () => {
                     <span>Total</span>
                     <span>${totalAmount.toFixed(2)}</span>
                   </div>
+                  {!allCartReady && (
+                    <p className="text-xs text-destructive pt-1">
+                      Please select gender (where required) and a size for every item.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {items.length > 0 && (
+              {cart.length > 0 && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="payment-method">Payment Method</Label>
