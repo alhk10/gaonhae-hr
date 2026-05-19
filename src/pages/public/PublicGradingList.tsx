@@ -1200,7 +1200,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'registration' && r.registration_id ? (
+                              {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
