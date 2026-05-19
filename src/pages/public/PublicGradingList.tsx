@@ -1410,58 +1410,56 @@ const PublicGradingList: React.FC = () => {
           </DialogHeader>
           {editRow && (
             <div className="space-y-3">
-              {editRow.source === 'registration' && (
-                <>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Display name (this registration only)</label>
-                    <Input
-                      value={editForm.display_name}
-                      onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
-                      placeholder="Display name"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Certificate name (saved to student)</label>
-                    <Input
-                      value={editForm.certificate_name}
-                      onChange={(e) => setEditForm((f) => ({ ...f, certificate_name: e.target.value }))}
-                      placeholder={
-                        (editRow.first_name || editRow.last_name)
-                          ? `${editRow.first_name || ''} ${editRow.last_name || ''}`.trim()
-                          : (editRow.student_name || 'Certificate name')
-                      }
-                      disabled={!editRow.student_id}
-                    />
-                    {!editRow.student_id && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Branch</label>
-                    <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                      <SelectContent>
-                        {publicBranches.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Result</label>
-                    <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="double">Double</SelectItem>
-                        <SelectItem value="pass">Pass</SelectItem>
-                        <SelectItem value="fail">Fail</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="__clear__">—</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground">Display name (this {editRow.source} only)</label>
+                  <Input
+                    value={editForm.display_name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
+                    placeholder="Display name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Certificate name (saved to student)</label>
+                  <Input
+                    value={editForm.certificate_name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, certificate_name: e.target.value }))}
+                    placeholder={
+                      (editRow.first_name || editRow.last_name)
+                        ? `${editRow.first_name || ''} ${editRow.last_name || ''}`.trim()
+                        : (editRow.student_name || 'Certificate name')
+                    }
+                    disabled={!editRow.student_id}
+                  />
+                  {!editRow.student_id && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Branch</label>
+                  <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                    <SelectContent>
+                      {publicBranches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Result</label>
+                  <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="double">Double</SelectItem>
+                      <SelectItem value="pass">Pass</SelectItem>
+                      <SelectItem value="fail">Fail</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="__clear__">—</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
               <div>
                 <label className="text-xs text-muted-foreground">Slot</label>
                 <Select value={editForm.slot_id} onValueChange={(v) => setEditForm((f) => ({ ...f, slot_id: v }))}>
