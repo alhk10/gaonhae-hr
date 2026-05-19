@@ -917,6 +917,22 @@ const PublicGradingList: React.FC = () => {
     return out;
   }, [groups, selectedCerts]);
 
+  // Common date across mass-edit selection (for slot options)
+  const massCommonDate = useMemo(() => {
+    const dates = new Set<string>();
+    for (const r of selectedRows) if (r.grading_date) dates.add(r.grading_date);
+    return dates.size === 1 ? Array.from(dates)[0] : '';
+  }, [selectedRows]);
+
+  const { data: massEditSlots = [] } = useQuery({
+    queryKey: ['public-grading-slots-by-date', massCommonDate],
+    queryFn: () =>
+      massCommonDate
+        ? getPublicGradingSlotsByDate(massCommonDate)
+        : Promise.resolve([] as PublicGradingSlotByDate[]),
+    enabled: massEditOpen && !!massCommonDate,
+  });
+
   const handleDownloadSelectedCertificates = async () => {
     const inputs: GradingCertificateInput[] = [];
     let skipped = 0;
