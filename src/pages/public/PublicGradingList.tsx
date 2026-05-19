@@ -365,8 +365,12 @@ const PublicGradingList: React.FC = () => {
     try {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
-        if (massForm.changeResult && r.source === 'registration' && r.registration_id) {
-          ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+        if (massForm.changeResult) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+          }
         }
         if (massForm.changeSlot && massForm.slot_id) {
           if (r.source === 'registration' && r.registration_id) {
@@ -375,8 +379,12 @@ const PublicGradingList: React.FC = () => {
             ops.push(adminUpdateGradingSubmissionSlot(r.submission_id, massForm.slot_id));
           }
         }
-        if (massForm.changeBranch && massForm.branch_id && r.source === 'registration' && r.registration_id) {
-          ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+        if (massForm.changeBranch && massForm.branch_id) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionBranch(r.submission_id, massForm.branch_id));
+          }
         }
         if (ops.length === 0) { skipped++; continue; }
         try { await Promise.all(ops); updated++; } catch { skipped++; }
