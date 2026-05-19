@@ -245,23 +245,21 @@ const PublicGradingList: React.FC = () => {
       img.src = '/lovable-uploads/gaonhae-logo-transparent.png';
     });
 
-  // Deterministic palette for branches
-  const BRANCH_PALETTE: Array<{ fill: [number, number, number]; text: [number, number, number] }> = [
-    { fill: [219, 234, 254], text: [30, 64, 175] },   // blue
-    { fill: [220, 252, 231], text: [22, 101, 52] },   // green
-    { fill: [254, 226, 226], text: [153, 27, 27] },   // red
-    { fill: [254, 243, 199], text: [146, 64, 14] },   // amber
-    { fill: [237, 233, 254], text: [91, 33, 182] },   // violet
-    { fill: [207, 250, 254], text: [14, 116, 144] },  // cyan
-    { fill: [252, 231, 243], text: [157, 23, 77] },   // pink
-    { fill: [255, 237, 213], text: [154, 52, 18] },   // orange
-    { fill: [220, 252, 244], text: [17, 94, 89] },    // teal
-    { fill: [233, 213, 255], text: [107, 33, 168] },  // purple
-  ];
+  // Fixed per-branch color mapping
+  const BRANCH_COLOR_MAP: Record<string, { fill: [number, number, number]; text: [number, number, number] }> = {
+    balmoral:     { fill: [219, 234, 254], text: [30, 64, 175] },   // blue
+    kembangan:    { fill: [220, 252, 231], text: [22, 101, 52] },   // green
+    'jurong west':{ fill: [254, 249, 195], text: [133, 77, 14] },   // yellow
+    yishun:       { fill: [233, 213, 255], text: [107, 33, 168] },  // purple
+    'bukit merah':{ fill: [255, 237, 213], text: [154, 52, 18] },   // orange
+    morley:       { fill: [204, 251, 241], text: [17, 94, 89] },    // teal
+  };
+  const BRANCH_DEFAULT_COLOR: { fill: [number, number, number]; text: [number, number, number] } = {
+    fill: [241, 245, 249], text: [51, 65, 85],                      // grey
+  };
   const branchColor = (name: string) => {
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-    return BRANCH_PALETTE[h % BRANCH_PALETTE.length];
+    const k = (name || '').trim().toLowerCase();
+    return BRANCH_COLOR_MAP[k] || BRANCH_DEFAULT_COLOR;
   };
   const statusColor = (s: string): { fill: [number, number, number]; text: [number, number, number] } => {
     const k = (s || '').toLowerCase();
