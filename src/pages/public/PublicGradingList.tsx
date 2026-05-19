@@ -191,11 +191,8 @@ const PublicGradingList: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // For mass-edit slot select: slots for the (single) shared grading_date
-  const massSelectionDates = useMemo(() => {
-    const dates = new Set<string>();
-    return dates;
-  }, []);
+
+
 
 
   const handleUnlock = () => {
