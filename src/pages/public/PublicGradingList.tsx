@@ -1110,15 +1110,14 @@ const PublicGradingList: React.FC = () => {
                       <TableRow key={i} className="odd:bg-muted/40">
                         {editMode && (
                           <TableCell className="px-2 py-0.5">
-                            {isCertEligible(r) ? (
-                              <Checkbox
-                                checked={selectedCerts.has(rowCertKey(r))}
-                                onCheckedChange={() => toggleCert(r)}
-                                aria-label="Select for certificate"
-                              />
-                            ) : null}
+                            <Checkbox
+                              checked={selectedCerts.has(rowCertKey(r))}
+                              onCheckedChange={() => toggleCert(r)}
+                              aria-label="Select row"
+                            />
                           </TableCell>
                         )}
+
                         <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
