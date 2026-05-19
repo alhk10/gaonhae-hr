@@ -191,6 +191,9 @@ const PublicGradingList: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Common selected date across mass-edit selection (if all share one date)
+  // Declared below after selectedRows; see massSlotsQuery.
+
 
 
 
