@@ -31,6 +31,7 @@ export interface PublicGradingListRow {
   slot_id: string | null;
   branch_id: string | null;
   branch_name: string | null;
+  branch_country: string | null;
   grading_date: string | null;
   start_time: string | null;
   end_time: string | null;
