@@ -14,6 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      accessory_payment_submissions: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string
+          display_name: string | null
+          email: string | null
+          first_name: string
+          id: string
+          items: Json
+          last_name: string
+          matched_invoice_id: string | null
+          matched_student_id: string | null
+          notes: string | null
+          payment_method: string
+          proof_url: string | null
+          reference_number: string | null
+          result: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          branch_id: string
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth: string
+          display_name?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          items?: Json
+          last_name: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method: string
+          proof_url?: string | null
+          reference_number?: string | null
+          result?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string
+          display_name?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          items?: Json
+          last_name?: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          proof_url?: string | null
+          reference_number?: string | null
+          result?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accessory_payment_submissions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accessory_payment_submissions_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accessory_payment_submissions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_backfill_runs: {
         Row: {
           created_at: string
@@ -6489,6 +6586,10 @@ export type Database = {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
       }
+      admin_reject_accessory_submission: {
+        Args: { p_id: string; p_reason: string; p_reviewed_by: string }
+        Returns: undefined
+      }
       admin_reject_grading_submission: {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
@@ -6536,6 +6637,10 @@ export type Database = {
       admin_update_student_certificate_name: {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
+      }
+      admin_verify_accessory_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: Json
       }
       admin_verify_grading_submission: {
         Args: { p_id: string; p_verified_by: string }
@@ -6587,6 +6692,7 @@ export type Database = {
       }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
+      generate_accessory_payment_reference: { Args: never; Returns: string }
       generate_grading_payment_reference: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_student_number: { Args: never; Returns: string }
@@ -6673,6 +6779,35 @@ export type Database = {
           slot_booking_employee: boolean
           social_media: boolean
           submit_claim: boolean
+        }[]
+      }
+      get_public_accessory_list: {
+        Args: never
+        Returns: {
+          amount: number
+          branch_id: string
+          branch_name: string
+          created_at: string
+          display_name: string
+          first_name: string
+          id: string
+          items: Json
+          last_name: string
+          matched_invoice_id: string
+          matched_student_id: string
+          payment_method: string
+          proof_url: string
+          reference_number: string
+          status: string
+        }[]
+      }
+      get_public_accessory_products: {
+        Args: { p_branch_id: string }
+        Returns: {
+          base_price: number
+          branch_price: number
+          product_id: string
+          product_name: string
         }[]
       }
       get_public_branches: {
