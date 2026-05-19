@@ -763,7 +763,14 @@ const PublicGradingList: React.FC = () => {
     for (const r of selectedRows) {
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
-      else skipped++;
+      else { skipped++; continue; }
+      if (r.result === 'double' && r.target_belt) {
+        const next = getNextBeltLevel(r.target_belt);
+        if (next) {
+          const inp2 = rowToCertInput(r, next);
+          if (inp2) inputs.push(inp2);
+        }
+      }
     }
     if (inputs.length === 0) {
       toast.error('No eligible rows selected');
