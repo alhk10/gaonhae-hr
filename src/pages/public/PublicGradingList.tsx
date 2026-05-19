@@ -901,8 +901,7 @@ const PublicGradingList: React.FC = () => {
   };
 
   const isCertEligible = (r: PublicGradingListRow): boolean =>
-    r.source === 'registration'
-    && !!r.grading_date
+    !!r.grading_date
     && !!r.current_belt
     && (r.result === 'pass' || r.result === 'double');
 
