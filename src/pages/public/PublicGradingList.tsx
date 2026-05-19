@@ -1201,20 +1201,16 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSlotEditRow(r);
-                                    setSlotChoice(r.slot_id || '');
-                                  }}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Update slot"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => openRowEdit(r)}
+                                className="text-muted-foreground hover:text-foreground"
+                                title="Edit row"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
                             </TableCell>
+
                             <TableCell className="px-2 py-0.5">
                               {canDelete && r.source === 'submission' && (
                                 <button
