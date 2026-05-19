@@ -20,7 +20,8 @@ import { format } from 'date-fns';
 import gaonhaeLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 import worldTaekwondoLogo from '@/assets/certificates/au/world-taekwondo.jpg';
 import kukkiwonLogo from '@/assets/certificates/au/kukkiwon.jpg';
-import masterSignature from '@/assets/certificates/au/master-signature.jpg';
+import masterSignatureAU from '@/assets/certificates/au/master-signature.jpg';
+import masterSignatureSG from '@/assets/certificates/sg/master-signature.png';
 
 import {
   ScorecardRow,
