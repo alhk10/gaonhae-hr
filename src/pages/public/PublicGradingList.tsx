@@ -874,6 +874,7 @@ const PublicGradingList: React.FC = () => {
       beltAchieved: belt,
       gradingDate: r.grading_date,
       scorecard: [],
+      branchCountry: r.branch_country ?? null,
     };
   };
 
