@@ -39,11 +39,13 @@ import {
   getPublicGradingSlotsByDate,
   adminUpdateGradingSubmissionSlot,
   adminDeleteGradingSubmission,
+  adminUpdateGradingResult,
   verifyGradingSubmission,
   rejectGradingSubmission,
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
+import { getNextBeltLevel } from '@/constants/beltLevels';
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
 const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
@@ -216,6 +218,18 @@ const PublicGradingList: React.FC = () => {
       toast.error(e?.message || 'Failed to reject');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleResultChange = async (r: PublicGradingListRow, next: string) => {
+    if (!r.registration_id) return;
+    const value = next === '__clear__' ? null : next;
+    try {
+      await adminUpdateGradingResult(r.registration_id, value);
+      toast.success('Result updated');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update result');
     }
   };
 
@@ -668,38 +682,49 @@ const PublicGradingList: React.FC = () => {
 
   // ---- Certificate download (inline + bulk) -------------------------------
   const rowCertKey = (r: PublicGradingListRow): string =>
-    `${r.source}:${r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
+    `${r.source}:${r.registration_id ?? r.submission_id ?? `${r.student_name}|${r.grading_date ?? ''}|${r.current_belt ?? ''}`}`;
 
-  const rowToCertInput = (r: PublicGradingListRow): GradingCertificateInput | null => {
-    if (!r.grading_date || !r.current_belt) return null;
+  const rowToCertInput = (
+    r: PublicGradingListRow,
+    beltOverride?: string | null,
+  ): GradingCertificateInput | null => {
+    const belt = beltOverride ?? r.current_belt;
+    if (!r.grading_date || !belt) return null;
     return {
       studentName: r.student_name,
-      beltAchieved: r.current_belt,
+      beltAchieved: belt,
       gradingDate: r.grading_date,
       scorecard: [],
     };
   };
 
-  const certFilename = (r: PublicGradingListRow): string => {
+  const certFilename = (r: PublicGradingListRow, beltOverride?: string | null): string => {
     const safeName = (r.student_name || 'Student').replace(/[^\w\-]+/g, '_');
-    const safeBelt = (r.current_belt || 'Belt').replace(/[^\w\-]+/g, '_');
+    const belt = beltOverride ?? r.current_belt ?? 'Belt';
+    const safeBelt = belt.replace(/[^\w\-]+/g, '_');
     const dateStr = (r.grading_date || '').replace(/-/g, '');
     return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
   };
 
-  const handleDownloadCertificate = (r: PublicGradingListRow) => {
-    const input = rowToCertInput(r);
+  const handleDownloadCertificate = (r: PublicGradingListRow, beltOverride?: string | null) => {
+    const input = rowToCertInput(r, beltOverride);
     if (!input) {
       toast.error('Missing grading date or belt — cannot generate certificate');
       return;
     }
     try {
-      downloadGradingCertificatePDF(input, certFilename(r));
+      downloadGradingCertificatePDF(input, certFilename(r, beltOverride));
       toast.success('Certificate generated');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to generate certificate');
     }
   };
+
+  const isCertEligible = (r: PublicGradingListRow): boolean =>
+    r.source === 'registration'
+    && !!r.grading_date
+    && !!r.current_belt
+    && (r.result === 'pass' || r.result === 'double');
 
   const toggleCert = (r: PublicGradingListRow) => {
     const key = rowCertKey(r);
@@ -712,7 +737,7 @@ const PublicGradingList: React.FC = () => {
   };
 
   const eligibleSlotRows = (items: PublicGradingListRow[]) =>
-    items.filter((r) => r.source === 'registration' && r.grading_date && r.current_belt);
+    items.filter(isCertEligible);
 
   const allSelectedInSlot = (items: PublicGradingListRow[]) => {
     const elig = eligibleSlotRows(items);
@@ -750,7 +775,14 @@ const PublicGradingList: React.FC = () => {
     for (const r of selectedRows) {
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
-      else skipped++;
+      else { skipped++; continue; }
+      if (r.result === 'double' && r.target_belt) {
+        const next = getNextBeltLevel(r.target_belt);
+        if (next) {
+          const inp2 = rowToCertInput(r, next);
+          if (inp2) inputs.push(inp2);
+        }
+      }
     }
     if (inputs.length === 0) {
       toast.error('No eligible rows selected');
@@ -901,11 +933,12 @@ const PublicGradingList: React.FC = () => {
                         <>
                           <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px]">Result</TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
+                          <TableHead className="h-7 px-2 text-[11px] w-16"></TableHead>
                         </>
                       )}
                     </TableRow>
@@ -915,7 +948,7 @@ const PublicGradingList: React.FC = () => {
                       <TableRow key={i} className="odd:bg-muted/40">
                         {editMode && (
                           <TableCell className="px-2 py-0.5">
-                            {r.source === 'registration' && r.grading_date && r.current_belt ? (
+                            {isCertEligible(r) ? (
                               <Checkbox
                                 checked={selectedCerts.has(rowCertKey(r))}
                                 onCheckedChange={() => toggleCert(r)}
@@ -955,6 +988,27 @@ const PublicGradingList: React.FC = () => {
                                     fallback={<span className="text-muted-foreground text-xs">—</span>}
                                   />
                                 </button>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {r.source === 'registration' && r.registration_id ? (
+                                <Select
+                                  value={r.result ?? ''}
+                                  onValueChange={(v) => handleResultChange(r, v)}
+                                >
+                                  <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="double">Double</SelectItem>
+                                    <SelectItem value="pass">Pass</SelectItem>
+                                    <SelectItem value="fail">Fail</SelectItem>
+                                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="__clear__">—</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
@@ -1013,15 +1067,30 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'registration' && r.grading_date && r.current_belt && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDownloadCertificate(r)}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Download certificate"
-                                >
-                                  <Award className="h-3.5 w-3.5" />
-                                </button>
+                              {isCertEligible(r) && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadCertificate(r)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title={`Download certificate (${r.current_belt}${r.target_belt ? ` → ${r.target_belt}` : ''})`}
+                                  >
+                                    <Award className="h-3.5 w-3.5" />
+                                  </button>
+                                  {r.result === 'double' && r.target_belt && (() => {
+                                    const next = getNextBeltLevel(r.target_belt);
+                                    return next ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadCertificate(r, next)}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        title={`Download certificate (${r.target_belt} → ${next})`}
+                                      >
+                                        <Award className="h-3.5 w-3.5" />
+                                      </button>
+                                    ) : null;
+                                  })()}
+                                </div>
                               )}
                             </TableCell>
                           </>

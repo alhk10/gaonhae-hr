@@ -6492,6 +6492,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_update_grading_result: {
+        Args: { p_registration_id: string; p_result: string }
+        Returns: undefined
+      }
       admin_update_grading_submission_slot: {
         Args: { p_id: string; p_slot_id: string }
         Returns: undefined
@@ -6654,6 +6658,8 @@ export type Database = {
           location: string
           paid_status: string
           proof_url: string
+          registration_id: string
+          result: string
           slot_id: string
           slot_title: string
           source: string
