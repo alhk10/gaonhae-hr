@@ -36,6 +36,8 @@ export interface GradingCertificateInput {
   scorecard: ScorecardRow[];    // editable list rendered on page 2
   examinerName?: string;        // (no longer printed) kept for backwards compat
   result?: 'pass' | 'double' | 'fail' | null; // displayed in final scorecard row
+  /** Branch country (e.g. 'SG', 'AU'). Determines signature image. */
+  branchCountry?: string | null;
   /**
    * Ordered list of column labels from the grading list header (left → right).
    * When supplied, scorecard rows on page 2 are sorted to match this order
