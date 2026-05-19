@@ -854,20 +854,15 @@ const PublicGradingList: React.FC = () => {
     });
   };
 
-  const eligibleSlotRows = (items: PublicGradingListRow[]) =>
-    items.filter(isCertEligible);
-
-  const allSelectedInSlot = (items: PublicGradingListRow[]) => {
-    const elig = eligibleSlotRows(items);
-    return elig.length > 0 && elig.every((r) => selectedCerts.has(rowCertKey(r)));
-  };
+  // Checkbox: every row in edit mode is selectable.
+  const allSelectedInSlot = (items: PublicGradingListRow[]) =>
+    items.length > 0 && items.every((r) => selectedCerts.has(rowCertKey(r)));
 
   const toggleSlotAll = (items: PublicGradingListRow[]) => {
-    const elig = eligibleSlotRows(items);
     const allSel = allSelectedInSlot(items);
     setSelectedCerts((prev) => {
       const next = new Set(prev);
-      for (const r of elig) {
+      for (const r of items) {
         const k = rowCertKey(r);
         if (allSel) next.delete(k);
         else next.add(k);
@@ -875,6 +870,7 @@ const PublicGradingList: React.FC = () => {
       return next;
     });
   };
+
 
   const selectedRows = useMemo(() => {
     const out: PublicGradingListRow[] = [];
