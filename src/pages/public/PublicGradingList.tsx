@@ -933,7 +933,6 @@ const PublicGradingList: React.FC = () => {
     const out: PublicGradingListRow[] = [];
     for (const g of groups) {
       for (const r of g.items) {
-        if (r.source !== 'registration') continue;
         if (selectedCerts.has(rowCertKey(r))) out.push(r);
       }
     }
