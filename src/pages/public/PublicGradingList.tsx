@@ -1504,15 +1504,13 @@ const PublicGradingList: React.FC = () => {
                 <Select value={massForm.slot_id} onValueChange={(v) => setMassForm((f) => ({ ...f, slot_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select slot" /></SelectTrigger>
                   <SelectContent>
-                    {Array.from(
-                      new Map(
-                        selectedRows
-                          .map((r) => r.grading_date)
-                          .filter((d): d is string => !!d)
-                          .map((d) => [d, d])
-                      ).keys()
-                    ).length === 1 ? (
-                      <MassEditSlotOptions date={selectedRows.find((r) => r.grading_date)?.grading_date || ''} />
+                    {massCommonDate ? (
+                      massEditSlots.map((s) => {
+                        const fallback = `${formatDate(s.grading_date)} ${s.start_time?.slice(0, 5) || ''} · ${s.branch_name}`;
+                        return (
+                          <SelectItem key={s.id} value={s.id}>{s.title || fallback}</SelectItem>
+                        );
+                      })
                     ) : (
                       <div className="px-2 py-1.5 text-xs text-muted-foreground">Select rows with the same date.</div>
                     )}
