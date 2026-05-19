@@ -239,6 +239,30 @@ export const adminUpdateGradingSubmissionSlot = async (id: string, slotId: strin
   if (error) throw error;
 };
 
+export const adminUpdateGradingSubmissionBranch = async (id: string, branchId: string | null) => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_branch' as any, {
+    p_submission_id: id,
+    p_branch_id: branchId,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingSubmissionDisplayName = async (id: string, displayName: string) => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_display_name' as any, {
+    p_submission_id: id,
+    p_display_name: displayName,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingSubmissionResult = async (id: string, result: string | null) => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_result' as any, {
+    p_submission_id: id,
+    p_result: result,
+  });
+  if (error) throw error;
+};
+
 export const adminDeleteGradingSubmission = async (id: string) => {
   const { error } = await supabase.rpc('admin_delete_grading_submission' as any, { p_id: id });
   if (error) throw error;

@@ -1627,6 +1627,7 @@ export type Database = {
           created_at: string
           current_belt: string | null
           date_of_birth: string
+          display_name: string | null
           email: string | null
           first_name: string
           id: string
@@ -1639,6 +1640,7 @@ export type Database = {
           reference_number: string | null
           resolved_grading_slot_id: string | null
           resolved_product_id: string | null
+          result: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -1650,6 +1652,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth: string
+          display_name?: string | null
           email?: string | null
           first_name: string
           id?: string
@@ -1662,6 +1665,7 @@ export type Database = {
           reference_number?: string | null
           resolved_grading_slot_id?: string | null
           resolved_product_id?: string | null
+          result?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -1673,6 +1677,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth?: string
+          display_name?: string | null
           email?: string | null
           first_name?: string
           id?: string
@@ -1685,6 +1690,7 @@ export type Database = {
           reference_number?: string | null
           resolved_grading_slot_id?: string | null
           resolved_product_id?: string | null
+          result?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -6509,6 +6515,18 @@ export type Database = {
       }
       admin_update_grading_result: {
         Args: { p_registration_id: string; p_result: string }
+        Returns: undefined
+      }
+      admin_update_grading_submission_branch: {
+        Args: { p_branch_id: string; p_submission_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_submission_display_name: {
+        Args: { p_display_name: string; p_submission_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_submission_result: {
+        Args: { p_result: string; p_submission_id: string }
         Returns: undefined
       }
       admin_update_grading_submission_slot: {

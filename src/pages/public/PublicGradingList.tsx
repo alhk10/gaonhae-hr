@@ -39,6 +39,9 @@ import {
   getPublicGradingSlotsByDate,
   getPublicBranches,
   adminUpdateGradingSubmissionSlot,
+  adminUpdateGradingSubmissionBranch,
+  adminUpdateGradingSubmissionDisplayName,
+  adminUpdateGradingSubmissionResult,
   adminDeleteGradingSubmission,
   adminUpdateGradingResult,
   adminUpdateGradingRegistrationSlot,
@@ -288,7 +291,7 @@ const PublicGradingList: React.FC = () => {
   const openRowEdit = (r: PublicGradingListRow) => {
     setEditRow(r);
     setEditForm({
-      display_name: r.source === 'registration' ? (r.student_name || '') : '',
+      display_name: r.student_name || '',
       certificate_name: r.certificate_name || '',
       branch_id: r.branch_id || '',
       slot_id: r.slot_id || '',
@@ -301,8 +304,11 @@ const PublicGradingList: React.FC = () => {
     setSavingEdit(true);
     try {
       const ops: Promise<unknown>[] = [];
+      const currentName = editRow.student_name || '';
+      const currentResult = editRow.result || '';
+
       if (editRow.source === 'registration' && editRow.registration_id) {
-        if ((editRow.student_name || '') !== editForm.display_name) {
+        if (currentName !== editForm.display_name) {
           ops.push(adminUpdateGradingRegistrationDisplayName(editRow.registration_id, editForm.display_name));
         }
         if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
@@ -311,19 +317,28 @@ const PublicGradingList: React.FC = () => {
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
         }
-        const currentResult = editRow.result || '';
         if (editForm.result !== currentResult) {
           ops.push(adminUpdateGradingResult(editRow.registration_id, editForm.result || null));
         }
-        if (editRow.student_id && (editRow.certificate_name || '') !== editForm.certificate_name) {
-          ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
-        }
       } else if (editRow.source === 'submission' && editRow.submission_id) {
+        if (currentName !== editForm.display_name) {
+          ops.push(adminUpdateGradingSubmissionDisplayName(editRow.submission_id, editForm.display_name));
+        }
+        if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
+          ops.push(adminUpdateGradingSubmissionBranch(editRow.submission_id, editForm.branch_id));
+        }
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingSubmissionSlot(editRow.submission_id, editForm.slot_id));
         }
-        // Branch on submissions is not editable via dedicated RPC; skip.
+        if (editForm.result !== currentResult) {
+          ops.push(adminUpdateGradingSubmissionResult(editRow.submission_id, editForm.result || null));
+        }
       }
+
+      if (editRow.student_id && (editRow.certificate_name || '') !== editForm.certificate_name) {
+        ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
+      }
+
       if (ops.length === 0) {
         toast.info('Nothing to update');
       } else {
@@ -350,8 +365,12 @@ const PublicGradingList: React.FC = () => {
     try {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
-        if (massForm.changeResult && r.source === 'registration' && r.registration_id) {
-          ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+        if (massForm.changeResult) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+          }
         }
         if (massForm.changeSlot && massForm.slot_id) {
           if (r.source === 'registration' && r.registration_id) {
@@ -360,8 +379,12 @@ const PublicGradingList: React.FC = () => {
             ops.push(adminUpdateGradingSubmissionSlot(r.submission_id, massForm.slot_id));
           }
         }
-        if (massForm.changeBranch && massForm.branch_id && r.source === 'registration' && r.registration_id) {
-          ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+        if (massForm.changeBranch && massForm.branch_id) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionBranch(r.submission_id, massForm.branch_id));
+          }
         }
         if (ops.length === 0) { skipped++; continue; }
         try { await Promise.all(ops); updated++; } catch { skipped++; }
@@ -910,7 +933,6 @@ const PublicGradingList: React.FC = () => {
     const out: PublicGradingListRow[] = [];
     for (const g of groups) {
       for (const r of g.items) {
-        if (r.source !== 'registration') continue;
         if (selectedCerts.has(rowCertKey(r))) out.push(r);
       }
     }
@@ -1388,58 +1410,56 @@ const PublicGradingList: React.FC = () => {
           </DialogHeader>
           {editRow && (
             <div className="space-y-3">
-              {editRow.source === 'registration' && (
-                <>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Display name (this registration only)</label>
-                    <Input
-                      value={editForm.display_name}
-                      onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
-                      placeholder="Display name"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Certificate name (saved to student)</label>
-                    <Input
-                      value={editForm.certificate_name}
-                      onChange={(e) => setEditForm((f) => ({ ...f, certificate_name: e.target.value }))}
-                      placeholder={
-                        (editRow.first_name || editRow.last_name)
-                          ? `${editRow.first_name || ''} ${editRow.last_name || ''}`.trim()
-                          : (editRow.student_name || 'Certificate name')
-                      }
-                      disabled={!editRow.student_id}
-                    />
-                    {!editRow.student_id && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Branch</label>
-                    <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                      <SelectContent>
-                        {publicBranches.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Result</label>
-                    <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="double">Double</SelectItem>
-                        <SelectItem value="pass">Pass</SelectItem>
-                        <SelectItem value="fail">Fail</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="__clear__">—</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground">Display name (this {editRow.source} only)</label>
+                  <Input
+                    value={editForm.display_name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
+                    placeholder="Display name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Certificate name (saved to student)</label>
+                  <Input
+                    value={editForm.certificate_name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, certificate_name: e.target.value }))}
+                    placeholder={
+                      (editRow.first_name || editRow.last_name)
+                        ? `${editRow.first_name || ''} ${editRow.last_name || ''}`.trim()
+                        : (editRow.student_name || 'Certificate name')
+                    }
+                    disabled={!editRow.student_id}
+                  />
+                  {!editRow.student_id && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Branch</label>
+                  <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                    <SelectContent>
+                      {publicBranches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Result</label>
+                  <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="double">Double</SelectItem>
+                      <SelectItem value="pass">Pass</SelectItem>
+                      <SelectItem value="fail">Fail</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="__clear__">—</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
               <div>
                 <label className="text-xs text-muted-foreground">Slot</label>
                 <Select value={editForm.slot_id} onValueChange={(v) => setEditForm((f) => ({ ...f, slot_id: v }))}>
@@ -1477,7 +1497,7 @@ const PublicGradingList: React.FC = () => {
                   checked={massForm.changeResult}
                   onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeResult: !!v }))}
                 />
-                Result (registrations only)
+                Result
               </label>
               {massForm.changeResult && (
                 <Select value={massForm.result} onValueChange={(v) => setMassForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
@@ -1524,7 +1544,7 @@ const PublicGradingList: React.FC = () => {
                   checked={massForm.changeBranch}
                   onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeBranch: !!v }))}
                 />
-                Branch (registrations only)
+                Branch
               </label>
               {massForm.changeBranch && (
                 <Select value={massForm.branch_id} onValueChange={(v) => setMassForm((f) => ({ ...f, branch_id: v }))}>
