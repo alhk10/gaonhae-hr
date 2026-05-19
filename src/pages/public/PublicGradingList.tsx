@@ -221,6 +221,18 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const handleResultChange = async (r: PublicGradingListRow, next: string) => {
+    if (!r.registration_id) return;
+    const value = next === '__clear__' ? null : next;
+    try {
+      await adminUpdateGradingResult(r.registration_id, value);
+      toast.success('Result updated');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update result');
+    }
+  };
+
   const openLightbox = async (storedUrl: string) => {
     const resolved = await resolveStorageUrl(storedUrl);
     setLightboxUrl(resolved || storedUrl);
