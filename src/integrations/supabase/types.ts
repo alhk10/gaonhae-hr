@@ -14,103 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      accessory_payment_submissions: {
-        Row: {
-          amount: number
-          branch_id: string
-          created_at: string
-          current_belt: string | null
-          date_of_birth: string
-          display_name: string | null
-          email: string | null
-          first_name: string
-          id: string
-          items: Json
-          last_name: string
-          matched_invoice_id: string | null
-          matched_student_id: string | null
-          notes: string | null
-          payment_method: string
-          proof_url: string | null
-          reference_number: string | null
-          result: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          amount?: number
-          branch_id: string
-          created_at?: string
-          current_belt?: string | null
-          date_of_birth: string
-          display_name?: string | null
-          email?: string | null
-          first_name: string
-          id?: string
-          items?: Json
-          last_name: string
-          matched_invoice_id?: string | null
-          matched_student_id?: string | null
-          notes?: string | null
-          payment_method: string
-          proof_url?: string | null
-          reference_number?: string | null
-          result?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          branch_id?: string
-          created_at?: string
-          current_belt?: string | null
-          date_of_birth?: string
-          display_name?: string | null
-          email?: string | null
-          first_name?: string
-          id?: string
-          items?: Json
-          last_name?: string
-          matched_invoice_id?: string | null
-          matched_student_id?: string | null
-          notes?: string | null
-          payment_method?: string
-          proof_url?: string | null
-          reference_number?: string | null
-          result?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "accessory_payment_submissions_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "accessory_payment_submissions_matched_invoice_id_fkey"
-            columns: ["matched_invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "accessory_payment_submissions_matched_student_id_fkey"
-            columns: ["matched_student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       accounting_backfill_runs: {
         Row: {
           created_at: string
@@ -4159,6 +4062,210 @@ export type Database = {
           },
         ]
       }
+      public_chat_callback_requests: {
+        Row: {
+          branch_id: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          email_sent_at: string | null
+          id: string
+          message: string | null
+          name: string | null
+          preferred_time: string | null
+          session_id: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          branch_id?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          message?: string | null
+          name?: string | null
+          preferred_time?: string | null
+          session_id?: string | null
+          status?: string
+          type?: string
+        }
+        Update: {
+          branch_id?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          message?: string | null
+          name?: string | null
+          preferred_time?: string | null
+          session_id?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_chat_callback_requests_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "public_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_chat_events: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json | null
+          session_id: string
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          session_id: string
+          step: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          session_id?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_chat_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "public_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_chat_payment_submissions: {
+        Row: {
+          amount: number | null
+          branch_id: string | null
+          category: string | null
+          created_at: string
+          id: string
+          items: Json
+          matched_invoice_id: string | null
+          matched_student_id: string | null
+          notes: string | null
+          payment_method: string | null
+          proof_url: string | null
+          reference_number: string | null
+          session_id: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number | null
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          session_id?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number | null
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          session_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_chat_payment_submissions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_chat_payment_submissions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "public_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_chat_sessions: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          first_name: string | null
+          gender: string | null
+          id: string
+          last_name: string | null
+          matched_student_id: string | null
+          outcome: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          last_name?: string | null
+          matched_student_id?: string | null
+          outcome?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          last_name?: string | null
+          matched_student_id?: string | null
+          outcome?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_chat_sessions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_holidays: {
         Row: {
           country: string
@@ -6692,7 +6799,7 @@ export type Database = {
       }
       force_book_eldon_slots: { Args: never; Returns: Json }
       force_book_ryan_slots: { Args: never; Returns: Json }
-      generate_accessory_payment_reference: { Args: never; Returns: string }
+      generate_chat_payment_reference: { Args: never; Returns: string }
       generate_grading_payment_reference: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_student_number: { Args: never; Returns: string }
@@ -6993,6 +7100,21 @@ export type Database = {
           p_user_email: string
         }
         Returns: undefined
+      }
+      match_student_by_identity: {
+        Args: {
+          p_branch_id: string
+          p_dob: string
+          p_first_name: string
+          p_last_name: string
+        }
+        Returns: {
+          current_belt: string
+          first_name: string
+          id: string
+          last_name: string
+          status: string
+        }[]
       }
       partner_create_approved_claim: {
         Args: {
