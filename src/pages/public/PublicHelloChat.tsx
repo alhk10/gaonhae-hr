@@ -136,6 +136,40 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
+  const isGradingMatched =
+    !!matched && payCategory?.id === GRADING_CATEGORY_ID && stage === 'payment_products';
+
+  const { data: completedStages = [] } = useQuery({
+    queryKey: ['hello-completed-stages', matched?.id],
+    queryFn: () => getStudentCompletedGradingStages(matched!.id),
+    enabled: isGradingMatched,
+  });
+
+  const gradingDefault = useMemo(() => {
+    if (!isGradingMatched || products.length === 0) return null;
+    return computeNextGradingDefault(matched!.current_belt, completedStages, products);
+  }, [isGradingMatched, matched, completedStages, products]);
+
+  useEffect(() => {
+    if (gradingDefault && sessionId && !gradingDefaultLogged) {
+      logChatEvent(sessionId, 'grading_default_applied', {
+        current_belt: matched?.current_belt ?? null,
+        completed_stages: completedStages,
+        defaulted_product_id: gradingDefault.product?.product_id ?? null,
+        reason: gradingDefault.reason,
+      }).catch(() => {});
+      setGradingDefaultLogged(true);
+    }
+  }, [gradingDefault, sessionId, gradingDefaultLogged, completedStages, matched]);
+
+  useEffect(() => {
+    // Reset grading default state when leaving products step or changing category.
+    if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
+      setGradingOverride(false);
+      setGradingDefaultLogged(false);
+    }
+  }, [stage, payCategory]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [stage, cart.length]);
