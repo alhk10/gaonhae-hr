@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as gradingConfirmation } from './grading-confirmation.tsx'
+import { template as helloCallbackRequest } from './hello-callback-request.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'grading-confirmation': gradingConfirmation,
+  'hello-callback-request': helloCallbackRequest,
 }
