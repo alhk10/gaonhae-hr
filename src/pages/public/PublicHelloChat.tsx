@@ -655,9 +655,38 @@ const PublicHelloChat: React.FC = () => {
                   {!productsLoading && products.length === 0 && (
                     <p className="text-xs text-muted-foreground">No items available for this branch right now.</p>
                   )}
-                  {products.map(p => (
-                    <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
-                  ))}
+
+                  {isGradingMatched && gradingDefault && !gradingOverride ? (
+                    <div className="space-y-2">
+                      <div className="rounded-md bg-muted/60 p-2 text-xs text-foreground">
+                        {gradingDefault.message}
+                      </div>
+                      {gradingDefault.product ? (
+                        <>
+                          <ProductRow product={gradingDefault.product} onAdd={addToCart} />
+                          <button
+                            type="button"
+                            onClick={() => setGradingOverride(true)}
+                            className="text-xs text-primary underline underline-offset-2"
+                          >
+                            Change grading
+                          </button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="h-9 w-full"
+                          onClick={() => setGradingOverride(true)}
+                        >
+                          Show all gradings
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    products.map(p => (
+                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
+                    ))
+                  )}
 
                   {cart.length > 0 && (
                     <div className="border-t pt-2 mt-2 space-y-1">
