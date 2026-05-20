@@ -7069,6 +7069,12 @@ export type Database = {
           student_name: string
         }[]
       }
+      get_student_completed_grading_stages: {
+        Args: { p_student_id: string }
+        Returns: {
+          stage_number: number
+        }[]
+      }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
       has_sales_access: { Args: never; Returns: boolean }
