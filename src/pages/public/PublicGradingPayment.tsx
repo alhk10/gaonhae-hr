@@ -607,10 +607,10 @@ const PublicGradingPayment: React.FC = () => {
                   <Label htmlFor="slot">Grading Slot</Label>
                   <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
                     <SelectTrigger id="slot">
-                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
+                      <SelectValue placeholder={filteredSlotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {slotList.map((s) => {
+                      {filteredSlotList.map((s) => {
                         const [y, m, d] = s.grading_date.split('-');
                         const dateLbl = `${d}/${m}/${y}`;
                         const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
