@@ -1,37 +1,47 @@
 ## Problem
 
-On `/grading-payment` (and the `/hello` chat grading flow), the Grading Slot dropdown shows "No upcoming slots available" for an 18 y/o Red-belt student at Balmoral.
+A student born in 2008 (age 17–18) selecting `Black Tip` is being offered the grading slot **"Balmoral - 28/06/2026 - 14:30 - Black Tip >> 1st Poom"** on the public grading payment page (`/pay`).
+
+`1st Poom` is a junior grade (under 15). An 18-year-old should never see a Poom slot — they should be offered the equivalent `Black Tip >> 1st Dan` slot, and nothing else.
 
 ## Root cause
 
-`get_public_grading_slots(p_branch_id, p_product_ids, p_dob, p_current_belt)` currently:
+`grading_slots` row `906c27da…` has:
+- `belt_levels = {Black Tip}`
+- `min_age = NULL`, `max_age = NULL`
+- title `Black Tip >> 1st Poom`
 
-1. Uses `JOIN public.branches b ON b.id = gs.branch_id` — an INNER JOIN that drops every slot where `grading_slots.branch_id IS NULL`.
-2. Requires `gs.branch_id = p_branch_id OR p_branch_id = ANY(gs.available_branch_ids)`.
+`get_public_grading_slots` only enforces age via the slot's own `min_age` / `max_age`. The data-entry team did not cap this Poom slot at age 14, so it leaks to all ages. The same hole exists for any `Poom`-target or `Dan`-target slot whose age is left blank.
 
-There are 2 upcoming slots on 28/06/2026 with `branch_id = NULL` and `available_branch_ids = NULL`, intended as cross-branch teen/adult gradings (e.g. "28/06/2026 - 13:50 - Blue to Red", `min_age = 13`, `belt_levels = {Blue, Red, Red Tip}`). These are silently filtered out, leaving an 18 y/o Red belt with no eligible Balmoral slot (the branch-specific Red slot is capped at `max_age = 14`).
+There is also a symmetrical bug: a 10-year-old `Black Tip` student would be offered a `Black Tip >> 1st Dan` slot if one existed without `min_age` set.
 
-The branch-specific dashboard `BranchWeeklyTimetable` reads `grading_slots` directly and already shows these slots, so the issue is isolated to the public RPC.
+## Fix scope
 
-## Fix
+Frontend filter only (no slot-data edits, no DB migration). Client already knows `age` and parses belt names elsewhere — extend `PublicGradingPayment.tsx` to drop slots whose target belt is age-incompatible.
 
-Update `public.get_public_grading_slots(text, uuid[], date, text)` so that slots without a specific branch are treated as available to every branch:
+### Rules
 
-- Change `JOIN public.branches b ON b.id = gs.branch_id` to `LEFT JOIN`.
-- Replace the branch filter with:
-  ```
-  (
-    gs.branch_id = p_branch_id
-    OR (gs.available_branch_ids IS NOT NULL AND p_branch_id = ANY(gs.available_branch_ids))
-    OR (gs.branch_id IS NULL AND (gs.available_branch_ids IS NULL OR array_length(gs.available_branch_ids, 1) IS NULL))
-  )
-  ```
-- For cross-branch rows, return the requested branch's name/address (lookup `p_branch_id` from `branches`) so the UI still shows a meaningful location label.
+Given `age` and a slot, derive the slot's **target belt(s)**:
 
-No data backfill required; existing branch-specific slots continue to behave as before. Age and belt filters already cover eligibility.
+1. If `slot.stage_product_name` matches `Stage 1`–`Stage 26` → it is a Stage slot. Stage slots are valid for **both** Poom and Dan students of the right age band, so apply the existing eligibility logic (no change). Skip the new filter.
+2. Otherwise parse `slot.title` after the last `>>`. If it contains:
+   - `Poom` → keep only when `age < 15`
+   - `Dan` → keep only when `age >= 15`
+   - neither → keep (coloured-belt transition, no age gate)
 
-## Out of scope
+### Where to apply
 
-- No UI changes to `PublicGradingPayment.tsx` or `PublicHelloChat.tsx`.
-- No changes to `get_public_grading_slots_by_date` (used elsewhere) unless the same bug is confirmed there in a follow-up.
-- Slot data entry (e.g. setting `available_branch_ids` per slot) remains a separate admin concern.
+In `src/pages/public/PublicGradingPayment.tsx`, wrap the existing `slotList` in a `useMemo` that filters by the rule above using `age`. Feed the filtered list to the `Select` and to `selectedSlot` lookup. If the currently selected slot is filtered out, reset `selectedSlotId`.
+
+### Out of scope
+
+- No changes to `get_public_grading_slots` (DB function stays as-is — the cross-branch fix from the previous loop is preserved).
+- No changes to `PublicHelloChat.tsx` (it does not pick grading slots).
+- No edits to existing slot rows. Admins can still tighten `max_age`/`min_age` later; this client filter is the safety net.
+- No change to `resolveAgeGating` / product lookup — that part already chooses `1st Dan` for an 18-year-old Black Tip; only the slot dropdown was leaking.
+
+## Verification
+
+- 18 y/o, Black Tip, Balmoral, 28/06/2026 → `Black Tip >> 1st Poom` slot hidden. Only `Black Tip >> 1st Dan` slot (if present) and any Stage slots whose belt+age matches are shown.
+- 10 y/o, Black Tip → reverse: `Black Tip >> 1st Dan` hidden, Poom kept.
+- Coloured-belt transitions (e.g. `Yellow >> Green Tip`) unaffected.
