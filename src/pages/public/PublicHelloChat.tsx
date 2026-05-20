@@ -112,6 +112,8 @@ const PublicHelloChat: React.FC = () => {
   const [cart, setCart] = useState<{ product: ChatProduct; size: string | null; qty: number }[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [gradingOverride, setGradingOverride] = useState(false);
+  const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
