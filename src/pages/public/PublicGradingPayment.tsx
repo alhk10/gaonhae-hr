@@ -287,9 +287,31 @@ const PublicGradingPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
+  // Age-gate slots by parsed target belt (Poom = age <15, Dan = age >=15).
+  // Stage slots (Stage 1..26) are kept — they apply to both Poom and Dan.
+  const filteredSlotList = useMemo(() => {
+    if (age === null) return slotList;
+    return slotList.filter((s: any) => {
+      const stageName: string = s.stage_product_name || '';
+      if (/^\s*stage\s+\d+/i.test(stageName)) return true;
+      const title: string = s.title || '';
+      const idx = title.lastIndexOf('>>');
+      const target = (idx >= 0 ? title.slice(idx + 2) : title).toLowerCase();
+      if (target.includes('poom')) return age < 15;
+      if (target.includes('dan')) return age >= 15;
+      return true;
+    });
+  }, [slotList, age]);
+
+  useEffect(() => {
+    if (selectedSlotId && !filteredSlotList.some((s: any) => s.id === selectedSlotId)) {
+      setSelectedSlotId('');
+    }
+  }, [filteredSlotList, selectedSlotId]);
+
   const selectedSlot = useMemo(
-    () => slotList.find(s => s.id === selectedSlotId) || null,
-    [slotList, selectedSlotId],
+    () => filteredSlotList.find(s => s.id === selectedSlotId) || null,
+    [filteredSlotList, selectedSlotId],
   );
 
   // When the selected slot is a Stage slot, override the product/price with the Stage product.
@@ -585,10 +607,10 @@ const PublicGradingPayment: React.FC = () => {
                   <Label htmlFor="slot">Grading Slot</Label>
                   <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
                     <SelectTrigger id="slot">
-                      <SelectValue placeholder={slotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
+                      <SelectValue placeholder={filteredSlotList.length === 0 ? 'No upcoming slots available' : 'Select grading slot'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {slotList.map((s) => {
+                      {filteredSlotList.map((s) => {
                         const [y, m, d] = s.grading_date.split('-');
                         const dateLbl = `${d}/${m}/${y}`;
                         const timeLbl = s.start_time ? ` ${s.start_time.slice(0, 5)}` : '';
