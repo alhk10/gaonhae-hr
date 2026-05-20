@@ -1,52 +1,134 @@
-# Restrict /accessories to 4 fixed bundle products
+# /hello — Customer Chat Workflow
 
-Replace the open product list on `/accessories` with exactly 4 bundle "products", each composed of existing catalog items. No new DB products; all bundle logic lives in the frontend. Bundles are expanded into real product line items when verification creates the combined invoice on `/accessories-list`.
+Replaces `/accessories` and `/accessories-list` with a single mobile-first conversational entry point that handles student identification, registration, free-trial enquiries, payments, and a callback escape hatch.
 
-## The 4 bundles
+## Removals
 
-| # | Bundle name | Underlying products |
-|---|---|---|
-| 1 | Gaonhae Arm, Shin, Groin Guard Set | Gaonhae Arm Guard + Gaonhae Shin Guard + Gaonhae Male **or** Female Groin Guard |
-| 2 | Adidas Arm, Shin, Groin Guard Set | Adidas Arm Guard + Adidas Shin Guard + Adidas Groin Guard (Male **or** Female) |
-| 3 | Adidas Headgear (Red) & Chest Guard Set | Adidas Headgear (color=Red) + Adidas Chestguard |
-| 4 | Adidas Headgear (Blue) & Chest Guard Set | Adidas Headgear (color=Blue) + Adidas Chestguard |
+- Routes: `/accessories`, `/accessories-list` (App.tsx).
+- Files: `src/pages/public/PublicAccessoriesPayment.tsx`, `src/pages/public/PublicAccessoriesList.tsx`, `src/constants/accessoryBundles.ts`.
+- Service: `src/services/accessoryPaymentSubmissionService.ts`.
+- DB: drop `accessory_payment_submissions` table + `get_public_accessory_*` / `admin_*_accessory_*` RPCs.
+- Any nav links pointing to the removed routes.
 
-Pricing per bundle = sum of branch prices of its underlying products (uses existing `get_public_accessory_products` for branch overrides).
+## New route: `/hello`
 
-## Buyer selections (per bundle line)
+Single public page, mobile-first chat-style stepper. No auth. Each step is a chat "bubble" with the next prompt rendered as a sticky bottom input/control.
 
-- **Quantity**: +/- stepper (as today).
-- **Gender** (bundles 1 & 2): Male / Female radio → picks the groin guard variant.
-- **Size**: required.
-  - Guards use one size for the 3 items (XS / S / M / L / XL).
-  - Bundles 3 & 4: separate size pickers for Headgear (XS–XL) and Chestguard (Size 1–5).
-- Color for bundles 3 & 4 is baked into the bundle name (no extra picker).
+### Persistent escape hatch — "Not what I'm looking for"
 
-A bundle line can only be added to the cart once gender (if applicable) and all required sizes are selected.
+Always-visible secondary button in the chat header (and as a tertiary option on every choice step) labelled **"Not what I'm looking for"**. Available from Step 1 onward, including mid-payment, mid-register, and mid-trial flows.
 
-## Frontend changes
+Tapping it switches the chat into a **Callback** mini-flow:
+- Prefills name, contact (phone/email) and branch from anything already gathered in Step 1.
+- Asks: **"How can we help?"** (free-text, required, max 500 chars).
+- Submit →
+  1. Inserts a row into `public_chat_callback_requests`.
+  2. Marks the session `outcome = 'callback'`.
+  3. Sends a transactional email to **hello@gaonhaetaekwondo.com** containing: name, DOB (if collected), branch, phone, email, the free-text message, and a timestamp.
+- Confirmation bubble: **"Thank you for your message. We will get back to you shortly."**
 
-**New file** `src/constants/accessoryBundles.ts`
-- Exports `ACCESSORY_BUNDLES`: array of `{ key, name, components: [{ productId | productIdByGender, sizeOptions, color? }], requiresGender }`.
-- Hardcodes product UUIDs verified against the catalog.
+### Step 1 — Identify
+Stacked inputs, large touch targets:
+- First name * (uppercased on blur)
+- Last name * (uppercased on blur)
+- Date of birth * (DD/MM/YYYY via existing date helpers)
+- Branch * (dropdown from `useBranches`)
+- Gender (optional)
+- Email (optional)
+- Contact number (optional, SG +65 default)
 
-**Edit** `src/pages/public/PublicAccessoriesPayment.tsx`
-- Stop calling `getPublicAccessoryProducts` for rendering the catalog; still call it (or a slim version) to look up branch prices for the underlying product IDs.
-- Replace the product list with 4 bundle cards. Each card: bundle name, computed price, gender radio (if applicable), size selector(s), qty stepper.
-- Cart summary shows bundle name × qty and total.
-- On submit, expand each cart bundle into per-component `AccessoryItem`s carrying `product_id`, `name` (e.g. "Adidas Headgear (Red) – M"), `qty`, `unit_price`, `line_total`, plus added fields `bundle_key`, `bundle_name`, `size`, `color`. Total $ unchanged.
+On Continue → RPC `match_student_by_identity(first, last, dob, branch_id)`. Match logic: case-insensitive name + DOB + branch.
 
-**Edit** `src/pages/public/PublicAccessoriesList.tsx`
-- Group `items[]` by `bundle_key` for display and product filter so each row shows bundle names (e.g. "Adidas Headgear (Red) & Chest Guard Set × 1") instead of 2–3 component rows.
-- Product filter dropdown now lists the 4 bundle names + All.
+### Step 2a — Existing student (match found)
+Skip register/trial. Proceed to Payment flow. Persist `matched_student_id`.
 
-## Backend / DB
+### Step 2b — No match
+Four action buttons:
+1. **Register**
+2. **Make a payment**
+3. **Sign up for a free trial**
+4. **Not what I'm looking for** → Callback mini-flow
 
-No schema migration. The existing `admin_verify_accessory_submission` RPC already builds the combined invoice from `items[].product_id` — because bundles are expanded on submit, every line item still maps to a real product, so the invoice naturally lists the underlying SKUs (with size/color in the description) under the matched student.
+### Step 3 — Payment flow (inline)
+1. Category — School Fees · Uniform · Grading · Protection Guards & Accessories.
+2. Product picker — active products for branch + category (with `price_rules` overrides).
+3. Variant / size / color from `product_variants`; enforce size selection.
+4. Cart summary with qty steppers.
+5. PayNow QR / Bank Transfer — reuse `PaymentInfoDisplay`.
+6. Proof upload — reuse `ProofOfPaymentUpload` (image/* only).
+7. Submit → writes to `public_chat_payment_submissions`. Matched student → auto-create draft invoice on staff verification.
 
-`get_public_accessory_products` is kept as-is to source branch-overridden prices, but the UI no longer shows its full list to buyers.
+### Step 4a — Register (no match)
+Inline chat registration (DOB, gender, email, contact prefilled; address, postal code, emergency contact, allergies, preferred class type/day, canvas signature). Submits via existing `studentRegistrationService`.
+
+### Step 4b — Free trial (no match)
+"Request a callback" only — confirm branch + preferred contact, optional note. Submit → inserts trial-lead row.
+
+## Logging
+
+Each step transition writes to `public_chat_events`: session_id, step, payload jsonb. Includes a `callback_opened` event whenever the escape hatch is tapped, and a `callback_email_sent` event on successful notification.
+
+## Email notification (callback)
+
+- Reuse Lovable transactional email infrastructure (already verified domain).
+- New template: `_shared/transactional-email-templates/hello-callback-request.tsx`.
+  - Subject: `New callback request from {firstName} {lastName}`.
+  - Body: branded card listing name, DOB, branch, phone, email, message, submission time.
+  - Recipient: hardcoded `hello@gaonhaetaekwondo.com`.
+- Register in `registry.ts`.
+- Invoked from `publicChatService.submitCallback()` via `supabase.functions.invoke('send-transactional-email', { body: { templateName: 'hello-callback-request', recipientEmail: 'hello@gaonhaetaekwondo.com', idempotencyKey: \`callback-${callbackId}\`, templateData: { ... } } })`.
+- Email failure does NOT block the user's confirmation bubble — submission row is the source of truth; email is best-effort with retry via the queue.
+
+## Data model (new tables)
+
+- `public_chat_sessions` — id, first_name, last_name, date_of_birth, branch_id, gender, email, phone, matched_student_id, outcome (`existing_payment` / `register` / `payment` / `trial_lead` / `callback` / `abandoned`), created_at.
+- `public_chat_events` — id, session_id, step, payload jsonb, created_at.
+- `public_chat_payment_submissions` — id, session_id, reference_number, items jsonb, amount, payment_method, proof_url, status, matched_student_id, matched_invoice_id, created_at.
+- `public_chat_callback_requests` — id, session_id, branch_id, name, contact_phone, contact_email, type (`trial_lead` / `general_callback`), message, preferred_time, status (`new` / `contacted` / `closed`), email_sent_at, created_at.
+
+RLS: anon insert; authenticated select gated by branch access.
+
+Stored RPCs:
+- `match_student_by_identity(first, last, dob, branch_id)`
+- `admin_verify_chat_payment(id, verified_by)`
+- `admin_reject_chat_payment(id, reason, reviewed_by)`
+
+## Admin surface
+
+New "Chat submissions" sub-section inside the existing **Approvals** tab:
+- Pending payments (verify / reject; suggest add student when unmatched)
+- Trial leads
+- General callback requests (mark contacted / closed)
+- Registration requests continue via existing flow
 
 ## Out of scope
 
-- Bundle-level discounts (the existing $10 Adidas auto-bundle discount in invoicing still applies separately if its rule matches).
-- Stock decrement, editing submitted orders, notifications.
+- Persisted/resumable chat across reloads.
+- LLM responses — deterministic guided flow.
+- Stock decrement, bundle discounts.
+- Staff push notifications (approval-tab badges + email suffice).
+
+## Technical notes
+
+```text
+src/
+  pages/public/PublicHelloChat.tsx
+  components/public/hello/
+    ChatBubble.tsx
+    IdentifyStep.tsx
+    ChoiceStep.tsx
+    PaymentCategoryStep.tsx
+    PaymentProductStep.tsx
+    PaymentSummaryStep.tsx
+    InlineRegisterStep.tsx
+    TrialLeadStep.tsx
+    CallbackStep.tsx
+    EscapeHatchButton.tsx
+  services/publicChatService.ts
+supabase/functions/_shared/transactional-email-templates/hello-callback-request.tsx
+supabase/migrations/<ts>_public_chat.sql
+```
+
+Reuse: `PaymentInfoDisplay`, `ProofOfPaymentUpload`, `useBranches`, `useBranchCountry`, `formatDate`, `studentRegistrationService`, existing `send-transactional-email` Edge Function.
+
+Prerequisite: confirm transactional email infra is set up (`email_domain--setup_email_infra` + `email_domain--scaffold_transactional_email`); run if missing before deploying the new template.
