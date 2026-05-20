@@ -6925,6 +6925,18 @@ export type Database = {
           name: string
         }[]
       }
+      get_public_chat_products: {
+        Args: { p_branch_id: string; p_category_id: string }
+        Returns: {
+          available_sizes: string[]
+          available_variants: Json
+          base_price: number
+          branch_price: number
+          product_id: string
+          product_name: string
+          requires_size: boolean
+        }[]
+      }
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
