@@ -94,6 +94,22 @@ export const matchStudentByIdentity = async (
   return (row as MatchedStudent) ?? null;
 };
 
+export const getStudentCompletedGradingStages = async (
+  studentId: string,
+): Promise<number[]> => {
+  const { data, error } = await supabase.rpc(
+    'get_student_completed_grading_stages' as any,
+    { p_student_id: studentId },
+  );
+  if (error) {
+    console.warn('get_student_completed_grading_stages failed', error);
+    return [];
+  }
+  return ((data || []) as Array<{ stage_number: number }>)
+    .map(r => Number(r.stage_number))
+    .filter(n => Number.isFinite(n));
+};
+
 export const getChatProducts = async (
   branch_id: string,
   category_id: string,
