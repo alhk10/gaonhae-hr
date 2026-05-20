@@ -29,9 +29,13 @@ import {
   submitChatPayment,
   submitInlineRegistration,
   getChatProducts,
+  getStudentCompletedGradingStages,
   type ChatProduct,
   type MatchedStudent,
 } from '@/services/publicChatService';
+import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+
+const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
 
 type Stage =
   | 'identify'
@@ -108,6 +112,8 @@ const PublicHelloChat: React.FC = () => {
   const [cart, setCart] = useState<{ product: ChatProduct; size: string | null; qty: number }[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [gradingOverride, setGradingOverride] = useState(false);
+  const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +135,40 @@ const PublicHelloChat: React.FC = () => {
     queryFn: () => getChatProducts(branchId, payCategory!.id),
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
+
+  const isGradingMatched =
+    !!matched && payCategory?.id === GRADING_CATEGORY_ID && stage === 'payment_products';
+
+  const { data: completedStages = [] } = useQuery({
+    queryKey: ['hello-completed-stages', matched?.id],
+    queryFn: () => getStudentCompletedGradingStages(matched!.id),
+    enabled: isGradingMatched,
+  });
+
+  const gradingDefault = useMemo(() => {
+    if (!isGradingMatched || products.length === 0) return null;
+    return computeNextGradingDefault(matched!.current_belt, completedStages, products);
+  }, [isGradingMatched, matched, completedStages, products]);
+
+  useEffect(() => {
+    if (gradingDefault && sessionId && !gradingDefaultLogged) {
+      logChatEvent(sessionId, 'grading_default_applied', {
+        current_belt: matched?.current_belt ?? null,
+        completed_stages: completedStages,
+        defaulted_product_id: gradingDefault.product?.product_id ?? null,
+        reason: gradingDefault.reason,
+      }).catch(() => {});
+      setGradingDefaultLogged(true);
+    }
+  }, [gradingDefault, sessionId, gradingDefaultLogged, completedStages, matched]);
+
+  useEffect(() => {
+    // Reset grading default state when leaving products step or changing category.
+    if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
+      setGradingOverride(false);
+      setGradingDefaultLogged(false);
+    }
+  }, [stage, payCategory]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -615,9 +655,38 @@ const PublicHelloChat: React.FC = () => {
                   {!productsLoading && products.length === 0 && (
                     <p className="text-xs text-muted-foreground">No items available for this branch right now.</p>
                   )}
-                  {products.map(p => (
-                    <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
-                  ))}
+
+                  {isGradingMatched && gradingDefault && !gradingOverride ? (
+                    <div className="space-y-2">
+                      <div className="rounded-md bg-muted/60 p-2 text-xs text-foreground">
+                        {gradingDefault.message}
+                      </div>
+                      {gradingDefault.product ? (
+                        <>
+                          <ProductRow product={gradingDefault.product} onAdd={addToCart} />
+                          <button
+                            type="button"
+                            onClick={() => setGradingOverride(true)}
+                            className="text-xs text-primary underline underline-offset-2"
+                          >
+                            Change grading
+                          </button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="h-9 w-full"
+                          onClick={() => setGradingOverride(true)}
+                        >
+                          Show all gradings
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    products.map(p => (
+                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
+                    ))
+                  )}
 
                   {cart.length > 0 && (
                     <div className="border-t pt-2 mt-2 space-y-1">
