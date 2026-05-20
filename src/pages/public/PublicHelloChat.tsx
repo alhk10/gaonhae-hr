@@ -29,9 +29,13 @@ import {
   submitChatPayment,
   submitInlineRegistration,
   getChatProducts,
+  getStudentCompletedGradingStages,
   type ChatProduct,
   type MatchedStudent,
 } from '@/services/publicChatService';
+import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+
+const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
 
 type Stage =
   | 'identify'
