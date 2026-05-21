@@ -742,7 +742,7 @@ const PublicHelloChat: React.FC = () => {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" onClick={() => goTo('payment_category')} className="flex-1 h-10">Back</Button>
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
                     <Button onClick={() => goTo('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
                       Continue
                     </Button>
