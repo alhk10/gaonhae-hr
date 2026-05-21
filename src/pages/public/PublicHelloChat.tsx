@@ -1062,7 +1062,9 @@ const PublicHelloChat: React.FC = () => {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium truncate">{termCtx.term_name}</p>
                       <Badge variant="secondary" className="text-[11px]">
-                        {Math.max(0, termCtx.unbooked_count - Object.keys(newBookings).length + Object.keys(cancellations).length)} unbooked
+                        {termCtx.is_unlimited
+                          ? '∞ unbooked'
+                          : `${Math.max(0, termCtx.unbooked_count - Object.keys(newBookings).length + Object.keys(cancellations).length)} unbooked`}
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
