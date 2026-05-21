@@ -1,39 +1,56 @@
-Root cause found:
+# Investigation + Multi-Term Booking on /hello
 
-1. `get_public_student_term_context` is failing at runtime with:
-   `column reference "sessions_total" is ambiguous`
-   because the RPC returns a column named `sessions_total` and also queries `entitlements.sessions_total` without table aliases. PostgreSQL treats returned table columns as PL/pgSQL variables, so the query errors and the UI shows “Could not load term right now.”
+## 1. Why Kayden has no Term 3 2026 invoice
 
-2. The entitlement fallback resolver is not branch-scoped correctly. It checks the student entitlement branch, but it does not filter `term_calendars.branch_id`, so Kayden in Morley can resolve to another branch’s Term 3.
+Kayden Hii (Morley) has these invoices:
 
-3. `get_public_student_term_bookings` has another runtime error for entitlement-only students:
-   `column sc.student_id does not exist`
-   because `student_scheduled_classes` links through `enrollment_id`, not directly through `student_id`.
+| Invoice | Status | Line items | Item term_id |
+|---|---|---|---|
+| INV-2026-00249 | verified | Blue >> Red Tip grading, **Unlimited** | Term 2 (93c68375…) |
+| INV-2026-00257 | verified | Poomsae Seminar | — |
+| INV-2026-00266 | verified | Kyorugi Seminar | — |
+| INV-2026-00298 | verified | South West Open, National Athlete License, **Competition Class** | Term 3 (53974447…) |
 
-4. The match/session persistence is now working: recent Kayden sessions have `matched_student_id` saved correctly, so the blocker is inside the RPC SQL, not the frontend session update.
+So the only "regular term" lesson invoice is **Unlimited tagged to Term 2 2026**. No Unlimited / regular lesson invoice exists for Term 3 2026 — confirming the user's report.
 
-Plan:
+However the `entitlements` row created from that Term 2 Unlimited line was inserted with `valid_from = 2026-07-13` and `valid_to = 2026-09-18` — those are **Term 3 dates**, not Term 2 (Term 2 = 28/04 → 03/07). That is why `/hello` resolves Kayden's "active term" to Term 3 even though no invoice was issued for it.
 
-1. Create a Supabase migration to fix the public lesson RPCs
-- Update `_resolve_public_student_term` so entitlement fallback only returns terms for the student’s actual branch.
-- Qualify all entitlement columns in `get_public_student_term_context` with table aliases to remove ambiguity.
-- Keep `is_unlimited = true` when the active product name is “Unlimited” or an entitlement is truly unlimited.
-- Return Kayden’s Morley Term 3 2026, not another branch’s Term 3.
+Root cause: at invoice creation/edit time, the entitlement's `valid_from/valid_to` was written from a different term than the metadata.term_id currently stored on the line item. The entitlement-creation code (`invoiceService.ts` ~L575-606) reads `term_id` → looks up `term_calendars` once at insert; later term-edits on the invoice item don't propagate to the entitlement (memory only notes "changing a line item's term clears class slots"). The item's term_id was almost certainly later changed from Term 3 → Term 2, leaving a Term-3-windowed entitlement orphaned.
 
-2. Fix booking lookup for entitlement-only students
-- Update `get_public_student_term_bookings` to query scheduled classes through `student_class_enrollments` when an enrollment exists.
-- If no enrollment exists, return an empty result safely instead of referencing a non-existent `student_scheduled_classes.student_id` column.
+Action: surface this to the user and let them decide. Two clean fixes:
+- (a) Re-issue an actual Term 3 2026 Unlimited invoice for Kayden, then delete the orphaned Term 3 entitlement so it gets recreated correctly from the new invoice; **or**
+- (b) Correct the existing item's metadata.term_id back to Term 3 (if Term 2 was the mistake) — entitlement already matches Term 3.
 
-3. Harden related RPCs against the same issue
-- Review `get_public_term_slot_capacities` and `get_public_branch_timetable_slots` for returned-column/name conflicts and qualify table columns where needed.
-- Keep timetable filtering by branch, age, belt, active entitlement class scopes, and public session validation.
+I will not run either repair until you confirm which is correct.
 
-4. Validate with real Kayden data
-- Call `_validate_public_chat_session` for Kayden’s latest public chat session.
-- Call `_resolve_public_student_term` and confirm it returns Morley Term 3 2026.
-- Call `get_public_student_term_context` and confirm it returns a row with `is_unlimited = true`, attended/missed counts, and no SQL error.
-- Call bookings/capacity/timetable RPCs and confirm none throw errors.
+Going forward I'll also add a safeguard: when a paid invoice item's `metadata.term_id` is changed, re-sync the linked entitlement's `valid_from`/`valid_to` to the new term (mirroring the existing "clear class slots" behavior).
 
-5. Frontend follow-up only if needed
-- The “Remarks (optional)” label and 2-row textarea are already present.
-- If the RPC returns correctly but React Query still shows an error, add visible debug-safe error handling around the exact failed RPC and invalidate/refetch after match persistence.
+## 2. Show current + future invoiced terms when scheduling / rescheduling
+
+Today `/hello` resolves a **single** term via `_resolve_public_student_term` (active enrollment first, else any active entitlement) and the booking UI is hard-bound to that one term.
+
+Change: let the student pick among **all terms they have a paid / active invoice-derived entitlement for**, starting from "current" (today inside the term window or most-recent past) and including every future invoiced term, in chronological order.
+
+### Backend (new RPC)
+
+- New `get_public_student_invoiced_terms(p_session_id, p_student_id)` SECURITY DEFINER returning rows of `{term_id, term_name, start_date, end_date, class_type, is_unlimited, sessions_total, sessions_remaining, is_current}` derived from:
+  - active `entitlements` for the student, scoped to their branch, joined to `term_calendars` where the term overlaps `entitlement.valid_from/valid_to`;
+  - dedup by `term_id`; flag the one containing `CURRENT_DATE` (or, if none, the next upcoming) as `is_current = true`;
+  - ordered by `start_date` ascending, starting from the current term.
+- Reuse the same session-validation guard as the other public RPCs.
+- Update `get_public_student_term_context` / `get_public_student_term_bookings` / `get_public_term_slot_capacities` to accept an **explicit `p_term_id`** (optional) and only fall back to the auto-resolver when omitted. No behavior change when omitted.
+
+### Frontend (`PublicHelloChat.tsx` + `publicChatService.ts`)
+
+- After match, fetch `get_public_student_invoiced_terms`. Default selection = the `is_current` row.
+- Render a compact term switcher above the calendar: horizontally scrollable chips like `Term 2 2026 · current` / `Term 3 2026` / `Term 4 2026`, ordered current → future. Hidden when only one term exists (current behavior preserved).
+- Selected term drives the existing `termCtx`, holidays, bookings, capacity queries (all keyed by `selectedTermId`).
+- "Remarks (optional)" + 2-row textarea already in place — no change.
+- Empty / error states unchanged; if the new RPC returns no rows, fall back to today's auto-resolved single term so Kayden still sees Term 3 until his invoicing is reconciled.
+
+### Files touched
+- New Supabase migration: add `get_public_student_invoiced_terms`; add optional `p_term_id` to the 3 existing public RPCs; (optional) trigger to re-sync entitlement validity when `invoice_items.metadata->>'term_id'` changes on a paid invoice.
+- `src/services/publicChatService.ts`: add `getInvoicedTerms(sessionId, studentId)` + pass `termId` through to existing helpers.
+- `src/pages/public/PublicHelloChat.tsx`: add `selectedTermId` state, term-chip switcher, thread it through all term-dependent queries.
+
+No changes to other dashboards or to `/pay`.
