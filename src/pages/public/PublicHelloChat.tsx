@@ -775,7 +775,7 @@ const PublicHelloChat: React.FC = () => {
                   />
                   <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => goTo('payment_products')} className="flex-1 h-10">Back</Button>
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
                     <Button onClick={handleSubmitPayment} disabled={submitting || !proofFile} className="flex-1 h-10">
                       {submitting ? 'Submitting…' : 'Submit payment'}
                     </Button>
