@@ -1085,6 +1085,30 @@ const PublicHelloChat: React.FC = () => {
                 Pick a date to see your kids class times. Tap an open time to <span className="text-emerald-600 font-medium">book it</span>, or tap one of your booked classes to <span className="text-destructive font-medium">cancel it</span>.
               </Bubble>
 
+              {/* Term switcher: current + future invoiced terms */}
+              {invoicedTerms.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                  {invoicedTerms.map(t => {
+                    const active = t.term_id === selectedTermId;
+                    return (
+                      <button
+                        key={t.term_id}
+                        type="button"
+                        onClick={() => setSelectedTermId(t.term_id)}
+                        className={cn(
+                          'shrink-0 rounded-full border px-3 py-1 text-[11px] whitespace-nowrap transition',
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border'
+                        )}
+                      >
+                        {t.term_name}{t.is_current ? ' · current' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Term context strip */}
               {termCtx ? (
                 <Card>
