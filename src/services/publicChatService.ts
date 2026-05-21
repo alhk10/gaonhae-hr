@@ -132,9 +132,55 @@ export interface SubmitCallbackInput {
   contact_phone: string | null;
   contact_email: string | null;
   message: string;
-  type?: 'general_callback' | 'trial_lead';
+  type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request';
   preferred_time?: string | null;
 }
+
+export interface SubmitLessonRequestInput {
+  session_id: string;
+  branch_id: string;
+  branch_name: string | null;
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  mode: 'schedule' | 'reschedule';
+  preferred_date: string; // yyyy-MM-dd
+  preferred_time: string;
+  existing_class_description: string | null;
+  notes: string | null;
+}
+
+export const submitLessonRequest = async (input: SubmitLessonRequestInput): Promise<string> => {
+  const lines = [
+    `${input.mode === 'schedule' ? 'Schedule a new lesson' : 'Reschedule an existing lesson'} request from chat:`,
+    `Student: ${input.first_name} ${input.last_name} (id: ${input.student_id})`,
+    `Branch: ${input.branch_name ?? ''}`,
+    input.mode === 'reschedule' && input.existing_class_description
+      ? `Existing class: ${input.existing_class_description}`
+      : null,
+    `Preferred date: ${input.preferred_date}`,
+    `Preferred time: ${input.preferred_time}`,
+    input.notes ? `Notes: ${input.notes}` : null,
+  ].filter(Boolean).join('\n');
+
+  return submitCallback({
+    session_id: input.session_id,
+    branch_id: input.branch_id,
+    branch_name: input.branch_name,
+    first_name: input.first_name,
+    last_name: input.last_name,
+    date_of_birth: input.date_of_birth,
+    contact_phone: input.contact_phone,
+    contact_email: input.contact_email,
+    message: lines,
+    type: 'lesson_schedule_request',
+    preferred_time: input.preferred_time,
+  });
+};
+
 
 export const submitCallback = async (input: SubmitCallbackInput): Promise<string> => {
   const name = `${input.first_name} ${input.last_name}`.trim();

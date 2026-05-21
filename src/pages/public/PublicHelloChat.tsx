@@ -3,9 +3,10 @@
  * Steps: identify -> (match? payment : choice) -> payment/register/trial/callback
  * Persistent "Not what I'm looking for" escape hatch -> Callback (emails hello@gaonhaetaekwondo.com).
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,12 +29,14 @@ import {
   submitCallback,
   submitChatPayment,
   submitInlineRegistration,
+  submitLessonRequest,
   getChatProducts,
   getStudentCompletedGradingStages,
   type ChatProduct,
   type MatchedStudent,
 } from '@/services/publicChatService';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+
 
 const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
 
@@ -50,7 +53,13 @@ type Stage =
   | 'payment_category'
   | 'payment_products'
   | 'payment_pay'
-  | 'payment_done';
+  | 'payment_done'
+  | 'lesson_action'
+  | 'lesson_request'
+  | 'lesson_request_done';
+
+const TERMINAL_STAGES: Stage[] = ['callback_done', 'register_done', 'trial_done', 'payment_done', 'lesson_request_done'];
+
 
 interface BubbleProps {
   who: 'bot' | 'user';
@@ -82,8 +91,24 @@ const CATEGORIES = [
 
 const PublicHelloChat: React.FC = () => {
   const [stage, setStage] = useState<Stage>('identify');
+  const [stageHistory, setStageHistory] = useState<Stage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [matched, setMatched] = useState<MatchedStudent | null>(null);
+
+  const goTo = useCallback((next: Stage) => {
+    setStageHistory((h) => [...h, stage]);
+    setStage(next);
+  }, [stage]);
+
+  const goBack = useCallback(() => {
+    setStageHistory((h) => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setStage(prev);
+      return h.slice(0, -1);
+    });
+  }, []);
+
 
   // Step 1 - identify
   const [firstName, setFirstName] = useState('');
@@ -114,6 +139,16 @@ const PublicHelloChat: React.FC = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gradingOverride, setGradingOverride] = useState(false);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
+
+  // Lesson schedule/reschedule
+  const [lessonMode, setLessonMode] = useState<'schedule' | 'reschedule'>('schedule');
+  const [lessonDay, setLessonDay] = useState('');
+  const [lessonMonth, setLessonMonth] = useState('');
+  const [lessonYear, setLessonYear] = useState('');
+  const [lessonTime, setLessonTime] = useState('');
+  const [lessonExistingDesc, setLessonExistingDesc] = useState('');
+  const [lessonNotes, setLessonNotes] = useState('');
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -227,10 +262,10 @@ const PublicHelloChat: React.FC = () => {
       if (m) {
         setMatched(m);
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
-        setStage('matched');
+        goTo('matched');
       } else {
         await logChatEvent(sid, 'no_student_match');
-        setStage('choice');
+        goTo('choice');
       }
     } catch (e: any) {
       console.error(e);
@@ -242,7 +277,7 @@ const PublicHelloChat: React.FC = () => {
 
   const openCallback = async () => {
     if (sessionId) await logChatEvent(sessionId, 'callback_opened');
-    setStage('callback');
+    goTo('callback');
   };
 
   const handleSubmitCallback = async () => {
@@ -265,7 +300,7 @@ const PublicHelloChat: React.FC = () => {
         message: cbMessage.trim(),
         type: 'general_callback',
       });
-      setStage('callback_done');
+      goTo('callback_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not send your message');
     } finally {
@@ -288,7 +323,7 @@ const PublicHelloChat: React.FC = () => {
         phone: phone || null,
         notes: regNotes || null,
       });
-      setStage('register_done');
+      goTo('register_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit registration');
     } finally {
@@ -313,7 +348,7 @@ const PublicHelloChat: React.FC = () => {
         preferred_time: trialTime || null,
         type: 'trial_lead',
       });
-      setStage('trial_done');
+      goTo('trial_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit trial request');
     } finally {
@@ -362,7 +397,7 @@ const PublicHelloChat: React.FC = () => {
         contact_first_name: firstName,
         contact_last_name: lastName,
       });
-      setStage('payment_done');
+      goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
@@ -370,8 +405,74 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
+  const lessonDob = useMemo(() => {
+    if (!lessonDay || lessonMonth === '' || !lessonYear) return null;
+    const d = String(parseInt(lessonDay)).padStart(2, '0');
+    const m = String(parseInt(lessonMonth) + 1).padStart(2, '0');
+    return `${lessonYear}-${m}-${d}`;
+  }, [lessonDay, lessonMonth, lessonYear]);
+
+  const lessonDaysInMonth = useMemo(() => {
+    const m = lessonMonth === '' ? 0 : parseInt(lessonMonth);
+    const y = lessonYear === '' ? new Date().getFullYear() : parseInt(lessonYear);
+    return new Date(y, m + 1, 0).getDate();
+  }, [lessonMonth, lessonYear]);
+
+  const lessonYearOptions = useMemo(() => {
+    const now = new Date().getFullYear();
+    return [now, now + 1];
+  }, []);
+
+  const handleSubmitLessonRequest = async () => {
+    if (!sessionId || !branchId || !matched) {
+      toast.error('Missing student context');
+      return;
+    }
+    if (!lessonDob) {
+      toast.error('Please pick a preferred date');
+      return;
+    }
+    if (!lessonTime.trim()) {
+      toast.error('Please enter a preferred time');
+      return;
+    }
+    if (lessonMode === 'reschedule' && !lessonExistingDesc.trim()) {
+      toast.error('Please tell us which class to reschedule');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitLessonRequest({
+        session_id: sessionId,
+        branch_id: branchId,
+        branch_name: branch?.name || null,
+        student_id: matched.id,
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: dob,
+        contact_phone: phone || null,
+        contact_email: email || null,
+        mode: lessonMode,
+        preferred_date: lessonDob,
+        preferred_time: lessonTime.trim(),
+        existing_class_description: lessonMode === 'reschedule' ? lessonExistingDesc.trim() : null,
+        notes: lessonNotes.trim() || null,
+      });
+      await logChatEvent(sessionId, 'lesson_request_submitted', {
+        mode: lessonMode,
+        student_id: matched.id,
+      });
+      goTo('lesson_request_done');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not submit lesson request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const escapeHatch = (
     <Button
+
       type="button"
       variant="outline"
       size="sm"
@@ -388,13 +489,28 @@ const PublicHelloChat: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-card border-b">
         <div className="max-w-md mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
-            <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {stageHistory.length > 0 && !TERMINAL_STAGES.includes(stage) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                aria-label="Back"
+                className="h-8 w-8 -ml-1 shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
+              <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
+            </div>
           </div>
           {stage !== 'identify' && stage !== 'callback' && stage !== 'callback_done' && escapeHatch}
         </div>
       </header>
+
 
       {/* Chat scroll area */}
       <main
@@ -495,14 +611,29 @@ const PublicHelloChat: React.FC = () => {
             <>
               <Bubble who="bot">
                 Welcome back, <strong>{matched.first_name}</strong>! I found your record
-                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}. Would you like to make a payment?
+                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}. What would you like to do?
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => setStage('payment_category')} className="w-full h-11">
-                    Make a payment <ArrowRight className="h-4 w-4 ml-1" />
+                  <Button onClick={() => goTo('payment_category')} className="w-full h-11 justify-between">
+                    Make a payment <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
+                      goTo('lesson_action');
+                    }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <CalendarClock className="h-4 w-4" />
+                      Schedule / Reschedule a lesson
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
+
               </Card>
             </>
           )}
@@ -512,13 +643,13 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">I couldn't find a matching student record. What would you like to do?</Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => setStage('register')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('register')} variant="outline" className="w-full h-11 justify-between">
                     Register a new student <ArrowRight className="h-4 w-4" />
                   </Button>
-                  <Button onClick={() => setStage('payment_category')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('payment_category')} variant="outline" className="w-full h-11 justify-between">
                     Make a payment <ArrowRight className="h-4 w-4" />
                   </Button>
-                  <Button onClick={() => setStage('trial')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('trial')} variant="outline" className="w-full h-11 justify-between">
                     Sign up for a free trial <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
@@ -636,7 +767,7 @@ const PublicHelloChat: React.FC = () => {
                       key={c.id}
                       variant="outline"
                       className="w-full h-11 justify-between"
-                      onClick={() => { setPayCategory(c); setCart([]); setStage('payment_products'); }}
+                      onClick={() => { setPayCategory(c); setCart([]); goTo('payment_products'); }}
                     >
                       {c.label} <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -707,8 +838,8 @@ const PublicHelloChat: React.FC = () => {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setStage('payment_category')} className="flex-1 h-10">Back</Button>
-                    <Button onClick={() => setStage('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
+                    <Button onClick={() => goTo('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
                       Continue
                     </Button>
                   </div>
@@ -740,7 +871,7 @@ const PublicHelloChat: React.FC = () => {
                   />
                   <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setStage('payment_products')} className="flex-1 h-10">Back</Button>
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
                     <Button onClick={handleSubmitPayment} disabled={submitting || !proofFile} className="flex-1 h-10">
                       {submitting ? 'Submitting…' : 'Submit payment'}
                     </Button>
@@ -758,6 +889,120 @@ const PublicHelloChat: React.FC = () => {
               </div>
             </Bubble>
           )}
+
+          {/* ---------- Lesson schedule / reschedule ---------- */}
+          {stage === 'lesson_action' && (
+            <>
+              <Bubble who="bot">Would you like to schedule a new lesson or reschedule an existing one?</Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                    onClick={() => { setLessonMode('schedule'); goTo('lesson_request'); }}
+                  >
+                    Schedule a new lesson <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                    onClick={() => { setLessonMode('reschedule'); goTo('lesson_request'); }}
+                  >
+                    Reschedule an existing lesson <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'lesson_request' && (
+            <>
+              <Bubble who="bot">
+                {lessonMode === 'schedule'
+                  ? 'Tell us when you would like to attend a lesson.'
+                  : 'Tell us which class to reschedule and your preferred new date/time.'}
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  {lessonMode === 'reschedule' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Existing class to reschedule *</Label>
+                      <Input
+                        value={lessonExistingDesc}
+                        onChange={(e) => setLessonExistingDesc(e.target.value)}
+                        placeholder="e.g. Tue 25/05/2026 5:00pm"
+                        className="h-10"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preferred date *</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Select value={lessonDay} onValueChange={setLessonDay}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: lessonDaysInMonth }, (_, i) => i + 1).map(d => (
+                            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={lessonMonth} onValueChange={setLessonMonth}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Month" /></SelectTrigger>
+                        <SelectContent>
+                          {MONTHS.map((m, i) => (
+                            <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={lessonYear} onValueChange={setLessonYear}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Year" /></SelectTrigger>
+                        <SelectContent>
+                          {lessonYearOptions.map(y => (
+                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preferred time *</Label>
+                    <Input
+                      value={lessonTime}
+                      onChange={(e) => setLessonTime(e.target.value)}
+                      placeholder="e.g. 5:00pm – 6:00pm"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Notes (optional)</Label>
+                    <Textarea
+                      value={lessonNotes}
+                      onChange={(e) => setLessonNotes(e.target.value.slice(0, 500))}
+                      rows={3}
+                      placeholder="Anything we should know?"
+                      maxLength={500}
+                    />
+                  </div>
+                  <Button onClick={handleSubmitLessonRequest} disabled={submitting} className="w-full h-11">
+                    {submitting ? 'Submitting…' : 'Submit request'}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Our team will confirm your booking and update your attendance shortly.
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'lesson_request_done' && (
+            <Bubble who="bot">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                <span>Thanks! Your lesson request has been received. We'll confirm and update your attendance shortly.</span>
+              </div>
+            </Bubble>
+          )}
+
         </div>
       </main>
     </div>
