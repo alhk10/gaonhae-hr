@@ -889,6 +889,120 @@ const PublicHelloChat: React.FC = () => {
               </div>
             </Bubble>
           )}
+
+          {/* ---------- Lesson schedule / reschedule ---------- */}
+          {stage === 'lesson_action' && (
+            <>
+              <Bubble who="bot">Would you like to schedule a new lesson or reschedule an existing one?</Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                    onClick={() => { setLessonMode('schedule'); goTo('lesson_request'); }}
+                  >
+                    Schedule a new lesson <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                    onClick={() => { setLessonMode('reschedule'); goTo('lesson_request'); }}
+                  >
+                    Reschedule an existing lesson <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'lesson_request' && (
+            <>
+              <Bubble who="bot">
+                {lessonMode === 'schedule'
+                  ? 'Tell us when you would like to attend a lesson.'
+                  : 'Tell us which class to reschedule and your preferred new date/time.'}
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  {lessonMode === 'reschedule' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Existing class to reschedule *</Label>
+                      <Input
+                        value={lessonExistingDesc}
+                        onChange={(e) => setLessonExistingDesc(e.target.value)}
+                        placeholder="e.g. Tue 25/05/2026 5:00pm"
+                        className="h-10"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preferred date *</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Select value={lessonDay} onValueChange={setLessonDay}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: lessonDaysInMonth }, (_, i) => i + 1).map(d => (
+                            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={lessonMonth} onValueChange={setLessonMonth}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Month" /></SelectTrigger>
+                        <SelectContent>
+                          {MONTHS.map((m, i) => (
+                            <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={lessonYear} onValueChange={setLessonYear}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Year" /></SelectTrigger>
+                        <SelectContent>
+                          {lessonYearOptions.map(y => (
+                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Preferred time *</Label>
+                    <Input
+                      value={lessonTime}
+                      onChange={(e) => setLessonTime(e.target.value)}
+                      placeholder="e.g. 5:00pm – 6:00pm"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Notes (optional)</Label>
+                    <Textarea
+                      value={lessonNotes}
+                      onChange={(e) => setLessonNotes(e.target.value.slice(0, 500))}
+                      rows={3}
+                      placeholder="Anything we should know?"
+                      maxLength={500}
+                    />
+                  </div>
+                  <Button onClick={handleSubmitLessonRequest} disabled={submitting} className="w-full h-11">
+                    {submitting ? 'Submitting…' : 'Submit request'}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Our team will confirm your booking and update your attendance shortly.
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'lesson_request_done' && (
+            <Bubble who="bot">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                <span>Thanks! Your lesson request has been received. We'll confirm and update your attendance shortly.</span>
+              </div>
+            </Bubble>
+          )}
+
         </div>
       </main>
     </div>
