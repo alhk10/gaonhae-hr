@@ -405,39 +405,109 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
-  const lessonDob = useMemo(() => {
-    if (!lessonDay || lessonMonth === '' || !lessonYear) return null;
-    const d = String(parseInt(lessonDay)).padStart(2, '0');
-    const m = String(parseInt(lessonMonth) + 1).padStart(2, '0');
-    return `${lessonYear}-${m}-${d}`;
-  }, [lessonDay, lessonMonth, lessonYear]);
+  // ---- Lesson calendar data ----
+  const lessonEnabled = !!sessionId && !!matched && (stage === 'lesson_action' || stage === 'lesson_request');
 
-  const lessonDaysInMonth = useMemo(() => {
-    const m = lessonMonth === '' ? 0 : parseInt(lessonMonth);
-    const y = lessonYear === '' ? new Date().getFullYear() : parseInt(lessonYear);
-    return new Date(y, m + 1, 0).getDate();
-  }, [lessonMonth, lessonYear]);
+  const { data: termCtx } = useQuery({
+    queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id)),
+    enabled: lessonEnabled,
+  });
 
-  const lessonYearOptions = useMemo(() => {
-    const now = new Date().getFullYear();
-    return [now, now + 1];
-  }, []);
+  const { data: timetableSlots = [] } = useQuery({
+    queryKey: ['hello-lesson-timetable', sessionId, matched?.id],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getBranchTimetableSlots(sessionId!, matched!.id)),
+    enabled: lessonEnabled,
+  });
+
+  const { data: bookings = [] } = useQuery({
+    queryKey: ['hello-lesson-bookings', sessionId, matched?.id, stage],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermBookings(sessionId!, matched!.id)),
+    enabled: lessonEnabled,
+  });
+
+  const timetableIds = useMemo(() => timetableSlots.map(s => s.id), [timetableSlots]);
+  const { data: slotCapacityRows = [] } = useQuery({
+    queryKey: ['hello-lesson-caps', sessionId, matched?.id, timetableIds.join(',')],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, timetableIds)),
+    enabled: lessonEnabled && timetableIds.length > 0,
+  });
+
+  const { data: holidayDates = [] } = useQuery({
+    queryKey: ['hello-lesson-holidays', sessionId, matched?.id, termCtx?.start_date, termCtx?.end_date],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getBranchHolidays(sessionId!, matched!.id, termCtx!.start_date, termCtx!.end_date)),
+    enabled: lessonEnabled && !!termCtx,
+  });
+
+  // Build maps
+  const bookingsByDate = useMemo(() => {
+    const m: Record<string, typeof bookings> = {};
+    bookings.forEach(b => { (m[b.scheduled_date] ||= [] as any).push(b); });
+    return m;
+  }, [bookings]);
+
+  const capByDateSlot = useMemo(() => {
+    const m: Record<string, number> = {};
+    slotCapacityRows.forEach(r => { m[`${r.scheduled_date}_${r.timetable_id}`] = r.booked_count; });
+    return m;
+  }, [slotCapacityRows]);
+
+  const slotsByWeekday = useMemo(() => {
+    const m: Record<number, typeof timetableSlots> = {};
+    timetableSlots.forEach(s => { (m[s.weekday] ||= [] as any).push(s); });
+    return m;
+  }, [timetableSlots]);
+
+  const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  // Eligible non-full slots for a given date (after considering picked changes)
+  const slotsForDate = (date: Date) => {
+    const iso = toIso(date);
+    const wd = date.getDay();
+    const all = slotsByWeekday[wd] || [];
+    return all.map(s => {
+      const baseCount = capByDateSlot[`${iso}_${s.id}`] || 0;
+      const pickedHere = newBookings[`${iso}_${s.id}`] ? 1 : 0;
+      const studentAlreadyBooked = (bookingsByDate[iso] || []).some(b => b.timetable_id === s.id);
+      const effectiveCount = baseCount + pickedHere;
+      const isFull = effectiveCount >= s.max_capacity;
+      return { ...s, baseCount, effectiveCount, isFull, studentAlreadyBooked };
+    });
+  };
+
+  const dateHasAvailable = (date: Date) => {
+    const slots = slotsForDate(date);
+    return slots.some(s => !s.isFull && !s.studentAlreadyBooked);
+  };
+
+  const dateHasBooking = (date: Date) => {
+    const iso = toIso(date);
+    return (bookingsByDate[iso] || []).length > 0;
+  };
+
+  const holidaySet = useMemo(() => new Set(holidayDates), [holidayDates]);
+
+  const isDateDisabled = (date: Date) => {
+    if (!termCtx) return true;
+    const iso = toIso(date);
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (date < today) return true;
+    if (iso < termCtx.start_date || iso > termCtx.end_date) return true;
+    if (holidaySet.has(iso)) return true;
+    if (!dateHasAvailable(date) && !dateHasBooking(date)) return true;
+    return false;
+  };
+
+  const netLessons = Object.keys(newBookings).length - Object.keys(cancellations).length;
+  const maxNew = (termCtx?.unbooked_count ?? 0) + Object.keys(cancellations).length;
 
   const handleSubmitLessonRequest = async () => {
     if (!sessionId || !branchId || !matched) {
       toast.error('Missing student context');
       return;
     }
-    if (!lessonDob) {
-      toast.error('Please pick a preferred date');
-      return;
-    }
-    if (!lessonTime.trim()) {
-      toast.error('Please enter a preferred time');
-      return;
-    }
-    if (lessonMode === 'reschedule' && !lessonExistingDesc.trim()) {
-      toast.error('Please tell us which class to reschedule');
+    if (Object.keys(newBookings).length === 0 && Object.keys(cancellations).length === 0) {
+      toast.error('Pick at least one slot to book or cancel');
       return;
     }
     setSubmitting(true);
@@ -452,15 +522,14 @@ const PublicHelloChat: React.FC = () => {
         date_of_birth: dob,
         contact_phone: phone || null,
         contact_email: email || null,
-        mode: lessonMode,
-        preferred_date: lessonDob,
-        preferred_time: lessonTime.trim(),
-        existing_class_description: lessonMode === 'reschedule' ? lessonExistingDesc.trim() : null,
+        cancellations: Object.values(cancellations),
+        new_bookings: Object.values(newBookings),
         notes: lessonNotes.trim() || null,
       });
       await logChatEvent(sessionId, 'lesson_request_submitted', {
-        mode: lessonMode,
         student_id: matched.id,
+        cancel_count: Object.keys(cancellations).length,
+        book_count: Object.keys(newBookings).length,
       });
       goTo('lesson_request_done');
     } catch (e: any) {
@@ -469,6 +538,7 @@ const PublicHelloChat: React.FC = () => {
       setSubmitting(false);
     }
   };
+
 
   const escapeHatch = (
     <Button
