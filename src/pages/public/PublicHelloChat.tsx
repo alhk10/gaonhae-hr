@@ -140,14 +140,14 @@ const PublicHelloChat: React.FC = () => {
   const [gradingOverride, setGradingOverride] = useState(false);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
 
-  // Lesson schedule/reschedule
-  const [lessonMode, setLessonMode] = useState<'schedule' | 'reschedule'>('schedule');
-  const [lessonDay, setLessonDay] = useState('');
-  const [lessonMonth, setLessonMonth] = useState('');
-  const [lessonYear, setLessonYear] = useState('');
-  const [lessonTime, setLessonTime] = useState('');
-  const [lessonExistingDesc, setLessonExistingDesc] = useState('');
+  // Lesson schedule/reschedule (calendar-based)
   const [lessonNotes, setLessonNotes] = useState('');
+  const [cancellations, setCancellations] = useState<Record<string, import('@/services/publicChatService').LessonChangeItem>>({});
+  const [newBookings, setNewBookings] = useState<Record<string, import('@/services/publicChatService').LessonChangeItem>>({});
+  const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
+  const [slotDialogOpen, setSlotDialogOpen] = useState(false);
+  const [calMonth, setCalMonth] = useState<Date | undefined>(undefined);
+
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
