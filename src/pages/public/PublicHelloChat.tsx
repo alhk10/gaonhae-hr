@@ -1085,7 +1085,13 @@ const PublicHelloChat: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <Card><CardContent className="p-3 text-xs text-muted-foreground">Loading term…</CardContent></Card>
+                <Card><CardContent className="p-3 text-xs text-muted-foreground">
+                  {termCtxLoading
+                    ? 'Loading term…'
+                    : termCtxError
+                      ? 'Could not load term right now. Please try again shortly.'
+                      : 'No active term found for your branch yet. Our team will set this up — please reach out if urgent.'}
+                </CardContent></Card>
               )}
 
               {/* Calendar */}
