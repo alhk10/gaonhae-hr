@@ -581,10 +581,8 @@ const PublicHelloChat: React.FC = () => {
                 <ChevronLeft className="h-5 w-5" />
               </Button>
             )}
-            <div className="min-w-0">
-              <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
-              <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
-            </div>
+            <img src={gaonhaeLogo} alt="Gaonhae Taekwondo" className="h-7 w-auto" />
+
           </div>
           {stage !== 'identify' && stage !== 'callback' && stage !== 'callback_done' && escapeHatch}
         </div>
