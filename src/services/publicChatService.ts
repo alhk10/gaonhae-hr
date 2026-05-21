@@ -226,6 +226,9 @@ export interface StudentTermContext {
   current_belt: string | null;
   branch_id: string;
   country: string | null;
+  attended_this_month: number;
+  missed_this_month: number;
+  is_unlimited: boolean;
 }
 
 export const getStudentTermContext = async (sessionId: string, studentId: string): Promise<StudentTermContext | null> => {
