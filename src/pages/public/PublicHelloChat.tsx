@@ -263,7 +263,11 @@ const PublicHelloChat: React.FC = () => {
       });
       setSessionId(sid);
       await logChatEvent(sid, 'identify_submitted');
-      const m = await matchStudentByIdentity(firstName, lastName, dob, branchId);
+      const m = await matchStudentByIdentity(firstName, lastName, dob, branchId, {
+        gender: gender || null,
+        email: email || null,
+        phone: phone || null,
+      });
       if (m) {
         setMatched(m);
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
