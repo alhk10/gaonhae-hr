@@ -6677,6 +6677,17 @@ export type Database = {
     }
     Functions: {
       _next_invoice_number: { Args: never; Returns: string }
+      _resolve_public_student_term: {
+        Args: { p_student_id: string }
+        Returns: {
+          class_type: string
+          end_date: string
+          enrollment_id: string
+          start_date: string
+          term_id: string
+          term_name: string
+        }[]
+      }
       _validate_public_chat_session: {
         Args: {
           p_branch_id?: string

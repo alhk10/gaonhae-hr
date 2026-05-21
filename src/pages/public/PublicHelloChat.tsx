@@ -270,6 +270,13 @@ const PublicHelloChat: React.FC = () => {
       });
       if (m) {
         setMatched(m);
+        // Persist match on the session so SECURITY DEFINER RPCs validate
+        try {
+          const { updateSessionMatchAndOutcome } = await import('@/services/publicChatService');
+          await updateSessionMatchAndOutcome(sid, m.id, null);
+        } catch (err) {
+          console.warn('Could not persist matched_student_id', err);
+        }
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
         goTo('matched');
       } else {
@@ -417,7 +424,7 @@ const PublicHelloChat: React.FC = () => {
   // ---- Lesson calendar data ----
   const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
-  const { data: termCtx } = useQuery({
+  const { data: termCtx, isLoading: termCtxLoading, isError: termCtxError } = useQuery({
     queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
     queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id)),
     enabled: lessonEnabled,
@@ -1078,7 +1085,13 @@ const PublicHelloChat: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <Card><CardContent className="p-3 text-xs text-muted-foreground">Loading term…</CardContent></Card>
+                <Card><CardContent className="p-3 text-xs text-muted-foreground">
+                  {termCtxLoading
+                    ? 'Loading term…'
+                    : termCtxError
+                      ? 'Could not load term right now. Please try again shortly.'
+                      : 'No active term found for your branch yet. Our team will set this up — please reach out if urgent.'}
+                </CardContent></Card>
               )}
 
               {/* Calendar */}
@@ -1152,13 +1165,14 @@ const PublicHelloChat: React.FC = () => {
               <Card>
                 <CardContent className="p-3 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Notes (optional)</Label>
+                    <Label className="text-xs">Remarks (optional)</Label>
                     <Textarea
                       value={lessonNotes}
                       onChange={(e) => setLessonNotes(e.target.value.slice(0, 500))}
                       rows={2}
                       placeholder="Anything we should know?"
                       maxLength={500}
+                      className="min-h-0"
                     />
                   </div>
                   <Button onClick={handleSubmitLessonRequest} disabled={submitting} className="w-full h-11">
