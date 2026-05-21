@@ -424,7 +424,7 @@ const PublicHelloChat: React.FC = () => {
   // ---- Lesson calendar data ----
   const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
-  const { data: termCtx } = useQuery({
+  const { data: termCtx, isLoading: termCtxLoading, isError: termCtxError } = useQuery({
     queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
     queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id)),
     enabled: lessonEnabled,
