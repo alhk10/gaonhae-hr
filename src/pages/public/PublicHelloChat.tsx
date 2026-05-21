@@ -91,8 +91,24 @@ const CATEGORIES = [
 
 const PublicHelloChat: React.FC = () => {
   const [stage, setStage] = useState<Stage>('identify');
+  const [stageHistory, setStageHistory] = useState<Stage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [matched, setMatched] = useState<MatchedStudent | null>(null);
+
+  const goTo = useCallback((next: Stage) => {
+    setStageHistory((h) => [...h, stage]);
+    setStage(next);
+  }, [stage]);
+
+  const goBack = useCallback(() => {
+    setStageHistory((h) => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setStage(prev);
+      return h.slice(0, -1);
+    });
+  }, []);
+
 
   // Step 1 - identify
   const [firstName, setFirstName] = useState('');
