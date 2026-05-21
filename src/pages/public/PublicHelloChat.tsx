@@ -969,17 +969,20 @@ const PublicHelloChat: React.FC = () => {
                   <Button
                     variant="outline"
                     className="w-full h-11 justify-between"
-                    onClick={() => { setLessonMode('schedule'); goTo('lesson_request'); }}
+                    onClick={() => goTo('lesson_request')}
                   >
                     Schedule a new lesson <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full h-11 justify-between"
-                    onClick={() => { setLessonMode('reschedule'); goTo('lesson_request'); }}
+                    onClick={() => goTo('lesson_request')}
                   >
                     Reschedule an existing lesson <ArrowRight className="h-4 w-4" />
                   </Button>
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    You can do both on the next screen — pick a date to add or cancel a class.
+                  </p>
                 </CardContent>
               </Card>
             </>
@@ -988,67 +991,109 @@ const PublicHelloChat: React.FC = () => {
           {stage === 'lesson_request' && (
             <>
               <Bubble who="bot">
-                {lessonMode === 'schedule'
-                  ? 'Tell us when you would like to attend a lesson.'
-                  : 'Tell us which class to reschedule and your preferred new date/time.'}
+                Pick a date to see your kids class times. Tap an open time to <span className="text-emerald-600 font-medium">book it</span>, or tap one of your booked classes to <span className="text-destructive font-medium">cancel it</span>.
               </Bubble>
+
+              {/* Term context strip */}
+              {termCtx ? (
+                <Card>
+                  <CardContent className="p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{termCtx.term_name}</p>
+                      <Badge variant="secondary" className="text-[11px]">
+                        {Math.max(0, termCtx.unbooked_count - Object.keys(newBookings).length + Object.keys(cancellations).length)} unbooked
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatDateFromIso(termCtx.start_date)} – {formatDateFromIso(termCtx.end_date)}
+                    </p>
+                    <div className="flex gap-3 flex-wrap text-[10px] pt-1">
+                      <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> your class</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> to book</span>
+                      <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-destructive" /> to cancel</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card><CardContent className="p-3 text-xs text-muted-foreground">Loading term…</CardContent></Card>
+              )}
+
+              {/* Calendar */}
+              {termCtx && (
+                <Card>
+                  <CardContent className="p-0">
+                    <Calendar
+                      mode="single"
+                      selected={pickedDate}
+                      month={calMonth || (pickedDate || new Date(termCtx.start_date))}
+                      onMonthChange={setCalMonth}
+                      onSelect={(d) => {
+                        if (!d) return;
+                        setPickedDate(d);
+                        setSlotDialogOpen(true);
+                      }}
+                      disabled={isDateDisabled}
+                      fromDate={new Date(termCtx.start_date)}
+                      toDate={new Date(termCtx.end_date)}
+                      modifiers={{
+                        booked: (d) => dateHasBooking(d),
+                        hasNewPick: (d) => Object.keys(newBookings).some(k => k.startsWith(toIso(d) + '_')),
+                        hasCancelPick: (d) => Object.values(cancellations).some(c => c.date === toIso(d)),
+                      }}
+                      modifiersClassNames={{
+                        booked: 'relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-blue-500',
+                        hasNewPick: 'ring-2 ring-emerald-500 ring-inset rounded-md',
+                        hasCancelPick: 'ring-2 ring-destructive ring-inset rounded-md',
+                      }}
+                      className="p-2 pointer-events-auto"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Picked changes summary */}
+              {(Object.keys(cancellations).length > 0 || Object.keys(newBookings).length > 0) && (
+                <Card>
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-xs font-medium">Your changes</p>
+                    {Object.entries(cancellations).map(([id, c]) => (
+                      <div key={id} className="flex items-center justify-between gap-2 text-xs p-2 rounded border border-destructive/40 bg-destructive/5">
+                        <span className="text-destructive">
+                          Cancel {formatDateFromIso(c.date)} · {c.start_time.slice(0,5)}–{c.end_time.slice(0,5)}
+                        </span>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                          onClick={() => setCancellations(prev => { const n = { ...prev }; delete n[id]; return n; })}>
+                          Undo
+                        </Button>
+                      </div>
+                    ))}
+                    {Object.entries(newBookings).map(([key, b]) => (
+                      <div key={key} className="flex items-center justify-between gap-2 text-xs p-2 rounded border border-emerald-500/40 bg-emerald-500/5">
+                        <span className="text-emerald-700 dark:text-emerald-400">
+                          Book {formatDateFromIso(b.date)} · {b.start_time.slice(0,5)}–{b.end_time.slice(0,5)}{b.class_type ? ` · ${b.class_type}` : ''}
+                        </span>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                          onClick={() => setNewBookings(prev => { const n = { ...prev }; delete n[key]; return n; })}>
+                          Undo
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      Net: {netLessons >= 0 ? '+' : ''}{netLessons} lesson{Math.abs(netLessons) === 1 ? '' : 's'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Notes + Submit */}
               <Card>
                 <CardContent className="p-3 space-y-3">
-                  {lessonMode === 'reschedule' && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Existing class to reschedule *</Label>
-                      <Input
-                        value={lessonExistingDesc}
-                        onChange={(e) => setLessonExistingDesc(e.target.value)}
-                        placeholder="e.g. Tue 25/05/2026 5:00pm"
-                        className="h-10"
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Preferred date *</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Select value={lessonDay} onValueChange={setLessonDay}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: lessonDaysInMonth }, (_, i) => i + 1).map(d => (
-                            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={lessonMonth} onValueChange={setLessonMonth}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Month" /></SelectTrigger>
-                        <SelectContent>
-                          {MONTHS.map((m, i) => (
-                            <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={lessonYear} onValueChange={setLessonYear}>
-                        <SelectTrigger className="h-10"><SelectValue placeholder="Year" /></SelectTrigger>
-                        <SelectContent>
-                          {lessonYearOptions.map(y => (
-                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Preferred time *</Label>
-                    <Input
-                      value={lessonTime}
-                      onChange={(e) => setLessonTime(e.target.value)}
-                      placeholder="e.g. 5:00pm – 6:00pm"
-                      className="h-10"
-                    />
-                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Notes (optional)</Label>
                     <Textarea
                       value={lessonNotes}
                       onChange={(e) => setLessonNotes(e.target.value.slice(0, 500))}
-                      rows={3}
+                      rows={2}
                       placeholder="Anything we should know?"
                       maxLength={500}
                     />
@@ -1061,8 +1106,149 @@ const PublicHelloChat: React.FC = () => {
                   </p>
                 </CardContent>
               </Card>
+
+              {/* Slot dialog */}
+              <Dialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
+                <DialogContent className="max-w-md max-h-[85vh]">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">
+                      {pickedDate ? formatDateFromIso(toIso(pickedDate)) : ''}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {pickedDate && (() => {
+                    const iso = toIso(pickedDate);
+                    const dayBookings = bookingsByDate[iso] || [];
+                    const slots = slotsForDate(pickedDate);
+                    const openSlots = slots.filter(s => !s.studentAlreadyBooked);
+
+                    return (
+                      <div className="space-y-3">
+                        {dayBookings.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">Your booked classes</p>
+                            {dayBookings.map(b => {
+                              const picked = !!cancellations[b.id];
+                              return (
+                                <button
+                                  key={b.id}
+                                  type="button"
+                                  className={cn(
+                                    'w-full text-left rounded border h-11 px-3 text-sm flex items-center justify-between transition-colors',
+                                    picked
+                                      ? 'border-destructive bg-destructive/10 text-destructive'
+                                      : 'border-blue-500/40 bg-blue-500/5 hover:border-destructive/60'
+                                  )}
+                                  onClick={() => {
+                                    setCancellations(prev => {
+                                      const n = { ...prev };
+                                      if (n[b.id]) { delete n[b.id]; }
+                                      else {
+                                        n[b.id] = {
+                                          date: b.scheduled_date,
+                                          start_time: b.start_time,
+                                          end_time: b.end_time,
+                                          class_type: b.class_type,
+                                          timetable_id: b.timetable_id,
+                                          scheduled_class_id: b.id,
+                                        };
+                                      }
+                                      return n;
+                                    });
+                                  }}
+                                >
+                                  <span>{b.start_time.slice(0,5)}–{b.end_time.slice(0,5)} {b.class_type ? `· ${b.class_type}` : ''}</span>
+                                  <span className="text-[11px]">{picked ? 'Cancelling' : 'Tap to cancel'}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground">Available class times</p>
+                          {openSlots.length === 0 && (
+                            <p className="text-xs text-muted-foreground">No open slots for this date.</p>
+                          )}
+                          {openSlots.map(s => {
+                            const key = `${iso}_${s.id}`;
+                            const picked = !!newBookings[key];
+                            const full = s.isFull && !picked;
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                disabled={full}
+                                className={cn(
+                                  'w-full text-left rounded border h-11 px-3 text-sm flex items-center justify-between transition-colors',
+                                  picked
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                    : full
+                                      ? 'opacity-50 cursor-not-allowed border-border'
+                                      : 'border-border hover:border-emerald-500/60'
+                                )}
+                                onClick={() => {
+                                  if (picked) {
+                                    setNewBookings(prev => { const n = { ...prev }; delete n[key]; return n; });
+                                    return;
+                                  }
+                                  if (Object.keys(newBookings).length + 1 > maxNew) {
+                                    toast.error(`You only have ${maxNew} lesson${maxNew === 1 ? '' : 's'} left to book. Cancel an existing one first.`);
+                                    return;
+                                  }
+                                  setNewBookings(prev => ({
+                                    ...prev,
+                                    [key]: {
+                                      date: iso,
+                                      start_time: s.start_time,
+                                      end_time: s.end_time,
+                                      class_type: s.class_type,
+                                      timetable_id: s.id,
+                                    },
+                                  }));
+                                }}
+                              >
+                                <span>
+                                  {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)} · {s.class_type}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {picked ? 'Booking' : full ? 'Full' : `${s.effectiveCount}/${s.max_capacity}`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-between gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const iso2 = toIso(pickedDate);
+                              setCancellations(prev => {
+                                const n = { ...prev };
+                                Object.keys(n).forEach(k => { if (n[k].date === iso2) delete n[k]; });
+                                return n;
+                              });
+                              setNewBookings(prev => {
+                                const n = { ...prev };
+                                Object.keys(n).forEach(k => { if (k.startsWith(iso2 + '_')) delete n[k]; });
+                                return n;
+                              });
+                            }}
+                          >
+                            Clear day
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => setSlotDialogOpen(false)}>Done</Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
             </>
           )}
+
 
           {stage === 'lesson_request_done' && (
             <Bubble who="bot">
