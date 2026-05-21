@@ -545,14 +545,29 @@ const PublicHelloChat: React.FC = () => {
             <>
               <Bubble who="bot">
                 Welcome back, <strong>{matched.first_name}</strong>! I found your record
-                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}. Would you like to make a payment?
+                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}. What would you like to do?
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => goTo('payment_category')} className="w-full h-11">
-                    Make a payment <ArrowRight className="h-4 w-4 ml-1" />
+                  <Button onClick={() => goTo('payment_category')} className="w-full h-11 justify-between">
+                    Make a payment <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
+                      goTo('lesson_action');
+                    }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <CalendarClock className="h-4 w-4" />
+                      Schedule / Reschedule a lesson
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
+
               </Card>
             </>
           )}
