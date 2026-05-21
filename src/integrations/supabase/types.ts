@@ -6677,6 +6677,14 @@ export type Database = {
     }
     Functions: {
       _next_invoice_number: { Args: never; Returns: string }
+      _validate_public_chat_session: {
+        Args: {
+          p_branch_id?: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: boolean
+      }
       add_password_to_history: {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
@@ -6917,6 +6925,29 @@ export type Database = {
           product_name: string
         }[]
       }
+      get_public_branch_holidays: {
+        Args: {
+          p_from: string
+          p_session_id: string
+          p_student_id: string
+          p_to: string
+        }
+        Returns: {
+          holiday_date: string
+          name: string
+        }[]
+      }
+      get_public_branch_timetable_slots: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: {
+          class_type: string
+          end_time: string
+          id: string
+          max_capacity: number
+          start_time: string
+          weekday: number
+        }[]
+      }
       get_public_branches: {
         Args: never
         Returns: {
@@ -7059,6 +7090,50 @@ export type Database = {
           slot_id: string
           slot_location: string
           slot_start: string
+        }[]
+      }
+      get_public_student_term_bookings: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: {
+          class_type: string
+          end_time: string
+          id: string
+          scheduled_date: string
+          start_time: string
+          status: string
+          timetable_id: string
+        }[]
+      }
+      get_public_student_term_context: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: {
+          active_scheduled_count: number
+          age: number
+          branch_id: string
+          class_type: string
+          class_type_scopes: string[]
+          country: string
+          current_belt: string
+          end_date: string
+          enrollment_id: string
+          sessions_remaining: number
+          sessions_total: number
+          start_date: string
+          term_id: string
+          term_name: string
+          unbooked_count: number
+        }[]
+      }
+      get_public_term_slot_capacities: {
+        Args: {
+          p_session_id: string
+          p_student_id: string
+          p_timetable_ids: string[]
+        }
+        Returns: {
+          booked_count: number
+          scheduled_date: string
+          timetable_id: string
         }[]
       }
       get_student_by_auth_id_for_auth: {
