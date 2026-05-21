@@ -7109,6 +7109,7 @@ export type Database = {
         Returns: {
           active_scheduled_count: number
           age: number
+          attended_this_month: number
           branch_id: string
           class_type: string
           class_type_scopes: string[]
@@ -7116,6 +7117,8 @@ export type Database = {
           current_belt: string
           end_date: string
           enrollment_id: string
+          is_unlimited: boolean
+          missed_this_month: number
           sessions_remaining: number
           sessions_total: number
           start_date: string
@@ -7198,8 +7201,11 @@ export type Database = {
         Args: {
           p_branch_id: string
           p_dob: string
+          p_email?: string
           p_first_name: string
+          p_gender?: string
           p_last_name: string
+          p_phone?: string
         }
         Returns: {
           current_belt: string
