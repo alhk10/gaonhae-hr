@@ -470,6 +470,14 @@ const PublicHelloChat: React.FC = () => {
     enabled: lessonEnabled && !!termCtx,
   });
 
+  // Reset picks + calendar position when the user switches term
+  useEffect(() => {
+    setNewBookings({});
+    setCancellations({});
+    setPickedDate(undefined);
+    setCalMonth(termCtx?.start_date ? new Date(termCtx.start_date) : undefined);
+  }, [selectedTermId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Build maps
   const bookingsByDate = useMemo(() => {
     const m: Record<string, typeof bookings> = {};
