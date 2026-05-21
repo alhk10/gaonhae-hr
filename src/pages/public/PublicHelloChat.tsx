@@ -405,7 +405,72 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
-  const escapeHatch = (
+  const lessonDob = useMemo(() => {
+    if (!lessonDay || lessonMonth === '' || !lessonYear) return null;
+    const d = String(parseInt(lessonDay)).padStart(2, '0');
+    const m = String(parseInt(lessonMonth) + 1).padStart(2, '0');
+    return `${lessonYear}-${m}-${d}`;
+  }, [lessonDay, lessonMonth, lessonYear]);
+
+  const lessonDaysInMonth = useMemo(() => {
+    const m = lessonMonth === '' ? 0 : parseInt(lessonMonth);
+    const y = lessonYear === '' ? new Date().getFullYear() : parseInt(lessonYear);
+    return new Date(y, m + 1, 0).getDate();
+  }, [lessonMonth, lessonYear]);
+
+  const lessonYearOptions = useMemo(() => {
+    const now = new Date().getFullYear();
+    return [now, now + 1];
+  }, []);
+
+  const handleSubmitLessonRequest = async () => {
+    if (!sessionId || !branchId || !matched) {
+      toast.error('Missing student context');
+      return;
+    }
+    if (!lessonDob) {
+      toast.error('Please pick a preferred date');
+      return;
+    }
+    if (!lessonTime.trim()) {
+      toast.error('Please enter a preferred time');
+      return;
+    }
+    if (lessonMode === 'reschedule' && !lessonExistingDesc.trim()) {
+      toast.error('Please tell us which class to reschedule');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitLessonRequest({
+        session_id: sessionId,
+        branch_id: branchId,
+        branch_name: branch?.name || null,
+        student_id: matched.id,
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: dob,
+        contact_phone: phone || null,
+        contact_email: email || null,
+        mode: lessonMode,
+        preferred_date: lessonDob,
+        preferred_time: lessonTime.trim(),
+        existing_class_description: lessonMode === 'reschedule' ? lessonExistingDesc.trim() : null,
+        notes: lessonNotes.trim() || null,
+      });
+      await logChatEvent(sessionId, 'lesson_request_submitted', {
+        mode: lessonMode,
+        student_id: matched.id,
+      });
+      goTo('lesson_request_done');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not submit lesson request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
     <Button
       type="button"
       variant="outline"
