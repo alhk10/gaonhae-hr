@@ -136,6 +136,15 @@ export interface SubmitCallbackInput {
   preferred_time?: string | null;
 }
 
+export interface LessonChangeItem {
+  date: string; // yyyy-MM-dd
+  start_time: string;
+  end_time: string;
+  class_type?: string | null;
+  timetable_id?: string | null;
+  scheduled_class_id?: string | null;
+}
+
 export interface SubmitLessonRequestInput {
   session_id: string;
   branch_id: string;
@@ -146,25 +155,39 @@ export interface SubmitLessonRequestInput {
   date_of_birth: string | null;
   contact_phone: string | null;
   contact_email: string | null;
-  mode: 'schedule' | 'reschedule';
-  preferred_date: string; // yyyy-MM-dd
-  preferred_time: string;
-  existing_class_description: string | null;
+  cancellations: LessonChangeItem[];
+  new_bookings: LessonChangeItem[];
   notes: string | null;
 }
 
+const fmtDM = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+};
+
 export const submitLessonRequest = async (input: SubmitLessonRequestInput): Promise<string> => {
-  const lines = [
-    `${input.mode === 'schedule' ? 'Schedule a new lesson' : 'Reschedule an existing lesson'} request from chat:`,
+  const isReschedule = input.cancellations.length > 0;
+  const head = isReschedule
+    ? 'Reschedule lesson request from chat:'
+    : 'Schedule new lesson request from chat:';
+  const lines: (string | null)[] = [
+    head,
     `Student: ${input.first_name} ${input.last_name} (id: ${input.student_id})`,
     `Branch: ${input.branch_name ?? ''}`,
-    input.mode === 'reschedule' && input.existing_class_description
-      ? `Existing class: ${input.existing_class_description}`
-      : null,
-    `Preferred date: ${input.preferred_date}`,
-    `Preferred time: ${input.preferred_time}`,
-    input.notes ? `Notes: ${input.notes}` : null,
-  ].filter(Boolean).join('\n');
+  ];
+  if (input.cancellations.length > 0) {
+    lines.push('Cancel:');
+    input.cancellations.forEach(c => {
+      lines.push(`  - ${fmtDM(c.date)} ${c.start_time.slice(0,5)}–${c.end_time.slice(0,5)}${c.class_type ? ` (${c.class_type})` : ''} [id:${c.scheduled_class_id ?? ''}]`);
+    });
+  }
+  if (input.new_bookings.length > 0) {
+    lines.push('Book:');
+    input.new_bookings.forEach(b => {
+      lines.push(`  - ${fmtDM(b.date)} ${b.start_time.slice(0,5)}–${b.end_time.slice(0,5)}${b.class_type ? ` (${b.class_type})` : ''} [timetable:${b.timetable_id ?? ''}]`);
+    });
+  }
+  if (input.notes) lines.push(`Notes: ${input.notes}`);
 
   return submitCallback({
     session_id: input.session_id,
@@ -175,10 +198,97 @@ export const submitLessonRequest = async (input: SubmitLessonRequestInput): Prom
     date_of_birth: input.date_of_birth,
     contact_phone: input.contact_phone,
     contact_email: input.contact_email,
-    message: lines,
+    message: lines.filter(Boolean).join('\n'),
     type: 'lesson_schedule_request',
-    preferred_time: input.preferred_time,
+    preferred_time: null,
   });
+};
+
+// ---------- Calendar data RPCs ----------
+
+export interface StudentTermContext {
+  term_id: string;
+  term_name: string;
+  start_date: string;
+  end_date: string;
+  enrollment_id: string;
+  class_type: string | null;
+  sessions_total: number;
+  sessions_remaining: number;
+  active_scheduled_count: number;
+  unbooked_count: number;
+  class_type_scopes: string[] | null;
+  age: number | null;
+  current_belt: string | null;
+  branch_id: string;
+  country: string | null;
+}
+
+export const getStudentTermContext = async (sessionId: string, studentId: string): Promise<StudentTermContext | null> => {
+  const { data, error } = await supabase.rpc('get_public_student_term_context' as any, {
+    p_session_id: sessionId, p_student_id: studentId,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as StudentTermContext) ?? null;
+};
+
+export interface TimetableSlot {
+  id: string;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  class_type: string;
+  max_capacity: number;
+}
+
+export const getBranchTimetableSlots = async (sessionId: string, studentId: string): Promise<TimetableSlot[]> => {
+  const { data, error } = await supabase.rpc('get_public_branch_timetable_slots' as any, {
+    p_session_id: sessionId, p_student_id: studentId,
+  });
+  if (error) throw error;
+  return (data || []) as TimetableSlot[];
+};
+
+export interface StudentBooking {
+  id: string;
+  scheduled_date: string;
+  start_time: string;
+  end_time: string;
+  timetable_id: string | null;
+  status: string;
+  class_type: string | null;
+}
+
+export const getStudentTermBookings = async (sessionId: string, studentId: string): Promise<StudentBooking[]> => {
+  const { data, error } = await supabase.rpc('get_public_student_term_bookings' as any, {
+    p_session_id: sessionId, p_student_id: studentId,
+  });
+  if (error) throw error;
+  return (data || []) as StudentBooking[];
+};
+
+export interface SlotCapacityRow {
+  scheduled_date: string;
+  timetable_id: string;
+  booked_count: number;
+}
+
+export const getTermSlotCapacities = async (sessionId: string, studentId: string, timetableIds: string[]): Promise<SlotCapacityRow[]> => {
+  if (timetableIds.length === 0) return [];
+  const { data, error } = await supabase.rpc('get_public_term_slot_capacities' as any, {
+    p_session_id: sessionId, p_student_id: studentId, p_timetable_ids: timetableIds,
+  });
+  if (error) throw error;
+  return (data || []) as SlotCapacityRow[];
+};
+
+export const getBranchHolidays = async (sessionId: string, studentId: string, from: string, to: string): Promise<string[]> => {
+  const { data, error } = await supabase.rpc('get_public_branch_holidays' as any, {
+    p_session_id: sessionId, p_student_id: studentId, p_from: from, p_to: to,
+  });
+  if (error) return [];
+  return ((data || []) as Array<{ holiday_date: string }>).map(r => r.holiday_date);
 };
 
 
