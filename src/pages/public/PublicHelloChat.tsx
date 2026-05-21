@@ -508,7 +508,9 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const netLessons = Object.keys(newBookings).length - Object.keys(cancellations).length;
-  const maxNew = (termCtx?.unbooked_count ?? 0) + Object.keys(cancellations).length;
+  const maxNew = termCtx?.is_unlimited
+    ? Number.POSITIVE_INFINITY
+    : (termCtx?.unbooked_count ?? 0) + Object.keys(cancellations).length;
 
   const handleSubmitLessonRequest = async () => {
     if (!sessionId || !branchId || !matched) {
@@ -666,7 +668,7 @@ const PublicHelloChat: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Contact number (optional)</Label>
-                  <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+65 …" className="h-10" />
+                  <PhoneInput value={phone} onChange={setPhone} />
                 </div>
                 <Button onClick={handleIdentify} disabled={submitting} className="w-full h-11 mt-1">
                   {submitting ? 'Please wait…' : 'Continue'}
@@ -688,7 +690,25 @@ const PublicHelloChat: React.FC = () => {
             <>
               <Bubble who="bot">
                 Welcome back, <strong>{matched.first_name}</strong>! I found your record
-                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}. What would you like to do?
+                {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}.
+                {termCtx && (
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
+                      <div className="text-base font-semibold tabular-nums">
+                        {termCtx.is_unlimited ? '∞' : termCtx.unbooked_count}
+                      </div>
+                      <div className="text-muted-foreground">Unbooked (term)</div>
+                    </div>
+                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
+                      <div className="text-base font-semibold tabular-nums">{termCtx.attended_this_month}</div>
+                      <div className="text-muted-foreground">Attended (mo)</div>
+                    </div>
+                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
+                      <div className="text-base font-semibold tabular-nums">{termCtx.missed_this_month}</div>
+                      <div className="text-muted-foreground">Missed (mo)</div>
+                    </div>
+                  </div>
+                )}
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
@@ -717,22 +737,56 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'choice' && (
             <>
-              <Bubble who="bot">I couldn't find a matching student record. What would you like to do?</Bubble>
+              <Bubble who="bot">
+                We couldn't find your record with the details provided. Leave any remarks below and our team will reach out to help.
+              </Bubble>
               <Card>
-                <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => goTo('register')} variant="outline" className="w-full h-11 justify-between">
-                    Register a new student <ArrowRight className="h-4 w-4" />
+                <CardContent className="p-3 space-y-3">
+                  <Textarea
+                    value={cbMessage}
+                    onChange={(e) => setCbMessage(e.target.value.slice(0, 500))}
+                    rows={4}
+                    placeholder="Remarks (optional) — e.g. preferred class, age, anything we should know…"
+                    maxLength={500}
+                  />
+                  <div className="text-[11px] text-muted-foreground text-right">{cbMessage.length}/500</div>
+                  <Button
+                    onClick={async () => {
+                      if (!sessionId) return;
+                      setSubmitting(true);
+                      try {
+                        await submitCallback({
+                          session_id: sessionId,
+                          branch_id: branchId || null,
+                          branch_name: branch?.name || null,
+                          first_name: firstName,
+                          last_name: lastName,
+                          date_of_birth: dob,
+                          contact_phone: phone || null,
+                          contact_email: email || null,
+                          message: `No student match. Gender: ${gender || '-'}. Remarks: ${cbMessage.trim() || '(none)'}`,
+                          type: 'no_match_request',
+                        });
+                        goTo('callback_done');
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Could not send your details');
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    disabled={submitting}
+                    className="w-full h-11"
+                  >
+                    {submitting ? 'Sending…' : 'Send my details'}
                   </Button>
-                  <Button onClick={() => goTo('payment_category')} variant="outline" className="w-full h-11 justify-between">
-                    Make a payment <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  <Button onClick={() => goTo('trial')} variant="outline" className="w-full h-11 justify-between">
-                    Sign up for a free trial <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    We'll email your details to our team and someone will contact you shortly.
+                  </p>
                 </CardContent>
               </Card>
             </>
           )}
+
 
           {/* ---------- Callback ---------- */}
           {stage === 'callback' && (
@@ -1008,7 +1062,9 @@ const PublicHelloChat: React.FC = () => {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium truncate">{termCtx.term_name}</p>
                       <Badge variant="secondary" className="text-[11px]">
-                        {Math.max(0, termCtx.unbooked_count - Object.keys(newBookings).length + Object.keys(cancellations).length)} unbooked
+                        {termCtx.is_unlimited
+                          ? '∞ unbooked'
+                          : `${Math.max(0, termCtx.unbooked_count - Object.keys(newBookings).length + Object.keys(cancellations).length)} unbooked`}
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground">

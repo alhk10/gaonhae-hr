@@ -136,7 +136,7 @@ export interface SubmitCallbackInput {
   contact_phone: string | null;
   contact_email: string | null;
   message: string;
-  type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request';
+  type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request' | 'no_match_request';
   preferred_time?: string | null;
 }
 
