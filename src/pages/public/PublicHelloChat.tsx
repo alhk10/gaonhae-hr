@@ -415,7 +415,7 @@ const PublicHelloChat: React.FC = () => {
   };
 
   // ---- Lesson calendar data ----
-  const lessonEnabled = !!sessionId && !!matched && (stage === 'lesson_action' || stage === 'lesson_request');
+  const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
   const { data: termCtx } = useQuery({
     queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
