@@ -508,7 +508,9 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const netLessons = Object.keys(newBookings).length - Object.keys(cancellations).length;
-  const maxNew = (termCtx?.unbooked_count ?? 0) + Object.keys(cancellations).length;
+  const maxNew = termCtx?.is_unlimited
+    ? Number.POSITIVE_INFINITY
+    : (termCtx?.unbooked_count ?? 0) + Object.keys(cancellations).length;
 
   const handleSubmitLessonRequest = async () => {
     if (!sessionId || !branchId || !matched) {
