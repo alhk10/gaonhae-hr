@@ -1165,13 +1165,14 @@ const PublicHelloChat: React.FC = () => {
               <Card>
                 <CardContent className="p-3 space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Notes (optional)</Label>
+                    <Label className="text-xs">Remarks (optional)</Label>
                     <Textarea
                       value={lessonNotes}
                       onChange={(e) => setLessonNotes(e.target.value.slice(0, 500))}
                       rows={2}
                       placeholder="Anything we should know?"
                       maxLength={500}
+                      className="min-h-0"
                     />
                   </div>
                   <Button onClick={handleSubmitLessonRequest} disabled={submitting} className="w-full h-11">
