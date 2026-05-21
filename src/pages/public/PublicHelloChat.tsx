@@ -262,10 +262,10 @@ const PublicHelloChat: React.FC = () => {
       if (m) {
         setMatched(m);
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
-        setStage('matched');
+        goTo('matched');
       } else {
         await logChatEvent(sid, 'no_student_match');
-        setStage('choice');
+        goTo('choice');
       }
     } catch (e: any) {
       console.error(e);
@@ -277,7 +277,7 @@ const PublicHelloChat: React.FC = () => {
 
   const openCallback = async () => {
     if (sessionId) await logChatEvent(sessionId, 'callback_opened');
-    setStage('callback');
+    goTo('callback');
   };
 
   const handleSubmitCallback = async () => {
@@ -300,7 +300,7 @@ const PublicHelloChat: React.FC = () => {
         message: cbMessage.trim(),
         type: 'general_callback',
       });
-      setStage('callback_done');
+      goTo('callback_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not send your message');
     } finally {
@@ -323,7 +323,7 @@ const PublicHelloChat: React.FC = () => {
         phone: phone || null,
         notes: regNotes || null,
       });
-      setStage('register_done');
+      goTo('register_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit registration');
     } finally {
@@ -348,7 +348,7 @@ const PublicHelloChat: React.FC = () => {
         preferred_time: trialTime || null,
         type: 'trial_lead',
       });
-      setStage('trial_done');
+      goTo('trial_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit trial request');
     } finally {
@@ -397,7 +397,7 @@ const PublicHelloChat: React.FC = () => {
         contact_first_name: firstName,
         contact_last_name: lastName,
       });
-      setStage('payment_done');
+      goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
@@ -534,7 +534,7 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => setStage('payment_category')} className="w-full h-11">
+                  <Button onClick={() => goTo('payment_category')} className="w-full h-11">
                     Make a payment <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
                 </CardContent>
@@ -547,13 +547,13 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">I couldn't find a matching student record. What would you like to do?</Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => setStage('register')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('register')} variant="outline" className="w-full h-11 justify-between">
                     Register a new student <ArrowRight className="h-4 w-4" />
                   </Button>
-                  <Button onClick={() => setStage('payment_category')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('payment_category')} variant="outline" className="w-full h-11 justify-between">
                     Make a payment <ArrowRight className="h-4 w-4" />
                   </Button>
-                  <Button onClick={() => setStage('trial')} variant="outline" className="w-full h-11 justify-between">
+                  <Button onClick={() => goTo('trial')} variant="outline" className="w-full h-11 justify-between">
                     Sign up for a free trial <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
@@ -671,7 +671,7 @@ const PublicHelloChat: React.FC = () => {
                       key={c.id}
                       variant="outline"
                       className="w-full h-11 justify-between"
-                      onClick={() => { setPayCategory(c); setCart([]); setStage('payment_products'); }}
+                      onClick={() => { setPayCategory(c); setCart([]); goTo('payment_products'); }}
                     >
                       {c.label} <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -742,8 +742,8 @@ const PublicHelloChat: React.FC = () => {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setStage('payment_category')} className="flex-1 h-10">Back</Button>
-                    <Button onClick={() => setStage('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
+                    <Button variant="outline" onClick={() => goTo('payment_category')} className="flex-1 h-10">Back</Button>
+                    <Button onClick={() => goTo('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
                       Continue
                     </Button>
                   </div>
@@ -775,7 +775,7 @@ const PublicHelloChat: React.FC = () => {
                   />
                   <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setStage('payment_products')} className="flex-1 h-10">Back</Button>
+                    <Button variant="outline" onClick={() => goTo('payment_products')} className="flex-1 h-10">Back</Button>
                     <Button onClick={handleSubmitPayment} disabled={submitting || !proofFile} className="flex-1 h-10">
                       {submitting ? 'Submitting…' : 'Submit payment'}
                     </Button>
