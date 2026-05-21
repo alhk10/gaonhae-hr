@@ -425,9 +425,23 @@ const PublicHelloChat: React.FC = () => {
   // ---- Lesson calendar data ----
   const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
+  const { data: invoicedTerms = [] } = useQuery({
+    queryKey: ['hello-invoiced-terms', sessionId, matched?.id],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentInvoicedTerms(sessionId!, matched!.id)),
+    enabled: lessonEnabled,
+  });
+
+  // Default selection: current term (or earliest upcoming) from invoicedTerms
+  useEffect(() => {
+    if (selectedTermId) return;
+    if (invoicedTerms.length === 0) return;
+    const current = invoicedTerms.find(t => t.is_current) || invoicedTerms[0];
+    setSelectedTermId(current.term_id);
+  }, [invoicedTerms, selectedTermId]);
+
   const { data: termCtx, isLoading: termCtxLoading, isError: termCtxError } = useQuery({
-    queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id)),
+    queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id, selectedTermId],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id, selectedTermId)),
     enabled: lessonEnabled,
   });
 
@@ -438,15 +452,15 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const { data: bookings = [] } = useQuery({
-    queryKey: ['hello-lesson-bookings', sessionId, matched?.id, stage],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermBookings(sessionId!, matched!.id)),
+    queryKey: ['hello-lesson-bookings', sessionId, matched?.id, selectedTermId, stage],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermBookings(sessionId!, matched!.id, selectedTermId)),
     enabled: lessonEnabled,
   });
 
   const timetableIds = useMemo(() => timetableSlots.map(s => s.id), [timetableSlots]);
   const { data: slotCapacityRows = [] } = useQuery({
-    queryKey: ['hello-lesson-caps', sessionId, matched?.id, timetableIds.join(',')],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, timetableIds)),
+    queryKey: ['hello-lesson-caps', sessionId, matched?.id, selectedTermId, timetableIds.join(',')],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, timetableIds, selectedTermId)),
     enabled: lessonEnabled && timetableIds.length > 0,
   });
 
