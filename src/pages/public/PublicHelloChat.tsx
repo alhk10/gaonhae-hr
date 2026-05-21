@@ -270,6 +270,13 @@ const PublicHelloChat: React.FC = () => {
       });
       if (m) {
         setMatched(m);
+        // Persist match on the session so SECURITY DEFINER RPCs validate
+        try {
+          const { updateSessionMatchAndOutcome } = await import('@/services/publicChatService');
+          await updateSessionMatchAndOutcome(sid, m.id, null);
+        } catch (err) {
+          console.warn('Could not persist matched_student_id', err);
+        }
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
         goTo('matched');
       } else {
