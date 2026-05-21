@@ -470,8 +470,9 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
-
+  const escapeHatch = (
     <Button
+
       type="button"
       variant="outline"
       size="sm"
