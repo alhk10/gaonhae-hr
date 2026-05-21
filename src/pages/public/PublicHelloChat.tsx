@@ -53,7 +53,13 @@ type Stage =
   | 'payment_category'
   | 'payment_products'
   | 'payment_pay'
-  | 'payment_done';
+  | 'payment_done'
+  | 'lesson_action'
+  | 'lesson_request'
+  | 'lesson_request_done';
+
+const TERMINAL_STAGES: Stage[] = ['callback_done', 'register_done', 'trial_done', 'payment_done', 'lesson_request_done'];
+
 
 interface BubbleProps {
   who: 'bot' | 'user';
