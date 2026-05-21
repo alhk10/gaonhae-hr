@@ -152,6 +152,7 @@ const PublicHelloChat: React.FC = () => {
   const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [calMonth, setCalMonth] = useState<Date | undefined>(undefined);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
 
 
