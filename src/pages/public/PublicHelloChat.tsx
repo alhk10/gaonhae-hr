@@ -152,6 +152,7 @@ const PublicHelloChat: React.FC = () => {
   const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [calMonth, setCalMonth] = useState<Date | undefined>(undefined);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
 
 
@@ -424,9 +425,23 @@ const PublicHelloChat: React.FC = () => {
   // ---- Lesson calendar data ----
   const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
+  const { data: invoicedTerms = [] } = useQuery({
+    queryKey: ['hello-invoiced-terms', sessionId, matched?.id],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentInvoicedTerms(sessionId!, matched!.id)),
+    enabled: lessonEnabled,
+  });
+
+  // Default selection: current term (or earliest upcoming) from invoicedTerms
+  useEffect(() => {
+    if (selectedTermId) return;
+    if (invoicedTerms.length === 0) return;
+    const current = invoicedTerms.find(t => t.is_current) || invoicedTerms[0];
+    setSelectedTermId(current.term_id);
+  }, [invoicedTerms, selectedTermId]);
+
   const { data: termCtx, isLoading: termCtxLoading, isError: termCtxError } = useQuery({
-    queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id)),
+    queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id, selectedTermId],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermContext(sessionId!, matched!.id, selectedTermId)),
     enabled: lessonEnabled,
   });
 
@@ -437,15 +452,15 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const { data: bookings = [] } = useQuery({
-    queryKey: ['hello-lesson-bookings', sessionId, matched?.id, stage],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermBookings(sessionId!, matched!.id)),
+    queryKey: ['hello-lesson-bookings', sessionId, matched?.id, selectedTermId, stage],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getStudentTermBookings(sessionId!, matched!.id, selectedTermId)),
     enabled: lessonEnabled,
   });
 
   const timetableIds = useMemo(() => timetableSlots.map(s => s.id), [timetableSlots]);
   const { data: slotCapacityRows = [] } = useQuery({
-    queryKey: ['hello-lesson-caps', sessionId, matched?.id, timetableIds.join(',')],
-    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, timetableIds)),
+    queryKey: ['hello-lesson-caps', sessionId, matched?.id, selectedTermId, timetableIds.join(',')],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, timetableIds, selectedTermId)),
     enabled: lessonEnabled && timetableIds.length > 0,
   });
 
@@ -454,6 +469,14 @@ const PublicHelloChat: React.FC = () => {
     queryFn: () => import('@/services/publicChatService').then(m => m.getBranchHolidays(sessionId!, matched!.id, termCtx!.start_date, termCtx!.end_date)),
     enabled: lessonEnabled && !!termCtx,
   });
+
+  // Reset picks + calendar position when the user switches term
+  useEffect(() => {
+    setNewBookings({});
+    setCancellations({});
+    setPickedDate(undefined);
+    setCalMonth(termCtx?.start_date ? new Date(termCtx.start_date) : undefined);
+  }, [selectedTermId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build maps
   const bookingsByDate = useMemo(() => {
@@ -1061,6 +1084,30 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">
                 Pick a date to see your kids class times. Tap an open time to <span className="text-emerald-600 font-medium">book it</span>, or tap one of your booked classes to <span className="text-destructive font-medium">cancel it</span>.
               </Bubble>
+
+              {/* Term switcher: current + future invoiced terms */}
+              {invoicedTerms.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                  {invoicedTerms.map(t => {
+                    const active = t.term_id === selectedTermId;
+                    return (
+                      <button
+                        key={t.term_id}
+                        type="button"
+                        onClick={() => setSelectedTermId(t.term_id)}
+                        className={cn(
+                          'shrink-0 rounded-full border px-3 py-1 text-[11px] whitespace-nowrap transition',
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border'
+                        )}
+                      >
+                        {t.term_name}{t.is_current ? ' · current' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Term context strip */}
               {termCtx ? (

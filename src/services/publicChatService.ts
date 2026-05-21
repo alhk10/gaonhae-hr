@@ -231,13 +231,32 @@ export interface StudentTermContext {
   is_unlimited: boolean;
 }
 
-export const getStudentTermContext = async (sessionId: string, studentId: string): Promise<StudentTermContext | null> => {
-  const { data, error } = await supabase.rpc('get_public_student_term_context' as any, {
-    p_session_id: sessionId, p_student_id: studentId,
-  });
+export const getStudentTermContext = async (sessionId: string, studentId: string, termId?: string | null): Promise<StudentTermContext | null> => {
+  const args: any = { p_session_id: sessionId, p_student_id: studentId };
+  if (termId) args.p_term_id = termId;
+  const { data, error } = await supabase.rpc('get_public_student_term_context' as any, args);
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
   return (row as StudentTermContext) ?? null;
+};
+
+export interface InvoicedTerm {
+  term_id: string;
+  term_name: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  is_unlimited: boolean;
+  sessions_total: number;
+  sessions_remaining: number;
+}
+
+export const getStudentInvoicedTerms = async (sessionId: string, studentId: string): Promise<InvoicedTerm[]> => {
+  const { data, error } = await supabase.rpc('get_public_student_invoiced_terms' as any, {
+    p_session_id: sessionId, p_student_id: studentId,
+  });
+  if (error) throw error;
+  return (data || []) as InvoicedTerm[];
 };
 
 export interface TimetableSlot {
@@ -267,10 +286,10 @@ export interface StudentBooking {
   class_type: string | null;
 }
 
-export const getStudentTermBookings = async (sessionId: string, studentId: string): Promise<StudentBooking[]> => {
-  const { data, error } = await supabase.rpc('get_public_student_term_bookings' as any, {
-    p_session_id: sessionId, p_student_id: studentId,
-  });
+export const getStudentTermBookings = async (sessionId: string, studentId: string, termId?: string | null): Promise<StudentBooking[]> => {
+  const args: any = { p_session_id: sessionId, p_student_id: studentId };
+  if (termId) args.p_term_id = termId;
+  const { data, error } = await supabase.rpc('get_public_student_term_bookings' as any, args);
   if (error) throw error;
   return (data || []) as StudentBooking[];
 };
@@ -281,11 +300,11 @@ export interface SlotCapacityRow {
   booked_count: number;
 }
 
-export const getTermSlotCapacities = async (sessionId: string, studentId: string, timetableIds: string[]): Promise<SlotCapacityRow[]> => {
+export const getTermSlotCapacities = async (sessionId: string, studentId: string, timetableIds: string[], termId?: string | null): Promise<SlotCapacityRow[]> => {
   if (timetableIds.length === 0) return [];
-  const { data, error } = await supabase.rpc('get_public_term_slot_capacities' as any, {
-    p_session_id: sessionId, p_student_id: studentId, p_timetable_ids: timetableIds,
-  });
+  const args: any = { p_session_id: sessionId, p_student_id: studentId, p_timetable_ids: timetableIds };
+  if (termId) args.p_term_id = termId;
+  const { data, error } = await supabase.rpc('get_public_term_slot_capacities' as any, args);
   if (error) throw error;
   return (data || []) as SlotCapacityRow[];
 };

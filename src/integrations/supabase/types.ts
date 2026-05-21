@@ -7103,53 +7103,125 @@ export type Database = {
           slot_start: string
         }[]
       }
-      get_public_student_term_bookings: {
+      get_public_student_invoiced_terms: {
         Args: { p_session_id: string; p_student_id: string }
         Returns: {
-          class_type: string
-          end_time: string
-          id: string
-          scheduled_date: string
-          start_time: string
-          status: string
-          timetable_id: string
-        }[]
-      }
-      get_public_student_term_context: {
-        Args: { p_session_id: string; p_student_id: string }
-        Returns: {
-          active_scheduled_count: number
-          age: number
-          attended_this_month: number
-          branch_id: string
-          class_type: string
-          class_type_scopes: string[]
-          country: string
-          current_belt: string
           end_date: string
-          enrollment_id: string
+          is_current: boolean
           is_unlimited: boolean
-          missed_this_month: number
           sessions_remaining: number
           sessions_total: number
           start_date: string
           term_id: string
           term_name: string
-          unbooked_count: number
         }[]
       }
-      get_public_term_slot_capacities: {
-        Args: {
-          p_session_id: string
-          p_student_id: string
-          p_timetable_ids: string[]
-        }
-        Returns: {
-          booked_count: number
-          scheduled_date: string
-          timetable_id: string
-        }[]
-      }
+      get_public_student_term_bookings:
+        | {
+            Args: { p_session_id: string; p_student_id: string }
+            Returns: {
+              class_type: string
+              end_time: string
+              id: string
+              scheduled_date: string
+              start_time: string
+              status: string
+              timetable_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_session_id: string
+              p_student_id: string
+              p_term_id: string
+            }
+            Returns: {
+              class_type: string
+              end_time: string
+              id: string
+              scheduled_date: string
+              start_time: string
+              status: string
+              timetable_id: string
+            }[]
+          }
+      get_public_student_term_context:
+        | {
+            Args: { p_session_id: string; p_student_id: string }
+            Returns: {
+              active_scheduled_count: number
+              age: number
+              attended_this_month: number
+              branch_id: string
+              class_type: string
+              class_type_scopes: string[]
+              country: string
+              current_belt: string
+              end_date: string
+              enrollment_id: string
+              is_unlimited: boolean
+              missed_this_month: number
+              sessions_remaining: number
+              sessions_total: number
+              start_date: string
+              term_id: string
+              term_name: string
+              unbooked_count: number
+            }[]
+          }
+        | {
+            Args: {
+              p_session_id: string
+              p_student_id: string
+              p_term_id: string
+            }
+            Returns: {
+              active_scheduled_count: number
+              age: number
+              attended_this_month: number
+              branch_id: string
+              class_type: string
+              class_type_scopes: string[]
+              country: string
+              current_belt: string
+              end_date: string
+              enrollment_id: string
+              is_unlimited: boolean
+              missed_this_month: number
+              sessions_remaining: number
+              sessions_total: number
+              start_date: string
+              term_id: string
+              term_name: string
+              unbooked_count: number
+            }[]
+          }
+      get_public_term_slot_capacities:
+        | {
+            Args: {
+              p_session_id: string
+              p_student_id: string
+              p_timetable_ids: string[]
+            }
+            Returns: {
+              booked_count: number
+              scheduled_date: string
+              timetable_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_session_id: string
+              p_student_id: string
+              p_term_id: string
+              p_timetable_ids: string[]
+            }
+            Returns: {
+              booked_count: number
+              scheduled_date: string
+              timetable_id: string
+            }[]
+          }
       get_student_by_auth_id_for_auth: {
         Args: { p_auth_user_id: string; p_email?: string }
         Returns: {
