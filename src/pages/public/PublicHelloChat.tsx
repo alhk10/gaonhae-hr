@@ -3,9 +3,10 @@
  * Steps: identify -> (match? payment : choice) -> payment/register/trial/callback
  * Persistent "Not what I'm looking for" escape hatch -> Callback (emails hello@gaonhaetaekwondo.com).
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
