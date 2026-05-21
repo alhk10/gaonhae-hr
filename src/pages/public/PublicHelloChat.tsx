@@ -140,6 +140,16 @@ const PublicHelloChat: React.FC = () => {
   const [gradingOverride, setGradingOverride] = useState(false);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
 
+  // Lesson schedule/reschedule
+  const [lessonMode, setLessonMode] = useState<'schedule' | 'reschedule'>('schedule');
+  const [lessonDay, setLessonDay] = useState('');
+  const [lessonMonth, setLessonMonth] = useState('');
+  const [lessonYear, setLessonYear] = useState('');
+  const [lessonTime, setLessonTime] = useState('');
+  const [lessonExistingDesc, setLessonExistingDesc] = useState('');
+  const [lessonNotes, setLessonNotes] = useState('');
+
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: branches = [] } = useQuery({
