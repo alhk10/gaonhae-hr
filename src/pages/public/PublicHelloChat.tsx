@@ -423,13 +423,28 @@ const PublicHelloChat: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-card border-b">
         <div className="max-w-md mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
-            <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {stageHistory.length > 0 && !TERMINAL_STAGES.includes(stage) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={goBack}
+                aria-label="Back"
+                className="h-8 w-8 -ml-1 shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
+              <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
+            </div>
           </div>
           {stage !== 'identify' && stage !== 'callback' && stage !== 'callback_done' && escapeHatch}
         </div>
       </header>
+
 
       {/* Chat scroll area */}
       <main
