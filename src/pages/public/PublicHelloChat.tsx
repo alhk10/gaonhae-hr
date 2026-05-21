@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import { PhoneInput } from '@/components/ui/phone-input';
+import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
@@ -261,7 +263,11 @@ const PublicHelloChat: React.FC = () => {
       });
       setSessionId(sid);
       await logChatEvent(sid, 'identify_submitted');
-      const m = await matchStudentByIdentity(firstName, lastName, dob, branchId);
+      const m = await matchStudentByIdentity(firstName, lastName, dob, branchId, {
+        gender: gender || null,
+        email: email || null,
+        phone: phone || null,
+      });
       if (m) {
         setMatched(m);
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
@@ -409,7 +415,7 @@ const PublicHelloChat: React.FC = () => {
   };
 
   // ---- Lesson calendar data ----
-  const lessonEnabled = !!sessionId && !!matched && (stage === 'lesson_action' || stage === 'lesson_request');
+  const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
   const { data: termCtx } = useQuery({
     queryKey: ['hello-lesson-term-ctx', sessionId, matched?.id],
@@ -575,10 +581,8 @@ const PublicHelloChat: React.FC = () => {
                 <ChevronLeft className="h-5 w-5" />
               </Button>
             )}
-            <div className="min-w-0">
-              <h1 className="text-base font-semibold leading-tight">Hello 👋</h1>
-              <p className="text-[11px] text-muted-foreground leading-tight">Gaonhae Taekwondo</p>
-            </div>
+            <img src={gaonhaeLogo} alt="Gaonhae Taekwondo" className="h-7 w-auto" />
+
           </div>
           {stage !== 'identify' && stage !== 'callback' && stage !== 'callback_done' && escapeHatch}
         </div>

@@ -82,12 +82,16 @@ export const matchStudentByIdentity = async (
   last_name: string,
   date_of_birth: string,
   branch_id: string,
+  extras?: { gender?: string | null; email?: string | null; phone?: string | null },
 ): Promise<MatchedStudent | null> => {
   const { data, error } = await supabase.rpc('match_student_by_identity' as any, {
     p_first_name: first_name,
     p_last_name: last_name,
     p_dob: date_of_birth,
     p_branch_id: branch_id,
+    p_gender: extras?.gender ?? null,
+    p_email: extras?.email ?? null,
+    p_phone: extras?.phone ?? null,
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
@@ -222,6 +226,9 @@ export interface StudentTermContext {
   current_belt: string | null;
   branch_id: string;
   country: string | null;
+  attended_this_month: number;
+  missed_this_month: number;
+  is_unlimited: boolean;
 }
 
 export const getStudentTermContext = async (sessionId: string, studentId: string): Promise<StudentTermContext | null> => {
