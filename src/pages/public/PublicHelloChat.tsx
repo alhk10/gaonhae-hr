@@ -1008,7 +1008,7 @@ const PublicHelloChat: React.FC = () => {
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      {formatDateFromIso(termCtx.start_date)} – {formatDateFromIso(termCtx.end_date)}
+                      {formatDate(termCtx.start_date)} – {formatDate(termCtx.end_date)}
                     </p>
                     <div className="flex gap-3 flex-wrap text-[10px] pt-1">
                       <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> your class</span>
@@ -1062,7 +1062,7 @@ const PublicHelloChat: React.FC = () => {
                     {Object.entries(cancellations).map(([id, c]) => (
                       <div key={id} className="flex items-center justify-between gap-2 text-xs p-2 rounded border border-destructive/40 bg-destructive/5">
                         <span className="text-destructive">
-                          Cancel {formatDateFromIso(c.date)} · {c.start_time.slice(0,5)}–{c.end_time.slice(0,5)}
+                          Cancel {formatDate(c.date)} · {c.start_time.slice(0,5)}–{c.end_time.slice(0,5)}
                         </span>
                         <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
                           onClick={() => setCancellations(prev => { const n = { ...prev }; delete n[id]; return n; })}>
@@ -1073,7 +1073,7 @@ const PublicHelloChat: React.FC = () => {
                     {Object.entries(newBookings).map(([key, b]) => (
                       <div key={key} className="flex items-center justify-between gap-2 text-xs p-2 rounded border border-emerald-500/40 bg-emerald-500/5">
                         <span className="text-emerald-700 dark:text-emerald-400">
-                          Book {formatDateFromIso(b.date)} · {b.start_time.slice(0,5)}–{b.end_time.slice(0,5)}{b.class_type ? ` · ${b.class_type}` : ''}
+                          Book {formatDate(b.date)} · {b.start_time.slice(0,5)}–{b.end_time.slice(0,5)}{b.class_type ? ` · ${b.class_type}` : ''}
                         </span>
                         <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
                           onClick={() => setNewBookings(prev => { const n = { ...prev }; delete n[key]; return n; })}>
@@ -1115,7 +1115,7 @@ const PublicHelloChat: React.FC = () => {
                 <DialogContent className="max-w-md max-h-[85vh]">
                   <DialogHeader>
                     <DialogTitle className="text-base">
-                      {pickedDate ? formatDateFromIso(toIso(pickedDate)) : ''}
+                      {pickedDate ? formatDate(toIso(pickedDate)) : ''}
                     </DialogTitle>
                   </DialogHeader>
                   {pickedDate && (() => {
