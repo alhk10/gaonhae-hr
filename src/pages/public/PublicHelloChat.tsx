@@ -666,7 +666,7 @@ const PublicHelloChat: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Contact number (optional)</Label>
-                  <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+65 …" className="h-10" />
+                  <PhoneInput value={phone} onChange={setPhone} />
                 </div>
                 <Button onClick={handleIdentify} disabled={submitting} className="w-full h-11 mt-1">
                   {submitting ? 'Please wait…' : 'Continue'}
