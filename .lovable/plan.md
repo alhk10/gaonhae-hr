@@ -1,88 +1,86 @@
-## Scope
+# Lesson request: term calendar with interactive slot cancel/reschedule
 
-Two additions to `src/pages/public/PublicHelloChat.tsx`:
-1. A **Back** button that returns one step in the chat flow.
-2. A **Schedule / Reschedule a lesson** option on the matched-student screen that submits a staff-approved request (no direct attendance writes from the public page).
+Replace the free-form date/time form on `/hello` (Schedule / Reschedule lesson stage) with an interactive term calendar tied to the matched student's branch timetable. The same calendar handles both Schedule and Reschedule modes — staff still confirms the final booking change.
 
-No changes outside the public Hello chat for the back button. Schedule/reschedule reuses the existing callback submission path and adds a new request type plus a small staff-side surface so the request flows into approvals → attendance once accepted.
+## What the student sees
 
----
+Header strip in the `lesson_request` stage:
+- Current term name + DD/MM/YYYY date range
+- "X lessons unbooked in this term" badge
+- Inline legend: blue dot = your booked class, green = picked new slot, red = picked cancellation
 
-## 1. Back button (history stack)
+Calendar (single month, mobile-first, restricted to term `start_date`–`end_date`):
+- Disabled: dates outside term, public holidays for the branch country, weekdays with zero eligible non-full slots for this student
+- Marked with a blue dot: dates where the student already has a `scheduled` class
+- Marked with a small "+" indicator: dates that still have any eligible non-full slot
+- Selected day picks open the slot dialog
 
-- Maintain a `stageHistory: Stage[]` ref/state inside `PublicHelloChat`. Every time we transition to a new stage, push the current stage onto the stack.
-- Replace direct `setStage(...)` calls with a `goTo(next)` helper that does the push + transition.
-- Add a `goBack()` helper that pops the stack and sets stage to the popped value. If stack is empty, hide the button.
-- Render a small **Back** button (chevron-left icon, `variant="ghost"`, `size="sm"`) in the sticky header, on the left side, visible whenever `stageHistory.length > 0` and the current stage is not a terminal `*_done` state.
-- The existing inline Back buttons on `payment_products` and `payment_pay` keep working (they will simply call `goBack()`).
-- Do not clear cart, identify fields, or matched student on back — the user can resume forward.
+Slot dialog (opens on date click):
+- Title: full date (DD/MM/YYYY, weekday)
+- Two sections:
+  1. "Your booked classes that day" — each row tappable; tapping marks it red ("cancel"); tapping again un-marks. Multiple cancellations per session allowed.
+  2. "Available class times" — only eligible, not-full slots for the student (age window + belt list + entitlement `class_type_scope`, minus the date+timetable rows already at `capacity`). Each row tappable; tapping marks it green ("book"); tapping again un-marks.
+- "Done" closes the dialog and returns to the calendar; "Clear day" wipes that day's picks.
 
-## 2. Schedule / Reschedule a lesson (matched students only, request-based)
+Picked changes persist across day-switches in two local maps:
+- `cancellations: { [scheduled_class_id]: { date, start_time, end_time, timetable_id } }`
+- `newBookings: { [tempId]: { date, timetable_id, start_time, end_time } }`
 
-### UI flow (new stages)
+The calendar shows totals at the bottom (e.g. "Cancel 1 · Book 2 · Net 1 lesson"). A "Net lessons" tally cannot exceed `unbooked_count + cancellations.length` — extra new-booking attempts are blocked with a toast.
 
-Add to the `Stage` union:
-- `lesson_action` — choose "Schedule a new lesson" or "Reschedule an existing lesson".
-- `lesson_reschedule_pick` — list the matched student's upcoming scheduled classes (read via a new public RPC) so they can pick the one to reschedule.
-- `lesson_request` — capture preferred date, preferred time / weekday + slot, optional reason/notes.
-- `lesson_request_done` — confirmation bubble.
+Submit button writes a single lesson-change request (see Submission). No mode selector — Schedule = picking only new slots; Reschedule = picking both a cancellation and one or more new slots. The earlier `lesson_action` Schedule/Reschedule split becomes optional and can be skipped to go straight into the calendar.
 
-On the existing `matched` screen, add a second button next to "Make a payment":
-- **Schedule / Reschedule a lesson** → `lesson_action`.
+Notes textarea + Submit at the bottom. `lesson_request_done` confirmation stays the same.
 
-`lesson_action` shows two buttons:
-- **Schedule a new lesson** → `lesson_request` with `mode = 'schedule'`.
-- **Reschedule an existing lesson** → `lesson_reschedule_pick`.
+## Eligibility & capacity rules
 
-`lesson_reschedule_pick` lists the student's upcoming `student_scheduled_classes` (date, time, class type) via a new SECURITY DEFINER RPC `get_public_student_upcoming_classes(p_student_id uuid)` that returns only future, non-cancelled rows for the matched student id. Selecting one stores it on local state and advances to `lesson_request` with `mode = 'reschedule'`.
+For Kayden (or any student), only show kids-class times: filter `branch_timetables` by
+- `weekday` matches selected date
+- student age within `[age_from, age_to]` (uses DOB from matched student)
+- student current belt ∈ `belt_levels` (or `belt_levels` empty/null = open)
+- timetable `class_type` ∈ union of entitlement `class_type_scope` for the active term enrollment
+- slot not full: `booked_count < capacity` (booked = `student_scheduled_classes` for that date+timetable_id excluding `cancelled`/`swapped`)
 
-`lesson_request` form:
-- Preferred date (`Input type="date"` is forbidden by project memory → use 3-select DD/MM/YYYY like the identify step, restricted to today..+60 days).
-- Preferred time (free text, e.g. "Tue 5–6pm", placeholder helps).
-- Optional notes (`Textarea`, 500 char cap).
-- Submit → calls `submitLessonRequest(...)` and advances to `lesson_request_done`.
+A weekday becomes "disabled" on the calendar when no eligible non-full slot exists for that weekday across the term window for this student.
 
-`lesson_request_done` confirms with a green tick and tells the student staff will confirm by email/phone.
+## Data sources (public/anon)
 
-### Service / data
+Public chat is unauthenticated. Add SECURITY DEFINER RPCs that take `p_session_id` and validate `public_chat_sessions.matched_student_id = p_student_id` (and branch match) before returning anything:
 
-Add to `src/services/publicChatService.ts`:
-- `getStudentUpcomingClasses(studentId)` — calls the new RPC, returns `{ id, scheduled_date, start_time, end_time, class_type }[]`.
-- `submitLessonRequest(args)` — inserts into a new `lesson_schedule_requests` table (anon-insert allowed, matched-student id captured server-side via a SECURITY DEFINER RPC `submit_lesson_request(...)` to avoid trusting client-supplied student id without identity match — pattern mirrors the existing chat payment / callback flow).
+- `get_public_student_term_context(p_session_id, p_student_id)` → `{ term_id, term_name, start_date, end_date, sessions_total, sessions_remaining, active_scheduled_count, unbooked_count, class_type_scope[], age, current_belt, branch_id, country }`
+- `get_public_branch_timetable_slots(p_session_id, p_branch_id)` → eligible active rows from `branch_timetables` filtered by age + belt + class_type_scope on the server. Each row: `{ id, weekday, start_time, end_time, class_type, capacity }`
+- `get_public_student_term_bookings(p_session_id, p_student_id)` → `{ id, scheduled_date, start_time, end_time, timetable_id, status }` for the active term, excluding cancelled/swapped
+- `get_public_term_slot_capacities(p_session_id, p_branch_id, p_term_id, p_timetable_ids[])` → per `(scheduled_date, timetable_id)` booked counts across the whole term, so the client can compute which (date, slot) pairs are full without per-day round-trips
+- `get_public_branch_holidays(p_session_id, p_branch_id, p_from, p_to)` → list of holiday dates
 
-### Database (single migration)
+All RPCs leak no PII beyond the student's own already-known data.
 
-- New table `lesson_schedule_requests`:
-  - `id`, `session_id` (fk → `public_chat_sessions`), `student_id` (fk → `students`), `branch_id`, `mode` (`'schedule' | 'reschedule'`), `existing_scheduled_class_id` (nullable fk), `preferred_date` (date), `preferred_time` (text), `notes` (text), `status` (`'pending' | 'approved' | 'rejected'` default `pending`), `reviewed_by`, `reviewed_at`, `created_at`.
-  - RLS: anon `INSERT` only via the SECURITY DEFINER RPC; authenticated staff `SELECT`/`UPDATE` via existing branch-scoped policy pattern (reuse `has_role` + branch access helpers used by other request tables such as `student_update_requests`).
-- New RPC `get_public_student_upcoming_classes(p_student_id uuid)` returning future, non-cancelled rows from `student_scheduled_classes` joined to enrollment/class type. SECURITY DEFINER; no auth required (mirrors `get_public_grading_slots`).
-- New RPC `submit_lesson_request(...)` inserting a row, SECURITY DEFINER, validates branch + student exist.
+## Submission
 
-### Staff-side surface (so requests flow into attendance)
+Extend `SubmitLessonRequestInput`:
+- `cancellations: Array<{ scheduled_class_id, date, start_time, end_time }>`
+- `new_bookings: Array<{ date, timetable_id, start_time, end_time, class_type }>`
+- `notes`
 
-- Add `lesson_schedule_requests` (pending) to the existing Approvals tab on the Branch Dashboard (`src/components/dashboard/...` approvals section) as a new row type:
-  - Shows student name, mode, existing class (if reschedule), preferred date/time, notes.
-  - Approve / Reject buttons. Approve flips status to `approved`; staff then perform the actual booking in the existing Slot Booking / class schedule UI (no automatic mutation of `student_scheduled_classes` to avoid bad data).
-  - Reject sets status `rejected`.
-- This matches the existing "Request-based, staff approves" pattern memorised under `mem://features/branch-dashboard/approvals-management` and avoids any RLS/identity-spoofing risk from the anonymous public page.
+`submitLessonRequest` keeps using `public_chat_callback_requests` with `type='lesson_schedule_request'`. The message text lists cancellations and new bookings as DD/MM/YYYY + times so staff can apply them in the existing Approvals/Slot Booking UI. No direct write to `student_scheduled_classes` from the public page.
 
----
+## Files
 
-## Technical notes
-
-- Stage transitions in `PublicHelloChat.tsx` are currently scattered (`setStage('...')`) — wrap them all in `goTo` so the back stack stays accurate. The change is mechanical but touches ~10 call sites.
-- Date entry uses the existing three-`Select` DD/MM/YYYY pattern already present in the identify step; native `<input type="date">` is forbidden by project convention (`mem://design/date-format`).
-- Reuse `Bubble`, `Card`, `Button`, `Select`, `Textarea`, and the existing `logChatEvent` calls for new events: `lesson_action_opened`, `lesson_reschedule_picked`, `lesson_request_submitted`.
-- The schedule/reschedule entry point is gated behind `stage === 'matched' && !!matched` only. Not shown on the `choice` (no-match) screen per your answer.
-
-## Files touched
-
-- `src/pages/public/PublicHelloChat.tsx` — back button, stage stack, new stages and UI.
-- `src/services/publicChatService.ts` — new `getStudentUpcomingClasses` and `submitLessonRequest`.
-- `src/components/dashboard/...` (existing approvals component) — new request type row, approve/reject handlers.
-- Supabase migration — new `lesson_schedule_requests` table + RLS + two RPCs.
+- `src/pages/public/PublicHelloChat.tsx` — replace `lesson_request` body. Use `@/components/ui/calendar`, `@/components/ui/dialog`, `@/utils/dateFormat` for DD/MM/YYYY. Add slot dialog + picked-changes state.
+- `src/services/publicChatService.ts` — typed wrappers for the 5 RPCs and the expanded `SubmitLessonRequestInput`.
+- Supabase migration — 5 SECURITY DEFINER RPCs (`set search_path = public`), each validating session→student/branch.
 
 ## Out of scope
 
-- Direct mutation of `student_scheduled_classes` from the public page.
-- Any change to existing student-portal `StudentMyClassSchedule` self-service flow.
+- Direct write to `student_scheduled_classes` from public chat (still staff-approved).
+- Changes to authenticated student-portal `StudentMyClassSchedule` self-booking.
+- New Approvals-tab UI; existing approval row continues to surface the request text.
+
+## Technical notes
+
+- Active enrollment: `student_class_enrollments` for `(student_id, branch_id, status='active')`, prefer the term whose `[start_date, end_date]` contains today, else next upcoming.
+- `unbooked_count = max(0, sum(entitlements.sessions_remaining for that enrollment) - count(active scheduled classes for that enrollment in term window))`.
+- Eligibility filtering done server-side in the RPC to keep client payload small and avoid leaking other students' data.
+- Calendar marks: extend `Calendar` `modifiers` with `booked`, `hasOpenSlot`; modifier styles use semantic tokens (no raw colors).
+- Slot dialog uses `Dialog` with `max-h-[85vh]` per project mobile pattern; row buttons stack with `h-10`, picked-cancel = `bg-destructive/10 border-destructive text-destructive`, picked-new = `bg-emerald-500/10 border-emerald-600 text-emerald-700` (added as semantic tokens if missing).
+- Net-lesson guard prevents over-booking past entitlement; toast explains.
