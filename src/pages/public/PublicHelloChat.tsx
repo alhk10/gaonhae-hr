@@ -1863,6 +1863,19 @@ const ProductRow: React.FC<{
               />
             </div>
           )}
+          {!showTerms && isLessonCategory && (
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+              <Input
+                type="number"
+                min={1}
+                value={d.qty || 1}
+                onChange={(e) => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="h-9 text-xs"
+                placeholder="Quantity"
+              />
+            </div>
+          )}
           {product.requires_size && sizes.length > 0 && (
             <Select value={d.size} onValueChange={(v) => update({ size: v })}>
               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick size" /></SelectTrigger>
