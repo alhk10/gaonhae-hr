@@ -1577,6 +1577,9 @@ const PublicHelloChat: React.FC = () => {
                     pendingPreorder.size,
                     pendingPreorder.selectedOptions,
                     pendingPreorder.gradingSlotId,
+                    pendingPreorder.termId,
+                    pendingPreorder.termName,
+                    pendingPreorder.qty,
                   );
                 }
                 setPendingPreorder(null);
