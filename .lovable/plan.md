@@ -1,40 +1,38 @@
-# Relax first name matching on /hello identify step
+# Hello chat: simplify Foundation grading + add SG GST
 
-## Change
+## 1. Remove Foundation level checkboxes
 
-Update `match_student_by_identity` RPC so the first name comparison is a **prefix / token match** instead of strict equality. The last name, branch, and the existing DOB-or-(gender+contact) rules stay the same.
+In `src/pages/public/PublicHelloChat.tsx` (Hello chat grading flow):
 
-Examples that should now match a stored student with `first_name = 'ARIA YI NING'`, `last_name = 'YEO'`:
+- Delete the "Grading level(s)" Checkbox block (currently lines ~1150-1183).
+- Keep auto-selection of the student's current belt transition (already done via the existing `useEffect` that seeds `selectedFoundationLevels` with `matched.current_belt`). So if current belt is "Foundation 1", `Foundation 1 >> Foundation 2` is auto-selected.
+- In the product preview list (the `(FOUNDATION_LEVELS).map(level => ...)` cards), render **only the auto-selected level's product card** instead of all three transitions. This avoids confusion now that there's no way to pick more.
 
-- Input first name `Aria` → match (first token matches)
-- Input first name `Aria Yi` → match (prefix matches)
-- Input first name `Aria Yi Ning` → match (full match, unchanged)
-- Input first name `Yi` → no match (not a prefix)
-- Input first name `Arianna` → no match (token boundary required)
+Result: user lands on the screen with the single relevant transition already selected and visible, then picks slot → Continue.
 
-Last name stays strict (case-insensitive, trimmed) to keep matching safe.
+## 2. Add 9% GST for Singapore branches on the chat payment screen
 
-## SQL (technical)
+Mirror the logic in `/pay` (`PublicGradingPayment.tsx`):
 
-Replace the first-name predicate in the WHERE clause:
-
-```sql
--- before
-AND upper(trim(s.first_name)) = upper(trim(p_first_name))
-
--- after: input must equal the stored first name OR be a whole-word prefix of it
-AND (
-  upper(trim(s.first_name)) = upper(trim(p_first_name))
-  OR upper(trim(s.first_name)) LIKE upper(trim(p_first_name)) || ' %'
-)
+```ts
+const GST_RATE = 0.09;
+const isSingapore = branch?.country?.toLowerCase() === 'singapore';
+const gstAmount = isSingapore ? cartTotal * GST_RATE : 0;
+const totalAmount = cartTotal + gstAmount;
 ```
 
-The `' %'` suffix enforces a word boundary so `Aria` matches `ARIA YI NING` but `Ari` does not match `ARIA`, and `Arianna` does not match `ARIA YI NING`.
+On the `payment_pay` stage in `PublicHelloChat.tsx`:
 
-Everything else in the function (norm CTE, last name check, branch check, DOB rule, gender+email/phone rule, `LIMIT 1`) remains identical to the current version.
+- Replace the single "Amount to pay" row with a breakdown when SG:
+  - Subtotal: `$cartTotal`
+  - GST (9%): `$gstAmount`
+  - Total: `$totalAmount` (bold)
+- Non-SG: keep current single "Amount to pay" row.
+
+Submit `amount: totalAmount` (not `cartTotal`) in `handleSubmitPayment` so the invoice/payment record matches what the user paid.
 
 ## Out of scope
 
-- Fuzzy matching for typos.
-- Relaxing last name matching.
-- Matching on middle-name-only input (e.g. `Yi`).
+- No changes to the `/pay` page or to `match_student_by_identity`.
+- No backend tax line items / invoice schema changes — only the amount sent changes.
+- Non-grading flows (no Foundation logic involved) are unaffected.
