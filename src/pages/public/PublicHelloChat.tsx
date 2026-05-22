@@ -1281,7 +1281,7 @@ const PublicHelloChat: React.FC = () => {
                             gradingSlotId: null,
                             termId: showTerms ? d.termId : null,
                             termName,
-                            qty: showTerms ? Math.max(1, d.qty || 1) : 1,
+                            qty: showTerms ? Math.max(1, d.qty || 1) : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
                           });
                         }
                         setCart(newCart);
