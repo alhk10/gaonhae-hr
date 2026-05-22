@@ -814,7 +814,7 @@ const PublicHelloChat: React.FC = () => {
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName(s => s.trim().toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Date of birth *</Label>
+                  <Label className="text-xs">Date of birth (recommended)</Label>
                   <div className="grid grid-cols-3 gap-2">
                     <Select value={dobDay} onValueChange={setDobDay}>
                       <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
