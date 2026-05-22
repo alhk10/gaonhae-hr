@@ -325,6 +325,9 @@ const PublicHelloChat: React.FC = () => {
       setSelectedGradingSlotId('');
       setSelectedFoundationLevels(new Set());
     }
+    if (stage !== 'payment_products') {
+      setRowDrafts({});
+    }
   }, [stage, payCategory]);
 
   useEffect(() => {
