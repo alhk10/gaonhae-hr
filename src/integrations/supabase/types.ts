@@ -7329,6 +7329,7 @@ export type Database = {
         Returns: {
           current_belt: string
           first_name: string
+          gender: string
           id: string
           last_name: string
           status: string
