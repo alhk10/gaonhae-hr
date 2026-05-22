@@ -106,7 +106,7 @@ export const logChatEvent = async (sessionId: string, step: string, payload?: an
 export const matchStudentByIdentity = async (
   first_name: string,
   last_name: string,
-  date_of_birth: string,
+  date_of_birth: string | null,
   branch_id: string,
   extras?: { gender?: string | null; email?: string | null; phone?: string | null },
 ): Promise<MatchedStudent | null> => {
