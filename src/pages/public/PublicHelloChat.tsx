@@ -1207,30 +1207,13 @@ const PublicHelloChat: React.FC = () => {
                       <ProductRow
                         key={p.product_id}
                         product={p}
-                        onAdd={addToCart}
                         branchCountry={branch?.country}
                         terms={p.is_term_based ? chatTerms : undefined}
+                        defaultGender={matched?.gender || gender || ''}
+                        draft={rowDrafts[p.product_id]}
+                        onDraftChange={(d) => setRowDrafts(prev => ({ ...prev, [p.product_id]: d }))}
                       />
                     ))
-                  )}
-
-                  {/* Non-grading cart preview */}
-                  {!isGradingMatched && cart.length > 0 && (
-                    <div className="border-t pt-2 mt-2 space-y-1">
-                      <p className="text-xs font-semibold">Your cart</p>
-                      {cart.map((c, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs">
-                          <span className="truncate">
-                            {c.product.product_name}{c.termName ? ` · ${c.termName}` : ''}{c.size ? ` (${c.size})` : ''} × {c.qty}
-                          </span>
-                          <span className="tabular-nums">${(getDisplayPrice(c.product, branch?.country) * c.qty).toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between text-sm font-semibold pt-1 border-t">
-                        <span>Total</span>
-                        <span className="tabular-nums">${cartTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
                   )}
 
                   <div className="flex gap-2 pt-2">
@@ -1252,12 +1235,60 @@ const PublicHelloChat: React.FC = () => {
                             qty: 1,
                             gradingSlotId: selectedGradingSlotId,
                           })));
+                          goTo('payment_pay');
+                          return;
                         }
+                        // Non-grading: build cart from picked rows
+                        const pickedEntries = products
+                          .map(p => ({ p, d: rowDrafts[p.product_id] }))
+                          .filter(x => x.d?.picked);
+                        if (pickedEntries.length === 0) {
+                          toast.error('Please select at least one item');
+                          return;
+                        }
+                        const newCart: CartItem[] = [];
+                        for (const { p, d } of pickedEntries) {
+                          const sizes = p.requires_size ? (p.available_sizes || getVariantArray(p, 'sizes')) : [];
+                          const colors = getVariantArray(p, 'colors');
+                          const genders = getVariantArray(p, 'genders');
+                          const showTerms = p.is_term_based && (chatTerms || []).some(t => !t.is_paid);
+                          if (p.requires_size && sizes.length > 0 && !d.size) {
+                            toast.error(`Pick size for ${p.product_name}`); return;
+                          }
+                          if (colors.length > 0 && !d.color) {
+                            toast.error(`Pick colour for ${p.product_name}`); return;
+                          }
+                          if (genders.length > 0 && !d.gender) {
+                            toast.error(`Pick gender for ${p.product_name}`); return;
+                          }
+                          if (showTerms && !d.termId) {
+                            toast.error(`Pick term for ${p.product_name}`); return;
+                          }
+                          const selectedOptions = {
+                            size: d.size || null,
+                            color: d.color || null,
+                            gender: d.gender || null,
+                          };
+                          const sizeVariant = [d.size, d.color, d.gender].filter(Boolean).join(' / ') || null;
+                          const termName = showTerms
+                            ? (chatTerms.find(t => t.term_id === d.termId)?.term_name ?? null)
+                            : null;
+                          newCart.push({
+                            product: p,
+                            size: sizeVariant,
+                            selectedOptions,
+                            gradingSlotId: null,
+                            termId: showTerms ? d.termId : null,
+                            termName,
+                            qty: showTerms ? Math.max(1, d.qty || 1) : 1,
+                          });
+                        }
+                        setCart(newCart);
                         goTo('payment_pay');
                       }}
                       disabled={isGradingMatched
                         ? (selectedGradingProducts.length === 0 || !selectedGradingSlotId)
-                        : cart.length === 0}
+                        : !Object.values(rowDrafts).some(d => d?.picked)}
                       className="flex-1 h-10"
                     >
                       Continue
