@@ -678,19 +678,22 @@ const PublicHelloChat: React.FC = () => {
     const iso = toIso(date);
     const wd = date.getDay();
     const all = slotsByWeekday[wd] || [];
+    const now = new Date();
     return all.map(s => {
       const baseCount = capByDateSlot[`${iso}_${s.id}`] || 0;
       const pickedHere = newBookings[`${iso}_${s.id}`] ? 1 : 0;
       const studentAlreadyBooked = (bookingsByDate[iso] || []).some(b => b.timetable_id === s.id);
       const effectiveCount = baseCount + pickedHere;
       const isFull = effectiveCount >= s.max_capacity;
-      return { ...s, baseCount, effectiveCount, isFull, studentAlreadyBooked };
+      const startsAt = new Date(`${iso}T${s.start_time}`);
+      const isTooLate = now.getTime() >= startsAt.getTime() - 60 * 60 * 1000;
+      return { ...s, baseCount, effectiveCount, isFull, studentAlreadyBooked, isTooLate };
     });
   };
 
   const dateHasAvailable = (date: Date) => {
     const slots = slotsForDate(date);
-    return slots.some(s => !s.isFull && !s.studentAlreadyBooked);
+    return slots.some(s => !s.isFull && !s.studentAlreadyBooked && !s.isTooLate);
   };
 
   const dateHasBooking = (date: Date) => {
