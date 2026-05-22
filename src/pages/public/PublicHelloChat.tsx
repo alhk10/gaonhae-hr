@@ -194,8 +194,8 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ['hello-products', branchId, payCategory?.id],
-    queryFn: () => getChatProducts(branchId, payCategory!.id),
+    queryKey: ['hello-products', branchId, payCategory?.id, sessionId, matched?.id],
+    queryFn: () => getChatProducts(branchId, payCategory!.id, sessionId, matched?.id),
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
@@ -213,6 +213,22 @@ const PublicHelloChat: React.FC = () => {
     return computeNextGradingDefault(matched!.current_belt, completedStages, products);
   }, [isGradingMatched, matched, completedStages, products]);
 
+  const activeGradingProduct = useMemo(
+    () => (isGradingMatched ? gradingDefault?.product ?? null : null),
+    [isGradingMatched, gradingDefault],
+  );
+
+  const { data: gradingSlots = [], isLoading: gradingSlotsLoading } = useQuery({
+    queryKey: ['hello-grading-slots', branchId, activeGradingProduct?.product_id, dob, matched?.current_belt],
+    queryFn: () => getPublicGradingSlots(
+      branchId,
+      activeGradingProduct ? [activeGradingProduct.product_id] : [],
+      dob,
+      matched?.current_belt ?? null,
+    ),
+    enabled: !!branchId && !!activeGradingProduct && isGradingMatched,
+  });
+
   useEffect(() => {
     if (gradingDefault && sessionId && !gradingDefaultLogged) {
       logChatEvent(sessionId, 'grading_default_applied', {
@@ -228,8 +244,8 @@ const PublicHelloChat: React.FC = () => {
   useEffect(() => {
     // Reset grading default state when leaving products step or changing category.
     if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
-      setGradingOverride(false);
       setGradingDefaultLogged(false);
+      setSelectedGradingSlotId('');
     }
   }, [stage, payCategory]);
 
