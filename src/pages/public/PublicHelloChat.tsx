@@ -1583,7 +1583,7 @@ const ProductRow: React.FC<{
         size="sm"
         variant="outline"
         className="w-full h-9"
-        disabled={addDisabled || (colors.length > 0 && !color) || (genders.length > 0 && !gender)}
+        disabled={addDisabled || (product.requires_size && !size) || (colors.length > 0 && !color) || (genders.length > 0 && !gender)}
         onClick={() => onAdd(product, sizeVariant, selectedOptions, gradingSlotId)}
       >
         Add to cart
