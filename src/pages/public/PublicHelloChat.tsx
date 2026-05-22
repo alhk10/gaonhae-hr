@@ -574,6 +574,11 @@ const PublicHelloChat: React.FC = () => {
         navigate('/grading-list');
         return;
       }
+      if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {
+        toast.success('Payment received. Schedule your lessons below.');
+        goTo('lesson_request');
+        return;
+      }
       goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
@@ -753,7 +758,7 @@ const PublicHelloChat: React.FC = () => {
       className="gap-1 text-xs"
     >
       <MessageCircleQuestion className="h-3.5 w-3.5" />
-      Not what I'm looking for
+      Help
     </Button>
   );
 
@@ -866,7 +871,7 @@ const PublicHelloChat: React.FC = () => {
                   {submitting ? 'Please wait…' : 'Continue'}
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
-                <div className="pt-1 flex justify-center">{escapeHatch}</div>
+                
               </CardContent>
             </Card>
           )}
@@ -1210,6 +1215,7 @@ const PublicHelloChat: React.FC = () => {
                         branchCountry={branch?.country}
                         terms={p.is_term_based ? chatTerms : undefined}
                         defaultGender={matched?.gender || gender || ''}
+                        isLessonCategory={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
                         draft={rowDrafts[p.product_id]}
                         onDraftChange={(d) => setRowDrafts(prev => ({ ...prev, [p.product_id]: d }))}
                       />
@@ -1280,7 +1286,7 @@ const PublicHelloChat: React.FC = () => {
                             gradingSlotId: null,
                             termId: showTerms ? d.termId : null,
                             termName,
-                            qty: showTerms ? Math.max(1, d.qty || 1) : 1,
+                            qty: showTerms ? Math.max(1, d.qty || 1) : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
                           });
                         }
                         setCart(newCart);
@@ -1754,9 +1760,10 @@ const ProductRow: React.FC<{
   branchCountry?: string | null;
   terms?: ChatTerm[];
   defaultGender?: string;
+  isLessonCategory?: boolean;
   draft?: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
   onDraftChange: (d: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number }) => void;
-}> = ({ product, branchCountry, terms, defaultGender, draft, onDraftChange }) => {
+}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, draft, onDraftChange }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
@@ -1858,6 +1865,19 @@ const ProductRow: React.FC<{
                 onChange={(e) => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
                 className="h-9 text-xs"
                 placeholder="Weeks"
+              />
+            </div>
+          )}
+          {!showTerms && isLessonCategory && (
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+              <Input
+                type="number"
+                min={1}
+                value={d.qty || 1}
+                onChange={(e) => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="h-9 text-xs"
+                placeholder="Quantity"
               />
             </div>
           )}
