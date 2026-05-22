@@ -1629,16 +1629,18 @@ const PublicHelloChat: React.FC = () => {
                             const key = `${iso}_${s.id}`;
                             const picked = !!newBookings[key];
                             const full = s.isFull && !picked;
+                            const tooLate = s.isTooLate && !picked;
+                            const disabled = full || tooLate;
                             return (
                               <button
                                 key={s.id}
                                 type="button"
-                                disabled={full}
+                                disabled={disabled}
                                 className={cn(
                                   'w-full text-left rounded border h-11 px-3 text-sm flex items-center justify-between transition-colors',
                                   picked
                                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                    : full
+                                    : disabled
                                       ? 'opacity-50 cursor-not-allowed border-border'
                                       : 'border-border hover:border-emerald-500/60'
                                 )}
@@ -1647,6 +1649,7 @@ const PublicHelloChat: React.FC = () => {
                                     setNewBookings(prev => { const n = { ...prev }; delete n[key]; return n; });
                                     return;
                                   }
+                                  if (disabled) return;
                                   if (Object.keys(newBookings).length + 1 > maxNew) {
                                     toast.error(`You only have ${maxNew} lesson${maxNew === 1 ? '' : 's'} left to book. Cancel an existing one first.`);
                                     return;
@@ -1667,7 +1670,7 @@ const PublicHelloChat: React.FC = () => {
                                   {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)} · {s.class_type}
                                 </span>
                                 <span className="text-[11px] text-muted-foreground">
-                                  {picked ? 'Booking' : full ? 'Full' : `${s.effectiveCount}/${s.max_capacity}`}
+                                  {picked ? 'Booking' : full ? 'Full' : tooLate ? 'Closed' : `${s.effectiveCount}/${s.max_capacity}`}
                                 </span>
                               </button>
                             );
