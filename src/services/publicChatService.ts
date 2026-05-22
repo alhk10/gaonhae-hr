@@ -29,6 +29,7 @@ export interface ChatProduct {
   requires_size: boolean;
   available_sizes: string[] | null;
   available_variants: any;
+  metadata?: Record<string, any> | null;
 }
 
 export const createChatSession = async (input: ChatSessionInput): Promise<string> => {
@@ -117,7 +118,20 @@ export const getStudentCompletedGradingStages = async (
 export const getChatProducts = async (
   branch_id: string,
   category_id: string,
+  session_id?: string | null,
+  student_id?: string | null,
 ): Promise<ChatProduct[]> => {
+  if (session_id && student_id) {
+    const { data, error } = await supabase.rpc('get_public_chat_products_for_student' as any, {
+      p_session_id: session_id,
+      p_student_id: student_id,
+      p_branch_id: branch_id,
+      p_category_id: category_id,
+    });
+    if (error) throw error;
+    return (data || []) as ChatProduct[];
+  }
+
   const { data, error } = await supabase.rpc('get_public_chat_products' as any, {
     p_branch_id: branch_id,
     p_category_id: category_id,
