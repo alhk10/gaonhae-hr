@@ -477,7 +477,7 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const handleSubmitPayment = async () => {
-    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile) {
+    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile || !matched?.id) {
       toast.error('Missing required information');
       return;
     }
@@ -491,16 +491,23 @@ const PublicHelloChat: React.FC = () => {
           product_id: c.product.product_id,
           product_name: c.product.product_name,
           size: c.size,
+          size_variant: c.size,
+          selected_options: c.selectedOptions,
+          grading_slot_id: c.gradingSlotId ?? null,
           qty: c.qty,
-          unit_price: c.product.branch_price,
+          unit_price: getDisplayPrice(c.product, branch?.country),
         })),
         amount: cartTotal,
         payment_method: payMethod,
-        matched_student_id: matched?.id || null,
+        matched_student_id: matched.id,
         proof_file: proofFile,
         contact_first_name: firstName,
         contact_last_name: lastName,
       });
+      if (payCategory.id === GRADING_CATEGORY_ID) {
+        navigate('/grading-list');
+        return;
+      }
       goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
