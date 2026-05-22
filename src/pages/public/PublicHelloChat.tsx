@@ -256,21 +256,52 @@ const PublicHelloChat: React.FC = () => {
     return computeNextGradingDefault(matched!.current_belt, completedStages, products);
   }, [isGradingMatched, matched, completedStages, products]);
 
-  const activeGradingProduct = useMemo(
-    () => (isGradingMatched ? gradingDefault?.product ?? null : null),
-    [isGradingMatched, gradingDefault],
+  const FOUNDATION_LEVELS = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
+  const isSGFoundation = useMemo(() => (
+    isGradingMatched
+    && (branch?.country?.toLowerCase() === 'singapore')
+    && !!matched?.current_belt
+    && (FOUNDATION_LEVELS as readonly string[]).includes(matched.current_belt)
+  ), [isGradingMatched, branch, matched]);
+
+  const findFoundationProduct = useCallback((level: string): ChatProduct | undefined =>
+    products.find(p => p.product_name.trim().toLowerCase().startsWith(`${level.toLowerCase()} >>`)),
+  [products]);
+
+  // Resolved grading products that will be added to cart on Continue.
+  const selectedGradingProducts = useMemo<ChatProduct[]>(() => {
+    if (!isGradingMatched) return [];
+    if (isSGFoundation) {
+      return (FOUNDATION_LEVELS as readonly string[])
+        .filter(l => selectedFoundationLevels.has(l))
+        .map(l => findFoundationProduct(l))
+        .filter((p): p is ChatProduct => !!p);
+    }
+    return gradingDefault?.product ? [gradingDefault.product] : [];
+  }, [isGradingMatched, isSGFoundation, selectedFoundationLevels, findFoundationProduct, gradingDefault]);
+
+  const selectedGradingProductIdsKey = useMemo(
+    () => selectedGradingProducts.map(p => p.product_id).sort().join(','),
+    [selectedGradingProducts],
   );
 
   const { data: gradingSlots = [], isLoading: gradingSlotsLoading } = useQuery({
-    queryKey: ['hello-grading-slots', branchId, activeGradingProduct?.product_id, dob, matched?.current_belt],
+    queryKey: ['hello-grading-slots', branchId, selectedGradingProductIdsKey, dob, matched?.current_belt],
     queryFn: () => getPublicGradingSlots(
       branchId,
-      activeGradingProduct ? [activeGradingProduct.product_id] : [],
+      selectedGradingProducts.map(p => p.product_id),
       dob,
       matched?.current_belt ?? null,
     ),
-    enabled: !!branchId && !!activeGradingProduct && isGradingMatched,
+    enabled: !!branchId && selectedGradingProducts.length > 0 && isGradingMatched,
   });
+
+  // Default: pre-check the student's current Foundation level (the mandatory next grading).
+  useEffect(() => {
+    if (isSGFoundation && selectedFoundationLevels.size === 0 && matched?.current_belt) {
+      setSelectedFoundationLevels(new Set([matched.current_belt]));
+    }
+  }, [isSGFoundation, matched, selectedFoundationLevels.size]);
 
   useEffect(() => {
     if (gradingDefault && sessionId && !gradingDefaultLogged) {
@@ -289,6 +320,7 @@ const PublicHelloChat: React.FC = () => {
     if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
       setGradingDefaultLogged(false);
       setSelectedGradingSlotId('');
+      setSelectedFoundationLevels(new Set());
     }
   }, [stage, payCategory]);
 
