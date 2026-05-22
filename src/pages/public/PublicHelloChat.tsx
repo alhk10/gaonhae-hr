@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -185,6 +186,7 @@ const PublicHelloChat: React.FC = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
+  const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
     size: string | null;
@@ -254,21 +256,52 @@ const PublicHelloChat: React.FC = () => {
     return computeNextGradingDefault(matched!.current_belt, completedStages, products);
   }, [isGradingMatched, matched, completedStages, products]);
 
-  const activeGradingProduct = useMemo(
-    () => (isGradingMatched ? gradingDefault?.product ?? null : null),
-    [isGradingMatched, gradingDefault],
+  const FOUNDATION_LEVELS = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
+  const isSGFoundation = useMemo(() => (
+    isGradingMatched
+    && (branch?.country?.toLowerCase() === 'singapore')
+    && !!matched?.current_belt
+    && (FOUNDATION_LEVELS as readonly string[]).includes(matched.current_belt)
+  ), [isGradingMatched, branch, matched]);
+
+  const findFoundationProduct = useCallback((level: string): ChatProduct | undefined =>
+    products.find(p => p.product_name.trim().toLowerCase().startsWith(`${level.toLowerCase()} >>`)),
+  [products]);
+
+  // Resolved grading products that will be added to cart on Continue.
+  const selectedGradingProducts = useMemo<ChatProduct[]>(() => {
+    if (!isGradingMatched) return [];
+    if (isSGFoundation) {
+      return (FOUNDATION_LEVELS as readonly string[])
+        .filter(l => selectedFoundationLevels.has(l))
+        .map(l => findFoundationProduct(l))
+        .filter((p): p is ChatProduct => !!p);
+    }
+    return gradingDefault?.product ? [gradingDefault.product] : [];
+  }, [isGradingMatched, isSGFoundation, selectedFoundationLevels, findFoundationProduct, gradingDefault]);
+
+  const selectedGradingProductIdsKey = useMemo(
+    () => selectedGradingProducts.map(p => p.product_id).sort().join(','),
+    [selectedGradingProducts],
   );
 
   const { data: gradingSlots = [], isLoading: gradingSlotsLoading } = useQuery({
-    queryKey: ['hello-grading-slots', branchId, activeGradingProduct?.product_id, dob, matched?.current_belt],
+    queryKey: ['hello-grading-slots', branchId, selectedGradingProductIdsKey, dob, matched?.current_belt],
     queryFn: () => getPublicGradingSlots(
       branchId,
-      activeGradingProduct ? [activeGradingProduct.product_id] : [],
+      selectedGradingProducts.map(p => p.product_id),
       dob,
       matched?.current_belt ?? null,
     ),
-    enabled: !!branchId && !!activeGradingProduct && isGradingMatched,
+    enabled: !!branchId && selectedGradingProducts.length > 0 && isGradingMatched,
   });
+
+  // Default: pre-check the student's current Foundation level (the mandatory next grading).
+  useEffect(() => {
+    if (isSGFoundation && selectedFoundationLevels.size === 0 && matched?.current_belt) {
+      setSelectedFoundationLevels(new Set([matched.current_belt]));
+    }
+  }, [isSGFoundation, matched, selectedFoundationLevels.size]);
 
   useEffect(() => {
     if (gradingDefault && sessionId && !gradingDefaultLogged) {
@@ -287,6 +320,7 @@ const PublicHelloChat: React.FC = () => {
     if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
       setGradingDefaultLogged(false);
       setSelectedGradingSlotId('');
+      setSelectedFoundationLevels(new Set());
     }
   }, [stage, payCategory]);
 
@@ -1075,11 +1109,67 @@ const PublicHelloChat: React.FC = () => {
                       <div className="rounded-md bg-muted/60 p-2 text-xs text-foreground">
                         {gradingDefault.message}
                       </div>
-                      {gradingDefault.product ? (
+                      {gradingDefault.product || (isSGFoundation && (FOUNDATION_LEVELS as readonly string[]).some(l => !!findFoundationProduct(l))) ? (
                         <>
+                          {/* Single (non-SG/non-Foundation) grading product preview */}
+                          {!isSGFoundation && gradingDefault.product && (
+                            <div className="border rounded-lg p-2.5">
+                              <p className="text-sm font-medium">{gradingDefault.product.product_name}</p>
+                              <p className="text-xs text-muted-foreground">${getDisplayPrice(gradingDefault.product, branch?.country).toFixed(2)}</p>
+                            </div>
+                          )}
+
+                          {/* SG Foundation: list each Foundation product with price */}
+                          {isSGFoundation && (FOUNDATION_LEVELS as readonly string[]).map(level => {
+                            const prod = findFoundationProduct(level);
+                            if (!prod) return null;
+                            return (
+                              <div key={level} className="border rounded-lg p-2.5">
+                                <p className="text-sm font-medium">{prod.product_name}</p>
+                                <p className="text-xs text-muted-foreground">${getDisplayPrice(prod, branch?.country).toFixed(2)}</p>
+                              </div>
+                            );
+                          })}
+
+                          {/* Foundation 1/2/3 multi-select (SG only) */}
+                          {isSGFoundation && (
+                            <div className="space-y-1.5 pt-1">
+                              <Label className="text-xs">Grading level(s)</Label>
+                              <div className="space-y-1.5">
+                                {(FOUNDATION_LEVELS as readonly string[]).map((level) => {
+                                  const currentIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(matched!.current_belt as string);
+                                  const thisIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(level);
+                                  const isCurrent = level === matched!.current_belt;
+                                  const isLowerThanCurrent = thisIdx < currentIdx;
+                                  const productAvailable = !!findFoundationProduct(level);
+                                  // Mandatory (current belt) is checked & disabled; lower levels disabled.
+                                  const disabled = isCurrent || isLowerThanCurrent || !productAvailable;
+                                  const checked = selectedFoundationLevels.has(level);
+                                  return (
+                                    <label key={level} className={cn('flex items-center gap-2 text-xs', disabled && !isCurrent && 'opacity-50')}>
+                                      <Checkbox
+                                        checked={checked}
+                                        disabled={disabled}
+                                        onCheckedChange={(v) => {
+                                          setSelectedFoundationLevels(prev => {
+                                            const next = new Set(prev);
+                                            if (v) next.add(level); else next.delete(level);
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                      <span>{level}{isCurrent ? ' (current belt — required)' : ''}{!productAvailable ? ' (unavailable)' : ''}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Grading Slot — below Foundation checkboxes, above Continue */}
                           <div className="space-y-1.5">
                             <Label className="text-xs">Grading Slot</Label>
-                            <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId} disabled={gradingSlotsLoading}>
+                            <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId} disabled={gradingSlotsLoading || selectedGradingProducts.length === 0}>
                               <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={gradingSlotsLoading ? 'Loading slots…' : 'Pick grading slot'} /></SelectTrigger>
                               <SelectContent>
                                 {gradingSlots.map(slot => (
@@ -1087,17 +1177,20 @@ const PublicHelloChat: React.FC = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {!gradingSlotsLoading && gradingSlots.length === 0 && (
+                            {!gradingSlotsLoading && selectedGradingProducts.length > 0 && gradingSlots.length === 0 && (
                               <p className="text-[11px] text-muted-foreground">No eligible grading slots available right now.</p>
                             )}
                           </div>
-                          <ProductRow
-                            product={gradingDefault.product}
-                            onAdd={addToCart}
-                            branchCountry={branch?.country}
-                            gradingSlotId={selectedGradingSlotId || null}
-                            addDisabled={!selectedGradingSlotId}
-                          />
+
+                          {/* Live total preview */}
+                          {selectedGradingProducts.length > 0 && (
+                            <div className="flex items-center justify-between text-sm font-semibold pt-1 border-t">
+                              <span>Total</span>
+                              <span className="tabular-nums">
+                                ${selectedGradingProducts.reduce((s, p) => s + getDisplayPrice(p, branch?.country), 0).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
                         </>
                       ) : (
                         <p className="text-xs text-muted-foreground">No eligible grading product available right now.</p>
@@ -1115,7 +1208,8 @@ const PublicHelloChat: React.FC = () => {
                     ))
                   )}
 
-                  {cart.length > 0 && (
+                  {/* Non-grading cart preview */}
+                  {!isGradingMatched && cart.length > 0 && (
                     <div className="border-t pt-2 mt-2 space-y-1">
                       <p className="text-xs font-semibold">Your cart</p>
                       {cart.map((c, i) => (
@@ -1135,7 +1229,31 @@ const PublicHelloChat: React.FC = () => {
 
                   <div className="flex gap-2 pt-2">
                     <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
-                    <Button onClick={() => goTo('payment_pay')} disabled={cart.length === 0} className="flex-1 h-10">
+                    <Button
+                      onClick={() => {
+                        if (isGradingMatched) {
+                          if (selectedGradingProducts.length === 0) {
+                            toast.error('Please select at least one grading level');
+                            return;
+                          }
+                          if (!selectedGradingSlotId) {
+                            toast.error('Please pick a grading slot');
+                            return;
+                          }
+                          setCart(selectedGradingProducts.map(p => ({
+                            product: p,
+                            size: null,
+                            qty: 1,
+                            gradingSlotId: selectedGradingSlotId,
+                          })));
+                        }
+                        goTo('payment_pay');
+                      }}
+                      disabled={isGradingMatched
+                        ? (selectedGradingProducts.length === 0 || !selectedGradingSlotId)
+                        : cart.length === 0}
+                      className="flex-1 h-10"
+                    >
                       Continue
                     </Button>
                   </div>
