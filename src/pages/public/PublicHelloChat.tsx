@@ -1545,11 +1545,11 @@ const PublicHelloChat: React.FC = () => {
                             <p className="text-xs font-medium text-muted-foreground">Your booked classes</p>
                             {dayBookings.map(b => {
                               const picked = !!cancellations[b.id];
-                              const today = new Date(); today.setHours(0,0,0,0);
-                              const dateObj = new Date(b.scheduled_date);
-                              const isPast = dateObj < today;
+                              const now = new Date();
+                              const lessonStart = new Date(`${b.scheduled_date}T${b.start_time}`);
+                              const isPast = now.getTime() >= lessonStart.getTime();
                               const isAttendanceOnly = b.status === 'attended';
-                              const cancellable = !isPast && !isAttendanceOnly;
+                              const cancellable = !isAttendanceOnly && now.getTime() < lessonStart.getTime() - 60 * 60 * 1000;
                               const att = b.attendance_status;
                               const attLabel =
                                 att === 'present' ? 'Present'
