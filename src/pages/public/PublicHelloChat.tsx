@@ -110,6 +110,7 @@ const CATEGORIES = [
 ];
 
 const PublicHelloChat: React.FC = () => {
+  const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('identify');
   const [stageHistory, setStageHistory] = useState<Stage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -154,11 +155,17 @@ const PublicHelloChat: React.FC = () => {
 
   // Payment
   const [payCategory, setPayCategory] = useState<{ id: string; label: string } | null>(null);
-  const [cart, setCart] = useState<{ product: ChatProduct; size: string | null; qty: number }[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
-  const [gradingOverride, setGradingOverride] = useState(false);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
+  const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
+  const [pendingPreorder, setPendingPreorder] = useState<{
+    product: ChatProduct;
+    size: string | null;
+    selectedOptions?: Record<string, string | null>;
+    gradingSlotId?: string | null;
+  } | null>(null);
 
   // Lesson schedule/reschedule (calendar-based)
   const [lessonNotes, setLessonNotes] = useState('');
