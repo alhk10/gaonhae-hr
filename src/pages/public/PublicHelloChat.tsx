@@ -60,6 +60,27 @@ type CartItem = {
   gradingSlotId?: string | null;
 };
 
+const getVariantArray = (product: ChatProduct, key: string): string[] => {
+  const value = product.available_variants?.[key];
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+};
+
+const getDisplayPrice = (product: ChatProduct, country?: string | null): number => {
+  const sgTarget = Number(product.metadata?.sg_target_price ?? NaN);
+  return country?.toLowerCase() === 'singapore' && Number.isFinite(sgTarget)
+    ? sgTarget
+    : Number(product.branch_price || 0);
+};
+
+const isPreorderProduct = (product: ChatProduct): boolean => product.metadata?.is_preorder === true;
+
+const formatGradingSlotLabel = (slot: PublicGradingSlot): string => {
+  const time = slot.start_time ? ` ${String(slot.start_time).slice(0, 5)}` : '';
+  const title = slot.title ? ` — ${slot.title}` : '';
+  const location = slot.location ? ` · ${slot.location}` : '';
+  return `${formatDate(slot.grading_date)}${time}${title}${location}`;
+};
+
 type Stage =
   | 'identify'
   | 'matched'
