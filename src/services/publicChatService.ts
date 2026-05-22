@@ -63,7 +63,7 @@ export const createChatSession = async (input: ChatSessionInput): Promise<string
     .insert({
       first_name: input.first_name.trim().toUpperCase(),
       last_name: input.last_name.trim().toUpperCase(),
-      date_of_birth: input.date_of_birth,
+      date_of_birth: input.date_of_birth || null,
       branch_id: input.branch_id,
       gender: input.gender ?? null,
       email: input.email?.trim().toLowerCase() || null,
