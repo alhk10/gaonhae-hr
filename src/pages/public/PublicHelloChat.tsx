@@ -208,6 +208,13 @@ const PublicHelloChat: React.FC = () => {
 
   const branch = useMemo(() => branches.find(b => b.id === branchId), [branches, branchId]);
 
+  const dob = useMemo(() => {
+    if (!dobDay || dobMonth === '' || !dobYear) return null;
+    const d = String(parseInt(dobDay)).padStart(2, '0');
+    const m = String(parseInt(dobMonth) + 1).padStart(2, '0');
+    return `${dobYear}-${m}-${d}`;
+  }, [dobDay, dobMonth, dobYear]);
+
   const { data: paymentOptions } = useQuery({
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
@@ -273,13 +280,6 @@ const PublicHelloChat: React.FC = () => {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [stage, cart.length]);
-
-  const dob = useMemo(() => {
-    if (!dobDay || dobMonth === '' || !dobYear) return null;
-    const d = String(parseInt(dobDay)).padStart(2, '0');
-    const m = String(parseInt(dobMonth) + 1).padStart(2, '0');
-    return `${dobYear}-${m}-${d}`;
-  }, [dobDay, dobMonth, dobYear]);
 
   const dobDisplay = useMemo(() => {
     if (!dob) return '';
