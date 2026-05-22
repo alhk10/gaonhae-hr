@@ -1755,9 +1755,10 @@ const ProductRow: React.FC<{
   branchCountry?: string | null;
   terms?: ChatTerm[];
   defaultGender?: string;
+  isLessonCategory?: boolean;
   draft?: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
   onDraftChange: (d: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number }) => void;
-}> = ({ product, branchCountry, terms, defaultGender, draft, onDraftChange }) => {
+}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, draft, onDraftChange }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
