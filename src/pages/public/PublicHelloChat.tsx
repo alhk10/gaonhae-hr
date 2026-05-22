@@ -1329,10 +1329,12 @@ const PublicHelloChat: React.FC = () => {
 
                         <div className="space-y-1.5">
                           <p className="text-xs font-medium text-muted-foreground">Available class times</p>
-                          {openSlots.length === 0 && (
+                          {isPastDate ? (
+                            <p className="text-xs text-muted-foreground">Booking closed for past dates.</p>
+                          ) : openSlots.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No open slots for this date.</p>
-                          )}
-                          {openSlots.map(s => {
+                          ) : null}
+                          {!isPastDate && openSlots.map(s => {
                             const key = `${iso}_${s.id}`;
                             const picked = !!newBookings[key];
                             const full = s.isFull && !picked;
