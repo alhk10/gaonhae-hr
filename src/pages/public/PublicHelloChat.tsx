@@ -753,7 +753,7 @@ const PublicHelloChat: React.FC = () => {
       className="gap-1 text-xs"
     >
       <MessageCircleQuestion className="h-3.5 w-3.5" />
-      Not what I'm looking for
+      Help
     </Button>
   );
 
