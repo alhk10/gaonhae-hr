@@ -6979,6 +6979,24 @@ export type Database = {
           requires_size: boolean
         }[]
       }
+      get_public_chat_products_for_student: {
+        Args: {
+          p_branch_id: string
+          p_category_id: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: {
+          available_sizes: string[]
+          available_variants: Json
+          base_price: number
+          branch_price: number
+          metadata: Json
+          product_id: string
+          product_name: string
+          requires_size: boolean
+        }[]
+      }
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
@@ -7322,6 +7340,23 @@ export type Database = {
         Returns: {
           id: string
           reference_number: string
+        }[]
+      }
+      submit_public_chat_invoice: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_category: string
+          p_items: Json
+          p_payment_method: string
+          p_proof_url: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: {
+          invoice_id: string
+          invoice_number: string
+          payment_number: string
         }[]
       }
     }

@@ -5,6 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatDate } from '@/utils/dateFormat';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,8 @@ import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
+  getPublicGradingSlots,
+  type PublicGradingSlot,
 } from '@/services/gradingPaymentSubmissionService';
 import {
   createChatSession,
@@ -44,6 +48,38 @@ import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 
 
 const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
+const SCHOOL_FEES_CATEGORY_ID = 'a416f120-4ec2-4826-8d37-375db3e002bc';
+const UNIFORMS_CATEGORY_ID = 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c';
+const PROTECTION_CATEGORY_ID = '117cdc13-1296-4651-bc4b-f0449873cbf1';
+
+type CartItem = {
+  product: ChatProduct;
+  size: string | null;
+  qty: number;
+  selectedOptions?: Record<string, string | null>;
+  gradingSlotId?: string | null;
+};
+
+const getVariantArray = (product: ChatProduct, key: string): string[] => {
+  const value = product.available_variants?.[key];
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+};
+
+const getDisplayPrice = (product: ChatProduct, country?: string | null): number => {
+  const sgTarget = Number(product.metadata?.sg_target_price ?? NaN);
+  return country?.toLowerCase() === 'singapore' && Number.isFinite(sgTarget)
+    ? sgTarget
+    : Number(product.branch_price || 0);
+};
+
+const isPreorderProduct = (product: ChatProduct): boolean => product.metadata?.is_preorder === true;
+
+const formatGradingSlotLabel = (slot: PublicGradingSlot): string => {
+  const time = slot.start_time ? ` ${String(slot.start_time).slice(0, 5)}` : '';
+  const title = slot.title ? ` — ${slot.title}` : '';
+  const location = slot.location ? ` · ${slot.location}` : '';
+  return `${formatDate(slot.grading_date)}${time}${title}${location}`;
+};
 
 type Stage =
   | 'identify'
@@ -95,6 +131,7 @@ const CATEGORIES = [
 ];
 
 const PublicHelloChat: React.FC = () => {
+  const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('identify');
   const [stageHistory, setStageHistory] = useState<Stage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -139,11 +176,17 @@ const PublicHelloChat: React.FC = () => {
 
   // Payment
   const [payCategory, setPayCategory] = useState<{ id: string; label: string } | null>(null);
-  const [cart, setCart] = useState<{ product: ChatProduct; size: string | null; qty: number }[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
-  const [gradingOverride, setGradingOverride] = useState(false);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
+  const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
+  const [pendingPreorder, setPendingPreorder] = useState<{
+    product: ChatProduct;
+    size: string | null;
+    selectedOptions?: Record<string, string | null>;
+    gradingSlotId?: string | null;
+  } | null>(null);
 
   // Lesson schedule/reschedule (calendar-based)
   const [lessonNotes, setLessonNotes] = useState('');
@@ -165,6 +208,13 @@ const PublicHelloChat: React.FC = () => {
 
   const branch = useMemo(() => branches.find(b => b.id === branchId), [branches, branchId]);
 
+  const dob = useMemo(() => {
+    if (!dobDay || dobMonth === '' || !dobYear) return null;
+    const d = String(parseInt(dobDay)).padStart(2, '0');
+    const m = String(parseInt(dobMonth) + 1).padStart(2, '0');
+    return `${dobYear}-${m}-${d}`;
+  }, [dobDay, dobMonth, dobYear]);
+
   const { data: paymentOptions } = useQuery({
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
@@ -172,8 +222,8 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ['hello-products', branchId, payCategory?.id],
-    queryFn: () => getChatProducts(branchId, payCategory!.id),
+    queryKey: ['hello-products', branchId, payCategory?.id, sessionId, matched?.id],
+    queryFn: () => getChatProducts(branchId, payCategory!.id, sessionId, matched?.id),
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
@@ -191,6 +241,22 @@ const PublicHelloChat: React.FC = () => {
     return computeNextGradingDefault(matched!.current_belt, completedStages, products);
   }, [isGradingMatched, matched, completedStages, products]);
 
+  const activeGradingProduct = useMemo(
+    () => (isGradingMatched ? gradingDefault?.product ?? null : null),
+    [isGradingMatched, gradingDefault],
+  );
+
+  const { data: gradingSlots = [], isLoading: gradingSlotsLoading } = useQuery({
+    queryKey: ['hello-grading-slots', branchId, activeGradingProduct?.product_id, dob, matched?.current_belt],
+    queryFn: () => getPublicGradingSlots(
+      branchId,
+      activeGradingProduct ? [activeGradingProduct.product_id] : [],
+      dob,
+      matched?.current_belt ?? null,
+    ),
+    enabled: !!branchId && !!activeGradingProduct && isGradingMatched,
+  });
+
   useEffect(() => {
     if (gradingDefault && sessionId && !gradingDefaultLogged) {
       logChatEvent(sessionId, 'grading_default_applied', {
@@ -206,21 +272,14 @@ const PublicHelloChat: React.FC = () => {
   useEffect(() => {
     // Reset grading default state when leaving products step or changing category.
     if (stage !== 'payment_products' || payCategory?.id !== GRADING_CATEGORY_ID) {
-      setGradingOverride(false);
       setGradingDefaultLogged(false);
+      setSelectedGradingSlotId('');
     }
   }, [stage, payCategory]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [stage, cart.length]);
-
-  const dob = useMemo(() => {
-    if (!dobDay || dobMonth === '' || !dobYear) return null;
-    const d = String(parseInt(dobDay)).padStart(2, '0');
-    const m = String(parseInt(dobMonth) + 1).padStart(2, '0');
-    return `${dobYear}-${m}-${d}`;
-  }, [dobDay, dobMonth, dobYear]);
 
   const dobDisplay = useMemo(() => {
     if (!dob) return '';
@@ -241,8 +300,8 @@ const PublicHelloChat: React.FC = () => {
   }, [dobMonth, dobYear]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((s, c) => s + (c.product.branch_price * c.qty), 0),
-    [cart],
+    () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
+    [cart, branch?.country],
   );
 
   // Identify -> match
@@ -373,24 +432,52 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
-  const addToCart = (p: ChatProduct, size: string | null) => {
+  const addToCart = (
+    p: ChatProduct,
+    size: string | null,
+    selectedOptions?: Record<string, string | null>,
+    gradingSlotId?: string | null,
+  ) => {
     if (p.requires_size && !size) {
       toast.error('Please pick a size');
       return;
     }
+    if (payCategory?.id === GRADING_CATEGORY_ID && !gradingSlotId) {
+      toast.error('Please pick a grading slot');
+      return;
+    }
+    if (isPreorderProduct(p)) {
+      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId });
+      return;
+    }
+    commitCartItem(p, size, selectedOptions, gradingSlotId);
+  };
+
+  const commitCartItem = (
+    p: ChatProduct,
+    size: string | null,
+    selectedOptions?: Record<string, string | null>,
+    gradingSlotId?: string | null,
+  ) => {
     setCart((c) => {
-      const idx = c.findIndex(x => x.product.product_id === p.product_id && x.size === size);
+      const optionKey = JSON.stringify(selectedOptions || {});
+      const idx = c.findIndex(x =>
+        x.product.product_id === p.product_id &&
+        x.size === size &&
+        x.gradingSlotId === gradingSlotId &&
+        JSON.stringify(x.selectedOptions || {}) === optionKey
+      );
       if (idx >= 0) {
         const next = [...c];
         next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
         return next;
       }
-      return [...c, { product: p, size, qty: 1 }];
+      return [...c, { product: p, size, selectedOptions, gradingSlotId, qty: 1 }];
     });
   };
 
   const handleSubmitPayment = async () => {
-    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile) {
+    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile || !matched?.id) {
       toast.error('Missing required information');
       return;
     }
@@ -404,16 +491,23 @@ const PublicHelloChat: React.FC = () => {
           product_id: c.product.product_id,
           product_name: c.product.product_name,
           size: c.size,
+          size_variant: c.size,
+          selected_options: c.selectedOptions,
+          grading_slot_id: c.gradingSlotId ?? null,
           qty: c.qty,
-          unit_price: c.product.branch_price,
+          unit_price: getDisplayPrice(c.product, branch?.country),
         })),
         amount: cartTotal,
         payment_method: payMethod,
-        matched_student_id: matched?.id || null,
+        matched_student_id: matched.id,
         proof_file: proofFile,
         contact_first_name: firstName,
         contact_last_name: lastName,
       });
+      if (payCategory.id === GRADING_CATEGORY_ID) {
+        navigate('/grading-list');
+        return;
+      }
       goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
@@ -950,35 +1044,42 @@ const PublicHelloChat: React.FC = () => {
                     <p className="text-xs text-muted-foreground">No items available for this branch right now.</p>
                   )}
 
-                  {isGradingMatched && gradingDefault && !gradingOverride ? (
+                  {isGradingMatched && gradingDefault ? (
                     <div className="space-y-2">
                       <div className="rounded-md bg-muted/60 p-2 text-xs text-foreground">
                         {gradingDefault.message}
                       </div>
                       {gradingDefault.product ? (
                         <>
-                          <ProductRow product={gradingDefault.product} onAdd={addToCart} />
-                          <button
-                            type="button"
-                            onClick={() => setGradingOverride(true)}
-                            className="text-xs text-primary underline underline-offset-2"
-                          >
-                            Change grading
-                          </button>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Grading Slot</Label>
+                            <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId} disabled={gradingSlotsLoading}>
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={gradingSlotsLoading ? 'Loading slots…' : 'Pick grading slot'} /></SelectTrigger>
+                              <SelectContent>
+                                {gradingSlots.map(slot => (
+                                  <SelectItem key={slot.id} value={slot.id}>{formatGradingSlotLabel(slot)}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!gradingSlotsLoading && gradingSlots.length === 0 && (
+                              <p className="text-[11px] text-muted-foreground">No eligible grading slots available right now.</p>
+                            )}
+                          </div>
+                          <ProductRow
+                            product={gradingDefault.product}
+                            onAdd={addToCart}
+                            branchCountry={branch?.country}
+                            gradingSlotId={selectedGradingSlotId || null}
+                            addDisabled={!selectedGradingSlotId}
+                          />
                         </>
                       ) : (
-                        <Button
-                          variant="outline"
-                          className="h-9 w-full"
-                          onClick={() => setGradingOverride(true)}
-                        >
-                          Show all gradings
-                        </Button>
+                        <p className="text-xs text-muted-foreground">No eligible grading product available right now.</p>
                       )}
                     </div>
                   ) : (
                     products.map(p => (
-                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
+                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} branchCountry={branch?.country} />
                     ))
                   )}
 
@@ -990,7 +1091,7 @@ const PublicHelloChat: React.FC = () => {
                           <span className="truncate">
                             {c.product.product_name}{c.size ? ` (${c.size})` : ''} × {c.qty}
                           </span>
-                          <span className="tabular-nums">${(c.product.branch_price * c.qty).toFixed(2)}</span>
+                          <span className="tabular-nums">${(getDisplayPrice(c.product, branch?.country) * c.qty).toFixed(2)}</span>
                         </div>
                       ))}
                       <div className="flex items-center justify-between text-sm font-semibold pt-1 border-t">
@@ -1426,21 +1527,64 @@ const PublicHelloChat: React.FC = () => {
 
         </div>
       </main>
+      <AlertDialog open={!!pendingPreorder} onOpenChange={(open) => !open && setPendingPreorder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Preorder item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please allow 3–4 weeks for delivery. Do you want to add this preorder item to your cart?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingPreorder) {
+                  commitCartItem(
+                    pendingPreorder.product,
+                    pendingPreorder.size,
+                    pendingPreorder.selectedOptions,
+                    pendingPreorder.gradingSlotId,
+                  );
+                }
+                setPendingPreorder(null);
+              }}
+            >
+              Add to cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-const ProductRow: React.FC<{ product: ChatProduct; onAdd: (p: ChatProduct, size: string | null) => void }> = ({ product, onAdd }) => {
-  const sizes = product.requires_size ? (product.available_sizes || []) : [];
+const ProductRow: React.FC<{
+  product: ChatProduct;
+  onAdd: (p: ChatProduct, size: string | null, selectedOptions?: Record<string, string | null>, gradingSlotId?: string | null) => void;
+  branchCountry?: string | null;
+  gradingSlotId?: string | null;
+  addDisabled?: boolean;
+}> = ({ product, onAdd, branchCountry, gradingSlotId, addDisabled }) => {
+  const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
+  const colors = getVariantArray(product, 'colors');
+  const genders = getVariantArray(product, 'genders');
   const [size, setSize] = useState<string>('');
+  const [color, setColor] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
+  const selectedOptions = { size: size || null, color: color || null, gender: gender || null };
+  const sizeVariant = [size, color, gender].filter(Boolean).join(' / ') || null;
   return (
     <div className="border rounded-lg p-2.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{product.product_name}</p>
-          <p className="text-xs text-muted-foreground">${product.branch_price.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">${getDisplayPrice(product, branchCountry).toFixed(2)}</p>
         </div>
-        {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
+        <div className="flex flex-col items-end gap-1">
+          {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
+          {isPreorderProduct(product) && <Badge variant="outline" className="text-[10px]">Preorder</Badge>}
+        </div>
       </div>
       {product.requires_size && sizes.length > 0 && (
         <Select value={size} onValueChange={setSize}>
@@ -1450,12 +1594,25 @@ const ProductRow: React.FC<{ product: ChatProduct; onAdd: (p: ChatProduct, size:
           </SelectContent>
         </Select>
       )}
+      {colors.length > 0 && (
+        <Select value={color} onValueChange={setColor}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick colour" /></SelectTrigger>
+          <SelectContent>{colors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
+      {genders.length > 0 && (
+        <Select value={gender} onValueChange={setGender}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick gender" /></SelectTrigger>
+          <SelectContent>{genders.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
       <Button
         type="button"
         size="sm"
         variant="outline"
         className="w-full h-9"
-        onClick={() => onAdd(product, product.requires_size ? (size || null) : null)}
+        disabled={addDisabled || (product.requires_size && !size) || (colors.length > 0 && !color) || (genders.length > 0 && !gender)}
+        onClick={() => onAdd(product, sizeVariant, selectedOptions, gradingSlotId)}
       >
         Add to cart
       </Button>
