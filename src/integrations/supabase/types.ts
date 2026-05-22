@@ -6991,10 +6991,26 @@ export type Database = {
           available_variants: Json
           base_price: number
           branch_price: number
+          is_term_based: boolean
           metadata: Json
           product_id: string
           product_name: string
           requires_size: boolean
+        }[]
+      }
+      get_public_chat_terms_for_student: {
+        Args: {
+          p_branch_id: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: {
+          end_date: string
+          is_paid: boolean
+          start_date: string
+          term_id: string
+          term_name: string
+          total_weeks: number
         }[]
       }
       get_public_grading_list: {

@@ -30,7 +30,31 @@ export interface ChatProduct {
   available_sizes: string[] | null;
   available_variants: any;
   metadata?: Record<string, any> | null;
+  is_term_based?: boolean;
 }
+
+export interface ChatTerm {
+  term_id: string;
+  term_name: string;
+  start_date: string;
+  end_date: string;
+  total_weeks: number;
+  is_paid: boolean;
+}
+
+export const getChatTermsForStudent = async (
+  session_id: string,
+  student_id: string,
+  branch_id: string,
+): Promise<ChatTerm[]> => {
+  const { data, error } = await supabase.rpc('get_public_chat_terms_for_student' as any, {
+    p_session_id: session_id,
+    p_student_id: student_id,
+    p_branch_id: branch_id,
+  });
+  if (error) throw error;
+  return (data || []) as ChatTerm[];
+};
 
 export const createChatSession = async (input: ChatSessionInput): Promise<string> => {
   const { data, error } = await supabase
@@ -408,6 +432,8 @@ export interface SubmitChatPaymentInput {
     size_variant?: string | null;
     selected_options?: Record<string, string | null>;
     grading_slot_id?: string | null;
+    term_id?: string | null;
+    term_name?: string | null;
     qty: number;
     unit_price: number;
   }[];

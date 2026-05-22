@@ -40,8 +40,10 @@ import {
   submitInlineRegistration,
   submitLessonRequest,
   getChatProducts,
+  getChatTermsForStudent,
   getStudentCompletedGradingStages,
   type ChatProduct,
+  type ChatTerm,
   type MatchedStudent,
 } from '@/services/publicChatService';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
@@ -58,6 +60,8 @@ type CartItem = {
   qty: number;
   selectedOptions?: Record<string, string | null>;
   gradingSlotId?: string | null;
+  termId?: string | null;
+  termName?: string | null;
 };
 
 const getVariantArray = (product: ChatProduct, key: string): string[] => {
@@ -186,6 +190,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null;
     selectedOptions?: Record<string, string | null>;
     gradingSlotId?: string | null;
+    termId?: string | null;
+    termName?: string | null;
+    qty?: number;
   } | null>(null);
 
   // Lesson schedule/reschedule (calendar-based)
@@ -225,6 +232,12 @@ const PublicHelloChat: React.FC = () => {
     queryKey: ['hello-products', branchId, payCategory?.id, sessionId, matched?.id],
     queryFn: () => getChatProducts(branchId, payCategory!.id, sessionId, matched?.id),
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
+  });
+
+  const { data: chatTerms = [] } = useQuery({
+    queryKey: ['hello-chat-terms', branchId, sessionId, matched?.id],
+    queryFn: () => getChatTermsForStudent(sessionId!, matched!.id, branchId),
+    enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
   });
 
   const isGradingMatched =
@@ -437,6 +450,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null,
     selectedOptions?: Record<string, string | null>,
     gradingSlotId?: string | null,
+    termId?: string | null,
+    termName?: string | null,
+    qty?: number,
   ) => {
     if (p.requires_size && !size) {
       toast.error('Please pick a size');
@@ -446,11 +462,15 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Please pick a grading slot');
       return;
     }
-    if (isPreorderProduct(p)) {
-      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId });
+    if (p.is_term_based && !termId) {
+      toast.error('Please pick a term');
       return;
     }
-    commitCartItem(p, size, selectedOptions, gradingSlotId);
+    if (isPreorderProduct(p)) {
+      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId, termId, termName, qty });
+      return;
+    }
+    commitCartItem(p, size, selectedOptions, gradingSlotId, termId, termName, qty);
   };
 
   const commitCartItem = (
@@ -458,6 +478,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null,
     selectedOptions?: Record<string, string | null>,
     gradingSlotId?: string | null,
+    termId?: string | null,
+    termName?: string | null,
+    qty: number = 1,
   ) => {
     setCart((c) => {
       const optionKey = JSON.stringify(selectedOptions || {});
@@ -465,14 +488,15 @@ const PublicHelloChat: React.FC = () => {
         x.product.product_id === p.product_id &&
         x.size === size &&
         x.gradingSlotId === gradingSlotId &&
+        x.termId === termId &&
         JSON.stringify(x.selectedOptions || {}) === optionKey
       );
       if (idx >= 0) {
         const next = [...c];
-        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        next[idx] = { ...next[idx], qty: next[idx].qty + qty };
         return next;
       }
-      return [...c, { product: p, size, selectedOptions, gradingSlotId, qty: 1 }];
+      return [...c, { product: p, size, selectedOptions, gradingSlotId, termId, termName, qty }];
     });
   };
 
@@ -494,6 +518,8 @@ const PublicHelloChat: React.FC = () => {
           size_variant: c.size,
           selected_options: c.selectedOptions,
           grading_slot_id: c.gradingSlotId ?? null,
+          term_id: c.termId ?? null,
+          term_name: c.termName ?? null,
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
         })),
@@ -1079,7 +1105,13 @@ const PublicHelloChat: React.FC = () => {
                     </div>
                   ) : (
                     products.map(p => (
-                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} branchCountry={branch?.country} />
+                      <ProductRow
+                        key={p.product_id}
+                        product={p}
+                        onAdd={addToCart}
+                        branchCountry={branch?.country}
+                        terms={p.is_term_based ? chatTerms : undefined}
+                      />
                     ))
                   )}
 
@@ -1089,7 +1121,7 @@ const PublicHelloChat: React.FC = () => {
                       {cart.map((c, i) => (
                         <div key={i} className="flex items-center justify-between text-xs">
                           <span className="truncate">
-                            {c.product.product_name}{c.size ? ` (${c.size})` : ''} × {c.qty}
+                            {c.product.product_name}{c.termName ? ` · ${c.termName}` : ''}{c.size ? ` (${c.size})` : ''} × {c.qty}
                           </span>
                           <span className="tabular-nums">${(getDisplayPrice(c.product, branch?.country) * c.qty).toFixed(2)}</span>
                         </div>
@@ -1545,6 +1577,9 @@ const PublicHelloChat: React.FC = () => {
                     pendingPreorder.size,
                     pendingPreorder.selectedOptions,
                     pendingPreorder.gradingSlotId,
+                    pendingPreorder.termId,
+                    pendingPreorder.termName,
+                    pendingPreorder.qty,
                   );
                 }
                 setPendingPreorder(null);
@@ -1561,17 +1596,40 @@ const PublicHelloChat: React.FC = () => {
 
 const ProductRow: React.FC<{
   product: ChatProduct;
-  onAdd: (p: ChatProduct, size: string | null, selectedOptions?: Record<string, string | null>, gradingSlotId?: string | null) => void;
+  onAdd: (
+    p: ChatProduct,
+    size: string | null,
+    selectedOptions?: Record<string, string | null>,
+    gradingSlotId?: string | null,
+    termId?: string | null,
+    termName?: string | null,
+    qty?: number,
+  ) => void;
   branchCountry?: string | null;
   gradingSlotId?: string | null;
   addDisabled?: boolean;
-}> = ({ product, onAdd, branchCountry, gradingSlotId, addDisabled }) => {
+  terms?: ChatTerm[];
+}> = ({ product, onAdd, branchCountry, gradingSlotId, addDisabled, terms }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
   const [size, setSize] = useState<string>('');
   const [color, setColor] = useState<string>('');
   const [gender, setGender] = useState<string>('');
+  const showTerms = !!terms && terms.length > 0;
+  const defaultTerm = useMemo(() => {
+    if (!terms || terms.length === 0) return null;
+    return terms.find(t => !t.is_paid) || terms[0];
+  }, [terms]);
+  const [termId, setTermId] = useState<string>('');
+  const [qty, setQty] = useState<number>(1);
+  useEffect(() => {
+    if (defaultTerm && !termId) {
+      setTermId(defaultTerm.term_id);
+      setQty(Math.max(1, defaultTerm.total_weeks || 1));
+    }
+  }, [defaultTerm, termId]);
+  const selectedTerm = terms?.find(t => t.term_id === termId) || null;
   const selectedOptions = { size: size || null, color: color || null, gender: gender || null };
   const sizeVariant = [size, color, gender].filter(Boolean).join(' / ') || null;
   return (
@@ -1579,13 +1637,40 @@ const ProductRow: React.FC<{
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{product.product_name}</p>
-          <p className="text-xs text-muted-foreground">${getDisplayPrice(product, branchCountry).toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">${getDisplayPrice(product, branchCountry).toFixed(2)}{showTerms ? ' / week' : ''}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
           {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
           {isPreorderProduct(product) && <Badge variant="outline" className="text-[10px]">Preorder</Badge>}
         </div>
       </div>
+      {showTerms && (
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={termId} onValueChange={(v) => {
+            setTermId(v);
+            const t = terms!.find(x => x.term_id === v);
+            if (t) setQty(Math.max(1, t.total_weeks || 1));
+          }}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick term" /></SelectTrigger>
+            <SelectContent>
+              {terms!.map(t => (
+                <SelectItem key={t.term_id} value={t.term_id}>
+                  {t.term_name}{t.is_paid ? ' · paid' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            min={1}
+            max={selectedTerm?.total_weeks ?? undefined}
+            value={qty}
+            onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+            className="h-9 text-xs"
+            placeholder="Weeks"
+          />
+        </div>
+      )}
       {product.requires_size && sizes.length > 0 && (
         <Select value={size} onValueChange={setSize}>
           <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick size" /></SelectTrigger>
@@ -1611,8 +1696,16 @@ const ProductRow: React.FC<{
         size="sm"
         variant="outline"
         className="w-full h-9"
-        disabled={addDisabled || (product.requires_size && !size) || (colors.length > 0 && !color) || (genders.length > 0 && !gender)}
-        onClick={() => onAdd(product, sizeVariant, selectedOptions, gradingSlotId)}
+        disabled={addDisabled || (product.requires_size && !size) || (colors.length > 0 && !color) || (genders.length > 0 && !gender) || (showTerms && !termId)}
+        onClick={() => onAdd(
+          product,
+          sizeVariant,
+          selectedOptions,
+          gradingSlotId,
+          showTerms ? termId : null,
+          showTerms ? (selectedTerm?.term_name ?? null) : null,
+          showTerms ? Math.max(1, qty) : 1,
+        )}
       >
         Add to cart
       </Button>
