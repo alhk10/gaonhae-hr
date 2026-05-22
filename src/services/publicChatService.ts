@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface ChatSessionInput {
   first_name: string;
   last_name: string;
-  date_of_birth: string; // yyyy-MM-dd
+  date_of_birth: string | null; // yyyy-MM-dd or null
   branch_id: string;
   gender?: string | null;
   email?: string | null;
@@ -63,7 +63,7 @@ export const createChatSession = async (input: ChatSessionInput): Promise<string
     .insert({
       first_name: input.first_name.trim().toUpperCase(),
       last_name: input.last_name.trim().toUpperCase(),
-      date_of_birth: input.date_of_birth,
+      date_of_birth: input.date_of_birth || null,
       branch_id: input.branch_id,
       gender: input.gender ?? null,
       email: input.email?.trim().toLowerCase() || null,
@@ -106,7 +106,7 @@ export const logChatEvent = async (sessionId: string, step: string, payload?: an
 export const matchStudentByIdentity = async (
   first_name: string,
   last_name: string,
-  date_of_birth: string,
+  date_of_birth: string | null,
   branch_id: string,
   extras?: { gender?: string | null; email?: string | null; phone?: string | null },
 ): Promise<MatchedStudent | null> => {
