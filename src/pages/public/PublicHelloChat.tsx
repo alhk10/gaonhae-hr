@@ -1044,35 +1044,42 @@ const PublicHelloChat: React.FC = () => {
                     <p className="text-xs text-muted-foreground">No items available for this branch right now.</p>
                   )}
 
-                  {isGradingMatched && gradingDefault && !gradingOverride ? (
+                  {isGradingMatched && gradingDefault ? (
                     <div className="space-y-2">
                       <div className="rounded-md bg-muted/60 p-2 text-xs text-foreground">
                         {gradingDefault.message}
                       </div>
                       {gradingDefault.product ? (
                         <>
-                          <ProductRow product={gradingDefault.product} onAdd={addToCart} />
-                          <button
-                            type="button"
-                            onClick={() => setGradingOverride(true)}
-                            className="text-xs text-primary underline underline-offset-2"
-                          >
-                            Change grading
-                          </button>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Grading Slot</Label>
+                            <Select value={selectedGradingSlotId} onValueChange={setSelectedGradingSlotId} disabled={gradingSlotsLoading}>
+                              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={gradingSlotsLoading ? 'Loading slots…' : 'Pick grading slot'} /></SelectTrigger>
+                              <SelectContent>
+                                {gradingSlots.map(slot => (
+                                  <SelectItem key={slot.id} value={slot.id}>{formatGradingSlotLabel(slot)}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!gradingSlotsLoading && gradingSlots.length === 0 && (
+                              <p className="text-[11px] text-muted-foreground">No eligible grading slots available right now.</p>
+                            )}
+                          </div>
+                          <ProductRow
+                            product={gradingDefault.product}
+                            onAdd={addToCart}
+                            branchCountry={branch?.country}
+                            gradingSlotId={selectedGradingSlotId || null}
+                            addDisabled={!selectedGradingSlotId}
+                          />
                         </>
                       ) : (
-                        <Button
-                          variant="outline"
-                          className="h-9 w-full"
-                          onClick={() => setGradingOverride(true)}
-                        >
-                          Show all gradings
-                        </Button>
+                        <p className="text-xs text-muted-foreground">No eligible grading product available right now.</p>
                       )}
                     </div>
                   ) : (
                     products.map(p => (
-                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} />
+                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} branchCountry={branch?.country} />
                     ))
                   )}
 
@@ -1084,7 +1091,7 @@ const PublicHelloChat: React.FC = () => {
                           <span className="truncate">
                             {c.product.product_name}{c.size ? ` (${c.size})` : ''} × {c.qty}
                           </span>
-                          <span className="tabular-nums">${(c.product.branch_price * c.qty).toFixed(2)}</span>
+                          <span className="tabular-nums">${(getDisplayPrice(c.product, branch?.country) * c.qty).toFixed(2)}</span>
                         </div>
                       ))}
                       <div className="flex items-center justify-between text-sm font-semibold pt-1 border-t">
