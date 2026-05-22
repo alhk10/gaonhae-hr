@@ -5,6 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatDate } from '@/utils/dateFormat';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,8 @@ import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
+  getPublicGradingSlots,
+  type PublicGradingSlot,
 } from '@/services/gradingPaymentSubmissionService';
 import {
   createChatSession,
@@ -44,6 +48,17 @@ import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 
 
 const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
+const SCHOOL_FEES_CATEGORY_ID = 'a416f120-4ec2-4826-8d37-375db3e002bc';
+const UNIFORMS_CATEGORY_ID = 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c';
+const PROTECTION_CATEGORY_ID = '117cdc13-1296-4651-bc4b-f0449873cbf1';
+
+type CartItem = {
+  product: ChatProduct;
+  size: string | null;
+  qty: number;
+  selectedOptions?: Record<string, string | null>;
+  gradingSlotId?: string | null;
+};
 
 type Stage =
   | 'identify'
