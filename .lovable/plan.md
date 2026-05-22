@@ -1,28 +1,40 @@
-## Plan
+# Past-date booking + Competition slot visibility
 
-1. **Fix the booking RPC that is currently failing**
-   - Redefine both `get_public_student_term_bookings` overloads.
-   - Replace the incorrect `class_timetables` join with the real `branch_timetables` table.
-   - Keep returning normal scheduled classes from `student_scheduled_classes`.
-   - Also return direct attendance rows from `class_attendance` when no scheduled class exists for the same student/date/timetable, so Kayden’s 21/05/2026 attendance appears on the calendar.
+## Why "Competition" is showing for Kayden
 
-2. **Include attendance state for existing lessons**
-   - For scheduled classes, left join matching `class_attendance` so the frontend can display `present`, `absent`, or `not marked` alongside the booked slot.
-   - For attendance-only rows, mark them as attendance-derived and use the attendance status directly.
+The "Available class times" list comes from the RPC `get_public_branch_timetable_slots`. A timetable slot is shown when ALL of these match the student:
 
-3. **Make existing lesson dates clickable even if they are in the past**
-   - Update the public calendar disabled-date logic so dates with existing lessons/attendance are selectable.
-   - Keep past dates without lessons disabled.
-   - Keep booking new slots restricted to valid term dates, non-holidays, and available future slots.
+1. Slot belongs to the student's branch and is active.
+2. Student's age is within the slot's `age_from`–`age_to` range.
+3. Slot's `belt_levels` is empty OR includes the student's `current_belt`.
+4. The slot's `class_type` is included in the union of `class_type_scope` values from the student's active rows in the `entitlements` table (comma-separated scopes are split). If the student has no active entitlements, this filter is skipped and all class types pass.
 
-4. **Improve the lesson dialog**
-   - When a user clicks a date with existing lessons, show each existing slot with:
-     - time
-     - class type
-     - attendance status (`present`, `absent`, `not marked`, etc.)
-   - Only show “tap to cancel” for cancellable scheduled lessons, not for past attended/attendance-only records.
-   - Continue showing available class times for future bookable dates.
+Kayden's active entitlements in the database:
 
-5. **Validate with Kayden’s data**
-   - Confirm the RPC returns Kayden’s 21/05/2026 row.
-   - Confirm the calendar shows a blue “your class” dot on 21 May and opens the dialog showing the 17:00–17:55 Kids class with attendance status `present`.
+- Entitlement A — `class_type_scope = "Competition"`
+- Entitlement B — `class_type_scope = "Kids, Junior, Little Gaonhae"`
+
+So Competition is shown because he has an active entitlement whose scope is "Competition" (likely from a Competition-class invoice line item). To stop Competition from appearing, the underlying entitlement row needs to be deactivated or its invoice line item removed/refunded — not a UI change.
+
+Note: `allowed_class_types` on the student record is currently NULL and is not consulted by this RPC. Eligibility is driven purely by entitlements + age/belt.
+
+## Fix: prevent booking on past dates
+
+Currently `isDateDisabled` intentionally allows past dates that already contain a booking, so the user can open the dialog and view attendance. But inside that dialog the "Available class times" section still lets the user tap a slot and add a new booking for that past date. That needs to be blocked.
+
+### Change (frontend only, `src/pages/public/PublicHelloChat.tsx`)
+
+In the slot dialog render (around line 1328–1380), when the selected date is in the past:
+
+- Hide the "Available class times" section entirely (or render a single muted line: "Booking closed for past dates").
+- Keep the "Your booked classes" section visible with attendance status.
+- Keep "Clear day" disabled effect already handled by `cancellable` logic.
+
+Implementation detail: compute `isPastDate = pickedDate < today` once at the top of the dialog body and gate the Available-times block + its onClick handlers on `!isPastDate`.
+
+No RPC, service, or schema changes required.
+
+## Verification
+
+- Open Kayden on 21/05 (past): dialog opens, shows 17:00–17:55 Kids · Present, no "Available class times" section, "Done" closes.
+- Open a future date in the term: Available class times still render and are bookable as today.

@@ -1246,6 +1246,8 @@ const PublicHelloChat: React.FC = () => {
                     const dayBookings = bookingsByDate[iso] || [];
                     const slots = slotsForDate(pickedDate);
                     const openSlots = slots.filter(s => !s.studentAlreadyBooked);
+                    const _today = new Date(); _today.setHours(0,0,0,0);
+                    const isPastDate = pickedDate < _today;
 
                     return (
                       <div className="space-y-3">
@@ -1327,10 +1329,12 @@ const PublicHelloChat: React.FC = () => {
 
                         <div className="space-y-1.5">
                           <p className="text-xs font-medium text-muted-foreground">Available class times</p>
-                          {openSlots.length === 0 && (
+                          {isPastDate ? (
+                            <p className="text-xs text-muted-foreground">Booking closed for past dates.</p>
+                          ) : openSlots.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No open slots for this date.</p>
-                          )}
-                          {openSlots.map(s => {
+                          ) : null}
+                          {!isPastDate && openSlots.map(s => {
                             const key = `${iso}_${s.id}`;
                             const picked = !!newBookings[key];
                             const full = s.isFull && !picked;
