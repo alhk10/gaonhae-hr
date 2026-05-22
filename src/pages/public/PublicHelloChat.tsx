@@ -1105,7 +1105,13 @@ const PublicHelloChat: React.FC = () => {
                     </div>
                   ) : (
                     products.map(p => (
-                      <ProductRow key={p.product_id} product={p} onAdd={addToCart} branchCountry={branch?.country} />
+                      <ProductRow
+                        key={p.product_id}
+                        product={p}
+                        onAdd={addToCart}
+                        branchCountry={branch?.country}
+                        terms={p.is_term_based ? chatTerms : undefined}
+                      />
                     ))
                   )}
 
@@ -1115,7 +1121,7 @@ const PublicHelloChat: React.FC = () => {
                       {cart.map((c, i) => (
                         <div key={i} className="flex items-center justify-between text-xs">
                           <span className="truncate">
-                            {c.product.product_name}{c.size ? ` (${c.size})` : ''} × {c.qty}
+                            {c.product.product_name}{c.termName ? ` · ${c.termName}` : ''}{c.size ? ` (${c.size})` : ''} × {c.qty}
                           </span>
                           <span className="tabular-nums">${(getDisplayPrice(c.product, branch?.country) * c.qty).toFixed(2)}</span>
                         </div>
