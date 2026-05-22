@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface ChatSessionInput {
   first_name: string;
   last_name: string;
-  date_of_birth: string; // yyyy-MM-dd
+  date_of_birth: string | null; // yyyy-MM-dd or null
   branch_id: string;
   gender?: string | null;
   email?: string | null;
