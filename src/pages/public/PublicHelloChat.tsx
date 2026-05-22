@@ -1527,6 +1527,34 @@ const PublicHelloChat: React.FC = () => {
 
         </div>
       </main>
+      <AlertDialog open={!!pendingPreorder} onOpenChange={(open) => !open && setPendingPreorder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Preorder item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please allow 3–4 weeks for delivery. Do you want to add this preorder item to your cart?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingPreorder) {
+                  commitCartItem(
+                    pendingPreorder.product,
+                    pendingPreorder.size,
+                    pendingPreorder.selectedOptions,
+                    pendingPreorder.gradingSlotId,
+                  );
+                }
+                setPendingPreorder(null);
+              }}
+            >
+              Add to cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
