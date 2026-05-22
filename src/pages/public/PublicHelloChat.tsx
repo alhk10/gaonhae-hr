@@ -40,8 +40,10 @@ import {
   submitInlineRegistration,
   submitLessonRequest,
   getChatProducts,
+  getChatTermsForStudent,
   getStudentCompletedGradingStages,
   type ChatProduct,
+  type ChatTerm,
   type MatchedStudent,
 } from '@/services/publicChatService';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
