@@ -518,6 +518,8 @@ const PublicHelloChat: React.FC = () => {
           size_variant: c.size,
           selected_options: c.selectedOptions,
           grading_slot_id: c.gradingSlotId ?? null,
+          term_id: c.termId ?? null,
+          term_name: c.termName ?? null,
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
         })),
