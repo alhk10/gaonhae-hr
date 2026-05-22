@@ -574,6 +574,11 @@ const PublicHelloChat: React.FC = () => {
         navigate('/grading-list');
         return;
       }
+      if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {
+        toast.success('Payment received. Schedule your lessons below.');
+        goTo('lesson_request');
+        return;
+      }
       goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
