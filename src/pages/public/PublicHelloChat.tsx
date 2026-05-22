@@ -356,6 +356,10 @@ const PublicHelloChat: React.FC = () => {
     () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
     [cart, branch?.country],
   );
+  const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
+  const GST_RATE = 0.09;
+  const gstAmount = isSGBranch ? cartTotal * GST_RATE : 0;
+  const totalWithTax = cartTotal + gstAmount;
 
   // Identify -> match
   const handleIdentify = async () => {
@@ -568,7 +572,7 @@ const PublicHelloChat: React.FC = () => {
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
         })),
-        amount: cartTotal,
+        amount: totalWithTax,
         payment_method: payMethod,
         matched_student_id: matched.id,
         proof_file: proofFile,
@@ -1135,8 +1139,9 @@ const PublicHelloChat: React.FC = () => {
                             </div>
                           )}
 
-                          {/* SG Foundation: list each Foundation product with price */}
+                          {/* SG Foundation: show only the auto-selected (current belt) product */}
                           {isSGFoundation && (FOUNDATION_LEVELS as readonly string[]).map(level => {
+                            if (!selectedFoundationLevels.has(level)) return null;
                             const prod = findFoundationProduct(level);
                             if (!prod) return null;
                             return (
@@ -1146,41 +1151,6 @@ const PublicHelloChat: React.FC = () => {
                               </div>
                             );
                           })}
-
-                          {/* Foundation 1/2/3 multi-select (SG only) */}
-                          {isSGFoundation && (
-                            <div className="space-y-1.5 pt-1">
-                              <Label className="text-xs">Grading level(s)</Label>
-                              <div className="space-y-1.5">
-                                {(FOUNDATION_LEVELS as readonly string[]).map((level) => {
-                                  const currentIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(matched!.current_belt as string);
-                                  const thisIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(level);
-                                  const isCurrent = level === matched!.current_belt;
-                                  const isLowerThanCurrent = thisIdx < currentIdx;
-                                  const productAvailable = !!findFoundationProduct(level);
-                                  // Mandatory (current belt) is checked & disabled; lower levels disabled.
-                                  const disabled = isCurrent || isLowerThanCurrent || !productAvailable;
-                                  const checked = selectedFoundationLevels.has(level);
-                                  return (
-                                    <label key={level} className={cn('flex items-center gap-2 text-xs', disabled && !isCurrent && 'opacity-50')}>
-                                      <Checkbox
-                                        checked={checked}
-                                        disabled={disabled}
-                                        onCheckedChange={(v) => {
-                                          setSelectedFoundationLevels(prev => {
-                                            const next = new Set(prev);
-                                            if (v) next.add(level); else next.delete(level);
-                                            return next;
-                                          });
-                                        }}
-                                      />
-                                      <span>{level}{isCurrent ? ' (current belt — required)' : ''}{!productAvailable ? ' (unavailable)' : ''}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
 
                           {/* Grading Slot — below Foundation checkboxes, above Continue */}
                           <div className="space-y-1.5">
@@ -1315,10 +1285,27 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">Choose payment method and upload your proof.</Bubble>
               <Card>
                 <CardContent className="p-3 space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold">Amount to pay</span>
-                    <span className="text-base font-bold tabular-nums">${cartTotal.toFixed(2)}</span>
-                  </div>
+                  {isSGBranch ? (
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="tabular-nums">${cartTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">GST (9%)</span>
+                        <span className="tabular-nums">${gstAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t">
+                        <span className="font-semibold">Total</span>
+                        <span className="text-base font-bold tabular-nums">${totalWithTax.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold">Amount to pay</span>
+                      <span className="text-base font-bold tabular-nums">${cartTotal.toFixed(2)}</span>
+                    </div>
+                  )}
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
