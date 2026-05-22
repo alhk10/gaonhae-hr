@@ -300,8 +300,8 @@ const PublicHelloChat: React.FC = () => {
   }, [dobMonth, dobYear]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((s, c) => s + (c.product.branch_price * c.qty), 0),
-    [cart],
+    () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
+    [cart, branch?.country],
   );
 
   // Identify -> match
@@ -432,19 +432,47 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
-  const addToCart = (p: ChatProduct, size: string | null) => {
+  const addToCart = (
+    p: ChatProduct,
+    size: string | null,
+    selectedOptions?: Record<string, string | null>,
+    gradingSlotId?: string | null,
+  ) => {
     if (p.requires_size && !size) {
       toast.error('Please pick a size');
       return;
     }
+    if (payCategory?.id === GRADING_CATEGORY_ID && !gradingSlotId) {
+      toast.error('Please pick a grading slot');
+      return;
+    }
+    if (isPreorderProduct(p)) {
+      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId });
+      return;
+    }
+    commitCartItem(p, size, selectedOptions, gradingSlotId);
+  };
+
+  const commitCartItem = (
+    p: ChatProduct,
+    size: string | null,
+    selectedOptions?: Record<string, string | null>,
+    gradingSlotId?: string | null,
+  ) => {
     setCart((c) => {
-      const idx = c.findIndex(x => x.product.product_id === p.product_id && x.size === size);
+      const optionKey = JSON.stringify(selectedOptions || {});
+      const idx = c.findIndex(x =>
+        x.product.product_id === p.product_id &&
+        x.size === size &&
+        x.gradingSlotId === gradingSlotId &&
+        JSON.stringify(x.selectedOptions || {}) === optionKey
+      );
       if (idx >= 0) {
         const next = [...c];
         next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
         return next;
       }
-      return [...c, { product: p, size, qty: 1 }];
+      return [...c, { product: p, size, selectedOptions, gradingSlotId, qty: 1 }];
     });
   };
 
