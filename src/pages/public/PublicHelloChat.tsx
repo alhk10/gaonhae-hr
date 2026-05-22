@@ -187,6 +187,9 @@ const PublicHelloChat: React.FC = () => {
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
   const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
+  // Per-product draft state for non-grading flow (picked + variant + term selections)
+  type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
+  const [rowDrafts, setRowDrafts] = useState<Record<string, RowDraft>>({});
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
     size: string | null;
