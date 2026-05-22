@@ -356,6 +356,10 @@ const PublicHelloChat: React.FC = () => {
     () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
     [cart, branch?.country],
   );
+  const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
+  const GST_RATE = 0.09;
+  const gstAmount = isSGBranch ? cartTotal * GST_RATE : 0;
+  const totalWithTax = cartTotal + gstAmount;
 
   // Identify -> match
   const handleIdentify = async () => {
