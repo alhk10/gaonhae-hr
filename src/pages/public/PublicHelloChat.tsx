@@ -1210,6 +1210,7 @@ const PublicHelloChat: React.FC = () => {
                         branchCountry={branch?.country}
                         terms={p.is_term_based ? chatTerms : undefined}
                         defaultGender={matched?.gender || gender || ''}
+                        isLessonCategory={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
                         draft={rowDrafts[p.product_id]}
                         onDraftChange={(d) => setRowDrafts(prev => ({ ...prev, [p.product_id]: d }))}
                       />
