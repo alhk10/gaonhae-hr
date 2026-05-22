@@ -572,7 +572,7 @@ const PublicHelloChat: React.FC = () => {
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
         })),
-        amount: cartTotal,
+        amount: totalWithTax,
         payment_method: payMethod,
         matched_student_id: matched.id,
         proof_file: proofFile,
