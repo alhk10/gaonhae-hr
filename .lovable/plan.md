@@ -1,40 +1,70 @@
-# Past-date booking + Competition slot visibility
+# /hello chat — payment flow upgrades
 
-## Why "Competition" is showing for Kayden
+## Scope
 
-The "Available class times" list comes from the RPC `get_public_branch_timetable_slots`. A timetable slot is shown when ALL of these match the student:
+1. **School Fees** — list only fee products previously invoiced for this student at this branch.
+2. **Uniforms & Apparel** — list only products whose `products.allowed_belt_levels` contains the student's `current_belt` (empty/NULL array = not eligible; strict belt match).
+3. **Grading** — add a required **Grading Slot** dropdown above "Add to cart"; remove the "Change grading" link.
+4. **Protection Guards & Accessories** — deactivate all 16 existing items and replace with 4 curated sets. Pricing is stored once (Morley AUD). Singapore branches use a **discount line item** at checkout to land on the GST-inclusive Singapore price — no `price_rules` override.
+5. **Invoice creation** — every chat payment auto-creates an invoice tagged to the matched student (status = **paid, pending verification**, mirrors existing chat-payment flow). Items, sizes, colours, gender, grading slot, and the Singapore discount line are persisted.
+6. **Preorder dialog** — when any "Preorder" product is added to cart, show a dialog warning of a 3–4 week waiting period.
+7. **Grading submission redirect** — after successful grading payment in /hello, redirect to `/grading-list` (instead of the generic done bubble).
 
-1. Slot belongs to the student's branch and is active.
-2. Student's age is within the slot's `age_from`–`age_to` range.
-3. Slot's `belt_levels` is empty OR includes the student's `current_belt`.
-4. The slot's `class_type` is included in the union of `class_type_scope` values from the student's active rows in the `entitlements` table (comma-separated scopes are split). If the student has no active entitlements, this filter is skipped and all class types pass.
+---
 
-Kayden's active entitlements in the database:
+## Database changes
 
-- Entitlement A — `class_type_scope = "Competition"`
-- Entitlement B — `class_type_scope = "Kids, Junior, Little Gaonhae"`
+### A. New product seed (Protection Guards & Accessories — category `117cdc13-1296-4651-bc4b-f0449873cbf1`)
 
-So Competition is shown because he has an active entitlement whose scope is "Competition" (likely from a Competition-class invoice line item). To stop Competition from appearing, the underlying entitlement row needs to be deactivated or its invoice line item removed/refunded — not a UI change.
+Deactivate all 16 existing rows (`UPDATE products SET is_active=false WHERE category_id='117cdc13…'`). Insert four new products with Morley base price:
 
-Note: `allowed_class_types` on the student record is currently NULL and is not consulted by this RPC. Eligibility is driven purely by entitlements + age/belt.
+| Product | Base (Morley AUD) | SG target (SGD incl. 9% GST) | Variants (`available_variants`) |
+|---|---|---|---|
+| Gaonhae Arm, Shin & Groin Protector Set | 100.00 | 140.00 | `sizes: [XS,S,M,L,XL]`, `genders: [Male, Female]` |
+| Adidas Arm, Shin & Groin Protector Set – Preorder | 165.00 | 185.00 | `sizes: [XS,S,M,L,XL]`, `genders: [Male, Female]` |
+| Adidas Chestguard & Headgear Set – Preorder | 260.00 | 284.30 | `sizes: [1,2,3,4,5]`, `colors: [Red, Blue]` |
+| Face Shield | 20.00 | 25.00 | none |
 
-## Fix: prevent booking on past dates
+`requires_size = true` for the first three. `metadata` carries `{ "is_preorder": true }` for the two preorder sets and `{ "sg_target_price": <SGD> }` to drive the discount calculation.
 
-Currently `isDateDisabled` intentionally allows past dates that already contain a booking, so the user can open the dialog and view attendance. But inside that dialog the "Available class times" section still lets the user tap a slot and add a new booking for that past date. That needs to be blocked.
+### B. New RPC `get_public_chat_products_for_student(p_session_id, p_student_id, p_branch_id, p_category_id)`
 
-### Change (frontend only, `src/pages/public/PublicHelloChat.tsx`)
+Returns the same columns as `get_public_chat_products` plus metadata. Filtering rules per category:
 
-In the slot dialog render (around line 1328–1380), when the selected date is in the past:
+- **School Fees** — only products that appear on at least one `invoice_items` row joined to `invoices` where `student_id = p_student_id` and `branch_id = p_branch_id` (any status).
+- **Uniforms & Apparel** — only active products whose `allowed_belt_levels @> ARRAY[student.current_belt]` (skip when student has no belt).
+- **Grading** — unchanged (existing flow already handles).
+- **Protection Guards & Accessories** — all active products in the category for the branch (no belt/history filter).
 
-- Hide the "Available class times" section entirely (or render a single muted line: "Booking closed for past dates").
-- Keep the "Your booked classes" section visible with attendance status.
-- Keep "Clear day" disabled effect already handled by `cancellable` logic.
+All rows still apply `price_rules` for AUD vs SGD where present (used by School Fees / Uniforms only).
 
-Implementation detail: compute `isPastDate = pickedDate < today` once at the top of the dialog body and gate the Available-times block + its onClick handlers on `!isPastDate`.
+### C. New RPC `submit_public_chat_invoice(...)`
 
-No RPC, service, or schema changes required.
+Single SECURITY DEFINER function that:
 
-## Verification
+1. Validates the `public_chat_sessions` row matches the student.
+2. Creates an `invoices` row tagged to `student_id` + `branch_id` with `status = 'paid'`, `payment_status = 'pending_verification'`, `source = 'public_hello_chat'`.
+3. Inserts `invoice_items` for each cart line (product_id, size_variant captures size/colour/gender JSON, qty, unit_price = Morley base).
+4. For Singapore branches: appends a single negative-amount `invoice_items` row labelled "Singapore branch adjustment (incl. 9% GST)" equal to `Σ(sg_target − base) × qty`, so the invoice total matches what the customer paid.
+5. Inserts a `payments` row with proof URL + chosen method.
+6. Returns `invoice_id` and `reference_number`.
 
-- Open Kayden on 21/05 (past): dialog opens, shows 17:00–17:55 Kids · Present, no "Available class times" section, "Done" closes.
-- Open a future date in the term: Available class times still render and are bookable as today.
+`submitChatPayment` in `publicChatService.ts` is updated to call this RPC instead of inserting straight into `public_chat_payment_submissions` (we still log to that table for the audit trail).
+
+---
+
+## Frontend changes (`src/pages/public/PublicHelloChat.tsx`)
+
+1. **Category-aware product fetch** — call `get_public_chat_products_for_student` for School Fees, Uniforms, and Protection. Grading keeps `getChatProducts`. Empty-state copy: "No matching items for your current belt." / "No past school fee items for this branch."
+2. **Grading slot dropdown** — inside the grading block, reuse `getPublicGradingSlots(branchId, [], dobIso, currentBelt)` + the age filter from `PublicGradingPayment.tsx`. Render a `Select` above "Add to cart"; disable add until a slot is chosen. Persist `grading_slot_id` on the cart line and forward through `submit_public_chat_invoice`.
+3. **Remove "Change grading"** — delete the `gradingOverride` link and toggle; always show the defaulted product (or "no grading available" fallback).
+4. **Variant pickers** — extend `ProductRow` to render `genders` (Male/Female) when `available_variants.genders` is set, in the same pattern as `sizes` and `colors`. Selected size/colour/gender are concatenated into `size_variant` (`"M / Red / Male"`) for the invoice item.
+5. **Singapore price display** — `ProductRow` shows the SG-inclusive price (from `metadata.sg_target_price`) to Singapore-branch users while the cart and invoice math run off the base price + discount line.
+6. **Preorder warning dialog** — when an item with `metadata.is_preorder = true` is added, open a confirm dialog: "This is a preorder. Please allow 3–4 weeks for delivery." Cart only updates after confirmation.
+7. **Grading redirect** — after `handleSubmitPayment` succeeds for category Grading, `navigate('/grading-list')` instead of moving to `payment_done`.
+
+---
+
+## Open questions
+
+None remaining — Singapore prices, belt-filter strategy, invoice status, and old-product deactivation are all confirmed.
