@@ -678,19 +678,22 @@ const PublicHelloChat: React.FC = () => {
     const iso = toIso(date);
     const wd = date.getDay();
     const all = slotsByWeekday[wd] || [];
+    const now = new Date();
     return all.map(s => {
       const baseCount = capByDateSlot[`${iso}_${s.id}`] || 0;
       const pickedHere = newBookings[`${iso}_${s.id}`] ? 1 : 0;
       const studentAlreadyBooked = (bookingsByDate[iso] || []).some(b => b.timetable_id === s.id);
       const effectiveCount = baseCount + pickedHere;
       const isFull = effectiveCount >= s.max_capacity;
-      return { ...s, baseCount, effectiveCount, isFull, studentAlreadyBooked };
+      const startsAt = new Date(`${iso}T${s.start_time}`);
+      const isTooLate = now.getTime() >= startsAt.getTime() - 60 * 60 * 1000;
+      return { ...s, baseCount, effectiveCount, isFull, studentAlreadyBooked, isTooLate };
     });
   };
 
   const dateHasAvailable = (date: Date) => {
     const slots = slotsForDate(date);
-    return slots.some(s => !s.isFull && !s.studentAlreadyBooked);
+    return slots.some(s => !s.isFull && !s.studentAlreadyBooked && !s.isTooLate);
   };
 
   const dateHasBooking = (date: Date) => {
@@ -1542,11 +1545,11 @@ const PublicHelloChat: React.FC = () => {
                             <p className="text-xs font-medium text-muted-foreground">Your booked classes</p>
                             {dayBookings.map(b => {
                               const picked = !!cancellations[b.id];
-                              const today = new Date(); today.setHours(0,0,0,0);
-                              const dateObj = new Date(b.scheduled_date);
-                              const isPast = dateObj < today;
+                              const now = new Date();
+                              const lessonStart = new Date(`${b.scheduled_date}T${b.start_time}`);
+                              const isPast = now.getTime() >= lessonStart.getTime();
                               const isAttendanceOnly = b.status === 'attended';
-                              const cancellable = !isPast && !isAttendanceOnly;
+                              const cancellable = !isAttendanceOnly && now.getTime() < lessonStart.getTime() - 60 * 60 * 1000;
                               const att = b.attendance_status;
                               const attLabel =
                                 att === 'present' ? 'Present'
@@ -1605,7 +1608,9 @@ const PublicHelloChat: React.FC = () => {
                                         ? 'Tap to cancel'
                                         : isAttendanceOnly || (isPast && attLabel)
                                           ? 'Attended'
-                                          : 'Past'}
+                                          : isPast
+                                            ? 'Past'
+                                            : 'Closed'}
                                   </span>
                                 </button>
                               );
@@ -1624,16 +1629,18 @@ const PublicHelloChat: React.FC = () => {
                             const key = `${iso}_${s.id}`;
                             const picked = !!newBookings[key];
                             const full = s.isFull && !picked;
+                            const tooLate = s.isTooLate && !picked;
+                            const disabled = full || tooLate;
                             return (
                               <button
                                 key={s.id}
                                 type="button"
-                                disabled={full}
+                                disabled={disabled}
                                 className={cn(
                                   'w-full text-left rounded border h-11 px-3 text-sm flex items-center justify-between transition-colors',
                                   picked
                                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                    : full
+                                    : disabled
                                       ? 'opacity-50 cursor-not-allowed border-border'
                                       : 'border-border hover:border-emerald-500/60'
                                 )}
@@ -1642,6 +1649,7 @@ const PublicHelloChat: React.FC = () => {
                                     setNewBookings(prev => { const n = { ...prev }; delete n[key]; return n; });
                                     return;
                                   }
+                                  if (disabled) return;
                                   if (Object.keys(newBookings).length + 1 > maxNew) {
                                     toast.error(`You only have ${maxNew} lesson${maxNew === 1 ? '' : 's'} left to book. Cancel an existing one first.`);
                                     return;
@@ -1662,7 +1670,7 @@ const PublicHelloChat: React.FC = () => {
                                   {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)} · {s.class_type}
                                 </span>
                                 <span className="text-[11px] text-muted-foreground">
-                                  {picked ? 'Booking' : full ? 'Full' : `${s.effectiveCount}/${s.max_capacity}`}
+                                  {picked ? 'Booking' : full ? 'Full' : tooLate ? 'Closed' : `${s.effectiveCount}/${s.max_capacity}`}
                                 </span>
                               </button>
                             );
