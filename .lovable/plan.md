@@ -1,59 +1,42 @@
-# /hello chat — payment flow upgrades
+# Grading step: Foundation multi-select + auto add on Continue
 
-## Scope
+Refines the Grading step of `/hello` (`PublicHelloChat.tsx`) for Singapore Foundation students. No DB or RPC changes — frontend only.
 
-1. **School Fees** — list only fee products previously invoiced for this student at this branch.
-2. **Uniforms & Apparel** — list only products whose `allowed_belt_levels` contains the student's `current_belt` (strict match).
-3. **Grading** — add a required **Grading Slot** dropdown above "Add to cart"; remove the "Change grading" link.
-4. **Protection Guards & Accessories** — deactivate all 16 existing items; replace with 4 curated sets. Pricing stored once in Morley AUD. Singapore branches reach SG price via a **discount line item** at checkout (no `price_rules` overrides).
-5. **Invoice creation** — every chat payment auto-creates an invoice tagged to the student, status **paid / pending verification**. Captures items, size/colour/gender, grading slot, term, and the SG adjustment line.
-6. **Preorder dialog** — adding a preorder product opens a confirm dialog warning of a 3–4 week wait.
-7. **Grading redirect** — successful grading payment redirects to `/grading-list`.
-8. **Term selector + quantity for term-based products** — School Fees / Lesson products show a **Term** dropdown and **Quantity** field. Term defaults to the next unpaid term for this student at this branch. Quantity defaults to the number of weeks in that term.
+## Behaviour changes
 
-## Database
+1. **Foundation 1/2/3 checkboxes (SG only)**
+   - Visible only when `branch.country === 'Singapore'` AND `matched.current_belt` is one of `Foundation 1 / Foundation 2 / Foundation 3`.
+   - Rendered inside the grading card, **below the `$90.00` price line** and **above** (the now-removed) Add to cart button.
+   - Three checkboxes labelled "Foundation 1", "Foundation 2", "Foundation 3".
+   - Pre-checked: the student's current Foundation level (e.g. current belt = Foundation 2 → "Foundation 2" pre-checked, disabled so it can't be unchecked — it represents the next grading attempt that must happen).
+   - Higher levels (Foundation 3 if current is Foundation 1 or 2; etc.) are optional — student ticks to combine multiple Foundation gradings in one event.
+   - Cannot tick a level *lower* than the current belt (disabled).
+   - Each ticked level resolves to its matching grading product via existing name pattern (`Foundation 1 >> Foundation 2`, etc.) from the products list. Cart line = one product per ticked level, each priced from its own product record.
 
-### A. Replace Protection Guards & Accessories (category `117cdc13…`)
+2. **Grading slot dropdown placement**
+   - Move the Grading Slot `Select` so it renders **below** the Foundation checkboxes (SG) / below the price (non-SG), and **above** the Continue button.
+   - Slot eligibility query already filters by belt/age; expand `activeGradingProduct` input list to include all currently-ticked Foundation products so slots eligible for the combined set are returned.
 
-Deactivate all 16 existing rows, then insert:
+3. **Remove "Add to cart" button — auto-add on Continue**
+   - Drop the per-product `Add to cart` button inside `ProductRow` for the grading flow.
+   - On `Continue` click in the grading step:
+     - Validate: at least one Foundation level ticked (SG) / grading product available (non-SG), and a grading slot picked.
+     - Build cart items from the ticked products (or the single default product for non-SG) with the selected `gradingSlotId`, then proceed to `payment_pay`.
+   - Preorder dialog logic kept: if any ticked product `isPreorderProduct(p)` is true, show the existing `AlertDialog` first; on confirm, commit all items and advance.
+   - Cart preview block ("Your cart" subtotal) still renders so the user sees the combined total before paying.
 
-| Product | Morley AUD | SG SGD (incl. 9% GST) | Variants |
-|---|---|---|---|
-| Gaonhae Arm, Shin & Groin Protector Set | 100 | 140 | sizes XS–XL, gender M/F |
-| Adidas Arm, Shin & Groin Protector Set – Preorder | 165 | 185 | sizes XS–XL, gender M/F |
-| Adidas Chestguard & Headgear Set – Preorder | 260 | 284.30 | sizes 1–5, colors Red/Blue |
-| Face Shield | 20 | 25 | — |
-
-`metadata` carries `{ is_preorder: true }` and `{ sg_target_price: <SGD> }` where relevant.
-
-### B. RPC `get_public_chat_products_for_student(session, student, branch, category)`
-
-- **School Fees** — products that appear on past `invoice_items` for this student + branch. Each returned row also includes `is_term_based: true` so the UI shows term + quantity controls.
-- **Uniforms & Apparel** — active products where `allowed_belt_levels @> ARRAY[student.current_belt]`.
-- **Protection** — all active products in category.
-- **Grading** — unchanged.
-
-### C. New RPC `get_next_unpaid_term_for_student(student, branch)`
-
-Returns the next term (id, name, start_date, end_date, weeks_count) for which the student has **no paid/verified invoice item** anchored to that term at this branch. Weeks count derived from term length minus public holidays (reuse existing term-week helper if present, else `ceil(days/7)`).
-
-### D. RPC `submit_public_chat_invoice(...)` — extended payload
-
-For term-based line items, payload includes `term_id` and `quantity`. The RPC writes `metadata.term_id` and `quantity` onto `invoice_items` so downstream invoice/term logic works (matches existing invoice schema).
-
-## Frontend (`src/pages/public/PublicHelloChat.tsx`)
-
-1. Use RPC for School Fees / Uniforms / Protection. Empty-state copy per category.
-2. Grading block: required `Select` of eligible slots; disable "Add to cart" until chosen. Persist `grading_slot_id`. Remove "Change grading" link.
-3. **Term-based products (`is_term_based`)** — render two extra controls inside `ProductRow`:
-   - **Term** `Select` — options from `get_next_unpaid_term_for_student` plus the following 1–2 upcoming terms. Default selection = the next unpaid term. If all terms are paid, show empty-state "All terms paid".
-   - **Quantity** number input — defaults to the selected term's `weeks_count`; user can adjust (min 1, max weeks_count).
-   - Line total = `unit_price × quantity`. Cart line stores `{ term_id, term_name, quantity }`.
-4. Uniforms/Protection: variant pickers (size/colour/gender) as before.
-5. Singapore branch: SG-inclusive display price; cart total = Morley base × qty + SG adjustment line.
-6. Preorder confirm dialog before cart add.
-7. Successful grading payment → `navigate('/grading-list')`.
+4. **Continue button enablement**
+   - Disabled until: ≥1 Foundation level selected (SG) AND grading slot selected (when slots exist).
+   - "No eligible grading slots available right now." helper text preserved.
 
 ## Out of scope
 
-No changes to existing branch/student matching, OTP, or auth flow. Other categories' UX unchanged.
+- Non-grading categories (School Fees, Uniforms) keep their existing per-row Add to cart button.
+- No changes to RPCs, `submit_public_chat_invoice`, services, or DB.
+
+## Technical notes
+
+- New local state: `selectedFoundationLevels: Set<string>` initialised from `matched.current_belt`.
+- Helper: `getFoundationProduct(level: 'Foundation 1' | 'Foundation 2' | 'Foundation 3', products)` matches a product whose name starts with `<level> >>`.
+- `gradingSlots` query key extended with the sorted list of ticked product ids; `getPublicGradingSlots` already accepts a product id array.
+- On Continue: iterate ticked levels in order, call existing `commitCartItem` for each (skipping preorder dialog detour or routing through it once with all pending items if any are preorder).
