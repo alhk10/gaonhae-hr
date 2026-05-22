@@ -1135,8 +1135,9 @@ const PublicHelloChat: React.FC = () => {
                             </div>
                           )}
 
-                          {/* SG Foundation: list each Foundation product with price */}
+                          {/* SG Foundation: show only the auto-selected (current belt) product */}
                           {isSGFoundation && (FOUNDATION_LEVELS as readonly string[]).map(level => {
+                            if (!selectedFoundationLevels.has(level)) return null;
                             const prod = findFoundationProduct(level);
                             if (!prod) return null;
                             return (
@@ -1146,41 +1147,6 @@ const PublicHelloChat: React.FC = () => {
                               </div>
                             );
                           })}
-
-                          {/* Foundation 1/2/3 multi-select (SG only) */}
-                          {isSGFoundation && (
-                            <div className="space-y-1.5 pt-1">
-                              <Label className="text-xs">Grading level(s)</Label>
-                              <div className="space-y-1.5">
-                                {(FOUNDATION_LEVELS as readonly string[]).map((level) => {
-                                  const currentIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(matched!.current_belt as string);
-                                  const thisIdx = (FOUNDATION_LEVELS as readonly string[]).indexOf(level);
-                                  const isCurrent = level === matched!.current_belt;
-                                  const isLowerThanCurrent = thisIdx < currentIdx;
-                                  const productAvailable = !!findFoundationProduct(level);
-                                  // Mandatory (current belt) is checked & disabled; lower levels disabled.
-                                  const disabled = isCurrent || isLowerThanCurrent || !productAvailable;
-                                  const checked = selectedFoundationLevels.has(level);
-                                  return (
-                                    <label key={level} className={cn('flex items-center gap-2 text-xs', disabled && !isCurrent && 'opacity-50')}>
-                                      <Checkbox
-                                        checked={checked}
-                                        disabled={disabled}
-                                        onCheckedChange={(v) => {
-                                          setSelectedFoundationLevels(prev => {
-                                            const next = new Set(prev);
-                                            if (v) next.add(level); else next.delete(level);
-                                            return next;
-                                          });
-                                        }}
-                                      />
-                                      <span>{level}{isCurrent ? ' (current belt — required)' : ''}{!productAvailable ? ' (unavailable)' : ''}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
 
                           {/* Grading Slot — below Foundation checkboxes, above Continue */}
                           <div className="space-y-1.5">
