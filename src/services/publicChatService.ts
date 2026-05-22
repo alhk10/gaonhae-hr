@@ -400,10 +400,20 @@ export interface SubmitChatPaymentInput {
   session_id: string;
   branch_id: string;
   category: string;
-  items: { product_id: string; product_name: string; size?: string | null; variant?: string | null; qty: number; unit_price: number }[];
+  items: {
+    product_id: string;
+    product_name: string;
+    size?: string | null;
+    variant?: string | null;
+    size_variant?: string | null;
+    selected_options?: Record<string, string | null>;
+    grading_slot_id?: string | null;
+    qty: number;
+    unit_price: number;
+  }[];
   amount: number;
   payment_method: 'paynow' | 'bank_transfer';
-  matched_student_id: string | null;
+  matched_student_id: string;
   proof_file: File;
   contact_first_name: string;
   contact_last_name: string;
@@ -427,26 +437,22 @@ export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<
     .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
   const proofUrl = signed?.signedUrl ?? path;
 
-  const { data, error } = await supabase
-    .from('public_chat_payment_submissions')
-    .insert({
-      session_id: input.session_id,
-      branch_id: input.branch_id,
-      category: input.category,
-      items: input.items as any,
-      amount: input.amount,
-      payment_method: input.payment_method,
-      proof_url: proofUrl,
-      matched_student_id: input.matched_student_id,
-    })
-    .select('id, reference_number')
-    .single();
+  const { data, error } = await supabase.rpc('submit_public_chat_invoice' as any, {
+    p_session_id: input.session_id,
+    p_student_id: input.matched_student_id,
+    p_branch_id: input.branch_id,
+    p_category: input.category,
+    p_items: input.items as any,
+    p_amount: input.amount,
+    p_payment_method: input.payment_method,
+    p_proof_url: proofUrl,
+  });
   if (error) throw error;
 
-  await updateSessionMatchAndOutcome(input.session_id, undefined as any, 'payment');
-  await logChatEvent(input.session_id, 'payment_submitted', { submission_id: data!.id });
+  const row = Array.isArray(data) ? data[0] : data;
+  await logChatEvent(input.session_id, 'payment_submitted', { invoice_id: row?.invoice_id });
 
-  return (data as any).reference_number as string;
+  return (row as any)?.invoice_number as string;
 };
 
 export interface SubmitInlineRegistrationInput {
