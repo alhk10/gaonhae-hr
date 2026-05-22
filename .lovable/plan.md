@@ -1,33 +1,62 @@
-# Ad-hoc lessons: drop term picker, fix term-paid detection
+# /hello — Term filter, gender prefill, variant gating
 
-## Problem (investigation)
+Three refinements to `PublicHelloChat.tsx` (and one small RPC/service change for gender).
 
-Kayden's School Fees step shows **Competition Class** with a Term dropdown defaulting to **"Term 3 2026 · paid"**, even though only Term 2 2026 was paid for an *Unlimited* (regular term) lesson. No Term 3 invoice exists.
+## 1. Hide already-paid terms from the term dropdown
 
-Database confirms: invoice `INV-2026-00298` (issue date 30/04/2026) contains a **Competition Class** line whose `invoice_items.metadata.term_id` = the Term 3 2026 UUID. Competition Class is `products.is_adhoc_lesson = true` — it should never carry a `term_id`, but historical data has one anyway.
+In `ProductRow`, the term `<Select>` currently lists every term and tags paid ones with "· paid". Change it to filter them out entirely so the user can only pick unpaid terms.
 
-Two bugs surface from this:
+- `terms` prop → derive `selectableTerms = terms.filter(t => !t.is_paid)`.
+- Use `selectableTerms` for the dropdown options.
+- `defaultTerm` becomes `selectableTerms[0]` (already the next unpaid term since the RPC orders chronologically).
+- If `selectableTerms.length === 0`, render a small muted note ("All terms paid") and treat the product as not-addable (disable continue logic for that row).
 
-1. **Ad-hoc lessons render a term selector.** The current `get_public_chat_products_for_student` flags any product in the School Fees category as `is_term_based`, including `Competition Class`. Per project convention ad-hoc lessons hide term controls.
-2. **"Paid" detection in `get_public_chat_terms_for_student` is too loose.** It marks a term as paid if *any* invoice item's `metadata->>'term_id'` matches, regardless of whether the product is a real term-based lesson. So the stray ad-hoc Competition Class item makes Term 3 look paid.
+Effect: For Kayden, Term 2 2026 (paid) disappears; Term 3 2026 becomes the default and only option.
 
-## Fix
+## 2. Prefill gender from the matched student record
 
-### 1. RPC `get_public_chat_products_for_student`
-- Change the `is_term_based` flag to:
-  `p.category_id = school_fees AND COALESCE(p.is_lesson, false) = true AND COALESCE(p.is_adhoc_lesson, false) = false`
-- Effect: Competition Class (and any other ad-hoc lesson) returns `is_term_based = false`, so the frontend skips the Term + Quantity controls and treats it as a regular per-unit product.
+Today gender is collected in the identify step and used only for the lookup. When a student is matched, we should pull their stored gender from the database and use it as the default for any variant `Pick gender` selector.
 
-### 2. RPC `get_public_chat_terms_for_student`
-- Tighten the `is_paid` EXISTS subquery so it only counts invoice items whose product is a real term-based lesson:
-  - join `products p ON p.id = ii.product_id`
-  - require `p.category_id = school_fees_category` AND `COALESCE(p.is_lesson, false) = true` AND `COALESCE(p.is_adhoc_lesson, false) = false`
-- Effect: a stray `term_id` on a Competition Class item no longer counts; only genuine term lesson payments mark a term as paid. Kayden's next-unpaid term will correctly resolve to Term 3 2026.
+### Backend
+`get_public_chat_match_student` RPC (used by `matchStudentByIdentity`) currently returns `{ id, first_name, last_name, current_belt, status }`. Extend it to also return `gender` (read from `students.gender`).
 
-### 3. Frontend (`PublicHelloChat.tsx`, `ProductRow`)
-- Already gated on the `is_term_based` flag — no UI change needed once the RPC returns the corrected value. Ad-hoc lessons will render as a plain product with a single `Add to cart` (qty 1, no term).
+### Frontend
+- Extend `MatchedStudent` interface with `gender: string | null`.
+- In `ProductRow`, accept a new optional `defaultGender` prop.
+- Resolution order for the gender variant default:
+  1. `matched.gender` (DB)
+  2. Identify-step `gender` state (what they typed)
+  3. Empty → user must pick on the spot
+- The `<Select>` still renders; if a default is set, it is pre-selected (and not disabled, so they can override).
+
+## 3. Variant gating + auto-add on Continue (non-grading products)
+
+Currently every product card always shows size/colour/gender dropdowns and an "Add to cart" button. New behaviour:
+
+- **Hide variant selectors until the product is "picked"**. The card shows only name, price, and badges by default.
+- Tapping the card body toggles a `picked` state for that row.
+- When `picked = true`:
+  - Card is highlighted (`border-primary ring-1 ring-primary/40`).
+  - Variant selects (size / colour / gender), and the term + qty row for term-based products, expand below.
+- **Remove the "Add to cart" button entirely** from `ProductRow`.
+- The page-level **Continue** button (already present at the bottom of `payment_products`) becomes the single commit point:
+  - On click, validate every picked row (required size / colour / gender / term selected).
+  - If any picked row is invalid, toast the first error and stay.
+  - Otherwise build the cart from all picked rows (replacing any previous cart for this stage) and `goTo('payment_pay')`.
+  - Preorder rows skip the existing per-item confirmation dialog and are committed directly (consistent with grading flow). If we want to keep the preorder warning we show it once at Continue listing all preorder items.
+- The cart preview block below the product list goes away for non-grading (cart is derived implicitly from picked rows).
+- "Continue" is disabled when zero rows are picked.
+
+### State changes
+- `ProductRow` exposes its internal state through controlled props OR the parent tracks a `Map<productId, RowDraft>` and `ProductRow` calls `onChange`. Preferred: lift selection state into a parent `rowDrafts` map so Continue can read everything in one place. `RowDraft = { picked, size, color, gender, termId, qty }`.
+- `addToCart` / `commitCartItem` plumbing kept for grading but bypassed for the new non-grading flow.
 
 ## Out of scope
+- Grading flow (already uses Continue auto-add — unchanged).
+- Backfilling historical invoices.
+- Any change to the proof-of-payment / `payment_pay` stage.
 
-- Backfilling historical `invoice_items.metadata` to strip `term_id` from ad-hoc lessons. Not needed once the RPC ignores them.
-- Changes to invoice creation paths (separate concern; this plan only fixes the public `/hello` flow).
+## Files touched
+- `src/pages/public/PublicHelloChat.tsx` — ProductRow refactor, Continue logic, cart preview removal.
+- `src/services/publicChatService.ts` — `MatchedStudent.gender` typing.
+- Migration — extend `get_public_chat_match_student` RPC to return `gender`.
