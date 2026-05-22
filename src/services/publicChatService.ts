@@ -432,6 +432,8 @@ export interface SubmitChatPaymentInput {
     size_variant?: string | null;
     selected_options?: Record<string, string | null>;
     grading_slot_id?: string | null;
+    term_id?: string | null;
+    term_name?: string | null;
     qty: number;
     unit_price: number;
   }[];
