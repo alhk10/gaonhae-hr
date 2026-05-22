@@ -19,6 +19,7 @@ export interface MatchedStudent {
   last_name: string;
   current_belt: string | null;
   status: string;
+  gender?: string | null;
 }
 
 export interface ChatProduct {
