@@ -231,6 +231,12 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
+  const { data: chatTerms = [] } = useQuery({
+    queryKey: ['hello-chat-terms', branchId, sessionId, matched?.id],
+    queryFn: () => getChatTermsForStudent(sessionId!, matched!.id, branchId),
+    enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
+  });
+
   const isGradingMatched =
     !!matched && payCategory?.id === GRADING_CATEGORY_ID && stage === 'payment_products';
 
