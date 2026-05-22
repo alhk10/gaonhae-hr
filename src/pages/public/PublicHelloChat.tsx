@@ -58,6 +58,8 @@ type CartItem = {
   qty: number;
   selectedOptions?: Record<string, string | null>;
   gradingSlotId?: string | null;
+  termId?: string | null;
+  termName?: string | null;
 };
 
 const getVariantArray = (product: ChatProduct, key: string): string[] => {
