@@ -529,11 +529,13 @@ const PublicHelloChat: React.FC = () => {
   const isDateDisabled = (date: Date) => {
     if (!termCtx) return true;
     const iso = toIso(date);
+    if (iso < termCtx.start_date || iso > termCtx.end_date) return true;
+    // Existing lessons/attendance: always allow opening the dialog (even past dates)
+    if (dateHasBooking(date)) return false;
     const today = new Date(); today.setHours(0,0,0,0);
     if (date < today) return true;
-    if (iso < termCtx.start_date || iso > termCtx.end_date) return true;
     if (holidaySet.has(iso)) return true;
-    if (!dateHasAvailable(date) && !dateHasBooking(date)) return true;
+    if (!dateHasAvailable(date)) return true;
     return false;
   };
 
@@ -1252,17 +1254,39 @@ const PublicHelloChat: React.FC = () => {
                             <p className="text-xs font-medium text-muted-foreground">Your booked classes</p>
                             {dayBookings.map(b => {
                               const picked = !!cancellations[b.id];
+                              const today = new Date(); today.setHours(0,0,0,0);
+                              const dateObj = new Date(b.scheduled_date);
+                              const isPast = dateObj < today;
+                              const isAttendanceOnly = b.status === 'attended';
+                              const cancellable = !isPast && !isAttendanceOnly;
+                              const att = b.attendance_status;
+                              const attLabel =
+                                att === 'present' ? 'Present'
+                                : att === 'late' ? 'Late'
+                                : att === 'absent' ? 'Absent'
+                                : att === 'makeup' ? 'Makeup'
+                                : att === 'trial' ? 'Trial'
+                                : null;
+                              const attClass =
+                                att === 'present' || att === 'late' || att === 'makeup' || att === 'trial'
+                                  ? 'text-emerald-600'
+                                  : att === 'absent'
+                                    ? 'text-destructive'
+                                    : 'text-muted-foreground';
                               return (
                                 <button
                                   key={b.id}
                                   type="button"
+                                  disabled={!cancellable}
                                   className={cn(
-                                    'w-full text-left rounded border h-11 px-3 text-sm flex items-center justify-between transition-colors',
+                                    'w-full text-left rounded border min-h-11 px-3 py-1.5 text-sm flex items-center justify-between gap-2 transition-colors',
                                     picked
                                       ? 'border-destructive bg-destructive/10 text-destructive'
-                                      : 'border-blue-500/40 bg-blue-500/5 hover:border-destructive/60'
+                                      : 'border-blue-500/40 bg-blue-500/5',
+                                    cancellable ? 'hover:border-destructive/60' : 'cursor-default opacity-90',
                                   )}
                                   onClick={() => {
+                                    if (!cancellable) return;
                                     setCancellations(prev => {
                                       const n = { ...prev };
                                       if (n[b.id]) { delete n[b.id]; }
@@ -1280,8 +1304,21 @@ const PublicHelloChat: React.FC = () => {
                                     });
                                   }}
                                 >
-                                  <span>{b.start_time.slice(0,5)}–{b.end_time.slice(0,5)} {b.class_type ? `· ${b.class_type}` : ''}</span>
-                                  <span className="text-[11px]">{picked ? 'Cancelling' : 'Tap to cancel'}</span>
+                                  <span className="flex flex-col">
+                                    <span>{b.start_time.slice(0,5)}–{b.end_time.slice(0,5)}{b.class_type ? ` · ${b.class_type}` : ''}</span>
+                                    {attLabel && (
+                                      <span className={cn('text-[11px]', attClass)}>{attLabel}</span>
+                                    )}
+                                  </span>
+                                  <span className="text-[11px] shrink-0">
+                                    {picked
+                                      ? 'Cancelling'
+                                      : cancellable
+                                        ? 'Tap to cancel'
+                                        : isAttendanceOnly || (isPast && attLabel)
+                                          ? 'Attended'
+                                          : 'Past'}
+                                  </span>
                                 </button>
                               );
                             })}

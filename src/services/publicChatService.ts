@@ -284,6 +284,7 @@ export interface StudentBooking {
   timetable_id: string | null;
   status: string;
   class_type: string | null;
+  attendance_status: string | null;
 }
 
 export const getStudentTermBookings = async (sessionId: string, studentId: string, termId?: string | null): Promise<StudentBooking[]> => {

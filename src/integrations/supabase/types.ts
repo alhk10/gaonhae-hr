@@ -7120,6 +7120,7 @@ export type Database = {
         | {
             Args: { p_session_id: string; p_student_id: string }
             Returns: {
+              attendance_status: string
               class_type: string
               end_time: string
               id: string
@@ -7136,6 +7137,7 @@ export type Database = {
               p_term_id: string
             }
             Returns: {
+              attendance_status: string
               class_type: string
               end_time: string
               id: string
