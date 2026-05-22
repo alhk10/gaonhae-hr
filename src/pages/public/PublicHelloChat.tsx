@@ -1608,7 +1608,9 @@ const PublicHelloChat: React.FC = () => {
                                         ? 'Tap to cancel'
                                         : isAttendanceOnly || (isPast && attLabel)
                                           ? 'Attended'
-                                          : 'Past'}
+                                          : isPast
+                                            ? 'Past'
+                                            : 'Closed'}
                                   </span>
                                 </button>
                               );
