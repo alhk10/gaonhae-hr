@@ -1531,17 +1531,32 @@ const PublicHelloChat: React.FC = () => {
   );
 };
 
-const ProductRow: React.FC<{ product: ChatProduct; onAdd: (p: ChatProduct, size: string | null) => void }> = ({ product, onAdd }) => {
-  const sizes = product.requires_size ? (product.available_sizes || []) : [];
+const ProductRow: React.FC<{
+  product: ChatProduct;
+  onAdd: (p: ChatProduct, size: string | null, selectedOptions?: Record<string, string | null>, gradingSlotId?: string | null) => void;
+  branchCountry?: string | null;
+  gradingSlotId?: string | null;
+  addDisabled?: boolean;
+}> = ({ product, onAdd, branchCountry, gradingSlotId, addDisabled }) => {
+  const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
+  const colors = getVariantArray(product, 'colors');
+  const genders = getVariantArray(product, 'genders');
   const [size, setSize] = useState<string>('');
+  const [color, setColor] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
+  const selectedOptions = { size: size || null, color: color || null, gender: gender || null };
+  const sizeVariant = [size, color, gender].filter(Boolean).join(' / ') || null;
   return (
     <div className="border rounded-lg p-2.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{product.product_name}</p>
-          <p className="text-xs text-muted-foreground">${product.branch_price.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">${getDisplayPrice(product, branchCountry).toFixed(2)}</p>
         </div>
-        {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
+        <div className="flex flex-col items-end gap-1">
+          {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
+          {isPreorderProduct(product) && <Badge variant="outline" className="text-[10px]">Preorder</Badge>}
+        </div>
       </div>
       {product.requires_size && sizes.length > 0 && (
         <Select value={size} onValueChange={setSize}>
@@ -1551,12 +1566,25 @@ const ProductRow: React.FC<{ product: ChatProduct; onAdd: (p: ChatProduct, size:
           </SelectContent>
         </Select>
       )}
+      {colors.length > 0 && (
+        <Select value={color} onValueChange={setColor}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick colour" /></SelectTrigger>
+          <SelectContent>{colors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
+      {genders.length > 0 && (
+        <Select value={gender} onValueChange={setGender}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick gender" /></SelectTrigger>
+          <SelectContent>{genders.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+        </Select>
+      )}
       <Button
         type="button"
         size="sm"
         variant="outline"
         className="w-full h-9"
-        onClick={() => onAdd(product, product.requires_size ? (size || null) : null)}
+        disabled={addDisabled || (colors.length > 0 && !color) || (genders.length > 0 && !gender)}
+        onClick={() => onAdd(product, sizeVariant, selectedOptions, gradingSlotId)}
       >
         Add to cart
       </Button>
