@@ -190,6 +190,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null;
     selectedOptions?: Record<string, string | null>;
     gradingSlotId?: string | null;
+    termId?: string | null;
+    termName?: string | null;
+    qty?: number;
   } | null>(null);
 
   // Lesson schedule/reschedule (calendar-based)
