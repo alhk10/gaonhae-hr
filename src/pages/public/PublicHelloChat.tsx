@@ -529,11 +529,13 @@ const PublicHelloChat: React.FC = () => {
   const isDateDisabled = (date: Date) => {
     if (!termCtx) return true;
     const iso = toIso(date);
+    if (iso < termCtx.start_date || iso > termCtx.end_date) return true;
+    // Existing lessons/attendance: always allow opening the dialog (even past dates)
+    if (dateHasBooking(date)) return false;
     const today = new Date(); today.setHours(0,0,0,0);
     if (date < today) return true;
-    if (iso < termCtx.start_date || iso > termCtx.end_date) return true;
     if (holidaySet.has(iso)) return true;
-    if (!dateHasAvailable(date) && !dateHasBooking(date)) return true;
+    if (!dateHasAvailable(date)) return true;
     return false;
   };
 
