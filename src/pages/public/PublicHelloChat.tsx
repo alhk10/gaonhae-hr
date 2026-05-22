@@ -1246,6 +1246,8 @@ const PublicHelloChat: React.FC = () => {
                     const dayBookings = bookingsByDate[iso] || [];
                     const slots = slotsForDate(pickedDate);
                     const openSlots = slots.filter(s => !s.studentAlreadyBooked);
+                    const _today = new Date(); _today.setHours(0,0,0,0);
+                    const isPastDate = pickedDate < _today;
 
                     return (
                       <div className="space-y-3">
