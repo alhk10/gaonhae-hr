@@ -185,6 +185,7 @@ const PublicHelloChat: React.FC = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
+  const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
     size: string | null;
