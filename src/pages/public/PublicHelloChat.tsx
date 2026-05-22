@@ -130,8 +130,8 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 const CATEGORIES = [
   { id: 'a416f120-4ec2-4826-8d37-375db3e002bc', label: 'School Fees' },
-  { id: 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c', label: 'Uniforms & Apparel' },
   { id: '31514844-78dc-43f2-bf07-41d124d175e2', label: 'Grading' },
+  { id: 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c', label: 'Uniforms & Apparel' },
   { id: '117cdc13-1296-4651-bc4b-f0449873cbf1', label: 'Protection Guards & Accessories' },
 ];
 
