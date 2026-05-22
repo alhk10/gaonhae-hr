@@ -359,8 +359,13 @@ const PublicHelloChat: React.FC = () => {
 
   // Identify -> match
   const handleIdentify = async () => {
-    if (!firstName.trim() || !lastName.trim() || !dob || !branchId) {
-      toast.error('Please fill first name, last name, date of birth and branch');
+    if (!firstName.trim() || !lastName.trim() || !branchId) {
+      toast.error('Please fill first name, last name and branch');
+      return;
+    }
+    const hasAltIdentity = !!gender && (!!email.trim() || !!phone.trim());
+    if (!dob && !hasAltIdentity) {
+      toast.error('Please provide date of birth, or fill gender plus email or contact number');
       return;
     }
     setSubmitting(true);
@@ -368,7 +373,7 @@ const PublicHelloChat: React.FC = () => {
       const sid = await createChatSession({
         first_name: firstName,
         last_name: lastName,
-        date_of_birth: dob,
+        date_of_birth: dob || null,
         branch_id: branchId,
         gender: gender || null,
         email: email || null,
@@ -376,7 +381,7 @@ const PublicHelloChat: React.FC = () => {
       });
       setSessionId(sid);
       await logChatEvent(sid, 'identify_submitted');
-      const m = await matchStudentByIdentity(firstName, lastName, dob, branchId, {
+      const m = await matchStudentByIdentity(firstName, lastName, dob || null, branchId, {
         gender: gender || null,
         email: email || null,
         phone: phone || null,
