@@ -450,6 +450,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null,
     selectedOptions?: Record<string, string | null>,
     gradingSlotId?: string | null,
+    termId?: string | null,
+    termName?: string | null,
+    qty?: number,
   ) => {
     if (p.requires_size && !size) {
       toast.error('Please pick a size');
@@ -459,11 +462,15 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Please pick a grading slot');
       return;
     }
-    if (isPreorderProduct(p)) {
-      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId });
+    if (p.is_term_based && !termId) {
+      toast.error('Please pick a term');
       return;
     }
-    commitCartItem(p, size, selectedOptions, gradingSlotId);
+    if (isPreorderProduct(p)) {
+      setPendingPreorder({ product: p, size, selectedOptions, gradingSlotId, termId, termName, qty });
+      return;
+    }
+    commitCartItem(p, size, selectedOptions, gradingSlotId, termId, termName, qty);
   };
 
   const commitCartItem = (
@@ -471,6 +478,9 @@ const PublicHelloChat: React.FC = () => {
     size: string | null,
     selectedOptions?: Record<string, string | null>,
     gradingSlotId?: string | null,
+    termId?: string | null,
+    termName?: string | null,
+    qty: number = 1,
   ) => {
     setCart((c) => {
       const optionKey = JSON.stringify(selectedOptions || {});
@@ -478,14 +488,15 @@ const PublicHelloChat: React.FC = () => {
         x.product.product_id === p.product_id &&
         x.size === size &&
         x.gradingSlotId === gradingSlotId &&
+        x.termId === termId &&
         JSON.stringify(x.selectedOptions || {}) === optionKey
       );
       if (idx >= 0) {
         const next = [...c];
-        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        next[idx] = { ...next[idx], qty: next[idx].qty + qty };
         return next;
       }
-      return [...c, { product: p, size, selectedOptions, gradingSlotId, qty: 1 }];
+      return [...c, { product: p, size, selectedOptions, gradingSlotId, termId, termName, qty }];
     });
   };
 
