@@ -866,7 +866,7 @@ const PublicHelloChat: React.FC = () => {
                   {submitting ? 'Please wait…' : 'Continue'}
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
-                <div className="pt-1 flex justify-center">{escapeHatch}</div>
+                
               </CardContent>
             </Card>
           )}
