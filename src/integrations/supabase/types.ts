@@ -1923,6 +1923,112 @@ export type Database = {
         }
         Relationships: []
       }
+      guards_purchases: {
+        Row: {
+          branch_id: string | null
+          collected: boolean
+          collected_at: string | null
+          collected_by: string | null
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string
+          gender: string | null
+          gst_amount: number
+          id: string
+          invoice_id: string | null
+          items: Json
+          last_name: string
+          matched_student_id: string | null
+          notes: string | null
+          payment_method: string | null
+          phone: string | null
+          proof_url: string | null
+          reference_number: string | null
+          sale_status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name: string
+          gender?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_id?: string | null
+          items?: Json
+          last_name: string
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          phone?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          sale_status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string
+          gender?: string | null
+          gst_amount?: number
+          id?: string
+          invoice_id?: string | null
+          items?: Json
+          last_name?: string
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          phone?: string | null
+          proof_url?: string | null
+          reference_number?: string | null
+          sale_status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guards_purchases_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guards_purchases_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guards_purchases_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           cost_per_unit: number | null
