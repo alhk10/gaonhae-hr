@@ -884,7 +884,7 @@ const PublicGradingList: React.FC = () => {
 
   const certFilename = (r: PublicGradingListRow, beltOverride?: string | null): string => {
     const safeName = (resolveCertName(r) || 'Student').replace(/[^\w\-]+/g, '_');
-    const belt = beltOverride ?? r.current_belt ?? 'Belt';
+    const belt = beltOverride ?? r.student_current_belt ?? r.current_belt ?? 'Belt';
     const safeBelt = belt.replace(/[^\w\-]+/g, '_');
     const dateStr = (r.grading_date || '').replace(/-/g, '');
     return `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`;
