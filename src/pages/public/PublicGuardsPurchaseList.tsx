@@ -208,7 +208,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
                     const variantsComplete = isVariantSelectionComplete(items, r.gender, selections);
                     const collectedBlocked = r.sale_status !== 'verified' || !variantsComplete;
 
-                    const updateSelection = async (productId: string, patch: { size?: string; color?: string }) => {
+                    const updateSelection = async (productId: string, patch: { size?: string; color?: string; gender?: 'male' | 'female' }) => {
                       const next: VariantSelectionsMap = {
                         ...selections,
                         [productId]: { ...selections[productId], ...patch },
@@ -277,6 +277,18 @@ const PublicGuardsPurchaseList: React.FC = () => {
                                 return (
                                   <div key={c.product_id} className="flex items-center gap-1">
                                     <span className="text-[10px] text-muted-foreground w-[88px] truncate" title={c.name}>{c.name}</span>
+                                    {c.genderChoice && (
+                                      <Select
+                                        value={sel.gender || ''}
+                                        onValueChange={(v) => updateSelection(c.product_id, { gender: v as 'male' | 'female' } as any)}
+                                      >
+                                        <SelectTrigger className="h-6 text-[10px] px-1 w-[72px]"><SelectValue placeholder="M/F" /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="male" className="text-xs">Male</SelectItem>
+                                          <SelectItem value="female" className="text-xs">Female</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                     <Select
                                       value={sel.size || ''}
                                       onValueChange={(v) => updateSelection(c.product_id, { size: v })}

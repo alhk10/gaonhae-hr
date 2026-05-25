@@ -73,9 +73,13 @@ export interface SubmitGuardsPurchaseInput {
 export interface VariantSelection {
   size?: string;
   color?: string;
+  gender?: 'male' | 'female';
 }
 
 export type VariantSelectionsMap = Record<string, VariantSelection>;
+
+/** Sentinel key used for the Gaonhae Groin Guard component which requires gender selection. */
+export const GAONHAE_GROIN_KEY = 'gaonhae_groin';
 
 export interface GuardsPurchaseRow {
   id: string;
@@ -111,24 +115,25 @@ export interface PurchaseComponentSpec {
   name: string;
   sizes: string[];
   colors: string[]; // empty array => no color choice required
+  genderChoice?: boolean; // when true, staff must pick male/female
 }
 
 /** Build the list of components that need a size/color choice for a purchase. */
 export const getComponentsForCart = (
   items: GuardsCartItem[] | any[],
-  gender: string | null,
+  _gender: string | null,
 ): PurchaseComponentSpec[] => {
   const out: PurchaseComponentSpec[] = [];
-  const female = (gender || '').toLowerCase() === 'female';
   for (const it of items || []) {
     if (it.key === 'gaonhae_set') {
       out.push({ product_id: GAONHAE_COMPONENT_IDS.arm, name: 'Gaonhae Arm Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
       out.push({ product_id: GAONHAE_COMPONENT_IDS.shin, name: 'Gaonhae Shin Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
       out.push({
-        product_id: female ? GAONHAE_COMPONENT_IDS.groin_female : GAONHAE_COMPONENT_IDS.groin_male,
-        name: female ? 'Gaonhae Female Groin Guard' : 'Gaonhae Male Groin Guard',
+        product_id: GAONHAE_GROIN_KEY,
+        name: 'Gaonhae Groin Guard',
         sizes: ['XS','S','M','L','XL'],
         colors: [],
+        genderChoice: true,
       });
     } else if (it.key === 'adidas_set') {
       out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
@@ -150,6 +155,7 @@ export const isVariantSelectionComplete = (
     const v = sel[s.product_id];
     if (!v?.size) return false;
     if (s.colors.length > 0 && !v.color) return false;
+    if (s.genderChoice && !v.gender) return false;
     return true;
   });
 };
@@ -389,7 +395,9 @@ const buildLinesForKey = async (
   selections: VariantSelectionsMap | null,
 ): Promise<BuildLineItemsResult> => {
   if (key === 'gaonhae_set') {
-    const groinId = (gender || '').toLowerCase() === 'female'
+    const groinSel = selections?.[GAONHAE_GROIN_KEY];
+    const chosenGender = groinSel?.gender || ((gender || '').toLowerCase() === 'female' ? 'female' : 'male');
+    const groinId = chosenGender === 'female'
       ? GAONHAE_COMPONENT_IDS.groin_female
       : GAONHAE_COMPONENT_IDS.groin_male;
     const componentIds = [GAONHAE_COMPONENT_IDS.arm, GAONHAE_COMPONENT_IDS.shin, groinId];
@@ -399,14 +407,15 @@ const buildLinesForKey = async (
       .in('id', componentIds);
     const targetInc = 150.00 * qty;
     const items = (prods || []).map((p: any) => {
-      const sel = selections?.[p.id];
+      // Groin component selection is keyed by sentinel, not by product id
+      const sel = p.id === groinId ? groinSel : selections?.[p.id];
       return {
         product_id: p.id,
         description: p.name,
         quantity: qty,
         unit_price: Number(p.base_price || 0),
         size_variant: variantLabel(sel),
-        metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+        metadata: sel ? { size: sel.size, color: sel.color, gender: sel.gender } : undefined,
       };
     });
     const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
