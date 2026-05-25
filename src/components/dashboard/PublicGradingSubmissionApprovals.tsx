@@ -294,6 +294,15 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               </Button>
               <Button
                 size="sm"
+                variant="outline"
+                onClick={() => setEditingSub(sub)}
+                disabled={busyId === sub.id}
+              >
+                <Pencil className="w-3.5 h-3.5 mr-1" />
+                Edit details
+              </Button>
+              <Button
+                size="sm"
                 variant="destructive"
                 onClick={() => setRejectingSub(sub)}
                 disabled={busyId === sub.id}
