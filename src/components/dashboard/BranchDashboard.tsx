@@ -1740,7 +1740,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(new Date(invoice.created_at))}</span>
                               <div className="flex items-center shrink-0 ml-auto">
-                                {['draft', 'sent', 'unpaid', 'partially_paid', 'partial', 'overdue'].includes(invoice.status) && (
+                                {['draft', 'sent', 'unpaid', 'partially_paid', 'partial', 'overdue'].includes(invoice.status) && (Number(invoice.balance_due ?? 0) > 0) && (
                                   <CreatePaymentDialog
                                     trigger={
                                       <Button variant="ghost" size="icon" className="h-6 w-6 text-primary" title="Add Payment">

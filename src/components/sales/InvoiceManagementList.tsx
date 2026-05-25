@@ -824,7 +824,7 @@ const InvoiceManagementList: React.FC = () => {
                           >
                             <Mail className="h-4 w-4" />
                           </Button>
-                          {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                          {invoice.status !== 'paid' && invoice.status !== 'cancelled' && Number(invoice.balance_due ?? 0) > 0 && (
                             <CreatePaymentDialog
                               trigger={
                                 <Button
