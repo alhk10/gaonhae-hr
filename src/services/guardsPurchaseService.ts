@@ -367,6 +367,8 @@ interface BuildLineItemsResult {
     description: string;
     quantity: number;
     unit_price: number;
+    size_variant?: string;
+    metadata?: Record<string, any>;
   }>;
   /** Adjustment to apply so post-GST total matches collected price. */
   adjustment: number;
@@ -374,10 +376,17 @@ interface BuildLineItemsResult {
   targetInc: number;
 }
 
+const variantLabel = (sel?: VariantSelection): string | undefined => {
+  if (!sel) return undefined;
+  if (sel.color && sel.size) return `${sel.color} / ${sel.size}`;
+  return sel.size || sel.color || undefined;
+};
+
 const buildLinesForKey = async (
   key: GuardsProductKey,
   qty: number,
   gender: string | null,
+  selections: VariantSelectionsMap | null,
 ): Promise<BuildLineItemsResult> => {
   if (key === 'gaonhae_set') {
     const groinId = (gender || '').toLowerCase() === 'female'
@@ -389,13 +398,17 @@ const buildLinesForKey = async (
       .select('id, name, base_price')
       .in('id', componentIds);
     const targetInc = 150.00 * qty;
-    const items = (prods || []).map((p: any) => ({
-      product_id: p.id,
-      description: p.name,
-      quantity: qty,
-      unit_price: Number(p.base_price || 0),
-    }));
-    // Sum of component prices (ex-GST) plus 9% GST = sum * 1.09. Target ex-GST = 137.61.
+    const items = (prods || []).map((p: any) => {
+      const sel = selections?.[p.id];
+      return {
+        product_id: p.id,
+        description: p.name,
+        quantity: qty,
+        unit_price: Number(p.base_price || 0),
+        size_variant: variantLabel(sel),
+        metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+      };
+    });
     const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
     const targetEx = 137.61 * qty;
     const adjustment = Number((targetEx - sumEx).toFixed(2));
@@ -408,12 +421,17 @@ const buildLinesForKey = async (
     .select('id, name, base_price')
     .in('id', componentIds);
   const targetInc = 284.30 * qty;
-  const items = (prods || []).map((p: any) => ({
-    product_id: p.id,
-    description: p.name,
-    quantity: qty,
-    unit_price: Number(p.base_price || 0),
-  }));
+  const items = (prods || []).map((p: any) => {
+    const sel = selections?.[p.id];
+    return {
+      product_id: p.id,
+      description: p.name,
+      quantity: qty,
+      unit_price: Number(p.base_price || 0),
+      size_variant: variantLabel(sel),
+      metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+    };
+  });
   const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
   const targetEx = 260.83 * qty;
   const adjustment = Number((targetEx - sumEx).toFixed(2));
@@ -426,15 +444,18 @@ export const createInvoiceForPurchase = async (
 ): Promise<string> => {
   const { createInvoice } = await import('@/services/invoiceService');
   const cart = (purchase.items || []) as GuardsCartItem[];
+  const selections = purchase.variant_selections || {};
   const allItems: Array<{
     product_id: string;
     description: string;
     quantity: number;
     unit_price: number;
+    size_variant?: string;
+    metadata?: Record<string, any>;
   }> = [];
   let totalAdjustment = 0;
   for (const ci of cart) {
-    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender);
+    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections);
     allItems.push(...res.items);
     totalAdjustment += res.adjustment;
   }
