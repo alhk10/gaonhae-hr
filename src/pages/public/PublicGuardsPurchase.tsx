@@ -118,7 +118,7 @@ const PublicGuardsPurchase: React.FC = () => {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = !!firstName.trim() && !!lastName.trim() && !!dob && !!branchId
-    && !!gender && !!currentBelt && emailValid && phone.trim().length >= 6
+    && emailValid
     && cartItems.length > 0 && !!proofFile && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,7 +233,7 @@ const PublicGuardsPurchase: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Gender *</Label>
+                  <Label>Gender</Label>
                   <Select value={gender} onValueChange={setGender}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -244,7 +244,7 @@ const PublicGuardsPurchase: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Current Belt *</Label>
+                  <Label>Current Belt</Label>
                   <Select value={currentBelt} onValueChange={setCurrentBelt} disabled={!branchId}>
                     <SelectTrigger><SelectValue placeholder={!branchId ? 'Select branch first' : 'Select'} /></SelectTrigger>
                     <SelectContent>
@@ -261,8 +261,8 @@ const PublicGuardsPurchase: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Phone *</Label>
-                <Input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="+65 9123 4567" maxLength={30} />
+                <Label>Phone</Label>
+                <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+65 9123 4567" maxLength={30} />
               </div>
 
               <div className="space-y-2">
@@ -283,6 +283,9 @@ const PublicGuardsPurchase: React.FC = () => {
                               {p.label} — ${p.priceInc.toFixed(2)}
                             </Label>
                             <p className="text-xs text-muted-foreground">{p.description}</p>
+                            {p.key === 'gaonhae_set' && (
+                              <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
+                            )}
                           </div>
                         </div>
                         {q > 0 && (
