@@ -29,7 +29,7 @@ import {
   type VariantSelectionsMap,
 } from '@/services/guardsPurchaseService';
 
-const PASSWORD = 'Hp97533488';
+const PASSWORDS = ['Hp97533488', 'Hp84311884'];
 const SS_KEY = 'guards_list_unlocked_v1';
 
 const statusVariant = (s: string) => {
@@ -60,7 +60,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
   });
 
   const tryUnlock = () => {
-    if (pwInput === PASSWORD) {
+    if (PASSWORDS.includes(pwInput)) {
       sessionStorage.setItem(SS_KEY, '1');
       setUnlocked(true);
       setPwInput('');

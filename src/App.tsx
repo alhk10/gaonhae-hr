@@ -1,5 +1,5 @@
 import { lazy, Suspense, ReactNode } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import type { AdminAccessPermissions, EmployeePageAccessPermissions } from './types/employee';
 import { AuthProvider } from './contexts/AuthContext';
 import { PayrollProvider } from './contexts/PayrollContext';
@@ -155,7 +155,7 @@ function App() {
                     <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
                     <Route path="/guards" element={<PublicGuardsPurchase />} />
-                    <Route path="/guardspurchase-list" element={<PublicGuardsPurchaseList />} />
+                    <Route path="/guardspurchase-list" element={<Navigate to="/grading-list" replace />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     

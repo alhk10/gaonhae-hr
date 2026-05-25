@@ -21,6 +21,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
@@ -206,11 +208,13 @@ const PublicGradingList: React.FC = () => {
       setUnlockLevel('full');
       setUnlockOpen(false);
       setPwInput('');
+      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
       toast.success('Full edit mode enabled');
     } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
       setUnlockOpen(false);
       setPwInput('');
+      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
       toast.success('Edit mode enabled');
     } else {
       toast.error('Incorrect password');
@@ -1024,6 +1028,13 @@ const PublicGradingList: React.FC = () => {
           <h1 className="text-2xl font-semibold">Grading List</h1>
         </div>
 
+        <Tabs defaultValue="grading" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="guards">Guards</TabsTrigger>
+          </TabsList>
+          <TabsContent value="grading" className="space-y-4 mt-4">
+
         <Card>
           <CardContent className="p-3 flex flex-wrap gap-2">
             <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -1317,6 +1328,11 @@ const PublicGradingList: React.FC = () => {
             </Card>
           );
         })}
+          </TabsContent>
+          <TabsContent value="guards" className="mt-4">
+            <PublicGuardsPurchaseList />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Unlock dialog */}
