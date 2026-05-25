@@ -1,3 +1,12 @@
+/**
+ * Superadmin approval surface for /hello chat callback requests that have
+ * no matched student. Used for inline-registration leads, no-match requests,
+ * and trial / general callbacks.
+ *
+ * Lets superadmin match an existing student, create one from captured details,
+ * edit the captured details, or reject the callback. No invoice work is done
+ * here — chat payments require a matched student at submission time.
+ */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,156 +16,136 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, XCircle, UserSearch, MessageCircle, UserPlus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
-import { SignedImage } from '@/components/common/SignedMedia';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getBranches } from '@/services/settingsService';
 import { createStudent } from '@/services/studentService';
 import {
-  getPendingGradingSubmissions,
-  findStudentMatches,
-  matchGradingSubmission,
-  importGradingSubmission,
-  rejectGradingSubmission,
-  updateGradingSubmissionDetails,
-  type PendingGradingSubmission,
-  type SubmissionStudentMatch,
-} from '@/services/gradingPaymentSubmissionService';
+  listUnmatchedChatCallbacks,
+  findChatCallbackStudentMatches,
+  matchChatCallback,
+  rejectChatCallback,
+  updateChatCallback,
+  linkCreatedStudentToCallback,
+  type PublicChatCallbackRow,
+  type ChatCallbackMatchCandidate,
+} from '@/services/chatCallbackApprovalService';
 
 interface Props {
   branchId?: string;
 }
 
-const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const verifiedBy = user?.employeeId || user?.email || 'system';
+const typeLabel = (t: string) => {
+  switch (t) {
+    case 'registration_request': return 'Inline registration';
+    case 'no_match_request': return 'No-match';
+    case 'trial_lead': return 'Trial lead';
+    case 'lesson_schedule_request': return 'Lesson schedule';
+    default: return 'Callback';
+  }
+};
 
-  const [matchingSub, setMatchingSub] = useState<PendingGradingSubmission | null>(null);
-  const [rejectingSub, setRejectingSub] = useState<PendingGradingSubmission | null>(null);
-  const [editingSub, setEditingSub] = useState<PendingGradingSubmission | null>(null);
-  const [editDraft, setEditDraft] = useState<Partial<PendingGradingSubmission>>({});
+const PublicHelloCallbackApprovals: React.FC<Props> = ({ branchId }) => {
+  const qc = useQueryClient();
+
+  const [matchingRow, setMatchingRow] = useState<PublicChatCallbackRow | null>(null);
+  const [editingRow, setEditingRow] = useState<PublicChatCallbackRow | null>(null);
+  const [rejectingRow, setRejectingRow] = useState<PublicChatCallbackRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editDraft, setEditDraft] = useState<Partial<PublicChatCallbackRow>>({});
   const [newStudent, setNewStudent] = useState({
-    first_name: '', last_name: '', date_of_birth: '', email: '', branch_id: '', gender: '', current_belt: '',
+    first_name: '', last_name: '', date_of_birth: '', email: '', phone: '', branch_id: '', gender: '', current_belt: '',
   });
   const [creating, setCreating] = useState(false);
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['branches-for-submission-create'],
+    queryKey: ['branches-for-hello-approvals'],
     queryFn: getBranches,
   });
 
-  const { data: submissions = [], isLoading } = useQuery({
-    queryKey: ['pending-grading-submissions', branchId],
-    queryFn: () => getPendingGradingSubmissions(branchId),
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['unmatched-chat-callbacks', branchId],
+    queryFn: () => listUnmatchedChatCallbacks(branchId),
     refetchInterval: 60_000,
   });
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
-    queryClient.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
+    qc.invalidateQueries({ queryKey: ['unmatched-chat-callbacks'] });
   };
 
   const { data: matches = [], isFetching: matchesLoading } = useQuery({
-    queryKey: ['grading-submission-matches', matchingSub?.id],
-    queryFn: () => findStudentMatches(matchingSub!.id),
-    enabled: !!matchingSub,
+    queryKey: ['hello-callback-matches', matchingRow?.id],
+    queryFn: () => findChatCallbackStudentMatches(matchingRow!),
+    enabled: !!matchingRow,
   });
 
   const { data: searchResults = [] } = useQuery({
-    queryKey: ['grading-submission-student-search', searchTerm, matchingSub?.branch_id],
+    queryKey: ['hello-callback-student-search', searchTerm, matchingRow?.branch_id],
     queryFn: async () => {
       if (searchTerm.trim().length < 2) return [];
       const term = `%${searchTerm.trim()}%`;
       const { data } = await supabase
         .from('students')
-        .select('id, student_number, first_name, last_name, email, date_of_birth, branch_id, current_belt')
+        .select('id, student_number, first_name, last_name, email, date_of_birth, branch_id, current_belt, phone')
         .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
         .limit(20);
       return data || [];
     },
-    enabled: !!matchingSub && searchTerm.trim().length >= 2,
+    enabled: !!matchingRow && searchTerm.trim().length >= 2,
   });
 
   React.useEffect(() => {
-    if (matchingSub) {
+    if (matchingRow) {
+      const fallback = (matchingRow.name || '').trim().split(/\s+/);
       setNewStudent({
-        first_name: matchingSub.first_name || '',
-        last_name: matchingSub.last_name || '',
-        date_of_birth: matchingSub.date_of_birth || '',
-        email: matchingSub.email || '',
-        branch_id: matchingSub.branch_id || '',
-        gender: '',
-        current_belt: matchingSub.current_belt || '',
+        first_name: matchingRow.first_name || fallback[0] || '',
+        last_name: matchingRow.last_name || fallback.slice(1).join(' ') || '',
+        date_of_birth: matchingRow.date_of_birth || '',
+        email: matchingRow.contact_email || '',
+        phone: matchingRow.contact_phone || '',
+        branch_id: matchingRow.branch_id || '',
+        gender: (matchingRow.gender || '').toLowerCase(),
+        current_belt: matchingRow.current_belt || '',
       });
       setShowCreate(false);
     }
-  }, [matchingSub]);
+  }, [matchingRow]);
 
   React.useEffect(() => {
-    if (editingSub) setEditDraft({ ...editingSub });
-  }, [editingSub]);
-
-  const handleSaveEdit = async () => {
-    if (!editingSub) return;
-    setBusyId(editingSub.id);
-    try {
-      await updateGradingSubmissionDetails(editingSub.id, {
-        first_name: editDraft.first_name || '',
-        last_name: editDraft.last_name || '',
-        email: editDraft.email || null,
-        date_of_birth: editDraft.date_of_birth || null,
-        current_belt: editDraft.current_belt || null,
-        branch_id: editDraft.branch_id || undefined,
-      });
-      toast.success('Details updated');
-      setEditingSub(null);
-      invalidate();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to update');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
+    if (editingRow) setEditDraft({ ...editingRow });
+  }, [editingRow]);
 
   const handleMatch = async (studentId: string) => {
-    if (!matchingSub) return;
-    setBusyId(matchingSub.id);
+    if (!matchingRow) return;
+    setBusyId(matchingRow.id);
     try {
-      await matchGradingSubmission(matchingSub.id, studentId);
+      await matchChatCallback(matchingRow.id, studentId);
       toast.success('Student matched');
-      setMatchingSub(null);
+      setMatchingRow(null);
       setSearchTerm('');
       invalidate();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to match student');
+      toast.error(e.message || 'Failed to match');
     } finally {
       setBusyId(null);
     }
   };
 
   const handleCreateAndMatch = async () => {
-    if (!matchingSub) return;
-    const { first_name, last_name, date_of_birth, email, branch_id, gender, current_belt } = newStudent;
-    if (!first_name.trim() || !last_name.trim() || !date_of_birth || !email.trim() || !branch_id) {
-      toast.error('First name, last name, DOB, email and branch are required');
+    if (!matchingRow) return;
+    const { first_name, last_name, date_of_birth, email, branch_id, gender, current_belt, phone } = newStudent;
+    if (!first_name.trim() || !last_name.trim() || !date_of_birth || !branch_id) {
+      toast.error('First name, last name, DOB and branch are required');
       return;
     }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    if (email && !/^\S+@\S+\.\S+$/.test(email.trim())) {
       toast.error('Invalid email');
-      return;
-    }
-    if (new Date(date_of_birth) > new Date()) {
-      toast.error('DOB cannot be in the future');
       return;
     }
     const fn = first_name.trim().toUpperCase();
@@ -169,15 +158,16 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         certificate_name: `${fn} ${ln}`,
         display_name: `${fn} ${ln}`,
         date_of_birth,
-        email: email.trim(),
+        email: email ? email.trim().toLowerCase() : undefined,
+        phone: phone || undefined,
         branch_id,
         gender: gender || undefined,
         current_belt: current_belt || undefined,
-        status: 'active',
+        status: 'trial',
       });
-      await matchGradingSubmission(matchingSub.id, student.id);
+      await linkCreatedStudentToCallback(matchingRow.id, student.id);
       toast.success('Student created and matched');
-      setMatchingSub(null);
+      setMatchingRow(null);
       setSearchTerm('');
       setShowCreate(false);
       invalidate();
@@ -188,30 +178,37 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
-  const handleImport = async (sub: PendingGradingSubmission) => {
-    if (!sub.matched_student_id) {
-      toast.error('Match a student before importing');
-      return;
-    }
-    setBusyId(sub.id);
+  const handleSaveEdit = async () => {
+    if (!editingRow) return;
+    setBusyId(editingRow.id);
     try {
-      await importGradingSubmission(sub.id, verifiedBy);
-      toast.success('Submission imported as paid invoice');
+      await updateChatCallback(editingRow.id, {
+        first_name: editDraft.first_name || null,
+        last_name: editDraft.last_name || null,
+        contact_email: editDraft.contact_email || null,
+        contact_phone: editDraft.contact_phone || null,
+        date_of_birth: editDraft.date_of_birth || null,
+        gender: editDraft.gender || null,
+        current_belt: editDraft.current_belt || null,
+        branch_id: editDraft.branch_id || null,
+      });
+      toast.success('Details updated');
+      setEditingRow(null);
       invalidate();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to import');
+      toast.error(e.message || 'Failed to update');
     } finally {
       setBusyId(null);
     }
   };
 
   const handleReject = async () => {
-    if (!rejectingSub) return;
-    setBusyId(rejectingSub.id);
+    if (!rejectingRow) return;
+    setBusyId(rejectingRow.id);
     try {
-      await rejectGradingSubmission(rejectingSub.id, rejectReason.trim() || 'Rejected', verifiedBy);
-      toast.success('Submission rejected');
-      setRejectingSub(null);
+      await rejectChatCallback(rejectingRow.id, rejectReason.trim());
+      toast.success('Callback rejected');
+      setRejectingRow(null);
       setRejectReason('');
       invalidate();
     } catch (e: any) {
@@ -222,108 +219,77 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   };
 
   if (isLoading) return null;
-  if (submissions.length === 0) return null;
+  if (rows.length === 0) return null;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4" />
-          Public Grading Submissions
-          <Badge variant="secondary">{submissions.length}</Badge>
+          <MessageCircle className="w-4 h-4" />
+          Public Hello Chat — Unmatched
+          <Badge variant="secondary">{rows.length}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {submissions.map((sub) => (
-          <div key={sub.id} className="border rounded-md p-3 space-y-2">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="space-y-0.5 text-sm">
-                <div className="font-semibold">
-                  {sub.student_name}{' '}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    {sub.reference_number}
-                  </span>
+        {rows.map((row) => {
+          const branchName = branches.find((b: any) => b.id === row.branch_id)?.name || row.branch_id || '—';
+          const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toUpperCase()
+            || (row.name || '').toUpperCase()
+            || '—';
+          return (
+            <div key={row.id} className="border rounded-md p-3 space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-0.5 text-sm">
+                  <div className="font-semibold">
+                    {fullName}{' '}
+                    <Badge variant="outline" className="text-[10px] ml-1">{typeLabel(row.type)}</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.contact_email || '—'} · {row.contact_phone || '—'} · DOB {row.date_of_birth ? formatDate(row.date_of_birth) : '—'}
+                  </div>
+                  <div className="text-xs">
+                    {branchName} · Belt {row.current_belt || '—'} · {row.gender || '—'}
+                  </div>
+                  {row.message && (
+                    <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-w-prose">
+                      {row.message}
+                    </div>
+                  )}
+                  <div className="text-xs">submitted {formatDateTime(row.created_at)}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {sub.email} · DOB {sub.date_of_birth ? formatDate(sub.date_of_birth) : '—'} · Belt {sub.current_belt || '—'}
-                </div>
-                <div className="text-xs">
-                  {sub.branch_name || sub.branch_id} · {sub.product_name || '—'}
-                  {sub.slot_label ? ` · ${sub.slot_label}` : ''}
-                </div>
-                <div className="text-xs">
-                  Amount: <span className="font-medium">${Number(sub.amount || 0).toFixed(2)}</span> · {sub.payment_method}
-                  {' · '}submitted {formatDateTime(sub.created_at)}
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                {sub.status === 'verified' ? (
-                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Verified</Badge>
-                ) : (
-                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pending</Badge>
-                )}
-                {sub.matched_student_id ? (
-                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Matched</Badge>
-                ) : (
+                <div className="flex flex-col items-end gap-1">
                   <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unmatched</Badge>
-                )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button size="sm" variant="outline" onClick={() => setMatchingRow(row)} disabled={busyId === row.id}>
+                  <UserSearch className="w-3.5 h-3.5 mr-1" />
+                  Match Student
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setEditingRow(row)} disabled={busyId === row.id}>
+                  <Pencil className="w-3.5 h-3.5 mr-1" />
+                  Edit details
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setRejectingRow(row)} disabled={busyId === row.id}>
+                  <XCircle className="w-3.5 h-3.5 mr-1" />
+                  Reject
+                </Button>
               </div>
             </div>
-
-            {sub.proof_url && (
-              <SignedImage src={sub.proof_url} alt="Proof of payment" className="max-h-48 rounded border" />
-            )}
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setMatchingSub(sub)}
-                disabled={busyId === sub.id}
-              >
-                <UserSearch className="w-3.5 h-3.5 mr-1" />
-                {sub.matched_student_id ? 'Re-match' : 'Match Student'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleImport(sub)}
-                disabled={busyId === sub.id || !sub.matched_student_id}
-              >
-                <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                {sub.status === 'verified' ? 'Import as Invoice' : 'Verify & Import'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setEditingSub(sub)}
-                disabled={busyId === sub.id}
-              >
-                <Pencil className="w-3.5 h-3.5 mr-1" />
-                Edit details
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => setRejectingSub(sub)}
-                disabled={busyId === sub.id}
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" />
-                Reject
-              </Button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
 
       {/* Match dialog */}
-      <Dialog open={!!matchingSub} onOpenChange={(o) => { if (!o) { setMatchingSub(null); setSearchTerm(''); } }}>
+      <Dialog open={!!matchingRow} onOpenChange={(o) => { if (!o) { setMatchingRow(null); setSearchTerm(''); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Match student — {matchingSub?.student_name}</DialogTitle>
+            <DialogTitle>Match student — {matchingRow?.name || ''}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-xs text-muted-foreground">
-              Submission: {matchingSub?.email} · DOB {matchingSub?.date_of_birth ? formatDate(matchingSub.date_of_birth) : '—'} · {matchingSub?.branch_name}
+              Callback: {matchingRow?.contact_email || '—'} · {matchingRow?.contact_phone || '—'} · DOB {matchingRow?.date_of_birth ? formatDate(matchingRow.date_of_birth) : '—'}
             </div>
 
             <div>
@@ -333,16 +299,19 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                 <div className="text-xs text-muted-foreground">No fuzzy matches found.</div>
               )}
               <div className="space-y-1 mt-1">
-                {matches.map((m: SubmissionStudentMatch) => (
-                  <div key={m.student_id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                {matches.map((m: ChatCallbackMatchCandidate) => (
+                  <div key={m.id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{m.full_name} <span className="text-xs text-muted-foreground">{m.student_number}</span></div>
+                      <div className="font-medium truncate">
+                        {`${m.first_name || ''} ${m.last_name || ''}`.trim().toUpperCase()}{' '}
+                        <span className="text-xs text-muted-foreground">{m.student_number}</span>
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.branch_id} · {m.current_belt || '—'}
                       </div>
-                      {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                      <div className="text-[11px] text-muted-foreground">score {m.score}</div>
                     </div>
-                    <Button size="sm" onClick={() => handleMatch(m.student_id)}>Use</Button>
+                    <Button size="sm" onClick={() => handleMatch(m.id)} disabled={busyId === matchingRow?.id}>Use</Button>
                   </div>
                 ))}
               </div>
@@ -368,7 +337,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                         {s.email || '—'} · DOB {s.date_of_birth ? formatDate(s.date_of_birth) : '—'} · {s.branch_id} · {s.current_belt || '—'}
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => handleMatch(s.id)}>Use</Button>
+                    <Button size="sm" onClick={() => handleMatch(s.id)} disabled={busyId === matchingRow?.id}>Use</Button>
                   </div>
                 ))}
               </div>
@@ -378,7 +347,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <Label className="text-xs">No matching student?</Label>
-                  <div className="text-xs text-muted-foreground">Create one from the submission details.</div>
+                  <div className="text-xs text-muted-foreground">Create one from the chat details.</div>
                 </div>
                 {!showCreate && (
                   <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
@@ -406,14 +375,18 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                       onChange={(e) => setNewStudent(s => ({ ...s, date_of_birth: e.target.value }))} />
                   </div>
                   <div>
-                    <Label className="text-xs">Email *</Label>
+                    <Label className="text-xs">Email</Label>
                     <Input type="email" className="h-8" value={newStudent.email}
                       onChange={(e) => setNewStudent(s => ({ ...s, email: e.target.value }))} />
                   </div>
                   <div>
+                    <Label className="text-xs">Phone</Label>
+                    <Input className="h-8" value={newStudent.phone}
+                      onChange={(e) => setNewStudent(s => ({ ...s, phone: e.target.value }))} />
+                  </div>
+                  <div>
                     <Label className="text-xs">Branch *</Label>
-                    <Select value={newStudent.branch_id}
-                      onValueChange={(v) => setNewStudent(s => ({ ...s, branch_id: v }))}>
+                    <Select value={newStudent.branch_id} onValueChange={(v) => setNewStudent(s => ({ ...s, branch_id: v }))}>
                       <SelectTrigger className="h-8"><SelectValue placeholder="Select branch" /></SelectTrigger>
                       <SelectContent>
                         {branches.map((b: any) => (
@@ -424,8 +397,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                   </div>
                   <div>
                     <Label className="text-xs">Gender</Label>
-                    <Select value={newStudent.gender}
-                      onValueChange={(v) => setNewStudent(s => ({ ...s, gender: v }))}>
+                    <Select value={newStudent.gender} onValueChange={(v) => setNewStudent(s => ({ ...s, gender: v }))}>
                       <SelectTrigger className="h-8"><SelectValue placeholder="Optional" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="male">Male</SelectItem>
@@ -434,11 +406,6 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {newStudent.current_belt && (
-                    <div className="sm:col-span-2 text-xs text-muted-foreground">
-                      Current belt from submission: <span className="font-medium">{newStudent.current_belt}</span>
-                    </div>
-                  )}
                   <div className="sm:col-span-2 flex justify-end gap-2 mt-1">
                     <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} disabled={creating}>Cancel</Button>
                     <Button size="sm" onClick={handleCreateAndMatch} disabled={creating}>
@@ -453,10 +420,10 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       </Dialog>
 
       {/* Edit details dialog */}
-      <Dialog open={!!editingSub} onOpenChange={(o) => { if (!o) setEditingSub(null); }}>
+      <Dialog open={!!editingRow} onOpenChange={(o) => { if (!o) setEditingRow(null); }}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Edit submission details</DialogTitle>
+            <DialogTitle>Edit callback details</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
@@ -476,8 +443,13 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
             </div>
             <div>
               <Label className="text-xs">Email</Label>
-              <Input type="email" className="h-8" value={editDraft.email || ''}
-                onChange={(e) => setEditDraft(d => ({ ...d, email: e.target.value }))} />
+              <Input type="email" className="h-8" value={editDraft.contact_email || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, contact_email: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Phone</Label>
+              <Input className="h-8" value={editDraft.contact_phone || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, contact_phone: e.target.value }))} />
             </div>
             <div>
               <Label className="text-xs">Branch</Label>
@@ -491,14 +463,25 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               </Select>
             </div>
             <div>
+              <Label className="text-xs">Gender</Label>
+              <Select value={(editDraft.gender || '').toLowerCase()} onValueChange={(v) => setEditDraft(d => ({ ...d, gender: v }))}>
+                <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">Current belt</Label>
               <Input className="h-8" value={editDraft.current_belt || ''}
                 onChange={(e) => setEditDraft(d => ({ ...d, current_belt: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingSub(null)}>Cancel</Button>
-            <Button onClick={handleSaveEdit} disabled={busyId === editingSub?.id}>
+            <Button variant="outline" onClick={() => setEditingRow(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={busyId === editingRow?.id}>
               <CheckCircle className="w-3.5 h-3.5 mr-1" />Save
             </Button>
           </DialogFooter>
@@ -506,18 +489,18 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       </Dialog>
 
       {/* Reject dialog */}
-      <Dialog open={!!rejectingSub} onOpenChange={(o) => { if (!o) { setRejectingSub(null); setRejectReason(''); } }}>
+      <Dialog open={!!rejectingRow} onOpenChange={(o) => { if (!o) { setRejectingRow(null); setRejectReason(''); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject submission</DialogTitle>
+            <DialogTitle>Reject callback</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="reason" className="text-xs">Reason</Label>
-            <Textarea id="reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
+            <Label htmlFor="h-reason" className="text-xs">Reason</Label>
+            <Textarea id="h-reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectingSub(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleReject} disabled={busyId === rejectingSub?.id}>Reject</Button>
+            <Button variant="outline" onClick={() => setRejectingRow(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={busyId === rejectingRow?.id}>Reject</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -525,4 +508,4 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   );
 };
 
-export default PublicGradingSubmissionApprovals;
+export default PublicHelloCallbackApprovals;

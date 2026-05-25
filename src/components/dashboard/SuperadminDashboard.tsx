@@ -28,6 +28,8 @@ import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
+import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
+import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
@@ -184,6 +186,8 @@ const SuperadminDashboard = () => {
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
         <PublicGradingSubmissionApprovals />
+        <PublicGuardsPurchaseApprovals />
+        <PublicHelloCallbackApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
         {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
         {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}

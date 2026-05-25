@@ -515,11 +515,15 @@ export const submitInlineRegistration = async (input: SubmitInlineRegistrationIn
       session_id: input.session_id,
       branch_id: input.branch_id,
       name: `${input.first_name} ${input.last_name}`.trim(),
+      first_name: (input.first_name || '').trim().toUpperCase() || null,
+      last_name: (input.last_name || '').trim().toUpperCase() || null,
+      date_of_birth: input.date_of_birth || null,
+      gender: (input.gender || '').toLowerCase() || null,
       contact_phone: input.phone,
-      contact_email: input.email,
+      contact_email: input.email ? input.email.trim().toLowerCase() : null,
       type: 'registration_request',
       message: msg,
-    })
+    } as any)
     .select('id')
     .single();
   if (error) throw error;

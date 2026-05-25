@@ -269,6 +269,30 @@ export const adminDeleteGradingSubmission = async (id: string) => {
   if (error) throw error;
 };
 
+/** Allow superadmin to edit captured submission contact details before matching. */
+export const updateGradingSubmissionDetails = async (
+  id: string,
+  patch: {
+    first_name?: string;
+    last_name?: string;
+    email?: string | null;
+    date_of_birth?: string | null;
+    current_belt?: string | null;
+    branch_id?: string;
+  },
+): Promise<void> => {
+  const clean: any = { ...patch };
+  if (typeof clean.first_name === 'string') clean.first_name = clean.first_name.trim().toUpperCase();
+  if (typeof clean.last_name === 'string') clean.last_name = clean.last_name.trim().toUpperCase();
+  if (typeof clean.email === 'string') clean.email = clean.email.trim().toLowerCase() || null;
+  if (clean.current_belt === '') clean.current_belt = null;
+  const { error } = await supabase
+    .from('grading_payment_submissions')
+    .update(clean)
+    .eq('id', id);
+  if (error) throw error;
+};
+
 export interface PublicGradingProduct {
   current_belt: string;
   product_id: string;
