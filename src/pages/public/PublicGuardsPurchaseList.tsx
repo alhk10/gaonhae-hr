@@ -208,7 +208,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
                     const variantsComplete = isVariantSelectionComplete(items, r.gender, selections);
                     const collectedBlocked = r.sale_status !== 'verified' || !variantsComplete;
 
-                    const updateSelection = async (productId: string, patch: { size?: string; color?: string }) => {
+                    const updateSelection = async (productId: string, patch: { size?: string; color?: string; gender?: 'male' | 'female' }) => {
                       const next: VariantSelectionsMap = {
                         ...selections,
                         [productId]: { ...selections[productId], ...patch },
