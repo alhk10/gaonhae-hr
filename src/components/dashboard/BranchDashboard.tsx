@@ -210,6 +210,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       setMassEditMode(false);
       setMassEditData({});
       queryClient.invalidateQueries({ queryKey: ['branch-students', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['grading-list-students', branchId] });
     } catch (error: any) {
       toast.error(`Failed to save: ${error.message}`);
     } finally {
