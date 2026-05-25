@@ -117,6 +117,7 @@ const PublicGuardsPurchase: React.FC = () => {
   const subtotalEx = totalInc - gstAmount;
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const detailsFilled = !!firstName.trim() && !!lastName.trim() && !!branchId;
   const canSubmit = !!firstName.trim() && !!lastName.trim() && !!dob && !!branchId
     && emailValid
     && cartItems.length > 0 && !!proofFile && !submitting;
