@@ -81,6 +81,8 @@ const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
 const PublicHelloChat = lazy(() => import('./pages/public/PublicHelloChat'));
+const PublicGuardsPurchase = lazy(() => import('./pages/public/PublicGuardsPurchase'));
+const PublicGuardsPurchaseList = lazy(() => import('./pages/public/PublicGuardsPurchaseList'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 
 // Social Media module
@@ -152,6 +154,8 @@ function App() {
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
+                    <Route path="/guards" element={<PublicGuardsPurchase />} />
+                    <Route path="/guardspurchase-list" element={<PublicGuardsPurchaseList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     
