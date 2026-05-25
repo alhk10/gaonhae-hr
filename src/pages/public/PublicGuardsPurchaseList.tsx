@@ -60,7 +60,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
   });
 
   const tryUnlock = () => {
-    if (pwInput === PASSWORD) {
+    if (PASSWORDS.includes(pwInput)) {
       sessionStorage.setItem(SS_KEY, '1');
       setUnlocked(true);
       setPwInput('');
