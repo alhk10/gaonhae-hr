@@ -1328,6 +1328,11 @@ const PublicGradingList: React.FC = () => {
             </Card>
           );
         })}
+          </TabsContent>
+          <TabsContent value="guards" className="mt-4">
+            <PublicGuardsPurchaseList />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Unlock dialog */}
