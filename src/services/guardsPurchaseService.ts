@@ -395,7 +395,9 @@ const buildLinesForKey = async (
   selections: VariantSelectionsMap | null,
 ): Promise<BuildLineItemsResult> => {
   if (key === 'gaonhae_set') {
-    const groinId = (gender || '').toLowerCase() === 'female'
+    const groinSel = selections?.[GAONHAE_GROIN_KEY];
+    const chosenGender = groinSel?.gender || ((gender || '').toLowerCase() === 'female' ? 'female' : 'male');
+    const groinId = chosenGender === 'female'
       ? GAONHAE_COMPONENT_IDS.groin_female
       : GAONHAE_COMPONENT_IDS.groin_male;
     const componentIds = [GAONHAE_COMPONENT_IDS.arm, GAONHAE_COMPONENT_IDS.shin, groinId];
@@ -405,14 +407,15 @@ const buildLinesForKey = async (
       .in('id', componentIds);
     const targetInc = 150.00 * qty;
     const items = (prods || []).map((p: any) => {
-      const sel = selections?.[p.id];
+      // Groin component selection is keyed by sentinel, not by product id
+      const sel = p.id === groinId ? groinSel : selections?.[p.id];
       return {
         product_id: p.id,
         description: p.name,
         quantity: qty,
         unit_price: Number(p.base_price || 0),
         size_variant: variantLabel(sel),
-        metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+        metadata: sel ? { size: sel.size, color: sel.color, gender: sel.gender } : undefined,
       };
     });
     const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
