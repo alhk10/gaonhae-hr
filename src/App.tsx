@@ -154,6 +154,8 @@ function App() {
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
+                    <Route path="/guards" element={<PublicGuardsPurchase />} />
+                    <Route path="/guardspurchase-list" element={<PublicGuardsPurchaseList />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     
