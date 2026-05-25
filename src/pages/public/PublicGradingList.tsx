@@ -871,7 +871,7 @@ const PublicGradingList: React.FC = () => {
     r: PublicGradingListRow,
     beltOverride?: string | null,
   ): GradingCertificateInput | null => {
-    const belt = beltOverride ?? r.current_belt;
+    const belt = beltOverride ?? r.student_current_belt ?? r.current_belt;
     if (!r.grading_date || !belt) return null;
     return {
       studentName: resolveCertName(r),
