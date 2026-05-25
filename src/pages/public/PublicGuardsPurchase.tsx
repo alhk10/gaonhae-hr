@@ -233,7 +233,7 @@ const PublicGuardsPurchase: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Gender *</Label>
+                  <Label>Gender</Label>
                   <Select value={gender} onValueChange={setGender}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -244,7 +244,7 @@ const PublicGuardsPurchase: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Current Belt *</Label>
+                  <Label>Current Belt</Label>
                   <Select value={currentBelt} onValueChange={setCurrentBelt} disabled={!branchId}>
                     <SelectTrigger><SelectValue placeholder={!branchId ? 'Select branch first' : 'Select'} /></SelectTrigger>
                     <SelectContent>
