@@ -283,6 +283,9 @@ const PublicGuardsPurchase: React.FC = () => {
                               {p.label} — ${p.priceInc.toFixed(2)}
                             </Label>
                             <p className="text-xs text-muted-foreground">{p.description}</p>
+                            {p.key === 'gaonhae_set' && (
+                              <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
+                            )}
                           </div>
                         </div>
                         {q > 0 && (
