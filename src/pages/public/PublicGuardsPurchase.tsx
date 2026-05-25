@@ -118,7 +118,7 @@ const PublicGuardsPurchase: React.FC = () => {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = !!firstName.trim() && !!lastName.trim() && !!dob && !!branchId
-    && !!gender && !!currentBelt && emailValid && phone.trim().length >= 6
+    && emailValid
     && cartItems.length > 0 && !!proofFile && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
