@@ -22,6 +22,7 @@ import {
   matchGradingSubmission,
   importGradingSubmission,
   rejectGradingSubmission,
+  updateGradingSubmissionDetails,
   type PendingGradingSubmission,
   type SubmissionStudentMatch,
 } from '@/services/gradingPaymentSubmissionService';
