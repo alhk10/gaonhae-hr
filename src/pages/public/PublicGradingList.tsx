@@ -1024,16 +1024,17 @@ const PublicGradingList: React.FC = () => {
           {editMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-3.5 w-3.5" />}
         </button>
 
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Grading List</h1>
-        </div>
-
         <Tabs defaultValue="grading" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="grading" className="space-y-4 mt-4">
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold">Grading List</h1>
+            </div>
+
+
 
         <Card>
           <CardContent className="p-3 flex flex-wrap gap-2">
