@@ -452,6 +452,59 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit details dialog */}
+      <Dialog open={!!editingSub} onOpenChange={(o) => { if (!o) setEditingSub(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit submission details</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">First name</Label>
+              <Input className="h-8" value={editDraft.first_name || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, first_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Last name</Label>
+              <Input className="h-8" value={editDraft.last_name || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, last_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Date of birth</Label>
+              <Input type="date" className="h-8" value={editDraft.date_of_birth || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, date_of_birth: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input type="email" className="h-8" value={editDraft.email || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Branch</Label>
+              <Select value={editDraft.branch_id || ''} onValueChange={(v) => setEditDraft(d => ({ ...d, branch_id: v }))}>
+                <SelectTrigger className="h-8"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Current belt</Label>
+              <Input className="h-8" value={editDraft.current_belt || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, current_belt: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSub(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={busyId === editingSub?.id}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" />Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reject dialog */}
       <Dialog open={!!rejectingSub} onOpenChange={(o) => { if (!o) { setRejectingSub(null); setRejectReason(''); } }}>
         <DialogContent>
