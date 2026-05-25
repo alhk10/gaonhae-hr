@@ -204,7 +204,6 @@ const PublicGuardsPurchaseList: React.FC = () => {
                         <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
                         <TableCell>
                           <div className="font-medium">{r.first_name} {r.last_name}</div>
-                          {r.date_of_birth && <div className="text-[10px] text-muted-foreground">{formatDate(r.date_of_birth)}</div>}
                         </TableCell>
                         <TableCell>
                           {items.map((it, i) => (
@@ -229,16 +228,6 @@ const PublicGuardsPurchaseList: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <Checkbox
-                              checked={r.collected}
-                              onCheckedChange={(v) => handleCollectedToggle(r, v === true)}
-                              disabled={busyId === r.id}
-                            />
-                            {r.collected_at && <span className="text-[10px] text-muted-foreground">{formatDate(r.collected_at)}</span>}
-                          </div>
-                        </TableCell>
-                        <TableCell>
                           <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
                             {r.sale_status.replace(/_/g, ' ')}
                           </Badge>
@@ -252,6 +241,16 @@ const PublicGuardsPurchaseList: React.FC = () => {
                               </Button>
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className={`flex items-center gap-1.5 ${r.sale_status !== 'verified' ? 'opacity-40' : ''}`}>
+                            <Checkbox
+                              checked={r.collected}
+                              onCheckedChange={(v) => handleCollectedToggle(r, v === true)}
+                              disabled={busyId === r.id || r.sale_status !== 'verified'}
+                            />
+                            {r.collected_at && <span className="text-[10px] text-muted-foreground">{formatDate(r.collected_at)}</span>}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetailsRow(r)}>
