@@ -186,6 +186,8 @@ const SuperadminDashboard = () => {
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
         <PublicGradingSubmissionApprovals />
+        <PublicGuardsPurchaseApprovals />
+        <PublicHelloCallbackApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
         {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
         {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}
