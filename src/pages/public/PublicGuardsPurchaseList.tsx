@@ -2,7 +2,7 @@
  * Public guards purchase list (no auth, password gated).
  * Mounted at /guardspurchase-list.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Lock, Unlock, CheckCircle, XCircle, UserPlus, Link as LinkIcon } from 'lucide-react';
+import { Lock, Unlock, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
@@ -23,11 +23,7 @@ import {
   listGuardsPurchases,
   updateGuardsPurchase,
   setGuardsCollected,
-  findStudentMatches,
-  createStudentFromPurchase,
-  createInvoiceForPurchase,
   type GuardsPurchaseRow,
-  type StudentMatchCandidate,
 } from '@/services/guardsPurchaseService';
 
 const PASSWORD = 'Hp97533488';
@@ -49,11 +45,9 @@ const PublicGuardsPurchaseList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [collectedFilter, setCollectedFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [matchRow, setMatchRow] = useState<GuardsPurchaseRow | null>(null);
-  const [matches, setMatches] = useState<StudentMatchCandidate[]>([]);
-  const [matchLoading, setMatchLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['guards-purchases'],
@@ -90,51 +84,6 @@ const PublicGuardsPurchaseList: React.FC = () => {
   }, [rows, branchFilter, statusFilter, collectedFilter, search]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['guards-purchases'] });
-
-  const openMatch = async (r: GuardsPurchaseRow) => {
-    setMatchRow(r);
-    setMatchLoading(true);
-    setMatches([]);
-    try {
-      const m = await findStudentMatches(r);
-      setMatches(m);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to search');
-    } finally {
-      setMatchLoading(false);
-    }
-  };
-
-  const handleConfirmMatch = async (studentId: string) => {
-    if (!matchRow) return;
-    setBusyId(matchRow.id);
-    try {
-      await createInvoiceForPurchase(matchRow, studentId);
-      toast.success('Invoice created and linked');
-      setMatchRow(null);
-      refresh();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to create invoice');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleCreateStudentAndInvoice = async () => {
-    if (!matchRow) return;
-    setBusyId(matchRow.id);
-    try {
-      const studentId = await createStudentFromPurchase(matchRow);
-      await createInvoiceForPurchase(matchRow, studentId);
-      toast.success('Student and invoice created');
-      setMatchRow(null);
-      refresh();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed');
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const handleVerify = async (r: GuardsPurchaseRow) => {
     setBusyId(r.id);
@@ -189,26 +138,26 @@ const PublicGuardsPurchaseList: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 p-4">
-      <div className="max-w-7xl mx-auto space-y-3">
+    <div className="min-h-screen bg-muted/30 p-3">
+      <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h1 className="text-xl font-semibold">Guards Purchase List</h1>
+          <h1 className="text-lg font-semibold">Guards Purchase List</h1>
           <Button variant="outline" size="sm" onClick={() => { sessionStorage.removeItem(SS_KEY); setUnlocked(false); }}>
             <Unlock className="h-4 w-4 mr-1" /> Lock
           </Button>
         </div>
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <CardContent className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger><SelectValue placeholder="Branch" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
                 {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending_verification">Pending Verification</SelectItem>
@@ -218,14 +167,14 @@ const PublicGuardsPurchaseList: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={collectedFilter} onValueChange={setCollectedFilter}>
-              <SelectTrigger><SelectValue placeholder="Collection" /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Collection" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Collection</SelectItem>
                 <SelectItem value="yes">Collected</SelectItem>
                 <SelectItem value="no">Not Collected</SelectItem>
               </SelectContent>
             </Select>
-            <Input placeholder="Search name / phone / email / ref" value={search} onChange={e => setSearch(e.target.value)} />
+            <Input className="h-8 text-xs" placeholder="Search name / phone / email / ref" value={search} onChange={e => setSearch(e.target.value)} />
           </CardContent>
         </Card>
 
@@ -236,81 +185,51 @@ const PublicGuardsPurchaseList: React.FC = () => {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Buyer</TableHead>
+                  <TableRow className="[&_th]:h-8 [&_th]:px-2 [&_th]:text-[11px]">
                     <TableHead>Branch</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead>Student</TableHead>
                     <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Proof</TableHead>
                     <TableHead>Collected</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="[&_td]:px-2 [&_td]:py-1.5 [&_td]:text-xs">
                   {filtered.map(r => {
                     const items = (r.items || []) as any[];
                     return (
                       <TableRow key={r.id}>
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {formatDateTime(r.created_at)}
-                          {r.reference_number && <div className="text-[10px] font-mono text-muted-foreground">{r.reference_number}</div>}
-                        </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
+                        <TableCell>
                           <div className="font-medium">{r.first_name} {r.last_name}</div>
-                          <div className="text-muted-foreground">
-                            {r.date_of_birth ? formatDate(r.date_of_birth) : ''}
-                            {r.gender ? ` · ${r.gender}` : ''}
-                          </div>
-                          {r.current_belt && <div className="text-[10px]">{r.current_belt}</div>}
+                          {r.date_of_birth && <div className="text-[10px] text-muted-foreground">{formatDate(r.date_of_birth)}</div>}
                         </TableCell>
-                        <TableCell className="text-xs">{branchMap.get(r.branch_id || '') || r.branch_id}</TableCell>
-                        <TableCell className="text-xs">
-                          <div>{r.email}</div>
-                          <div className="text-muted-foreground">{r.phone}</div>
-                        </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell>
                           {items.map((it, i) => (
-                            <div key={i}>{it.qty}× {it.label}</div>
+                            <div key={i} className="leading-tight">{it.qty}× {it.label}</div>
                           ))}
                         </TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
-                          {Number(r.gst_amount) > 0 && (
-                            <div className="text-[10px] text-muted-foreground">incl. ${Number(r.gst_amount).toFixed(2)} GST</div>
-                          )}
                         </TableCell>
-                        <TableCell className="text-xs">
-                          <div>{r.payment_method}</div>
-                          {r.proof_url && (
+                        <TableCell>
+                          {r.proof_url ? (
                             <button
                               type="button"
                               onClick={() => setLightboxUrl(r.proof_url)}
-                              className="text-blue-600 underline text-[10px]"
+                              className="block h-10 w-10 rounded border overflow-hidden hover:opacity-80"
+                              title="View proof"
                             >
-                              View proof
+                              <SignedImage src={r.proof_url} alt="proof" className="h-full w-full object-cover" />
                             </button>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={statusVariant(r.sale_status)}>
-                            {r.sale_status.replace(/_/g, ' ')}
-                          </Badge>
-                          {r.sale_status === 'pending_verification' && (
-                            <div className="flex gap-1 mt-1">
-                              <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-6 px-2 text-red-600" onClick={() => handleReject(r)} disabled={busyId === r.id}>
-                                <XCircle className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Checkbox
                               checked={r.collected}
                               onCheckedChange={(v) => handleCollectedToggle(r, v === true)}
@@ -320,19 +239,30 @@ const PublicGuardsPurchaseList: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {r.invoice_id ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700"><LinkIcon className="h-3 w-3 mr-1" />Invoiced</Badge>
-                          ) : (
-                            <Button size="sm" variant="outline" className="h-7" onClick={() => openMatch(r)} disabled={busyId === r.id}>
-                              Match
-                            </Button>
+                          <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
+                            {r.sale_status.replace(/_/g, ' ')}
+                          </Badge>
+                          {r.sale_status === 'pending_verification' && (
+                            <div className="flex gap-1 mt-1">
+                              <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
+                                <CheckCircle className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-6 w-6 p-0 text-red-600" onClick={() => handleReject(r)} disabled={busyId === r.id}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetailsRow(r)}>
+                            Details
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                   {filtered.length === 0 && (
-                    <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -341,43 +271,67 @@ const PublicGuardsPurchaseList: React.FC = () => {
         </Card>
       </div>
 
-      {/* Match student dialog */}
-      <Dialog open={!!matchRow} onOpenChange={(o) => !o && setMatchRow(null)}>
-        <DialogContent className="max-w-2xl">
+      {/* Details dialog */}
+      <Dialog open={!!detailsRow} onOpenChange={(o) => !o && setDetailsRow(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Match to Student — {matchRow?.first_name} {matchRow?.last_name}</DialogTitle>
+            <DialogTitle className="text-base">Purchase Details</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            {matchLoading ? (
-              <p className="text-sm text-muted-foreground">Searching…</p>
-            ) : matches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No matching students found.</p>
-            ) : (
-              <div className="space-y-2">
-                {matches.map(m => (
-                  <div key={m.id} className="flex items-center justify-between border rounded p-2 text-sm">
-                    <div>
-                      <div className="font-medium">{m.first_name} {m.last_name} {m.student_number && <span className="text-xs text-muted-foreground">({m.student_number})</span>}</div>
-                      <div className="text-xs text-muted-foreground">
-                        DOB: {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · Branch: {branchMap.get(m.branch_id || '') || '—'} · Belt: {m.current_belt || '—'}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{m.email} · {m.phone}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px]">score {m.score}</Badge>
-                      <Button size="sm" onClick={() => handleConfirmMatch(m.id)} disabled={busyId === matchRow?.id}>Confirm</Button>
-                    </div>
-                  </div>
-                ))}
+          {detailsRow && (
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                <div><span className="text-muted-foreground">Submitted:</span> {formatDateTime(detailsRow.created_at)}</div>
+                <div><span className="text-muted-foreground">Reference:</span> <span className="font-mono">{detailsRow.reference_number || '—'}</span></div>
+                <div><span className="text-muted-foreground">Branch:</span> {branchMap.get(detailsRow.branch_id || '') || '—'}</div>
+                <div><span className="text-muted-foreground">Status:</span> {detailsRow.sale_status.replace(/_/g, ' ')}</div>
               </div>
-            )}
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setMatchRow(null)}>Cancel</Button>
-            <Button onClick={handleCreateStudentAndInvoice} disabled={busyId === matchRow?.id}>
-              <UserPlus className="h-4 w-4 mr-1" /> Create new student &amp; invoice
-            </Button>
-          </DialogFooter>
+
+              <div className="border-t pt-2">
+                <div className="font-medium mb-1">Buyer</div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <div><span className="text-muted-foreground">Name:</span> {detailsRow.first_name} {detailsRow.last_name}</div>
+                  <div><span className="text-muted-foreground">DOB:</span> {detailsRow.date_of_birth ? formatDate(detailsRow.date_of_birth) : '—'}</div>
+                  <div><span className="text-muted-foreground">Gender:</span> {detailsRow.gender || '—'}</div>
+                  <div><span className="text-muted-foreground">Belt:</span> {detailsRow.current_belt || '—'}</div>
+                  <div><span className="text-muted-foreground">Email:</span> {detailsRow.email || '—'}</div>
+                  <div><span className="text-muted-foreground">Phone:</span> {detailsRow.phone || '—'}</div>
+                </div>
+              </div>
+
+              <div className="border-t pt-2">
+                <div className="font-medium mb-1">Items</div>
+                <div className="space-y-0.5">
+                  {((detailsRow.items || []) as any[]).map((it, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span>{it.qty}× {it.label}</span>
+                      {it.unit_price != null && <span>${(Number(it.unit_price) * Number(it.qty || 1)).toFixed(2)}</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t mt-1.5 pt-1.5 flex justify-between font-medium">
+                  <span>Total</span>
+                  <span>${Number(detailsRow.total).toFixed(2)}</span>
+                </div>
+                {Number(detailsRow.gst_amount) > 0 && (
+                  <div className="text-[10px] text-muted-foreground text-right">incl. ${Number(detailsRow.gst_amount).toFixed(2)} GST</div>
+                )}
+              </div>
+
+              <div className="border-t pt-2">
+                <div className="font-medium mb-1">Payment</div>
+                <div><span className="text-muted-foreground">Method:</span> {detailsRow.payment_method}</div>
+                {detailsRow.proof_url && (
+                  <button
+                    type="button"
+                    onClick={() => setLightboxUrl(detailsRow.proof_url)}
+                    className="mt-1.5 block h-24 w-24 rounded border overflow-hidden hover:opacity-80"
+                  >
+                    <SignedImage src={detailsRow.proof_url} alt="proof" className="h-full w-full object-cover" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
