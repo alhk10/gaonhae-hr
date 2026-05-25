@@ -26,7 +26,7 @@ export const GUARDS_CATALOG: GuardsCatalogItem[] = [
   },
   {
     key: 'adidas_set',
-    label: 'Adidas Chest Guard + Head Gear Set',
+    label: 'Preorder - Adidas Chest Guard + Head Gear Set',
     description: 'Adidas Chestguard + Adidas Headgear',
     priceInc: 284.30,
     priceEx: 260.83, // 284.30 / 1.09
