@@ -115,24 +115,25 @@ export interface PurchaseComponentSpec {
   name: string;
   sizes: string[];
   colors: string[]; // empty array => no color choice required
+  genderChoice?: boolean; // when true, staff must pick male/female
 }
 
 /** Build the list of components that need a size/color choice for a purchase. */
 export const getComponentsForCart = (
   items: GuardsCartItem[] | any[],
-  gender: string | null,
+  _gender: string | null,
 ): PurchaseComponentSpec[] => {
   const out: PurchaseComponentSpec[] = [];
-  const female = (gender || '').toLowerCase() === 'female';
   for (const it of items || []) {
     if (it.key === 'gaonhae_set') {
       out.push({ product_id: GAONHAE_COMPONENT_IDS.arm, name: 'Gaonhae Arm Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
       out.push({ product_id: GAONHAE_COMPONENT_IDS.shin, name: 'Gaonhae Shin Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
       out.push({
-        product_id: female ? GAONHAE_COMPONENT_IDS.groin_female : GAONHAE_COMPONENT_IDS.groin_male,
-        name: female ? 'Gaonhae Female Groin Guard' : 'Gaonhae Male Groin Guard',
+        product_id: GAONHAE_GROIN_KEY,
+        name: 'Gaonhae Groin Guard',
         sizes: ['XS','S','M','L','XL'],
         colors: [],
+        genderChoice: true,
       });
     } else if (it.key === 'adidas_set') {
       out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
@@ -154,6 +155,7 @@ export const isVariantSelectionComplete = (
     const v = sel[s.product_id];
     if (!v?.size) return false;
     if (s.colors.length > 0 && !v.color) return false;
+    if (s.genderChoice && !v.gender) return false;
     return true;
   });
 };
