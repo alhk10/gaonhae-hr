@@ -1,0 +1,1 @@
+ALTER TABLE public.guards_purchases ADD COLUMN IF NOT EXISTS variant_selections jsonb NOT NULL DEFAULT '{}'::jsonb;

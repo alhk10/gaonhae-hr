@@ -23,7 +23,10 @@ import {
   listGuardsPurchases,
   updateGuardsPurchase,
   setGuardsCollected,
+  getComponentsForCart,
+  isVariantSelectionComplete,
   type GuardsPurchaseRow,
+  type VariantSelectionsMap,
 } from '@/services/guardsPurchaseService';
 
 const PASSWORD = 'Hp97533488';
@@ -192,6 +195,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Proof</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -199,6 +203,27 @@ const PublicGuardsPurchaseList: React.FC = () => {
                 <TableBody className="[&_td]:px-2 [&_td]:py-1.5 [&_td]:text-xs">
                   {filtered.map(r => {
                     const items = (r.items || []) as any[];
+                    const components = getComponentsForCart(items, r.gender);
+                    const selections = (r.variant_selections || {}) as VariantSelectionsMap;
+                    const variantsComplete = isVariantSelectionComplete(items, r.gender, selections);
+                    const collectedBlocked = r.sale_status !== 'verified' || !variantsComplete;
+
+                    const updateSelection = async (productId: string, patch: { size?: string; color?: string }) => {
+                      const next: VariantSelectionsMap = {
+                        ...selections,
+                        [productId]: { ...selections[productId], ...patch },
+                      };
+                      setBusyId(r.id);
+                      try {
+                        await updateGuardsPurchase(r.id, { variant_selections: next } as any);
+                        refresh();
+                      } catch (e: any) {
+                        toast.error(e.message);
+                      } finally {
+                        setBusyId(null);
+                      }
+                    };
+
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
@@ -243,14 +268,53 @@ const PublicGuardsPurchaseList: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className={`flex items-center gap-1.5 ${r.sale_status !== 'verified' ? 'opacity-40' : ''}`}>
+                          {components.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <div className="space-y-1 min-w-[180px]">
+                              {components.map((c) => {
+                                const sel = selections[c.product_id] || {};
+                                return (
+                                  <div key={c.product_id} className="flex items-center gap-1">
+                                    <span className="text-[10px] text-muted-foreground w-[88px] truncate" title={c.name}>{c.name}</span>
+                                    <Select
+                                      value={sel.size || ''}
+                                      onValueChange={(v) => updateSelection(c.product_id, { size: v })}
+                                    >
+                                      <SelectTrigger className="h-6 text-[10px] px-1 w-[68px]"><SelectValue placeholder="Size" /></SelectTrigger>
+                                      <SelectContent>
+                                        {c.sizes.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                    {c.colors.length > 0 && (
+                                      <Select
+                                        value={sel.color || ''}
+                                        onValueChange={(v) => updateSelection(c.product_id, { color: v })}
+                                      >
+                                        <SelectTrigger className="h-6 text-[10px] px-1 w-[64px]"><SelectValue placeholder="Color" /></SelectTrigger>
+                                        <SelectContent>
+                                          {c.colors.map(co => <SelectItem key={co} value={co} className="text-xs">{co}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className={`flex items-center gap-1.5 ${collectedBlocked ? 'opacity-40' : ''}`}>
                             <Checkbox
                               checked={r.collected}
                               onCheckedChange={(v) => handleCollectedToggle(r, v === true)}
-                              disabled={busyId === r.id || r.sale_status !== 'verified'}
+                              disabled={busyId === r.id || collectedBlocked}
                             />
                             {r.collected_at && <span className="text-[10px] text-muted-foreground">{formatDate(r.collected_at)}</span>}
                           </div>
+                          {r.sale_status === 'verified' && !variantsComplete && (
+                            <div className="text-[9px] text-muted-foreground mt-0.5">Select all variants</div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetailsRow(r)}>
@@ -261,7 +325,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
                     );
                   })}
                   {filtered.length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

@@ -1950,6 +1950,7 @@ export type Database = {
           subtotal: number
           total: number
           updated_at: string
+          variant_selections: Json
         }
         Insert: {
           branch_id?: string | null
@@ -1977,6 +1978,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          variant_selections?: Json
         }
         Update: {
           branch_id?: string | null
@@ -2004,6 +2006,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          variant_selections?: Json
         }
         Relationships: [
           {

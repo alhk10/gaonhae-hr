@@ -70,6 +70,13 @@ export interface SubmitGuardsPurchaseInput {
   is_singapore: boolean;
 }
 
+export interface VariantSelection {
+  size?: string;
+  color?: string;
+}
+
+export type VariantSelectionsMap = Record<string, VariantSelection>;
+
 export interface GuardsPurchaseRow {
   id: string;
   reference_number: string | null;
@@ -94,9 +101,58 @@ export interface GuardsPurchaseRow {
   matched_student_id: string | null;
   invoice_id: string | null;
   notes: string | null;
+  variant_selections: VariantSelectionsMap | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface PurchaseComponentSpec {
+  product_id: string;
+  name: string;
+  sizes: string[];
+  colors: string[]; // empty array => no color choice required
+}
+
+/** Build the list of components that need a size/color choice for a purchase. */
+export const getComponentsForCart = (
+  items: GuardsCartItem[] | any[],
+  gender: string | null,
+): PurchaseComponentSpec[] => {
+  const out: PurchaseComponentSpec[] = [];
+  const female = (gender || '').toLowerCase() === 'female';
+  for (const it of items || []) {
+    if (it.key === 'gaonhae_set') {
+      out.push({ product_id: GAONHAE_COMPONENT_IDS.arm, name: 'Gaonhae Arm Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
+      out.push({ product_id: GAONHAE_COMPONENT_IDS.shin, name: 'Gaonhae Shin Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
+      out.push({
+        product_id: female ? GAONHAE_COMPONENT_IDS.groin_female : GAONHAE_COMPONENT_IDS.groin_male,
+        name: female ? 'Gaonhae Female Groin Guard' : 'Gaonhae Male Groin Guard',
+        sizes: ['XS','S','M','L','XL'],
+        colors: [],
+      });
+    } else if (it.key === 'adidas_set') {
+      out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
+      out.push({ product_id: ADIDAS_COMPONENT_IDS.headgear, name: 'Adidas Headgear', sizes: ['XS','S','M','L','XL'], colors: ['Red','Blue'] });
+    }
+  }
+  return out;
+};
+
+export const isVariantSelectionComplete = (
+  items: GuardsCartItem[] | any[],
+  gender: string | null,
+  selections: VariantSelectionsMap | null,
+): boolean => {
+  const specs = getComponentsForCart(items, gender);
+  if (!specs.length) return false;
+  const sel = selections || {};
+  return specs.every((s) => {
+    const v = sel[s.product_id];
+    if (!v?.size) return false;
+    if (s.colors.length > 0 && !v.color) return false;
+    return true;
+  });
+};
 
 export const submitGuardsPurchase = async (
   input: SubmitGuardsPurchaseInput,
@@ -155,6 +211,22 @@ export const submitGuardsPurchase = async (
     .single();
 
   if (error) throw error;
+
+  // Fire-and-forget confirmation email
+  if (input.email?.trim()) {
+    void supabase.functions.invoke('send-transactional-email', {
+      body: {
+        templateName: 'guards-order-received',
+        recipientEmail: input.email.trim().toLowerCase(),
+        idempotencyKey: `guards-received-${(data as any).id}`,
+        templateData: {
+          firstName: fn,
+          referenceNumber: (data as any).reference_number || '',
+        },
+      },
+    }).catch(() => { /* non-blocking */ });
+  }
+
   return data as { id: string; reference_number: string | null };
 };
 
@@ -190,6 +262,29 @@ export const setGuardsCollected = async (id: string, collected: boolean, by: str
     } as any)
     .eq('id', id);
   if (error) throw error;
+
+  if (collected) {
+    // Look up buyer email + name + ref to send the collection email
+    const { data: row } = await supabase
+      .from('guards_purchases')
+      .select('email, first_name, reference_number')
+      .eq('id', id)
+      .maybeSingle();
+    const email = (row as any)?.email as string | null;
+    if (email) {
+      void supabase.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'guards-collected',
+          recipientEmail: email,
+          idempotencyKey: `guards-collected-${id}`,
+          templateData: {
+            firstName: (row as any)?.first_name || '',
+            referenceNumber: (row as any)?.reference_number || '',
+          },
+        },
+      }).catch(() => { /* non-blocking */ });
+    }
+  }
 };
 
 export interface StudentMatchCandidate {
@@ -272,6 +367,8 @@ interface BuildLineItemsResult {
     description: string;
     quantity: number;
     unit_price: number;
+    size_variant?: string;
+    metadata?: Record<string, any>;
   }>;
   /** Adjustment to apply so post-GST total matches collected price. */
   adjustment: number;
@@ -279,10 +376,17 @@ interface BuildLineItemsResult {
   targetInc: number;
 }
 
+const variantLabel = (sel?: VariantSelection): string | undefined => {
+  if (!sel) return undefined;
+  if (sel.color && sel.size) return `${sel.color} / ${sel.size}`;
+  return sel.size || sel.color || undefined;
+};
+
 const buildLinesForKey = async (
   key: GuardsProductKey,
   qty: number,
   gender: string | null,
+  selections: VariantSelectionsMap | null,
 ): Promise<BuildLineItemsResult> => {
   if (key === 'gaonhae_set') {
     const groinId = (gender || '').toLowerCase() === 'female'
@@ -294,13 +398,17 @@ const buildLinesForKey = async (
       .select('id, name, base_price')
       .in('id', componentIds);
     const targetInc = 150.00 * qty;
-    const items = (prods || []).map((p: any) => ({
-      product_id: p.id,
-      description: p.name,
-      quantity: qty,
-      unit_price: Number(p.base_price || 0),
-    }));
-    // Sum of component prices (ex-GST) plus 9% GST = sum * 1.09. Target ex-GST = 137.61.
+    const items = (prods || []).map((p: any) => {
+      const sel = selections?.[p.id];
+      return {
+        product_id: p.id,
+        description: p.name,
+        quantity: qty,
+        unit_price: Number(p.base_price || 0),
+        size_variant: variantLabel(sel),
+        metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+      };
+    });
     const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
     const targetEx = 137.61 * qty;
     const adjustment = Number((targetEx - sumEx).toFixed(2));
@@ -313,12 +421,17 @@ const buildLinesForKey = async (
     .select('id, name, base_price')
     .in('id', componentIds);
   const targetInc = 284.30 * qty;
-  const items = (prods || []).map((p: any) => ({
-    product_id: p.id,
-    description: p.name,
-    quantity: qty,
-    unit_price: Number(p.base_price || 0),
-  }));
+  const items = (prods || []).map((p: any) => {
+    const sel = selections?.[p.id];
+    return {
+      product_id: p.id,
+      description: p.name,
+      quantity: qty,
+      unit_price: Number(p.base_price || 0),
+      size_variant: variantLabel(sel),
+      metadata: sel ? { size: sel.size, color: sel.color } : undefined,
+    };
+  });
   const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
   const targetEx = 260.83 * qty;
   const adjustment = Number((targetEx - sumEx).toFixed(2));
@@ -331,15 +444,18 @@ export const createInvoiceForPurchase = async (
 ): Promise<string> => {
   const { createInvoice } = await import('@/services/invoiceService');
   const cart = (purchase.items || []) as GuardsCartItem[];
+  const selections = purchase.variant_selections || {};
   const allItems: Array<{
     product_id: string;
     description: string;
     quantity: number;
     unit_price: number;
+    size_variant?: string;
+    metadata?: Record<string, any>;
   }> = [];
   let totalAdjustment = 0;
   for (const ci of cart) {
-    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender);
+    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections);
     allItems.push(...res.items);
     totalAdjustment += res.adjustment;
   }
