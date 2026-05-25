@@ -195,6 +195,7 @@ const PublicGuardsPurchaseList: React.FC = () => {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Proof</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
