@@ -38,6 +38,8 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
 
   const [matchingSub, setMatchingSub] = useState<PendingGradingSubmission | null>(null);
   const [rejectingSub, setRejectingSub] = useState<PendingGradingSubmission | null>(null);
+  const [editingSub, setEditingSub] = useState<PendingGradingSubmission | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<PendingGradingSubmission>>({});
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
