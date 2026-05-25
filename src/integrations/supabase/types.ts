@@ -4204,11 +4204,20 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           created_at: string
+          created_student_id: string | null
+          current_belt: string | null
+          date_of_birth: string | null
           email_sent_at: string | null
+          first_name: string | null
+          gender: string | null
           id: string
+          last_name: string | null
+          matched_student_id: string | null
           message: string | null
           name: string | null
           preferred_time: string | null
+          rejected_at: string | null
+          rejected_reason: string | null
           session_id: string | null
           status: string
           type: string
@@ -4218,11 +4227,20 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          created_student_id?: string | null
+          current_belt?: string | null
+          date_of_birth?: string | null
           email_sent_at?: string | null
+          first_name?: string | null
+          gender?: string | null
           id?: string
+          last_name?: string | null
+          matched_student_id?: string | null
           message?: string | null
           name?: string | null
           preferred_time?: string | null
+          rejected_at?: string | null
+          rejected_reason?: string | null
           session_id?: string | null
           status?: string
           type?: string
@@ -4232,11 +4250,20 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          created_student_id?: string | null
+          current_belt?: string | null
+          date_of_birth?: string | null
           email_sent_at?: string | null
+          first_name?: string | null
+          gender?: string | null
           id?: string
+          last_name?: string | null
+          matched_student_id?: string | null
           message?: string | null
           name?: string | null
           preferred_time?: string | null
+          rejected_at?: string | null
+          rejected_reason?: string | null
           session_id?: string | null
           status?: string
           type?: string
