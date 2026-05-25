@@ -21,6 +21,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
