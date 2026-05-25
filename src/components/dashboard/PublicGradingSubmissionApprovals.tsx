@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { useAuth } from '@/contexts/AuthContext';
