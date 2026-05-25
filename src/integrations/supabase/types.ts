@@ -7198,6 +7198,7 @@ export type Database = {
           slot_title: string
           source: string
           start_time: string
+          student_current_belt: string
           student_id: string
           student_name: string
           submission_id: string

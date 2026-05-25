@@ -48,6 +48,7 @@ export interface PublicGradingListRow {
   certificate_name: string | null;
   first_name: string | null;
   last_name: string | null;
+  student_current_belt: string | null;
 }
 
 export const adminUpdateGradingResult = async (
