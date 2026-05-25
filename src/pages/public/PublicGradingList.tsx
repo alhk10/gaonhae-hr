@@ -208,11 +208,13 @@ const PublicGradingList: React.FC = () => {
       setUnlockLevel('full');
       setUnlockOpen(false);
       setPwInput('');
+      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
       toast.success('Full edit mode enabled');
     } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
       setUnlockOpen(false);
       setPwInput('');
+      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
       toast.success('Edit mode enabled');
     } else {
       toast.error('Incorrect password');
