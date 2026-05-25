@@ -70,6 +70,13 @@ export interface SubmitGuardsPurchaseInput {
   is_singapore: boolean;
 }
 
+export interface VariantSelection {
+  size?: string;
+  color?: string;
+}
+
+export type VariantSelectionsMap = Record<string, VariantSelection>;
+
 export interface GuardsPurchaseRow {
   id: string;
   reference_number: string | null;
@@ -94,9 +101,58 @@ export interface GuardsPurchaseRow {
   matched_student_id: string | null;
   invoice_id: string | null;
   notes: string | null;
+  variant_selections: VariantSelectionsMap | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface PurchaseComponentSpec {
+  product_id: string;
+  name: string;
+  sizes: string[];
+  colors: string[]; // empty array => no color choice required
+}
+
+/** Build the list of components that need a size/color choice for a purchase. */
+export const getComponentsForCart = (
+  items: GuardsCartItem[] | any[],
+  gender: string | null,
+): PurchaseComponentSpec[] => {
+  const out: PurchaseComponentSpec[] = [];
+  const female = (gender || '').toLowerCase() === 'female';
+  for (const it of items || []) {
+    if (it.key === 'gaonhae_set') {
+      out.push({ product_id: GAONHAE_COMPONENT_IDS.arm, name: 'Gaonhae Arm Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
+      out.push({ product_id: GAONHAE_COMPONENT_IDS.shin, name: 'Gaonhae Shin Guard', sizes: ['XS','S','M','L','XL'], colors: [] });
+      out.push({
+        product_id: female ? GAONHAE_COMPONENT_IDS.groin_female : GAONHAE_COMPONENT_IDS.groin_male,
+        name: female ? 'Gaonhae Female Groin Guard' : 'Gaonhae Male Groin Guard',
+        sizes: ['XS','S','M','L','XL'],
+        colors: [],
+      });
+    } else if (it.key === 'adidas_set') {
+      out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
+      out.push({ product_id: ADIDAS_COMPONENT_IDS.headgear, name: 'Adidas Headgear', sizes: ['XS','S','M','L','XL'], colors: ['Red','Blue'] });
+    }
+  }
+  return out;
+};
+
+export const isVariantSelectionComplete = (
+  items: GuardsCartItem[] | any[],
+  gender: string | null,
+  selections: VariantSelectionsMap | null,
+): boolean => {
+  const specs = getComponentsForCart(items, gender);
+  if (!specs.length) return false;
+  const sel = selections || {};
+  return specs.every((s) => {
+    const v = sel[s.product_id];
+    if (!v?.size) return false;
+    if (s.colors.length > 0 && !v.color) return false;
+    return true;
+  });
+};
 
 export const submitGuardsPurchase = async (
   input: SubmitGuardsPurchaseInput,
