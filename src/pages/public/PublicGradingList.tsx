@@ -1013,25 +1013,23 @@ const PublicGradingList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 relative">
-        {/* Discrete unlock button */}
-        <button
-          type="button"
-          aria-label={editMode ? 'Lock edit mode' : 'Unlock edit mode'}
-          onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
-          className="absolute right-0 top-0 p-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-        >
-          {editMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-3.5 w-3.5" />}
-        </button>
-
+      <div className="max-w-5xl mx-auto space-y-4">
         <Tabs defaultValue="grading" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="grading" className="space-y-4 mt-4">
-            <div className="text-center">
-              <h1 className="text-2xl font-semibold">Grading List</h1>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h1 className="text-lg font-semibold">Grading List</h1>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
+              >
+                {editMode ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
+                {editMode ? 'Lock' : 'Unlock'}
+              </Button>
             </div>
 
 
