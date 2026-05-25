@@ -211,6 +211,22 @@ export const submitGuardsPurchase = async (
     .single();
 
   if (error) throw error;
+
+  // Fire-and-forget confirmation email
+  if (input.email?.trim()) {
+    void supabase.functions.invoke('send-transactional-email', {
+      body: {
+        templateName: 'guards-order-received',
+        recipientEmail: input.email.trim().toLowerCase(),
+        idempotencyKey: `guards-received-${(data as any).id}`,
+        templateData: {
+          firstName: fn,
+          referenceNumber: (data as any).reference_number || '',
+        },
+      },
+    }).catch(() => { /* non-blocking */ });
+  }
+
   return data as { id: string; reference_number: string | null };
 };
 
@@ -246,6 +262,29 @@ export const setGuardsCollected = async (id: string, collected: boolean, by: str
     } as any)
     .eq('id', id);
   if (error) throw error;
+
+  if (collected) {
+    // Look up buyer email + name + ref to send the collection email
+    const { data: row } = await supabase
+      .from('guards_purchases')
+      .select('email, first_name, reference_number')
+      .eq('id', id)
+      .maybeSingle();
+    const email = (row as any)?.email as string | null;
+    if (email) {
+      void supabase.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'guards-collected',
+          recipientEmail: email,
+          idempotencyKey: `guards-collected-${id}`,
+          templateData: {
+            firstName: (row as any)?.first_name || '',
+            referenceNumber: (row as any)?.reference_number || '',
+          },
+        },
+      }).catch(() => { /* non-blocking */ });
+    }
+  }
 };
 
 export interface StudentMatchCandidate {
