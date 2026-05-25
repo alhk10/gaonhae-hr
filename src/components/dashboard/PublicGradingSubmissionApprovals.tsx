@@ -101,6 +101,33 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     }
   }, [matchingSub]);
 
+  React.useEffect(() => {
+    if (editingSub) setEditDraft({ ...editingSub });
+  }, [editingSub]);
+
+  const handleSaveEdit = async () => {
+    if (!editingSub) return;
+    setBusyId(editingSub.id);
+    try {
+      await updateGradingSubmissionDetails(editingSub.id, {
+        first_name: editDraft.first_name || '',
+        last_name: editDraft.last_name || '',
+        email: editDraft.email || null,
+        date_of_birth: editDraft.date_of_birth || null,
+        current_belt: editDraft.current_belt || null,
+        branch_id: editDraft.branch_id || undefined,
+      });
+      toast.success('Details updated');
+      setEditingSub(null);
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+
   const handleMatch = async (studentId: string) => {
     if (!matchingSub) return;
     setBusyId(matchingSub.id);
