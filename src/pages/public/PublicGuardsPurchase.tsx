@@ -261,8 +261,8 @@ const PublicGuardsPurchase: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Phone *</Label>
-                <Input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="+65 9123 4567" maxLength={30} />
+                <Label>Phone</Label>
+                <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+65 9123 4567" maxLength={30} />
               </div>
 
               <div className="space-y-2">
