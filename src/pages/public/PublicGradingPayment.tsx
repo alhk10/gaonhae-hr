@@ -682,20 +682,24 @@ const PublicGradingPayment: React.FC = () => {
                 </>
               )}
 
-              <ProofOfPaymentUpload
-                value={proofFile}
-                onChange={setProofFile}
-                required
-                acceptPdf={false}
-              />
+              {selectedSlotId && (
+                <>
+                  <ProofOfPaymentUpload
+                    value={proofFile}
+                    onChange={setProofFile}
+                    required
+                    acceptPdf={false}
+                  />
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!canSubmit}
-              >
-                {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
-              </Button>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!canSubmit}
+                  >
+                    {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
+                  </Button>
+                </>
+              )}
             </form>
           </CardContent>
         </Card>
