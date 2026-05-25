@@ -73,9 +73,13 @@ export interface SubmitGuardsPurchaseInput {
 export interface VariantSelection {
   size?: string;
   color?: string;
+  gender?: 'male' | 'female';
 }
 
 export type VariantSelectionsMap = Record<string, VariantSelection>;
+
+/** Sentinel key used for the Gaonhae Groin Guard component which requires gender selection. */
+export const GAONHAE_GROIN_KEY = 'gaonhae_groin';
 
 export interface GuardsPurchaseRow {
   id: string;
