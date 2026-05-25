@@ -23,7 +23,10 @@ import {
   listGuardsPurchases,
   updateGuardsPurchase,
   setGuardsCollected,
+  getComponentsForCart,
+  isVariantSelectionComplete,
   type GuardsPurchaseRow,
+  type VariantSelectionsMap,
 } from '@/services/guardsPurchaseService';
 
 const PASSWORD = 'Hp97533488';
