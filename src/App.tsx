@@ -1,5 +1,5 @@
 import { lazy, Suspense, ReactNode } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import type { AdminAccessPermissions, EmployeePageAccessPermissions } from './types/employee';
 import { AuthProvider } from './contexts/AuthContext';
 import { PayrollProvider } from './contexts/PayrollContext';
