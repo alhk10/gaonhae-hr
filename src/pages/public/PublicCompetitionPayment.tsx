@@ -399,7 +399,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {coachingProduct && (
+              {dob && currentBelt && coachingProduct && (
                 <div className="space-y-2">
                   <Label>Coaching Fee *</Label>
                   <div className="rounded-md border p-3 bg-muted/40">
@@ -419,7 +419,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {categoryProducts.length > 0 && (
+              {dob && currentBelt && categoryProducts.length > 0 && (
                 <div className="space-y-2">
                   <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
                   <div className="space-y-2 rounded-md border p-3">
@@ -443,7 +443,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {(coachingProduct || selectedCategoryIds.length > 0) && (
+              {dob && currentBelt && (coachingProduct || selectedCategoryIds.length > 0) && (
                 <div className="rounded-md border p-3 bg-background text-sm space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
