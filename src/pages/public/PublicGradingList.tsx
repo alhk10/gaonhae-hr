@@ -80,10 +80,15 @@ const PublicGradingList: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
-  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>('none');
+  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
+    try {
+      const lvl = sessionStorage.getItem('guards_list_unlock_level_v1');
+      if (lvl === 'standard' || lvl === 'full') return lvl;
+    } catch {}
+    return 'none';
+  });
   const editMode = unlockLevel !== 'none';
   const canDelete = unlockLevel === 'full';
-  const [unlockOpen, setUnlockOpen] = useState(false);
   const [pwInput, setPwInput] = useState('');
 
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
