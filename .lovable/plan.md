@@ -1,27 +1,20 @@
-## Fix: "null value in target_belt" on Verify & Import
+## Problem
 
-**Cause:** `admin_import_grading_submission` inserts into `grading_registrations` without a `target_belt`, but that column is NOT NULL.
+`admin_import_grading_submission` references `sub.target_belt`, but `grading_payment_submissions` has no such column → "record sub has no field target_belt" on Verify & Import.
 
-**Fix:** Update the RPC so the registration insert includes `target_belt`, using `COALESCE(sub.target_belt, sub.current_belt)` as a safety fallback. `current_belt` is also added explicitly already; we just add the missing `target_belt` column.
+## Fix
 
-### Migration
+Derive the target belt from the product name (convention: `"<Current> >> <Target>"`, e.g. `"Green Tip >> Green"`) inside the function, since the submissions table doesn't store it.
 
-Replace `public.admin_import_grading_submission` — identical body, but the `INSERT INTO public.grading_registrations` block becomes:
+Migration: recreate `admin_import_grading_submission` with the registrations INSERT replacing `sub.target_belt` with:
 
 ```sql
-INSERT INTO public.grading_registrations (
-  grading_slot_id, student_id, invoice_item_id,
-  current_belt, target_belt, created_by
+COALESCE(
+  NULLIF(TRIM(SPLIT_PART(v_product.name, '>>', 2)), ''),
+  sub.current_belt
 )
-SELECT sub.resolved_grading_slot_id, sub.matched_student_id, v_invoice_item_id,
-       sub.current_belt,
-       COALESCE(sub.target_belt, sub.current_belt),
-       p_verified_by
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.grading_registrations
-  WHERE grading_slot_id = sub.resolved_grading_slot_id
-    AND student_id = sub.matched_student_id
-);
 ```
 
-No frontend or schema changes needed. Existing matched submissions (Zainab, Caleb, Charlotte) can be re-imported after the migration runs.
+All other logic (invoice, item, payment, status update, branch access, dedupe) stays identical. No frontend changes.
+
+After migration, re-run Verify & Import for Zainab / Caleb / Charlotte.
