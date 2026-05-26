@@ -83,10 +83,10 @@ export interface SubmitCompetitionPaymentInput {
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('products')
     .select('id, name, base_price, tax_rate, kind')
-    .eq('kind' as any, 'competition')
+    .eq('kind', 'competition')
     .eq('is_active', true)
     .order('name');
   if (error) throw error;
