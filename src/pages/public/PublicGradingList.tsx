@@ -23,6 +23,8 @@ import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
+import { getPublicCompetitionList, type PublicCompetitionListRow } from '@/services/competitionPaymentSubmissionService';
+import { SignedImage } from '@/components/common/SignedMedia';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
