@@ -27,6 +27,12 @@ interface ParsedUrl {
   path: string;
 }
 
+const BARE_PATH_PREFIX_TO_BUCKET: Record<string, string> = {
+  'public-grading/': 'payment-proofs',
+  'public-competition/': 'payment-proofs',
+  'public-guards/': 'payment-proofs',
+};
+
 const parseStoragePath = (urlOrPath: string): ParsedUrl | null => {
   if (!urlOrPath) return null;
 
@@ -39,6 +45,15 @@ const parseStoragePath = (urlOrPath: string): ParsedUrl | null => {
   // Already a signed URL — leave it
   if (urlOrPath.includes('/storage/v1/object/sign/')) {
     return null;
+  }
+
+  // Bare path uploaded by public submission flows (no scheme, no leading slash)
+  if (!/^https?:\/\//i.test(urlOrPath) && !urlOrPath.startsWith('/')) {
+    for (const [prefix, bucket] of Object.entries(BARE_PATH_PREFIX_TO_BUCKET)) {
+      if (urlOrPath.startsWith(prefix)) {
+        return { bucket, path: urlOrPath };
+      }
+    }
   }
 
   return null;
