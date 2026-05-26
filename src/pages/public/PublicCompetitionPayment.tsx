@@ -443,7 +443,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {(coachingProduct || selectedCategoryIds.length > 0) && (
+              {dob && currentBelt && (coachingProduct || selectedCategoryIds.length > 0) && (
                 <div className="rounded-md border p-3 bg-background text-sm space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
