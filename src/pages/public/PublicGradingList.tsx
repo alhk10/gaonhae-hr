@@ -1612,4 +1612,62 @@ const PublicGradingList: React.FC = () => {
   );
 };
 
+const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) => {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['public-competition-list', branchFilter],
+    queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
+  });
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  if (rows.length === 0) return <div className="text-sm text-muted-foreground">No competition registrations yet.</div>;
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-lg font-semibold">Singapore Open Poomsae</h2>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead>Belt</TableHead>
+              <TableHead>Categories</TableHead>
+              <TableHead>Coaching</TableHead>
+              <TableHead>Cert</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(rows as PublicCompetitionListRow[]).map((r) => (
+              <TableRow key={r.submission_id}>
+                <TableCell className="font-medium">{r.student_name}</TableCell>
+                <TableCell className="text-xs">{r.branch_name || '—'}</TableCell>
+                <TableCell className="text-xs">{r.current_belt || '—'}</TableCell>
+                <TableCell className="text-xs">
+                  <div className="flex flex-wrap gap-1">
+                    {(r.category_names || []).map((n) => (
+                      <Badge key={n} variant="outline" className="text-[10px]">
+                        {n.replace(/Singapore Open Poomsae — Category: /, '')}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>{r.coaching_paid ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
+                <TableCell>
+                  {r.certificate_url ? (
+                    <a href={resolveStorageUrl(r.certificate_url) || r.certificate_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
+                  ) : '—'}
+                </TableCell>
+                <TableCell>
+                  <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
 export default PublicGradingList;
