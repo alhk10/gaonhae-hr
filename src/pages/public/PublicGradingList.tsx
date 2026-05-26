@@ -212,19 +212,31 @@ const PublicGradingList: React.FC = () => {
   const handleUnlock = () => {
     if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
       setUnlockLevel('full');
-      setUnlockOpen(false);
       setPwInput('');
-      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'full');
+      } catch {}
       toast.success('Full edit mode enabled');
     } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
-      setUnlockOpen(false);
       setPwInput('');
-      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+      } catch {}
       toast.success('Edit mode enabled');
     } else {
       toast.error('Incorrect password');
     }
+  };
+
+  const handleLock = () => {
+    setUnlockLevel('none');
+    try {
+      sessionStorage.removeItem('guards_list_unlocked_v1');
+      sessionStorage.removeItem('guards_list_unlock_level_v1');
+    } catch {}
   };
 
   const handleSlotSave = async () => {
