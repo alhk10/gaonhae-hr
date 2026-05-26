@@ -80,6 +80,7 @@ const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 // Public grading payment module
 const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
+const PublicCompetitionPayment = lazy(() => import('./pages/public/PublicCompetitionPayment'));
 const PublicHelloChat = lazy(() => import('./pages/public/PublicHelloChat'));
 const PublicGuardsPurchase = lazy(() => import('./pages/public/PublicGuardsPurchase'));
 const PublicGuardsPurchaseList = lazy(() => import('./pages/public/PublicGuardsPurchaseList'));
