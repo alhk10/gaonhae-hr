@@ -1029,6 +1029,113 @@ export type Database = {
         }
         Relationships: []
       }
+      competition_payment_submissions: {
+        Row: {
+          amount: number | null
+          branch_id: string
+          category_product_ids: string[]
+          certificate_url: string | null
+          coaching_product_id: string | null
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string | null
+          display_name: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          matched_invoice_id: string | null
+          matched_student_id: string | null
+          notes: string | null
+          payment_method: string
+          proof_url: string
+          reference_number: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          branch_id: string
+          category_product_ids?: string[]
+          certificate_url?: string | null
+          coaching_product_id?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          display_name?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method: string
+          proof_url: string
+          reference_number?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          branch_id?: string
+          category_product_ids?: string[]
+          certificate_url?: string | null
+          coaching_product_id?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          display_name?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          proof_url?: string
+          reference_number?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_payment_submissions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_payment_submissions_coaching_product_id_fkey"
+            columns: ["coaching_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_payment_submissions_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_payment_submissions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deductions: {
         Row: {
           amount: number
@@ -4083,6 +4190,7 @@ export type Database = {
           is_lesson: boolean | null
           is_recurring: boolean | null
           is_service: boolean
+          kind: string | null
           lesson_days: string[] | null
           lessons_per_week: number | null
           max_age: number | null
@@ -4121,6 +4229,7 @@ export type Database = {
           is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
+          kind?: string | null
           lesson_days?: string[] | null
           lessons_per_week?: number | null
           max_age?: number | null
@@ -4159,6 +4268,7 @@ export type Database = {
           is_lesson?: boolean | null
           is_recurring?: boolean | null
           is_service?: boolean
+          kind?: string | null
           lesson_days?: string[] | null
           lessons_per_week?: number | null
           max_age?: number | null
@@ -6867,15 +6977,27 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      admin_import_competition_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: string
+      }
       admin_import_grading_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: string
+      }
+      admin_match_competition_submission: {
+        Args: { p_id: string; p_student_id: string }
+        Returns: undefined
       }
       admin_match_grading_submission: {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
       }
       admin_reject_accessory_submission: {
+        Args: { p_id: string; p_reason: string; p_reviewed_by: string }
+        Returns: undefined
+      }
+      admin_reject_competition_submission: {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
@@ -6889,6 +7011,10 @@ export type Database = {
           new_salt: string
           target_email: string
         }
+        Returns: undefined
+      }
+      admin_update_competition_submission_categories: {
+        Args: { p_category_ids: string[]; p_id: string }
         Returns: undefined
       }
       admin_update_grading_registration_branch: {
@@ -6964,6 +7090,20 @@ export type Database = {
       check_password_history: {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
+      }
+      find_competition_submission_student_matches: {
+        Args: { p_id: string }
+        Returns: {
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          full_name: string
+          reason: string
+          score: number
+          student_id: string
+          student_number: string
+        }[]
       }
       find_grading_submission_student_matches: {
         Args: { p_id: string }
@@ -7174,6 +7314,26 @@ export type Database = {
           term_id: string
           term_name: string
           total_weeks: number
+        }[]
+      }
+      get_public_competition_list: {
+        Args: { p_branch_id?: string }
+        Returns: {
+          amount: number
+          branch_id: string
+          branch_name: string
+          category_count: number
+          category_names: string[]
+          certificate_url: string
+          coaching_paid: boolean
+          created_at: string
+          current_belt: string
+          paid_status: string
+          proof_url: string
+          reference_number: string
+          status: string
+          student_name: string
+          submission_id: string
         }[]
       }
       get_public_grading_list: {
@@ -7516,6 +7676,13 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_competition_payment: {
+        Args: { _row: Json }
+        Returns: {
+          id: string
+          reference_number: string
+        }[]
+      }
       submit_grading_payments: {
         Args: { _rows: Json }
         Returns: {
