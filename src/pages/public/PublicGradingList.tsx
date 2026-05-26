@@ -80,10 +80,15 @@ const PublicGradingList: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
-  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>('none');
+  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
+    try {
+      const lvl = sessionStorage.getItem('guards_list_unlock_level_v1');
+      if (lvl === 'standard' || lvl === 'full') return lvl;
+    } catch {}
+    return 'none';
+  });
   const editMode = unlockLevel !== 'none';
   const canDelete = unlockLevel === 'full';
-  const [unlockOpen, setUnlockOpen] = useState(false);
   const [pwInput, setPwInput] = useState('');
 
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
@@ -207,19 +212,31 @@ const PublicGradingList: React.FC = () => {
   const handleUnlock = () => {
     if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
       setUnlockLevel('full');
-      setUnlockOpen(false);
       setPwInput('');
-      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'full');
+      } catch {}
       toast.success('Full edit mode enabled');
     } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
-      setUnlockOpen(false);
       setPwInput('');
-      try { sessionStorage.setItem('guards_list_unlocked_v1', '1'); } catch {}
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+      } catch {}
       toast.success('Edit mode enabled');
     } else {
       toast.error('Incorrect password');
     }
+  };
+
+  const handleLock = () => {
+    setUnlockLevel('none');
+    try {
+      sessionStorage.removeItem('guards_list_unlocked_v1');
+      sessionStorage.removeItem('guards_list_unlock_level_v1');
+    } catch {}
   };
 
   const handleSlotSave = async () => {
@@ -1012,6 +1029,30 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  if (unlockLevel === 'none') {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-1">
+              <h1 className="text-lg font-semibold">Restricted area</h1>
+              <p className="text-sm text-muted-foreground">Enter password to continue.</p>
+            </div>
+            <Input
+              type="password"
+              value={pwInput}
+              onChange={(e) => setPwInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+              placeholder="Password"
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleUnlock}>Unlock</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
@@ -1027,7 +1068,7 @@ const PublicGradingList: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
+                onClick={handleLock}
               >
                 {editMode ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
                 {editMode ? 'Lock' : 'Unlock'}
@@ -1339,26 +1380,6 @@ const PublicGradingList: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Unlock dialog */}
-      <Dialog open={unlockOpen} onOpenChange={setUnlockOpen}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Enter password</DialogTitle>
-          </DialogHeader>
-          <Input
-            type="password"
-            value={pwInput}
-            onChange={(e) => setPwInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-            placeholder="Password"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUnlockOpen(false)}>Cancel</Button>
-            <Button onClick={handleUnlock}>Unlock</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Slot edit dialog */}
       <Dialog open={!!slotEditRow} onOpenChange={(o) => !o && setSlotEditRow(null)}>
