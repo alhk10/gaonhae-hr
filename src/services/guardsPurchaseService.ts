@@ -20,9 +20,9 @@ export const GUARDS_CATALOG: GuardsCatalogItem[] = [
   {
     key: 'gaonhae_set',
     label: 'Gaonhae Protection Guard Set',
-    description: 'Arm Guards + Shin Guards + Groin Guard',
-    priceInc: 150.00,
-    priceEx: 137.61,
+    description: 'Arm Guards + Shin Guards + Groin Guard + Canvas Carry Bag',
+    priceInc: 174.40,
+    priceEx: 160.00,
   },
   {
     key: 'adidas_set',
