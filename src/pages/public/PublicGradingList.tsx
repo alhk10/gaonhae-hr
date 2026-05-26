@@ -24,7 +24,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import { getPublicCompetitionList, type PublicCompetitionListRow } from '@/services/competitionPaymentSubmissionService';
-import { SignedImage } from '@/components/common/SignedMedia';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
