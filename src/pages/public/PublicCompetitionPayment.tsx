@@ -419,7 +419,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {categoryProducts.length > 0 && (
+              {dob && currentBelt && categoryProducts.length > 0 && (
                 <div className="space-y-2">
                   <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
                   <div className="space-y-2 rounded-md border p-3">
