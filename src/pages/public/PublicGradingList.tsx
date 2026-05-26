@@ -1068,7 +1068,7 @@ const PublicGradingList: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => (editMode ? setUnlockLevel('none') : setUnlockOpen(true))}
+                onClick={handleLock}
               >
                 {editMode ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
                 {editMode ? 'Lock' : 'Unlock'}
