@@ -20,9 +20,9 @@ export const GUARDS_CATALOG: GuardsCatalogItem[] = [
   {
     key: 'gaonhae_set',
     label: 'Gaonhae Protection Guard Set',
-    description: 'Arm Guards + Shin Guards + Groin Guard',
-    priceInc: 150.00,
-    priceEx: 137.61,
+    description: 'Arm Guards + Shin Guards + Groin Guard + Canvas Carry Bag',
+    priceInc: 174.40,
+    priceEx: 160.00,
   },
   {
     key: 'adidas_set',
@@ -405,7 +405,7 @@ const buildLinesForKey = async (
       .from('products')
       .select('id, name, base_price')
       .in('id', componentIds);
-    const targetInc = 150.00 * qty;
+    const targetInc = 174.40 * qty;
     const items = (prods || []).map((p: any) => {
       // Groin component selection is keyed by sentinel, not by product id
       const sel = p.id === groinId ? groinSel : selections?.[p.id];
@@ -419,7 +419,7 @@ const buildLinesForKey = async (
       };
     });
     const sumEx = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
-    const targetEx = 137.61 * qty;
+    const targetEx = 160.00 * qty;
     const adjustment = Number((targetEx - sumEx).toFixed(2));
     return { items, adjustment, targetInc };
   }
