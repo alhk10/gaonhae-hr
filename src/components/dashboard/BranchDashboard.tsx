@@ -90,6 +90,7 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import BranchInventoryTab from './BranchInventoryTab';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
+import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
