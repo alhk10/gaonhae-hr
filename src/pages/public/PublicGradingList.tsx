@@ -1380,26 +1380,6 @@ const PublicGradingList: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Unlock dialog */}
-      <Dialog open={unlockOpen} onOpenChange={setUnlockOpen}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Enter password</DialogTitle>
-          </DialogHeader>
-          <Input
-            type="password"
-            value={pwInput}
-            onChange={(e) => setPwInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-            placeholder="Password"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUnlockOpen(false)}>Cancel</Button>
-            <Button onClick={handleUnlock}>Unlock</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Slot edit dialog */}
       <Dialog open={!!slotEditRow} onOpenChange={(o) => !o && setSlotEditRow(null)}>
