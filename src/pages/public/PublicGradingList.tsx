@@ -1016,8 +1016,9 @@ const PublicGradingList: React.FC = () => {
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
         <Tabs defaultValue="grading" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="grading" className="space-y-4 mt-4">
