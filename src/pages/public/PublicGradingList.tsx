@@ -1330,6 +1330,9 @@ const PublicGradingList: React.FC = () => {
           );
         })}
           </TabsContent>
+          <TabsContent value="competitions" className="mt-4">
+            <CompetitionsTab branchFilter={branchFilter} />
+          </TabsContent>
           <TabsContent value="guards" className="mt-4">
             <PublicGuardsPurchaseList />
           </TabsContent>
