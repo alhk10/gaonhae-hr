@@ -1029,6 +1029,30 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  if (unlockLevel === 'none') {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-1">
+              <h1 className="text-lg font-semibold">Restricted area</h1>
+              <p className="text-sm text-muted-foreground">Enter password to continue.</p>
+            </div>
+            <Input
+              type="password"
+              value={pwInput}
+              onChange={(e) => setPwInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+              placeholder="Password"
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleUnlock}>Unlock</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
