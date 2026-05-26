@@ -23,6 +23,7 @@ import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
+import { getPublicCompetitionList, type PublicCompetitionListRow } from '@/services/competitionPaymentSubmissionService';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
@@ -1015,8 +1016,9 @@ const PublicGradingList: React.FC = () => {
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
         <Tabs defaultValue="grading" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="grading" className="space-y-4 mt-4">
@@ -1328,6 +1330,9 @@ const PublicGradingList: React.FC = () => {
           );
         })}
           </TabsContent>
+          <TabsContent value="competitions" className="mt-4">
+            <CompetitionsTab branchFilter={branchFilter} />
+          </TabsContent>
           <TabsContent value="guards" className="mt-4">
             <PublicGuardsPurchaseList />
           </TabsContent>
@@ -1603,6 +1608,64 @@ const PublicGradingList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+};
+
+const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) => {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['public-competition-list', branchFilter],
+    queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
+  });
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  if (rows.length === 0) return <div className="text-sm text-muted-foreground">No competition registrations yet.</div>;
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-lg font-semibold">Singapore Open Poomsae</h2>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead>Belt</TableHead>
+              <TableHead>Categories</TableHead>
+              <TableHead>Coaching</TableHead>
+              <TableHead>Cert</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(rows as PublicCompetitionListRow[]).map((r) => (
+              <TableRow key={r.submission_id}>
+                <TableCell className="font-medium">{r.student_name}</TableCell>
+                <TableCell className="text-xs">{r.branch_name || '—'}</TableCell>
+                <TableCell className="text-xs">{r.current_belt || '—'}</TableCell>
+                <TableCell className="text-xs">
+                  <div className="flex flex-wrap gap-1">
+                    {(r.category_names || []).map((n) => (
+                      <Badge key={n} variant="outline" className="text-[10px]">
+                        {n.replace(/Singapore Open Poomsae — Category: /, '')}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>{r.coaching_paid ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
+                <TableCell>
+                  {r.certificate_url ? (
+                    <a href={r.certificate_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
+                  ) : '—'}
+                </TableCell>
+                <TableCell>
+                  <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
