@@ -1655,7 +1655,7 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
                 <TableCell>{r.coaching_paid ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
                 <TableCell>
                   {r.certificate_url ? (
-                    <a href={resolveStorageUrl(r.certificate_url) || r.certificate_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
+                    <a href={r.certificate_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
                   ) : '—'}
                 </TableCell>
                 <TableCell>
