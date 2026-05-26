@@ -399,7 +399,7 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
-              {coachingProduct && (
+              {dob && currentBelt && coachingProduct && (
                 <div className="space-y-2">
                   <Label>Coaching Fee *</Label>
                   <div className="rounded-md border p-3 bg-muted/40">
