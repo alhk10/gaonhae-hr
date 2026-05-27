@@ -1368,7 +1368,12 @@ const PublicGradingList: React.FC = () => {
                               {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmDeleteRow(r)}
+                                  onClick={() => setPendingDelete({
+                                    kind: 'grading',
+                                    source: r.source as 'submission' | 'registration',
+                                    id: (r.source === 'submission' ? r.submission_id : r.registration_id) as string,
+                                    studentName: r.student_name || '',
+                                  })}
                                   className="text-red-600 hover:text-red-800"
                                   title="Delete row"
                                 >
