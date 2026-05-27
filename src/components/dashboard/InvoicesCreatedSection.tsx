@@ -109,7 +109,7 @@ const InvoicesCreatedSection = () => {
               <TableBody>
                 {invoices.map((inv: any) => (
                   <TableRow key={inv.id} className="text-sm">
-                    <TableCell className="py-1.5">{(inv.students as any)?.name || 'Unknown'}</TableCell>
+                    <TableCell className="py-1.5">{`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.total_amount?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.balance_due?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5">
