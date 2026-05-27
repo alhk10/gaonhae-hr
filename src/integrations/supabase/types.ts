@@ -6973,7 +6973,19 @@ export type Database = {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
+      admin_delete_competition_submission: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_delete_grading_registration: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       admin_delete_grading_submission: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_delete_guards_purchase: {
         Args: { p_id: string }
         Returns: undefined
       }
