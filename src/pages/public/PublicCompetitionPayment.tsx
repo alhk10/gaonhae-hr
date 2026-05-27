@@ -121,6 +121,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
 
   const { data: branches = [] } = useQuery({
@@ -213,6 +214,7 @@ const PublicCompetitionPayment: React.FC = () => {
     if (!canSubmit || !coachingProduct || !dob || !proofFile) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const isoDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
       const result = await submitCompetitionPayment({
@@ -232,7 +234,9 @@ const PublicCompetitionPayment: React.FC = () => {
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to submit payment');
+      const msg = err?.message || 'Failed to submit payment';
+      setSubmitError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -496,6 +500,12 @@ const PublicCompetitionPayment: React.FC = () => {
                 required
                 acceptPdf={false}
               />
+
+              {submitError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
+                </Alert>
+              )}
 
               <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
