@@ -27,7 +27,7 @@ const InvoicesCreatedSection = () => {
       const { start, end } = getDateRange();
       let query = supabase
         .from('invoices')
-        .select('id, invoice_number, total_amount, balance_due, status, created_at, student_id, students(name)')
+        .select('id, invoice_number, total_amount, balance_due, status, created_at, student_id, students(first_name, last_name)')
         .gte('created_at', start)
         .lte('created_at', end)
         .order('created_at', { ascending: false });
