@@ -1130,14 +1130,6 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="grading" className="space-y-4 mt-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h1 className="text-lg font-semibold">Grading List</h1>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLock}
-              >
-                {editMode ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
-                {editMode ? 'Lock' : 'Unlock'}
-              </Button>
             </div>
 
 
