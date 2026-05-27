@@ -1466,21 +1466,13 @@ const PublicGradingList: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <Dialog open={!!confirmDeleteRow} onOpenChange={(o) => !o && setConfirmDeleteRow(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete submission?</DialogTitle>
-            <DialogDescription>
-              {confirmDeleteRow?.student_name} — this cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDeleteRow(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Unified delete confirm (grading + competition + guards) */}
+      <DeleteRowConfirmDialog
+        pending={pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        onConfirm={handlePendingDelete}
+        loading={deleting}
+      />
 
       {/* Proof lightbox */}
       <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
