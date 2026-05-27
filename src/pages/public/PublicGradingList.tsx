@@ -1429,10 +1429,18 @@ const PublicGradingList: React.FC = () => {
         })}
           </TabsContent>
           <TabsContent value="competitions" className="mt-4">
-            <CompetitionsTab branchFilter={branchFilter} />
+            <CompetitionsTab
+              branchFilter={branchFilter}
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
+            />
           </TabsContent>
           <TabsContent value="guards" className="mt-4">
-            <PublicGuardsPurchaseList />
+            <PublicGuardsPurchaseList
+              embedded
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
+            />
           </TabsContent>
         </Tabs>
       </div>
