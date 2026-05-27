@@ -264,33 +264,19 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirmDeleteRow) return;
-    const row = confirmDeleteRow;
-    setDeleting(true);
-    try {
-      if (row.source === 'submission' && row.submission_id) {
-        await adminDeleteGradingSubmission(row.submission_id);
-      } else if (row.source === 'registration' && row.registration_id) {
-        await adminDeleteGradingRegistration(row.registration_id);
-      } else {
-        throw new Error('Row missing identifier');
-      }
-      toast.success('Row deleted');
-      setConfirmDeleteRow(null);
-      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to delete');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handlePendingDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      if (pendingDelete.kind === 'competition') {
+      if (pendingDelete.kind === 'grading') {
+        if (pendingDelete.source === 'submission') {
+          await adminDeleteGradingSubmission(pendingDelete.id);
+        } else {
+          await adminDeleteGradingRegistration(pendingDelete.id);
+        }
+        toast.success('Row deleted');
+        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      } else if (pendingDelete.kind === 'competition') {
         await adminDeleteCompetitionSubmission(pendingDelete.id);
         toast.success('Competition entry deleted');
         qc.invalidateQueries({ queryKey: ['public-competition-list'] });
