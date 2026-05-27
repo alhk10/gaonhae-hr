@@ -175,9 +175,6 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h1 className="text-lg font-semibold">Guards Purchase List</h1>
-          <Button variant="outline" size="sm" onClick={() => { sessionStorage.removeItem(SS_KEY); setUnlocked(false); }}>
-            <Unlock className="h-4 w-4 mr-1" /> Lock
-          </Button>
         </div>
 
         <Card>
