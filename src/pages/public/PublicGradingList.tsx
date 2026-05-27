@@ -1379,12 +1379,12 @@ const PublicGradingList: React.FC = () => {
                             </TableCell>
 
                             <TableCell className="px-2 py-0.5">
-                              {canDelete && r.source === 'submission' && (
+                              {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteRow(r)}
                                   className="text-red-600 hover:text-red-800"
-                                  title="Delete submission"
+                                  title="Delete row"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
