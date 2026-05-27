@@ -380,23 +380,14 @@ const PublicCompetitionPayment: React.FC = () => {
 
               {certificateRequired && (
                 <div className="space-y-2">
-                  <Label htmlFor="certificate">
-                    Certificate Upload * <span className="text-muted-foreground font-normal">(Poom/Dan)</span>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="certificate"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
-                      required
-                    />
-                    {certificateFile && (
-                      <span className="text-xs text-muted-foreground truncate">
-                        {certificateFile.name}
-                      </span>
-                    )}
-                  </div>
+                  <ProofOfPaymentUpload
+                    value={certificateFile}
+                    onChange={setCertificateFile}
+                    required
+                    acceptPdf={false}
+                    maxSizeMB={5}
+                    label="Certificate Upload (Poom/Dan)"
+                  />
                   <p className="text-xs text-muted-foreground">
                     Please upload a clear photo of your Poom or Dan certificate.
                   </p>
