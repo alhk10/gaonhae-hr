@@ -176,7 +176,7 @@ export const submitCompetitionPayment = async (
 
   console.info('[/comps] calling submit_competition_payment RPC');
   const { data, error } = await withTimeout(
-    supabase.rpc('submit_competition_payment' as any, { _row: row as any }),
+    Promise.resolve(supabase.rpc('submit_competition_payment' as any, { _row: row as any })),
     15000,
     'Submission',
   );
