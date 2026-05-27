@@ -27,7 +27,7 @@ const InvoicesCreatedSection = () => {
       const { start, end } = getDateRange();
       let query = supabase
         .from('invoices')
-        .select('id, invoice_number, total_amount, balance_due, status, created_at, student_id, students(name)')
+        .select('id, invoice_number, total_amount, balance_due, status, created_at, student_id, students(first_name, last_name)')
         .gte('created_at', start)
         .lte('created_at', end)
         .order('created_at', { ascending: false });
@@ -109,7 +109,7 @@ const InvoicesCreatedSection = () => {
               <TableBody>
                 {invoices.map((inv: any) => (
                   <TableRow key={inv.id} className="text-sm">
-                    <TableCell className="py-1.5">{(inv.students as any)?.name || 'Unknown'}</TableCell>
+                    <TableCell className="py-1.5">{`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.total_amount?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.balance_due?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5">
