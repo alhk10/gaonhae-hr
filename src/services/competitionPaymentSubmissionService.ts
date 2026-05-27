@@ -340,3 +340,19 @@ export const updateCompetitionSubmissionDetails = async (
     .eq('id', id);
   if (error) throw error;
 };
+
+export const adminDeleteCompetitionSubmission = async (id: string) => {
+  const { error } = await supabase.rpc('admin_delete_competition_submission' as any, { p_id: id });
+  if (error) throw error;
+};
+
+export const getCompetitionSubmissionDeleteContext = async (id: string) => {
+  const { data, error } = await supabase.rpc('admin_competition_submission_delete_context' as any, { p_id: id });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    student_matched: !!row?.student_matched,
+    student_name: (row?.student_name ?? null) as string | null,
+    invoice_number: (row?.invoice_number ?? null) as string | null,
+  };
+};
