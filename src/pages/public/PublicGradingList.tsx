@@ -1698,7 +1698,11 @@ const PublicGradingList: React.FC = () => {
   );
 };
 
-const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) => {
+const CompetitionsTab: React.FC<{
+  branchFilter: string;
+  canDelete?: boolean;
+  onRequestDelete?: (id: string, studentName: string) => void;
+}> = ({ branchFilter, canDelete, onRequestDelete }) => {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
     queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
@@ -1721,6 +1725,7 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
               <TableHead>Coaching</TableHead>
               <TableHead>Cert</TableHead>
               <TableHead>Status</TableHead>
+              {canDelete && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1747,6 +1752,18 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
                 <TableCell>
                   <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
                 </TableCell>
+                {canDelete && (
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onRequestDelete?.(r.submission_id, r.student_name)}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete row"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
@@ -1755,5 +1772,6 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
     </div>
   );
 };
+
 
 export default PublicGradingList;
