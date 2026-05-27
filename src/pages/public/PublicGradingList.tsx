@@ -23,6 +23,7 @@ import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, Al
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
+import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
