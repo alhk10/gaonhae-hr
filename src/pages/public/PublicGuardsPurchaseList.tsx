@@ -38,11 +38,17 @@ const statusVariant = (s: string) => {
   return 'bg-yellow-100 text-yellow-800 border-yellow-200';
 };
 
-const PublicGuardsPurchaseList: React.FC = () => {
+interface PublicGuardsPurchaseListProps {
+  embedded?: boolean;
+  canDelete?: boolean;
+  onRequestDelete?: (id: string, studentName: string) => void;
+}
+
+const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, onRequestDelete }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const { branches } = useBranches();
-  const [unlocked, setUnlocked] = useState<boolean>(() => sessionStorage.getItem(SS_KEY) === '1');
+  const [unlocked, setUnlocked] = useState<boolean>(() => embedded || sessionStorage.getItem(SS_KEY) === '1');
   const [pwInput, setPwInput] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -51,6 +57,30 @@ const PublicGuardsPurchaseList: React.FC = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
+  const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
+
+  // Auto-lock after 15 minutes of inactivity (standalone only)
+  React.useEffect(() => {
+    if (embedded || !unlocked) return;
+    const TIMEOUT_MS = 15 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        sessionStorage.removeItem(SS_KEY);
+        sessionStorage.removeItem('guards_list_unlock_level_v1');
+        setUnlocked(false);
+        toast.info('Auto-locked after 15 minutes of inactivity');
+      }, TIMEOUT_MS);
+    };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [embedded, unlocked]);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['guards-purchases'],
