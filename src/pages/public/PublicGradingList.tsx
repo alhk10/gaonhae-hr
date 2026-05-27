@@ -51,6 +51,8 @@ import {
   adminUpdateGradingSubmissionDisplayName,
   adminUpdateGradingSubmissionResult,
   adminDeleteGradingSubmission,
+  adminDeleteGradingRegistration,
+  getGradingRowDeleteContext,
   adminUpdateGradingResult,
   adminUpdateGradingRegistrationSlot,
   adminUpdateGradingRegistrationBranch,
