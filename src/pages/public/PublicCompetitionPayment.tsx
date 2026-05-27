@@ -501,6 +501,12 @@ const PublicCompetitionPayment: React.FC = () => {
                 acceptPdf={false}
               />
 
+              {submitError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
+                </Alert>
+              )}
+
               <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
               </Button>
