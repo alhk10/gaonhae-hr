@@ -214,6 +214,7 @@ const PublicCompetitionPayment: React.FC = () => {
     if (!canSubmit || !coachingProduct || !dob || !proofFile) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const isoDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
       const result = await submitCompetitionPayment({
@@ -233,7 +234,9 @@ const PublicCompetitionPayment: React.FC = () => {
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to submit payment');
+      const msg = err?.message || 'Failed to submit payment';
+      setSubmitError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
