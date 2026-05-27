@@ -101,6 +101,11 @@ const PublicGradingList: React.FC = () => {
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<PublicGradingListRow | null>(null);
+  type PendingDelete =
+    | { kind: 'competition'; id: string; studentName: string }
+    | { kind: 'guards'; id: string; studentName: string };
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
