@@ -93,6 +93,18 @@ export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> =>
   return (data || []) as CompetitionProduct[];
 };
 
+const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const t = setTimeout(
+      () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s — please check your connection and try again`)),
+      ms,
+    );
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+
 export const submitCompetitionPayment = async (
   input: SubmitCompetitionPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
@@ -104,10 +116,20 @@ export const submitCompetitionPayment = async (
   // Upload proof
   const proofExt = input.proof_file.name.split('.').pop() || 'jpg';
   const proofPath = `public-comps/${input.branch_id}/${ts}_${safeName}_proof.${proofExt}`;
-  const { error: proofErr } = await supabase.storage
-    .from('payment-proofs')
-    .upload(proofPath, input.proof_file, { upsert: false, contentType: input.proof_file.type });
-  if (proofErr) throw proofErr;
+  console.info('[/comps] uploading proof', { path: proofPath, size: input.proof_file.size, type: input.proof_file.type });
+  const { error: proofErr } = await withTimeout(
+    supabase.storage
+      .from('payment-proofs')
+      .upload(proofPath, input.proof_file, { upsert: false, contentType: input.proof_file.type }),
+    30000,
+    'Proof upload',
+  );
+  if (proofErr) {
+    console.error('[/comps] proof upload error', proofErr);
+    throw new Error(`Proof upload failed: ${(proofErr as any).message || 'unknown error'}`);
+  }
+  console.info('[/comps] proof uploaded');
+
   const { data: proofSigned } = await supabase.storage
     .from('payment-proofs')
     .createSignedUrl(proofPath, 60 * 60 * 24 * 365 * 5);
@@ -118,14 +140,23 @@ export const submitCompetitionPayment = async (
   if (input.certificate_file) {
     const certExt = input.certificate_file.name.split('.').pop() || 'jpg';
     const certPath = `public-comps/${input.branch_id}/${ts}_${safeName}_cert.${certExt}`;
-    const { error: cErr } = await supabase.storage
-      .from('payment-proofs')
-      .upload(certPath, input.certificate_file, { upsert: false, contentType: input.certificate_file.type });
-    if (cErr) throw cErr;
+    console.info('[/comps] uploading certificate', { path: certPath, size: input.certificate_file.size });
+    const { error: cErr } = await withTimeout(
+      supabase.storage
+        .from('payment-proofs')
+        .upload(certPath, input.certificate_file, { upsert: false, contentType: input.certificate_file.type }),
+      30000,
+      'Certificate upload',
+    );
+    if (cErr) {
+      console.error('[/comps] cert upload error', cErr);
+      throw new Error(`Certificate upload failed: ${(cErr as any).message || 'unknown error'}`);
+    }
     const { data: certSigned } = await supabase.storage
       .from('payment-proofs')
       .createSignedUrl(certPath, 60 * 60 * 24 * 365 * 5);
     certificateUrl = certSigned?.signedUrl ?? certPath;
+    console.info('[/comps] certificate uploaded');
   }
 
   const row = {
@@ -143,11 +174,21 @@ export const submitCompetitionPayment = async (
     certificate_url: certificateUrl,
   };
 
-  const { data, error } = await supabase.rpc('submit_competition_payment' as any, {
-    _row: row as any,
-  });
-  if (error) throw error;
+  console.info('[/comps] calling submit_competition_payment RPC');
+  const { data, error } = await withTimeout(
+    supabase.rpc('submit_competition_payment' as any, { _row: row as any }),
+    15000,
+    'Submission',
+  );
+  if (error) {
+    console.error('[/comps] RPC error', error);
+    throw new Error(`Submission failed: ${error.message || 'unknown error'}`);
+  }
   const inserted = Array.isArray(data) ? data[0] : data;
+  if (!inserted) {
+    throw new Error('Submission failed: no record returned');
+  }
+  console.info('[/comps] submitted', inserted);
   return inserted as { id: string; reference_number: string };
 };
 
