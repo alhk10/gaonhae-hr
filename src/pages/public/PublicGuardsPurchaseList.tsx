@@ -175,9 +175,6 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h1 className="text-lg font-semibold">Guards Purchase List</h1>
-          <Button variant="outline" size="sm" onClick={() => { sessionStorage.removeItem(SS_KEY); setUnlocked(false); }}>
-            <Unlock className="h-4 w-4 mr-1" /> Lock
-          </Button>
         </div>
 
         <Card>
@@ -228,6 +225,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead></TableHead>
+                    {canDelete && onRequestDelete && <TableHead></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody className="[&_td]:px-2 [&_td]:py-1.5 [&_td]:text-xs">
@@ -363,11 +361,24 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             Details
                           </Button>
                         </TableCell>
+                        {canDelete && onRequestDelete && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                              onClick={() => onRequestDelete(r.id, `${r.first_name} ${r.last_name}`.trim())}
+                              title="Delete row"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
                   {filtered.length === 0 && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canDelete && onRequestDelete ? 10 : 9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

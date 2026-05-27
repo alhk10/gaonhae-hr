@@ -23,6 +23,7 @@ import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, Al
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
+import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
@@ -100,8 +101,8 @@ const PublicGradingList: React.FC = () => {
 
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
-  const [confirmDeleteRow, setConfirmDeleteRow] = useState<PublicGradingListRow | null>(null);
   type PendingDelete =
+    | { kind: 'grading'; source: 'submission' | 'registration'; id: string; studentName: string }
     | { kind: 'competition'; id: string; studentName: string }
     | { kind: 'guards'; id: string; studentName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -264,33 +265,19 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirmDeleteRow) return;
-    const row = confirmDeleteRow;
-    setDeleting(true);
-    try {
-      if (row.source === 'submission' && row.submission_id) {
-        await adminDeleteGradingSubmission(row.submission_id);
-      } else if (row.source === 'registration' && row.registration_id) {
-        await adminDeleteGradingRegistration(row.registration_id);
-      } else {
-        throw new Error('Row missing identifier');
-      }
-      toast.success('Row deleted');
-      setConfirmDeleteRow(null);
-      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to delete');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handlePendingDelete = async () => {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      if (pendingDelete.kind === 'competition') {
+      if (pendingDelete.kind === 'grading') {
+        if (pendingDelete.source === 'submission') {
+          await adminDeleteGradingSubmission(pendingDelete.id);
+        } else {
+          await adminDeleteGradingRegistration(pendingDelete.id);
+        }
+        toast.success('Row deleted');
+        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      } else if (pendingDelete.kind === 'competition') {
         await adminDeleteCompetitionSubmission(pendingDelete.id);
         toast.success('Competition entry deleted');
         qc.invalidateQueries({ queryKey: ['public-competition-list'] });
@@ -1382,7 +1369,12 @@ const PublicGradingList: React.FC = () => {
                               {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmDeleteRow(r)}
+                                  onClick={() => setPendingDelete({
+                                    kind: 'grading',
+                                    source: r.source as 'submission' | 'registration',
+                                    id: (r.source === 'submission' ? r.submission_id : r.registration_id) as string,
+                                    studentName: r.student_name || '',
+                                  })}
                                   className="text-red-600 hover:text-red-800"
                                   title="Delete row"
                                 >
@@ -1475,21 +1467,13 @@ const PublicGradingList: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <Dialog open={!!confirmDeleteRow} onOpenChange={(o) => !o && setConfirmDeleteRow(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete submission?</DialogTitle>
-            <DialogDescription>
-              {confirmDeleteRow?.student_name} — this cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDeleteRow(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Unified delete confirm (grading + competition + guards) */}
+      <DeleteRowConfirmDialog
+        pending={pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+        onConfirm={handlePendingDelete}
+        loading={deleting}
+      />
 
       {/* Proof lightbox */}
       <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
