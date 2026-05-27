@@ -225,6 +225,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead></TableHead>
+                    {canDelete && onRequestDelete && <TableHead></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody className="[&_td]:px-2 [&_td]:py-1.5 [&_td]:text-xs">
