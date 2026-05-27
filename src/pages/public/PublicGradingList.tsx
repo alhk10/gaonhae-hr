@@ -19,11 +19,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
-import { getPublicCompetitionList, type PublicCompetitionListRow } from '@/services/competitionPaymentSubmissionService';
+import {
+  getPublicCompetitionList,
+  adminDeleteCompetitionSubmission,
+  getCompetitionSubmissionDeleteContext,
+  type PublicCompetitionListRow,
+} from '@/services/competitionPaymentSubmissionService';
 import {
   downloadGradingCertificatePDF,
   generateBulkGradingCertificatesPDFAsync,
@@ -46,6 +51,8 @@ import {
   adminUpdateGradingSubmissionDisplayName,
   adminUpdateGradingSubmissionResult,
   adminDeleteGradingSubmission,
+  adminDeleteGradingRegistration,
+  getGradingRowDeleteContext,
   adminUpdateGradingResult,
   adminUpdateGradingRegistrationSlot,
   adminUpdateGradingRegistrationBranch,
@@ -94,6 +101,11 @@ const PublicGradingList: React.FC = () => {
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
   const [slotChoice, setSlotChoice] = useState<string>('');
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<PublicGradingListRow | null>(null);
+  type PendingDelete =
+    | { kind: 'competition'; id: string; studentName: string }
+    | { kind: 'guards'; id: string; studentName: string };
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -253,16 +265,69 @@ const PublicGradingList: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirmDeleteRow?.submission_id) return;
+    if (!confirmDeleteRow) return;
+    const row = confirmDeleteRow;
+    setDeleting(true);
     try {
-      await adminDeleteGradingSubmission(confirmDeleteRow.submission_id);
-      toast.success('Submission deleted');
+      if (row.source === 'submission' && row.submission_id) {
+        await adminDeleteGradingSubmission(row.submission_id);
+      } else if (row.source === 'registration' && row.registration_id) {
+        await adminDeleteGradingRegistration(row.registration_id);
+      } else {
+        throw new Error('Row missing identifier');
+      }
+      toast.success('Row deleted');
       setConfirmDeleteRow(null);
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
     }
   };
+
+  const handlePendingDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.kind === 'competition') {
+        await adminDeleteCompetitionSubmission(pendingDelete.id);
+        toast.success('Competition entry deleted');
+        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      } else if (pendingDelete.kind === 'guards') {
+        const { adminDeleteGuardsPurchase } = await import('@/services/guardsPurchaseService');
+        await adminDeleteGuardsPurchase(pendingDelete.id);
+        toast.success('Guards purchase deleted');
+        qc.invalidateQueries({ queryKey: ['guards-purchases'] });
+      }
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Auto-lock after 15 minutes of inactivity when unlocked
+  useEffect(() => {
+    if (unlockLevel === 'none') return;
+    const TIMEOUT_MS = 15 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        handleLock();
+        toast.info('Auto-locked after 15 minutes of inactivity');
+      }, TIMEOUT_MS);
+    };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [unlockLevel]);
 
   const handleVerify = async (row: PublicGradingListRow) => {
     if (!row.submission_id) return;
@@ -1065,14 +1130,6 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="grading" className="space-y-4 mt-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h1 className="text-lg font-semibold">Grading List</h1>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLock}
-              >
-                {editMode ? <Unlock className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
-                {editMode ? 'Lock' : 'Unlock'}
-              </Button>
             </div>
 
 
@@ -1322,12 +1379,12 @@ const PublicGradingList: React.FC = () => {
                             </TableCell>
 
                             <TableCell className="px-2 py-0.5">
-                              {canDelete && r.source === 'submission' && (
+                              {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteRow(r)}
                                   className="text-red-600 hover:text-red-800"
-                                  title="Delete submission"
+                                  title="Delete row"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1372,10 +1429,18 @@ const PublicGradingList: React.FC = () => {
         })}
           </TabsContent>
           <TabsContent value="competitions" className="mt-4">
-            <CompetitionsTab branchFilter={branchFilter} />
+            <CompetitionsTab
+              branchFilter={branchFilter}
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
+            />
           </TabsContent>
           <TabsContent value="guards" className="mt-4">
-            <PublicGuardsPurchaseList />
+            <PublicGuardsPurchaseList
+              embedded
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -1633,7 +1698,11 @@ const PublicGradingList: React.FC = () => {
   );
 };
 
-const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) => {
+const CompetitionsTab: React.FC<{
+  branchFilter: string;
+  canDelete?: boolean;
+  onRequestDelete?: (id: string, studentName: string) => void;
+}> = ({ branchFilter, canDelete, onRequestDelete }) => {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
     queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
@@ -1656,6 +1725,7 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
               <TableHead>Coaching</TableHead>
               <TableHead>Cert</TableHead>
               <TableHead>Status</TableHead>
+              {canDelete && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1682,6 +1752,18 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
                 <TableCell>
                   <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
                 </TableCell>
+                {canDelete && (
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onRequestDelete?.(r.submission_id, r.student_name)}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete row"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
@@ -1690,5 +1772,6 @@ const CompetitionsTab: React.FC<{ branchFilter: string }> = ({ branchFilter }) =
     </div>
   );
 };
+
 
 export default PublicGradingList;

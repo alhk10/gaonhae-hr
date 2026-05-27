@@ -6973,9 +6973,45 @@ export type Database = {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
+      admin_competition_submission_delete_context: {
+        Args: { p_id: string }
+        Returns: {
+          invoice_number: string
+          student_matched: boolean
+          student_name: string
+        }[]
+      }
+      admin_delete_competition_submission: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_delete_grading_registration: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       admin_delete_grading_submission: {
         Args: { p_id: string }
         Returns: undefined
+      }
+      admin_delete_guards_purchase: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_grading_row_delete_context: {
+        Args: { p_id: string; p_source: string }
+        Returns: {
+          invoice_number: string
+          student_matched: boolean
+          student_name: string
+        }[]
+      }
+      admin_guards_purchase_delete_context: {
+        Args: { p_id: string }
+        Returns: {
+          invoice_number: string
+          student_matched: boolean
+          student_name: string
+        }[]
       }
       admin_import_competition_submission: {
         Args: { p_id: string; p_verified_by: string }
