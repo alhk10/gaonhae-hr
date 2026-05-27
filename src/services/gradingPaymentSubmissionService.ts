@@ -270,6 +270,34 @@ export const adminDeleteGradingSubmission = async (id: string) => {
   if (error) throw error;
 };
 
+export const adminDeleteGradingRegistration = async (id: string) => {
+  const { error } = await supabase.rpc('admin_delete_grading_registration' as any, { p_id: id });
+  if (error) throw error;
+};
+
+export interface DeleteRowContext {
+  student_matched: boolean;
+  student_name: string | null;
+  invoice_number: string | null;
+}
+
+export const getGradingRowDeleteContext = async (
+  source: 'registration' | 'submission',
+  id: string,
+): Promise<DeleteRowContext> => {
+  const { data, error } = await supabase.rpc('admin_grading_row_delete_context' as any, {
+    p_source: source,
+    p_id: id,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    student_matched: !!row?.student_matched,
+    student_name: row?.student_name ?? null,
+    invoice_number: row?.invoice_number ?? null,
+  };
+};
+
 /** Allow superadmin to edit captured submission contact details before matching. */
 export const updateGradingSubmissionDetails = async (
   id: string,
