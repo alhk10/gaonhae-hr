@@ -265,16 +265,69 @@ const PublicGradingList: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirmDeleteRow?.submission_id) return;
+    if (!confirmDeleteRow) return;
+    const row = confirmDeleteRow;
+    setDeleting(true);
     try {
-      await adminDeleteGradingSubmission(confirmDeleteRow.submission_id);
-      toast.success('Submission deleted');
+      if (row.source === 'submission' && row.submission_id) {
+        await adminDeleteGradingSubmission(row.submission_id);
+      } else if (row.source === 'registration' && row.registration_id) {
+        await adminDeleteGradingRegistration(row.registration_id);
+      } else {
+        throw new Error('Row missing identifier');
+      }
+      toast.success('Row deleted');
       setConfirmDeleteRow(null);
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
     }
   };
+
+  const handlePendingDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.kind === 'competition') {
+        await adminDeleteCompetitionSubmission(pendingDelete.id);
+        toast.success('Competition entry deleted');
+        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      } else if (pendingDelete.kind === 'guards') {
+        const { adminDeleteGuardsPurchase } = await import('@/services/guardsPurchaseService');
+        await adminDeleteGuardsPurchase(pendingDelete.id);
+        toast.success('Guards purchase deleted');
+        qc.invalidateQueries({ queryKey: ['guards-purchases'] });
+      }
+      setPendingDelete(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Auto-lock after 15 minutes of inactivity when unlocked
+  useEffect(() => {
+    if (unlockLevel === 'none') return;
+    const TIMEOUT_MS = 15 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        handleLock();
+        toast.info('Auto-locked after 15 minutes of inactivity');
+      }, TIMEOUT_MS);
+    };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [unlockLevel]);
 
   const handleVerify = async (row: PublicGradingListRow) => {
     if (!row.submission_id) return;
