@@ -361,11 +361,24 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             Details
                           </Button>
                         </TableCell>
+                        {canDelete && onRequestDelete && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                              onClick={() => onRequestDelete(r.id, `${r.first_name} ${r.last_name}`.trim())}
+                              title="Delete row"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
                   {filtered.length === 0 && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canDelete && onRequestDelete ? 10 : 9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
