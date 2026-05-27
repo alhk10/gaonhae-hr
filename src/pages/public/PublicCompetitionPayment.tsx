@@ -121,6 +121,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
 
   const { data: branches = [] } = useQuery({
