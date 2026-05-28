@@ -221,16 +221,16 @@ export const submitGuardsPurchase = async (
       body: {
         templateName: 'guards-order-received',
         recipientEmail: input.email.trim().toLowerCase(),
-        idempotencyKey: `guards-received-${(data as any).id}`,
+        idempotencyKey: `guards-received-${(inserted as any).id}`,
         templateData: {
           firstName: fn,
-          referenceNumber: (data as any).reference_number || '',
+          referenceNumber: (inserted as any).reference_number || '',
         },
       },
     }).catch(() => { /* non-blocking */ });
   }
 
-  return data as { id: string; reference_number: string | null };
+  return inserted as { id: string; reference_number: string | null };
 };
 
 // ---------- Admin functions ----------
