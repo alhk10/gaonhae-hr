@@ -189,6 +189,9 @@ const PublicGradingList: React.FC = () => {
     }
     for (const g of map.values()) {
       g.items.sort((a, b) => {
+        const ra = a.remark ? 1 : 0;
+        const rb = b.remark ? 1 : 0;
+        if (ra !== rb) return ra - rb;
         const ba = (a.branch_name || '').localeCompare(b.branch_name || '');
         if (ba !== 0) return ba;
         return (a.student_name || '').localeCompare(b.student_name || '');
