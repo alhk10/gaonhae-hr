@@ -1,7 +1,29 @@
-Two data updates:
+Update `src/components/dashboard/PublicCompetitionSubmissionApprovals.tsx` to mirror the grading submissions card (`PublicGradingSubmissionApprovals.tsx`). All required RPCs and service functions already exist on the competition service — this is a UI rewrite of one component, no backend changes.
 
-1. Update product `Singapore Open Poomsae — Coaching Fee` (id `ee7f6ca5-fbcf-4bb3-86dc-96ac89b3755b`) `base_price` from `100.00` → `90.00`, so checkout displays $98.10 (90 × 1.09).
+## Changes to PublicCompetitionSubmissionApprovals.tsx
 
-2. Update York's competition submission (id `fb780245-22c2-4c07-a66e-afa4de75524f`, LOK CHUN YORK LEUNG) `amount` from `207.10` → `196.20` (98.10 coaching + 98.10 Individual).
+1. **Row layout** — match grading card:
+   - Show Matched / Unmatched + Pending / Verified status badges.
+   - Show branch, amount, payment method, submission timestamp, categories.
 
-Both via a single migration (data UPDATEs).
+2. **Action buttons per row** (replace single "Match & Approve"):
+   - `Match Student` / `Re-match` → opens match dialog (does match only, no import).
+   - `Verify & Import` → calls `importCompetitionSubmission`; disabled until `matched_student_id` is set. This creates the invoice.
+   - `Edit details` → opens edit dialog using `updateCompetitionSubmissionDetails` (first/last name, email, DOB, belt, branch).
+   - `Reject` → existing reject flow.
+
+3. **Match dialog** — mirror grading:
+   - Suggested matches from `findCompetitionSubmissionStudentMatches`.
+   - Manual search via `students` table.
+   - "Create new student" inline form (first/last name, DOB, email, branch, gender, belt), prefilled from submission, calls `createStudent` then `matchCompetitionSubmission`.
+   - Match buttons call `matchCompetitionSubmission` only (no auto-import), so reviewer can verify before generating the invoice.
+
+4. **Edit dialog** — first name, last name, email, DOB, belt, branch; saves via `updateCompetitionSubmissionDetails`.
+
+5. **Reject dialog** — unchanged.
+
+6. Keep certificate + proof thumbnail previews.
+
+## Out of scope
+- No database / RPC / service changes.
+- No changes to `/comps` public submission page or grading list Competitions tab.
