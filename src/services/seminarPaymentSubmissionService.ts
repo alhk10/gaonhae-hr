@@ -149,6 +149,26 @@ export const submitSeminarPayment = async (
   if (error) throw new Error(`Submission failed: ${error.message || 'unknown error'}`);
   const inserted = Array.isArray(data) ? data[0] : data;
   if (!inserted) throw new Error('Submission failed: no record returned');
+
+  const recipient = (input.email || '').trim().toLowerCase();
+  if (recipient) {
+    void supabase.functions.invoke('send-transactional-email', {
+      body: {
+        templateName: 'seminar-confirmation',
+        recipientEmail: recipient,
+        idempotencyKey: `seminar-confirm-${inserted.id}`,
+        templateData: {
+          firstName: fn,
+          fullName: `${fn} ${ln}`.trim(),
+          packageLabel: input.package_label,
+          sessionDates: input.session_dates,
+          amount: input.amount,
+          referenceNumber: inserted.reference_number,
+        },
+      },
+    });
+  }
+
   return inserted as { id: string; reference_number: string };
 };
 
