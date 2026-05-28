@@ -1,37 +1,12 @@
-# Verify public submission works on /comps, /guards, /seminars, /pay
+# Fix /seminars payment submission
 
-## Current state (already verified)
+## Root cause
+The `/seminars` form uploads payment proof to `payment-proofs/public-seminars/...`, but the storage RLS policies only allow anon uploads to folders `public-comps`, `public-grading`, and `public-guards`. There's no policy for `public-seminars`, so anon uploads fail with "new row violates row-level security policy".
 
-All four routes already submit through `SECURITY DEFINER` RPCs with `EXECUTE` granted to `anon` + `authenticated`, so PostgREST RLS visibility errors should no longer occur:
+## Fix
+Add two storage.objects policies for the `public-seminars` folder:
+- Allow public (anonymous) users to upload payment proof images
+- Allow authenticated staff to view uploaded seminar payment proofs
 
-| Route        | Service                                 | RPC                          |
-|--------------|-----------------------------------------|------------------------------|
-| `/pay`       | `gradingPaymentSubmissionService.ts`    | `submit_grading_payments`    |
-| `/comps`     | `competitionPaymentSubmissionService.ts`| `submit_competition_payment` |
-| `/seminars`  | `seminarPaymentSubmissionService.ts`    | `submit_seminar_payment`     |
-| `/guards`    | `guardsPurchaseService.ts`              | `submit_guards_purchase`     |
-
-DB check confirmed: all four functions exist, `SECURITY DEFINER`, `search_path = public`, EXECUTE granted to `anon` and `authenticated`. The `payment-proofs` storage bucket already accepts anon uploads (proof upload step of `/guards` was working before the RLS fix).
-
-## Verification plan
-
-1. **Browser end-to-end smoke test (incognito / unauthenticated session)** for each of `/pay`, `/comps`, `/seminars`, `/guards`:
-   - Fill the form with valid data (smallest cart / cheapest option).
-   - Upload a tiny PNG as proof.
-   - Submit and confirm the success state appears (reference number shown, no toast error).
-   - Confirm a new row appears in the corresponding table via a read query.
-2. **DB cleanup**: delete the four test rows + their proof files after the test.
-3. If any route surfaces an error (RLS, validation, missing GRANT, storage policy), capture the exact error, fix the offending RPC or service, and re-test that route only.
-
-## Robustness improvements (only if a test fails)
-
-- If an RPC raises an unhandled exception, wrap the service call to surface the Postgres error code/hint in the toast (so future failures are diagnosable from the screenshot).
-- If a storage upload step fails for anon, add an explicit INSERT policy on `storage.objects` scoped to `bucket_id = 'payment-proofs'`.
-
-No proactive code changes — the four services and four RPCs are already aligned. The work in this task is verification; code edits happen only if a specific route fails the smoke test.
-
-## Out of scope
-
-- Admin views (`/grading-list`, superadmin dashboard) — already covered by separate policies and unaffected by public submission.
-- Invoice creation flow downstream of `/guards` matching — only triggered by superadmin, not by the public form.
-- Any UI redesign of the four public forms.
+## Verification
+After migration, test `/seminars` end-to-end (upload proof + submit). No code changes required — the service already targets the correct folder.
