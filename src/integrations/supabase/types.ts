@@ -7920,6 +7920,13 @@ export type Database = {
           reference_number: string
         }[]
       }
+      submit_guards_purchase: {
+        Args: { _row: Json }
+        Returns: {
+          id: string
+          reference_number: string
+        }[]
+      }
       submit_public_chat_invoice: {
         Args: {
           p_amount: number

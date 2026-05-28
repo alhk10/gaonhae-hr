@@ -210,13 +210,10 @@ export const submitGuardsPurchase = async (
     sale_status: 'pending_verification' as const,
   };
 
-  const { data, error } = await supabase
-    .from('guards_purchases')
-    .insert(row as any)
-    .select('id, reference_number')
-    .single();
-
+  const { data, error } = await supabase.rpc('submit_guards_purchase' as any, { _row: row as any });
   if (error) throw error;
+  const inserted = Array.isArray(data) ? data[0] : data;
+  if (!inserted) throw new Error('Submission failed: no record returned');
 
   // Fire-and-forget confirmation email
   if (input.email?.trim()) {
@@ -224,16 +221,16 @@ export const submitGuardsPurchase = async (
       body: {
         templateName: 'guards-order-received',
         recipientEmail: input.email.trim().toLowerCase(),
-        idempotencyKey: `guards-received-${(data as any).id}`,
+        idempotencyKey: `guards-received-${(inserted as any).id}`,
         templateData: {
           firstName: fn,
-          referenceNumber: (data as any).reference_number || '',
+          referenceNumber: (inserted as any).reference_number || '',
         },
       },
     }).catch(() => { /* non-blocking */ });
   }
 
-  return data as { id: string; reference_number: string | null };
+  return inserted as { id: string; reference_number: string | null };
 };
 
 // ---------- Admin functions ----------
