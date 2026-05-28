@@ -1,9 +1,7 @@
-Add a rotate button to the certificate/proof preview dialog so the user can rotate the displayed image in 90° increments.
+Two data updates:
 
-Scope:
-- `src/pages/public/PublicGradingList.tsx` — CompetitionsTab preview Dialog (cert/proof thumbnails) and the main grading-list lightbox Dialog (proof viewer).
+1. Update product `Singapore Open Poomsae — Coaching Fee` (id `ee7f6ca5-fbcf-4bb3-86dc-96ac89b3755b`) `base_price` from `100.00` → `90.00`, so checkout displays $98.10 (90 × 1.09).
 
-Implementation:
-1. Add `const [rotation, setRotation] = useState(0)` in both dialog hosts. Reset to 0 when dialog opens/closes.
-2. Add a `RotateCw` icon button in the DialogHeader (next to the title) that does `setRotation((r) => (r + 90) % 360)`.
-3. Apply `style={{ transform: \`rotate(${rotation}deg)\` }}` and `transition-transform` to the image. Wrap image in a centered container so rotated 90/270 versions remain visible.
+2. Update York's competition submission (id `fb780245-22c2-4c07-a66e-afa4de75524f`, LOK CHUN YORK LEUNG) `amount` from `207.10` → `196.20` (98.10 coaching + 98.10 Individual).
+
+Both via a single migration (data UPDATEs).

@@ -1,0 +1,2 @@
+UPDATE public.products SET base_price = 90.00, updated_at = now() WHERE id = 'ee7f6ca5-fbcf-4bb3-86dc-96ac89b3755b';
+UPDATE public.competition_payment_submissions SET amount = 196.20, updated_at = now() WHERE id = 'fb780245-22c2-4c07-a66e-afa4de75524f';
