@@ -266,6 +266,28 @@ export const adminUpdateGradingSubmissionResult = async (id: string, result: str
   if (error) throw error;
 };
 
+export const adminUpdateGradingRemark = async (
+  registrationId: string,
+  remark: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_remark' as any, {
+    p_registration_id: registrationId,
+    p_remark: remark,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingSubmissionRemark = async (
+  id: string,
+  remark: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_remark' as any, {
+    p_submission_id: id,
+    p_remark: remark,
+  });
+  if (error) throw error;
+};
+
 export const adminDeleteGradingSubmission = async (id: string) => {
   const { error } = await supabase.rpc('admin_delete_grading_submission' as any, { p_id: id });
   if (error) throw error;
