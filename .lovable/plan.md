@@ -1,8 +1,9 @@
-Add a lock icon button at the top-right of the unlocked PublicGradingList view to return to the password page.
+Add a rotate button to the certificate/proof preview dialog so the user can rotate the displayed image in 90° increments.
 
-1. Insert a `<Button variant="ghost" size="icon" onClick={handleLock}>` with a `<Lock>` icon into the header flex row of the Grading tab (next to the "Grading List" heading). The same lock button will appear in the header area shared across all tabs, positioned at the top right.
+Scope:
+- `src/pages/public/PublicGradingList.tsx` — CompetitionsTab preview Dialog (cert/proof thumbnails) and the main grading-list lightbox Dialog (proof viewer).
 
-2. The `handleLock` function already exists and clears `unlockLevel` + `sessionStorage` — no logic changes needed.
-
-Files to edit:
-- src/pages/public/PublicGradingList.tsx
+Implementation:
+1. Add `const [rotation, setRotation] = useState(0)` in both dialog hosts. Reset to 0 when dialog opens/closes.
+2. Add a `RotateCw` icon button in the DialogHeader (next to the title) that does `setRotation((r) => (r + 90) % 360)`.
+3. Apply `style={{ transform: \`rotate(${rotation}deg)\` }}` and `transition-transform` to the image. Wrap image in a centered container so rotated 90/270 versions remain visible.

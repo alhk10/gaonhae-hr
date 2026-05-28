@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
@@ -126,6 +126,7 @@ const PublicGradingList: React.FC = () => {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -1582,13 +1583,29 @@ const PublicGradingList: React.FC = () => {
       />
 
       {/* Proof lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); } }}>
         <DialogContent className="max-w-3xl p-2">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="sr-only">Payment proof</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+              title="Rotate 90°"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
           </DialogHeader>
           {lightboxUrl && (
-            <img src={lightboxUrl} alt="Payment proof" className="w-full h-auto rounded" />
+            <div className="flex items-center justify-center overflow-hidden">
+              <img
+                src={lightboxUrl}
+                alt="Payment proof"
+                className="max-w-full max-h-[80vh] h-auto rounded transition-transform"
+                style={{ transform: `rotate(${lightboxRotation}deg)` }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -1862,6 +1879,7 @@ const CompetitionsTab: React.FC<{
   });
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [previewRotation, setPreviewRotation] = useState(0);
 
   const poomsaeMutation = useMutation({
     mutationFn: ({ id, p1, p2 }: { id: string; p1: string | null; p2: string | null }) =>
@@ -1987,17 +2005,29 @@ const CompetitionsTab: React.FC<{
         </Table>
       </div>
 
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { setPreview(null); setPreviewRotation(0); } }}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
+              title="Rotate 90°"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
           </DialogHeader>
           {preview && (
-            <SignedImage
-              src={preview.url}
-              className="w-full h-auto max-h-[80vh] object-contain rounded"
-              alt={preview.title}
-            />
+            <div className="flex items-center justify-center overflow-hidden">
+              <SignedImage
+                src={preview.url}
+                className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
+                alt={preview.title}
+                style={{ transform: `rotate(${previewRotation}deg)` }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
