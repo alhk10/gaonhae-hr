@@ -83,12 +83,7 @@ export interface SubmitCompetitionPaymentInput {
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
-  const { data, error } = await (supabase as any)
-    .from('products')
-    .select('id, name, base_price, tax_rate, kind')
-    .eq('kind', 'competition')
-    .eq('is_active', true)
-    .order('name');
+  const { data, error } = await supabase.rpc('get_public_competition_products' as any);
   if (error) throw error;
   return (data || []) as CompetitionProduct[];
 };
