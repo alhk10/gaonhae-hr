@@ -430,6 +430,8 @@ const PublicGradingList: React.FC = () => {
       const ops: Promise<unknown>[] = [];
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
+      const currentRemark = editRow.remark || '';
+      const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
         if (currentName !== editForm.display_name) {
@@ -441,8 +443,11 @@ const PublicGradingList: React.FC = () => {
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
         }
-        if (editForm.result !== currentResult) {
+        if (resultEditable && editForm.result !== currentResult) {
           ops.push(adminUpdateGradingResult(editRow.registration_id, editForm.result || null));
+        }
+        if (editForm.remark !== currentRemark) {
+          ops.push(adminUpdateGradingRemark(editRow.registration_id, editForm.remark || null));
         }
       } else if (editRow.source === 'submission' && editRow.submission_id) {
         if (currentName !== editForm.display_name) {
@@ -454,8 +459,11 @@ const PublicGradingList: React.FC = () => {
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingSubmissionSlot(editRow.submission_id, editForm.slot_id));
         }
-        if (editForm.result !== currentResult) {
+        if (resultEditable && editForm.result !== currentResult) {
           ops.push(adminUpdateGradingSubmissionResult(editRow.submission_id, editForm.result || null));
+        }
+        if (editForm.remark !== currentRemark) {
+          ops.push(adminUpdateGradingSubmissionRemark(editRow.submission_id, editForm.remark || null));
         }
       }
 
