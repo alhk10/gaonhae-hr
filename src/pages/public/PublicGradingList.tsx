@@ -419,6 +419,7 @@ const PublicGradingList: React.FC = () => {
       branch_id: r.branch_id || '',
       slot_id: r.slot_id || '',
       result: r.result || '',
+      remark: r.remark || '',
     });
   };
 
