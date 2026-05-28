@@ -7372,6 +7372,16 @@ export type Database = {
           submission_id: string
         }[]
       }
+      get_public_competition_products: {
+        Args: never
+        Returns: {
+          base_price: number
+          id: string
+          kind: string
+          name: string
+          tax_rate: number
+        }[]
+      }
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
