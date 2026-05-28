@@ -2018,6 +2018,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
           </TableHeader>
