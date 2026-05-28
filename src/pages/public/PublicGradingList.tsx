@@ -1435,6 +1435,14 @@ const PublicGradingList: React.FC = () => {
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
             />
           </TabsContent>
+          <TabsContent value="seminars" className="mt-4">
+            <SeminarsTab
+              branchFilter={branchFilter}
+              canEdit={editMode}
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'seminar', id, studentName: name })}
+            />
+          </TabsContent>
           <TabsContent value="guards" className="mt-4">
             <PublicGuardsPurchaseList
               embedded
