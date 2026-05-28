@@ -288,6 +288,11 @@ const PublicGradingList: React.FC = () => {
         await adminDeleteGuardsPurchase(pendingDelete.id);
         toast.success('Guards purchase deleted');
         qc.invalidateQueries({ queryKey: ['guards-purchases'] });
+      } else if (pendingDelete.kind === 'seminar') {
+        const { adminDeleteSeminarSubmission } = await import('@/services/seminarPaymentSubmissionService');
+        await adminDeleteSeminarSubmission(pendingDelete.id);
+        toast.success('Seminar booking deleted');
+        qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
       }
       setPendingDelete(null);
     } catch (e: any) {
