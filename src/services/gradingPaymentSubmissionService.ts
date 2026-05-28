@@ -44,6 +44,7 @@ export interface PublicGradingListRow {
   amount: number | null;
   proof_url: string | null;
   result: string | null;
+  remark: string | null;
   student_id: string | null;
   certificate_name: string | null;
   first_name: string | null;
