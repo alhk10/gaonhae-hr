@@ -137,7 +137,8 @@ const PublicGradingList: React.FC = () => {
     branch_id: string;
     slot_id: string;
     result: string;
-  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '' });
+    remark: string;
+  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '', remark: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Mass edit dialog
@@ -146,7 +147,8 @@ const PublicGradingList: React.FC = () => {
     changeResult: boolean; result: string;
     changeSlot: boolean; slot_id: string;
     changeBranch: boolean; branch_id: string;
-  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    changeRemark: boolean; remark: string;
+  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
   const [savingMass, setSavingMass] = useState(false);
 
 
