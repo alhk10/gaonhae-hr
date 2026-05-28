@@ -44,6 +44,7 @@ export interface PublicGradingListRow {
   amount: number | null;
   proof_url: string | null;
   result: string | null;
+  remark: string | null;
   student_id: string | null;
   certificate_name: string | null;
   first_name: string | null;
@@ -261,6 +262,28 @@ export const adminUpdateGradingSubmissionResult = async (id: string, result: str
   const { error } = await supabase.rpc('admin_update_grading_submission_result' as any, {
     p_submission_id: id,
     p_result: result,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingRemark = async (
+  registrationId: string,
+  remark: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_remark' as any, {
+    p_registration_id: registrationId,
+    p_remark: remark,
+  });
+  if (error) throw error;
+};
+
+export const adminUpdateGradingSubmissionRemark = async (
+  id: string,
+  remark: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_submission_remark' as any, {
+    p_submission_id: id,
+    p_remark: remark,
   });
   if (error) throw error;
 };

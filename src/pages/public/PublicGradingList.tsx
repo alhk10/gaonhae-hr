@@ -56,6 +56,8 @@ import {
   adminDeleteGradingRegistration,
   getGradingRowDeleteContext,
   adminUpdateGradingResult,
+  adminUpdateGradingRemark,
+  adminUpdateGradingSubmissionRemark,
   adminUpdateGradingRegistrationSlot,
   adminUpdateGradingRegistrationBranch,
   adminUpdateGradingRegistrationDisplayName,
@@ -66,6 +68,19 @@ import {
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel } from '@/constants/beltLevels';
+
+const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing'] as const;
+
+const isWithinResultWindow = (gradingDate: string | null | undefined): boolean => {
+  if (!gradingDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const g = new Date(gradingDate + 'T00:00:00');
+  if (Number.isNaN(g.getTime())) return false;
+  const end = new Date(g);
+  end.setDate(end.getDate() + 30);
+  return today >= g && today <= end;
+};
 
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
@@ -122,7 +137,8 @@ const PublicGradingList: React.FC = () => {
     branch_id: string;
     slot_id: string;
     result: string;
-  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '' });
+    remark: string;
+  }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '', remark: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Mass edit dialog
@@ -131,7 +147,8 @@ const PublicGradingList: React.FC = () => {
     changeResult: boolean; result: string;
     changeSlot: boolean; slot_id: string;
     changeBranch: boolean; branch_id: string;
-  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    changeRemark: boolean; remark: string;
+  }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
   const [savingMass, setSavingMass] = useState(false);
 
 
@@ -174,6 +191,9 @@ const PublicGradingList: React.FC = () => {
     }
     for (const g of map.values()) {
       g.items.sort((a, b) => {
+        const ra = a.remark ? 1 : 0;
+        const rb = b.remark ? 1 : 0;
+        if (ra !== rb) return ra - rb;
         const ba = (a.branch_name || '').localeCompare(b.branch_name || '');
         if (ba !== 0) return ba;
         return (a.student_name || '').localeCompare(b.student_name || '');
@@ -374,6 +394,23 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const handleRemarkChange = async (r: PublicGradingListRow, next: string) => {
+    const value = next === '__clear__' ? null : next;
+    try {
+      if (r.source === 'registration' && r.registration_id) {
+        await adminUpdateGradingRemark(r.registration_id, value);
+      } else if (r.source === 'submission' && r.submission_id) {
+        await adminUpdateGradingSubmissionRemark(r.submission_id, value);
+      } else {
+        return;
+      }
+      toast.success('Remark updated');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update remark');
+    }
+  };
+
   const openRowEdit = (r: PublicGradingListRow) => {
     setEditRow(r);
     setEditForm({
@@ -382,6 +419,7 @@ const PublicGradingList: React.FC = () => {
       branch_id: r.branch_id || '',
       slot_id: r.slot_id || '',
       result: r.result || '',
+      remark: r.remark || '',
     });
   };
 
@@ -392,6 +430,8 @@ const PublicGradingList: React.FC = () => {
       const ops: Promise<unknown>[] = [];
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
+      const currentRemark = editRow.remark || '';
+      const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
         if (currentName !== editForm.display_name) {
@@ -403,8 +443,11 @@ const PublicGradingList: React.FC = () => {
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
         }
-        if (editForm.result !== currentResult) {
+        if (resultEditable && editForm.result !== currentResult) {
           ops.push(adminUpdateGradingResult(editRow.registration_id, editForm.result || null));
+        }
+        if (editForm.remark !== currentRemark) {
+          ops.push(adminUpdateGradingRemark(editRow.registration_id, editForm.remark || null));
         }
       } else if (editRow.source === 'submission' && editRow.submission_id) {
         if (currentName !== editForm.display_name) {
@@ -416,8 +459,11 @@ const PublicGradingList: React.FC = () => {
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingSubmissionSlot(editRow.submission_id, editForm.slot_id));
         }
-        if (editForm.result !== currentResult) {
+        if (resultEditable && editForm.result !== currentResult) {
           ops.push(adminUpdateGradingSubmissionResult(editRow.submission_id, editForm.result || null));
+        }
+        if (editForm.remark !== currentRemark) {
+          ops.push(adminUpdateGradingSubmissionRemark(editRow.submission_id, editForm.remark || null));
         }
       }
 
@@ -441,7 +487,7 @@ const PublicGradingList: React.FC = () => {
   };
 
   const openMassEdit = () => {
-    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
     setMassEditOpen(true);
   };
 
@@ -452,10 +498,13 @@ const PublicGradingList: React.FC = () => {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
         if (massForm.changeResult) {
-          if (r.source === 'registration' && r.registration_id) {
-            ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
-          } else if (r.source === 'submission' && r.submission_id) {
-            ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+          const resultEditable = unlockLevel === 'full' || isWithinResultWindow(r.grading_date);
+          if (resultEditable) {
+            if (r.source === 'registration' && r.registration_id) {
+              ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+            } else if (r.source === 'submission' && r.submission_id) {
+              ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+            }
           }
         }
         if (massForm.changeSlot && massForm.slot_id) {
@@ -470,6 +519,13 @@ const PublicGradingList: React.FC = () => {
             ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
           } else if (r.source === 'submission' && r.submission_id) {
             ops.push(adminUpdateGradingSubmissionBranch(r.submission_id, massForm.branch_id));
+          }
+        }
+        if (massForm.changeRemark) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRemark(r.registration_id, massForm.remark || null));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionRemark(r.submission_id, massForm.remark || null));
           }
         }
         if (ops.length === 0) { skipped++; continue; }
@@ -1258,6 +1314,7 @@ const PublicGradingList: React.FC = () => {
                           <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Result</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px]">Remark</TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
@@ -1320,6 +1377,7 @@ const PublicGradingList: React.FC = () => {
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
+                                  disabled={!(unlockLevel === 'full' || isWithinResultWindow(r.grading_date))}
                                 >
                                   <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
                                     <SelectValue placeholder="—" />
@@ -1329,6 +1387,26 @@ const PublicGradingList: React.FC = () => {
                                     <SelectItem value="pass">Pass</SelectItem>
                                     <SelectItem value="fail">Fail</SelectItem>
                                     <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="__clear__">—</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {(r.registration_id || r.submission_id) ? (
+                                <Select
+                                  value={r.remark ?? ''}
+                                  onValueChange={(v) => handleRemarkChange(r, v)}
+                                >
+                                  <SelectTrigger className="h-7 w-[140px] text-[11px] px-1.5">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {REMARK_OPTIONS.map((o) => (
+                                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                                    ))}
                                     <SelectItem value="__clear__">—</SelectItem>
                                   </SelectContent>
                                 </Select>
@@ -1570,13 +1648,32 @@ const PublicGradingList: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Result</label>
-                  <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                  <Select
+                    value={editForm.result}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}
+                    disabled={!(unlockLevel === 'full' || isWithinResultWindow(editRow?.grading_date))}
+                  >
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="double">Double</SelectItem>
                       <SelectItem value="pass">Pass</SelectItem>
                       <SelectItem value="fail">Fail</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="__clear__">—</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Remark</label>
+                  <Select
+                    value={editForm.remark}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, remark: v === '__clear__' ? '' : v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {REMARK_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
                       <SelectItem value="__clear__">—</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1679,6 +1776,26 @@ const PublicGradingList: React.FC = () => {
                 </Select>
               )}
             </div>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={massForm.changeRemark}
+                  onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeRemark: !!v }))}
+                />
+                Remark
+              </label>
+              {massForm.changeRemark && (
+                <Select value={massForm.remark} onValueChange={(v) => setMassForm((f) => ({ ...f, remark: v === '__clear__' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {REMARK_OPTIONS.map((o) => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                    ))}
+                    <SelectItem value="__clear__">—</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMassEditOpen(false)}>Cancel</Button>
@@ -1686,7 +1803,7 @@ const PublicGradingList: React.FC = () => {
               onClick={handleMassEditApply}
               disabled={
                 savingMass ||
-                (!massForm.changeResult && !massForm.changeSlot && !massForm.changeBranch)
+                (!massForm.changeResult && !massForm.changeSlot && !massForm.changeBranch && !massForm.changeRemark)
               }
             >
               {savingMass ? 'Applying…' : 'Apply'}
