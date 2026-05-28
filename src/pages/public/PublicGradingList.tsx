@@ -50,6 +50,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   getPublicGradingList,
   getPublicGradingSlotsByDate,
