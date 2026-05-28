@@ -1,16 +1,27 @@
-The data is no longer blank in the RPC: Charles, Dayen, Vihaan, Saisha, and Tien Yu Wong now return `amount` and `proof_url` on their `registration` rows.
+## Update `/guards` order confirmation email
 
-The remaining issue is frontend-only: `/grading-list` currently displays amount/proof only when `row.source === 'submission'`, so imported `registration` rows still render `—` even though the data is present.
+### Template changes — `supabase/functions/_shared/transactional-email-templates/guards-order-received.tsx`
 
-Plan:
+- Extend props to accept `fullName`, `items` (array of `{ label, qty, unit_price_inc }`), `subtotal`, `gst_amount`, `total`, `referenceNumber`.
+- Change subject to a function: `` `${fullName} Protection Guard Order` `` (fallback to "Your" if name missing).
+- Replace body with the requested copy:
+  - Greeting: `Hi <FirstName>,` (fallback `Hi,`)
+  - `Thank you for your protection guard order. Your order are as follows:`
+  - Order details block — a small table listing each item (label × qty @ $unit = line total), followed by Subtotal, GST (if > 0), and Total. Include reference number row.
+  - `We will update you when your guards are ready for collection.`
+  - `Should you have any further questions, please check with your masters.`
+  - `Please do not reply to this email.`
+  - Sign-off: `Thank you` / `Gaonhae Taekwondo`
 
-- Update `src/pages/public/PublicGradingList.tsx` in the grading table.
-- Change the Amount cell to show `$xx.xx` whenever `r.amount != null`, regardless of `source`.
-- Change the Proof cell to show the proof image/lightbox whenever `r.proof_url` exists, regardless of `source`.
-- Keep verify/reject buttons restricted to pending `submission` rows only, so imported registrations cannot be accidentally verified/rejected again.
+### Caller change — `src/services/guardsPurchaseService.ts`
 
-Expected result:
+In the `submitGuardsPurchase` invoke of `send-transactional-email`, expand `templateData` to pass: `firstName`, `fullName` (`${fn} ${ln}`), `referenceNumber`, `items` (mapped from `input.items`), `subtotal`, `gst_amount`, `total`.
 
-- Charles, Dayen, Vihaan, Saisha, and Tien Yu Wong show their payment amount and proof on the remaining registration row.
-- Duplicate imported submission rows stay hidden.
-- Manual registrations without payment submissions continue to show `—`.
+### Deploy
+
+Redeploy `send-transactional-email` so the updated template registry takes effect.
+
+### Out of scope
+
+- `guards-collected.tsx` (not requested).
+- Sender / FROM address, infra, queue config.

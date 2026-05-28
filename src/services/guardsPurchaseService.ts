@@ -262,11 +262,21 @@ export const submitGuardsPurchase = async (
         idempotencyKey: `guards-received-${(inserted as any).id}`,
         templateData: {
           firstName: fn,
+          fullName: `${fn} ${ln}`.trim(),
           referenceNumber: (inserted as any).reference_number || '',
+          items: input.items.map((it) => ({
+            label: it.label,
+            qty: it.qty,
+            unit_price_inc: it.unit_price_inc,
+          })),
+          subtotal: Number(subtotal.toFixed(2)),
+          gst_amount: Number(gstAmount.toFixed(2)),
+          total: Number(totalInc.toFixed(2)),
         },
       },
     }).catch(() => { /* non-blocking */ });
   }
+
 
   return inserted as { id: string; reference_number: string | null };
 };
