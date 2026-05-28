@@ -1,53 +1,37 @@
-# Fix `/guards` submission RLS error
+# Verify public submission works on /comps, /guards, /seminars, /pay
 
-## Root cause
+## Current state (already verified)
 
-`submitGuardsPurchase` in `src/services/guardsPurchaseService.ts` calls:
+All four routes already submit through `SECURITY DEFINER` RPCs with `EXECUTE` granted to `anon` + `authenticated`, so PostgREST RLS visibility errors should no longer occur:
 
-```ts
-supabase.from('guards_purchases').insert(row).select('id, reference_number').single()
-```
+| Route        | Service                                 | RPC                          |
+|--------------|-----------------------------------------|------------------------------|
+| `/pay`       | `gradingPaymentSubmissionService.ts`    | `submit_grading_payments`    |
+| `/comps`     | `competitionPaymentSubmissionService.ts`| `submit_competition_payment` |
+| `/seminars`  | `seminarPaymentSubmissionService.ts`    | `submit_seminar_payment`     |
+| `/guards`    | `guardsPurchaseService.ts`              | `submit_guards_purchase`     |
 
-`guards_purchases` has only one SELECT policy (superadmin-only). When an anonymous public user inserts and asks PostgREST to return the row, PostgREST evaluates the SELECT policy against the new row, fails, and surfaces it as:
+DB check confirmed: all four functions exist, `SECURITY DEFINER`, `search_path = public`, EXECUTE granted to `anon` and `authenticated`. The `payment-proofs` storage bucket already accepts anon uploads (proof upload step of `/guards` was working before the RLS fix).
 
-> new row violates row-level security policy for table "guards_purchases"
+## Verification plan
 
-(The same pattern is why `/seminars` and `/comps` use a `SECURITY DEFINER` RPC instead of a direct insert.)
+1. **Browser end-to-end smoke test (incognito / unauthenticated session)** for each of `/pay`, `/comps`, `/seminars`, `/guards`:
+   - Fill the form with valid data (smallest cart / cheapest option).
+   - Upload a tiny PNG as proof.
+   - Submit and confirm the success state appears (reference number shown, no toast error).
+   - Confirm a new row appears in the corresponding table via a read query.
+2. **DB cleanup**: delete the four test rows + their proof files after the test.
+3. If any route surfaces an error (RLS, validation, missing GRANT, storage policy), capture the exact error, fix the offending RPC or service, and re-test that route only.
 
-## Fix
+## Robustness improvements (only if a test fails)
 
-Mirror the seminar/competition pattern with a `SECURITY DEFINER` RPC.
+- If an RPC raises an unhandled exception, wrap the service call to surface the Postgres error code/hint in the toast (so future failures are diagnosable from the screenshot).
+- If a storage upload step fails for anon, add an explicit INSERT policy on `storage.objects` scoped to `bucket_id = 'payment-proofs'`.
 
-### 1. Migration — create `submit_guards_purchase`
-
-- Function `public.submit_guards_purchase(_row jsonb) returns table(id uuid, reference_number text)`
-- `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`
-- Inserts the validated whitelisted fields from `_row` into `guards_purchases` with `sale_status = 'pending_verification'`, then returns the new `id` and `reference_number`.
-- Whitelisted fields: `first_name, last_name, date_of_birth, branch_id, gender, current_belt, email, phone, items, subtotal, gst_amount, total, payment_method, proof_url, variant_selections`.
-- `GRANT EXECUTE ON FUNCTION public.submit_guards_purchase(jsonb) TO anon, authenticated;`
-- Leave existing RLS policies untouched.
-
-### 2. Code — `src/services/guardsPurchaseService.ts`
-
-In `submitGuardsPurchase`, replace the direct `.insert(...).select(...).single()` block with:
-
-```ts
-const { data, error } = await supabase.rpc('submit_guards_purchase' as any, { _row: row as any });
-if (error) throw error;
-const inserted = Array.isArray(data) ? data[0] : data;
-if (!inserted) throw new Error('Submission failed: no record returned');
-```
-
-Keep the rest of the function (storage upload, totals, email invoke) unchanged.
-
-### 3. Verification
-
-- Re-submit the `/guards` form from an incognito session and confirm: row inserted, reference returned, confirmation email queued, no RLS error.
-- Confirm superadmin can still read/update/delete via existing policies.
-- Confirm `/comps`, `/seminars`, `/grading-payment` still work (unchanged).
+No proactive code changes — the four services and four RPCs are already aligned. The work in this task is verification; code edits happen only if a specific route fails the smoke test.
 
 ## Out of scope
 
-- No change to RLS policies on `guards_purchases`.
-- No change to admin pages, variant selection, or invoice creation flow.
-- No change to storage bucket policies (upload already works).
+- Admin views (`/grading-list`, superadmin dashboard) — already covered by separate policies and unaffected by public submission.
+- Invoice creation flow downstream of `/guards` matching — only triggered by superadmin, not by the public form.
+- Any UI redesign of the four public forms.
