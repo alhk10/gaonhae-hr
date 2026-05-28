@@ -1,14 +1,13 @@
 /**
  * Seminars tab embedded in /grading-list.
- * Lists Unarmed Combat Seminar bookings, supports verification/matching and
- * the "collected" flag.
+ * Lists Unarmed Combat Seminar bookings. Match-to-student, invoice creation,
+ * and collected tracking live in the Superadmin dashboard — not here.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, UserPlus, FileText, XCircle, Trash2 } from 'lucide-react';
+import { XCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -23,14 +22,8 @@ import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
 import {
   getPublicSeminarList,
-  findSeminarSubmissionStudentMatches,
-  matchSeminarSubmission,
-  importSeminarSubmissionStudent,
-  createSeminarInvoice,
   rejectSeminarSubmission,
-  markSeminarCollected,
   type PublicSeminarListRow,
-  type SeminarStudentMatch,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,7 +50,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
-  const [matchRow, setMatchRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -71,19 +63,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
-
-  const handleToggleCollected = async (r: PublicSeminarListRow, value: boolean) => {
-    setBusyId(r.submission_id);
-    try {
-      await markSeminarCollected(r.submission_id, value, verifiedBy);
-      toast.success(value ? 'Marked collected' : 'Marked not collected');
-      invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to update');
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const handleReject = async () => {
     if (!rejectRow) return;
@@ -136,8 +115,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Proof</TableHead>
                 <TableHead>Sale Status</TableHead>
-                <TableHead>Match / Invoice</TableHead>
-                <TableHead>Collected</TableHead>
                 {(canEdit || canDelete) && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -165,56 +142,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                   </TableCell>
                   <TableCell>
                     <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {r.invoice_number ? (
-                      <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300">
-                        <FileText className="h-3 w-3 mr-1" />{r.invoice_number}
-                      </Badge>
-                    ) : r.matched_student_id ? (
-                      canEdit ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          disabled={busyId === r.submission_id}
-                          onClick={async () => {
-                            setBusyId(r.submission_id);
-                            try {
-                              await createSeminarInvoice(r.submission_id, verifiedBy);
-                              toast.success('Invoice created');
-                              invalidate();
-                            } catch (e: any) {
-                              toast.error(e?.message || 'Failed');
-                            } finally {
-                              setBusyId(null);
-                            }
-                          }}
-                        >
-                          <FileText className="h-3 w-3 mr-1" />Create invoice
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground">Matched</span>
-                      )
-                    ) : canEdit ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => setMatchRow(r)}
-                      >
-                        <Search className="h-3 w-3 mr-1" />Find match
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground">Not matched</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Checkbox
-                      checked={r.collected}
-                      disabled={!canEdit || busyId === r.submission_id}
-                      onCheckedChange={(c) => handleToggleCollected(r, c === true)}
-                    />
                   </TableCell>
                   {(canEdit || canDelete) && (
                     <TableCell className="text-right">
@@ -250,13 +177,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
         </div>
       )}
 
-      <MatchDialog
-        row={matchRow}
-        onClose={() => setMatchRow(null)}
-        onLinked={invalidate}
-        verifiedBy={verifiedBy}
-      />
-
       <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -278,111 +198,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
-
-interface MatchDialogProps {
-  row: PublicSeminarListRow | null;
-  onClose: () => void;
-  onLinked: () => void;
-  verifiedBy: string;
-}
-
-const MatchDialog: React.FC<MatchDialogProps> = ({ row, onClose, onLinked, verifiedBy }) => {
-  const open = !!row;
-  const [busy, setBusy] = useState(false);
-
-  const { data: matches = [], isLoading } = useQuery({
-    queryKey: ['seminar-matches', row?.submission_id],
-    queryFn: () => row ? findSeminarSubmissionStudentMatches(row.submission_id) : Promise.resolve([] as SeminarStudentMatch[]),
-    enabled: open,
-  });
-
-  const linkAndInvoice = async (studentId: string) => {
-    if (!row) return;
-    setBusy(true);
-    try {
-      await matchSeminarSubmission(row.submission_id, studentId);
-      const invId = await createSeminarInvoice(row.submission_id, verifiedBy);
-      toast.success(`Linked & invoice created (${invId.slice(0, 8)}…)`);
-      onLinked();
-      onClose();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to link');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const createNew = async () => {
-    if (!row) return;
-    setBusy(true);
-    try {
-      await importSeminarSubmissionStudent(row.submission_id, verifiedBy);
-      await createSeminarInvoice(row.submission_id, verifiedBy);
-      toast.success('Student created & invoice issued');
-      onLinked();
-      onClose();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create student');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Match to student</DialogTitle>
-          <DialogDescription>
-            {row?.student_name} · DOB {row?.date_of_birth ? formatDate(row.date_of_birth) : '—'} · {row?.branch_name}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Searching…
-            </div>
-          ) : matches.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No likely matches found for these details.
-            </div>
-          ) : (
-            matches.map((m) => (
-              <button
-                key={m.student_id}
-                type="button"
-                disabled={busy}
-                onClick={() => linkAndInvoice(m.student_id)}
-                className="w-full text-left rounded border p-2 hover:bg-muted/50 disabled:opacity-50"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-sm">{m.full_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {m.student_number || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.email || 'no email'}
-                    </div>
-                    {m.reason && <div className="text-[11px] text-muted-foreground mt-0.5">{m.reason}</div>}
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {Math.round(Number(m.score) * 100)}
-                  </Badge>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={createNew} disabled={busy}>
-            <UserPlus className="h-4 w-4 mr-1" /> Create new student
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 };
 
