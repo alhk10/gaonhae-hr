@@ -1745,6 +1745,7 @@ export type Database = {
           payment_method: string
           proof_url: string | null
           reference_number: string | null
+          remark: string | null
           resolved_grading_slot_id: string | null
           resolved_product_id: string | null
           result: string | null
@@ -1770,6 +1771,7 @@ export type Database = {
           payment_method?: string
           proof_url?: string | null
           reference_number?: string | null
+          remark?: string | null
           resolved_grading_slot_id?: string | null
           resolved_product_id?: string | null
           result?: string | null
@@ -1795,6 +1797,7 @@ export type Database = {
           payment_method?: string
           proof_url?: string | null
           reference_number?: string | null
+          remark?: string | null
           resolved_grading_slot_id?: string | null
           resolved_product_id?: string | null
           result?: string | null
@@ -1847,6 +1850,7 @@ export type Database = {
           invoice_item_id: string | null
           notes: string | null
           ready_for_grading: boolean | null
+          remark: string | null
           result: string | null
           result_manual_override: boolean
           scorecard: Json
@@ -1866,6 +1870,7 @@ export type Database = {
           invoice_item_id?: string | null
           notes?: string | null
           ready_for_grading?: boolean | null
+          remark?: string | null
           result?: string | null
           result_manual_override?: boolean
           scorecard?: Json
@@ -1885,6 +1890,7 @@ export type Database = {
           invoice_item_id?: string | null
           notes?: string | null
           ready_for_grading?: boolean | null
+          remark?: string | null
           result?: string | null
           result_manual_override?: boolean
           scorecard?: Json
@@ -7206,6 +7212,10 @@ export type Database = {
         Args: { p_registration_id: string; p_slot_id: string }
         Returns: undefined
       }
+      admin_update_grading_remark: {
+        Args: { p_registration_id: string; p_remark: string }
+        Returns: undefined
+      }
       admin_update_grading_result: {
         Args: { p_registration_id: string; p_result: string }
         Returns: undefined
@@ -7216,6 +7226,10 @@ export type Database = {
       }
       admin_update_grading_submission_display_name: {
         Args: { p_display_name: string; p_submission_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_submission_remark: {
+        Args: { p_remark: string; p_submission_id: string }
         Returns: undefined
       }
       admin_update_grading_submission_result: {
@@ -7554,6 +7568,7 @@ export type Database = {
           paid_status: string
           proof_url: string
           registration_id: string
+          remark: string
           result: string
           slot_id: string
           slot_title: string
