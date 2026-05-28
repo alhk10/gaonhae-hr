@@ -2059,6 +2059,30 @@ const CompetitionsTab: React.FC<{
                     poomsaeMutation.mutate({ id: r.submission_id, p1: r.poomsae_1, p2: v }),
                   )}
                 </TableCell>
+                <TableCell className="px-2 py-1">
+                  {r.paid_status === 'pending verification' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { setAcceptingId(r.submission_id); setSearchTerm(''); }}
+                        className="text-green-600 hover:text-green-800"
+                        title="Accept (match & verify)"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRejectingId(r.submission_id); setRejectReason(''); }}
+                        className="text-red-600 hover:text-red-800"
+                        title="Reject"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 {canDelete && (
                   <TableCell className="px-2 py-1">
                     <button
@@ -2076,6 +2100,84 @@ const CompetitionsTab: React.FC<{
           </TableBody>
         </Table>
       </div>
+
+      {/* Accept dialog: match student then verify & import */}
+      <Dialog open={!!acceptingId} onOpenChange={(o) => { if (!o) { setAcceptingId(null); setSearchTerm(''); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Match student &amp; verify</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Suggested matches</div>
+              {matchesLoading && <div className="text-xs text-muted-foreground">Loading…</div>}
+              {!matchesLoading && matches.length === 0 && (
+                <div className="text-xs text-muted-foreground">No fuzzy matches found.</div>
+              )}
+              <div className="space-y-1">
+                {matches.map((m: CompetitionStudentMatch) => (
+                  <div key={m.student_id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {m.full_name} <span className="text-xs text-muted-foreground">{m.student_number}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.current_belt || '—'}
+                      </div>
+                      {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                    </div>
+                    <Button size="sm" onClick={() => handleAccept(m.student_id)} disabled={busy}>Use</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Search students</div>
+              <Input
+                placeholder="Name, email, or student number"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8"
+              />
+              <div className="space-y-1 mt-1">
+                {searchResults.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {`${s.first_name || ''} ${s.last_name || ''}`.trim().toUpperCase()}{' '}
+                        <span className="text-xs text-muted-foreground">{s.student_number}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {s.email || '—'} · DOB {s.date_of_birth ? formatDate(s.date_of_birth) : '—'} · {s.current_belt || '—'}
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => handleAccept(s.id)} disabled={busy}>Use</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectingId} onOpenChange={(o) => { if (!o) { setRejectingId(null); setRejectReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Reject submission</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason (optional)"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={4}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setRejectingId(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={handleReject} disabled={busy}>Reject</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { setPreview(null); setPreviewRotation(0); } }}>
         <DialogContent className="max-w-3xl">
