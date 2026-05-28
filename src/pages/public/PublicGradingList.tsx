@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
+import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
