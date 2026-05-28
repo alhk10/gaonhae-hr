@@ -30,7 +30,12 @@ import {
   adminDeleteCompetitionSubmission,
   getCompetitionSubmissionDeleteContext,
   updateCompetitionPoomsae,
+  findCompetitionSubmissionStudentMatches,
+  matchCompetitionSubmission,
+  importCompetitionSubmission,
+  rejectCompetitionSubmission,
   type PublicCompetitionListRow,
+  type CompetitionStudentMatch,
 } from '@/services/competitionPaymentSubmissionService';
 import {
   downloadGradingCertificatePDF,
@@ -45,6 +50,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   getPublicGradingList,
   getPublicGradingSlotsByDate,
@@ -1523,6 +1529,7 @@ const PublicGradingList: React.FC = () => {
             <CompetitionsTab
               branchFilter={branchFilter}
               canDelete={canDelete}
+              verifiedBy={user?.employeeId || user?.email || 'system'}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
             />
           </TabsContent>
@@ -1870,8 +1877,9 @@ const POOMSAE_CLEAR = '__clear__';
 const CompetitionsTab: React.FC<{
   branchFilter: string;
   canDelete?: boolean;
+  verifiedBy: string;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, verifiedBy, onRequestDelete }) => {
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
@@ -1880,6 +1888,69 @@ const CompetitionsTab: React.FC<{
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const { data: matches = [], isFetching: matchesLoading } = useQuery({
+    queryKey: ['competition-inline-matches', acceptingId],
+    queryFn: () => findCompetitionSubmissionStudentMatches(acceptingId!),
+    enabled: !!acceptingId,
+  });
+
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ['competition-inline-student-search', searchTerm],
+    queryFn: async () => {
+      if (searchTerm.trim().length < 2) return [];
+      const term = `%${searchTerm.trim()}%`;
+      const { data } = await supabase
+        .from('students')
+        .select('id, student_number, first_name, last_name, email, date_of_birth, current_belt')
+        .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!acceptingId && searchTerm.trim().length >= 2,
+  });
+
+  const handleAccept = async (studentId: string) => {
+    if (!acceptingId) return;
+    setBusy(true);
+    try {
+      await matchCompetitionSubmission(acceptingId, studentId);
+      await importCompetitionSubmission(acceptingId, verifiedBy);
+      toast.success('Submission verified and invoice generated');
+      setAcceptingId(null);
+      setSearchTerm('');
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to verify');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingId) return;
+    setBusy(true);
+    try {
+      await rejectCompetitionSubmission(rejectingId, rejectReason.trim() || 'Rejected', verifiedBy);
+      toast.success('Submission rejected');
+      setRejectingId(null);
+      setRejectReason('');
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to reject');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const poomsaeMutation = useMutation({
     mutationFn: ({ id, p1, p2 }: { id: string; p1: string | null; p2: string | null }) =>
@@ -1947,6 +2018,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
           </TableHeader>
@@ -1987,6 +2059,30 @@ const CompetitionsTab: React.FC<{
                     poomsaeMutation.mutate({ id: r.submission_id, p1: r.poomsae_1, p2: v }),
                   )}
                 </TableCell>
+                <TableCell className="px-2 py-1">
+                  {r.paid_status === 'pending verification' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { setAcceptingId(r.submission_id); setSearchTerm(''); }}
+                        className="text-green-600 hover:text-green-800"
+                        title="Accept (match & verify)"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRejectingId(r.submission_id); setRejectReason(''); }}
+                        className="text-red-600 hover:text-red-800"
+                        title="Reject"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 {canDelete && (
                   <TableCell className="px-2 py-1">
                     <button
@@ -2004,6 +2100,84 @@ const CompetitionsTab: React.FC<{
           </TableBody>
         </Table>
       </div>
+
+      {/* Accept dialog: match student then verify & import */}
+      <Dialog open={!!acceptingId} onOpenChange={(o) => { if (!o) { setAcceptingId(null); setSearchTerm(''); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Match student &amp; verify</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Suggested matches</div>
+              {matchesLoading && <div className="text-xs text-muted-foreground">Loading…</div>}
+              {!matchesLoading && matches.length === 0 && (
+                <div className="text-xs text-muted-foreground">No fuzzy matches found.</div>
+              )}
+              <div className="space-y-1">
+                {matches.map((m: CompetitionStudentMatch) => (
+                  <div key={m.student_id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {m.full_name} <span className="text-xs text-muted-foreground">{m.student_number}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.current_belt || '—'}
+                      </div>
+                      {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                    </div>
+                    <Button size="sm" onClick={() => handleAccept(m.student_id)} disabled={busy}>Use</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Search students</div>
+              <Input
+                placeholder="Name, email, or student number"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8"
+              />
+              <div className="space-y-1 mt-1">
+                {searchResults.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {`${s.first_name || ''} ${s.last_name || ''}`.trim().toUpperCase()}{' '}
+                        <span className="text-xs text-muted-foreground">{s.student_number}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {s.email || '—'} · DOB {s.date_of_birth ? formatDate(s.date_of_birth) : '—'} · {s.current_belt || '—'}
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => handleAccept(s.id)} disabled={busy}>Use</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectingId} onOpenChange={(o) => { if (!o) { setRejectingId(null); setRejectReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Reject submission</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason (optional)"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={4}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setRejectingId(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={handleReject} disabled={busy}>Reject</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { setPreview(null); setPreviewRotation(0); } }}>
         <DialogContent className="max-w-3xl">

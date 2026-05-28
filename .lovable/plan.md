@@ -1,29 +1,18 @@
-Update `src/components/dashboard/PublicCompetitionSubmissionApprovals.tsx` to mirror the grading submissions card (`PublicGradingSubmissionApprovals.tsx`). All required RPCs and service functions already exist on the competition service — this is a UI rewrite of one component, no backend changes.
+Add inline Accept and Reject controls to the Competitions tab table in `src/pages/public/PublicGradingList.tsx` (the `CompetitionsTab` component, ~line 1870). Only the table UI changes — backend RPCs (`matchCompetitionSubmission`, `importCompetitionSubmission`, `rejectCompetitionSubmission`, `findCompetitionSubmissionStudentMatches`) already exist.
 
-## Changes to PublicCompetitionSubmissionApprovals.tsx
+## Changes
 
-1. **Row layout** — match grading card:
-   - Show Matched / Unmatched + Pending / Verified status badges.
-   - Show branch, amount, payment method, submission timestamp, categories.
+1. **New "Actions" column** in the table header (rightmost, before the existing delete column).
 
-2. **Action buttons per row** (replace single "Match & Approve"):
-   - `Match Student` / `Re-match` → opens match dialog (does match only, no import).
-   - `Verify & Import` → calls `importCompetitionSubmission`; disabled until `matched_student_id` is set. This creates the invoice.
-   - `Edit details` → opens edit dialog using `updateCompetitionSubmissionDetails` (first/last name, email, DOB, belt, branch).
-   - `Reject` → existing reject flow.
+2. **Per row**, when `paid_status === 'pending verification'` (i.e. not yet imported as a paid invoice):
+   - **Accept** icon button (green CheckCircle): opens a compact "Match & Verify" dialog that fetches `findCompetitionSubmissionStudentMatches(submission_id)` plus a manual student search (same pattern as `PublicCompetitionSubmissionApprovals`). Selecting a student calls `matchCompetitionSubmission` then `importCompetitionSubmission` and invalidates `public-competition-list`.
+   - **Reject** icon button (red XCircle): opens a small dialog with an optional reason textarea, calls `rejectCompetitionSubmission(id, reason, verifiedBy)`, invalidates the list.
 
-3. **Match dialog** — mirror grading:
-   - Suggested matches from `findCompetitionSubmissionStudentMatches`.
-   - Manual search via `students` table.
-   - "Create new student" inline form (first/last name, DOB, email, branch, gender, belt), prefilled from submission, calls `createStudent` then `matchCompetitionSubmission`.
-   - Match buttons call `matchCompetitionSubmission` only (no auto-import), so reviewer can verify before generating the invoice.
+3. Rows that are already paid/verified show no Accept/Reject (just the optional delete control).
 
-4. **Edit dialog** — first name, last name, email, DOB, belt, branch; saves via `updateCompetitionSubmissionDetails`.
-
-5. **Reject dialog** — unchanged.
-
-6. Keep certificate + proof thumbnail previews.
+4. Wire `verifiedBy` from `useAuth()` (employeeId / email / 'system'), matching the approvals component.
 
 ## Out of scope
-- No database / RPC / service changes.
-- No changes to `/comps` public submission page or grading list Competitions tab.
+- No changes to the Approvals card on the dashboard.
+- No new service functions, RPCs, or DB migrations.
+- No edit-details flow inline (still available on the dashboard approvals card).
