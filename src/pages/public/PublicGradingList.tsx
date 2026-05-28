@@ -392,6 +392,23 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
+  const handleRemarkChange = async (r: PublicGradingListRow, next: string) => {
+    const value = next === '__clear__' ? null : next;
+    try {
+      if (r.source === 'registration' && r.registration_id) {
+        await adminUpdateGradingRemark(r.registration_id, value);
+      } else if (r.source === 'submission' && r.submission_id) {
+        await adminUpdateGradingSubmissionRemark(r.submission_id, value);
+      } else {
+        return;
+      }
+      toast.success('Remark updated');
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update remark');
+    }
+  };
+
   const openRowEdit = (r: PublicGradingListRow) => {
     setEditRow(r);
     setEditForm({
