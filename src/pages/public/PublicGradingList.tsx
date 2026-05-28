@@ -479,7 +479,7 @@ const PublicGradingList: React.FC = () => {
   };
 
   const openMassEdit = () => {
-    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '' });
+    setMassForm({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
     setMassEditOpen(true);
   };
 
