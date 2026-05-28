@@ -1879,6 +1879,7 @@ const CompetitionsTab: React.FC<{
   });
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [previewRotation, setPreviewRotation] = useState(0);
 
   const poomsaeMutation = useMutation({
     mutationFn: ({ id, p1, p2 }: { id: string; p1: string | null; p2: string | null }) =>
