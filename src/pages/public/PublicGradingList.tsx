@@ -1377,6 +1377,7 @@ const PublicGradingList: React.FC = () => {
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
+                                  disabled={!(unlockLevel === 'full' || isWithinResultWindow(r.grading_date))}
                                 >
                                   <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
                                     <SelectValue placeholder="—" />
@@ -1386,6 +1387,26 @@ const PublicGradingList: React.FC = () => {
                                     <SelectItem value="pass">Pass</SelectItem>
                                     <SelectItem value="fail">Fail</SelectItem>
                                     <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="__clear__">—</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-2 py-0.5">
+                              {(r.registration_id || r.submission_id) ? (
+                                <Select
+                                  value={r.remark ?? ''}
+                                  onValueChange={(v) => handleRemarkChange(r, v)}
+                                >
+                                  <SelectTrigger className="h-7 w-[140px] text-[11px] px-1.5">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {REMARK_OPTIONS.map((o) => (
+                                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                                    ))}
                                     <SelectItem value="__clear__">—</SelectItem>
                                   </SelectContent>
                                 </Select>
