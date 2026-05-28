@@ -1314,6 +1314,7 @@ const PublicGradingList: React.FC = () => {
                           <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
                           <TableHead className="h-7 px-2 text-[11px]">Result</TableHead>
+                          <TableHead className="h-7 px-2 text-[11px]">Remark</TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
                           <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
