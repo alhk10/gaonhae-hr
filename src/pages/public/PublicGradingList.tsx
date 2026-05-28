@@ -6,7 +6,7 @@
  * delete/update-slot, plus amount + proof columns for submission rows.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
   getCompetitionSubmissionDeleteContext,
+  updateCompetitionPoomsae,
   type PublicCompetitionListRow,
 } from '@/services/competitionPaymentSubmissionService';
 import {
