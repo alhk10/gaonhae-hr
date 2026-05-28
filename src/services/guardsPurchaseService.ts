@@ -210,13 +210,10 @@ export const submitGuardsPurchase = async (
     sale_status: 'pending_verification' as const,
   };
 
-  const { data, error } = await supabase
-    .from('guards_purchases')
-    .insert(row as any)
-    .select('id, reference_number')
-    .single();
-
+  const { data, error } = await supabase.rpc('submit_guards_purchase' as any, { _row: row as any });
   if (error) throw error;
+  const inserted = Array.isArray(data) ? data[0] : data;
+  if (!inserted) throw new Error('Submission failed: no record returned');
 
   // Fire-and-forget confirmation email
   if (input.email?.trim()) {
