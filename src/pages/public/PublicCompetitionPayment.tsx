@@ -394,6 +394,14 @@ const PublicCompetitionPayment: React.FC = () => {
                 </div>
               )}
 
+              {dob && currentBelt && products.length === 0 && (
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    No competition products are currently available. Please contact the academy.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {dob && currentBelt && coachingProduct && (
                 <div className="space-y-2">
                   <Label>Coaching Fee *</Label>
