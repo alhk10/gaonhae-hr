@@ -1648,13 +1648,32 @@ const PublicGradingList: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Result</label>
-                  <Select value={editForm.result} onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}>
+                  <Select
+                    value={editForm.result}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}
+                    disabled={!(unlockLevel === 'full' || isWithinResultWindow(editRow?.grading_date))}
+                  >
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="double">Double</SelectItem>
                       <SelectItem value="pass">Pass</SelectItem>
                       <SelectItem value="fail">Fail</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="__clear__">—</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Remark</label>
+                  <Select
+                    value={editForm.remark}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, remark: v === '__clear__' ? '' : v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {REMARK_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
                       <SelectItem value="__clear__">—</SelectItem>
                     </SelectContent>
                   </Select>
