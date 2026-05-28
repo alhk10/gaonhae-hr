@@ -1294,10 +1294,10 @@ const PublicGradingList: React.FC = () => {
                         {editMode && (
                           <>
                             <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
-                              {r.source === 'submission' && r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
+                              {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              {r.source === 'submission' && r.proof_url ? (
+                              {r.proof_url ? (
                                 <button
                                   type="button"
                                   onClick={() => openLightbox(r.proof_url!)}
