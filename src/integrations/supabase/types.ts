@@ -4635,6 +4635,115 @@ export type Database = {
         }
         Relationships: []
       }
+      seminar_payment_submissions: {
+        Row: {
+          amount: number
+          branch_id: string
+          collected: boolean
+          collected_at: string | null
+          collected_by: string | null
+          created_at: string
+          current_belt: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          last_name: string
+          matched_invoice_id: string | null
+          matched_student_id: string | null
+          notes: string | null
+          package_code: string
+          package_label: string
+          payment_method: string
+          proof_url: string
+          reference_number: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          session_dates: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          last_name: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          package_code: string
+          package_label: string
+          payment_method: string
+          proof_url: string
+          reference_number?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          session_dates?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          collected?: boolean
+          collected_at?: string | null
+          collected_by?: string | null
+          created_at?: string
+          current_belt?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          last_name?: string
+          matched_invoice_id?: string | null
+          matched_student_id?: string | null
+          notes?: string | null
+          package_code?: string
+          package_label?: string
+          payment_method?: string
+          proof_url?: string
+          reference_number?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          session_dates?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seminar_payment_submissions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seminar_payment_submissions_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seminar_payment_submissions_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slot_booking_edit_requests: {
         Row: {
           booking_id: string
@@ -6981,6 +7090,10 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_create_seminar_invoice: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: string
+      }
       admin_delete_competition_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -6994,6 +7107,10 @@ export type Database = {
         Returns: undefined
       }
       admin_delete_guards_purchase: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_delete_seminar_submission: {
         Args: { p_id: string }
         Returns: undefined
       }
@@ -7021,11 +7138,23 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: string
       }
+      admin_import_seminar_submission_student: {
+        Args: { p_created_by: string; p_id: string }
+        Returns: string
+      }
+      admin_mark_seminar_collected: {
+        Args: { p_by: string; p_collected: boolean; p_id: string }
+        Returns: undefined
+      }
       admin_match_competition_submission: {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
       }
       admin_match_grading_submission: {
+        Args: { p_id: string; p_student_id: string }
+        Returns: undefined
+      }
+      admin_match_seminar_submission: {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
       }
@@ -7041,6 +7170,10 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
+      admin_reject_seminar_submission: {
+        Args: { p_id: string; p_reason: string; p_reviewed_by: string }
+        Returns: undefined
+      }
       admin_reset_password: {
         Args: {
           new_password_hash: string
@@ -7048,6 +7181,14 @@ export type Database = {
           target_email: string
         }
         Returns: undefined
+      }
+      admin_seminar_submission_delete_context: {
+        Args: { p_id: string }
+        Returns: {
+          invoice_number: string
+          package_label: string
+          student_name: string
+        }[]
       }
       admin_update_competition_submission_categories: {
         Args: { p_category_ids: string[]; p_id: string }
@@ -7142,6 +7283,20 @@ export type Database = {
         }[]
       }
       find_grading_submission_student_matches: {
+        Args: { p_id: string }
+        Returns: {
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          full_name: string
+          reason: string
+          score: number
+          student_id: string
+          student_number: string
+        }[]
+      }
+      find_seminar_submission_student_matches: {
         Args: { p_id: string }
         Returns: {
           branch_id: string
@@ -7507,6 +7662,35 @@ export type Database = {
           slot_start: string
         }[]
       }
+      get_public_seminar_list: {
+        Args: { p_branch_id?: string; p_status?: string }
+        Returns: {
+          amount: number
+          branch_id: string
+          branch_name: string
+          collected: boolean
+          collected_at: string
+          created_at: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          gender: string
+          invoice_number: string
+          last_name: string
+          matched_invoice_id: string
+          matched_student_id: string
+          package_code: string
+          package_label: string
+          paid_status: string
+          proof_url: string
+          reference_number: string
+          session_dates: string[]
+          status: string
+          student_name: string
+          submission_id: string
+        }[]
+      }
       get_public_student_invoiced_terms: {
         Args: { p_session_id: string; p_student_id: string }
         Returns: {
@@ -7751,6 +7935,13 @@ export type Database = {
           invoice_id: string
           invoice_number: string
           payment_number: string
+        }[]
+      }
+      submit_seminar_payment: {
+        Args: { _row: Json }
+        Returns: {
+          id: string
+          reference_number: string
         }[]
       }
     }
