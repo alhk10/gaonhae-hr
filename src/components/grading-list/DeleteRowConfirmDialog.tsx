@@ -52,6 +52,14 @@ const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConf
       if (!pending) return { student_matched: false, student_name: null, invoice_number: null };
       if (pending.kind === 'grading') return getGradingRowDeleteContext(pending.source, pending.id);
       if (pending.kind === 'competition') return getCompetitionSubmissionDeleteContext(pending.id);
+      if (pending.kind === 'seminar') {
+        const c = await getSeminarSubmissionDeleteContext(pending.id);
+        return {
+          student_matched: !!c.student_name,
+          student_name: c.student_name,
+          invoice_number: c.invoice_number,
+        } as DeleteRowContext;
+      }
       return getGuardsPurchaseDeleteContext(pending.id);
     },
     enabled: open,
