@@ -105,7 +105,8 @@ const PublicGradingList: React.FC = () => {
   type PendingDelete =
     | { kind: 'grading'; source: 'submission' | 'registration'; id: string; studentName: string }
     | { kind: 'competition'; id: string; studentName: string }
-    | { kind: 'guards'; id: string; studentName: string };
+    | { kind: 'guards'; id: string; studentName: string }
+    | { kind: 'seminar'; id: string; studentName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
