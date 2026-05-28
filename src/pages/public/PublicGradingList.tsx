@@ -1528,6 +1528,7 @@ const PublicGradingList: React.FC = () => {
             <CompetitionsTab
               branchFilter={branchFilter}
               canDelete={canDelete}
+              verifiedBy={user?.employeeId || user?.email || 'system'}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
             />
           </TabsContent>
