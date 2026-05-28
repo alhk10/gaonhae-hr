@@ -1193,15 +1193,6 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="grading" className="space-y-4 mt-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h1 className="text-lg font-semibold">Grading List</h1>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={handleLock}
-                title="Lock"
-              >
-                <Lock className="h-4 w-4" />
-              </Button>
             </div>
 
 
