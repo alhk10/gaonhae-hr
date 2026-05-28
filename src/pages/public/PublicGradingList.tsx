@@ -1172,6 +1172,17 @@ const PublicGradingList: React.FC = () => {
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleLock}
+            title="Lock"
+          >
+            <Lock className="h-4 w-4" />
+          </Button>
+        </div>
         <Tabs defaultValue="grading" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="grading">Grading</TabsTrigger>
