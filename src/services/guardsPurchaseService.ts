@@ -160,11 +160,32 @@ export const isVariantSelectionComplete = (
   });
 };
 
+const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const t = setTimeout(
+      () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s — please check your connection and try again`)),
+      ms,
+    );
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+
+const toUserFacingError = (stage: string, err: unknown): Error => {
+  const message = err instanceof Error ? err.message : String((err as any)?.message || 'unknown error');
+  if (/row-level security|permission denied|42501/i.test(message)) {
+    return new Error(`${stage} is blocked by access rules. Please refresh and try again.`);
+  }
+  return new Error(`${stage} failed: ${message}`);
+};
+
 export const submitGuardsPurchase = async (
   input: SubmitGuardsPurchaseInput,
 ): Promise<{ id: string; reference_number: string | null }> => {
   if (!input.items.length) throw new Error('No items selected');
   if (!input.proof_file) throw new Error('Proof of payment required');
+  if (!input.proof_file.type.startsWith('image/')) throw new Error('Proof of payment must be an image file');
 
   const fn = input.first_name.trim().toUpperCase();
   const ln = input.last_name.trim().toUpperCase();
@@ -174,13 +195,21 @@ export const submitGuardsPurchase = async (
   const ts = Date.now();
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
   const path = `public-guards/${input.branch_id}/${ts}_${safeName}.${ext}`;
-  const { error: uploadError } = await supabase.storage
-    .from('payment-proofs')
-    .upload(path, input.proof_file, {
-      upsert: false,
-      contentType: input.proof_file.type,
-    });
-  if (uploadError) throw uploadError;
+  console.info('[/guards] uploading proof', { path, size: input.proof_file.size, type: input.proof_file.type });
+  const { error: uploadError } = await withTimeout(
+    supabase.storage
+      .from('payment-proofs')
+      .upload(path, input.proof_file, {
+        upsert: false,
+        contentType: input.proof_file.type,
+      }),
+    30000,
+    'Proof upload',
+  );
+  if (uploadError) {
+    console.error('[/guards] proof upload error', uploadError);
+    throw toUserFacingError('Proof upload', uploadError);
+  }
 
   const { data: signed } = await supabase.storage
     .from('payment-proofs')
@@ -210,10 +239,19 @@ export const submitGuardsPurchase = async (
     sale_status: 'pending_verification' as const,
   };
 
-  const { data, error } = await supabase.rpc('submit_guards_purchase' as any, { _row: row as any });
-  if (error) throw error;
+  console.info('[/guards] calling submit_guards_purchase RPC');
+  const { data, error } = await withTimeout(
+    Promise.resolve(supabase.rpc('submit_guards_purchase' as any, { _row: row as any })),
+    15000,
+    'Submission',
+  );
+  if (error) {
+    console.error('[/guards] RPC error', error);
+    throw toUserFacingError('Submission', error);
+  }
   const inserted = Array.isArray(data) ? data[0] : data;
   if (!inserted) throw new Error('Submission failed: no record returned');
+  console.info('[/guards] submitted', inserted);
 
   // Fire-and-forget confirmation email
   if (input.email?.trim()) {
