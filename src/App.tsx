@@ -155,6 +155,7 @@ function App() {
                     <Route path="/register" element={<StudentRegistration />} />
                     <Route path="/pay" element={<PublicGradingPayment />} />
                     <Route path="/comps" element={<PublicCompetitionPayment />} />
+                    <Route path="/seminars" element={<PublicSeminarPayment />} />
                     <Route path="/grading-list" element={<PublicGradingList />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
                     <Route path="/guards" element={<PublicGuardsPurchase />} />
