@@ -1,60 +1,40 @@
-## Add `/comps` competition registration confirmation email
+## Fix payment proof viewing on public `/grading-list` (incognito / anon)
 
-No email is currently sent on competition submission. Add a transactional email that fires after a successful `submitCompetitionPayment`.
+### Root cause
 
-### New template — `supabase/functions/_shared/transactional-email-templates/competition-confirmation.tsx`
+`payment-proofs` is a private bucket. The only storage SELECT policies are for `authenticated` ("Staff can read … proof uploads"). When the public `/grading-list` page is opened in incognito (anon role):
 
-Props: `firstName`, `fullName`, `competitionName`, `coachingName`, `categories[]`, `amount`, `referenceNumber`.
+1. The submission service stored `proof_url` as a bare path (e.g. `public-grading/<branch>/<file>.jpg`) because the original `createSignedUrl` call at upload time also failed for anon and fell back to the path.
+2. `resolveStorageUrl` then calls `supabase.storage.from('payment-proofs').createSignedUrl(path, ...)` from an anon session — anon has no SELECT policy → returns `null` → `<SignedImage>` and the lightbox `<img>` both render broken/empty.
 
-- Subject: `` `${fullName} ${competitionName}` `` (fallback "Your Competition Registration").
-- Body:
-  - `Hi <FirstName>,`
-  - `Thank you for your Competition Registration. The details are as follows:`
-  - Details box: Competition, Coaching (coachingName), Categories (comma-joined list — only if any), Amount (`$X.XX`), Reference Number.
-  - `Should you have any further questions, please check with your masters.`
-  - `Please do not reply to this email.`
-  - `Thank you` / `Gaonhae Taekwondo`
-- Style consistent with grading/seminar templates.
+### Fix — add anon SELECT policies on `storage.objects` for the four public-submission prefixes
 
-### Registry — `supabase/functions/_shared/transactional-email-templates/registry.ts`
+The `/grading-list`, `/comps`, `/seminars`, and `/guards` flows already publicly display these submissions (student name, amount, etc.), so allowing anon to read the proof images in those prefixes matches the existing exposure.
 
-Add import + entry under key `competition-confirmation`.
+Add a migration with four policies, scoped tightly to bucket + top-level folder:
 
-### Caller — pass product names from the page
+```sql
+CREATE POLICY "Anon can read grading proof uploads"
+  ON storage.objects FOR SELECT TO anon
+  USING (bucket_id = 'payment-proofs' AND (storage.foldername(name))[1] = 'public-grading');
 
-Change `SubmitCompetitionPaymentInput` (in `src/services/competitionPaymentSubmissionService.ts`) to also accept optional `coaching_name` and `category_names: string[]`. Use them only for the email payload, not the RPC row.
+CREATE POLICY "Anon can read comps proof uploads"
+  ON storage.objects FOR SELECT TO anon
+  USING (bucket_id = 'payment-proofs' AND (storage.foldername(name))[1] = 'public-comps');
 
-In `src/pages/public/PublicCompetitionPayment.tsx`, when invoking `submitCompetitionPayment`, also pass:
-- `coaching_name: coachingProduct.name`
-- `category_names: selectedCategoryIds.map(id => categoryProducts.find(p=>p.id===id)?.name).filter(Boolean)`
+CREATE POLICY "Anon can read seminar proof uploads"
+  ON storage.objects FOR SELECT TO anon
+  USING (bucket_id = 'payment-proofs' AND (storage.foldername(name))[1] = 'public-seminars');
 
-For the subject's "Competition Name", use the coaching product name (e.g. "Singapore Open Coaching") as the source of competition identity — this is the only competition-identifying string available in the flow.
-
-In `submitCompetitionPayment`, after the RPC succeeds and `input.email` is present, fire-and-forget:
-
-```ts
-void supabase.functions.invoke('send-transactional-email', {
-  body: {
-    templateName: 'competition-confirmation',
-    recipientEmail: recipient,
-    idempotencyKey: `comp-confirm-${inserted.id}`,
-    templateData: {
-      firstName: fn,
-      fullName: `${fn} ${ln}`.trim(),
-      competitionName: input.coaching_name || 'Competition',
-      coachingName: input.coaching_name || '',
-      categories: input.category_names || [],
-      amount: input.amount,
-      referenceNumber: inserted.reference_number,
-    },
-  },
-});
+CREATE POLICY "Anon can read guards proof uploads"
+  ON storage.objects FOR SELECT TO anon
+  USING (bucket_id = 'payment-proofs' AND (storage.foldername(name))[1] = 'public-guards');
 ```
 
-### Deploy
-
-Redeploy `send-transactional-email` to register the new template.
+With these in place, `resolveStorageUrl` will successfully mint a 1-hour signed URL for the anon session and the proof image will render in both the inline thumbnail and the lightbox.
 
 ### Out of scope
 
-Verification/rejection/collection emails, admin notifications.
+- No client code changes needed.
+- Authenticated/staff policies untouched.
+- Other private buckets (`claim-receipts`, `student-photos`, `receipts`, `notice-attachments`) remain auth-only.
