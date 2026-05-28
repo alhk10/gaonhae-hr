@@ -28,7 +28,22 @@ export interface PublicCompetitionListRow {
   amount: number | null;
   reference_number: string;
   created_at: string;
+  poomsae_1: string | null;
+  poomsae_2: string | null;
 }
+
+export const updateCompetitionPoomsae = async (
+  id: string,
+  poomsae_1: string | null,
+  poomsae_2: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_competition_poomsae' as any, {
+    p_id: id,
+    p_poomsae_1: poomsae_1,
+    p_poomsae_2: poomsae_2,
+  });
+  if (error) throw error;
+};
 
 export interface PendingCompetitionSubmission {
   id: string;

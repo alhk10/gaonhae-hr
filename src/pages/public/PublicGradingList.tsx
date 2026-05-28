@@ -6,7 +6,7 @@
  * delete/update-slot, plus amount + proof columns for submission rows.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
   getCompetitionSubmissionDeleteContext,
+  updateCompetitionPoomsae,
   type PublicCompetitionListRow,
 } from '@/services/competitionPaymentSubmissionService';
 import {
@@ -1815,18 +1816,90 @@ const PublicGradingList: React.FC = () => {
   );
 };
 
+const POOMSAE_OPTIONS = [
+  'Introductory Poomsae',
+  'Preliminary Poomsae',
+  'Taegeuk 1',
+  'Taegeuk 2',
+  'Taegeuk 3',
+  'Taegeuk 4',
+  'Taegeuk 5',
+  'Taegeuk 6',
+  'Taegeuk 7',
+  'Taegeuk 8',
+  'Koryo',
+  'Keumgang',
+  'Taebaek',
+  'Pyongwon',
+  'Sipjin',
+  'Jitae',
+  'Chonkwon',
+  'Hansu',
+];
+
+const POOMSAE_CLEAR = '__clear__';
+
 const CompetitionsTab: React.FC<{
   branchFilter: string;
   canDelete?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
 }> = ({ branchFilter, canDelete, onRequestDelete }) => {
+  const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
     queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
   });
 
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+
+  const poomsaeMutation = useMutation({
+    mutationFn: ({ id, p1, p2 }: { id: string; p1: string | null; p2: string | null }) =>
+      updateCompetitionPoomsae(id, p1, p2),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      toast.success('Poomsae updated');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update poomsae'),
+  });
+
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (rows.length === 0) return <div className="text-sm text-muted-foreground">No competition registrations yet.</div>;
+
+  const renderPoomsae = (value: string | null, onChange: (v: string | null) => void) => (
+    <Select
+      value={value ?? ''}
+      onValueChange={(v) => onChange(v === POOMSAE_CLEAR ? null : v)}
+    >
+      <SelectTrigger className="h-7 text-[11px] min-w-[140px]">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={POOMSAE_CLEAR}>—</SelectItem>
+        {POOMSAE_OPTIONS.map((o) => (
+          <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const Thumb: React.FC<{ url: string | null; title: string }> = ({ url, title }) => {
+    if (!url) return <span className="text-xs text-muted-foreground">—</span>;
+    return (
+      <button
+        type="button"
+        onClick={() => setPreview({ url, title })}
+        className="block"
+        title="Click to view"
+      >
+        <SignedImage
+          src={url}
+          className="h-10 w-10 object-cover rounded border cursor-pointer hover:opacity-80"
+          alt={title}
+          fallback={<span className="text-xs text-muted-foreground">…</span>}
+        />
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-2">
@@ -1835,23 +1908,29 @@ const CompetitionsTab: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Belt</TableHead>
-              <TableHead>Categories</TableHead>
-              <TableHead>Coaching</TableHead>
-              <TableHead>Cert</TableHead>
-              <TableHead>Status</TableHead>
-              {canDelete && <TableHead />}
+              <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Categories</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
+              <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
+              {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {(rows as PublicCompetitionListRow[]).map((r) => (
               <TableRow key={r.submission_id}>
-                <TableCell className="font-medium">{r.student_name}</TableCell>
-                <TableCell className="text-xs">{r.branch_name || '—'}</TableCell>
-                <TableCell className="text-xs">{r.current_belt || '—'}</TableCell>
-                <TableCell className="text-xs">
+                <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
+                <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
+                <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
+                <TableCell className="px-2 py-1">
+                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
+                </TableCell>
+                <TableCell className="text-xs px-2 py-1">
                   <div className="flex flex-wrap gap-1">
                     {(r.category_names || []).map((n) => (
                       <Badge key={n} variant="outline" className="text-[10px]">
@@ -1860,17 +1939,27 @@ const CompetitionsTab: React.FC<{
                     ))}
                   </div>
                 </TableCell>
-                <TableCell>{r.coaching_paid ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</TableCell>
-                <TableCell>
-                  {r.certificate_url ? (
-                    <a href={r.certificate_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View</a>
-                  ) : '—'}
-                </TableCell>
-                <TableCell>
+                <TableCell className="px-2 py-1">
                   <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
                 </TableCell>
+                <TableCell className="text-xs px-2 py-1 text-right">
+                  {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  {renderPoomsae(r.poomsae_1, (v) =>
+                    poomsaeMutation.mutate({ id: r.submission_id, p1: v, p2: r.poomsae_2 }),
+                  )}
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  {renderPoomsae(r.poomsae_2, (v) =>
+                    poomsaeMutation.mutate({ id: r.submission_id, p1: r.poomsae_1, p2: v }),
+                  )}
+                </TableCell>
                 {canDelete && (
-                  <TableCell>
+                  <TableCell className="px-2 py-1">
                     <button
                       type="button"
                       onClick={() => onRequestDelete?.(r.submission_id, r.student_name)}
@@ -1886,6 +1975,21 @@ const CompetitionsTab: React.FC<{
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <SignedImage
+              src={preview.url}
+              className="w-full h-auto max-h-[80vh] object-contain rounded"
+              alt={preview.title}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

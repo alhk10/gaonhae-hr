@@ -1,57 +1,45 @@
-## Grading List — Result lock window + new Remark column
+## Competitions tab — new columns and inline editing
 
-### 1. Result column — time-based lock
+Rework the `CompetitionsTab` on `/grading-list` so it matches the high-density layout/style of the Grading table (compact `h-7`, `text-[11px]`, table with overflow-x).
 
-The Result dropdown stays visible on every row but is **only editable** while today's date falls within `[grading_date, grading_date + 30 days]`. Outside that window the `<Select>` renders disabled (greyed) showing the current value.
+### Column order
+1. Branch
+2. Student
+3. Belt
+4. Cert (thumbnail — click to open dialog)
+5. Categories (existing badges)
+6. Status (existing badge)
+7. Amount (right-aligned, formatted)
+8. Payment Proof (thumbnail — click to open dialog)
+9. Poomsae 1 (inline dropdown)
+10. Poomsae 2 (inline dropdown)
+11. Delete (when `canDelete`)
 
-Override: when the page is unlocked with the existing **full** password `Hp84311884` (`unlockLevel === 'full'`), the dropdown is always editable, regardless of date. The standard password `Hp97533488` does **not** bypass the lock.
+Coaching column is removed.
 
-Implementation in `src/pages/public/PublicGradingList.tsx`:
-- Add helper `isResultEditable(r)` = `unlockLevel === 'full'` OR `today` ∈ `[grading_date, grading_date + 30d]`.
-- Pass `disabled={!isResultEditable(r)}` to the existing Result `<Select>` (around line 1320). Same treatment in the per-row Edit dialog (line 1573) and Mass Edit dialog (line 1625) — disable the Result section when no selected row is within the window and not full-unlock.
+### Thumbnails
+- Reuse `SignedImage` (already imported) at ~`h-10 w-10 object-cover rounded border cursor-pointer`.
+- Clicking either thumbnail opens a shared image-preview `<Dialog>` rendering the full image (signed URL via `SignedImage`).
+- Show `—` when the URL is null.
 
-### 2. New "Remark" column (edit mode only)
+### Poomsae dropdowns
+Options (same list for both, plus a clear "—" option):
+Introductory Poomsae, Preliminary Poomsae, Taegeuk 1–8, Koryo, Keumgang, Taebaek, Pyongwon, Sipjin, Jitae, Chonkwon, Hansu.
 
-Options: `AWOL`, `Medical Certificate`, `Double Testing`, `Video Testing`, `—` (clear). Stored as nullable text.
+- Use shadcn `<Select>` with compact trigger (`h-7 text-[11px]`).
+- On change, call the new admin RPC and invalidate `['public-competition-list']`.
+- Always editable (no time lock; this mirrors the Remark column behavior, not Result).
 
-#### Database migration
+### Database migration
+- `ALTER TABLE public.competition_payment_submissions ADD COLUMN poomsae_1 text, ADD COLUMN poomsae_2 text;`
+- New SECURITY DEFINER RPC `admin_update_competition_poomsae(p_id uuid, p_poomsae_1 text, p_poomsae_2 text)` (grants to anon/authenticated, mirrors existing `admin_update_competition_submission_categories` pattern). Empty string → NULL.
+- Recreate `get_public_competition_list` to also return `poomsae_1` and `poomsae_2` (existing return already includes `amount` and `proof_url`).
 
-```sql
-ALTER TABLE public.grading_registrations       ADD COLUMN IF NOT EXISTS remark text;
-ALTER TABLE public.grading_payment_submissions ADD COLUMN IF NOT EXISTS remark text;
-
--- RPCs (SECURITY DEFINER, mirror the existing _result helpers)
-CREATE OR REPLACE FUNCTION public.admin_update_grading_remark(
-  p_registration_id uuid, p_remark text
-) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$
-  UPDATE public.grading_registrations SET remark = p_remark WHERE id = p_registration_id;
-$$;
-
-CREATE OR REPLACE FUNCTION public.admin_update_grading_submission_remark(
-  p_submission_id uuid, p_remark text
-) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$
-  UPDATE public.grading_payment_submissions SET remark = p_remark WHERE id = p_submission_id;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.admin_update_grading_remark(uuid, text)            TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_update_grading_submission_remark(uuid, text) TO anon, authenticated;
-```
-
-Recreate `public.get_public_grading_list` adding a `remark text` column to the RETURNS TABLE, selecting `gr.remark` for the registration branch and `gps.remark` for the submission branch.
-
-#### Service (`src/services/gradingPaymentSubmissionService.ts`)
-
-- Extend `PublicGradingListRow` with `remark: string | null`.
-- Add `adminUpdateGradingRemark(registrationId, remark)` and `adminUpdateGradingSubmissionRemark(submissionId, remark)` calling the new RPCs.
-
-#### UI (`src/pages/public/PublicGradingList.tsx`)
-
-- New header `<TableHead>Remark</TableHead>` placed immediately after `Result` (inside the `editMode &&` block).
-- New `<TableCell>` rendering a `<Select>` with the four options + clear, value = `r.remark`. Wire to `handleRemarkChange(r, v)` that dispatches to the right RPC (registration vs submission), shows toast, and invalidates `['public-grading-list']`. Always editable in edit mode (no time lock — staff need to log absences at any time).
-- Sorting: in the `groups` memo (line 175-181) add a primary sort key `hasRemark = !!r.remark` so rows with a non-empty remark fall to the bottom of their slot group, branch + name sorting preserved within each bucket.
-- Add Remark to the per-row Edit dialog and Mass Edit dialog (same options).
+### Service (`competitionPaymentSubmissionService.ts`)
+- Extend `PublicCompetitionListRow` with `poomsae_1: string | null; poomsae_2: string | null;`.
+- Add `updateCompetitionPoomsae(id, poomsae_1, poomsae_2)` wrapping the new RPC.
 
 ### Out of scope
-
-- No changes to certificate generation, PDFs, or other tabs (competition / seminar / guards).
-- Existing rejected/verified flows untouched.
+- No change to the public `/comps` registration form (only post-submission admin editing).
+- No change to Grading, Seminars, or Guards tabs.
+- No change to existing certificate/proof upload/sign-url flow.

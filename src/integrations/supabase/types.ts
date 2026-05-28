@@ -1048,6 +1048,8 @@ export type Database = {
           matched_student_id: string | null
           notes: string | null
           payment_method: string
+          poomsae_1: string | null
+          poomsae_2: string | null
           proof_url: string
           reference_number: string
           reviewed_at: string | null
@@ -1073,6 +1075,8 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method: string
+          poomsae_1?: string | null
+          poomsae_2?: string | null
           proof_url: string
           reference_number?: string
           reviewed_at?: string | null
@@ -1098,6 +1102,8 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method?: string
+          poomsae_1?: string | null
+          poomsae_2?: string | null
           proof_url?: string
           reference_number?: string
           reviewed_at?: string | null
@@ -7196,6 +7202,10 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_update_competition_poomsae: {
+        Args: { p_id: string; p_poomsae_1: string; p_poomsae_2: string }
+        Returns: undefined
+      }
       admin_update_competition_submission_categories: {
         Args: { p_category_ids: string[]; p_id: string }
         Returns: undefined
@@ -7534,6 +7544,8 @@ export type Database = {
           created_at: string
           current_belt: string
           paid_status: string
+          poomsae_1: string
+          poomsae_2: string
           proof_url: string
           reference_number: string
           status: string
