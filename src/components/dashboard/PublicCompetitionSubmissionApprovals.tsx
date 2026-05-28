@@ -7,18 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, UserSearch, Trophy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, formatDateTime } from '@/utils/dateFormat';
+import { getBranches } from '@/services/settingsService';
+import { createStudent } from '@/services/studentService';
 import {
   getPendingCompetitionSubmissions,
   findCompetitionSubmissionStudentMatches,
   matchCompetitionSubmission,
   importCompetitionSubmission,
   rejectCompetitionSubmission,
+  updateCompetitionSubmissionDetails,
   type PendingCompetitionSubmission,
   type CompetitionStudentMatch,
 } from '@/services/competitionPaymentSubmissionService';
@@ -34,9 +38,21 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
 
   const [matchingSub, setMatchingSub] = useState<PendingCompetitionSubmission | null>(null);
   const [rejectingSub, setRejectingSub] = useState<PendingCompetitionSubmission | null>(null);
+  const [editingSub, setEditingSub] = useState<PendingCompetitionSubmission | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<PendingCompetitionSubmission>>({});
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    first_name: '', last_name: '', date_of_birth: '', email: '', branch_id: '', gender: '', current_belt: '',
+  });
+  const [creating, setCreating] = useState(false);
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches-for-comp-submission-create'],
+    queryFn: getBranches,
+  });
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['pending-competition-submissions', branchId],
@@ -66,33 +82,124 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
         .select('id, student_number, first_name, last_name, email, date_of_birth, branch_id, current_belt')
         .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
         .limit(20);
-      return (data || []).map((s: any) => ({
-        student_id: s.id,
-        student_number: s.student_number,
-        full_name: `${s.first_name || ''} ${s.last_name || ''}`.trim().toUpperCase(),
-        email: s.email,
-        date_of_birth: s.date_of_birth,
-        branch_id: s.branch_id,
-        current_belt: s.current_belt,
-        score: 0,
-        reason: 'manual search',
-      })) as CompetitionStudentMatch[];
+      return data || [];
     },
     enabled: !!matchingSub && searchTerm.trim().length >= 2,
   });
 
-  const handleMatchAndImport = async (studentId: string) => {
+  React.useEffect(() => {
+    if (matchingSub) {
+      setNewStudent({
+        first_name: matchingSub.first_name || '',
+        last_name: matchingSub.last_name || '',
+        date_of_birth: matchingSub.date_of_birth || '',
+        email: matchingSub.email || '',
+        branch_id: matchingSub.branch_id || '',
+        gender: '',
+        current_belt: matchingSub.current_belt || '',
+      });
+      setShowCreate(false);
+    }
+  }, [matchingSub]);
+
+  React.useEffect(() => {
+    if (editingSub) setEditDraft({ ...editingSub });
+  }, [editingSub]);
+
+  const handleMatch = async (studentId: string) => {
     if (!matchingSub) return;
     setBusyId(matchingSub.id);
     try {
       await matchCompetitionSubmission(matchingSub.id, studentId);
-      await importCompetitionSubmission(matchingSub.id, verifiedBy);
-      toast.success('Competition registration approved and invoice generated');
+      toast.success('Student matched');
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to import submission');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to match student');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleCreateAndMatch = async () => {
+    if (!matchingSub) return;
+    const { first_name, last_name, date_of_birth, email, branch_id, gender, current_belt } = newStudent;
+    if (!first_name.trim() || !last_name.trim() || !date_of_birth || !email.trim() || !branch_id) {
+      toast.error('First name, last name, DOB, email and branch are required');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      toast.error('Invalid email');
+      return;
+    }
+    if (new Date(date_of_birth) > new Date()) {
+      toast.error('DOB cannot be in the future');
+      return;
+    }
+    const fn = first_name.trim().toUpperCase();
+    const ln = last_name.trim().toUpperCase();
+    setCreating(true);
+    try {
+      const student = await createStudent({
+        first_name: fn,
+        last_name: ln,
+        certificate_name: `${fn} ${ln}`,
+        display_name: `${fn} ${ln}`,
+        date_of_birth,
+        email: email.trim(),
+        branch_id,
+        gender: gender || undefined,
+        current_belt: current_belt || undefined,
+        status: 'active',
+      });
+      await matchCompetitionSubmission(matchingSub.id, student.id);
+      toast.success('Student created and matched');
+      setMatchingSub(null);
+      setSearchTerm('');
+      setShowCreate(false);
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to create student');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleImport = async (sub: PendingCompetitionSubmission) => {
+    if (!sub.matched_student_id) {
+      toast.error('Match a student before importing');
+      return;
+    }
+    setBusyId(sub.id);
+    try {
+      await importCompetitionSubmission(sub.id, verifiedBy);
+      toast.success('Submission verified and invoice generated');
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to import');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSub) return;
+    setBusyId(editingSub.id);
+    try {
+      await updateCompetitionSubmissionDetails(editingSub.id, {
+        first_name: editDraft.first_name || '',
+        last_name: editDraft.last_name || '',
+        email: editDraft.email || null,
+        date_of_birth: editDraft.date_of_birth || null,
+        current_belt: editDraft.current_belt || null,
+        branch_id: editDraft.branch_id || undefined,
+      });
+      toast.success('Details updated');
+      setEditingSub(null);
+      invalidate();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update');
     } finally {
       setBusyId(null);
     }
@@ -102,7 +209,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
     if (!rejectingSub) return;
     setBusyId(rejectingSub.id);
     try {
-      await rejectCompetitionSubmission(rejectingSub.id, rejectReason || 'Rejected', verifiedBy);
+      await rejectCompetitionSubmission(rejectingSub.id, rejectReason.trim() || 'Rejected', verifiedBy);
       toast.success('Submission rejected');
       setRejectingSub(null);
       setRejectReason('');
@@ -118,141 +225,279 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
   if (submissions.length === 0) return null;
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Trophy className="h-4 w-4" />
-            Competition Registrations
-            <Badge variant="secondary">{submissions.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {submissions.map((sub) => (
-            <div key={sub.id} className="border rounded-md p-3 space-y-2 bg-background">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <div className="font-medium text-sm">
-                    {sub.student_name}
-                    <span className="text-muted-foreground font-normal"> · {sub.branch_name}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground space-x-2">
-                    {sub.email && <span>{sub.email}</span>}
-                    {sub.date_of_birth && <span>DOB {formatDate(sub.date_of_birth)}</span>}
-                    {sub.current_belt && <span>· {sub.current_belt}</span>}
-                  </div>
-                  <div className="text-xs">
-                    Ref: <span className="font-mono">{sub.reference_number}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {(sub.category_names || []).map((n) => (
-                      <Badge key={n} variant="outline" className="text-[10px]">{n}</Badge>
-                    ))}
-                  </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Trophy className="h-4 w-4" />
+          Competition Registrations
+          <Badge variant="secondary">{submissions.length}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {submissions.map((sub) => (
+          <div key={sub.id} className="border rounded-md p-3 space-y-2 bg-background">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="space-y-0.5 text-sm">
+                <div className="font-semibold">
+                  {sub.student_name}{' '}
+                  <span className="text-xs text-muted-foreground font-normal">{sub.reference_number}</span>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold">${Number(sub.amount || 0).toFixed(2)}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{sub.payment_method.replace('_', ' ')}</div>
+                <div className="text-xs text-muted-foreground">
+                  {sub.email || '—'} · DOB {sub.date_of_birth ? formatDate(sub.date_of_birth) : '—'} · Belt {sub.current_belt || '—'}
+                </div>
+                <div className="text-xs">{sub.branch_name || sub.branch_id}</div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {(sub.category_names || []).map((n) => (
+                    <Badge key={n} variant="outline" className="text-[10px]">{n}</Badge>
+                  ))}
+                </div>
+                <div className="text-xs">
+                  Amount: <span className="font-medium">${Number(sub.amount || 0).toFixed(2)}</span> · {sub.payment_method.replace('_', ' ')}
+                  {' · '}submitted {formatDateTime(sub.created_at)}
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-3 items-start">
-                {sub.proof_url && (
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Proof</div>
-                    <SignedImage src={sub.proof_url} className="h-20 w-auto rounded border" alt="Proof" />
-                  </div>
+              <div className="flex flex-col items-end gap-1">
+                {sub.status === 'verified' ? (
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Verified</Badge>
+                ) : (
+                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pending</Badge>
                 )}
-                {sub.certificate_url && (
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Certificate</div>
-                    <SignedImage src={sub.certificate_url} className="h-20 w-auto rounded border" alt="Certificate" />
-                  </div>
+                {sub.matched_student_id ? (
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Matched</Badge>
+                ) : (
+                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unmatched</Badge>
                 )}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => setMatchingSub(sub)}
-                  disabled={busyId === sub.id}
-                >
-                  <UserSearch className="h-3 w-3 mr-1" />
-                  Match &amp; Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setRejectingSub(sub)}
-                  disabled={busyId === sub.id}
-                >
-                  <XCircle className="h-3 w-3 mr-1" />
-                  Reject
-                </Button>
               </div>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+
+            <div className="flex flex-wrap gap-3 items-start">
+              {sub.proof_url && (
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Proof</div>
+                  <SignedImage src={sub.proof_url} className="h-20 w-auto rounded border" alt="Proof" />
+                </div>
+              )}
+              {sub.certificate_url && (
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Certificate</div>
+                  <SignedImage src={sub.certificate_url} className="h-20 w-auto rounded border" alt="Certificate" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={() => setMatchingSub(sub)} disabled={busyId === sub.id}>
+                <UserSearch className="w-3.5 h-3.5 mr-1" />
+                {sub.matched_student_id ? 'Re-match' : 'Match Student'}
+              </Button>
+              <Button size="sm" onClick={() => handleImport(sub)} disabled={busyId === sub.id || !sub.matched_student_id}>
+                <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                Verify &amp; Import
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditingSub(sub)} disabled={busyId === sub.id}>
+                <Pencil className="w-3.5 h-3.5 mr-1" />
+                Edit details
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => setRejectingSub(sub)} disabled={busyId === sub.id}>
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Reject
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
 
       {/* Match dialog */}
       <Dialog open={!!matchingSub} onOpenChange={(o) => { if (!o) { setMatchingSub(null); setSearchTerm(''); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Match to student profile</DialogTitle>
+            <DialogTitle>Match student — {matchingSub?.student_name}</DialogTitle>
           </DialogHeader>
           {matchingSub && (
             <div className="space-y-3">
-              <div className="text-sm border-b pb-2">
-                <div className="font-medium">{matchingSub.student_name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {matchingSub.email} · DOB {matchingSub.date_of_birth ? formatDate(matchingSub.date_of_birth) : '—'} · {matchingSub.current_belt || '—'}
+              <div className="text-xs text-muted-foreground">
+                Submission: {matchingSub.email || '—'} · DOB {matchingSub.date_of_birth ? formatDate(matchingSub.date_of_birth) : '—'} · {matchingSub.branch_name}
+              </div>
+
+              <div>
+                <Label className="text-xs">Suggested matches</Label>
+                {matchesLoading && <div className="text-xs text-muted-foreground">Loading…</div>}
+                {!matchesLoading && matches.length === 0 && (
+                  <div className="text-xs text-muted-foreground">No fuzzy matches found.</div>
+                )}
+                <div className="space-y-1 mt-1">
+                  {matches.map((m: CompetitionStudentMatch) => (
+                    <div key={m.student_id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {m.full_name} <span className="text-xs text-muted-foreground">{m.student_number}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.current_belt || '—'}
+                        </div>
+                        {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                      </div>
+                      <Button size="sm" onClick={() => handleMatch(m.student_id)}>Use</Button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs">Search students manually</Label>
+              <div>
+                <Label className="text-xs">Search students</Label>
                 <Input
-                  placeholder="Search by name, email, or student #"
+                  placeholder="Name, email, or student number"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-8"
                 />
+                <div className="space-y-1 mt-1">
+                  {searchResults.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 border rounded p-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {`${s.first_name || ''} ${s.last_name || ''}`.trim().toUpperCase()}{' '}
+                          <span className="text-xs text-muted-foreground">{s.student_number}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {s.email || '—'} · DOB {s.date_of_birth ? formatDate(s.date_of_birth) : '—'} · {s.current_belt || '—'}
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={() => handleMatch(s.id)}>Use</Button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">
-                  {searchTerm.trim().length >= 2 ? 'Search results' : 'Suggested matches'}
-                </div>
-                {matchesLoading && <div className="text-xs text-muted-foreground">Loading...</div>}
-                {(searchTerm.trim().length >= 2 ? searchResults : matches).map((m) => (
-                  <div key={m.student_id} className="flex items-center justify-between gap-2 border rounded-md p-2 text-sm">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
-                        {m.full_name}
-                        {m.student_number && <span className="text-xs text-muted-foreground ml-2">#{m.student_number}</span>}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.current_belt || '—'}
-                      </div>
-                      {m.reason && <div className="text-[10px] text-muted-foreground">{m.reason}</div>}
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleMatchAndImport(m.student_id)}
-                      disabled={busyId === matchingSub.id}
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Match &amp; Approve
-                    </Button>
+              <div className="border-t pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <Label className="text-xs">No matching student?</Label>
+                    <div className="text-xs text-muted-foreground">Create one from the submission details.</div>
                   </div>
-                ))}
-                {(searchTerm.trim().length >= 2 ? searchResults : matches).length === 0 && !matchesLoading && (
-                  <div className="text-xs text-muted-foreground">No matches found.</div>
+                  {!showCreate && (
+                    <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
+                      <UserPlus className="w-3.5 h-3.5 mr-1" />
+                      Create new student
+                    </Button>
+                  )}
+                </div>
+
+                {showCreate && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">First name *</Label>
+                      <Input className="h-8" value={newStudent.first_name}
+                        onChange={(e) => setNewStudent(s => ({ ...s, first_name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Last name *</Label>
+                      <Input className="h-8" value={newStudent.last_name}
+                        onChange={(e) => setNewStudent(s => ({ ...s, last_name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Date of birth *</Label>
+                      <Input type="date" className="h-8" value={newStudent.date_of_birth}
+                        onChange={(e) => setNewStudent(s => ({ ...s, date_of_birth: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Email *</Label>
+                      <Input type="email" className="h-8" value={newStudent.email}
+                        onChange={(e) => setNewStudent(s => ({ ...s, email: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Branch *</Label>
+                      <Select value={newStudent.branch_id}
+                        onValueChange={(v) => setNewStudent(s => ({ ...s, branch_id: v }))}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                        <SelectContent>
+                          {branches.map((b: any) => (
+                            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Gender</Label>
+                      <Select value={newStudent.gender}
+                        onValueChange={(v) => setNewStudent(s => ({ ...s, gender: v }))}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Optional" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {newStudent.current_belt && (
+                      <div className="sm:col-span-2 text-xs text-muted-foreground">
+                        Current belt from submission: <span className="font-medium">{newStudent.current_belt}</span>
+                      </div>
+                    )}
+                    <div className="sm:col-span-2 flex justify-end gap-2 mt-1">
+                      <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} disabled={creating}>Cancel</Button>
+                      <Button size="sm" onClick={handleCreateAndMatch} disabled={creating}>
+                        {creating ? 'Creating…' : 'Create & Match'}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit details dialog */}
+      <Dialog open={!!editingSub} onOpenChange={(o) => { if (!o) setEditingSub(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit submission details</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">First name</Label>
+              <Input className="h-8" value={editDraft.first_name || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, first_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Last name</Label>
+              <Input className="h-8" value={editDraft.last_name || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, last_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Date of birth</Label>
+              <Input type="date" className="h-8" value={editDraft.date_of_birth || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, date_of_birth: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input type="email" className="h-8" value={editDraft.email || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Branch</Label>
+              <Select value={editDraft.branch_id || ''} onValueChange={(v) => setEditDraft(d => ({ ...d, branch_id: v }))}>
+                <SelectTrigger className="h-8"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Current belt</Label>
+              <Input className="h-8" value={editDraft.current_belt || ''}
+                onChange={(e) => setEditDraft(d => ({ ...d, current_belt: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSub(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={busyId === editingSub?.id}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" />Save
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -274,7 +519,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </Card>
   );
 };
 
