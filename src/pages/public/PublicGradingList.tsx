@@ -1582,13 +1582,29 @@ const PublicGradingList: React.FC = () => {
       />
 
       {/* Proof lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); } }}>
         <DialogContent className="max-w-3xl p-2">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="sr-only">Payment proof</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+              title="Rotate 90°"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
           </DialogHeader>
           {lightboxUrl && (
-            <img src={lightboxUrl} alt="Payment proof" className="w-full h-auto rounded" />
+            <div className="flex items-center justify-center overflow-hidden">
+              <img
+                src={lightboxUrl}
+                alt="Payment proof"
+                className="max-w-full max-h-[80vh] h-auto rounded transition-transform"
+                style={{ transform: `rotate(${lightboxRotation}deg)` }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
