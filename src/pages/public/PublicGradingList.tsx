@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
+import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
@@ -104,7 +105,8 @@ const PublicGradingList: React.FC = () => {
   type PendingDelete =
     | { kind: 'grading'; source: 'submission' | 'registration'; id: string; studentName: string }
     | { kind: 'competition'; id: string; studentName: string }
-    | { kind: 'guards'; id: string; studentName: string };
+    | { kind: 'guards'; id: string; studentName: string }
+    | { kind: 'seminar'; id: string; studentName: string };
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -286,6 +288,11 @@ const PublicGradingList: React.FC = () => {
         await adminDeleteGuardsPurchase(pendingDelete.id);
         toast.success('Guards purchase deleted');
         qc.invalidateQueries({ queryKey: ['guards-purchases'] });
+      } else if (pendingDelete.kind === 'seminar') {
+        const { adminDeleteSeminarSubmission } = await import('@/services/seminarPaymentSubmissionService');
+        await adminDeleteSeminarSubmission(pendingDelete.id);
+        toast.success('Seminar booking deleted');
+        qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
       }
       setPendingDelete(null);
     } catch (e: any) {
@@ -1109,9 +1116,10 @@ const PublicGradingList: React.FC = () => {
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
         <Tabs defaultValue="grading" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
+            <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="grading" className="space-y-4 mt-4">
@@ -1425,6 +1433,14 @@ const PublicGradingList: React.FC = () => {
               branchFilter={branchFilter}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
+            />
+          </TabsContent>
+          <TabsContent value="seminars" className="mt-4">
+            <SeminarsTab
+              branchFilter={branchFilter}
+              canEdit={editMode}
+              canDelete={canDelete}
+              onRequestDelete={(id, name) => setPendingDelete({ kind: 'seminar', id, studentName: name })}
             />
           </TabsContent>
           <TabsContent value="guards" className="mt-4">

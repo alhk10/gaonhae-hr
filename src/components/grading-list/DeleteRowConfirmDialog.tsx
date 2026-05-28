@@ -20,11 +20,13 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { getCompetitionSubmissionDeleteContext } from '@/services/competitionPaymentSubmissionService';
 import { getGuardsPurchaseDeleteContext } from '@/services/guardsPurchaseService';
+import { getSeminarSubmissionDeleteContext } from '@/services/seminarPaymentSubmissionService';
 
 export type DeleteKind =
   | { kind: 'grading'; source: 'submission' | 'registration'; id: string; studentName: string }
   | { kind: 'competition'; id: string; studentName: string }
-  | { kind: 'guards'; id: string; studentName: string };
+  | { kind: 'guards'; id: string; studentName: string }
+  | { kind: 'seminar'; id: string; studentName: string };
 
 interface Props {
   pending: DeleteKind | null;
@@ -37,6 +39,7 @@ const titleFor = (k: DeleteKind | null) => {
   if (!k) return 'Delete row?';
   if (k.kind === 'grading') return 'Delete grading row?';
   if (k.kind === 'competition') return 'Delete competition entry?';
+  if (k.kind === 'seminar') return 'Delete seminar booking?';
   return 'Delete guards purchase?';
 };
 
@@ -49,6 +52,14 @@ const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConf
       if (!pending) return { student_matched: false, student_name: null, invoice_number: null };
       if (pending.kind === 'grading') return getGradingRowDeleteContext(pending.source, pending.id);
       if (pending.kind === 'competition') return getCompetitionSubmissionDeleteContext(pending.id);
+      if (pending.kind === 'seminar') {
+        const c = await getSeminarSubmissionDeleteContext(pending.id);
+        return {
+          student_matched: !!c.student_name,
+          student_name: c.student_name,
+          invoice_number: c.invoice_number,
+        } as DeleteRowContext;
+      }
       return getGuardsPurchaseDeleteContext(pending.id);
     },
     enabled: open,
