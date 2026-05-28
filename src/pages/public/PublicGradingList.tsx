@@ -1876,8 +1876,9 @@ const POOMSAE_CLEAR = '__clear__';
 const CompetitionsTab: React.FC<{
   branchFilter: string;
   canDelete?: boolean;
+  verifiedBy: string;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, verifiedBy, onRequestDelete }) => {
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
@@ -1886,6 +1887,69 @@ const CompetitionsTab: React.FC<{
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const { data: matches = [], isFetching: matchesLoading } = useQuery({
+    queryKey: ['competition-inline-matches', acceptingId],
+    queryFn: () => findCompetitionSubmissionStudentMatches(acceptingId!),
+    enabled: !!acceptingId,
+  });
+
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ['competition-inline-student-search', searchTerm],
+    queryFn: async () => {
+      if (searchTerm.trim().length < 2) return [];
+      const term = `%${searchTerm.trim()}%`;
+      const { data } = await supabase
+        .from('students')
+        .select('id, student_number, first_name, last_name, email, date_of_birth, current_belt')
+        .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!acceptingId && searchTerm.trim().length >= 2,
+  });
+
+  const handleAccept = async (studentId: string) => {
+    if (!acceptingId) return;
+    setBusy(true);
+    try {
+      await matchCompetitionSubmission(acceptingId, studentId);
+      await importCompetitionSubmission(acceptingId, verifiedBy);
+      toast.success('Submission verified and invoice generated');
+      setAcceptingId(null);
+      setSearchTerm('');
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to verify');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingId) return;
+    setBusy(true);
+    try {
+      await rejectCompetitionSubmission(rejectingId, rejectReason.trim() || 'Rejected', verifiedBy);
+      toast.success('Submission rejected');
+      setRejectingId(null);
+      setRejectReason('');
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
+      qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to reject');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const poomsaeMutation = useMutation({
     mutationFn: ({ id, p1, p2 }: { id: string; p1: string | null; p2: string | null }) =>
