@@ -20,11 +20,13 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { getCompetitionSubmissionDeleteContext } from '@/services/competitionPaymentSubmissionService';
 import { getGuardsPurchaseDeleteContext } from '@/services/guardsPurchaseService';
+import { getSeminarSubmissionDeleteContext } from '@/services/seminarPaymentSubmissionService';
 
 export type DeleteKind =
   | { kind: 'grading'; source: 'submission' | 'registration'; id: string; studentName: string }
   | { kind: 'competition'; id: string; studentName: string }
-  | { kind: 'guards'; id: string; studentName: string };
+  | { kind: 'guards'; id: string; studentName: string }
+  | { kind: 'seminar'; id: string; studentName: string };
 
 interface Props {
   pending: DeleteKind | null;
