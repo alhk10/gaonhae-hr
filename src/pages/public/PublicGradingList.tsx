@@ -498,10 +498,13 @@ const PublicGradingList: React.FC = () => {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
         if (massForm.changeResult) {
-          if (r.source === 'registration' && r.registration_id) {
-            ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
-          } else if (r.source === 'submission' && r.submission_id) {
-            ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+          const resultEditable = unlockLevel === 'full' || isWithinResultWindow(r.grading_date);
+          if (resultEditable) {
+            if (r.source === 'registration' && r.registration_id) {
+              ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
+            } else if (r.source === 'submission' && r.submission_id) {
+              ops.push(adminUpdateGradingSubmissionResult(r.submission_id, massForm.result || null));
+            }
           }
         }
         if (massForm.changeSlot && massForm.slot_id) {
@@ -516,6 +519,13 @@ const PublicGradingList: React.FC = () => {
             ops.push(adminUpdateGradingRegistrationBranch(r.registration_id, massForm.branch_id));
           } else if (r.source === 'submission' && r.submission_id) {
             ops.push(adminUpdateGradingSubmissionBranch(r.submission_id, massForm.branch_id));
+          }
+        }
+        if (massForm.changeRemark) {
+          if (r.source === 'registration' && r.registration_id) {
+            ops.push(adminUpdateGradingRemark(r.registration_id, massForm.remark || null));
+          } else if (r.source === 'submission' && r.submission_id) {
+            ops.push(adminUpdateGradingSubmissionRemark(r.submission_id, massForm.remark || null));
           }
         }
         if (ops.length === 0) { skipped++; continue; }
