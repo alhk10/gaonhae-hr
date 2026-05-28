@@ -1776,6 +1776,26 @@ const PublicGradingList: React.FC = () => {
                 </Select>
               )}
             </div>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={massForm.changeRemark}
+                  onCheckedChange={(v) => setMassForm((f) => ({ ...f, changeRemark: !!v }))}
+                />
+                Remark
+              </label>
+              {massForm.changeRemark && (
+                <Select value={massForm.remark} onValueChange={(v) => setMassForm((f) => ({ ...f, remark: v === '__clear__' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {REMARK_OPTIONS.map((o) => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                    ))}
+                    <SelectItem value="__clear__">—</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMassEditOpen(false)}>Cancel</Button>
@@ -1783,7 +1803,7 @@ const PublicGradingList: React.FC = () => {
               onClick={handleMassEditApply}
               disabled={
                 savingMass ||
-                (!massForm.changeResult && !massForm.changeSlot && !massForm.changeBranch)
+                (!massForm.changeResult && !massForm.changeSlot && !massForm.changeBranch && !massForm.changeRemark)
               }
             >
               {savingMass ? 'Applying…' : 'Apply'}
