@@ -39,6 +39,7 @@ const titleFor = (k: DeleteKind | null) => {
   if (!k) return 'Delete row?';
   if (k.kind === 'grading') return 'Delete grading row?';
   if (k.kind === 'competition') return 'Delete competition entry?';
+  if (k.kind === 'seminar') return 'Delete seminar booking?';
   return 'Delete guards purchase?';
 };
 
