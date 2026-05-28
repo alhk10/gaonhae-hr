@@ -2005,17 +2005,29 @@ const CompetitionsTab: React.FC<{
         </Table>
       </div>
 
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { setPreview(null); setPreviewRotation(0); } }}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
+              title="Rotate 90°"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
           </DialogHeader>
           {preview && (
-            <SignedImage
-              src={preview.url}
-              className="w-full h-auto max-h-[80vh] object-contain rounded"
-              alt={preview.title}
-            />
+            <div className="flex items-center justify-center overflow-hidden">
+              <SignedImage
+                src={preview.url}
+                className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
+                alt={preview.title}
+                style={{ transform: `rotate(${previewRotation}deg)` }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
