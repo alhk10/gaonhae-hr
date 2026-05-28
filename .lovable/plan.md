@@ -1,27 +1,50 @@
-## Update `/guards` order confirmation email
+## Add `/seminar` registration confirmation email
 
-### Template changes — `supabase/functions/_shared/transactional-email-templates/guards-order-received.tsx`
+Currently no email is sent on seminar submission. Add a transactional email that fires after a successful `submitSeminarPayment`.
 
-- Extend props to accept `fullName`, `items` (array of `{ label, qty, unit_price_inc }`), `subtotal`, `gst_amount`, `total`, `referenceNumber`.
-- Change subject to a function: `` `${fullName} Protection Guard Order` `` (fallback to "Your" if name missing).
-- Replace body with the requested copy:
-  - Greeting: `Hi <FirstName>,` (fallback `Hi,`)
-  - `Thank you for your protection guard order. Your order are as follows:`
-  - Order details block — a small table listing each item (label × qty @ $unit = line total), followed by Subtotal, GST (if > 0), and Total. Include reference number row.
-  - `We will update you when your guards are ready for collection.`
+### New template — `supabase/functions/_shared/transactional-email-templates/seminar-confirmation.tsx`
+
+- Props: `fullName`, `firstName`, `packageLabel`, `sessionDates[]`, `amount`, `referenceNumber`.
+- Subject: `` `${fullName} Seminar` `` (fallback "Your Seminar").
+- Body copy:
+  - Greeting `Hi <FirstName>,`
+  - `Thank you for your Seminar Registration. The details are as follows:`
+  - Details box: Seminar (packageLabel), Session Date(s) formatted DD/MM/YYYY, Amount (`$X.XX`), Reference Number.
   - `Should you have any further questions, please check with your masters.`
   - `Please do not reply to this email.`
-  - Sign-off: `Thank you` / `Gaonhae Taekwondo`
+  - Sign-off `Thank you` / `Gaonhae Taekwondo`.
+- Style consistent with `grading-confirmation.tsx`.
 
-### Caller change — `src/services/guardsPurchaseService.ts`
+### Registry — `supabase/functions/_shared/transactional-email-templates/registry.ts`
 
-In the `submitGuardsPurchase` invoke of `send-transactional-email`, expand `templateData` to pass: `firstName`, `fullName` (`${fn} ${ln}`), `referenceNumber`, `items` (mapped from `input.items`), `subtotal`, `gst_amount`, `total`.
+Import and register under key `seminar-confirmation`.
+
+### Caller — `src/services/seminarPaymentSubmissionService.ts`
+
+In `submitSeminarPayment`, after the RPC returns successfully and `input.email` is present, fire-and-forget invoke:
+
+```ts
+void supabase.functions.invoke('send-transactional-email', {
+  body: {
+    templateName: 'seminar-confirmation',
+    recipientEmail: input.email,
+    idempotencyKey: `seminar-confirm-${inserted.id}`,
+    templateData: {
+      firstName: fn,
+      fullName: `${fn} ${ln}`,
+      packageLabel: input.package_label,
+      sessionDates: input.session_dates,
+      amount: input.amount,
+      referenceNumber: inserted.reference_number,
+    },
+  },
+});
+```
 
 ### Deploy
 
-Redeploy `send-transactional-email` so the updated template registry takes effect.
+Redeploy `send-transactional-email` so the new template registers.
 
 ### Out of scope
 
-- `guards-collected.tsx` (not requested).
-- Sender / FROM address, infra, queue config.
+Collection/verification emails, admin notifications, changes to existing templates.
