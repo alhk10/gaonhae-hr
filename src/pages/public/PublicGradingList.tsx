@@ -56,6 +56,8 @@ import {
   adminDeleteGradingRegistration,
   getGradingRowDeleteContext,
   adminUpdateGradingResult,
+  adminUpdateGradingRemark,
+  adminUpdateGradingSubmissionRemark,
   adminUpdateGradingRegistrationSlot,
   adminUpdateGradingRegistrationBranch,
   adminUpdateGradingRegistrationDisplayName,
@@ -66,6 +68,19 @@ import {
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel } from '@/constants/beltLevels';
+
+const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing'] as const;
+
+const isWithinResultWindow = (gradingDate: string | null | undefined): boolean => {
+  if (!gradingDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const g = new Date(gradingDate + 'T00:00:00');
+  if (Number.isNaN(g.getTime())) return false;
+  const end = new Date(g);
+  end.setDate(end.getDate() + 30);
+  return today >= g && today <= end;
+};
 
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
