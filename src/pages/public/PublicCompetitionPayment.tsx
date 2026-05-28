@@ -230,6 +230,10 @@ const PublicCompetitionPayment: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
         certificate_file: certificateFile,
+        coaching_name: coachingProduct.name,
+        category_names: selectedCategoryIds
+          .map(id => categoryProducts.find(p => p.id === id)?.name)
+          .filter((n): n is string => !!n),
       });
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {

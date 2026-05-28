@@ -80,6 +80,8 @@ export interface SubmitCompetitionPaymentInput {
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
   certificate_file?: File | null;
+  coaching_name?: string;
+  category_names?: string[];
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
@@ -184,6 +186,27 @@ export const submitCompetitionPayment = async (
     throw new Error('Submission failed: no record returned');
   }
   console.info('[/comps] submitted', inserted);
+
+  const recipient = (input.email || '').trim().toLowerCase();
+  if (recipient) {
+    void supabase.functions.invoke('send-transactional-email', {
+      body: {
+        templateName: 'competition-confirmation',
+        recipientEmail: recipient,
+        idempotencyKey: `comp-confirm-${inserted.id}`,
+        templateData: {
+          firstName: fn,
+          fullName: `${fn} ${ln}`.trim(),
+          competitionName: input.coaching_name || 'Competition',
+          coachingName: input.coaching_name || '',
+          categories: input.category_names || [],
+          amount: input.amount,
+          referenceNumber: inserted.reference_number,
+        },
+      },
+    });
+  }
+
   return inserted as { id: string; reference_number: string };
 };
 
