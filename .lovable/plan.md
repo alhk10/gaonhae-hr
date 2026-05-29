@@ -1,46 +1,34 @@
-## Goal
+# Fix: Branch column on /grading-list
 
-The Superadmin Dashboard currently shows `PublicGradingSubmissionApprovals` (for `/pay`) and `PublicGuardsPurchaseApprovals` (for `/guards`), but is missing the matching + invoicing approval sections for `/comps` and `/seminars`. Add both, mirroring the `/pay` (grading) flow.
+## Problem
+On `/grading-list`, every row shows "Balmoral" because the branch is taken from the **grading slot's branch** (where the grading event is held), not from the student's actual home branch.
 
-## Changes
+The Balmoral 28/06/2026 slot is hosting students from multiple branches, but they all currently render as "Balmoral".
 
-### 1. New service helpers — `src/services/seminarPaymentSubmissionService.ts`
+## Root cause
+In the DB function `public.get_public_grading_list`:
 
-Seminar service lacks the pending-list helpers the approvals UI needs. Add:
+- **Registration rows** (internal students) join `branches` via `grading_slots.branch_id` → always = slot's branch.
+- **Submission rows** (public form) use `grading_payment_submissions.branch_id` → already = the branch keyed in on the form. ✅
 
-- `PendingSeminarSubmission` type (mirrors `PendingCompetitionSubmission`, with seminar fields: `package_code`, `package_label`, `session_dates`, `amount`, `payment_method`, `proof_url`, `current_belt`, `branch_name`, `student_name`).
-- `getPendingSeminarSubmissions(branchId?)` — selects from `seminar_payment_submissions` where `status='pending_verification'` and `matched_invoice_id IS NULL`, enriches with branch name.
-- `getPendingSeminarSubmissionsCount(branchId?)` — head/count query, same filter.
-- `updateSeminarSubmissionDetails(id, patch)` — direct table update for editable fields (name, dob, email, gender, belt, branch, package, amount, notes). No new RPC needed; superadmin RLS already permits.
+## Fix
 
-No DB migrations. All required RPCs already exist (`admin_match_seminar_submission`, `admin_import_seminar_submission_student`, `admin_create_seminar_invoice`, `admin_reject_seminar_submission`, `admin_delete_seminar_submission`, `find_seminar_submission_student_matches`).
+Migration: update `get_public_grading_list` so the **registration** half of the UNION resolves `branch_id` / `branch_name` / `branch_country` from the **student's home branch** (`students.branch_id`) instead of the slot's branch.
 
-### 2. New component — `src/components/dashboard/PublicSeminarSubmissionApprovals.tsx`
+```text
+Registration branch source:  students.branch_id  → branches
+Submission branch source:    grading_payment_submissions.branch_id → branches   (unchanged)
+```
 
-Clone of `PublicCompetitionSubmissionApprovals.tsx`, retitled "Public Seminar Payment Submissions" with `GraduationCap`/`BookOpen` icon. Differences from competition:
+Everything else in the RPC (slot date/time/title/location, paid status, amount, proof, etc.) stays unchanged.
 
-- Display package label + session dates instead of coaching/categories.
-- "Import as invoice" is a two-step call: `importSeminarSubmissionStudent` (only if not yet matched) then `createSeminarInvoice`. Match button uses `matchSeminarSubmission`.
-- Query keys: `pending-seminar-submissions`, `seminar-submission-matches`, `public-seminar-list`.
+## Frontend
+No code changes. `PublicGradingList.tsx` already reads `r.branch_name` and `r.branch_id` from the RPC; the per-row branch filter, mass-edit branch picker, and PDF subtotals will automatically reflect the corrected values.
 
-Same UX as competition/grading: row card with proof thumbnail, Match Student dialog (auto-matches + manual search + create-new), Edit dialog, Reject dialog with reason, Import-as-invoice button enabled only after match.
+## Out of scope
+- Branch-change requests, grading-slot eligibility, payments, invoices.
+- `/comp`, `/seminars`, `/guards`, Superadmin Dashboard sections.
+- The slot title (e.g. "Balmoral - 28/06/2026 - 11:10 - Yellow Tip >> Yellow") stays as the slot's branch — only the per-row **Branch** column changes.
 
-### 3. Wire competition approvals back into Superadmin Dashboard — `src/components/dashboard/SuperadminDashboard.tsx`
-
-- Import `PublicCompetitionSubmissionApprovals` and the new `PublicSeminarSubmissionApprovals`.
-- Render them next to `PublicGradingSubmissionApprovals` (line ~188), in this order: Grading → Competition → Seminar → Guards.
-- Add their pending counts to the `pendingInvoiceDeletionsCount + …` total used for the dashboard badge:
-  - `getPendingCompetitionSubmissionsCount()` (already exists)
-  - `getPendingSeminarSubmissionsCount()` (new, from step 1)
-
-### Out of scope
-
-- No changes to `/comps`, `/seminars`, or `/grading-list` public pages.
-- No changes to the Branch Dashboard.
-- No new DB tables, columns, or RPCs.
-
-## Technical notes
-
-- All currency, amount, and proof handling reuses the existing `SignedImage` and `formatDate` helpers.
-- Match flow uses the existing `find_*_submission_student_matches` RPCs; manual search uses a `students` table query scoped to the submission's `branch_id` (mirroring competition).
-- Mutations invalidate the same query keys used by `/grading-list` Comp + Seminar tabs so those tables refresh in sync.
+## Note
+After this change, the branch filter on `/grading-list` will list every home-branch present in the registrations (e.g. Balmoral, Tampines, etc.), and the per-branch PDF subtotals will be split by the student's home branch — please confirm that's the intended grouping for the amount-collected report before I apply the migration.
