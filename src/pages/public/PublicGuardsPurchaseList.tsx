@@ -218,16 +218,18 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                   <TableRow className="[&_th]:h-8 [&_th]:px-2 [&_th]:text-[11px]">
                     <TableHead>Branch</TableHead>
                     <TableHead>Student</TableHead>
-                    <TableHead>Items</TableHead>
+                    <TableHead>Belt</TableHead>
+                    <TableHead>Package</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Proof</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead></TableHead>
                     {canDelete && onRequestDelete && <TableHead></TableHead>}
                   </TableRow>
                 </TableHeader>
+
                 <TableBody className="[&_td]:px-2 [&_td]:py-1.5 [&_td]:text-xs">
                   {filtered.map(r => {
                     const items = (r.items || []) as any[];
