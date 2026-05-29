@@ -265,3 +265,94 @@ export const getSeminarSubmissionDeleteContext = async (id: string) => {
     package_label: (row?.package_label ?? null) as string | null,
   };
 };
+
+export interface PendingSeminarSubmission {
+  id: string;
+  reference_number: string;
+  first_name: string;
+  last_name: string;
+  student_name: string;
+  email: string | null;
+  branch_id: string;
+  branch_name?: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  current_belt: string | null;
+  package_code: SeminarPackageCode;
+  package_label: string;
+  session_dates: string[];
+  amount: number | null;
+  payment_method: string;
+  proof_url: string | null;
+  status: string;
+  collected: boolean;
+  matched_student_id: string | null;
+  matched_invoice_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export const getPendingSeminarSubmissions = async (
+  branchId?: string,
+): Promise<PendingSeminarSubmission[]> => {
+  let q = supabase
+    .from('seminar_payment_submissions' as any)
+    .select('*')
+    .in('status', ['pending_verification'])
+    .is('matched_invoice_id', null)
+    .order('created_at', { ascending: false });
+  if (branchId) q = q.eq('branch_id', branchId);
+  const { data, error } = await q;
+  if (error) throw error;
+  const rows = (data || []) as any[];
+  if (rows.length === 0) return [];
+
+  const branchIds = Array.from(new Set(rows.map(r => r.branch_id).filter(Boolean)));
+  const branchesRes = branchIds.length
+    ? await supabase.from('branches').select('id, name').in('id', branchIds)
+    : { data: [] as any[] };
+  const branchMap = new Map<string, any>((branchesRes.data || []).map((b: any) => [b.id, b]));
+
+  return rows.map((r: any) => ({
+    ...r,
+    student_name: `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim(),
+    branch_name: branchMap.get(r.branch_id)?.name ?? null,
+  }));
+};
+
+export const getPendingSeminarSubmissionsCount = async (
+  branchId?: string,
+): Promise<number> => {
+  let q = supabase
+    .from('seminar_payment_submissions' as any)
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending_verification')
+    .is('matched_invoice_id', null);
+  if (branchId) q = q.eq('branch_id', branchId);
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+};
+
+export const updateSeminarSubmissionDetails = async (
+  id: string,
+  patch: {
+    first_name?: string;
+    last_name?: string;
+    email?: string | null;
+    date_of_birth?: string | null;
+    current_belt?: string | null;
+    branch_id?: string;
+  },
+): Promise<void> => {
+  const clean: any = { ...patch };
+  if (typeof clean.first_name === 'string') clean.first_name = clean.first_name.trim().toUpperCase();
+  if (typeof clean.last_name === 'string') clean.last_name = clean.last_name.trim().toUpperCase();
+  if (typeof clean.email === 'string') clean.email = clean.email.trim().toLowerCase() || null;
+  if (clean.current_belt === '') clean.current_belt = null;
+  const { error } = await supabase
+    .from('seminar_payment_submissions' as any)
+    .update(clean)
+    .eq('id', id);
+  if (error) throw error;
+};
