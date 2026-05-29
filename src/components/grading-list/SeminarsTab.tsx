@@ -213,7 +213,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                   <TableCell className="px-2 py-1">
                     <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs px-2 py-1 text-right">${Number(r.amount).toFixed(2)}</TableCell>
+                  <TableCell className="text-xs px-2 py-1 text-right">${(Number(r.amount) * 1.09).toFixed(2)}</TableCell>
                   <TableCell className="px-2 py-1">
                     <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
                   </TableCell>
