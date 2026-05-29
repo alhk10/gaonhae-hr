@@ -255,20 +255,32 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     };
 
                     return (
-                      <TableRow key={r.id}>
+                      <TableRow
+                        key={r.id}
+                        className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => setDetailsRow(r)}
+                      >
                         <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
                         <TableCell>
                           <div className="font-medium">{r.first_name} {r.last_name}</div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                          {r.current_belt || '—'}
                         </TableCell>
                         <TableCell>
                           {items.map((it, i) => (
                             <div key={i} className="leading-tight">{it.qty}× {it.label}</div>
                           ))}
                         </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
+                            {r.sale_status.replace(/_/g, ' ')}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {r.proof_url ? (
                             <button
                               type="button"
@@ -282,22 +294,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
-                            {r.sale_status.replace(/_/g, ' ')}
-                          </Badge>
-                          {r.sale_status === 'pending_verification' && (
-                            <div className="flex gap-1 mt-1">
-                              <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-6 w-6 p-0 text-red-600" onClick={() => handleReject(r)} disabled={busyId === r.id}>
-                                <XCircle className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {components.length === 0 ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
@@ -345,7 +342,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className={`flex items-center gap-1.5 ${collectedBlocked ? 'opacity-40' : ''}`}>
                             <Checkbox
                               checked={r.collected}
@@ -358,13 +355,20 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <div className="text-[9px] text-muted-foreground mt-0.5">Select all variants</div>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setDetailsRow(r)}>
-                            Details
-                          </Button>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {r.sale_status === 'pending_verification' && (
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
+                                <CheckCircle className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-6 w-6 p-0 text-red-600" onClick={() => handleReject(r)} disabled={busyId === r.id}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                         {canDelete && onRequestDelete && (
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -378,6 +382,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                         )}
                       </TableRow>
                     );
+
                   })}
                   {filtered.length === 0 && (
                     <TableRow><TableCell colSpan={canDelete && onRequestDelete ? 10 : 9} className="text-center text-sm text-muted-foreground py-6">No purchases found</TableCell></TableRow>
