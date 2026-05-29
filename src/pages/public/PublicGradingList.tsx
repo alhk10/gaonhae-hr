@@ -1370,7 +1370,7 @@ const PublicGradingList: React.FC = () => {
                         {editMode && (
                           <>
                             <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
-                              {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
+                              {r.amount != null ? `$${(Number(r.amount) * 1.09).toFixed(2)}` : '—'}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
                               {r.proof_url ? (
