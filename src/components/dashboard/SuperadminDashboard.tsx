@@ -15,6 +15,8 @@ import { getPendingActionRequestsCount } from '@/services/invoiceActionRequestSe
 import { getPendingRegistrationsCount } from '@/services/studentRegistrationService';
 import { getPendingWithdrawalRequestsCount } from '@/services/studentWithdrawalRequestService';
 import { getPendingTransferRequestsCount } from '@/services/inventoryTransferService';
+import { getPendingCompetitionSubmissionsCount } from '@/services/competitionPaymentSubmissionService';
+import { getPendingSeminarSubmissionsCount } from '@/services/seminarPaymentSubmissionService';
 import { getClaims } from '@/services/claimsService';
 import { getAllLeaveRequests } from '@/services/leaveService';
 
@@ -28,6 +30,8 @@ import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
+import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
+import PublicSeminarSubmissionApprovals from './PublicSeminarSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
@@ -143,6 +147,18 @@ const SuperadminDashboard = () => {
     ...countQueryOpts,
   });
 
+  const { data: pendingCompetitionCount = 0 } = useQuery({
+    queryKey: ['pending-competition-submissions-count'],
+    queryFn: () => getPendingCompetitionSubmissionsCount(),
+    ...countQueryOpts,
+  });
+
+  const { data: pendingSeminarCount = 0 } = useQuery({
+    queryKey: ['pending-seminar-submissions-count'],
+    queryFn: () => getPendingSeminarSubmissionsCount(),
+    ...countQueryOpts,
+  });
+
   const totalPendingCount =
     pendingClaimsCount +
     pendingLeaveCount +
@@ -156,7 +172,9 @@ const SuperadminDashboard = () => {
     pendingGradingDeletionsCount +
     pendingOrdersCount +
     pendingEditRequestsCount +
-    pendingTransferCount;
+    pendingTransferCount +
+    pendingCompetitionCount +
+    pendingSeminarCount;
 
   return (
     <>
@@ -186,6 +204,8 @@ const SuperadminDashboard = () => {
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
         <PublicGradingSubmissionApprovals />
+        <PublicCompetitionSubmissionApprovals />
+        <PublicSeminarSubmissionApprovals />
         <PublicGuardsPurchaseApprovals />
         <PublicHelloCallbackApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
