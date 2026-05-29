@@ -28,6 +28,8 @@ import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
+import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
+import PublicSeminarSubmissionApprovals from './PublicSeminarSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
@@ -186,6 +188,8 @@ const SuperadminDashboard = () => {
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
         <PublicGradingSubmissionApprovals />
+        <PublicCompetitionSubmissionApprovals />
+        <PublicSeminarSubmissionApprovals />
         <PublicGuardsPurchaseApprovals />
         <PublicHelloCallbackApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
