@@ -1,34 +1,35 @@
-# Fix: Branch column on /grading-list
-
-## Problem
-On `/grading-list`, every row shows "Balmoral" because the branch is taken from the **grading slot's branch** (where the grading event is held), not from the student's actual home branch.
-
-The Balmoral 28/06/2026 slot is hosting students from multiple branches, but they all currently render as "Balmoral".
+# Fix /grading-list Guards tab in incognito (non-superadmin) sessions
 
 ## Root cause
-In the DB function `public.get_public_grading_list`:
 
-- **Registration rows** (internal students) join `branches` via `grading_slots.branch_id` → always = slot's branch.
-- **Submission rows** (public form) use `grading_payment_submissions.branch_id` → already = the branch keyed in on the form. ✅
+`guards_purchases` RLS only allows:
+- `anon`: insert + read-back of the just-inserted row (POST only)
+- `authenticated` superadmin: read / update / delete
+
+The other three tabs (grading, competitions, seminars) use the broader pattern:
+- staff with `has_branch_access(branch_id)`: read + update
+- superadmin: full control
+
+So in an incognito session signed in as a non-superadmin staff member with branch access, Grading / Competitions / Seminars load, but the Guards tab returns 0 rows and verify/reject/collected/edit calls silently fail.
 
 ## Fix
 
-Migration: update `get_public_grading_list` so the **registration** half of the UNION resolves `branch_id` / `branch_name` / `branch_country` from the **student's home branch** (`students.branch_id`) instead of the slot's branch.
+Add policies on `public.guards_purchases` to mirror the submissions tables (no changes to the existing anon-insert flow, and no frontend changes):
 
-```text
-Registration branch source:  students.branch_id  → branches
-Submission branch source:    grading_payment_submissions.branch_id → branches   (unchanged)
-```
+1. SELECT — `has_branch_access(branch_id)` for authenticated staff
+2. UPDATE — `has_branch_access(branch_id)` for authenticated staff (USING + WITH CHECK)
 
-Everything else in the RPC (slot date/time/title/location, paid status, amount, proof, etc.) stays unchanged.
-
-## Frontend
-No code changes. `PublicGradingList.tsx` already reads `r.branch_name` and `r.branch_id` from the RPC; the per-row branch filter, mass-edit branch picker, and PDF subtotals will automatically reflect the corrected values.
+The existing superadmin read/update/delete policies and the anon insert + insert-result read policies stay as-is.
 
 ## Out of scope
-- Branch-change requests, grading-slot eligibility, payments, invoices.
-- `/comp`, `/seminars`, `/guards`, Superadmin Dashboard sections.
-- The slot title (e.g. "Balmoral - 28/06/2026 - 11:10 - Yellow Tip >> Yellow") stays as the slot's branch — only the per-row **Branch** column changes.
 
-## Note
-After this change, the branch filter on `/grading-list` will list every home-branch present in the registrations (e.g. Balmoral, Tampines, etc.), and the per-branch PDF subtotals will be split by the student's home branch — please confirm that's the intended grouping for the amount-collected report before I apply the migration.
+- No frontend changes to `src/pages/public/PublicGuardsPurchaseList.tsx` or `PublicGradingList.tsx`
+- No change to anonymous public submission flow at `/guards`
+- No change to grading / comp / seminar tabs (already correct)
+- Delete remains superadmin-only (matches existing behaviour for the other three tabs)
+
+## Verification after migration
+
+- Incognito as a non-superadmin branch staff → Guards tab lists rows for their branch, verify/reject/collected/edit all succeed
+- Incognito as superadmin → unchanged, sees all
+- Public `/guards` submission flow → unchanged
