@@ -1,35 +1,22 @@
-# Fix /grading-list Guards tab in incognito (non-superadmin) sessions
+## Plan
 
-## Root cause
+1. **Add a public list RPC for Guards purchases**
+   - Create `public.get_public_guards_purchase_list(...)` as a `SECURITY DEFINER` function, matching the Competition and Seminar tabs.
+   - Return the same fields the Guards tab currently needs, including branch name, buyer details, items, total, proof URL, status, variants, collection state, matched student/invoice IDs, and timestamps.
+   - Exclude rejected/cancelled rows only if the current UI expects that; otherwise keep all statuses so the existing Status filter still works.
 
-`guards_purchases` RLS only allows:
-- `anon`: insert + read-back of the just-inserted row (POST only)
-- `authenticated` superadmin: read / update / delete
+2. **Update the Guards tab to use the RPC instead of direct table reads**
+   - Change `listGuardsPurchases()` in `guardsPurchaseService.ts` from `.from('guards_purchases').select('*')` to the new RPC.
+   - Keep the component’s existing filters and layout, but use returned `branch_name` as a fallback so branch labels display consistently even before `useBranches()` finishes.
 
-The other three tabs (grading, competitions, seminars) use the broader pattern:
-- staff with `has_branch_access(branch_id)`: read + update
-- superadmin: full control
+3. **Preserve secure write behavior**
+   - Keep public/incognito view read-only unless the page is explicitly unlocked for editing.
+   - Leave verify/reject/collected actions behind the existing password/edit-mode flow, and if they still rely on direct table updates later, move them to security-definer admin RPCs in the same pattern as Competition/Seminar.
 
-So in an incognito session signed in as a non-superadmin staff member with branch access, Grading / Competitions / Seminars load, but the Guards tab returns 0 rows and verify/reject/collected/edit calls silently fail.
+4. **Verify against live data**
+   - Confirm the database currently has Guards purchases; I found 5 rows, including pending Balmoral rows and a verified Jurong West row.
+   - After implementation, check that `/grading-list` → Guards shows those rows in incognito/public view, while branch/status/collection/search filters still work.
 
-## Fix
+## Technical note
 
-Add policies on `public.guards_purchases` to mirror the submissions tables (no changes to the existing anon-insert flow, and no frontend changes):
-
-1. SELECT — `has_branch_access(branch_id)` for authenticated staff
-2. UPDATE — `has_branch_access(branch_id)` for authenticated staff (USING + WITH CHECK)
-
-The existing superadmin read/update/delete policies and the anon insert + insert-result read policies stay as-is.
-
-## Out of scope
-
-- No frontend changes to `src/pages/public/PublicGuardsPurchaseList.tsx` or `PublicGradingList.tsx`
-- No change to anonymous public submission flow at `/guards`
-- No change to grading / comp / seminar tabs (already correct)
-- Delete remains superadmin-only (matches existing behaviour for the other three tabs)
-
-## Verification after migration
-
-- Incognito as a non-superadmin branch staff → Guards tab lists rows for their branch, verify/reject/collected/edit all succeed
-- Incognito as superadmin → unchanged, sees all
-- Public `/guards` submission flow → unchanged
+The earlier RLS fix helps authenticated staff, but the screenshot is an unauthenticated/incognito public view. The working Competition and Seminar tabs load through `SECURITY DEFINER` RPC functions; Guards still reads `guards_purchases` directly, so anon sessions are filtered out by RLS and get an empty list.
