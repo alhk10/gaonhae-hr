@@ -1,22 +1,34 @@
-## Plan
+# Fix: Albert cannot submit claims
 
-1. **Add a public list RPC for Guards purchases**
-   - Create `public.get_public_guards_purchase_list(...)` as a `SECURITY DEFINER` function, matching the Competition and Seminar tabs.
-   - Return the same fields the Guards tab currently needs, including branch name, buyer details, items, total, proof URL, status, variants, collection state, matched student/invoice IDs, and timestamps.
-   - Exclude rejected/cancelled rows only if the current UI expects that; otherwise keep all statuses so the existing Status filter still works.
+## Root cause
 
-2. **Update the Guards tab to use the RPC instead of direct table reads**
-   - Change `listGuardsPurchases()` in `guardsPurchaseService.ts` from `.from('guards_purchases').select('*')` to the new RPC.
-   - Keep the component’s existing filters and layout, but use returned `branch_name` as a fallback so branch labels display consistently even before `useBranches()` finishes.
+The `public.claims` and `public.claim_types` tables have **no GRANTs** for any Data API role (`anon`, `authenticated`, `service_role`). RLS policies are correctly defined (including an `INSERT` policy for `authenticated` that requires `employee_id = get_current_employee_id()` and `status = 'Pending'`), but PostgREST blocks every request at the privilege layer before RLS is even evaluated, so the insert silently fails with a permission error for every employee — Albert included.
 
-3. **Preserve secure write behavior**
-   - Keep public/incognito view read-only unless the page is explicitly unlocked for editing.
-   - Leave verify/reject/collected actions behind the existing password/edit-mode flow, and if they still rely on direct table updates later, move them to security-definer admin RPCs in the same pattern as Competition/Seminar.
+Verified:
+- Albert exists as `EMP1750865290864` / `albertcorpuz873@gmail.com` (Full-Time, SENIOR INSTRUCTOR).
+- `claims` policies look correct.
+- `information_schema.role_table_grants` returns zero rows for both `claims` and `claim_types`.
 
-4. **Verify against live data**
-   - Confirm the database currently has Guards purchases; I found 5 rows, including pending Balmoral rows and a verified Jurong West row.
-   - After implementation, check that `/grading-list` → Guards shows those rows in incognito/public view, while branch/status/collection/search filters still work.
+## Fix
 
-## Technical note
+Single migration adding the missing Data API grants. No RLS, schema, or app code changes.
 
-The earlier RLS fix helps authenticated staff, but the screenshot is an unauthenticated/incognito public view. The working Competition and Seminar tabs load through `SECURITY DEFINER` RPC functions; Guards still reads `guards_purchases` directly, so anon sessions are filtered out by RLS and get an empty list.
+```sql
+-- claims: writeable by authenticated employees, read filtered by RLS
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.claims TO authenticated;
+GRANT ALL ON public.claims TO service_role;
+
+-- claim_types: reference data, readable by all signed-in users; admins manage via RLS
+GRANT SELECT ON public.claim_types TO authenticated;
+GRANT ALL ON public.claim_types TO service_role;
+```
+
+No `anon` grant — both tables require an authenticated employee context.
+
+## Verification
+
+After the migration:
+1. Log in as Albert in an incognito window.
+2. Submit a test claim with a receipt.
+3. Confirm the claim appears in his history with status Pending.
+4. Confirm superadmin still sees and can approve/reject it.
