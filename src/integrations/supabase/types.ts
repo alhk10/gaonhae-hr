@@ -7673,6 +7673,38 @@ export type Database = {
           title: string
         }[]
       }
+      get_public_guards_purchase_list: {
+        Args: never
+        Returns: {
+          branch_id: string
+          branch_name: string
+          collected: boolean
+          collected_at: string
+          collected_by: string
+          created_at: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          gender: string
+          gst_amount: number
+          id: string
+          invoice_id: string
+          items: Json
+          last_name: string
+          matched_student_id: string
+          notes: string
+          payment_method: string
+          phone: string
+          proof_url: string
+          reference_number: string
+          sale_status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          variant_selections: Json
+        }[]
+      }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {
