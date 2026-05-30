@@ -284,10 +284,7 @@ export const submitGuardsPurchase = async (
 // ---------- Admin functions ----------
 
 export const listGuardsPurchases = async (): Promise<GuardsPurchaseRow[]> => {
-  const { data, error } = await supabase
-    .from('guards_purchases')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('get_public_guards_purchase_list' as any);
   if (error) throw error;
   return (data || []) as GuardsPurchaseRow[];
 };
