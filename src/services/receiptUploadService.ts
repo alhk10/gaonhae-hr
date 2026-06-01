@@ -192,10 +192,17 @@ export const uploadReceipt = async (file: File, employeeId: string): Promise<Upl
       return { success: false, error: 'Cannot access file storage. Please try again later.' };
     }
 
-    // Step 3: Generate secure file path
+    // Step 3: Generate secure file path scoped to auth user (required by storage RLS)
+    const { data: userRes, error: userErr } = await supabase.auth.getUser();
+    const authUid = userRes?.user?.id;
+    if (userErr || !authUid) {
+      logger.error('No auth user for upload', userErr);
+      return { success: false, error: 'You are not signed in. Please sign in again and retry.' };
+    }
+
     const fileName = generateSecureFilename(file, employeeId);
-    const filePath = `receipts/${fileName}`;
-    
+    const filePath = `${authUid}/${fileName}`;
+
     logger.info('Upload details', {
       originalName: file.name,
       secureFileName: fileName,

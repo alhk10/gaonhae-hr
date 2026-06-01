@@ -1,34 +1,29 @@
-# Fix: Albert cannot submit claims
+## Problem
+
+Kang Seokjun sees "Upload completed but failed to generate file URL" after uploading a claim receipt. The file actually uploads to the `claim-receipts` bucket, but `createSignedUrl()` fails.
 
 ## Root cause
 
-The `public.claims` and `public.claim_types` tables have **no GRANTs** for any Data API role (`anon`, `authenticated`, `service_role`). RLS policies are correctly defined (including an `INSERT` policy for `authenticated` that requires `employee_id = get_current_employee_id()` and `status = 'Pending'`), but PostgREST blocks every request at the privilege layer before RLS is even evaluated, so the insert silently fails with a permission error for every employee — Albert included.
+The storage RLS policies for `claim-receipts` restrict SELECT (which `createSignedUrl` requires) to:
+- admins / superadmin / payroll, OR
+- `auth.uid()::text = (storage.foldername(name))[1]` — i.e. the file's first folder must equal the caller's auth user id.
 
-Verified:
-- Albert exists as `EMP1750865290864` / `albertcorpuz873@gmail.com` (Full-Time, SENIOR INSTRUCTOR).
-- `claims` policies look correct.
-- `information_schema.role_table_grants` returns zero rows for both `claims` and `claim_types`.
+But `src/services/receiptUploadService.ts` uploads to `receipts/<filename>` (hard-coded "receipts" as the first folder). The INSERT policy named "Authenticated users can upload receipts" (granted to `public`) has no path check, so the upload succeeds — but the SELECT policy then fails for non-admin employees, so signed URL generation returns null and the UI shows the red error.
 
-## Fix
+This is why only admin staff can submit claims today and regular employees like Kang Seokjun cannot.
 
-Single migration adding the missing Data API grants. No RLS, schema, or app code changes.
+## Fix (frontend only, no DB change needed)
 
-```sql
--- claims: writeable by authenticated employees, read filtered by RLS
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.claims TO authenticated;
-GRANT ALL ON public.claims TO service_role;
+In `src/services/receiptUploadService.ts`:
 
--- claim_types: reference data, readable by all signed-in users; admins manage via RLS
-GRANT SELECT ON public.claim_types TO authenticated;
-GRANT ALL ON public.claim_types TO service_role;
-```
+1. In `uploadReceipt`, fetch the current auth user via `supabase.auth.getUser()` before building the path.
+2. If no auth user, return a clear "Please sign in again" error.
+3. Change `filePath` from `receipts/${fileName}` to `${authUid}/${fileName}` so it satisfies `(auth.uid())::text = (storage.foldername(name))[1]`.
+4. Update `deleteReceipt`'s legacy URL-stripping branch so it still works for both old `receipts/...` paths and new `<uid>/...` paths (no behavior change needed beyond keeping `actualPath` as-is when it doesn't contain the public URL prefix — already handled).
 
-No `anon` grant — both tables require an authenticated employee context.
+No changes to `claims`/`claim_types` tables, storage policies, or any other service. Existing already-uploaded `receipts/...` files remain readable by admins (who bypass the folder check).
 
 ## Verification
 
-After the migration:
-1. Log in as Albert in an incognito window.
-2. Submit a test claim with a receipt.
-3. Confirm the claim appears in his history with status Pending.
-4. Confirm superadmin still sees and can approve/reject it.
+- Log in as Kang Seokjun in incognito, go to Submit Claim, upload a JPG/PNG receipt, confirm the preview/URL renders and "Submit Claim" succeeds.
+- Confirm superadmin can still view the receipt on the approval screen.
