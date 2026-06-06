@@ -69,10 +69,18 @@ const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
 const DAN_BELTS = new Set(['1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan']);
 const FOUNDATION_ALL = new Set(['Foundation', 'Foundation 1', 'Foundation 2', 'Foundation 3']);
 
-const filterBeltsByAge = (belts: string[], age: number | null): string[] => {
+const monthsSinceBirth = (dob: Date, ref: Date = new Date()): number => {
+  let months = (ref.getFullYear() - dob.getFullYear()) * 12 + (ref.getMonth() - dob.getMonth());
+  if (ref.getDate() < dob.getDate()) months--;
+  return months;
+};
+
+const filterBeltsByAge = (belts: string[], age: number | null, dob?: Date | null): string[] => {
   if (age === null) return belts;
+  // Foundation buffer: allow up to 6 years + 3 months (75 months) so children who just turned 6 can still grade.
+  const foundationOk = dob ? monthsSinceBirth(dob) <= 75 : age <= 5;
   return belts.filter((b) => {
-    if (FOUNDATION_ALL.has(b)) return age <= 5;
+    if (FOUNDATION_ALL.has(b)) return foundationOk;
     if (POOM_BELTS.has(b)) return age < 15;
     if (DAN_BELTS.has(b)) return age >= 15;
     return true;
