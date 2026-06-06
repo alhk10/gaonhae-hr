@@ -172,8 +172,8 @@ const PublicGradingPayment: React.FC = () => {
   const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
 
   const beltOptions = useMemo(
-    () => filterBeltsByAge(getBeltLevelsForCountry(selectedBranch?.country), age),
-    [selectedBranch?.country, age],
+    () => filterBeltsByAge(getBeltLevelsForCountry(selectedBranch?.country), age, dob),
+    [selectedBranch?.country, age, dob],
   );
 
   const isFoundation = FOUNDATION_BELTS.includes(currentBelt);
