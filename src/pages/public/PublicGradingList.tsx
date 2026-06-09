@@ -30,6 +30,7 @@ import {
   adminDeleteCompetitionSubmission,
   getCompetitionSubmissionDeleteContext,
   updateCompetitionPoomsae,
+  updateCompetitionSchedule,
   findCompetitionSubmissionStudentMatches,
   matchCompetitionSubmission,
   importCompetitionSubmission,
