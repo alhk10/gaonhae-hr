@@ -2108,14 +2108,12 @@ const CompetitionsTab: React.FC<{
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
-                <TableCell className="text-xs px-2 py-1">
-                  <div className="flex flex-col items-start gap-1">
-                    {(r.category_names || []).map((n) => (
-                      <Badge key={n} variant="outline" className="text-[10px]">
-                        {n.replace(/Singapore Open Poomsae — Category: /, '')}
-                      </Badge>
-                    ))}
-                  </div>
+                <TableCell className="text-xs px-2 py-1 align-top">
+                  {(r.category_names || []).map((n) => (
+                    <div key={n} className="text-[11px] leading-tight whitespace-nowrap">
+                      {n.replace(/Singapore Open Poomsae — Category: /, '')}
+                    </div>
+                  ))}
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
