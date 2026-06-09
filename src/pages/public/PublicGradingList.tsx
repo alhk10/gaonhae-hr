@@ -2003,7 +2003,14 @@ const CompetitionsTab: React.FC<{
         onBlur={() => {
           const next = fromLocalInput(local);
           if (next === value) return;
-          scheduleMutation.mutate({ id, patch: { [field]: next } as any });
+          const patch: { competition_at?: string | null; reporting_at?: string | null } = { [field]: next };
+          if (field === 'competition_at') {
+            // Always recalculate reporting = competition - 1h30m (null if cleared)
+            patch.reporting_at = next
+              ? new Date(new Date(next).getTime() - 90 * 60 * 1000).toISOString()
+              : null;
+          }
+          scheduleMutation.mutate({ id, patch });
         }}
         className="h-7 text-[11px] w-[150px] px-1"
       />
