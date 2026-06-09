@@ -2003,7 +2003,14 @@ const CompetitionsTab: React.FC<{
         onBlur={() => {
           const next = fromLocalInput(local);
           if (next === value) return;
-          scheduleMutation.mutate({ id, patch: { [field]: next } as any });
+          const patch: { competition_at?: string | null; reporting_at?: string | null } = { [field]: next };
+          if (field === 'competition_at') {
+            // Always recalculate reporting = competition - 1h30m (null if cleared)
+            patch.reporting_at = next
+              ? new Date(new Date(next).getTime() - 90 * 60 * 1000).toISOString()
+              : null;
+          }
+          scheduleMutation.mutate({ id, patch });
         }}
         className="h-7 text-[11px] w-[150px] px-1"
       />
@@ -2094,8 +2101,10 @@ const CompetitionsTab: React.FC<{
           <TableBody>
             {[...(rows as PublicCompetitionListRow[])]
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
-              .map((r) => (
-              <TableRow key={r.submission_id}>
+              .flatMap((r) => {
+                const cats = (r.category_names && r.category_names.length > 0) ? r.category_names : [''];
+                return cats.map((cat, idx) => (
+              <TableRow key={`${r.submission_id}__${idx}`}>
                 <TableCell className="px-2 py-1">
                   <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 </TableCell>
@@ -2108,12 +2117,10 @@ const CompetitionsTab: React.FC<{
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
-                <TableCell className="text-xs px-2 py-1 align-top">
-                  {(r.category_names || []).map((n) => (
-                    <div key={n} className="text-[11px] leading-tight whitespace-nowrap">
-                      {n.replace(/Singapore Open Poomsae — Category: /, '')}
-                    </div>
-                  ))}
+                <TableCell className="text-xs px-2 py-1">
+                  <div className="text-[11px] leading-tight whitespace-nowrap">
+                    {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
+                  </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
@@ -2174,7 +2181,8 @@ const CompetitionsTab: React.FC<{
                   </TableCell>
                 )}
               </TableRow>
-            ))}
+                ));
+              })}
           </TableBody>
         </Table>
       </div>
