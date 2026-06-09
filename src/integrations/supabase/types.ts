@@ -7550,6 +7550,8 @@ export type Database = {
           category_names: string[]
           certificate_url: string
           coaching_paid: boolean
+          competition_at: string
+          court: string
           created_at: string
           current_belt: string
           paid_status: string
@@ -7557,6 +7559,7 @@ export type Database = {
           poomsae_2: string
           proof_url: string
           reference_number: string
+          reporting_at: string
           status: string
           student_name: string
           submission_id: string
