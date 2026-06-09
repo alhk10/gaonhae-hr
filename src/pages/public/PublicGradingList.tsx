@@ -30,6 +30,7 @@ import {
   adminDeleteCompetitionSubmission,
   getCompetitionSubmissionDeleteContext,
   updateCompetitionPoomsae,
+  updateCompetitionSchedule,
   findCompetitionSubmissionStudentMatches,
   matchCompetitionSubmission,
   importCompetitionSubmission,
@@ -1962,6 +1963,71 @@ const CompetitionsTab: React.FC<{
     onError: (e: any) => toast.error(e?.message || 'Failed to update poomsae'),
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { competition_at?: string | null; reporting_at?: string | null; court?: string | null } }) =>
+      updateCompetitionSchedule(id, patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+      toast.success('Saved');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to save'),
+  });
+
+  // Convert ISO timestamp <-> "YYYY-MM-DDTHH:mm" for <input type="datetime-local">
+  const toLocalInput = (iso: string | null): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const fromLocalInput = (s: string): string | null => {
+    if (!s) return null;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
+  const DateTimeCell: React.FC<{
+    id: string;
+    field: 'competition_at' | 'reporting_at';
+    value: string | null;
+  }> = ({ id, field, value }) => {
+    const initial = toLocalInput(value);
+    const [local, setLocal] = useState(initial);
+    useEffect(() => { setLocal(toLocalInput(value)); }, [value]);
+    return (
+      <Input
+        type="datetime-local"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          const next = fromLocalInput(local);
+          if (next === value) return;
+          scheduleMutation.mutate({ id, patch: { [field]: next } as any });
+        }}
+        className="h-7 text-[11px] w-[150px] px-1"
+      />
+    );
+  };
+
+  const CourtCell: React.FC<{ id: string; value: string | null }> = ({ id, value }) => {
+    const [local, setLocal] = useState(value ?? '');
+    useEffect(() => { setLocal(value ?? ''); }, [value]);
+    return (
+      <Input
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          const next = local.trim() === '' ? null : local.trim();
+          if ((next ?? '') === (value ?? '')) return;
+          scheduleMutation.mutate({ id, patch: { court: next } });
+        }}
+        placeholder="—"
+        className="h-7 text-[11px] w-[70px] px-1"
+      />
+    );
+  };
+
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (rows.length === 0) return <div className="text-sm text-muted-foreground">No competition registrations yet.</div>;
 
@@ -2008,6 +2074,9 @@ const CompetitionsTab: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
@@ -2027,6 +2096,15 @@ const CompetitionsTab: React.FC<{
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
               .map((r) => (
               <TableRow key={r.submission_id}>
+                <TableCell className="px-2 py-1">
+                  <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <DateTimeCell id={r.submission_id} field="reporting_at" value={r.reporting_at} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <CourtCell id={r.submission_id} value={r.court} />
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
