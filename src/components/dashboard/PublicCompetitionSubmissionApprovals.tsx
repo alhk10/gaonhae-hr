@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
+import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
@@ -274,13 +275,13 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
               {sub.proof_url && (
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">Proof</div>
-                  <SignedImage src={sub.proof_url} className="h-20 w-auto rounded border" alt="Proof" />
+                  <SignedImagePreview src={sub.proof_url} label="Proof of payment" alt="Proof" />
                 </div>
               )}
               {sub.certificate_url && (
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">Certificate</div>
-                  <SignedImage src={sub.certificate_url} className="h-20 w-auto rounded border" alt="Certificate" />
+                  <SignedImagePreview src={sub.certificate_url} label="Certificate" alt="Certificate" />
                 </div>
               )}
             </div>

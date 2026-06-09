@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
+import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
@@ -271,7 +272,12 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
             </div>
 
             {sub.proof_url && (
-              <SignedImage src={sub.proof_url} alt="Proof of payment" className="max-h-48 rounded border" />
+              <SignedImagePreview
+                src={sub.proof_url}
+                label="Proof of payment"
+                alt="Proof of payment"
+                thumbClassName="max-h-48 rounded border hover:opacity-80 transition"
+              />
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">
