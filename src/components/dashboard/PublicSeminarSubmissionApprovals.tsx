@@ -275,7 +275,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               {sub.proof_url && (
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">Proof</div>
-                  <SignedImage src={sub.proof_url} className="h-20 w-auto rounded border" alt="Proof" />
+                  <SignedImagePreview src={sub.proof_url} label="Proof of payment" alt="Proof" />
                 </div>
               )}
             </div>
