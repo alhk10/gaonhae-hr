@@ -2096,6 +2096,15 @@ const CompetitionsTab: React.FC<{
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
               .map((r) => (
               <TableRow key={r.submission_id}>
+                <TableCell className="px-2 py-1">
+                  <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <DateTimeCell id={r.submission_id} field="reporting_at" value={r.reporting_at} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <CourtCell id={r.submission_id} value={r.court} />
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
