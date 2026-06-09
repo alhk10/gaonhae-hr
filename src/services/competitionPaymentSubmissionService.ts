@@ -30,6 +30,9 @@ export interface PublicCompetitionListRow {
   created_at: string;
   poomsae_1: string | null;
   poomsae_2: string | null;
+  competition_at: string | null;
+  reporting_at: string | null;
+  court: string | null;
 }
 
 export const updateCompetitionPoomsae = async (
@@ -42,6 +45,17 @@ export const updateCompetitionPoomsae = async (
     p_poomsae_1: poomsae_1,
     p_poomsae_2: poomsae_2,
   });
+  if (error) throw error;
+};
+
+export const updateCompetitionSchedule = async (
+  id: string,
+  patch: { competition_at?: string | null; reporting_at?: string | null; court?: string | null },
+): Promise<void> => {
+  const { error } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update(patch)
+    .eq('id', id);
   if (error) throw error;
 };
 
