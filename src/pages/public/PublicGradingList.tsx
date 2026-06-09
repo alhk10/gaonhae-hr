@@ -2011,28 +2011,27 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
-              <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Categories</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
               <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
-              <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(rows as PublicCompetitionListRow[]).map((r) => (
+            {[...(rows as PublicCompetitionListRow[])]
+              .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
+              .map((r) => (
               <TableRow key={r.submission_id}>
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
-                <TableCell className="px-2 py-1">
-                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
-                </TableCell>
                 <TableCell className="text-xs px-2 py-1">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-col items-start gap-1">
                     {(r.category_names || []).map((n) => (
                       <Badge key={n} variant="outline" className="text-[10px]">
                         {n.replace(/Singapore Open Poomsae — Category: /, '')}
@@ -2047,9 +2046,6 @@ const CompetitionsTab: React.FC<{
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
-                </TableCell>
-                <TableCell className="px-2 py-1">
                   {renderPoomsae(r.poomsae_1, (v) =>
                     poomsaeMutation.mutate({ id: r.submission_id, p1: v, p2: r.poomsae_2 }),
                   )}
@@ -2058,6 +2054,12 @@ const CompetitionsTab: React.FC<{
                   {renderPoomsae(r.poomsae_2, (v) =>
                     poomsaeMutation.mutate({ id: r.submission_id, p1: r.poomsae_1, p2: v }),
                   )}
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   {r.paid_status === 'pending verification' ? (
