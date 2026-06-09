@@ -2074,6 +2074,9 @@ const CompetitionsTab: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
