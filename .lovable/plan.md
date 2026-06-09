@@ -1,20 +1,18 @@
-# Clickable proof & certificate previews in Superadmin approvals
+# Competition tab tweaks (`/grading-list` → Competitions)
 
-## Goal
-In Superadmin Dashboard approval cards, allow clicking the Proof / Certificate thumbnails to open a dialog showing the full-size image.
+File: `src/pages/public/PublicGradingList.tsx` — the "Singapore Open Poomsae" table (~lines 2004-2100).
 
 ## Changes
 
-1. **New reusable component** `src/components/common/SignedImagePreview.tsx`
-   - Wraps `SignedImage` in a `<button>` that opens a shadcn `Dialog`.
-   - Dialog shows the same `SignedImage` at full size (`max-h-[85vh] w-auto`), with the label as title and a download/open-in-new-tab link.
-   - Props: `src`, `alt`, `label`, `thumbClassName`.
+1. **Reorder columns** so Cert and Proof sit just before Actions:
+   - New order: Branch · Student · Belt · Categories · Status · Amount · Poomsae 1 · Poomsae 2 · **Cert** · **Proof** · Actions · (delete)
+   - Move both `<TableHead>` definitions and their matching `<TableCell>` bodies accordingly. No logic changes.
 
-2. **Use it in the three approval lists** (replace inline `<SignedImage>` thumbnails only — keep all other logic untouched):
-   - `src/components/dashboard/PublicCompetitionSubmissionApprovals.tsx` — Proof + Certificate
-   - `src/components/dashboard/PublicSeminarSubmissionApprovals.tsx` — Proof
-   - `src/components/dashboard/PublicGradingSubmissionApprovals.tsx` — Proof
-   - (Optionally `PublicGuardsPurchaseApprovals.tsx` if it shows a proof thumbnail — check and apply same pattern.)
+2. **One category per line** in the Categories cell:
+   - Change the wrapper from `flex flex-wrap gap-1` to `flex flex-col items-start gap-1` so each `<Badge>` renders on its own row.
+
+3. **Sort by student name** (A→Z, case-insensitive):
+   - Before `.map(...)`, sort the rows: `[...rows].sort((a, b) => (a.student_name || '').localeCompare(b.student_name || ''))`.
 
 ## Out of scope
-No changes to approval logic, data fetching, or non-superadmin views.
+No changes to data fetching, services, mutations, or other tabs.
