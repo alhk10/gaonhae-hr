@@ -299,28 +299,40 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
               )}
               <div className="space-y-2">
                 {form.extra_lines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Name</Label>
-                      <Input
-                        value={line.label}
-                        onChange={(e) => updateExtra(idx, { label: e.target.value })}
-                        placeholder="e.g. Individual Poomsae"
-                      />
+                  <div key={idx} className="space-y-1 border rounded p-2">
+                    <div className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Name</Label>
+                        <Input
+                          value={line.label}
+                          onChange={(e) => updateExtra(idx, { label: e.target.value })}
+                          placeholder="e.g. Individual Poomsae"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Amount</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={line.amount}
+                          onChange={(e) => updateExtra(idx, { amount: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" onClick={() => removeExtra(idx)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Amount</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={line.amount}
-                        onChange={(e) => updateExtra(idx, { amount: parseFloat(e.target.value) || 0 })}
+                    <div className="flex items-center gap-2 pl-1">
+                      <Checkbox
+                        id={`extra-required-${idx}`}
+                        checked={line.required === true}
+                        onCheckedChange={(c) => updateExtra(idx, { required: c === true })}
                       />
+                      <Label htmlFor={`extra-required-${idx}`} className="text-[11px] font-normal cursor-pointer">
+                        Compulsory (auto-added, customer cannot opt out)
+                      </Label>
                     </div>
-                    <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" onClick={() => removeExtra(idx)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 ))}
               </div>
