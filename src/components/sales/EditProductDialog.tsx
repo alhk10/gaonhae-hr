@@ -62,7 +62,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   });
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false
+    color: false,
+    competition: false
   });
 
   useEffect(() => {
@@ -92,7 +93,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       });
       setEnabledVariantTypes({
         size: product.requires_size || (variants.sizes?.length || 0) > 0,
-        color: product.requires_color || (variants.colors?.length || 0) > 0
+        color: product.requires_color || (variants.colors?.length || 0) > 0,
+        competition: (variants.competitions?.length || 0) > 0
       });
     }
   }, [open, product]);
@@ -188,7 +190,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
   if (!product) return null;
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.competition;
 
   return (
     <>
@@ -309,6 +311,11 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   {enabledVariantTypes.color && (
                     <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
                       Colors: {formData.available_variants.colors?.length || 0}
+                    </Badge>
+                  )}
+                  {enabledVariantTypes.competition && (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
+                      Competitions: {formData.available_variants.competitions?.length || 0}
                     </Badge>
                   )}
                   {!hasAnyVariants && (

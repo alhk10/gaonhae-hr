@@ -23,6 +23,7 @@ export interface VariantType {
 export interface ProductVariants {
   sizes?: string[];
   colors?: string[];
+  competitions?: string[];
 }
 
 /**
@@ -125,6 +126,9 @@ export const flattenVariants = (variants: ProductVariants): { type: string; valu
   if (variants.colors?.length) {
     result.push({ type: 'color', values: variants.colors });
   }
+  if (variants.competitions?.length) {
+    result.push({ type: 'competition', values: variants.competitions });
+  }
   
   return result;
 };
@@ -135,6 +139,7 @@ export const flattenVariants = (variants: ProductVariants): { type: string; valu
 export const calculateVariantCombinations = (variants: ProductVariants): number => {
   const sizes = variants.sizes?.length || 1;
   const colors = variants.colors?.length || 1;
+  const competitions = variants.competitions?.length || 1;
   
-  return sizes * colors;
+  return sizes * colors * competitions;
 };

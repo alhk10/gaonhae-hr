@@ -58,7 +58,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false
+    color: false,
+    competition: false
   });
 
   useEffect(() => {
@@ -135,7 +136,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       description: '',
       category_id: '',
       base_price: '',
-      available_variants: { sizes: [], colors: [] },
+      available_variants: { sizes: [], colors: [], competitions: [] },
       allowed_belt_levels: [],
       requires_belt_level: false,
       min_age: '',
@@ -148,7 +149,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       lesson_days: [],
       allowed_class_types: []
     });
-    setEnabledVariantTypes({ size: false, color: false });
+    setEnabledVariantTypes({ size: false, color: false, competition: false });
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -180,7 +181,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     (formData.available_variants.sizes?.length || 0) +
     (formData.available_variants.colors?.length || 0);
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.competition;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -307,6 +308,11 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
                 {enabledVariantTypes.color && (
                   <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
                     Colors: {formData.available_variants.colors?.length || 0}
+                  </Badge>
+                )}
+                {enabledVariantTypes.competition && (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
+                    Competitions: {formData.available_variants.competitions?.length || 0}
                   </Badge>
                 )}
                 {!hasAnyVariants && (
