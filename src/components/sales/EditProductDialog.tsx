@@ -313,6 +313,11 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                       Colors: {formData.available_variants.colors?.length || 0}
                     </Badge>
                   )}
+                  {enabledVariantTypes.competition && (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700">
+                      Competitions: {formData.available_variants.competitions?.length || 0}
+                    </Badge>
+                  )}
                   {!hasAnyVariants && (
                     <span className="text-xs text-muted-foreground">No variants configured</span>
                   )}
