@@ -126,8 +126,22 @@ export const flattenVariants = (variants: ProductVariants): { type: string; valu
   if (variants.colors?.length) {
     result.push({ type: 'color', values: variants.colors });
   }
+  if (variants.competitions?.length) {
+    result.push({ type: 'competition', values: variants.competitions });
+  }
   
   return result;
+};
+
+/**
+ * Calculate total variant combinations
+ */
+export const calculateVariantCombinations = (variants: ProductVariants): number => {
+  const sizes = variants.sizes?.length || 1;
+  const colors = variants.colors?.length || 1;
+  const competitions = variants.competitions?.length || 1;
+  
+  return sizes * colors * competitions;
 };
 
 /**
