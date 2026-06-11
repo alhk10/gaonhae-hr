@@ -1,69 +1,34 @@
-# Competition Events: Free-Text Fee Lines
-
 ## Goal
-Replace product pickers on the Competition Event admin dialog with simple free-text **Name + Amount** rows. The dialog now collects:
-- One **Coaching** line (Name + Amount, required).
-- Any number of **Additional / Category** lines (Name + Amount, optional, add/remove freely).
 
-The imported invoice uses the **Competition (event) name** as the line description and the entered amounts as unit prices (treated as pre-GST). No more linkage to the Products table.
+On `/grading-list` → **Competitions** tab, add an event filter so the long submission list can be scoped to one competition event. Default to the "current" event. Back-fill all 15 existing competition submissions (which currently have `event_id = NULL`) to a newly-created event called **2026 Singapore Open**.
 
-## Data model
+## 1. Data back-fill (data migration via insert tool)
 
-### Migration on `public.competition_events`
-- Add `coaching_label text NULL` and `coaching_amount numeric(10,2) NULL` (pre-GST).
-- Add `extra_lines jsonb NOT NULL DEFAULT '[]'` — array of `{ label: string, amount: number }`.
-- Keep `coaching_product_id` / category mapping table for now (nullable, ignored at write time) to preserve existing rows; new saves write only the new fields.
+- Insert one row into `competition_events`:
+  - `name = '2026 Singapore Open'`
+  - `is_active = true`
+  - `display_order = 0`
+  - `coaching_label = 'Coaching fee'`, `coaching_amount = 0`, `extra_lines = '[]'`
+  - (other nullable fields left default)
+- `UPDATE competition_payment_submissions SET event_id = <new event id> WHERE event_id IS NULL;` (touches all 15 existing rows so they appear under this event).
 
-### Migration on `public.competition_payment_submissions`
-- Add `coaching_label text`, `coaching_amount numeric(10,2)`, `extra_lines jsonb NOT NULL DEFAULT '[]'` so each submission snapshots what the user paid for at submit time (event config may change later).
-- `coaching_product_id` and `category_product_ids` stay nullable for backward compatibility.
+## 2. UI — event filter on Competitions tab
 
-## RPC changes
+File: `src/pages/public/PublicGradingList.tsx` (`CompetitionsTab` component, ~line 1880).
 
-### `admin_upsert_competition_event`
-- New params: `p_coaching_label text`, `p_coaching_amount numeric`, `p_extra_lines jsonb`.
-- Drop `p_coaching_product_id` / `p_category_product_ids` (or accept-and-ignore for safety).
-- Persists the new columns.
+- Add a `useQuery` that fetches `competition_events` (`id, name, is_active, created_at`) ordered so the "current" event is first and the remaining events follow by newest:
+  - **Current** = the active event (`is_active = true`) with the most recent `created_at`. If no active event exists, fall back to the newest event overall.
+  - Sort: current first, then remaining events by `created_at DESC`.
+- Add `eventFilter` state, defaulting to the current event's id once events load (`'all'` if no events).
+- Render a `Select` next to the existing "Events" settings button:
+  - Options: each event by name, plus a final `All events` option.
+- Filter the existing rows in `rows` by `r.event_id === eventFilter` (skip when `'all'`). `PublicCompetitionListRow` needs `event_id`; if not already present, add it to the row type and ensure `getPublicCompetitionList` / `get_public_competition_list` RPC returns it (verify; add to select if missing).
+- Keep the existing student-name sort inside the chosen event.
 
-### `get_public_competition_events`
-- Return `coaching_label`, `coaching_amount`, `extra_lines` instead of product joins.
+No changes to invoice generation, schema, or other tabs.
 
-### `submit_competition_payment`
-- Snapshot `coaching_label`, `coaching_amount`, `extra_lines` from the chosen event onto the new submission row.
-- `amount` = `coaching_amount + sum(extra_lines.amount)` (pre-GST sum — tax computed later at import).
+## Technical notes
 
-### `admin_import_competition_submission`
-- Build invoice lines from the snapshot:
-  - Line 1: `description = <event.name>`, `unit_price = sub.coaching_amount`, tax 0 unless a global tax rate is desired — for simplicity tax 0 (matches "amount entered is total before GST", no GST added). Confirmed: amount is the final figure.
-  - One line per entry in `sub.extra_lines`: `description = <event.name> - <line.label>`, `unit_price = line.amount`, tax 0.
-- `product_id` left NULL on each line (free-text, no product link).
-- Totals recomputed from the lines.
-
-## UI
-
-### `CompetitionEventsSettingsDialog.tsx`
-Remove the **Coaching fee product** Select and the **Category products** picker. Replace with:
-
-1. **Coaching line** section:
-   - `Name *` text input
-   - `Amount *` numeric input
-2. **Additional lines** section:
-   - Repeatable rows: `Name`, `Amount`, trash button.
-   - "Add line" button below.
-3. Hydrate form from `coaching_label`, `coaching_amount`, `extra_lines` on edit; default both amounts to 0 and an empty `extra_lines` array on new.
-4. Save payload sends the new fields.
-
-### `PublicCompetitionPayment.tsx`
-- Render the coaching line using `event.coaching_label` + `event.coaching_amount`.
-- Render the extra lines as a checkbox list (so users can opt in/out) showing `label` + `amount`.
-- Total = coaching_amount + sum of selected extra amounts.
-- Submission payload changes accordingly (passes selected extra_lines snapshot and computed amount).
-
-### Service (`competitionPaymentSubmissionService.ts`)
-- Update `CompetitionEvent`, upsert input, and submit input types to use the new shape.
-- Drop product-fetching joins (`product_id` arrays) from the public list query.
-
-## Out of scope
-- Existing verified invoices and historical submissions stay as-is.
-- No retroactive backfill — old events without `coaching_amount` show 0 and need re-entry by admin.
-- No accounting/product-stat integration for these free-text lines.
+- Service / RPC: confirm `getPublicCompetitionList` returns `event_id`. If not, extend the RPC (migration) and the TS type. Most likely it already returns `event_name`; we'll add `event_id` alongside.
+- Filter dropdown uses the same styling as the existing branch filter on this page for consistency.
+- No edits to the Superadmin "Competition Registrations" approvals card.
