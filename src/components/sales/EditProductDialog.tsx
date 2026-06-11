@@ -93,7 +93,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       });
       setEnabledVariantTypes({
         size: product.requires_size || (variants.sizes?.length || 0) > 0,
-        color: product.requires_color || (variants.colors?.length || 0) > 0
+        color: product.requires_color || (variants.colors?.length || 0) > 0,
+        competition: (variants.competitions?.length || 0) > 0
       });
     }
   }, [open, product]);
