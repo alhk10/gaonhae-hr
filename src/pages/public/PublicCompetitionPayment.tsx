@@ -177,6 +177,16 @@ const PublicCompetitionPayment: React.FC = () => {
     if (!eventId && activeEvents.length === 1) setEventId(activeEvents[0].id);
   }, [activeEvents, eventId]);
 
+  // When selected event changes, reset extras: required ones pre-selected; coaching reflects required flag
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const requiredIdx = selectedEvent.extra_lines
+      .map((l, i) => (l.required ? i : -1))
+      .filter(i => i >= 0);
+    setSelectedExtras(requiredIdx);
+    setCoachingSelected(selectedEvent.coaching_required !== false);
+  }, [selectedEvent?.id]);
+
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
     [branches, branchId],
