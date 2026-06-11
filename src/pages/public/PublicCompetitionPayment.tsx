@@ -140,7 +140,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [gender, setGender] = useState<string>('');
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
