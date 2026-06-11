@@ -1076,6 +1076,7 @@ export type Database = {
           coaching_amount: number | null
           coaching_label: string | null
           coaching_product_id: string | null
+          coaching_required: boolean
           created_at: string
           display_order: number
           extra_lines: Json
@@ -1092,6 +1093,7 @@ export type Database = {
           coaching_amount?: number | null
           coaching_label?: string | null
           coaching_product_id?: string | null
+          coaching_required?: boolean
           created_at?: string
           display_order?: number
           extra_lines?: Json
@@ -1108,6 +1110,7 @@ export type Database = {
           coaching_amount?: number | null
           coaching_label?: string | null
           coaching_product_id?: string | null
+          coaching_required?: boolean
           created_at?: string
           display_order?: number
           extra_lines?: Json
@@ -7410,6 +7413,7 @@ export type Database = {
         Args: {
           p_coaching_amount: number
           p_coaching_label: string
+          p_coaching_required?: boolean
           p_display_order: number
           p_extra_lines: Json
           p_id: string
@@ -7704,6 +7708,7 @@ export type Database = {
         Returns: {
           coaching_amount: number
           coaching_label: string
+          coaching_required: boolean
           display_order: number
           extra_lines: Json
           id: string
