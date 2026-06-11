@@ -136,7 +136,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       description: '',
       category_id: '',
       base_price: '',
-      available_variants: { sizes: [], colors: [] },
+      available_variants: { sizes: [], colors: [], competitions: [] },
       allowed_belt_levels: [],
       requires_belt_level: false,
       min_age: '',
@@ -149,7 +149,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
       lesson_days: [],
       allowed_class_types: []
     });
-    setEnabledVariantTypes({ size: false, color: false });
+    setEnabledVariantTypes({ size: false, color: false, competition: false });
   };
 
   const handleInputChange = (field: string, value: any) => {
