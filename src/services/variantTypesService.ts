@@ -23,6 +23,7 @@ export interface VariantType {
 export interface ProductVariants {
   sizes?: string[];
   colors?: string[];
+  competitions?: string[];
 }
 
 /**
