@@ -1891,6 +1891,32 @@ const CompetitionsTab: React.FC<{
     queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
   });
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['competition-events-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('competition_events')
+        .select('id, name, is_active, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Sort: active events first (newest active = "current"), then inactive by newest
+  const sortedEvents = React.useMemo(() => {
+    const active = (events as any[]).filter((e) => e.is_active);
+    const inactive = (events as any[]).filter((e) => !e.is_active);
+    return [...active, ...inactive];
+  }, [events]);
+
+  const [eventFilter, setEventFilter] = useState<string>('');
+  useEffect(() => {
+    if (!eventFilter && sortedEvents.length > 0) {
+      setEventFilter(sortedEvents[0].id);
+    }
+  }, [sortedEvents, eventFilter]);
+
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -2080,8 +2106,23 @@ const CompetitionsTab: React.FC<{
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Competitions</h2>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg font-semibold">Competitions</h2>
+          {sortedEvents.length > 0 && (
+            <Select value={eventFilter || 'all'} onValueChange={setEventFilter}>
+              <SelectTrigger className="h-8 text-xs w-[220px]">
+                <SelectValue placeholder="Filter event" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedEvents.map((e: any) => (
+                  <SelectItem key={e.id} value={e.id} className="text-xs">{e.name}</SelectItem>
+                ))}
+                <SelectItem value="all" className="text-xs">All events</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         {canEdit && (
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-3.5 w-3.5 mr-1" /> Events
@@ -2094,6 +2135,7 @@ const CompetitionsTab: React.FC<{
           <TableHeader>
             <TableRow>
               <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
+
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
@@ -2114,6 +2156,7 @@ const CompetitionsTab: React.FC<{
           </TableHeader>
           <TableBody>
             {[...(rows as PublicCompetitionListRow[])]
+              .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
               .flatMap((r) => {
                 const cats = (r.category_names && r.category_names.length > 0) ? r.category_names : [''];
