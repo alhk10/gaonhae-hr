@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import {
@@ -59,6 +59,17 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const formPanelRef = useRef<HTMLDivElement>(null);
+
+  const handleNewClick = () => {
+    setForm(emptyForm());
+    setProductSearch('');
+    requestAnimationFrame(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nameInputRef.current?.focus();
+    });
+  };
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['competition-events-admin'],
@@ -172,7 +183,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Events</h3>
-              <Button size="sm" variant="outline" onClick={() => setForm(emptyForm())}>
+              <Button size="sm" variant="outline" onClick={handleNewClick}>
                 <Plus className="h-3 w-3 mr-1" /> New
               </Button>
             </div>
@@ -214,12 +225,13 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           </div>
 
           {/* Edit/create form */}
-          <div className="space-y-3 border-l md:pl-4">
+          <div ref={formPanelRef} className="space-y-3 border-l md:pl-4">
             <h3 className="text-sm font-medium">{form.id ? 'Edit event' : 'New event'}</h3>
 
             <div className="space-y-1">
               <Label className="text-xs">Name *</Label>
               <Input
+                ref={nameInputRef}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Singapore Open Poomsae 2026"
