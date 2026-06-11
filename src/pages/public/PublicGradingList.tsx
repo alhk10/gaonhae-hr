@@ -2080,11 +2080,20 @@ const CompetitionsTab: React.FC<{
 
   return (
     <div className="space-y-2">
-      <h2 className="text-lg font-semibold">Singapore Open Poomsae</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Competitions</h2>
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Events
+          </Button>
+        )}
+      </div>
+      <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
@@ -2098,6 +2107,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
