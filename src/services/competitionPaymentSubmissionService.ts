@@ -184,16 +184,15 @@ export interface SubmitCompetitionPaymentInput {
   branch_id: string;
   date_of_birth: string; // yyyy-MM-dd
   current_belt: string;
-  coaching_product_id: string;
-  category_product_ids: string[];
   amount: number;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
   certificate_file?: File | null;
-  coaching_name?: string;
-  category_names?: string[];
-  // New event-based fields
-  event_id?: string | null;
+  coaching_label: string;
+  coaching_amount: number;
+  extra_lines: CompetitionExtraLine[];
+  event_id: string;
+  event_name: string;
   gender?: string | null;
   signature_data_url?: string | null;
   indemnity_form_file?: File | null;
