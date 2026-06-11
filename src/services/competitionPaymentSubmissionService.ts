@@ -33,7 +33,88 @@ export interface PublicCompetitionListRow {
   competition_at: string | null;
   reporting_at: string | null;
   court: string | null;
+  event_id: string | null;
+  event_name: string | null;
+  gender: string | null;
+  signature_url: string | null;
+  indemnity_form_url: string | null;
+  passport_url: string | null;
+  photo_url: string | null;
 }
+
+export interface CompetitionEventCategory {
+  product_id: string;
+  name: string;
+  base_price: number;
+  tax_rate: number;
+  display_order: number;
+}
+
+export interface CompetitionEvent {
+  id: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  coaching_product_id: string | null;
+  coaching_product_name: string | null;
+  coaching_product_price: number | null;
+  coaching_product_tax_rate: number | null;
+  indemnity_clause: string | null;
+  require_indemnity_form: boolean;
+  require_passport: boolean;
+  require_photo: boolean;
+  categories: CompetitionEventCategory[];
+}
+
+export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
+  const { data, error } = await supabase.rpc('get_public_competition_events' as any);
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    categories: Array.isArray(r.categories) ? r.categories : [],
+  })) as CompetitionEvent[];
+};
+
+export const adminUpsertCompetitionEvent = async (input: {
+  id: string | null;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  coaching_product_id: string | null;
+  indemnity_clause: string | null;
+  require_indemnity_form: boolean;
+  require_passport: boolean;
+  require_photo: boolean;
+  category_product_ids: string[];
+}): Promise<string> => {
+  const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
+    p_id: input.id,
+    p_name: input.name,
+    p_is_active: input.is_active,
+    p_display_order: input.display_order,
+    p_coaching_product_id: input.coaching_product_id,
+    p_indemnity_clause: input.indemnity_clause,
+    p_require_indemnity_form: input.require_indemnity_form,
+    p_require_passport: input.require_passport,
+    p_require_photo: input.require_photo,
+    p_category_product_ids: input.category_product_ids,
+  });
+  if (error) throw error;
+  return data as string;
+};
+
+export const adminDeleteCompetitionEvent = async (id: string): Promise<void> => {
+  const { error } = await supabase.rpc('admin_delete_competition_event' as any, { p_id: id });
+  if (error) throw error;
+};
+
+export const adminSetCompetitionEventActive = async (id: string, active: boolean): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_competition_event_active' as any, {
+    p_id: id,
+    p_active: active,
+  });
+  if (error) throw error;
+};
 
 export const updateCompetitionPoomsae = async (
   id: string,
@@ -111,6 +192,13 @@ export interface SubmitCompetitionPaymentInput {
   certificate_file?: File | null;
   coaching_name?: string;
   category_names?: string[];
+  // New event-based fields
+  event_id?: string | null;
+  gender?: string | null;
+  signature_data_url?: string | null;
+  indemnity_form_file?: File | null;
+  passport_file?: File | null;
+  photo_file?: File | null;
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
@@ -185,6 +273,43 @@ export const submitCompetitionPayment = async (
     console.info('[/comps] certificate uploaded');
   }
 
+  // Helper: upload an optional file to payment-proofs and return its signed URL
+  const uploadOptional = async (file: File | null | undefined, kind: string): Promise<string | null> => {
+    if (!file) return null;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const p = `public-comps/${input.branch_id}/${ts}_${safeName}_${kind}.${ext}`;
+    const { error: e } = await withTimeout(
+      supabase.storage
+        .from('payment-proofs')
+        .upload(p, file, { upsert: false, contentType: file.type }),
+      30000,
+      `${kind} upload`,
+    );
+    if (e) throw new Error(`${kind} upload failed: ${(e as any).message || 'unknown error'}`);
+    const { data: signed } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(p, 60 * 60 * 24 * 365 * 5);
+    return signed?.signedUrl ?? p;
+  };
+
+  const indemnityFormUrl = await uploadOptional(input.indemnity_form_file, 'indemnity');
+  const passportUrl = await uploadOptional(input.passport_file, 'passport');
+  const photoUrl = await uploadOptional(input.photo_file, 'photo');
+
+  // Signature: convert data URL to File and upload
+  let signatureUrl: string | null = null;
+  if (input.signature_data_url) {
+    try {
+      const res = await fetch(input.signature_data_url);
+      const blob = await res.blob();
+      const sigFile = new File([blob], `${safeName}_signature.png`, { type: 'image/png' });
+      signatureUrl = await uploadOptional(sigFile, 'signature');
+    } catch (e) {
+      console.error('[/comps] signature upload error', e);
+      throw new Error('Signature upload failed');
+    }
+  }
+
   const row = {
     first_name: fn,
     last_name: ln,
@@ -198,6 +323,12 @@ export const submitCompetitionPayment = async (
     payment_method: input.payment_method,
     proof_url: proofUrl,
     certificate_url: certificateUrl,
+    event_id: input.event_id ?? null,
+    gender: input.gender ?? null,
+    signature_url: signatureUrl,
+    indemnity_form_url: indemnityFormUrl,
+    passport_url: passportUrl,
+    photo_url: photoUrl,
   };
 
   console.info('[/comps] calling submit_competition_payment RPC');

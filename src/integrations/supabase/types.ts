@@ -1029,6 +1029,98 @@ export type Database = {
         }
         Relationships: []
       }
+      competition_event_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          event_id: string
+          id: string
+          is_active: boolean
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          event_id: string
+          id?: string
+          is_active?: boolean
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          event_id?: string
+          id?: string
+          is_active?: boolean
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_event_categories_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "competition_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_event_categories_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competition_events: {
+        Row: {
+          coaching_product_id: string | null
+          created_at: string
+          display_order: number
+          id: string
+          indemnity_clause: string | null
+          is_active: boolean
+          name: string
+          require_indemnity_form: boolean
+          require_passport: boolean
+          require_photo: boolean
+          updated_at: string
+        }
+        Insert: {
+          coaching_product_id?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          indemnity_clause?: string | null
+          is_active?: boolean
+          name: string
+          require_indemnity_form?: boolean
+          require_passport?: boolean
+          require_photo?: boolean
+          updated_at?: string
+        }
+        Update: {
+          coaching_product_id?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          indemnity_clause?: string | null
+          is_active?: boolean
+          name?: string
+          require_indemnity_form?: boolean
+          require_passport?: boolean
+          require_photo?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_events_coaching_product_id_fkey"
+            columns: ["coaching_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competition_payment_submissions: {
         Row: {
           amount: number | null
@@ -1043,13 +1135,18 @@ export type Database = {
           date_of_birth: string | null
           display_name: string | null
           email: string | null
+          event_id: string | null
           first_name: string
+          gender: string | null
           id: string
+          indemnity_form_url: string | null
           last_name: string
           matched_invoice_id: string | null
           matched_student_id: string | null
           notes: string | null
+          passport_url: string | null
           payment_method: string
+          photo_url: string | null
           poomsae_1: string | null
           poomsae_2: string | null
           proof_url: string
@@ -1057,6 +1154,7 @@ export type Database = {
           reporting_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          signature_url: string | null
           status: string
           updated_at: string
         }
@@ -1073,13 +1171,18 @@ export type Database = {
           date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          event_id?: string | null
           first_name: string
+          gender?: string | null
           id?: string
+          indemnity_form_url?: string | null
           last_name: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
+          passport_url?: string | null
           payment_method: string
+          photo_url?: string | null
           poomsae_1?: string | null
           poomsae_2?: string | null
           proof_url: string
@@ -1087,6 +1190,7 @@ export type Database = {
           reporting_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          signature_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -1103,13 +1207,18 @@ export type Database = {
           date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          event_id?: string | null
           first_name?: string
+          gender?: string | null
           id?: string
+          indemnity_form_url?: string | null
           last_name?: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
+          passport_url?: string | null
           payment_method?: string
+          photo_url?: string | null
           poomsae_1?: string | null
           poomsae_2?: string | null
           proof_url?: string
@@ -1117,6 +1226,7 @@ export type Database = {
           reporting_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          signature_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -1133,6 +1243,13 @@ export type Database = {
             columns: ["coaching_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_payment_submissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "competition_events"
             referencedColumns: ["id"]
           },
           {
@@ -7115,6 +7232,10 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: string
       }
+      admin_delete_competition_event: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       admin_delete_competition_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -7211,6 +7332,10 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_set_competition_event_active: {
+        Args: { p_active: boolean; p_id: string }
+        Returns: undefined
+      }
       admin_update_competition_poomsae: {
         Args: { p_id: string; p_poomsae_1: string; p_poomsae_2: string }
         Returns: undefined
@@ -7262,6 +7387,21 @@ export type Database = {
       admin_update_student_certificate_name: {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
+      }
+      admin_upsert_competition_event: {
+        Args: {
+          p_category_product_ids: string[]
+          p_coaching_product_id: string
+          p_display_order: number
+          p_id: string
+          p_indemnity_clause: string
+          p_is_active: boolean
+          p_name: string
+          p_require_indemnity_form: boolean
+          p_require_passport: boolean
+          p_require_photo: boolean
+        }
+        Returns: string
       }
       admin_verify_accessory_submission: {
         Args: { p_id: string; p_verified_by: string }
@@ -7540,6 +7680,24 @@ export type Database = {
           total_weeks: number
         }[]
       }
+      get_public_competition_events: {
+        Args: never
+        Returns: {
+          categories: Json
+          coaching_product_id: string
+          coaching_product_name: string
+          coaching_product_price: number
+          coaching_product_tax_rate: number
+          display_order: number
+          id: string
+          indemnity_clause: string
+          is_active: boolean
+          name: string
+          require_indemnity_form: boolean
+          require_passport: boolean
+          require_photo: boolean
+        }[]
+      }
       get_public_competition_list: {
         Args: { p_branch_id?: string }
         Returns: {
@@ -7554,12 +7712,19 @@ export type Database = {
           court: string
           created_at: string
           current_belt: string
+          event_id: string
+          event_name: string
+          gender: string
+          indemnity_form_url: string
           paid_status: string
+          passport_url: string
+          photo_url: string
           poomsae_1: string
           poomsae_2: string
           proof_url: string
           reference_number: string
           reporting_at: string
+          signature_url: string
           status: string
           student_name: string
           submission_id: string

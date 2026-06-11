@@ -19,7 +19,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon } from 'lucide-react';
+import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
@@ -1530,6 +1531,7 @@ const PublicGradingList: React.FC = () => {
             <CompetitionsTab
               branchFilter={branchFilter}
               canDelete={canDelete}
+              canEdit={editMode}
               verifiedBy={user?.employeeId || user?.email || 'system'}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'competition', id, studentName: name })}
             />
@@ -1878,9 +1880,11 @@ const POOMSAE_CLEAR = '__clear__';
 const CompetitionsTab: React.FC<{
   branchFilter: string;
   canDelete?: boolean;
+  canEdit?: boolean;
   verifiedBy: string;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, verifiedBy, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
@@ -2076,11 +2080,20 @@ const CompetitionsTab: React.FC<{
 
   return (
     <div className="space-y-2">
-      <h2 className="text-lg font-semibold">Singapore Open Poomsae</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Competitions</h2>
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Events
+          </Button>
+        )}
+      </div>
+      <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
@@ -2094,6 +2107,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
@@ -2105,6 +2119,7 @@ const CompetitionsTab: React.FC<{
                 const cats = (r.category_names && r.category_names.length > 0) ? r.category_names : [''];
                 return cats.map((cat, idx) => (
               <TableRow key={`${r.submission_id}__${idx}`}>
+                <TableCell className="text-xs px-2 py-1">{r.event_name || '—'}</TableCell>
                 <TableCell className="px-2 py-1">
                   <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 </TableCell>
@@ -2115,7 +2130,12 @@ const CompetitionsTab: React.FC<{
                   <CourtCell id={r.submission_id} value={r.court} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
-                <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
+                <TableCell className="text-xs px-2 py-1 font-medium">
+                  <div>{r.student_name}</div>
+                  {r.gender && (
+                    <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
+                  )}
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1">
                   <div className="text-[11px] leading-tight whitespace-nowrap">
@@ -2143,6 +2163,33 @@ const CompetitionsTab: React.FC<{
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
+                  <div className="flex items-center gap-1">
+                    {r.signature_url ? (
+                      <button type="button" title="Signature" onClick={() => setPreview({ url: r.signature_url!, title: `${r.student_name} — Signature` })} className="text-green-700">
+                        <PenLine className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    {r.indemnity_form_url ? (
+                      <button type="button" title="Indemnity form" onClick={() => setPreview({ url: r.indemnity_form_url!, title: `${r.student_name} — Indemnity` })} className="text-green-700">
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    {r.passport_url ? (
+                      <button type="button" title="Passport" onClick={() => setPreview({ url: r.passport_url!, title: `${r.student_name} — Passport` })} className="text-green-700">
+                        <IdCard className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    {r.photo_url ? (
+                      <button type="button" title="Photo" onClick={() => setPreview({ url: r.photo_url!, title: `${r.student_name} — Photo` })} className="text-green-700">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   {r.paid_status === 'pending verification' ? (

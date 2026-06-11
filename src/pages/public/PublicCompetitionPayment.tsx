@@ -1,10 +1,11 @@
 /**
  * Public competition payment page (no auth).
- * Mounted at /comps. Mirror of /pay for the Singapore Open Poomsae.
+ * Mounted at /comps. Event-driven: admin defines events in /grading-list settings,
+ * this page renders only the fields required by the selected event.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Upload } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +19,15 @@ import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
 } from '@/services/gradingPaymentSubmissionService';
 import {
-  getCompetitionProducts,
+  getPublicCompetitionEvents,
   submitCompetitionPayment,
-  type CompetitionProduct,
+  type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -109,17 +111,44 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
   );
 };
 
+const FileField: React.FC<{
+  label: string;
+  value: File | null;
+  onChange: (f: File | null) => void;
+  accept?: string;
+  required?: boolean;
+  help?: string;
+}> = ({ label, value, onChange, accept = 'image/*,application/pdf', required, help }) => (
+  <div className="space-y-1">
+    <Label className="text-sm">{label}{required && ' *'}</Label>
+    <Input
+      type="file"
+      accept={accept}
+      onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+    />
+    {value && <p className="text-xs text-muted-foreground truncate">Selected: {value.name}</p>}
+    {help && <p className="text-xs text-muted-foreground">{help}</p>}
+  </div>
+);
+
 const PublicCompetitionPayment: React.FC = () => {
+  const [eventId, setEventId] = useState<string>('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [indemnityClauseAccepted, setIndemnityClauseAccepted] = useState(false);
+  const [indemnityFormFile, setIndemnityFormFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
@@ -130,20 +159,22 @@ const PublicCompetitionPayment: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: products = [] } = useQuery({
-    queryKey: ['competition-products'],
-    queryFn: getCompetitionProducts,
-    staleTime: 5 * 60 * 1000,
+  const { data: events = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ['public-competition-events'],
+    queryFn: getPublicCompetitionEvents,
+    staleTime: 60 * 1000,
   });
 
-  const coachingProduct = useMemo<CompetitionProduct | undefined>(
-    () => products.find(p => /coaching/i.test(p.name)),
-    [products],
+  const activeEvents = useMemo(() => events.filter(e => e.is_active), [events]);
+  const selectedEvent: CompetitionEvent | undefined = useMemo(
+    () => activeEvents.find(e => e.id === eventId),
+    [activeEvents, eventId],
   );
-  const categoryProducts = useMemo<CompetitionProduct[]>(
-    () => products.filter(p => /category/i.test(p.name)),
-    [products],
-  );
+
+  // Auto-select if only one event
+  useEffect(() => {
+    if (!eventId && activeEvents.length === 1) setEventId(activeEvents[0].id);
+  }, [activeEvents, eventId]);
 
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
@@ -157,6 +188,7 @@ const PublicCompetitionPayment: React.FC = () => {
   );
 
   const certificateRequired = currentBelt && isPoomOrDan(currentBelt);
+  const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);
 
   const { data: options } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
@@ -170,48 +202,58 @@ const PublicCompetitionPayment: React.FC = () => {
     );
   };
 
-  const productWithGstTotal = (p?: CompetitionProduct) => {
-    if (!p) return 0;
-    const base = Number(p.base_price || 0);
-    return base + base * Number(p.tax_rate || 0) / 100;
-  };
+  const productTotal = (price: number, taxRate: number) =>
+    price + (price * taxRate) / 100;
+
+  const coachingPrice = Number(selectedEvent?.coaching_product_price || 0);
+  const coachingTax = Number(selectedEvent?.coaching_product_tax_rate || 0);
 
   const subtotal = useMemo(() => {
-    let s = Number(coachingProduct?.base_price || 0);
-    for (const id of selectedCategoryIds) {
-      const cp = categoryProducts.find(p => p.id === id);
-      s += Number(cp?.base_price || 0);
+    let s = coachingPrice;
+    if (selectedEvent) {
+      for (const id of selectedCategoryIds) {
+        const c = selectedEvent.categories.find(c => c.product_id === id);
+        if (c) s += Number(c.base_price || 0);
+      }
     }
     return s;
-  }, [coachingProduct, categoryProducts, selectedCategoryIds]);
+  }, [coachingPrice, selectedEvent, selectedCategoryIds]);
 
   const gstAmount = useMemo(() => {
-    let g = Math.round(Number(coachingProduct?.base_price || 0) * Number(coachingProduct?.tax_rate || 0)) / 100;
-    for (const id of selectedCategoryIds) {
-      const cp = categoryProducts.find(p => p.id === id);
-      g += Math.round(Number(cp?.base_price || 0) * Number(cp?.tax_rate || 0)) / 100;
+    let g = Math.round(coachingPrice * coachingTax) / 100;
+    if (selectedEvent) {
+      for (const id of selectedCategoryIds) {
+        const c = selectedEvent.categories.find(c => c.product_id === id);
+        if (c) g += Math.round(Number(c.base_price || 0) * Number(c.tax_rate || 0)) / 100;
+      }
     }
     return g;
-  }, [coachingProduct, categoryProducts, selectedCategoryIds]);
+  }, [coachingPrice, coachingTax, selectedEvent, selectedCategoryIds]);
 
   const totalAmount = subtotal + gstAmount;
 
   const canSubmit =
+    !!selectedEvent &&
     !!firstName.trim() &&
     !!lastName.trim() &&
     !!email.trim() &&
     !!branchId &&
     !!dob &&
     !!currentBelt &&
-    !!coachingProduct &&
+    !!gender &&
+    !!selectedEvent.coaching_product_id &&
     selectedCategoryIds.length >= 1 &&
     !!proofFile &&
     (!certificateRequired || !!certificateFile) &&
+    (!signatureRequired || (!!signatureDataUrl && indemnityClauseAccepted)) &&
+    (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
+    (!selectedEvent.require_passport || !!passportFile) &&
+    (!selectedEvent.require_photo || !!photoFile) &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !coachingProduct || !dob || !proofFile) return;
+    if (!canSubmit || !selectedEvent || !selectedEvent.coaching_product_id || !dob || !proofFile) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -224,16 +266,22 @@ const PublicCompetitionPayment: React.FC = () => {
         branch_id: branchId,
         date_of_birth: isoDob,
         current_belt: currentBelt,
-        coaching_product_id: coachingProduct.id,
+        coaching_product_id: selectedEvent.coaching_product_id,
         category_product_ids: selectedCategoryIds,
         amount: totalAmount,
         payment_method: paymentMethod,
         proof_file: proofFile,
         certificate_file: certificateFile,
-        coaching_name: coachingProduct.name,
+        coaching_name: selectedEvent.coaching_product_name || selectedEvent.name,
         category_names: selectedCategoryIds
-          .map(id => categoryProducts.find(p => p.id === id)?.name)
+          .map(id => selectedEvent.categories.find(c => c.product_id === id)?.name)
           .filter((n): n is string => !!n),
+        event_id: selectedEvent.id,
+        gender,
+        signature_data_url: signatureRequired ? signatureDataUrl : null,
+        indemnity_form_file: selectedEvent.require_indemnity_form ? indemnityFormFile : null,
+        passport_file: selectedEvent.require_passport ? passportFile : null,
+        photo_file: selectedEvent.require_photo ? photoFile : null,
       });
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
@@ -267,8 +315,10 @@ const PublicCompetitionPayment: React.FC = () => {
                 onClick={() => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
-                  setBranchId(''); setDob(undefined); setCurrentBelt('');
+                  setBranchId(''); setDob(undefined); setCurrentBelt(''); setGender('');
                   setSelectedCategoryIds([]); setProofFile(null); setCertificateFile(null);
+                  setSignatureDataUrl(null); setIndemnityClauseAccepted(false);
+                  setIndemnityFormFile(null); setPassportFile(null); setPhotoFile(null);
                 }}
                 className="w-full"
               >
@@ -293,7 +343,7 @@ const PublicCompetitionPayment: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Singapore Open Poomsae</h1>
+          <h1 className="text-2xl font-semibold">Competition Registration</h1>
           <p className="text-sm text-muted-foreground">
             Registration &amp; coaching payment
           </p>
@@ -305,214 +355,289 @@ const PublicCompetitionPayment: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name *</Label>
-                  <Input
-                    id="first_name"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value.toUpperCase())}
-                    placeholder="First name"
-                    maxLength={60}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input
-                    id="last_name"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value.toUpperCase())}
-                    placeholder="Last name"
-                    maxLength={60}
-                  />
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  maxLength={255}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="branch">Branch *</Label>
-                <Select value={branchId} onValueChange={setBranchId}>
-                  <SelectTrigger id="branch">
-                    <SelectValue placeholder="Select branch" />
+                <Label htmlFor="event">Event *</Label>
+                <Select value={eventId} onValueChange={setEventId} disabled={eventsLoading}>
+                  <SelectTrigger id="event">
+                    <SelectValue placeholder={eventsLoading ? 'Loading…' : 'Select event'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
+                    {activeEvents.map(ev => (
+                      <SelectItem key={ev.id} value={ev.id}>{ev.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!eventsLoading && activeEvents.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No active competition events. Please contact the academy.</p>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Date of Birth *</Label>
-                <DobPicker value={dob} onChange={setDob} />
-              </div>
+              {selectedEvent && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name">First Name *</Label>
+                      <Input
+                        id="first_name"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value.toUpperCase())}
+                        placeholder="First name"
+                        maxLength={60}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name">Last Name *</Label>
+                      <Input
+                        id="last_name"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value.toUpperCase())}
+                        placeholder="Last name"
+                        maxLength={60}
+                      />
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="belt">Current Belt *</Label>
-                <Select
-                  value={currentBelt}
-                  onValueChange={setCurrentBelt}
-                  disabled={!branchId || !dob}
-                >
-                  <SelectTrigger id="belt">
-                    <SelectValue placeholder={!dob ? 'Select date of birth first' : 'Select current belt'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {beltOptions.map((b) => (
-                      <SelectItem key={b} value={b}>{b}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      maxLength={255}
+                    />
+                  </div>
 
-              {certificateRequired && (
-                <div className="space-y-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="branch">Branch *</Label>
+                    <Select value={branchId} onValueChange={setBranchId}>
+                      <SelectTrigger id="branch">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date of Birth *</Label>
+                    <DobPicker value={dob} onChange={setDob} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender *</Label>
+                    <Select value={gender} onValueChange={setGender}>
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="belt">Current Belt *</Label>
+                    <Select
+                      value={currentBelt}
+                      onValueChange={setCurrentBelt}
+                      disabled={!branchId || !dob}
+                    >
+                      <SelectTrigger id="belt">
+                        <SelectValue placeholder={!dob ? 'Select date of birth first' : 'Select current belt'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {beltOptions.map((b) => (
+                          <SelectItem key={b} value={b}>{b}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {certificateRequired && (
+                    <div className="space-y-2">
+                      <ProofOfPaymentUpload
+                        value={certificateFile}
+                        onChange={setCertificateFile}
+                        required
+                        acceptPdf={false}
+                        maxSizeMB={5}
+                        label="Certificate Upload (Poom/Dan)"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Please upload a clear photo of your Poom or Dan certificate.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedEvent.coaching_product_id && (
+                    <div className="space-y-2">
+                      <Label>Coaching Fee *</Label>
+                      <div className="rounded-md border p-3 bg-muted/40">
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked disabled />
+                          <Label className="text-sm font-normal flex-1">
+                            {selectedEvent.coaching_product_name || 'Coaching'}
+                          </Label>
+                          <span className="text-sm font-medium">
+                            ${productTotal(coachingPrice, coachingTax).toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 ml-6">
+                          Required for all participants
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.categories.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
+                      <div className="space-y-2 rounded-md border p-3">
+                        {selectedEvent.categories.map((c) => {
+                          const checked = selectedCategoryIds.includes(c.product_id);
+                          return (
+                            <div key={c.product_id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`cat-${c.product_id}`}
+                                checked={checked}
+                                onCheckedChange={(v) => toggleCategory(c.product_id, v === true)}
+                              />
+                              <Label htmlFor={`cat-${c.product_id}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                {c.name}
+                              </Label>
+                              <span className="text-sm">${productTotal(Number(c.base_price), Number(c.tax_rate)).toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedEvent.coaching_product_id || selectedCategoryIds.length > 0) && (
+                    <div className="rounded-md border p-3 bg-background text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">GST</span>
+                        <span>${gstAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between font-semibold border-t pt-1">
+                        <span>Total</span>
+                        <span>${totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.require_photo && (
+                    <FileField
+                      label="Participant Photo"
+                      value={photoFile}
+                      onChange={setPhotoFile}
+                      accept="image/*"
+                      required
+                      help="Clear face photo (passport-style)."
+                    />
+                  )}
+
+                  {selectedEvent.require_passport && (
+                    <FileField
+                      label="Passport / Identification"
+                      value={passportFile}
+                      onChange={setPassportFile}
+                      required
+                    />
+                  )}
+
+                  {selectedEvent.require_indemnity_form && (
+                    <FileField
+                      label="Indemnity Form Upload"
+                      value={indemnityFormFile}
+                      onChange={setIndemnityFormFile}
+                      required
+                    />
+                  )}
+
+                  {signatureRequired && (
+                    <div className="space-y-2">
+                      <Label>Indemnity Clause *</Label>
+                      <div className="border rounded-md p-3 bg-muted/30 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                        {selectedEvent.indemnity_clause}
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="accept-indemnity"
+                          checked={indemnityClauseAccepted}
+                          onCheckedChange={(c) => setIndemnityClauseAccepted(c === true)}
+                        />
+                        <Label htmlFor="accept-indemnity" className="text-xs font-normal cursor-pointer">
+                          I have read and agree to the indemnity clause above.
+                        </Label>
+                      </div>
+                      <Label className="text-sm">Signature *</Label>
+                      <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment Method</Label>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(v) => setPaymentMethod(v as 'paynow' | 'bank_transfer')}
+                    >
+                      <SelectTrigger id="payment-method">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paynow">PayNow</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {paymentMethod === 'paynow' ? (
+                    <PaymentInfoDisplay paymentMethod="paynow" paynowQrUrl={qrUrl} />
+                  ) : bankInfo ? (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm whitespace-pre-wrap">
+                      {bankInfo}
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription className="text-sm">
+                        Bank transfer details are not configured for this branch.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <ProofOfPaymentUpload
-                    value={certificateFile}
-                    onChange={setCertificateFile}
+                    value={proofFile}
+                    onChange={setProofFile}
                     required
                     acceptPdf={false}
-                    maxSizeMB={5}
-                    label="Certificate Upload (Poom/Dan)"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Please upload a clear photo of your Poom or Dan certificate.
-                  </p>
-                </div>
+
+                  {submitError && (
+                    <Alert variant="destructive">
+                      <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button type="submit" className="w-full" disabled={!canSubmit}>
+                    {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
+                  </Button>
+                </>
               )}
-
-              {dob && currentBelt && products.length === 0 && (
-                <Alert>
-                  <AlertDescription className="text-sm">
-                    No competition products are currently available. Please contact the academy.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {dob && currentBelt && coachingProduct && (
-                <div className="space-y-2">
-                  <Label>Coaching Fee *</Label>
-                  <div className="rounded-md border p-3 bg-muted/40">
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked disabled />
-                      <Label className="text-sm font-normal flex-1">
-                        {coachingProduct.name}
-                      </Label>
-                      <span className="text-sm font-medium">
-                        ${productWithGstTotal(coachingProduct).toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 ml-6">
-                      Required for all participants
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {dob && currentBelt && categoryProducts.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
-                  <div className="space-y-2 rounded-md border p-3">
-                    {categoryProducts.map((p) => {
-                      const checked = selectedCategoryIds.includes(p.id);
-                      return (
-                        <div key={p.id} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`cat-${p.id}`}
-                            checked={checked}
-                            onCheckedChange={(c) => toggleCategory(p.id, c === true)}
-                          />
-                          <Label htmlFor={`cat-${p.id}`} className="text-sm font-normal flex-1 cursor-pointer">
-                            {p.name}
-                          </Label>
-                          <span className="text-sm">${productWithGstTotal(p).toFixed(2)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {dob && currentBelt && (coachingProduct || selectedCategoryIds.length > 0) && (
-                <div className="rounded-md border p-3 bg-background text-sm space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">GST (9%)</span>
-                    <span>${gstAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center justify-between font-semibold border-t pt-1">
-                    <span>Total</span>
-                    <span>${totalAmount.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(v) => setPaymentMethod(v as 'paynow' | 'bank_transfer')}
-                >
-                  <SelectTrigger id="payment-method">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paynow">PayNow</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {paymentMethod === 'paynow' ? (
-                <PaymentInfoDisplay paymentMethod="paynow" paynowQrUrl={qrUrl} />
-              ) : bankInfo ? (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm whitespace-pre-wrap">
-                  {bankInfo}
-                </div>
-              ) : (
-                <Alert>
-                  <AlertDescription className="text-sm">
-                    Bank transfer details are not configured for this branch.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <ProofOfPaymentUpload
-                value={proofFile}
-                onChange={setProofFile}
-                required
-                acceptPdf={false}
-              />
-
-              {submitError && (
-                <Alert variant="destructive">
-                  <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
-              </Button>
             </form>
           </CardContent>
         </Card>
