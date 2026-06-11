@@ -181,7 +181,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
     (formData.available_variants.sizes?.length || 0) +
     (formData.available_variants.colors?.length || 0);
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.competition;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
