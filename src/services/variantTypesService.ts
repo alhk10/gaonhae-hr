@@ -143,13 +143,3 @@ export const calculateVariantCombinations = (variants: ProductVariants): number 
   
   return sizes * colors * competitions;
 };
-
-/**
- * Calculate total variant combinations
- */
-export const calculateVariantCombinations = (variants: ProductVariants): number => {
-  const sizes = variants.sizes?.length || 1;
-  const colors = variants.colors?.length || 1;
-  
-  return sizes * colors;
-};
