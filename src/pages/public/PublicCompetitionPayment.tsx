@@ -140,7 +140,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [gender, setGender] = useState<string>('');
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
@@ -196,41 +196,20 @@ const PublicCompetitionPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
-  const toggleCategory = (id: string, checked: boolean) => {
-    setSelectedCategoryIds(prev =>
-      checked ? Array.from(new Set([...prev, id])) : prev.filter(x => x !== id),
+  const toggleExtra = (idx: number, checked: boolean) => {
+    setSelectedExtras(prev =>
+      checked ? Array.from(new Set([...prev, idx])) : prev.filter(x => x !== idx),
     );
   };
 
-  const productTotal = (price: number, taxRate: number) =>
-    price + (price * taxRate) / 100;
+  const coachingAmount = Number(selectedEvent?.coaching_amount || 0);
 
-  const coachingPrice = Number(selectedEvent?.coaching_product_price || 0);
-  const coachingTax = Number(selectedEvent?.coaching_product_tax_rate || 0);
+  const extrasTotal = useMemo(() => {
+    if (!selectedEvent) return 0;
+    return selectedExtras.reduce((sum, idx) => sum + Number(selectedEvent.extra_lines[idx]?.amount || 0), 0);
+  }, [selectedEvent, selectedExtras]);
 
-  const subtotal = useMemo(() => {
-    let s = coachingPrice;
-    if (selectedEvent) {
-      for (const id of selectedCategoryIds) {
-        const c = selectedEvent.categories.find(c => c.product_id === id);
-        if (c) s += Number(c.base_price || 0);
-      }
-    }
-    return s;
-  }, [coachingPrice, selectedEvent, selectedCategoryIds]);
-
-  const gstAmount = useMemo(() => {
-    let g = Math.round(coachingPrice * coachingTax) / 100;
-    if (selectedEvent) {
-      for (const id of selectedCategoryIds) {
-        const c = selectedEvent.categories.find(c => c.product_id === id);
-        if (c) g += Math.round(Number(c.base_price || 0) * Number(c.tax_rate || 0)) / 100;
-      }
-    }
-    return g;
-  }, [coachingPrice, coachingTax, selectedEvent, selectedCategoryIds]);
-
-  const totalAmount = subtotal + gstAmount;
+  const totalAmount = coachingAmount + extrasTotal;
 
   const canSubmit =
     !!selectedEvent &&
@@ -241,8 +220,6 @@ const PublicCompetitionPayment: React.FC = () => {
     !!dob &&
     !!currentBelt &&
     !!gender &&
-    !!selectedEvent.coaching_product_id &&
-    selectedCategoryIds.length >= 1 &&
     !!proofFile &&
     (!certificateRequired || !!certificateFile) &&
     (!signatureRequired || (!!signatureDataUrl && indemnityClauseAccepted)) &&
@@ -253,12 +230,17 @@ const PublicCompetitionPayment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !selectedEvent || !selectedEvent.coaching_product_id || !dob || !proofFile) return;
+    if (!canSubmit || !selectedEvent || !dob || !proofFile) return;
 
     setSubmitting(true);
     setSubmitError(null);
     try {
       const isoDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
+      const extras = selectedExtras
+        .map(idx => selectedEvent.extra_lines[idx])
+        .filter((l): l is { label: string; amount: number } => !!l)
+        .map(l => ({ label: l.label, amount: Number(l.amount || 0) }));
+
       const result = await submitCompetitionPayment({
         first_name: firstName,
         last_name: lastName,
@@ -266,17 +248,15 @@ const PublicCompetitionPayment: React.FC = () => {
         branch_id: branchId,
         date_of_birth: isoDob,
         current_belt: currentBelt,
-        coaching_product_id: selectedEvent.coaching_product_id,
-        category_product_ids: selectedCategoryIds,
         amount: totalAmount,
         payment_method: paymentMethod,
         proof_file: proofFile,
         certificate_file: certificateFile,
-        coaching_name: selectedEvent.coaching_product_name || selectedEvent.name,
-        category_names: selectedCategoryIds
-          .map(id => selectedEvent.categories.find(c => c.product_id === id)?.name)
-          .filter((n): n is string => !!n),
+        coaching_label: selectedEvent.coaching_label || selectedEvent.name,
+        coaching_amount: coachingAmount,
+        extra_lines: extras,
         event_id: selectedEvent.id,
+        event_name: selectedEvent.name,
         gender,
         signature_data_url: signatureRequired ? signatureDataUrl : null,
         indemnity_form_file: selectedEvent.require_indemnity_form ? indemnityFormFile : null,
@@ -316,7 +296,7 @@ const PublicCompetitionPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setBranchId(''); setDob(undefined); setCurrentBelt(''); setGender('');
-                  setSelectedCategoryIds([]); setProofFile(null); setCertificateFile(null);
+                  setSelectedExtras([]); setProofFile(null); setCertificateFile(null);
                   setSignatureDataUrl(null); setIndemnityClauseAccepted(false);
                   setIndemnityFormFile(null); setPassportFile(null); setPhotoFile(null);
                 }}
@@ -479,17 +459,17 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedEvent.coaching_product_id && (
+                  {coachingAmount > 0 && (
                     <div className="space-y-2">
                       <Label>Coaching Fee *</Label>
                       <div className="rounded-md border p-3 bg-muted/40">
                         <div className="flex items-center gap-2">
                           <Checkbox checked disabled />
                           <Label className="text-sm font-normal flex-1">
-                            {selectedEvent.coaching_product_name || 'Coaching'}
+                            {selectedEvent.coaching_label || selectedEvent.name}
                           </Label>
                           <span className="text-sm font-medium">
-                            ${productTotal(coachingPrice, coachingTax).toFixed(2)}
+                            ${coachingAmount.toFixed(2)}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 ml-6">
@@ -499,23 +479,23 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedEvent.categories.length > 0 && (
+                  {selectedEvent.extra_lines.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
+                      <Label>Additional Items <span className="text-muted-foreground font-normal">(optional)</span></Label>
                       <div className="space-y-2 rounded-md border p-3">
-                        {selectedEvent.categories.map((c) => {
-                          const checked = selectedCategoryIds.includes(c.product_id);
+                        {selectedEvent.extra_lines.map((line, idx) => {
+                          const checked = selectedExtras.includes(idx);
                           return (
-                            <div key={c.product_id} className="flex items-center gap-2">
+                            <div key={idx} className="flex items-center gap-2">
                               <Checkbox
-                                id={`cat-${c.product_id}`}
+                                id={`extra-${idx}`}
                                 checked={checked}
-                                onCheckedChange={(v) => toggleCategory(c.product_id, v === true)}
+                                onCheckedChange={(v) => toggleExtra(idx, v === true)}
                               />
-                              <Label htmlFor={`cat-${c.product_id}`} className="text-sm font-normal flex-1 cursor-pointer">
-                                {c.name}
+                              <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                {line.label}
                               </Label>
-                              <span className="text-sm">${productTotal(Number(c.base_price), Number(c.tax_rate)).toFixed(2)}</span>
+                              <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
                             </div>
                           );
                         })}
@@ -523,17 +503,9 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {(selectedEvent.coaching_product_id || selectedCategoryIds.length > 0) && (
+                  {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">GST</span>
-                        <span>${gstAmount.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between font-semibold border-t pt-1">
+                      <div className="flex items-center justify-between font-semibold">
                         <span>Total</span>
                         <span>${totalAmount.toFixed(2)}</span>
                       </div>

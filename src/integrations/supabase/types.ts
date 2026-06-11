@@ -1073,9 +1073,12 @@ export type Database = {
       }
       competition_events: {
         Row: {
+          coaching_amount: number | null
+          coaching_label: string | null
           coaching_product_id: string | null
           created_at: string
           display_order: number
+          extra_lines: Json
           id: string
           indemnity_clause: string | null
           is_active: boolean
@@ -1086,9 +1089,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          coaching_amount?: number | null
+          coaching_label?: string | null
           coaching_product_id?: string | null
           created_at?: string
           display_order?: number
+          extra_lines?: Json
           id?: string
           indemnity_clause?: string | null
           is_active?: boolean
@@ -1099,9 +1105,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          coaching_amount?: number | null
+          coaching_label?: string | null
           coaching_product_id?: string | null
           created_at?: string
           display_order?: number
+          extra_lines?: Json
           id?: string
           indemnity_clause?: string | null
           is_active?: boolean
@@ -1127,6 +1136,8 @@ export type Database = {
           branch_id: string
           category_product_ids: string[]
           certificate_url: string | null
+          coaching_amount: number | null
+          coaching_label: string | null
           coaching_product_id: string | null
           competition_at: string | null
           court: string | null
@@ -1136,6 +1147,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           event_id: string | null
+          extra_lines: Json
           first_name: string
           gender: string | null
           id: string
@@ -1163,6 +1175,8 @@ export type Database = {
           branch_id: string
           category_product_ids?: string[]
           certificate_url?: string | null
+          coaching_amount?: number | null
+          coaching_label?: string | null
           coaching_product_id?: string | null
           competition_at?: string | null
           court?: string | null
@@ -1172,6 +1186,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           event_id?: string | null
+          extra_lines?: Json
           first_name: string
           gender?: string | null
           id?: string
@@ -1199,6 +1214,8 @@ export type Database = {
           branch_id?: string
           category_product_ids?: string[]
           certificate_url?: string | null
+          coaching_amount?: number | null
+          coaching_label?: string | null
           coaching_product_id?: string | null
           competition_at?: string | null
           court?: string | null
@@ -1208,6 +1225,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           event_id?: string | null
+          extra_lines?: Json
           first_name?: string
           gender?: string | null
           id?: string
@@ -7390,9 +7408,10 @@ export type Database = {
       }
       admin_upsert_competition_event: {
         Args: {
-          p_category_product_ids: string[]
-          p_coaching_product_id: string
+          p_coaching_amount: number
+          p_coaching_label: string
           p_display_order: number
+          p_extra_lines: Json
           p_id: string
           p_indemnity_clause: string
           p_is_active: boolean
@@ -7683,12 +7702,10 @@ export type Database = {
       get_public_competition_events: {
         Args: never
         Returns: {
-          categories: Json
-          coaching_product_id: string
-          coaching_product_name: string
-          coaching_product_price: number
-          coaching_product_tax_rate: number
+          coaching_amount: number
+          coaching_label: string
           display_order: number
+          extra_lines: Json
           id: string
           indemnity_clause: string
           is_active: boolean

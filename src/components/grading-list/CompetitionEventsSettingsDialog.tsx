@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import {
@@ -11,17 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
   getPublicCompetitionEvents,
   adminUpsertCompetitionEvent,
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
   type CompetitionEvent,
+  type CompetitionExtraLine,
 } from '@/services/competitionPaymentSubmissionService';
 
 interface Props {
@@ -29,42 +26,29 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-interface ProductLite { id: string; name: string; base_price: number; tax_rate: number }
-
-const fetchProducts = async (): Promise<ProductLite[]> => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, name, base_price, tax_rate, is_active')
-    .eq('is_active', true)
-    .order('name');
-  if (error) throw error;
-  return (data || []) as any;
-};
-
 const emptyForm = () => ({
   id: null as string | null,
   name: '',
   is_active: true,
   display_order: 0,
-  coaching_product_id: null as string | null,
   indemnity_clause: '',
   require_indemnity_form: false,
   require_passport: false,
   require_photo: false,
-  category_product_ids: [] as string[],
+  coaching_label: '',
+  coaching_amount: 0,
+  extra_lines: [] as CompetitionExtraLine[],
 });
 
 const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
-  const [productSearch, setProductSearch] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formPanelRef = useRef<HTMLDivElement>(null);
 
   const handleNewClick = () => {
     setForm(emptyForm());
-    setProductSearch('');
     requestAnimationFrame(() => {
       formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       nameInputRef.current?.focus();
@@ -76,24 +60,10 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     queryFn: getPublicCompetitionEvents,
     enabled: open,
   });
-  const { data: products = [] } = useQuery({
-    queryKey: ['competition-events-products'],
-    queryFn: fetchProducts,
-    enabled: open,
-  });
 
   useEffect(() => {
-    if (!open) {
-      setForm(emptyForm());
-      setProductSearch('');
-    }
+    if (!open) setForm(emptyForm());
   }, [open]);
-
-  const filteredProducts = useMemo(() => {
-    const t = productSearch.trim().toLowerCase();
-    if (!t) return products;
-    return products.filter(p => p.name.toLowerCase().includes(t));
-  }, [products, productSearch]);
 
   const startEdit = (e: CompetitionEvent) => {
     setForm({
@@ -101,17 +71,19 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       name: e.name,
       is_active: e.is_active,
       display_order: e.display_order,
-      coaching_product_id: e.coaching_product_id,
       indemnity_clause: e.indemnity_clause || '',
       require_indemnity_form: e.require_indemnity_form,
       require_passport: e.require_passport,
       require_photo: e.require_photo,
-      category_product_ids: e.categories.map(c => c.product_id),
+      coaching_label: e.coaching_label || '',
+      coaching_amount: Number(e.coaching_amount || 0),
+      extra_lines: (e.extra_lines || []).map(l => ({ label: l.label, amount: Number(l.amount || 0) })),
     });
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { toast.error('Name is required'); return; }
+    if (!form.name.trim()) { toast.error('Event name is required'); return; }
+    if (!form.coaching_label.trim()) { toast.error('Coaching item name is required'); return; }
     setSaving(true);
     try {
       await adminUpsertCompetitionEvent({
@@ -119,12 +91,15 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         name: form.name.trim(),
         is_active: form.is_active,
         display_order: form.display_order,
-        coaching_product_id: form.coaching_product_id,
         indemnity_clause: form.indemnity_clause.trim() || null,
         require_indemnity_form: form.require_indemnity_form,
         require_passport: form.require_passport,
         require_photo: form.require_photo,
-        category_product_ids: form.category_product_ids,
+        coaching_label: form.coaching_label.trim(),
+        coaching_amount: Number(form.coaching_amount) || 0,
+        extra_lines: form.extra_lines
+          .map(l => ({ label: (l.label || '').trim(), amount: Number(l.amount) || 0 }))
+          .filter(l => l.label || l.amount > 0),
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['competition-events-admin'] });
@@ -160,13 +135,19 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     }
   };
 
-  const toggleCategory = (id: string, checked: boolean) => {
+  const updateExtra = (idx: number, patch: Partial<CompetitionExtraLine>) => {
     setForm(prev => ({
       ...prev,
-      category_product_ids: checked
-        ? Array.from(new Set([...prev.category_product_ids, id]))
-        : prev.category_product_ids.filter(x => x !== id),
+      extra_lines: prev.extra_lines.map((l, i) => i === idx ? { ...l, ...patch } : l),
     }));
+  };
+
+  const addExtra = () => {
+    setForm(prev => ({ ...prev, extra_lines: [...prev.extra_lines, { label: '', amount: 0 }] }));
+  };
+
+  const removeExtra = (idx: number) => {
+    setForm(prev => ({ ...prev, extra_lines: prev.extra_lines.filter((_, i) => i !== idx) }));
   };
 
   const signatureRequired = form.indemnity_clause.trim().length > 0;
@@ -189,33 +170,33 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             </div>
             {isLoading && <div className="text-xs text-muted-foreground">Loading…</div>}
             <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-              {events.map(e => (
-                <div
-                  key={e.id}
-                  className={`flex items-center gap-2 border rounded p-2 text-sm ${form.id === e.id ? 'bg-muted/50 border-primary' : ''}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate flex items-center gap-2">
-                      {e.name}
-                      {!e.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
+              {events.map(e => {
+                const extraCount = (e.extra_lines || []).length;
+                return (
+                  <div
+                    key={e.id}
+                    className={`flex items-center gap-2 border rounded p-2 text-sm ${form.id === e.id ? 'bg-muted/50 border-primary' : ''}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate flex items-center gap-2">
+                        {e.name}
+                        {!e.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {e.coaching_label || 'No coaching item'} · ${Number(e.coaching_amount || 0).toFixed(2)}
+                        {extraCount > 0 ? ` · ${extraCount} extra` : ''}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {e.categories.length} {e.categories.length === 1 ? 'category' : 'categories'}
-                      {e.coaching_product_name ? ` · ${e.coaching_product_name}` : ''}
-                    </div>
+                    <Switch checked={e.is_active} onCheckedChange={(v) => handleToggleActive(e, v)} />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(e)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Switch
-                    checked={e.is_active}
-                    onCheckedChange={(v) => handleToggleActive(e, v)}
-                  />
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(e)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
               {!isLoading && events.length === 0 && (
                 <div className="text-xs text-muted-foreground border rounded p-3 text-center">
                   No events yet. Create one on the right.
@@ -229,7 +210,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             <h3 className="text-sm font-medium">{form.id ? 'Edit event' : 'New event'}</h3>
 
             <div className="space-y-1">
-              <Label className="text-xs">Name *</Label>
+              <Label className="text-xs">Competition Name *</Label>
               <Input
                 ref={nameInputRef}
                 value={form.name}
@@ -258,56 +239,69 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Coaching fee product</Label>
-              <Select
-                value={form.coaching_product_id ?? ''}
-                onValueChange={(v) => setForm({ ...form, coaching_product_id: v || null })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select coaching product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — ${Number(p.base_price).toFixed(2)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2 border rounded p-3">
+              <Label className="text-xs font-semibold">Coaching line *</Label>
+              <div className="grid grid-cols-[1fr_120px] gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">Name</Label>
+                  <Input
+                    value={form.coaching_label}
+                    onChange={(e) => setForm({ ...form, coaching_label: e.target.value })}
+                    placeholder="e.g. Coaching Fee"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.coaching_amount}
+                    onChange={(e) => setForm({ ...form, coaching_amount: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Amount entered is the total charged (no GST is added).
+              </p>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Category products</Label>
-              <Input
-                placeholder="Search products…"
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                className="h-8"
-              />
-              <div className="border rounded p-2 max-h-48 overflow-y-auto space-y-1">
-                {filteredProducts.map(p => {
-                  const checked = form.category_product_ids.includes(p.id);
-                  return (
-                    <div key={p.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        id={`prod-${p.id}`}
-                        checked={checked}
-                        onCheckedChange={(c) => toggleCategory(p.id, c === true)}
-                      />
-                      <Label htmlFor={`prod-${p.id}`} className="flex-1 cursor-pointer font-normal text-xs">
-                        {p.name}
-                      </Label>
-                      <span className="text-xs text-muted-foreground">${Number(p.base_price).toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-                {filteredProducts.length === 0 && (
-                  <div className="text-xs text-muted-foreground">No matching products.</div>
-                )}
+            <div className="space-y-2 border rounded p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Additional lines</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addExtra}>
+                  <Plus className="h-3 w-3 mr-1" /> Add line
+                </Button>
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                {form.category_product_ids.length} selected
+              {form.extra_lines.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">No additional lines.</p>
+              )}
+              <div className="space-y-2">
+                {form.extra_lines.map((line, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Name</Label>
+                      <Input
+                        value={line.label}
+                        onChange={(e) => updateExtra(idx, { label: e.target.value })}
+                        placeholder="e.g. Individual Poomsae"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.amount}
+                        onChange={(e) => updateExtra(idx, { amount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" onClick={() => removeExtra(idx)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
 
