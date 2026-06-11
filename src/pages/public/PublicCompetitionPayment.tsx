@@ -459,17 +459,17 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedEvent.coaching_product_id && (
+                  {coachingAmount > 0 && (
                     <div className="space-y-2">
                       <Label>Coaching Fee *</Label>
                       <div className="rounded-md border p-3 bg-muted/40">
                         <div className="flex items-center gap-2">
                           <Checkbox checked disabled />
                           <Label className="text-sm font-normal flex-1">
-                            {selectedEvent.coaching_product_name || 'Coaching'}
+                            {selectedEvent.coaching_label || selectedEvent.name}
                           </Label>
                           <span className="text-sm font-medium">
-                            ${productTotal(coachingPrice, coachingTax).toFixed(2)}
+                            ${coachingAmount.toFixed(2)}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 ml-6">
@@ -479,23 +479,23 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedEvent.categories.length > 0 && (
+                  {selectedEvent.extra_lines.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Event Categories * <span className="text-muted-foreground font-normal">(select at least one)</span></Label>
+                      <Label>Additional Items <span className="text-muted-foreground font-normal">(optional)</span></Label>
                       <div className="space-y-2 rounded-md border p-3">
-                        {selectedEvent.categories.map((c) => {
-                          const checked = selectedCategoryIds.includes(c.product_id);
+                        {selectedEvent.extra_lines.map((line, idx) => {
+                          const checked = selectedExtras.includes(idx);
                           return (
-                            <div key={c.product_id} className="flex items-center gap-2">
+                            <div key={idx} className="flex items-center gap-2">
                               <Checkbox
-                                id={`cat-${c.product_id}`}
+                                id={`extra-${idx}`}
                                 checked={checked}
-                                onCheckedChange={(v) => toggleCategory(c.product_id, v === true)}
+                                onCheckedChange={(v) => toggleExtra(idx, v === true)}
                               />
-                              <Label htmlFor={`cat-${c.product_id}`} className="text-sm font-normal flex-1 cursor-pointer">
-                                {c.name}
+                              <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                {line.label}
                               </Label>
-                              <span className="text-sm">${productTotal(Number(c.base_price), Number(c.tax_rate)).toFixed(2)}</span>
+                              <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
                             </div>
                           );
                         })}
@@ -503,17 +503,9 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {(selectedEvent.coaching_product_id || selectedCategoryIds.length > 0) && (
+                  {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">GST</span>
-                        <span>${gstAmount.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between font-semibold border-t pt-1">
+                      <div className="flex items-center justify-between font-semibold">
                         <span>Total</span>
                         <span>${totalAmount.toFixed(2)}</span>
                       </div>
