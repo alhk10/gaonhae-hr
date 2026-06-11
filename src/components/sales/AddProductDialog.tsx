@@ -58,7 +58,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ trigger, onProductA
   
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false
+    color: false,
+    competition: false
   });
 
   useEffect(() => {
