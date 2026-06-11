@@ -265,7 +265,7 @@ const PublicCompetitionPayment: React.FC = () => {
         proof_file: proofFile,
         certificate_file: certificateFile,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
-        coaching_amount: coachingAmount,
+        coaching_amount: coachingIncluded ? coachingAmount : 0,
         extra_lines: extras,
         event_id: selectedEvent.id,
         event_name: selectedEvent.name,
