@@ -45,6 +45,7 @@ export interface PublicCompetitionListRow {
 export interface CompetitionExtraLine {
   label: string;
   amount: number;
+  required?: boolean;
 }
 
 export interface CompetitionEvent {
@@ -58,6 +59,7 @@ export interface CompetitionEvent {
   require_photo: boolean;
   coaching_label: string | null;
   coaching_amount: number;
+  coaching_required: boolean;
   extra_lines: CompetitionExtraLine[];
 }
 
@@ -67,8 +69,13 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
   return ((data || []) as any[]).map((r) => ({
     ...r,
     coaching_amount: Number(r.coaching_amount || 0),
+    coaching_required: r.coaching_required !== false,
     extra_lines: Array.isArray(r.extra_lines)
-      ? r.extra_lines.map((l: any) => ({ label: String(l.label || ''), amount: Number(l.amount || 0) }))
+      ? r.extra_lines.map((l: any) => ({
+          label: String(l.label || ''),
+          amount: Number(l.amount || 0),
+          required: l.required === true,
+        }))
       : [],
   })) as CompetitionEvent[];
 };
@@ -84,6 +91,7 @@ export const adminUpsertCompetitionEvent = async (input: {
   require_photo: boolean;
   coaching_label: string | null;
   coaching_amount: number;
+  coaching_required: boolean;
   extra_lines: CompetitionExtraLine[];
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
@@ -97,7 +105,12 @@ export const adminUpsertCompetitionEvent = async (input: {
     p_require_photo: input.require_photo,
     p_coaching_label: input.coaching_label,
     p_coaching_amount: input.coaching_amount,
-    p_extra_lines: input.extra_lines as any,
+    p_extra_lines: input.extra_lines.map(l => ({
+      label: l.label,
+      amount: l.amount,
+      required: l.required === true,
+    })) as any,
+    p_coaching_required: input.coaching_required,
   });
   if (error) throw error;
   return data as string;

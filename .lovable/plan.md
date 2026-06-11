@@ -1,34 +1,42 @@
 ## Goal
 
-On `/grading-list` → **Competitions** tab, add an event filter so the long submission list can be scoped to one competition event. Default to the "current" event. Back-fill all 15 existing competition submissions (which currently have `event_id = NULL`) to a newly-created event called **2026 Singapore Open**.
+Add a **Compulsory** checkbox to the coaching line and each additional line in the Competition Events settings dialog. Items marked compulsory are **pre-checked and locked** (cannot be unchecked) on the public registration form, and are always billed on the generated invoice.
 
-## 1. Data back-fill (data migration via insert tool)
+## 1. Schema (migration)
 
-- Insert one row into `competition_events`:
-  - `name = '2026 Singapore Open'`
-  - `is_active = true`
-  - `display_order = 0`
-  - `coaching_label = 'Coaching fee'`, `coaching_amount = 0`, `extra_lines = '[]'`
-  - (other nullable fields left default)
-- `UPDATE competition_payment_submissions SET event_id = <new event id> WHERE event_id IS NULL;` (touches all 15 existing rows so they appear under this event).
+`competition_events`:
+- Add `coaching_required boolean NOT NULL DEFAULT true` (coaching defaults to compulsory).
+- `extra_lines` jsonb items gain a `required` boolean (default `false`). No schema change needed — it's a free-form jsonb field; the UI/RPC will read/write the new key.
 
-## 2. UI — event filter on Competitions tab
+Update `admin_upsert_competition_event` RPC to accept `p_coaching_required boolean` and persist it, and to persist `required` inside each `extra_lines` entry (passthrough — already jsonb).
 
-File: `src/pages/public/PublicGradingList.tsx` (`CompetitionsTab` component, ~line 1880).
+Backfill: set `coaching_required = true` for the existing "2026 Singapore Open" row (matches its current behaviour where coaching was always added).
 
-- Add a `useQuery` that fetches `competition_events` (`id, name, is_active, created_at`) ordered so the "current" event is first and the remaining events follow by newest:
-  - **Current** = the active event (`is_active = true`) with the most recent `created_at`. If no active event exists, fall back to the newest event overall.
-  - Sort: current first, then remaining events by `created_at DESC`.
-- Add `eventFilter` state, defaulting to the current event's id once events load (`'all'` if no events).
-- Render a `Select` next to the existing "Events" settings button:
-  - Options: each event by name, plus a final `All events` option.
-- Filter the existing rows in `rows` by `r.event_id === eventFilter` (skip when `'all'`). `PublicCompetitionListRow` needs `event_id`; if not already present, add it to the row type and ensure `getPublicCompetitionList` / `get_public_competition_list` RPC returns it (verify; add to select if missing).
-- Keep the existing student-name sort inside the chosen event.
+## 2. Admin UI — `CompetitionEventsSettingsDialog.tsx`
 
-No changes to invoice generation, schema, or other tabs.
+- Extend the form state with `coaching_required: boolean` and add `required: boolean` to each `CompetitionExtraLine`.
+- **Coaching line card**: add a Checkbox labelled "Compulsory (auto-added, customer cannot opt out)" under the name/amount row.
+- **Additional lines card**: for each row, add a small "Compulsory" checkbox next to the trash button (or below the inputs on mobile).
+- Pass these through `adminUpsertCompetitionEvent`.
+- Read them back in `startEdit`.
+
+## 3. Service layer — `competitionPaymentSubmissionService.ts`
+
+- `CompetitionExtraLine` interface: add `required?: boolean`.
+- `CompetitionEvent` interface: add `coaching_required: boolean`.
+- `adminUpsertCompetitionEvent` payload: add `coaching_required`; forward `required` flag on each extra line.
+
+## 4. Public form — `PublicCompetitionPayment.tsx`
+
+When rendering the coaching and extra-line checkboxes for the selected event:
+- If `coaching_required === true`: render the coaching checkbox **checked and disabled**, with a small "Required" badge. Selection state is forced to true in the submission payload.
+- For each extra line with `required === true`: same treatment — checked, disabled, "Required" badge, always included in the submission.
+- Non-required extras remain togglable as today.
+
+The submission snapshot already lists chosen lines, so the invoice generation in `admin_import_competition_submission` does not need changes — required lines are simply always present.
 
 ## Technical notes
 
-- Service / RPC: confirm `getPublicCompetitionList` returns `event_id`. If not, extend the RPC (migration) and the TS type. Most likely it already returns `event_name`; we'll add `event_id` alongside.
-- Filter dropdown uses the same styling as the existing branch filter on this page for consistency.
-- No edits to the Superadmin "Competition Registrations" approvals card.
+- No changes to invoice generation, public list RPC, or other tabs.
+- `extra_lines` jsonb is already round-tripped; adding the `required` key is non-breaking for existing rows (missing key = `false`).
+- Default for `coaching_required` is `true` so existing events keep current behaviour (coaching was effectively mandatory before).

@@ -141,6 +141,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
+  const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
@@ -176,6 +177,16 @@ const PublicCompetitionPayment: React.FC = () => {
     if (!eventId && activeEvents.length === 1) setEventId(activeEvents[0].id);
   }, [activeEvents, eventId]);
 
+  // When selected event changes, reset extras: required ones pre-selected; coaching reflects required flag
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const requiredIdx = selectedEvent.extra_lines
+      .map((l, i) => (l.required ? i : -1))
+      .filter(i => i >= 0);
+    setSelectedExtras(requiredIdx);
+    setCoachingSelected(selectedEvent.coaching_required !== false);
+  }, [selectedEvent?.id]);
+
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
     [branches, branchId],
@@ -203,13 +214,14 @@ const PublicCompetitionPayment: React.FC = () => {
   };
 
   const coachingAmount = Number(selectedEvent?.coaching_amount || 0);
+  const coachingIncluded = !!selectedEvent && coachingSelected && coachingAmount > 0;
 
   const extrasTotal = useMemo(() => {
     if (!selectedEvent) return 0;
     return selectedExtras.reduce((sum, idx) => sum + Number(selectedEvent.extra_lines[idx]?.amount || 0), 0);
   }, [selectedEvent, selectedExtras]);
 
-  const totalAmount = coachingAmount + extrasTotal;
+  const totalAmount = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
 
   const canSubmit =
     !!selectedEvent &&
@@ -253,7 +265,7 @@ const PublicCompetitionPayment: React.FC = () => {
         proof_file: proofFile,
         certificate_file: certificateFile,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
-        coaching_amount: coachingAmount,
+        coaching_amount: coachingIncluded ? coachingAmount : 0,
         extra_lines: extras,
         event_id: selectedEvent.id,
         event_name: selectedEvent.name,
@@ -461,10 +473,16 @@ const PublicCompetitionPayment: React.FC = () => {
 
                   {coachingAmount > 0 && (
                     <div className="space-y-2">
-                      <Label>Coaching Fee *</Label>
+                      <Label>Coaching Fee{selectedEvent.coaching_required ? ' *' : ''}</Label>
                       <div className="rounded-md border p-3 bg-muted/40">
                         <div className="flex items-center gap-2">
-                          <Checkbox checked disabled />
+                          <Checkbox
+                            checked={coachingSelected}
+                            disabled={selectedEvent.coaching_required}
+                            onCheckedChange={(v) =>
+                              !selectedEvent.coaching_required && setCoachingSelected(v === true)
+                            }
+                          />
                           <Label className="text-sm font-normal flex-1">
                             {selectedEvent.coaching_label || selectedEvent.name}
                           </Label>
@@ -472,28 +490,35 @@ const PublicCompetitionPayment: React.FC = () => {
                             ${coachingAmount.toFixed(2)}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 ml-6">
-                          Required for all participants
-                        </p>
+                        {selectedEvent.coaching_required && (
+                          <p className="text-xs text-muted-foreground mt-1 ml-6">
+                            Required for all participants
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {selectedEvent.extra_lines.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Additional Items <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                      <Label>Additional Items</Label>
                       <div className="space-y-2 rounded-md border p-3">
                         {selectedEvent.extra_lines.map((line, idx) => {
                           const checked = selectedExtras.includes(idx);
+                          const required = line.required === true;
                           return (
                             <div key={idx} className="flex items-center gap-2">
                               <Checkbox
                                 id={`extra-${idx}`}
                                 checked={checked}
-                                onCheckedChange={(v) => toggleExtra(idx, v === true)}
+                                disabled={required}
+                                onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
                               />
                               <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
                                 {line.label}
+                                {required && (
+                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
+                                )}
                               </Label>
                               <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
                             </div>
