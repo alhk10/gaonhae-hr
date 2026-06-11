@@ -42,12 +42,9 @@ export interface PublicCompetitionListRow {
   photo_url: string | null;
 }
 
-export interface CompetitionEventCategory {
-  product_id: string;
-  name: string;
-  base_price: number;
-  tax_rate: number;
-  display_order: number;
+export interface CompetitionExtraLine {
+  label: string;
+  amount: number;
 }
 
 export interface CompetitionEvent {
@@ -55,15 +52,13 @@ export interface CompetitionEvent {
   name: string;
   is_active: boolean;
   display_order: number;
-  coaching_product_id: string | null;
-  coaching_product_name: string | null;
-  coaching_product_price: number | null;
-  coaching_product_tax_rate: number | null;
   indemnity_clause: string | null;
   require_indemnity_form: boolean;
   require_passport: boolean;
   require_photo: boolean;
-  categories: CompetitionEventCategory[];
+  coaching_label: string | null;
+  coaching_amount: number;
+  extra_lines: CompetitionExtraLine[];
 }
 
 export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
@@ -71,7 +66,10 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
   if (error) throw error;
   return ((data || []) as any[]).map((r) => ({
     ...r,
-    categories: Array.isArray(r.categories) ? r.categories : [],
+    coaching_amount: Number(r.coaching_amount || 0),
+    extra_lines: Array.isArray(r.extra_lines)
+      ? r.extra_lines.map((l: any) => ({ label: String(l.label || ''), amount: Number(l.amount || 0) }))
+      : [],
   })) as CompetitionEvent[];
 };
 
@@ -80,24 +78,26 @@ export const adminUpsertCompetitionEvent = async (input: {
   name: string;
   is_active: boolean;
   display_order: number;
-  coaching_product_id: string | null;
   indemnity_clause: string | null;
   require_indemnity_form: boolean;
   require_passport: boolean;
   require_photo: boolean;
-  category_product_ids: string[];
+  coaching_label: string | null;
+  coaching_amount: number;
+  extra_lines: CompetitionExtraLine[];
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
     p_id: input.id,
     p_name: input.name,
     p_is_active: input.is_active,
     p_display_order: input.display_order,
-    p_coaching_product_id: input.coaching_product_id,
     p_indemnity_clause: input.indemnity_clause,
     p_require_indemnity_form: input.require_indemnity_form,
     p_require_passport: input.require_passport,
     p_require_photo: input.require_photo,
-    p_category_product_ids: input.category_product_ids,
+    p_coaching_label: input.coaching_label,
+    p_coaching_amount: input.coaching_amount,
+    p_extra_lines: input.extra_lines as any,
   });
   if (error) throw error;
   return data as string;
