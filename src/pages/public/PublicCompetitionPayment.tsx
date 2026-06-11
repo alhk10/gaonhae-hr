@@ -214,13 +214,14 @@ const PublicCompetitionPayment: React.FC = () => {
   };
 
   const coachingAmount = Number(selectedEvent?.coaching_amount || 0);
+  const coachingIncluded = !!selectedEvent && coachingSelected && coachingAmount > 0;
 
   const extrasTotal = useMemo(() => {
     if (!selectedEvent) return 0;
     return selectedExtras.reduce((sum, idx) => sum + Number(selectedEvent.extra_lines[idx]?.amount || 0), 0);
   }, [selectedEvent, selectedExtras]);
 
-  const totalAmount = coachingAmount + extrasTotal;
+  const totalAmount = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
 
   const canSubmit =
     !!selectedEvent &&
