@@ -192,6 +192,13 @@ export interface SubmitCompetitionPaymentInput {
   certificate_file?: File | null;
   coaching_name?: string;
   category_names?: string[];
+  // New event-based fields
+  event_id?: string | null;
+  gender?: string | null;
+  signature_data_url?: string | null;
+  indemnity_form_file?: File | null;
+  passport_file?: File | null;
+  photo_file?: File | null;
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
