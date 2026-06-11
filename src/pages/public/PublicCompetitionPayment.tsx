@@ -473,10 +473,16 @@ const PublicCompetitionPayment: React.FC = () => {
 
                   {coachingAmount > 0 && (
                     <div className="space-y-2">
-                      <Label>Coaching Fee *</Label>
+                      <Label>Coaching Fee{selectedEvent.coaching_required ? ' *' : ''}</Label>
                       <div className="rounded-md border p-3 bg-muted/40">
                         <div className="flex items-center gap-2">
-                          <Checkbox checked disabled />
+                          <Checkbox
+                            checked={coachingSelected}
+                            disabled={selectedEvent.coaching_required}
+                            onCheckedChange={(v) =>
+                              !selectedEvent.coaching_required && setCoachingSelected(v === true)
+                            }
+                          />
                           <Label className="text-sm font-normal flex-1">
                             {selectedEvent.coaching_label || selectedEvent.name}
                           </Label>
@@ -484,28 +490,35 @@ const PublicCompetitionPayment: React.FC = () => {
                             ${coachingAmount.toFixed(2)}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 ml-6">
-                          Required for all participants
-                        </p>
+                        {selectedEvent.coaching_required && (
+                          <p className="text-xs text-muted-foreground mt-1 ml-6">
+                            Required for all participants
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {selectedEvent.extra_lines.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Additional Items <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                      <Label>Additional Items</Label>
                       <div className="space-y-2 rounded-md border p-3">
                         {selectedEvent.extra_lines.map((line, idx) => {
                           const checked = selectedExtras.includes(idx);
+                          const required = line.required === true;
                           return (
                             <div key={idx} className="flex items-center gap-2">
                               <Checkbox
                                 id={`extra-${idx}`}
                                 checked={checked}
-                                onCheckedChange={(v) => toggleExtra(idx, v === true)}
+                                disabled={required}
+                                onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
                               />
                               <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
                                 {line.label}
+                                {required && (
+                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
+                                )}
                               </Label>
                               <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
                             </div>
