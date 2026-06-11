@@ -26,12 +26,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+const DEFAULT_INDEMNITY_CLAUSE = `The participant (or parent/legal guardian of a participant under 18 years of age) acknowledges that participation in Taekwondo activities, including competitions, involves inherent risks of injury, illness, disability, property damage, or death, and voluntarily accepts all such risks. The participant and/or parent or legal guardian releases and holds harmless Gaonhae Taekwondo, its instructors, coaches, officials, employees, volunteers, and representatives from any claim arising from participation in any Taekwondo activity and agrees to indemnify them against any resulting loss, damage, liability, or expense.
+
+The participant and/or parent or legal guardian grants permission for photographs, video recordings, and other media of the participant taken during Taekwondo activities to be used by Gaonhae Taekwondo for promotional, educational, administrative, and social media purposes without compensation or further consent. This indemnity, release, and media consent applies regardless of the location where the activity takes place.`;
+
 const emptyForm = () => ({
   id: null as string | null,
   name: '',
   is_active: true,
   display_order: 0,
-  indemnity_clause: '',
+  indemnity_clause: DEFAULT_INDEMNITY_CLAUSE,
   require_indemnity_form: false,
   require_passport: false,
   require_photo: false,
