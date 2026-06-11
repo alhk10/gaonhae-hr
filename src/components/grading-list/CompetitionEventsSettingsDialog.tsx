@@ -225,12 +225,13 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           </div>
 
           {/* Edit/create form */}
-          <div className="space-y-3 border-l md:pl-4">
+          <div ref={formPanelRef} className="space-y-3 border-l md:pl-4">
             <h3 className="text-sm font-medium">{form.id ? 'Edit event' : 'New event'}</h3>
 
             <div className="space-y-1">
               <Label className="text-xs">Name *</Label>
               <Input
+                ref={nameInputRef}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Singapore Open Poomsae 2026"
