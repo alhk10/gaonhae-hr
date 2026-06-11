@@ -1,16 +1,27 @@
 ## Problem
-In `/grading-list` → Competitions → Settings → Competition Events dialog, clicking the **+ New** button next to the Events list appears to do nothing. The form on the right is already empty by default, so resetting it produces no visible change. On mobile the form panel is below the list, so users don't even know a form exists.
+`ProductVariantManager` dialog only shows Size & Color tabs. Need a third **Competition** tab with 9 preset categories.
 
-## Fix
-Update `src/components/grading-list/CompetitionEventsSettingsDialog.tsx`:
+## Changes
 
-1. Add a `useRef` for the Name input and a `useRef` for the form panel container.
-2. Extract the "+ New" handler into a function that:
-   - Calls `setForm(emptyForm())`
-   - Clears `productSearch`
-   - Scrolls the form panel into view (`scrollIntoView({ behavior: 'smooth', block: 'start' })`)
-   - Focuses the Name input
-3. Wire that handler to the existing **+ New** button.
-4. Attach the refs to the form `<div>` wrapper and to the Name `<Input>`.
+### 1. `src/services/variantTypesService.ts`
+- Add `competitions?: string[]` to `ProductVariants`.
+- Update `flattenVariants` and `calculateVariantCombinations` to include competitions.
 
-No database, RPC, service, or schema changes. Pure UX fix scoped to one file.
+### 2. `src/services/productService.ts`
+- Add `competitions` to `ProductVariants` interface and `parseVariants` (read from `available_variants` JSON).
+
+### 3. `src/components/sales/ProductVariantManager.tsx`
+- Add `Trophy` icon + amber color class for `competition`.
+- Extend `enabledTypes` prop to `{ size, color, competition }`.
+- Change `TabsList` to `grid-cols-3`, add Competition tab/content.
+- Extend `getVariantArray` / `setVariantArray` / state for `competition` → `currentVariants.competitions`.
+- Built-in fallback preset "Competition Categories": Individual, Pair, Team, Kyorugi, Family, Speed Kicking, Board Breaking, High Jump Kick, Long Jump Kick (used if DB has no `competition` variant type).
+- Include competitions in summary block + badges.
+
+### 4. `src/components/sales/AddProductDialog.tsx` & `EditProductDialog.tsx`
+- Initialise `available_variants` with `competitions: []`.
+- Track `competition` in `enabledVariantTypes` state; hydrate from saved product; persist on save.
+- Show "Competitions: N" in variant summary row.
+
+## Out of scope
+Variant-combo generation (e.g. `Red / L / Pair`) and inventory/invoice flows — competitions persist alongside sizes/colors for a later phase.
