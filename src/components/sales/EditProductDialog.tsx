@@ -190,7 +190,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
   if (!product) return null;
 
-  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color;
+  const hasAnyVariants = enabledVariantTypes.size || enabledVariantTypes.color || enabledVariantTypes.competition;
 
   return (
     <>
