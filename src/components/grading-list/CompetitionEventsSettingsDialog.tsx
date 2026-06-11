@@ -59,6 +59,17 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const formPanelRef = useRef<HTMLDivElement>(null);
+
+  const handleNewClick = () => {
+    setForm(emptyForm());
+    setProductSearch('');
+    requestAnimationFrame(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nameInputRef.current?.focus();
+    });
+  };
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['competition-events-admin'],
