@@ -273,6 +273,43 @@ export const submitCompetitionPayment = async (
     console.info('[/comps] certificate uploaded');
   }
 
+  // Helper: upload an optional file to payment-proofs and return its signed URL
+  const uploadOptional = async (file: File | null | undefined, kind: string): Promise<string | null> => {
+    if (!file) return null;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const p = `public-comps/${input.branch_id}/${ts}_${safeName}_${kind}.${ext}`;
+    const { error: e } = await withTimeout(
+      supabase.storage
+        .from('payment-proofs')
+        .upload(p, file, { upsert: false, contentType: file.type }),
+      30000,
+      `${kind} upload`,
+    );
+    if (e) throw new Error(`${kind} upload failed: ${(e as any).message || 'unknown error'}`);
+    const { data: signed } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(p, 60 * 60 * 24 * 365 * 5);
+    return signed?.signedUrl ?? p;
+  };
+
+  const indemnityFormUrl = await uploadOptional(input.indemnity_form_file, 'indemnity');
+  const passportUrl = await uploadOptional(input.passport_file, 'passport');
+  const photoUrl = await uploadOptional(input.photo_file, 'photo');
+
+  // Signature: convert data URL to File and upload
+  let signatureUrl: string | null = null;
+  if (input.signature_data_url) {
+    try {
+      const res = await fetch(input.signature_data_url);
+      const blob = await res.blob();
+      const sigFile = new File([blob], `${safeName}_signature.png`, { type: 'image/png' });
+      signatureUrl = await uploadOptional(sigFile, 'signature');
+    } catch (e) {
+      console.error('[/comps] signature upload error', e);
+      throw new Error('Signature upload failed');
+    }
+  }
+
   const row = {
     first_name: fn,
     last_name: ln,
@@ -286,6 +323,12 @@ export const submitCompetitionPayment = async (
     payment_method: input.payment_method,
     proof_url: proofUrl,
     certificate_url: certificateUrl,
+    event_id: input.event_id ?? null,
+    gender: input.gender ?? null,
+    signature_url: signatureUrl,
+    indemnity_form_url: indemnityFormUrl,
+    passport_url: passportUrl,
+    photo_url: photoUrl,
   };
 
   console.info('[/comps] calling submit_competition_payment RPC');
