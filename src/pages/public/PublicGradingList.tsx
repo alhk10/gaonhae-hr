@@ -1879,9 +1879,11 @@ const POOMSAE_CLEAR = '__clear__';
 const CompetitionsTab: React.FC<{
   branchFilter: string;
   canDelete?: boolean;
+  canEdit?: boolean;
   verifiedBy: string;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, verifiedBy, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
