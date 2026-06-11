@@ -296,7 +296,7 @@ const PublicCompetitionPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setBranchId(''); setDob(undefined); setCurrentBelt(''); setGender('');
-                  setSelectedCategoryIds([]); setProofFile(null); setCertificateFile(null);
+                  setSelectedExtras([]); setProofFile(null); setCertificateFile(null);
                   setSignatureDataUrl(null); setIndemnityClauseAccepted(false);
                   setIndemnityFormFile(null); setPassportFile(null); setPhotoFile(null);
                 }}
