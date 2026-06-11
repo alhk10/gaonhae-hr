@@ -272,6 +272,16 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                   />
                 </div>
               </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="coaching-required"
+                  checked={form.coaching_required}
+                  onCheckedChange={(c) => setForm({ ...form, coaching_required: c === true })}
+                />
+                <Label htmlFor="coaching-required" className="text-xs font-normal cursor-pointer">
+                  Compulsory (auto-added, customer cannot opt out)
+                </Label>
+              </div>
               <p className="text-[11px] text-muted-foreground">
                 Amount entered is the total charged (no GST is added).
               </p>
