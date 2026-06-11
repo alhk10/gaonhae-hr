@@ -78,7 +78,12 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       require_photo: e.require_photo,
       coaching_label: e.coaching_label || '',
       coaching_amount: Number(e.coaching_amount || 0),
-      extra_lines: (e.extra_lines || []).map(l => ({ label: l.label, amount: Number(l.amount || 0) })),
+      coaching_required: e.coaching_required !== false,
+      extra_lines: (e.extra_lines || []).map(l => ({
+        label: l.label,
+        amount: Number(l.amount || 0),
+        required: l.required === true,
+      })),
     });
   };
 
@@ -98,8 +103,13 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         require_photo: form.require_photo,
         coaching_label: form.coaching_label.trim(),
         coaching_amount: Number(form.coaching_amount) || 0,
+        coaching_required: form.coaching_required,
         extra_lines: form.extra_lines
-          .map(l => ({ label: (l.label || '').trim(), amount: Number(l.amount) || 0 }))
+          .map(l => ({
+            label: (l.label || '').trim(),
+            amount: Number(l.amount) || 0,
+            required: l.required === true,
+          }))
           .filter(l => l.label || l.amount > 0),
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
