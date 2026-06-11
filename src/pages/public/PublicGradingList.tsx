@@ -2106,8 +2106,23 @@ const CompetitionsTab: React.FC<{
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Competitions</h2>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg font-semibold">Competitions</h2>
+          {sortedEvents.length > 0 && (
+            <Select value={eventFilter || 'all'} onValueChange={setEventFilter}>
+              <SelectTrigger className="h-8 text-xs w-[220px]">
+                <SelectValue placeholder="Filter event" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedEvents.map((e: any) => (
+                  <SelectItem key={e.id} value={e.id} className="text-xs">{e.name}</SelectItem>
+                ))}
+                <SelectItem value="all" className="text-xs">All events</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         {canEdit && (
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-3.5 w-3.5 mr-1" /> Events
@@ -2120,6 +2135,7 @@ const CompetitionsTab: React.FC<{
           <TableHeader>
             <TableRow>
               <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
+
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
