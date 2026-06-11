@@ -183,7 +183,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Events</h3>
-              <Button size="sm" variant="outline" onClick={() => setForm(emptyForm())}>
+              <Button size="sm" variant="outline" onClick={handleNewClick}>
                 <Plus className="h-3 w-3 mr-1" /> New
               </Button>
             </div>
