@@ -62,7 +62,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   });
   const [enabledVariantTypes, setEnabledVariantTypes] = useState({
     size: false,
-    color: false
+    color: false,
+    competition: false
   });
 
   useEffect(() => {
