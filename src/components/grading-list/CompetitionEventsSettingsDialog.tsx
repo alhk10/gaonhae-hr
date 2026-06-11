@@ -37,6 +37,7 @@ const emptyForm = () => ({
   require_photo: false,
   coaching_label: '',
   coaching_amount: 0,
+  coaching_required: true,
   extra_lines: [] as CompetitionExtraLine[],
 });
 
