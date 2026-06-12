@@ -209,6 +209,8 @@ const PublicCompetitionPayment: React.FC = () => {
   }, [selectedEvent, selectedExtras]);
 
   const totalAmount = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
+  const gstRate = gstRateForCountry(selectedBranch?.country);
+  const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
 
   const canSubmit =
     !!selectedEvent &&
