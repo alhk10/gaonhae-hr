@@ -551,14 +551,25 @@ const PublicCompetitionPayment: React.FC = () => {
 
                   {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
-                      <div className="flex items-center justify-between font-semibold">
-                        <span>Total</span>
-                        <span>${totalAmount.toFixed(2)}</span>
-                      </div>
-                      {gstRate > 0 && (
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Includes GST ({(gstRate * 100).toFixed(0)}%)</span>
-                          <span>${gstAmount.toFixed(2)}</span>
+                      {gstRate > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span>Subtotal (excl. GST)</span>
+                            <span>${(totalAmount - gstAmount).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>GST ({(gstRate * 100).toFixed(0)}%)</span>
+                            <span>${gstAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between font-semibold border-t pt-1 mt-1">
+                            <span>Total (incl. GST)</span>
+                            <span>${totalAmount.toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between font-semibold">
+                          <span>Total</span>
+                          <span>${totalAmount.toFixed(2)}</span>
                         </div>
                       )}
                     </div>
