@@ -442,6 +442,17 @@ const PublicCompetitionPayment: React.FC = () => {
                     </Select>
                   </div>
 
+                  {selectedEvent.require_photo && (
+                    <ProofOfPaymentUpload
+                      value={photoFile}
+                      onChange={setPhotoFile}
+                      required
+                      acceptPdf={false}
+                      maxSizeMB={5}
+                      label="Participant Photo"
+                    />
+                  )}
+
                   {certificateRequired && (
                     <div className="space-y-2">
                       <ProofOfPaymentUpload
@@ -455,6 +466,27 @@ const PublicCompetitionPayment: React.FC = () => {
                       <p className="text-xs text-muted-foreground">
                         Please upload a clear photo of your Poom or Dan certificate.
                       </p>
+                    </div>
+                  )}
+
+                  {signatureRequired && (
+                    <div className="space-y-2">
+                      <Label>Indemnity Clause *</Label>
+                      <div className="border rounded-md p-3 bg-muted/30 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                        {selectedEvent.indemnity_clause}
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="accept-indemnity"
+                          checked={indemnityClauseAccepted}
+                          onCheckedChange={(c) => setIndemnityClauseAccepted(c === true)}
+                        />
+                        <Label htmlFor="accept-indemnity" className="text-xs font-normal cursor-pointer">
+                          I have read and agree to the indemnity clause above.
+                        </Label>
+                      </div>
+                      <Label className="text-sm">Signature *</Label>
+                      <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
                     </div>
                   )}
 
@@ -521,58 +553,37 @@ const PublicCompetitionPayment: React.FC = () => {
                         <span>Total</span>
                         <span>${totalAmount.toFixed(2)}</span>
                       </div>
+                      {gstRate > 0 && (
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Includes GST ({(gstRate * 100).toFixed(0)}%)</span>
+                          <span>${gstAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {selectedEvent.require_photo && (
-                    <FileField
-                      label="Participant Photo"
-                      value={photoFile}
-                      onChange={setPhotoFile}
-                      accept="image/*"
-                      required
-                      help="Clear face photo (passport-style)."
-                    />
-                  )}
-
                   {selectedEvent.require_passport && (
-                    <FileField
-                      label="Passport / Identification"
+                    <ProofOfPaymentUpload
                       value={passportFile}
                       onChange={setPassportFile}
                       required
+                      acceptPdf
+                      maxSizeMB={5}
+                      label="Passport / Identification"
                     />
                   )}
 
                   {selectedEvent.require_indemnity_form && (
-                    <FileField
-                      label="Indemnity Form Upload"
+                    <ProofOfPaymentUpload
                       value={indemnityFormFile}
                       onChange={setIndemnityFormFile}
                       required
+                      acceptPdf
+                      maxSizeMB={5}
+                      label="Indemnity Form Upload"
                     />
                   )}
 
-                  {signatureRequired && (
-                    <div className="space-y-2">
-                      <Label>Indemnity Clause *</Label>
-                      <div className="border rounded-md p-3 bg-muted/30 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
-                        {selectedEvent.indemnity_clause}
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Checkbox
-                          id="accept-indemnity"
-                          checked={indemnityClauseAccepted}
-                          onCheckedChange={(c) => setIndemnityClauseAccepted(c === true)}
-                        />
-                        <Label htmlFor="accept-indemnity" className="text-xs font-normal cursor-pointer">
-                          I have read and agree to the indemnity clause above.
-                        </Label>
-                      </div>
-                      <Label className="text-sm">Signature *</Label>
-                      <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
-                    </div>
-                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="payment-method">Payment Method</Label>
