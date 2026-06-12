@@ -510,6 +510,77 @@ const AdminSlotBooking = () => {
     }
   };
 
+  const handleSuperadminOverride = async () => {
+    if (!selectedBookingForApproval) return;
+    const bookingId = selectedBookingForApproval.id;
+    try {
+      setIsUpdatingBranch(true);
+
+      // Optional branch change
+      if (selectedBranchForUpdate && selectedBranchForUpdate !== selectedBookingForApproval.branchId) {
+        const targetBranch = branches.find(b => b.id === selectedBranchForUpdate);
+        if (targetBranch) {
+          await updateSlotBookingBranch(
+            bookingId,
+            selectedBranchForUpdate,
+            targetBranch.name,
+            `Branch overridden from ${selectedBookingForApproval.branchName} to ${targetBranch.name} by Superadmin`
+          );
+        }
+      }
+
+      // Optional employee swap
+      if (swapEmployeeId && swapEmployeeId !== selectedBookingForApproval.employeeId) {
+        const newEmp = casualEmployees.find(emp => emp.id === swapEmployeeId);
+        if (newEmp) {
+          await updateSlotBookingEmployee(
+            bookingId,
+            swapEmployeeId,
+            newEmp.name,
+            `Employee overridden from ${selectedBookingForApproval.employeeName} to ${newEmp.name} by Superadmin`
+          );
+        }
+      }
+
+      // Force status to approved
+      const { error } = await supabase
+        .from('slot_bookings_new')
+        .update({ status: 'approved', notes: 'Overridden to approved by Superadmin' })
+        .eq('id', bookingId);
+      if (error) throw error;
+
+      await refreshData();
+      toast.success('Booking overridden and approved');
+      setIsApprovalDialogOpen(false);
+      setSelectedBookingForApproval(null);
+      setSwapEmployeeId('');
+      setSelectedBranchForUpdate('');
+    } catch (error) {
+      console.error('AdminSlotBooking: Override failed:', error);
+      toast.error('Failed to override booking');
+    } finally {
+      setIsUpdatingBranch(false);
+    }
+  };
+
+  const handleSuperadminReject = async () => {
+    if (!selectedBookingForApproval) return;
+    try {
+      const { error } = await supabase
+        .from('slot_bookings_new')
+        .update({ status: 'rejected', notes: 'Rejected by Superadmin' })
+        .eq('id', selectedBookingForApproval.id);
+      if (error) throw error;
+      await refreshData();
+      toast.success('Booking rejected');
+      setIsApprovalDialogOpen(false);
+      setSelectedBookingForApproval(null);
+    } catch (error) {
+      console.error('AdminSlotBooking: Reject failed:', error);
+      toast.error('Failed to reject booking');
+    }
+  };
+
   const handleSettingsSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
