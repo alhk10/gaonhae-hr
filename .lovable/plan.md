@@ -1,36 +1,22 @@
-## Changes to `src/pages/public/PublicCompetitionPayment.tsx`
+## Goal
+The Total card currently shows only `$220.00` with no visible tax breakdown. Show the user exactly how much GST is included in that total.
 
-### 1. Reorder sections inside the `selectedEvent` form
-New order after Belt selection:
-1. **Participant Photo** (if `require_photo`) — moved up
-2. **Certificate Upload (Poom/Dan)** (if `certificateRequired`)
-3. **Indemnity Clause** section (text + accept checkbox + signature) — moved up under Certificate
-4. Coaching Fee
-5. Additional Items
-6. Total (with GST line)
-7. Passport / Identification (if required)
-8. Indemnity Form Upload (if required)
-9. Payment Method + Payment Info + Proof of Payment
-10. Submit
+## Changes — `src/pages/public/PublicCompetitionPayment.tsx`
 
-### 2. Standardise upload fields on `ProofOfPaymentUpload`
-Replace the local `FileField` component usage with `ProofOfPaymentUpload` for:
-- Participant Photo (`acceptPdf={false}`, label "Participant Photo", help "Clear face photo (passport-style).")
-- Passport / Identification (`acceptPdf` true, label "Passport / Identification")
-- Indemnity Form Upload (`acceptPdf` true, label "Indemnity Form Upload")
+Update the Total card (around lines 552–565) so when `gstRate > 0` it shows three explicit rows instead of one collapsed line:
 
-Certificate already uses `ProofOfPaymentUpload`. Keep `FileField` definition removable (delete it).
+```
+Subtotal (excl. GST)        $201.83
+GST (9%)                     $18.17
+Total (incl. GST)           $220.00
+```
 
-### 3. GST inclusive breakdown
-- Derive GST rate from `selectedBranch.country`: Singapore → 9%, Australia → 10%, otherwise 0%.
-- Treat the existing total as **GST-inclusive**.
-- Compute `gstAmount = totalAmount - totalAmount / (1 + rate)`.
-- In the Total card show:
-  - `Total  $190.00`
-  - small muted line below: `Includes GST (9%): $15.69` (only when rate > 0 and total > 0)
-
-No DB / service changes — display only, since prices are already inclusive.
+Details:
+- Compute `subtotal = totalAmount - gstAmount` (totals stay GST-inclusive — no change to amounts charged).
+- Render Subtotal and GST rows in normal text size (`text-sm`), Total row in bold/`font-semibold` with a top border separator.
+- When `gstRate === 0` (non-SG/AU branches), keep the current single Total row.
+- Use the branch country to label the GST rate, e.g. `GST (9%)` for Singapore, `GST (10%)` for Australia.
 
 ## Out of scope
-- No changes to submission payload, edge functions, or DB schema.
-- Other public payment pages untouched.
+- No changes to pricing, submission payload, DB, or other public payment pages.
+- Per-line-item tax columns are not added; breakdown stays at the total level.
