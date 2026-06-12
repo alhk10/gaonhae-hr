@@ -46,6 +46,7 @@ import {
 } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
 import { convertTailwindColorToHex } from '@/utils/colorUtils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
