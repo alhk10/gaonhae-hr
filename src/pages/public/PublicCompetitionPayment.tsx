@@ -111,25 +111,12 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
   );
 };
 
-const FileField: React.FC<{
-  label: string;
-  value: File | null;
-  onChange: (f: File | null) => void;
-  accept?: string;
-  required?: boolean;
-  help?: string;
-}> = ({ label, value, onChange, accept = 'image/*,application/pdf', required, help }) => (
-  <div className="space-y-1">
-    <Label className="text-sm">{label}{required && ' *'}</Label>
-    <Input
-      type="file"
-      accept={accept}
-      onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-    />
-    {value && <p className="text-xs text-muted-foreground truncate">Selected: {value.name}</p>}
-    {help && <p className="text-xs text-muted-foreground">{help}</p>}
-  </div>
-);
+const gstRateForCountry = (country?: string | null): number => {
+  const c = (country || '').toLowerCase();
+  if (c === 'singapore' || c === 'sg') return 0.09;
+  if (c === 'australia' || c === 'au') return 0.10;
+  return 0;
+};
 
 const PublicCompetitionPayment: React.FC = () => {
   const [eventId, setEventId] = useState<string>('');
