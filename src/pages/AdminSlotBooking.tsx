@@ -1270,7 +1270,7 @@ const AdminSlotBooking = () => {
                       <UserX className="w-4 h-4 mr-1" />
                       Cancel
                     </Button>
-                    {selectedBookingForApproval?.status === 'pending' && (
+                    {selectedBookingForApproval?.status === 'pending' ? (
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -1279,6 +1279,28 @@ const AdminSlotBooking = () => {
                       >
                         <X className="w-4 h-4 mr-1" />
                         Reject
+                      </Button>
+                    ) : isSuperadmin && selectedBookingForApproval?.status !== 'rejected' && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleSuperadminReject}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    )}
+                    {isSuperadmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={handleSuperadminOverride}
+                        disabled={isUpdatingBranch}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        {isUpdatingBranch ? 'Overriding...' : 'Override'}
                       </Button>
                     )}
                   </div>
