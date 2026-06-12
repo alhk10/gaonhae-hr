@@ -50,6 +50,8 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
