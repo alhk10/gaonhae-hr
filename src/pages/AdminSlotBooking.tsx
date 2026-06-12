@@ -46,9 +46,12 @@ import {
 } from '@/services/slotBookingService';
 import { supabase } from '@/integrations/supabase/client';
 import { convertTailwindColorToHex } from '@/utils/colorUtils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AdminSlotBooking = () => {
   const isMobile = useIsMobile();
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
@@ -504,6 +507,77 @@ const AdminSlotBooking = () => {
     } catch (error) {
       console.error('AdminSlotBooking: Error cancelling booking:', error);
       toast.error('Failed to cancel booking');
+    }
+  };
+
+  const handleSuperadminOverride = async () => {
+    if (!selectedBookingForApproval) return;
+    const bookingId = selectedBookingForApproval.id;
+    try {
+      setIsUpdatingBranch(true);
+
+      // Optional branch change
+      if (selectedBranchForUpdate && selectedBranchForUpdate !== selectedBookingForApproval.branchId) {
+        const targetBranch = branches.find(b => b.id === selectedBranchForUpdate);
+        if (targetBranch) {
+          await updateSlotBookingBranch(
+            bookingId,
+            selectedBranchForUpdate,
+            targetBranch.name,
+            `Branch overridden from ${selectedBookingForApproval.branchName} to ${targetBranch.name} by Superadmin`
+          );
+        }
+      }
+
+      // Optional employee swap
+      if (swapEmployeeId && swapEmployeeId !== selectedBookingForApproval.employeeId) {
+        const newEmp = casualEmployees.find(emp => emp.id === swapEmployeeId);
+        if (newEmp) {
+          await updateSlotBookingEmployee(
+            bookingId,
+            swapEmployeeId,
+            newEmp.name,
+            `Employee overridden from ${selectedBookingForApproval.employeeName} to ${newEmp.name} by Superadmin`
+          );
+        }
+      }
+
+      // Force status to approved
+      const { error } = await supabase
+        .from('slot_bookings_new')
+        .update({ status: 'approved', notes: 'Overridden to approved by Superadmin' })
+        .eq('id', bookingId);
+      if (error) throw error;
+
+      await refreshData();
+      toast.success('Booking overridden and approved');
+      setIsApprovalDialogOpen(false);
+      setSelectedBookingForApproval(null);
+      setSwapEmployeeId('');
+      setSelectedBranchForUpdate('');
+    } catch (error) {
+      console.error('AdminSlotBooking: Override failed:', error);
+      toast.error('Failed to override booking');
+    } finally {
+      setIsUpdatingBranch(false);
+    }
+  };
+
+  const handleSuperadminReject = async () => {
+    if (!selectedBookingForApproval) return;
+    try {
+      const { error } = await supabase
+        .from('slot_bookings_new')
+        .update({ status: 'rejected', notes: 'Rejected by Superadmin' })
+        .eq('id', selectedBookingForApproval.id);
+      if (error) throw error;
+      await refreshData();
+      toast.success('Booking rejected');
+      setIsApprovalDialogOpen(false);
+      setSelectedBookingForApproval(null);
+    } catch (error) {
+      console.error('AdminSlotBooking: Reject failed:', error);
+      toast.error('Failed to reject booking');
     }
   };
 
@@ -1196,7 +1270,7 @@ const AdminSlotBooking = () => {
                       <UserX className="w-4 h-4 mr-1" />
                       Cancel
                     </Button>
-                    {selectedBookingForApproval?.status === 'pending' && (
+                    {selectedBookingForApproval?.status === 'pending' ? (
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -1205,6 +1279,28 @@ const AdminSlotBooking = () => {
                       >
                         <X className="w-4 h-4 mr-1" />
                         Reject
+                      </Button>
+                    ) : isSuperadmin && selectedBookingForApproval?.status !== 'rejected' && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleSuperadminReject}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    )}
+                    {isSuperadmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={handleSuperadminOverride}
+                        disabled={isUpdatingBranch}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        {isUpdatingBranch ? 'Overriding...' : 'Override'}
                       </Button>
                     )}
                   </div>

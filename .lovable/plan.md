@@ -1,19 +1,30 @@
 ## Goal
-Prefill the "Indemnity clause text" field with a default clause when creating a new competition event, so the user doesn't have to paste it each time.
+Give superadmins two extra actions in the Manage Booking dialog (`src/pages/AdminSlotBooking.tsx`) regardless of the booking's current status:
 
-## Change
-In `src/components/grading-list/CompetitionEventsSettingsDialog.tsx`:
+- **Override** — force-apply branch change and/or employee swap, and set the booking's `status` back to `approved`, bypassing the normal pending-only / "Select Different Branch" guard.
+- **Reject** — set `status` to `rejected` for any current status (today the button only renders when status is `pending`).
 
-- Add a `DEFAULT_INDEMNITY_CLAUSE` constant containing the provided text (two paragraphs).
-- Update `emptyForm()` so `indemnity_clause` is initialised to `DEFAULT_INDEMNITY_CLAUSE` instead of an empty string. This applies to:
-  - Initial mount
-  - "New" button click (`handleNewClick`)
-  - Reset after save / Cancel
-- `startEdit` keeps existing event's saved clause as-is (no overwrite).
+Both buttons are visible only to superadmin users; regular admins keep the current behavior.
 
-Because the clause is non-empty by default, the form's `signatureRequired` flag will become true for new events (signature required on the public form). This matches the intent of having a default indemnity clause.
+## Changes
+
+### `src/pages/AdminSlotBooking.tsx`
+1. Import `useAuth` from `@/contexts/AuthContext` and derive `const isSuperadmin = userrole === 'superadmin'`.
+2. Add `handleSuperadminOverride()`:
+   - If a different branch is selected → update `branch_id` / `branch_name` via existing branch-update path (skipping the `disabled` guard).
+   - If a swap employee is selected → call `updateSlotBookingEmployee` with the new employee.
+   - Always update `slot_bookings_new.status` to `'approved'` with a note like `Override by superadmin`.
+   - Refresh data, close dialog, toast success.
+3. Add `handleSuperadminReject()`:
+   - Update `slot_bookings_new.status` to `'rejected'` with a note `Rejected by superadmin`, refresh, close, toast.
+4. In the dialog footer (around lines 1188–1257):
+   - Add an **Override** button (left cluster, amber/secondary variant) — visible only when `isSuperadmin`. Enabled whenever the dialog is open (no branch-different requirement).
+   - Replace the existing pending-only Reject button condition with: render Reject when `status === 'pending'` OR `isSuperadmin`, wired to `handleSuperadminReject` for superadmins on non-pending statuses, and the existing `handleApproval(..., 'rejected', ...)` for pending.
+
+### No DB / RPC / service changes
+Reuses existing `updateSlotBookingEmployee`, branch update logic, and a direct `supabase.from('slot_bookings_new').update({ status })` (already used in `handleApproval`). No migration needed.
 
 ## Out of scope
-- No DB backfill of existing events.
-- No schema changes.
-- No changes to the public form.
+- No changes to the `slot_booking_edit_requests` approval queue.
+- No changes to non-admin (employee) booking views.
+- No changes to the Cancel button behavior.
