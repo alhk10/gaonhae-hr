@@ -133,7 +133,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     if (validationError) {
       console.error('ReceiptUpload: File validation failed:', validationError);
       setError(validationError);
-      toast(validationError);
+      toast.error("Invalid file", { description: validationError });
       return;
     }
 
