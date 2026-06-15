@@ -124,7 +124,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       const errorMsg = 'Employee ID is missing. Please refresh the page and try again.';
       console.error('ReceiptUpload: Missing employee ID:', { employeeId });
       setError(errorMsg);
-      toast(errorMsg);
+      toast.error("Cannot upload receipt", { description: errorMsg });
       return;
     }
 
