@@ -161,7 +161,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         setUploadProgress(100);
         console.log('ReceiptUpload: Upload successful, URL:', result.url);
         onFileUpload(result.url);
-        toast("Receipt uploaded successfully!");
+        toast.success("Receipt uploaded successfully!");
         setRetryCount(0);
       } else {
         const errorMsg = result.error || "Upload failed. Please try again.";
