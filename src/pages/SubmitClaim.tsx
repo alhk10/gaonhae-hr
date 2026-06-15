@@ -180,10 +180,11 @@ const SubmitClaim = () => {
       setReceiptUrl(null);
 
       console.log('SubmitClaim: Claim submitted successfully');
-      toast("Claim submitted successfully!");
+      toast.success("Claim submitted successfully!");
     } catch (error) {
       console.error('SubmitClaim: Error submitting claim:', error);
-      toast("Error submitting claim. Please try again.");
+      const description = error instanceof Error ? error.message : 'Please try again.';
+      toast.error("Error submitting claim", { description });
     } finally {
       setIsSubmitting(false);
     }
