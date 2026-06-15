@@ -115,7 +115,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       const errorMsg = 'Your browser does not support file uploads. Please use a modern browser.';
       console.error('ReceiptUpload: Browser not supported');
       setError(errorMsg);
-      toast(errorMsg);
+      toast.error("Upload not supported", { description: errorMsg });
       return;
     }
 
