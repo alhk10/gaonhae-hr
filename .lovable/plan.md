@@ -1,22 +1,14 @@
-## Goal
-The Total card currently shows only `$220.00` with no visible tax breakdown. Show the user exactly how much GST is included in that total.
+Add two new options to the Remark dropdown in the grading list.
 
-## Changes — `src/pages/public/PublicCompetitionPayment.tsx`
+**File:** `src/pages/public/PublicGradingList.tsx` (line 81)
 
-Update the Total card (around lines 552–565) so when `gstRate > 0` it shows three explicit rows instead of one collapsed line:
-
+Update `REMARK_OPTIONS` from:
+```ts
+['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing']
 ```
-Subtotal (excl. GST)        $201.83
-GST (9%)                     $18.17
-Total (incl. GST)           $220.00
+to:
+```ts
+['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits']
 ```
 
-Details:
-- Compute `subtotal = totalAmount - gstAmount` (totals stay GST-inclusive — no change to amounts charged).
-- Render Subtotal and GST rows in normal text size (`text-sm`), Total row in bold/`font-semibold` with a top border separator.
-- When `gstRate === 0` (non-SG/AU branches), keep the current single Total row.
-- Use the branch country to label the GST rate, e.g. `GST (9%)` for Singapore, `GST (10%)` for Australia.
-
-## Out of scope
-- No changes to pricing, submission payload, DB, or other public payment pages.
-- Per-line-item tax columns are not added; breakdown stays at the total level.
+These new options will automatically appear in all three Remark dropdowns (lines 1428, 1713, 1830) since they all map over `REMARK_OPTIONS`. No DB or schema changes — the `remark` column already stores free-form text.
