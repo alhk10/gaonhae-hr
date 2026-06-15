@@ -78,7 +78,7 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel } from '@/constants/beltLevels';
 
-const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing'] as const;
+const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
 const isWithinResultWindow = (gradingDate: string | null | undefined): boolean => {
   if (!gradingDate) return false;
