@@ -136,13 +136,13 @@ const SubmitClaim = () => {
 
     if (!currentEmployee || !formData.type || !formData.amount || !formData.date || !formData.description) {
       console.error('SubmitClaim: Missing required fields');
-      toast("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
     if (!receiptUrl) {
       console.error('SubmitClaim: No receipt uploaded');
-      toast("Please upload a receipt before submitting");
+      toast.error("Please upload a receipt before submitting");
       return;
     }
 
