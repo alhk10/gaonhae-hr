@@ -44,14 +44,25 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       lastModified: file.lastModified
     });
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSize) {
-      return 'File size must be less than 5MB';
+      return 'File size must be less than 15MB';
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      return 'Only JPG, PNG, and PDF files are allowed';
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'application/pdf',
+    ];
+    // Some phones report empty/odd MIME types — fall back to extension check
+    const lowerName = (file.name || '').toLowerCase();
+    const allowedExt = /\.(jpe?g|png|webp|heic|heif|pdf)$/i.test(lowerName);
+    if (!allowedTypes.includes(file.type) && !allowedExt) {
+      return 'Only JPG, PNG, HEIC, WEBP and PDF files are allowed';
     }
 
     if (!file.name || file.name.length > 255) {
@@ -104,7 +115,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       const errorMsg = 'Your browser does not support file uploads. Please use a modern browser.';
       console.error('ReceiptUpload: Browser not supported');
       setError(errorMsg);
-      toast(errorMsg);
+      toast.error("Upload not supported", { description: errorMsg });
       return;
     }
 
@@ -113,7 +124,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       const errorMsg = 'Employee ID is missing. Please refresh the page and try again.';
       console.error('ReceiptUpload: Missing employee ID:', { employeeId });
       setError(errorMsg);
-      toast(errorMsg);
+      toast.error("Cannot upload receipt", { description: errorMsg });
       return;
     }
 
@@ -122,7 +133,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     if (validationError) {
       console.error('ReceiptUpload: File validation failed:', validationError);
       setError(validationError);
-      toast(validationError);
+      toast.error("Invalid file", { description: validationError });
       return;
     }
 
@@ -150,20 +161,20 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         setUploadProgress(100);
         console.log('ReceiptUpload: Upload successful, URL:', result.url);
         onFileUpload(result.url);
-        toast("Receipt uploaded successfully!");
+        toast.success("Receipt uploaded successfully!");
         setRetryCount(0);
       } else {
         const errorMsg = result.error || "Upload failed. Please try again.";
         console.error('ReceiptUpload: Upload failed:', errorMsg);
         setError(errorMsg);
-        toast(errorMsg);
+        toast.error("Receipt upload failed", { description: errorMsg });
         onFileUpload(null);
       }
     } catch (error) {
       console.error('ReceiptUpload: Upload error caught:', error);
       const errorMsg = error instanceof Error ? error.message : "Upload failed. Please try again.";
       setError(errorMsg);
-      toast(errorMsg);
+      toast.error("Receipt upload failed", { description: errorMsg });
       onFileUpload(null);
     } finally {
       setIsUploading(false);
@@ -353,7 +364,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                   Choose File
                 </Button>
                 <p className="text-xs text-gray-400 mt-2">
-                  JPG, PNG, PDF (Max 5MB) • Drag & drop supported
+                  JPG, PNG, HEIC, WEBP, PDF (Max 15MB) • Drag & drop supported
                 </p>
               </>
             )}

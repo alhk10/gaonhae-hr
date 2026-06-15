@@ -148,7 +148,15 @@ export const DEFAULT_TAX_INCLUDED = false;
 
 // File Upload Constants
 export const FILE_UPLOAD_CONSTANTS = {
-  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
-  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/jpg'],
-  ALLOWED_DOCUMENT_TYPES: ['application/pdf', 'image/jpeg', 'image/png'],
+  MAX_FILE_SIZE: 15 * 1024 * 1024, // 15MB — accommodates modern phone photos
+  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/heic', 'image/heif'],
+  ALLOWED_DOCUMENT_TYPES: [
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+  ],
 } as const;

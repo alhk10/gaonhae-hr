@@ -136,13 +136,13 @@ const SubmitClaim = () => {
 
     if (!currentEmployee || !formData.type || !formData.amount || !formData.date || !formData.description) {
       console.error('SubmitClaim: Missing required fields');
-      toast("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
     if (!receiptUrl) {
       console.error('SubmitClaim: No receipt uploaded');
-      toast("Please upload a receipt before submitting");
+      toast.error("Please upload a receipt before submitting");
       return;
     }
 
@@ -180,10 +180,11 @@ const SubmitClaim = () => {
       setReceiptUrl(null);
 
       console.log('SubmitClaim: Claim submitted successfully');
-      toast("Claim submitted successfully!");
+      toast.success("Claim submitted successfully!");
     } catch (error) {
       console.error('SubmitClaim: Error submitting claim:', error);
-      toast("Error submitting claim. Please try again.");
+      const description = error instanceof Error ? error.message : 'Please try again.';
+      toast.error("Error submitting claim", { description });
     } finally {
       setIsSubmitting(false);
     }
