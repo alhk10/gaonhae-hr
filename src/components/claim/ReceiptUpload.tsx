@@ -44,14 +44,25 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       lastModified: file.lastModified
     });
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSize) {
-      return 'File size must be less than 5MB';
+      return 'File size must be less than 15MB';
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      return 'Only JPG, PNG, and PDF files are allowed';
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'application/pdf',
+    ];
+    // Some phones report empty/odd MIME types — fall back to extension check
+    const lowerName = (file.name || '').toLowerCase();
+    const allowedExt = /\.(jpe?g|png|webp|heic|heif|pdf)$/i.test(lowerName);
+    if (!allowedTypes.includes(file.type) && !allowedExt) {
+      return 'Only JPG, PNG, HEIC, WEBP and PDF files are allowed';
     }
 
     if (!file.name || file.name.length > 255) {
