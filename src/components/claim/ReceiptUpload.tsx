@@ -364,7 +364,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
                   Choose File
                 </Button>
                 <p className="text-xs text-gray-400 mt-2">
-                  JPG, PNG, PDF (Max 5MB) • Drag & drop supported
+                  JPG, PNG, HEIC, WEBP, PDF (Max 15MB) • Drag & drop supported
                 </p>
               </>
             )}
