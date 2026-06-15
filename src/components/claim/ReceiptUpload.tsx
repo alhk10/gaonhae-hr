@@ -167,7 +167,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         const errorMsg = result.error || "Upload failed. Please try again.";
         console.error('ReceiptUpload: Upload failed:', errorMsg);
         setError(errorMsg);
-        toast(errorMsg);
+        toast.error("Receipt upload failed", { description: errorMsg });
         onFileUpload(null);
       }
     } catch (error) {
