@@ -17,9 +17,11 @@ import {
   adminUpsertCompetitionEvent,
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
+  uploadIndemnityTemplate,
   type CompetitionEvent,
   type CompetitionExtraLine,
 } from '@/services/competitionPaymentSubmissionService';
+import { Download, Upload, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -43,6 +45,8 @@ const emptyForm = () => ({
   coaching_amount: 0,
   coaching_required: true,
   extra_lines: [] as CompetitionExtraLine[],
+  indemnity_template_url: null as string | null,
+  indemnity_template_name: null as string | null,
 });
 
 const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
@@ -88,6 +92,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         amount: Number(l.amount || 0),
         required: l.required === true,
       })),
+      indemnity_template_url: e.indemnity_template_url ?? null,
+      indemnity_template_name: e.indemnity_template_name ?? null,
     });
   };
 
@@ -115,6 +121,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             required: l.required === true,
           }))
           .filter(l => l.label || l.amount > 0),
+        indemnity_template_url: form.indemnity_template_url,
+        indemnity_template_name: form.indemnity_template_name,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['competition-events-admin'] });
