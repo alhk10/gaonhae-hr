@@ -61,6 +61,8 @@ export interface CompetitionEvent {
   coaching_amount: number;
   coaching_required: boolean;
   extra_lines: CompetitionExtraLine[];
+  indemnity_template_url: string | null;
+  indemnity_template_name: string | null;
 }
 
 export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
@@ -70,6 +72,8 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     ...r,
     coaching_amount: Number(r.coaching_amount || 0),
     coaching_required: r.coaching_required !== false,
+    indemnity_template_url: r.indemnity_template_url ?? null,
+    indemnity_template_name: r.indemnity_template_name ?? null,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),
@@ -93,6 +97,8 @@ export const adminUpsertCompetitionEvent = async (input: {
   coaching_amount: number;
   coaching_required: boolean;
   extra_lines: CompetitionExtraLine[];
+  indemnity_template_url?: string | null;
+  indemnity_template_name?: string | null;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
     p_id: input.id,
@@ -111,9 +117,38 @@ export const adminUpsertCompetitionEvent = async (input: {
       required: l.required === true,
     })) as any,
     p_coaching_required: input.coaching_required,
+    p_indemnity_template_url: input.indemnity_template_url ?? null,
+    p_indemnity_template_name: input.indemnity_template_name ?? null,
   });
   if (error) throw error;
   return data as string;
+};
+
+/**
+ * Upload an indemnity template PDF (used by admin) to the payment-proofs bucket.
+ * Returns a long-lived signed URL.
+ */
+export const uploadIndemnityTemplate = async (file: File): Promise<string> => {
+  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+    throw new Error('Indemnity template must be a PDF file');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Indemnity template must be 10 MB or smaller');
+  }
+  const ts = Date.now();
+  const safeName = file.name.replace(/[^a-z0-9._-]/gi, '_');
+  const path = `public-comps/templates/${ts}_${safeName}`;
+  const { error } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: 'application/pdf' });
+  if (error) throw new Error(`Template upload failed: ${error.message || 'unknown error'}`);
+  const { data: signed, error: signErr } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  if (signErr || !signed?.signedUrl) {
+    throw new Error(`Could not generate download URL: ${signErr?.message || 'unknown error'}`);
+  }
+  return signed.signedUrl;
 };
 
 export const adminDeleteCompetitionEvent = async (id: string): Promise<void> => {
