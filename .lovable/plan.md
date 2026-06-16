@@ -1,48 +1,65 @@
-# Fix: Employees cannot submit claims
 
-## Root cause (most likely)
+# Indemnity form: downloadable template + reupload
 
-The submit-claim pipeline itself is healthy (DB, RLS policies, partner RPC all correct, both employees have valid auth+employee records, and Seokjun successfully submitted on 10 Jun). What changed for Albert & Seokjun is the **receipt they're trying to upload**:
+## Goal
+Let admins attach a fillable indemnity PDF to an event. On the public payment form, show a prominent preamble that lists what must be downloaded, filled, and reuploaded, with a one-click Download button next to (and above) the Indemnity Form upload field.
 
-1. **File-type allow-list is too narrow.** `ReceiptUpload.tsx` and `FILE_UPLOAD_CONSTANTS.ALLOWED_DOCUMENT_TYPES` only accept `image/jpeg`, `image/png`, `application/pdf`. Modern phones save photos as:
-   - iPhone → `image/heic` / `image/heif`
-   - Android (some) → `image/webp`
-   These get rejected with "Only JPG, PNG, and PDF files are allowed" before the upload even starts.
-2. **5 MB hard cap.** Camera photos at default quality often exceed 5 MB, especially on newer iPhones — the user sees "File size must be less than 5MB" and assumes the system is broken.
-3. **Silent error toasts.** Several `toast("...")` calls in `SubmitClaim.tsx` and `ReceiptUpload.tsx` pass a bare string. Depending on the sonner version this sometimes renders an empty / hard-to-read toast, so employees don't see the actual reason.
+## Scope clarification
+The indemnity / required-uploads feature currently exists only on **Competition** events (`competition_events` + `competition_payment_submissions`). `grading_payment_submissions` and `seminar_payment_submissions` have **no** indemnity/passport/photo columns at all.
 
-The DB/RLS layer is fine — verified:
-- `claims` INSERT policy: `employee_id = get_current_employee_id() AND status='Pending'` — matches the regular submit flow.
-- `claim-receipts` bucket has correct `INSERT/SELECT` policies scoped to `auth.uid()/...`.
-- Both employees' `auth.users.email` match their `employees.email`, so `get_current_employee_id()` returns the right id.
+- **Phase 1 (this plan):** Implement fully for Competition, where everything is already wired.
+- **Phase 2 (follow-up, not in this plan):** Replicate the indemnity/required-uploads schema + UI for Grading and Seminar. That's a meaningfully larger build (new columns, RPCs, public-page sections) and should be its own task.
 
-## Changes
+## Phase 1 — Competition
 
-### 1. Receipt upload — accept more types, larger files, clearer errors
-**Files:** `src/components/claim/ReceiptUpload.tsx`, `src/services/receiptUploadService.ts`, `src/config/constants.ts`
+### 1. Database (migration)
+Add to `public.competition_events`:
+- `indemnity_template_url text null` — signed/public URL of the uploaded PDF template
+- `indemnity_template_name text null` — original filename for the download button label
 
-- Expand `ALLOWED_DOCUMENT_TYPES` to: `image/jpeg, image/png, image/jpg, image/webp, image/heic, image/heif, application/pdf`.
-- Raise `MAX_FILE_SIZE` from 5 MB → **15 MB** (more realistic for phone photos; storage bucket has no server-side limit so this is the only gate).
-- Update the helper text under the upload area to: "JPG, PNG, HEIC, WEBP, PDF (max 15 MB)".
-- Keep `accept="image/*,.pdf"` on the hidden `<input>` (already permissive).
+Update the existing `admin_upsert_competition_event` RPC signature to accept and persist the two new params (`p_indemnity_template_url`, `p_indemnity_template_name`).
 
-### 2. Surface real upload/submit errors
-**Files:** `src/components/claim/ReceiptUpload.tsx`, `src/pages/SubmitClaim.tsx`
+No new bucket — reuse `payment-proofs` under path `public-comps/{branch_id}/templates/{ts}_indemnity.pdf` with a long-lived signed URL (same pattern as existing uploads).
 
-- Replace bare `toast("message")` with `toast.error("Receipt upload failed", { description: errorMsg })` / `toast.success(...)` so the underlying reason is always visible.
-- In `handleSubmitClaim`, when the Supabase insert errors, include `error.message` in the toast description (currently swallowed into a generic "Error submitting claim").
+### 2. Admin dialog — `src/components/grading-list/CompetitionEventsSettingsDialog.tsx`
+In the "Required uploads" section (lines 360–392), when **Indemnity form upload** is checked, show a sub-control:
+- File input restricted to `application/pdf`
+- "Upload template PDF" button → uploads to `payment-proofs`, stores signed URL in `form.indemnity_template_url`, filename in `form.indemnity_template_name`
+- If a template already exists: show filename, a small Download link, and a Replace / Remove action
+- Persist via the updated RPC
 
-### 3. Sanity check after the fix
-- Ask the user to have Seokjun & Albert retry. If submission still fails, the toast will now show the exact Supabase error, which will point at either storage (path/policy) or `claims` insert (RLS) without further guesswork.
+Helper text: "Optional. If provided, the public form shows a download button so participants can print, sign, and reupload."
 
-## Out of scope (intentionally not changing)
+### 3. Public page — `src/pages/public/PublicCompetitionPayment.tsx`
+Improve UI usability by introducing a single **"Documents required" preamble card** that renders above the upload fields whenever any of `require_indemnity_form / require_passport / require_photo` is true. It will contain:
 
-- RLS policies on `claims` and `storage.objects` — they're correct.
-- The partner claim RPC flow — Albert & Seokjun are Full-Time Instructors, not partners.
-- Auto-conversion of HEIC → JPEG in the browser — adds a heavy dependency; accepting HEIC and letting it upload as-is is sufficient (admins viewing in modern browsers/macOS/iOS can open HEIC; if Windows reviewers can't preview, we can revisit with a conversion step).
+- Heading: "Before you submit"
+- A short instruction list, dynamically built from which uploads are required, e.g.:
+  1. Download the Indemnity Form, print it, fill it in, sign it, and reupload below. *(only if a template URL exists; otherwise: "Download, complete and sign the indemnity form, then reupload below.")*
+  2. Prepare a clear photo of the participant's passport / NRIC.
+  3. Prepare a recent participant photo.
+- A primary **Download Indemnity Form (PDF)** button (uses `indemnity_template_url`, opens in a new tab, `download` attribute with `indemnity_template_name`). Hidden if no template uploaded.
+- Tip line: "Accepted formats: PDF, JPG, PNG (max 15 MB)."
 
-## Technical notes
+Then keep the existing upload fields (lines 578–598), but:
+- Reorder so Indemnity is first, Passport second, Photo third (matches the instruction list).
+- Add a small inline "Download form" link next to the Indemnity upload label for users who scroll past the preamble.
+- Tighten labels: "Indemnity Form Upload" → "Upload signed Indemnity Form".
 
-- `FILE_UPLOAD_CONSTANTS.ALLOWED_DOCUMENT_TYPES` is `as const`; widening it is a one-line change.
-- Storage bucket `claim-receipts` has `file_size_limit = NULL` and `allowed_mime_types = NULL`, so it accepts whatever the client uploads — no Supabase config change needed.
-- No DB migration required.
+No changes to submission service beyond passing through; the existing `indemnity_form_url` flow stays intact.
+
+### 4. Validation & errors
+- Admin: reject non-PDF; cap at 10 MB; show toast errors with the real Supabase message (same pattern just introduced for claims).
+- Public: existing gate (`indemnityFormFile` required when `require_indemnity_form`) is unchanged.
+
+## Out of scope
+- Grading and Seminar indemnity (needs new columns and RPCs — separate plan).
+- Auto-filling participant name into the PDF (would need PDF form-field merging).
+- E-signing inside the browser instead of print+reupload.
+
+## Files touched (Phase 1)
+- New migration on `competition_events` + updated `admin_upsert_competition_event` RPC
+- `src/components/grading-list/CompetitionEventsSettingsDialog.tsx`
+- `src/services/competitionPaymentSubmissionService.ts` (pass new fields through upsert)
+- `src/pages/public/PublicCompetitionPayment.tsx`
+- `src/integrations/supabase/types.ts` (regenerated automatically after migration)

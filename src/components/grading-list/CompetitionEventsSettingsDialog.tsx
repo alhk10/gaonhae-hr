@@ -17,9 +17,11 @@ import {
   adminUpsertCompetitionEvent,
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
+  uploadIndemnityTemplate,
   type CompetitionEvent,
   type CompetitionExtraLine,
 } from '@/services/competitionPaymentSubmissionService';
+import { Download, Upload, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -43,14 +45,37 @@ const emptyForm = () => ({
   coaching_amount: 0,
   coaching_required: true,
   extra_lines: [] as CompetitionExtraLine[],
+  indemnity_template_url: null as string | null,
+  indemnity_template_name: null as string | null,
 });
 
 const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formPanelRef = useRef<HTMLDivElement>(null);
+  const templateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTemplateUpload = async (file: File | null) => {
+    if (!file) return;
+    setUploadingTemplate(true);
+    try {
+      const url = await uploadIndemnityTemplate(file);
+      setForm(prev => ({
+        ...prev,
+        indemnity_template_url: url,
+        indemnity_template_name: file.name,
+      }));
+      toast.success('Template uploaded');
+    } catch (err: any) {
+      toast.error('Upload failed', { description: err?.message || 'Unknown error' });
+    } finally {
+      setUploadingTemplate(false);
+      if (templateInputRef.current) templateInputRef.current.value = '';
+    }
+  };
 
   const handleNewClick = () => {
     setForm(emptyForm());
@@ -88,6 +113,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         amount: Number(l.amount || 0),
         required: l.required === true,
       })),
+      indemnity_template_url: e.indemnity_template_url ?? null,
+      indemnity_template_name: e.indemnity_template_name ?? null,
     });
   };
 
@@ -115,6 +142,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             required: l.required === true,
           }))
           .filter(l => l.label || l.amount > 0),
+        indemnity_template_url: form.indemnity_template_url,
+        indemnity_template_name: form.indemnity_template_name,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['competition-events-admin'] });
@@ -369,6 +398,80 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                   Indemnity form upload
                 </Label>
               </div>
+              {form.require_indemnity_form && (
+                <div className="ml-6 mt-1 space-y-2 border-l-2 border-muted pl-3">
+                  <Label className="text-[11px] text-muted-foreground">
+                    Downloadable indemnity template (PDF)
+                  </Label>
+                  <input
+                    ref={templateInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => handleTemplateUpload(e.target.files?.[0] || null)}
+                  />
+                  {form.indemnity_template_url ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 px-2 py-1.5">
+                      <a
+                        href={form.indemnity_template_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-primary hover:underline flex items-center gap-1 min-w-0"
+                      >
+                        <Download className="h-3 w-3 shrink-0" />
+                        <span className="truncate max-w-[180px]">
+                          {form.indemnity_template_name || 'Indemnity template.pdf'}
+                        </span>
+                      </a>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px]"
+                          onClick={() => templateInputRef.current?.click()}
+                          disabled={uploadingTemplate}
+                        >
+                          {uploadingTemplate ? 'Uploading…' : 'Replace'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-red-600"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              indemnity_template_url: null,
+                              indemnity_template_name: null,
+                            })
+                          }
+                          disabled={uploadingTemplate}
+                          title="Remove template"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => templateInputRef.current?.click()}
+                      disabled={uploadingTemplate}
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      {uploadingTemplate ? 'Uploading…' : 'Upload template PDF'}
+                    </Button>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Optional. If provided, participants will see a download button on the
+                    public form so they can print, sign, and reupload.
+                  </p>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="req-passport"
