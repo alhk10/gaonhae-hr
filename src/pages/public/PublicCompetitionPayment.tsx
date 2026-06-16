@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -575,6 +575,89 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
+                  {(selectedEvent.require_indemnity_form ||
+                    selectedEvent.require_passport ||
+                    selectedEvent.require_photo) && (
+                    <Alert className="border-primary/40 bg-primary/5">
+                      <FileText className="h-4 w-4" />
+                      <AlertDescription className="space-y-2">
+                        <div className="text-sm font-semibold text-foreground">
+                          Before you submit — documents required
+                        </div>
+                        <ol className="list-decimal pl-4 space-y-1 text-xs text-foreground/90">
+                          {selectedEvent.require_indemnity_form && (
+                            <li>
+                              {selectedEvent.indemnity_template_url
+                                ? 'Download the Indemnity Form, print it, fill it in, sign it, and reupload below.'
+                                : 'Complete and sign the indemnity form, then upload a clear photo or PDF below.'}
+                            </li>
+                          )}
+                          {selectedEvent.require_passport && (
+                            <li>Prepare a clear photo or scan of the participant&apos;s passport / NRIC.</li>
+                          )}
+                          {selectedEvent.require_photo && (
+                            <li>Prepare a recent participant photo (head and shoulders).</li>
+                          )}
+                        </ol>
+                        {selectedEvent.require_indemnity_form &&
+                          selectedEvent.indemnity_template_url && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="mt-1"
+                              asChild
+                            >
+                              <a
+                                href={selectedEvent.indemnity_template_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={
+                                  selectedEvent.indemnity_template_name ||
+                                  'Indemnity-Form.pdf'
+                                }
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                                Download Indemnity Form (PDF)
+                              </a>
+                            </Button>
+                          )}
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                          Accepted formats: PDF, JPG, PNG (max 5 MB each).
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {selectedEvent.require_indemnity_form && (
+                    <div className="space-y-1">
+                      {selectedEvent.indemnity_template_url && (
+                        <div className="flex justify-end">
+                          <a
+                            href={selectedEvent.indemnity_template_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={
+                              selectedEvent.indemnity_template_name || 'Indemnity-Form.pdf'
+                            }
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download form
+                          </a>
+                        </div>
+                      )}
+                      <ProofOfPaymentUpload
+                        value={indemnityFormFile}
+                        onChange={setIndemnityFormFile}
+                        required
+                        acceptPdf
+                        maxSizeMB={5}
+                        label="Upload signed Indemnity Form"
+                      />
+                    </div>
+                  )}
+
                   {selectedEvent.require_passport && (
                     <ProofOfPaymentUpload
                       value={passportFile}
@@ -583,17 +666,6 @@ const PublicCompetitionPayment: React.FC = () => {
                       acceptPdf
                       maxSizeMB={5}
                       label="Passport / Identification"
-                    />
-                  )}
-
-                  {selectedEvent.require_indemnity_form && (
-                    <ProofOfPaymentUpload
-                      value={indemnityFormFile}
-                      onChange={setIndemnityFormFile}
-                      required
-                      acceptPdf
-                      maxSizeMB={5}
-                      label="Indemnity Form Upload"
                     />
                   )}
 
