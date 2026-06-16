@@ -398,6 +398,80 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                   Indemnity form upload
                 </Label>
               </div>
+              {form.require_indemnity_form && (
+                <div className="ml-6 mt-1 space-y-2 border-l-2 border-muted pl-3">
+                  <Label className="text-[11px] text-muted-foreground">
+                    Downloadable indemnity template (PDF)
+                  </Label>
+                  <input
+                    ref={templateInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => handleTemplateUpload(e.target.files?.[0] || null)}
+                  />
+                  {form.indemnity_template_url ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 px-2 py-1.5">
+                      <a
+                        href={form.indemnity_template_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-primary hover:underline flex items-center gap-1 min-w-0"
+                      >
+                        <Download className="h-3 w-3 shrink-0" />
+                        <span className="truncate max-w-[180px]">
+                          {form.indemnity_template_name || 'Indemnity template.pdf'}
+                        </span>
+                      </a>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px]"
+                          onClick={() => templateInputRef.current?.click()}
+                          disabled={uploadingTemplate}
+                        >
+                          {uploadingTemplate ? 'Uploading…' : 'Replace'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-red-600"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              indemnity_template_url: null,
+                              indemnity_template_name: null,
+                            })
+                          }
+                          disabled={uploadingTemplate}
+                          title="Remove template"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => templateInputRef.current?.click()}
+                      disabled={uploadingTemplate}
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      {uploadingTemplate ? 'Uploading…' : 'Upload template PDF'}
+                    </Button>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Optional. If provided, participants will see a download button on the
+                    public form so they can print, sign, and reupload.
+                  </p>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="req-passport"
