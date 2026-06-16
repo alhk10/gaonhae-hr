@@ -355,7 +355,62 @@ const PublicCompetitionPayment: React.FC = () => {
 
               {selectedEvent && (
                 <>
+                  {(selectedEvent.require_indemnity_form ||
+                    selectedEvent.require_passport ||
+                    selectedEvent.require_photo) && (
+                    <Alert className="border-primary/40 bg-primary/5">
+                      <FileText className="h-4 w-4" />
+                      <AlertDescription className="space-y-2">
+                        <div className="text-sm font-semibold text-foreground">
+                          Before you submit — documents required
+                        </div>
+                        <ol className="list-decimal pl-4 space-y-1 text-xs text-foreground/90">
+                          {selectedEvent.require_indemnity_form && (
+                            <li>
+                              {selectedEvent.indemnity_template_url
+                                ? 'Download the Indemnity Form, print it, fill it in, sign it, and reupload below.'
+                                : 'Complete and sign the indemnity form, then upload a clear photo or PDF below.'}
+                            </li>
+                          )}
+                          {selectedEvent.require_passport && (
+                            <li>Prepare a clear photo or scan of the participant&apos;s passport / NRIC.</li>
+                          )}
+                          {selectedEvent.require_photo && (
+                            <li>Prepare a recent participant photo (head and shoulders).</li>
+                          )}
+                        </ol>
+                        {selectedEvent.require_indemnity_form &&
+                          selectedEvent.indemnity_template_url && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="mt-1"
+                              asChild
+                            >
+                              <a
+                                href={selectedEvent.indemnity_template_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={
+                                  selectedEvent.indemnity_template_name ||
+                                  'Indemnity-Form.pdf'
+                                }
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                                Download Indemnity Form (PDF)
+                              </a>
+                            </Button>
+                          )}
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                          Accepted formats: PDF, JPG, PNG (max 5 MB each).
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
                     <div className="space-y-2">
                       <Label htmlFor="first_name">First Name *</Label>
                       <Input
@@ -575,59 +630,6 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {(selectedEvent.require_indemnity_form ||
-                    selectedEvent.require_passport ||
-                    selectedEvent.require_photo) && (
-                    <Alert className="border-primary/40 bg-primary/5">
-                      <FileText className="h-4 w-4" />
-                      <AlertDescription className="space-y-2">
-                        <div className="text-sm font-semibold text-foreground">
-                          Before you submit — documents required
-                        </div>
-                        <ol className="list-decimal pl-4 space-y-1 text-xs text-foreground/90">
-                          {selectedEvent.require_indemnity_form && (
-                            <li>
-                              {selectedEvent.indemnity_template_url
-                                ? 'Download the Indemnity Form, print it, fill it in, sign it, and reupload below.'
-                                : 'Complete and sign the indemnity form, then upload a clear photo or PDF below.'}
-                            </li>
-                          )}
-                          {selectedEvent.require_passport && (
-                            <li>Prepare a clear photo or scan of the participant&apos;s passport / NRIC.</li>
-                          )}
-                          {selectedEvent.require_photo && (
-                            <li>Prepare a recent participant photo (head and shoulders).</li>
-                          )}
-                        </ol>
-                        {selectedEvent.require_indemnity_form &&
-                          selectedEvent.indemnity_template_url && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="default"
-                              className="mt-1"
-                              asChild
-                            >
-                              <a
-                                href={selectedEvent.indemnity_template_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download={
-                                  selectedEvent.indemnity_template_name ||
-                                  'Indemnity-Form.pdf'
-                                }
-                              >
-                                <Download className="h-3.5 w-3.5 mr-1.5" />
-                                Download Indemnity Form (PDF)
-                              </a>
-                            </Button>
-                          )}
-                        <p className="text-[11px] text-muted-foreground pt-1">
-                          Accepted formats: PDF, JPG, PNG (max 5 MB each).
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
 
                   {selectedEvent.require_indemnity_form && (
                     <div className="space-y-1">
