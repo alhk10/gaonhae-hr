@@ -1082,6 +1082,8 @@ export type Database = {
           extra_lines: Json
           id: string
           indemnity_clause: string | null
+          indemnity_template_name: string | null
+          indemnity_template_url: string | null
           is_active: boolean
           name: string
           require_indemnity_form: boolean
@@ -1099,6 +1101,8 @@ export type Database = {
           extra_lines?: Json
           id?: string
           indemnity_clause?: string | null
+          indemnity_template_name?: string | null
+          indemnity_template_url?: string | null
           is_active?: boolean
           name: string
           require_indemnity_form?: boolean
@@ -1116,6 +1120,8 @@ export type Database = {
           extra_lines?: Json
           id?: string
           indemnity_clause?: string | null
+          indemnity_template_name?: string | null
+          indemnity_template_url?: string | null
           is_active?: boolean
           name?: string
           require_indemnity_form?: boolean
@@ -7418,6 +7424,8 @@ export type Database = {
           p_extra_lines: Json
           p_id: string
           p_indemnity_clause: string
+          p_indemnity_template_name?: string
+          p_indemnity_template_url?: string
           p_is_active: boolean
           p_name: string
           p_require_indemnity_form: boolean
@@ -7713,6 +7721,8 @@ export type Database = {
           extra_lines: Json
           id: string
           indemnity_clause: string
+          indemnity_template_name: string
+          indemnity_template_url: string
           is_active: boolean
           name: string
           require_indemnity_form: boolean
