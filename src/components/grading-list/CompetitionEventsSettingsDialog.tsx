@@ -53,8 +53,29 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formPanelRef = useRef<HTMLDivElement>(null);
+  const templateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTemplateUpload = async (file: File | null) => {
+    if (!file) return;
+    setUploadingTemplate(true);
+    try {
+      const url = await uploadIndemnityTemplate(file);
+      setForm(prev => ({
+        ...prev,
+        indemnity_template_url: url,
+        indemnity_template_name: file.name,
+      }));
+      toast.success('Template uploaded');
+    } catch (err: any) {
+      toast.error('Upload failed', { description: err?.message || 'Unknown error' });
+    } finally {
+      setUploadingTemplate(false);
+      if (templateInputRef.current) templateInputRef.current.value = '';
+    }
+  };
 
   const handleNewClick = () => {
     setForm(emptyForm());
