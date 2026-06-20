@@ -184,8 +184,23 @@ const PublicCompetitionPayment: React.FC = () => {
       .map((l, i) => (l.required ? i : -1))
       .filter(i => i >= 0);
     setSelectedExtras(requiredIdx);
+    setExtraWeights({});
     setCoachingSelected(selectedEvent.coaching_required !== false);
   }, [selectedEvent?.id]);
+
+  const extraRequiresWeight = (idx: number): boolean => {
+    if (!selectedEvent) return false;
+    const label = selectedEvent.extra_lines[idx]?.label || '';
+    return weightRequiredLabels.has(label);
+  };
+
+  const missingWeights = useMemo(() => {
+    return selectedExtras.some(idx => {
+      if (!extraRequiresWeight(idx)) return false;
+      const v = parseFloat(extraWeights[idx] || '');
+      return !Number.isFinite(v) || v <= 0;
+    });
+  }, [selectedExtras, extraWeights, selectedEvent, weightRequiredLabels]);
 
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
