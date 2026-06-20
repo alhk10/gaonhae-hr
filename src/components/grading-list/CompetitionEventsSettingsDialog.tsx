@@ -353,11 +353,35 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                     <div className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Name</Label>
-                        <Input
-                          value={line.label}
-                          onChange={(e) => updateExtra(idx, { label: e.target.value })}
-                          placeholder="e.g. Individual Poomsae"
-                        />
+                        <Select
+                          value={line.label || ''}
+                          onValueChange={(v) => {
+                            if (v === '__add_new__') {
+                              setNewPresetTargetIdx(idx);
+                              setNewPreset({ name: '', default_amount: 0, requires_weight: false });
+                              setNewPresetOpen(true);
+                              return;
+                            }
+                            const preset = presets.find(p => p.name === v);
+                            updateExtra(idx, {
+                              label: v,
+                              amount: preset && (!line.amount || line.amount === 0) ? preset.default_amount : line.amount,
+                            });
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                          <SelectContent>
+                            {presets.map(p => (
+                              <SelectItem key={p.id} value={p.name}>
+                                {p.name}{p.requires_weight ? ' (weight)' : ''}
+                              </SelectItem>
+                            ))}
+                            {line.label && !presets.some(p => p.name === line.label) && (
+                              <SelectItem value={line.label}>{line.label}</SelectItem>
+                            )}
+                            <SelectItem value="__add_new__">+ Add new category…</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Amount</Label>
