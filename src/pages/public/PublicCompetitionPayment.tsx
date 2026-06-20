@@ -618,21 +618,48 @@ const PublicCompetitionPayment: React.FC = () => {
                         {selectedEvent.extra_lines.map((line, idx) => {
                           const checked = selectedExtras.includes(idx);
                           const required = line.required === true;
+                          const needsWeight = weightRequiredLabels.has(line.label);
+                          const weightVal = extraWeights[idx] || '';
+                          const weightInvalid = checked && needsWeight && (() => {
+                            const n = parseFloat(weightVal);
+                            return !Number.isFinite(n) || n <= 0;
+                          })();
                           return (
-                            <div key={idx} className="flex items-center gap-2">
-                              <Checkbox
-                                id={`extra-${idx}`}
-                                checked={checked}
-                                disabled={required}
-                                onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
-                              />
-                              <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
-                                {line.label}
-                                {required && (
-                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
-                                )}
-                              </Label>
-                              <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
+                            <div key={idx} className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`extra-${idx}`}
+                                  checked={checked}
+                                  disabled={required}
+                                  onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
+                                />
+                                <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                  {line.label}
+                                  {required && (
+                                    <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
+                                  )}
+                                </Label>
+                                <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
+                              </div>
+                              {checked && needsWeight && (
+                                <div className="ml-6 flex items-center gap-2">
+                                  <Label htmlFor={`extra-weight-${idx}`} className="text-xs text-muted-foreground whitespace-nowrap">
+                                    Weight (kg) *
+                                  </Label>
+                                  <Input
+                                    id={`extra-weight-${idx}`}
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.1"
+                                    min="10"
+                                    max="200"
+                                    value={weightVal}
+                                    onChange={(e) => setExtraWeights(prev => ({ ...prev, [idx]: e.target.value }))}
+                                    placeholder="e.g. 62.5"
+                                    className={`h-8 w-32 ${weightInvalid ? 'border-destructive' : ''}`}
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
