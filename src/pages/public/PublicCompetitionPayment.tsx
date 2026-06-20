@@ -255,6 +255,7 @@ const PublicCompetitionPayment: React.FC = () => {
     (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
     (!selectedEvent.require_passport || !!passportFile) &&
     (!selectedEvent.require_photo || !!photoFile) &&
+    !missingWeights &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
