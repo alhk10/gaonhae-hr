@@ -18,10 +18,16 @@ import {
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
   uploadIndemnityTemplate,
+  getPublicCompetitionExtraLinePresets,
+  adminUpsertCompetitionExtraLinePreset,
   type CompetitionEvent,
   type CompetitionExtraLine,
+  type CompetitionExtraLinePreset,
 } from '@/services/competitionPaymentSubmissionService';
 import { Download, Upload, X } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   open: boolean;
