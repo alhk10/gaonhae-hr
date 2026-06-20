@@ -267,9 +267,16 @@ const PublicCompetitionPayment: React.FC = () => {
     try {
       const isoDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
       const extras = selectedExtras
-        .map(idx => selectedEvent.extra_lines[idx])
-        .filter((l): l is { label: string; amount: number } => !!l)
-        .map(l => ({ label: l.label, amount: Number(l.amount || 0) }));
+        .map(idx => ({ line: selectedEvent.extra_lines[idx], idx }))
+        .filter(({ line }) => !!line)
+        .map(({ line, idx }) => {
+          const w = parseFloat(extraWeights[idx] || '');
+          return {
+            label: line.label,
+            amount: Number(line.amount || 0),
+            ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
+          };
+        });
 
       const result = await submitCompetitionPayment({
         first_name: firstName,
