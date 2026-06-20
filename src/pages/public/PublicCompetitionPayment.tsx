@@ -27,6 +27,7 @@ import {
 import {
   getPublicCompetitionEvents,
   submitCompetitionPayment,
+  getPublicCompetitionExtraLinePresets,
   type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
 
@@ -128,6 +129,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
+  const [extraWeights, setExtraWeights] = useState<Record<number, string>>({});
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -153,6 +155,17 @@ const PublicCompetitionPayment: React.FC = () => {
     staleTime: 60 * 1000,
   });
 
+  const { data: extraPresets = [] } = useQuery({
+    queryKey: ['public-competition-extra-line-presets'],
+    queryFn: getPublicCompetitionExtraLinePresets,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const weightRequiredLabels = useMemo(
+    () => new Set(extraPresets.filter(p => p.requires_weight).map(p => p.name)),
+    [extraPresets],
+  );
+
   const activeEvents = useMemo(() => events.filter(e => e.is_active), [events]);
   const selectedEvent: CompetitionEvent | undefined = useMemo(
     () => activeEvents.find(e => e.id === eventId),
@@ -171,8 +184,23 @@ const PublicCompetitionPayment: React.FC = () => {
       .map((l, i) => (l.required ? i : -1))
       .filter(i => i >= 0);
     setSelectedExtras(requiredIdx);
+    setExtraWeights({});
     setCoachingSelected(selectedEvent.coaching_required !== false);
   }, [selectedEvent?.id]);
+
+  const extraRequiresWeight = (idx: number): boolean => {
+    if (!selectedEvent) return false;
+    const label = selectedEvent.extra_lines[idx]?.label || '';
+    return weightRequiredLabels.has(label);
+  };
+
+  const missingWeights = useMemo(() => {
+    return selectedExtras.some(idx => {
+      if (!extraRequiresWeight(idx)) return false;
+      const v = parseFloat(extraWeights[idx] || '');
+      return !Number.isFinite(v) || v <= 0;
+    });
+  }, [selectedExtras, extraWeights, selectedEvent, weightRequiredLabels]);
 
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
@@ -227,6 +255,7 @@ const PublicCompetitionPayment: React.FC = () => {
     (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
     (!selectedEvent.require_passport || !!passportFile) &&
     (!selectedEvent.require_photo || !!photoFile) &&
+    !missingWeights &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -238,9 +267,16 @@ const PublicCompetitionPayment: React.FC = () => {
     try {
       const isoDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
       const extras = selectedExtras
-        .map(idx => selectedEvent.extra_lines[idx])
-        .filter((l): l is { label: string; amount: number } => !!l)
-        .map(l => ({ label: l.label, amount: Number(l.amount || 0) }));
+        .map(idx => ({ line: selectedEvent.extra_lines[idx], idx }))
+        .filter(({ line }) => !!line)
+        .map(({ line, idx }) => {
+          const w = parseFloat(extraWeights[idx] || '');
+          return {
+            label: line.label,
+            amount: Number(line.amount || 0),
+            ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
+          };
+        });
 
       const result = await submitCompetitionPayment({
         first_name: firstName,
@@ -582,21 +618,48 @@ const PublicCompetitionPayment: React.FC = () => {
                         {selectedEvent.extra_lines.map((line, idx) => {
                           const checked = selectedExtras.includes(idx);
                           const required = line.required === true;
+                          const needsWeight = weightRequiredLabels.has(line.label);
+                          const weightVal = extraWeights[idx] || '';
+                          const weightInvalid = checked && needsWeight && (() => {
+                            const n = parseFloat(weightVal);
+                            return !Number.isFinite(n) || n <= 0;
+                          })();
                           return (
-                            <div key={idx} className="flex items-center gap-2">
-                              <Checkbox
-                                id={`extra-${idx}`}
-                                checked={checked}
-                                disabled={required}
-                                onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
-                              />
-                              <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
-                                {line.label}
-                                {required && (
-                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
-                                )}
-                              </Label>
-                              <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
+                            <div key={idx} className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`extra-${idx}`}
+                                  checked={checked}
+                                  disabled={required}
+                                  onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
+                                />
+                                <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                  {line.label}
+                                  {required && (
+                                    <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
+                                  )}
+                                </Label>
+                                <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
+                              </div>
+                              {checked && needsWeight && (
+                                <div className="ml-6 flex items-center gap-2">
+                                  <Label htmlFor={`extra-weight-${idx}`} className="text-xs text-muted-foreground whitespace-nowrap">
+                                    Weight (kg) *
+                                  </Label>
+                                  <Input
+                                    id={`extra-weight-${idx}`}
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.1"
+                                    min="10"
+                                    max="200"
+                                    value={weightVal}
+                                    onChange={(e) => setExtraWeights(prev => ({ ...prev, [idx]: e.target.value }))}
+                                    placeholder="e.g. 62.5"
+                                    className={`h-8 w-32 ${weightInvalid ? 'border-destructive' : ''}`}
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}

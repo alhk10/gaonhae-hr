@@ -18,10 +18,16 @@ import {
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
   uploadIndemnityTemplate,
+  getPublicCompetitionExtraLinePresets,
+  adminUpsertCompetitionExtraLinePreset,
   type CompetitionEvent,
   type CompetitionExtraLine,
+  type CompetitionExtraLinePreset,
 } from '@/services/competitionPaymentSubmissionService';
 import { Download, Upload, X } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   open: boolean;
@@ -90,6 +96,17 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     queryFn: getPublicCompetitionEvents,
     enabled: open,
   });
+
+  const { data: presets = [] } = useQuery({
+    queryKey: ['competition-extra-line-presets'],
+    queryFn: getPublicCompetitionExtraLinePresets,
+    enabled: open,
+  });
+
+  const [newPresetOpen, setNewPresetOpen] = useState(false);
+  const [newPresetTargetIdx, setNewPresetTargetIdx] = useState<number | null>(null);
+  const [newPreset, setNewPreset] = useState({ name: '', default_amount: 0, requires_weight: false });
+  const [savingPreset, setSavingPreset] = useState(false);
 
   useEffect(() => {
     if (!open) setForm(emptyForm());
@@ -336,11 +353,35 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                     <div className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Name</Label>
-                        <Input
-                          value={line.label}
-                          onChange={(e) => updateExtra(idx, { label: e.target.value })}
-                          placeholder="e.g. Individual Poomsae"
-                        />
+                        <Select
+                          value={line.label || ''}
+                          onValueChange={(v) => {
+                            if (v === '__add_new__') {
+                              setNewPresetTargetIdx(idx);
+                              setNewPreset({ name: '', default_amount: 0, requires_weight: false });
+                              setNewPresetOpen(true);
+                              return;
+                            }
+                            const preset = presets.find(p => p.name === v);
+                            updateExtra(idx, {
+                              label: v,
+                              amount: preset && (!line.amount || line.amount === 0) ? preset.default_amount : line.amount,
+                            });
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                          <SelectContent>
+                            {presets.map(p => (
+                              <SelectItem key={p.id} value={p.name}>
+                                {p.name}{p.requires_weight ? ' (weight)' : ''}
+                              </SelectItem>
+                            ))}
+                            {line.label && !presets.some(p => p.name === line.label) && (
+                              <SelectItem value={line.label}>{line.label}</SelectItem>
+                            )}
+                            <SelectItem value="__add_new__">+ Add new category…</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground">Amount</Label>
@@ -507,6 +548,78 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={newPresetOpen} onOpenChange={setNewPresetOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add additional-line category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Name</Label>
+              <Input
+                value={newPreset.name}
+                onChange={(e) => setNewPreset({ ...newPreset, name: e.target.value })}
+                placeholder="e.g. Individual Kyorugi"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Default amount</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newPreset.default_amount}
+                onChange={(e) => setNewPreset({ ...newPreset, default_amount: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="new-preset-weight"
+                checked={newPreset.requires_weight}
+                onCheckedChange={(c) => setNewPreset({ ...newPreset, requires_weight: c === true })}
+              />
+              <Label htmlFor="new-preset-weight" className="text-xs font-normal cursor-pointer">
+                Requires participant weight (kg)
+              </Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setNewPresetOpen(false)} disabled={savingPreset}>Cancel</Button>
+              <Button
+                disabled={savingPreset || !newPreset.name.trim()}
+                onClick={async () => {
+                  setSavingPreset(true);
+                  try {
+                    await adminUpsertCompetitionExtraLinePreset({
+                      id: null,
+                      name: newPreset.name.trim(),
+                      default_amount: newPreset.default_amount,
+                      requires_weight: newPreset.requires_weight,
+                    });
+                    await qc.invalidateQueries({ queryKey: ['competition-extra-line-presets'] });
+                    if (newPresetTargetIdx !== null) {
+                      updateExtra(newPresetTargetIdx, {
+                        label: newPreset.name.trim(),
+                        amount: newPreset.default_amount,
+                      });
+                    }
+                    setNewPresetOpen(false);
+                    setNewPresetTargetIdx(null);
+                    toast.success('Category added');
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Failed to add');
+                  } finally {
+                    setSavingPreset(false);
+                  }
+                }}
+              >
+                {savingPreset ? 'Saving…' : 'Add'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

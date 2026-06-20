@@ -46,7 +46,50 @@ export interface CompetitionExtraLine {
   label: string;
   amount: number;
   required?: boolean;
+  weight_kg?: number | null;
 }
+
+export interface CompetitionExtraLinePreset {
+  id: string;
+  name: string;
+  default_amount: number;
+  requires_weight: boolean;
+  display_order: number;
+  is_active: boolean;
+}
+
+export const getPublicCompetitionExtraLinePresets = async (): Promise<CompetitionExtraLinePreset[]> => {
+  const { data, error } = await supabase.rpc('get_public_competition_extra_line_presets' as any);
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    default_amount: Number(r.default_amount || 0),
+    requires_weight: r.requires_weight === true,
+    display_order: Number(r.display_order || 0),
+    is_active: r.is_active !== false,
+  }));
+};
+
+export const adminUpsertCompetitionExtraLinePreset = async (input: {
+  id: string | null;
+  name: string;
+  default_amount: number;
+  requires_weight: boolean;
+  display_order?: number;
+  is_active?: boolean;
+}): Promise<string> => {
+  const { data, error } = await supabase.rpc('admin_upsert_competition_extra_line_preset' as any, {
+    p_id: input.id,
+    p_name: input.name,
+    p_default_amount: input.default_amount,
+    p_requires_weight: input.requires_weight,
+    p_display_order: input.display_order ?? 0,
+    p_is_active: input.is_active ?? true,
+  });
+  if (error) throw error;
+  return data as string;
+};
 
 export interface CompetitionEvent {
   id: string;
