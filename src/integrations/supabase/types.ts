@@ -1139,6 +1139,39 @@ export type Database = {
           },
         ]
       }
+      competition_extra_line_presets: {
+        Row: {
+          created_at: string
+          default_amount: number
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          requires_weight: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_amount?: number
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          requires_weight?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_amount?: number
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          requires_weight?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       competition_payment_submissions: {
         Row: {
           amount: number | null
@@ -7263,6 +7296,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      admin_delete_competition_extra_line_preset: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       admin_delete_competition_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -7310,6 +7347,25 @@ export type Database = {
       admin_import_seminar_submission_student: {
         Args: { p_created_by: string; p_id: string }
         Returns: string
+      }
+      admin_list_competition_extra_line_presets: {
+        Args: never
+        Returns: {
+          created_at: string
+          default_amount: number
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          requires_weight: boolean
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "competition_extra_line_presets"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       admin_mark_seminar_collected: {
         Args: { p_by: string; p_collected: boolean; p_id: string }
@@ -7431,6 +7487,17 @@ export type Database = {
           p_require_indemnity_form: boolean
           p_require_passport: boolean
           p_require_photo: boolean
+        }
+        Returns: string
+      }
+      admin_upsert_competition_extra_line_preset: {
+        Args: {
+          p_default_amount: number
+          p_display_order: number
+          p_id: string
+          p_is_active: boolean
+          p_name: string
+          p_requires_weight: boolean
         }
         Returns: string
       }
@@ -7728,6 +7795,17 @@ export type Database = {
           require_indemnity_form: boolean
           require_passport: boolean
           require_photo: boolean
+        }[]
+      }
+      get_public_competition_extra_line_presets: {
+        Args: never
+        Returns: {
+          default_amount: number
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          requires_weight: boolean
         }[]
       }
       get_public_competition_list: {
