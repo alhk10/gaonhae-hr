@@ -155,6 +155,17 @@ const PublicCompetitionPayment: React.FC = () => {
     staleTime: 60 * 1000,
   });
 
+  const { data: extraPresets = [] } = useQuery({
+    queryKey: ['public-competition-extra-line-presets'],
+    queryFn: getPublicCompetitionExtraLinePresets,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const weightRequiredLabels = useMemo(
+    () => new Set(extraPresets.filter(p => p.requires_weight).map(p => p.name)),
+    [extraPresets],
+  );
+
   const activeEvents = useMemo(() => events.filter(e => e.is_active), [events]);
   const selectedEvent: CompetitionEvent | undefined = useMemo(
     () => activeEvents.find(e => e.id === eventId),
