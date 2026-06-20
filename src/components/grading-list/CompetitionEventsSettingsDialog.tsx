@@ -97,6 +97,17 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     enabled: open,
   });
 
+  const { data: presets = [] } = useQuery({
+    queryKey: ['competition-extra-line-presets'],
+    queryFn: getPublicCompetitionExtraLinePresets,
+    enabled: open,
+  });
+
+  const [newPresetOpen, setNewPresetOpen] = useState(false);
+  const [newPresetTargetIdx, setNewPresetTargetIdx] = useState<number | null>(null);
+  const [newPreset, setNewPreset] = useState({ name: '', default_amount: 0, requires_weight: false });
+  const [savingPreset, setSavingPreset] = useState(false);
+
   useEffect(() => {
     if (!open) setForm(emptyForm());
   }, [open]);
