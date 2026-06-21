@@ -158,6 +158,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             label: (l.label || '').trim(),
             amount: Number(l.amount) || 0,
             required: l.required === true,
+            kind: l.kind === 'other' ? 'other' as const : 'category' as const,
           }))
           .filter(l => l.label || l.amount > 0),
         indemnity_template_url: form.indemnity_template_url,
