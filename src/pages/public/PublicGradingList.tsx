@@ -1919,51 +1919,26 @@ const CompetitionsTab: React.FC<{
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [busy, setBusy] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
-  const { data: matches = [], isFetching: matchesLoading } = useQuery({
-    queryKey: ['competition-inline-matches', acceptingId],
-    queryFn: () => findCompetitionSubmissionStudentMatches(acceptingId!),
-    enabled: !!acceptingId,
-  });
-
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ['competition-inline-student-search', searchTerm],
-    queryFn: async () => {
-      if (searchTerm.trim().length < 2) return [];
-      const term = `%${searchTerm.trim()}%`;
-      const { data } = await supabase
-        .from('students')
-        .select('id, student_number, first_name, last_name, email, date_of_birth, current_belt')
-        .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
-        .limit(20);
-      return data || [];
-    },
-    enabled: !!acceptingId && searchTerm.trim().length >= 2,
-  });
-
-  const handleAccept = async (studentId: string) => {
-    if (!acceptingId) return;
-    setBusy(true);
+  const handleVerify = async (submissionId: string) => {
+    setVerifyingId(submissionId);
     try {
-      await matchCompetitionSubmission(acceptingId, studentId);
-      await importCompetitionSubmission(acceptingId, verifiedBy);
-      toast.success('Submission verified and invoice generated');
-      setAcceptingId(null);
-      setSearchTerm('');
+      await verifyCompetitionSubmission(submissionId, verifiedBy);
+      toast.success('Marked as verified');
       qc.invalidateQueries({ queryKey: ['public-competition-list'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to verify');
     } finally {
-      setBusy(false);
+      setVerifyingId(null);
     }
   };
+
 
   const handleReject = async () => {
     if (!rejectingId) return;
