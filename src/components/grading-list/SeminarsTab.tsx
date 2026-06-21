@@ -8,7 +8,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { XCircle, CheckCircle, Trash2, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -20,9 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { formatDate } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
-import { supabase } from '@/integrations/supabase/client';
 import {
   getPublicSeminarList,
   rejectSeminarSubmission,
