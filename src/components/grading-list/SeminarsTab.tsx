@@ -26,14 +26,11 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   getPublicSeminarList,
   rejectSeminarSubmission,
-  findSeminarSubmissionStudentMatches,
-  matchSeminarSubmission,
-  importSeminarSubmissionStudent,
-  createSeminarInvoice,
+  verifySeminarSubmission,
   type PublicSeminarListRow,
-  type SeminarStudentMatch,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
+
 
 const statusVariant = (s: string) => {
   switch (s) {
