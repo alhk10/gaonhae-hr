@@ -274,6 +274,7 @@ const PublicCompetitionPayment: React.FC = () => {
           return {
             label: line.label,
             amount: Number(line.amount || 0),
+            kind: ((line as any).kind === 'other' ? 'other' : 'category') as 'category' | 'other',
             ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
           };
         });
