@@ -161,6 +161,7 @@ export const adminUpsertCompetitionEvent = async (input: {
       label: l.label,
       amount: l.amount,
       required: l.required === true,
+      kind: l.kind === 'other' ? 'other' : 'category',
     })) as any,
     p_coaching_required: input.coaching_required,
     p_indemnity_template_url: input.indemnity_template_url ?? null,
