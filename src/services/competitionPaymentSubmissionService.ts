@@ -124,6 +124,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
           label: String(l.label || ''),
           amount: Number(l.amount || 0),
           required: l.required === true,
+          kind: l.kind === 'other' ? 'other' : 'category',
         }))
       : [],
   })) as CompetitionEvent[];
