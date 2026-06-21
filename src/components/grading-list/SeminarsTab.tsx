@@ -57,9 +57,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [acceptingRow, setAcceptingRow] = useState<PublicSeminarListRow | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
 
@@ -71,28 +70,24 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
     ),
   });
 
-  const { data: matches = [], isFetching: matchesLoading } = useQuery({
-    queryKey: ['seminar-inline-matches', acceptingRow?.submission_id],
-    queryFn: () => findSeminarSubmissionStudentMatches(acceptingRow!.submission_id),
-    enabled: !!acceptingRow,
-  });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
+    qc.invalidateQueries({ queryKey: ['pending-seminar-submissions'] });
+    qc.invalidateQueries({ queryKey: ['pending-seminar-submissions-count'] });
+  };
 
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ['seminar-inline-student-search', searchTerm],
-    queryFn: async () => {
-      if (searchTerm.trim().length < 2) return [];
-      const term = `%${searchTerm.trim()}%`;
-      const { data } = await supabase
-        .from('students')
-        .select('id, student_number, first_name, last_name, email, date_of_birth, current_belt')
-        .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},student_number.ilike.${term}`)
-        .limit(20);
-      return data || [];
-    },
-    enabled: !!acceptingRow && searchTerm.trim().length >= 2,
-  });
-
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
+  const handleVerify = async (row: PublicSeminarListRow) => {
+    setBusyId(row.submission_id);
+    try {
+      await verifySeminarSubmission(row.submission_id, verifiedBy);
+      toast.success('Marked as verified');
+      invalidate();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to verify');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const handleReject = async () => {
     if (!rejectRow) return;
@@ -110,39 +105,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
     }
   };
 
-  const handleAcceptWithStudent = async (studentId: string) => {
-    if (!acceptingRow) return;
-    setBusy(true);
-    try {
-      await matchSeminarSubmission(acceptingRow.submission_id, studentId);
-      await createSeminarInvoice(acceptingRow.submission_id, verifiedBy);
-      toast.success('Seminar verified and invoice generated');
-      setAcceptingRow(null);
-      setSearchTerm('');
-      invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to verify');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleCreateNewStudent = async () => {
-    if (!acceptingRow) return;
-    setBusy(true);
-    try {
-      await importSeminarSubmissionStudent(acceptingRow.submission_id, verifiedBy);
-      await createSeminarInvoice(acceptingRow.submission_id, verifiedBy);
-      toast.success('New student created, seminar verified, invoice generated');
-      setAcceptingRow(null);
-      setSearchTerm('');
-      invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create student');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
