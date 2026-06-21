@@ -205,8 +205,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     }));
   };
 
-  const addExtra = () => {
-    setForm(prev => ({ ...prev, extra_lines: [...prev.extra_lines, { label: '', amount: 0 }] }));
+  const addExtra = (kind: 'category' | 'other' = 'category') => {
+    setForm(prev => ({ ...prev, extra_lines: [...prev.extra_lines, { label: '', amount: 0, kind }] }));
   };
 
   const removeExtra = (idx: number) => {
