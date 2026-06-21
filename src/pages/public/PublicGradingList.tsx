@@ -35,7 +35,7 @@ import {
   verifyCompetitionSubmission,
   rejectCompetitionSubmission,
   type PublicCompetitionListRow,
-  type CompetitionStudentMatch,
+
 } from '@/services/competitionPaymentSubmissionService';
 import {
   downloadGradingCertificatePDF,
