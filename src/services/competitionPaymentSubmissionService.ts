@@ -567,6 +567,14 @@ export const importCompetitionSubmission = async (
   return data as string;
 };
 
+export const verifyCompetitionSubmission = async (submissionId: string, verifiedBy: string): Promise<void> => {
+  const { error } = await supabase.rpc('admin_verify_competition_submission' as any, {
+    p_id: submissionId,
+    p_verified_by: verifiedBy,
+  });
+  if (error) throw error;
+};
+
 export const rejectCompetitionSubmission = async (
   submissionId: string,
   reason: string,

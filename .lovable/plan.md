@@ -1,41 +1,64 @@
-# Categories & Other on Competition Events
+# Mirror grading-tab verify behavior on competition & seminar tabs
 
-Three coordinated changes to treat the configurable extra lines as **Categories** and introduce a separate **Other** group for non-category fees (e.g. accompanying parent).
+## Current behavior
 
-## 1. Data model (no schema migration)
+- **Grading tab** (`PublicGradingList.tsx`): green check button calls `verifyGradingSubmission` → RPC `admin_verify_grading_submission` flips status to `verified`. No student matching, no invoice creation.
+- **Competition tab** (inside `PublicGradingList.tsx`) and **Seminar tab** (`SeminarsTab.tsx`): green check opens a "Match student & verify" dialog (fuzzy search + create-new-student) and then imports the submission as an invoice.
+- **Superadmin Dashboard**: `PublicCompetitionSubmissionApprovals` and `PublicSeminarSubmissionApprovals` already provide the full match-and-import workflow.
 
-Extra lines remain in `competition_events.extra_lines` and `competition_payment_submissions.extra_lines` (JSONB). Add an optional `kind` field per entry:
+## Target behavior
 
-- `kind: 'category'` (default when missing → backfill on read)
-- `kind: 'other'`
+- On `/grading-list`, the competition and seminar verify buttons become **one-click verify** (same as grading tab): mark status `verified`, no matching, no invoice generation.
+- **Student matching + invoice import remains exclusively on the Superadmin Dashboard**, performed by superadmins via the existing approval components.
+- Reject button on both tabs is unchanged.
 
-Existing rows without `kind` are treated as `'category'`, so historical data keeps working.
+## Changes
 
-## 2. Admin – `CompetitionEventsSettingsDialog.tsx` (/grading-list → Competitions → Events)
+### 1. New SQL migration — verify-only RPCs
 
-- Rename the existing **Additional lines** block to **Categories**. Keep its current UI: preset dropdown, amount, Compulsory toggle, Add/remove, "Add new category…" sub-dialog.
-- Add a new **Other** block directly below Categories, mirroring the same layout (Name dropdown from the same preset list, Amount, Compulsory checkbox, Add/remove). Items added here are saved with `kind: 'other'`.
-- On save, write the combined array back to `extra_lines`, preserving each item's `kind`.
-- The event card summary continues counting all extra lines.
+Add two security-definer functions modeled on `admin_verify_grading_submission`:
 
-## 3. Public form – `PublicCompetitionPayment.tsx` (/comps)
+- `public.admin_verify_competition_submission(p_id uuid, p_verified_by text)` — updates `competition_payment_submissions` set `status = 'verified'`, `reviewed_by`, `reviewed_at`, `updated_at`, gated on current `status = 'pending_verification'`.
+- `public.admin_verify_seminar_submission(p_id uuid, p_verified_by text)` — same shape against `seminar_payment_submissions`.
+- `GRANT EXECUTE ... TO authenticated` for both.
 
-- Split `selectedEvent.extra_lines` into two groups by `kind`.
-- Render the first group under the heading **Categories** (currently "Additional Items"); render the second group under **Other** with the same row layout and selection behaviour. Weight-required logic (Individual Kyorugi etc.) keeps working in both groups.
-- Submission payload still sends all selected lines through `extra_lines`, each carrying its `kind` and any `weight_kg`.
+### 2. Service wrappers
 
-## 4. Grading list Competitions tab – `PublicGradingList.tsx` + service
+- `src/services/competitionPaymentSubmissionService.ts`: add `verifyCompetitionSubmission(id, verifiedBy)` calling the new RPC.
+- `src/services/seminarPaymentSubmissionService.ts`: add `verifySeminarSubmission(id, verifiedBy)` calling the new RPC.
 
-The Categories column currently reads `category_names` derived from `category_product_ids`, which is empty for events configured via extra-line presets — hence the dashes in the screenshot.
+### 3. `SeminarsTab.tsx`
 
-- Update `get_public_competition_list` RPC to also return `extra_categories text[]` = labels from the submission's `extra_lines` where `kind = 'category'` (or missing).
-- In the service, expose `extra_categories` on `PublicCompetitionListRow` and prefer it when `category_names` is empty.
-- In the table, flatMap rows by `extra_categories` when present so each selected category gets its own row (matching today's behaviour for product-based categories). The displayed label is the raw preset name.
-- "Other" lines do NOT appear in the Categories column — they remain visible only on the invoice/email side.
+- Replace the "Accept (match & verify)" handler with a direct call to `verifySeminarSubmission` (pattern copied from grading tab's `handleVerify`).
+- Remove the match dialog (`acceptingRow` state, suggested-matches block, student search, "Create new student from submission & verify" button) — these are no longer reachable from this tab.
+- Keep the reject dialog and delete column untouched.
+- Update tooltip from "Accept (match & verify)" to "Verify".
+- Invalidate `['public-seminar-list']`, `['pending-seminar-submissions']`, `['pending-seminar-submissions-count']` on success.
 
-## Technical notes
+### 4. Competition table inside `PublicGradingList.tsx`
 
-- `CompetitionExtraLine` type in `competitionPaymentSubmissionService.ts` gains `kind?: 'category' | 'other'`.
-- `submitCompetitionPayment` keeps `categories: extra_lines.filter(kind!=='other').map(label)` for the confirmation email.
-- One migration only: redefine `get_public_competition_list` to add `extra_categories text[]`. No table changes, no new GRANTs.
-- No changes to seminars, grading, or guards flows.
+The competition rows are rendered by an inner component (around lines 1884–2280) that currently calls `importCompetitionSubmission` from an "Accept" dialog.
+
+- Replace the green check action so it calls a new `handleVerifyCompetition` → `verifyCompetitionSubmission(submission_id, verifiedBy)`.
+- Remove the match-student dialog (`acceptingId` state, suggested matches, search, "Create new" path) from this component only — superadmin dashboard already owns that flow.
+- Keep reject dialog and all other table columns/edits unchanged.
+- Invalidate `['public-competition-list']`, `['pending-competition-submissions']`, `['pending-competition-submissions-count']` on success.
+
+### 5. No frontend access change required
+
+Role gating already restricts these icons to `canEdit`. The match-and-import path remains available only via `PublicCompetitionSubmissionApprovals` / `PublicSeminarSubmissionApprovals` on the superadmin dashboard, which is already routed under superadmin-only access.
+
+## Out of scope
+
+- No changes to grading tab.
+- No changes to superadmin dashboard approval components.
+- No changes to public submission forms, edge functions, or email templates.
+- No changes to `extra_lines` / categories work from prior turns.
+
+## Files touched
+
+- `supabase/migrations/<new>.sql` (new)
+- `src/services/competitionPaymentSubmissionService.ts`
+- `src/services/seminarPaymentSubmissionService.ts`
+- `src/components/grading-list/SeminarsTab.tsx`
+- `src/pages/public/PublicGradingList.tsx` (competition inner component only)

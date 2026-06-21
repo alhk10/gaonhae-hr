@@ -7505,7 +7505,15 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: Json
       }
+      admin_verify_competition_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: undefined
+      }
       admin_verify_grading_submission: {
+        Args: { p_id: string; p_verified_by: string }
+        Returns: undefined
+      }
+      admin_verify_seminar_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: undefined
       }
