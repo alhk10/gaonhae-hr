@@ -129,6 +129,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         label: l.label,
         amount: Number(l.amount || 0),
         required: l.required === true,
+        kind: (l as any).kind === 'other' ? 'other' : 'category',
       })),
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
