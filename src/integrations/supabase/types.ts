@@ -7824,6 +7824,7 @@ export type Database = {
           current_belt: string
           event_id: string
           event_name: string
+          extra_categories: string[]
           gender: string
           indemnity_form_url: string
           paid_status: string
