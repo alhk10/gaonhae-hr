@@ -2215,9 +2215,10 @@ const CompetitionsTab: React.FC<{
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => { setAcceptingId(r.submission_id); setSearchTerm(''); }}
-                        className="text-green-600 hover:text-green-800"
-                        title="Accept (match & verify)"
+                        onClick={() => handleVerify(r.submission_id)}
+                        disabled={verifyingId === r.submission_id}
+                        className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                        title="Verify"
                       >
                         <CheckCircle className="h-4 w-4" />
                       </button>
