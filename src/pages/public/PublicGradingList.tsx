@@ -2159,7 +2159,10 @@ const CompetitionsTab: React.FC<{
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
               .flatMap((r) => {
-                const cats = (r.category_names && r.category_names.length > 0) ? r.category_names : [''];
+                const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
+                const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
+                const merged = productCats.length > 0 ? productCats : extraCats;
+                const cats = merged.length > 0 ? merged : [''];
                 return cats.map((cat, idx) => (
               <TableRow key={`${r.submission_id}__${idx}`}>
                 <TableCell className="text-xs px-2 py-1">{r.event_name || '—'}</TableCell>
