@@ -21,6 +21,7 @@ export interface PublicCompetitionListRow {
   coaching_paid: boolean;
   category_count: number;
   category_names: string[];
+  extra_categories: string[];
   certificate_url: string | null;
   proof_url: string | null;
   status: string;
@@ -47,6 +48,7 @@ export interface CompetitionExtraLine {
   amount: number;
   required?: boolean;
   weight_kg?: number | null;
+  kind?: 'category' | 'other';
 }
 
 export interface CompetitionExtraLinePreset {
