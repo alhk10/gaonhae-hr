@@ -1,48 +1,41 @@
-## Goal
+# Categories & Other on Competition Events
 
-1. Replace the free-text "Name" input on competition **Additional lines** with a dropdown sourced from an admin-managed preset list (e.g. Individual Poomsae, Individual Kyorugi, Mix Pair, Mix Team).
-2. On the public competition form, when a participant selects an additional line flagged as "requires weight" (Individual Kyorugi by default), show a required numeric weight (kg) input, and store the value with the submission.
+Three coordinated changes to treat the configurable extra lines as **Categories** and introduce a separate **Other** group for non-category fees (e.g. accompanying parent).
 
-## Database
+## 1. Data model (no schema migration)
 
-New table `public.competition_extra_line_presets`:
-- `name` (text, unique, not null)
-- `default_amount` (numeric, default 0)
-- `requires_weight` (bool, default false)
-- `display_order` (int, default 0)
-- `is_active` (bool, default true)
-- standard id/timestamps; GRANT select to anon, full to authenticated/service_role; RLS: public read of active rows, admin full access.
+Extra lines remain in `competition_events.extra_lines` and `competition_payment_submissions.extra_lines` (JSONB). Add an optional `kind` field per entry:
 
-Seed rows: Individual Poomsae (110), Individual Kyorugi (110, requires_weight=true), Mix Pair (65), Mix Team (65).
+- `kind: 'category'` (default when missing → backfill on read)
+- `kind: 'other'`
 
-RPCs:
-- `get_public_competition_extra_line_presets()` — returns active presets (anon-callable).
-- `admin_list_competition_extra_line_presets()` / `admin_upsert_competition_extra_line_preset()` / `admin_delete_competition_extra_line_preset()` — admin-only.
+Existing rows without `kind` are treated as `'category'`, so historical data keeps working.
 
-Schema change on `competition_payment_submissions`: extend stored `extra_lines` JSON shape to `{ label, amount, weight_kg? }` (no column change needed — already JSONB).
+## 2. Admin – `CompetitionEventsSettingsDialog.tsx` (/grading-list → Competitions → Events)
 
-## Admin UI — `CompetitionEventsSettingsDialog.tsx`
+- Rename the existing **Additional lines** block to **Categories**. Keep its current UI: preset dropdown, amount, Compulsory toggle, Add/remove, "Add new category…" sub-dialog.
+- Add a new **Other** block directly below Categories, mirroring the same layout (Name dropdown from the same preset list, Amount, Compulsory checkbox, Add/remove). Items added here are saved with `kind: 'other'`.
+- On save, write the combined array back to `extra_lines`, preserving each item's `kind`.
+- The event card summary continues counting all extra lines.
 
-- Load presets via `getCompetitionExtraLinePresets()` once when dialog opens.
-- In the "Additional lines" editor, replace the free-text Name `<Input>` with a `SearchableCategorySelect` populated from presets, with an "Add new preset" action that opens a small inline dialog to create a preset (name + default amount + requires_weight + active). Selecting a preset auto-fills the amount field (still editable).
-- Add a dedicated "Manage presets" button next to the "Add line" button to open a list/CRUD sub-dialog (rename, change default amount, toggle requires_weight, archive).
-- Persisted shape on the event stays the same (`extra_lines: [{label, amount, required}]`), so the existing RPC is unchanged.
+## 3. Public form – `PublicCompetitionPayment.tsx` (/comps)
 
-## Public form — `PublicCompetitionPayment.tsx`
+- Split `selectedEvent.extra_lines` into two groups by `kind`.
+- Render the first group under the heading **Categories** (currently "Additional Items"); render the second group under **Other** with the same row layout and selection behaviour. Weight-required logic (Individual Kyorugi etc.) keeps working in both groups.
+- Submission payload still sends all selected lines through `extra_lines`, each carrying its `kind` and any `weight_kg`.
 
-- Fetch presets once via React Query and build a lookup `label → requires_weight`.
-- Track weight per selected extra line in component state: `Record<number, string>` (index → kg string).
-- Inside the extras checkbox list, when an extra's label maps to `requires_weight=true` AND it is selected, render an inline required numeric input "Weight (kg)" (step 0.1, min 10, max 200) directly under that row.
-- Extend `canSubmit` so any required weight inputs must be filled with a valid positive number.
-- In `handleSubmit`, attach `weight_kg` into the corresponding extra line object before calling `submitCompetitionPayment`.
+## 4. Grading list Competitions tab – `PublicGradingList.tsx` + service
 
-## Service / types — `competitionPaymentSubmissionService.ts`
+The Categories column currently reads `category_names` derived from `category_product_ids`, which is empty for events configured via extra-line presets — hence the dashes in the screenshot.
 
-- Add `weight_kg?: number | null` to `CompetitionExtraLine`.
-- Pass it through `submitCompetitionPayment` (already serializes the whole array into the RPC payload — no RPC change needed).
-- Add helper functions for the new preset RPCs.
+- Update `get_public_competition_list` RPC to also return `extra_categories text[]` = labels from the submission's `extra_lines` where `kind = 'category'` (or missing).
+- In the service, expose `extra_categories` on `PublicCompetitionListRow` and prefer it when `category_names` is empty.
+- In the table, flatMap rows by `extra_categories` when present so each selected category gets its own row (matching today's behaviour for product-based categories). The displayed label is the raw preset name.
+- "Other" lines do NOT appear in the Categories column — they remain visible only on the invoice/email side.
 
-## Out of scope
+## Technical notes
 
-- No changes to grading/seminar flows.
-- Existing submitted records remain valid (weight is optional in stored shape).
+- `CompetitionExtraLine` type in `competitionPaymentSubmissionService.ts` gains `kind?: 'category' | 'other'`.
+- `submitCompetitionPayment` keeps `categories: extra_lines.filter(kind!=='other').map(label)` for the confirmation email.
+- One migration only: redefine `get_public_competition_list` to add `extra_categories text[]`. No table changes, no new GRANTs.
+- No changes to seminars, grading, or guards flows.

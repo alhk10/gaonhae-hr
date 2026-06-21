@@ -129,6 +129,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         label: l.label,
         amount: Number(l.amount || 0),
         required: l.required === true,
+        kind: (l as any).kind === 'other' ? 'other' : 'category',
       })),
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
@@ -157,6 +158,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
             label: (l.label || '').trim(),
             amount: Number(l.amount) || 0,
             required: l.required === true,
+            kind: l.kind === 'other' ? 'other' as const : 'category' as const,
           }))
           .filter(l => l.label || l.amount > 0),
         indemnity_template_url: form.indemnity_template_url,
@@ -203,8 +205,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     }));
   };
 
-  const addExtra = () => {
-    setForm(prev => ({ ...prev, extra_lines: [...prev.extra_lines, { label: '', amount: 0 }] }));
+  const addExtra = (kind: 'category' | 'other' = 'category') => {
+    setForm(prev => ({ ...prev, extra_lines: [...prev.extra_lines, { label: '', amount: 0, kind }] }));
   };
 
   const removeExtra = (idx: number) => {
@@ -337,80 +339,91 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
               </p>
             </div>
 
-            <div className="space-y-2 border rounded p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Additional lines</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addExtra}>
-                  <Plus className="h-3 w-3 mr-1" /> Add line
-                </Button>
-              </div>
-              {form.extra_lines.length === 0 && (
-                <p className="text-[11px] text-muted-foreground">No additional lines.</p>
-              )}
-              <div className="space-y-2">
-                {form.extra_lines.map((line, idx) => (
-                  <div key={idx} className="space-y-1 border rounded p-2">
-                    <div className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Name</Label>
-                        <Select
-                          value={line.label || ''}
-                          onValueChange={(v) => {
-                            if (v === '__add_new__') {
-                              setNewPresetTargetIdx(idx);
-                              setNewPreset({ name: '', default_amount: 0, requires_weight: false });
-                              setNewPresetOpen(true);
-                              return;
-                            }
-                            const preset = presets.find(p => p.name === v);
-                            updateExtra(idx, {
-                              label: v,
-                              amount: preset && (!line.amount || line.amount === 0) ? preset.default_amount : line.amount,
-                            });
-                          }}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                          <SelectContent>
-                            {presets.map(p => (
-                              <SelectItem key={p.id} value={p.name}>
-                                {p.name}{p.requires_weight ? ' (weight)' : ''}
-                              </SelectItem>
-                            ))}
-                            {line.label && !presets.some(p => p.name === line.label) && (
-                              <SelectItem value={line.label}>{line.label}</SelectItem>
-                            )}
-                            <SelectItem value="__add_new__">+ Add new category…</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Amount</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={line.amount}
-                          onChange={(e) => updateExtra(idx, { amount: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" onClick={() => removeExtra(idx)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2 pl-1">
-                      <Checkbox
-                        id={`extra-required-${idx}`}
-                        checked={line.required === true}
-                        onCheckedChange={(c) => updateExtra(idx, { required: c === true })}
-                      />
-                      <Label htmlFor={`extra-required-${idx}`} className="text-[11px] font-normal cursor-pointer">
-                        Compulsory (auto-added, customer cannot opt out)
-                      </Label>
-                    </div>
+            {(['category', 'other'] as const).map((sectionKind) => {
+              const sectionTitle = sectionKind === 'category' ? 'Categories' : 'Other';
+              const emptyText = sectionKind === 'category'
+                ? 'No categories.'
+                : 'No other items.';
+              const items = form.extra_lines
+                .map((line, idx) => ({ line, idx }))
+                .filter(({ line }) => (line.kind || 'category') === sectionKind);
+              return (
+                <div key={sectionKind} className="space-y-2 border rounded p-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">{sectionTitle}</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={() => addExtra(sectionKind)}>
+                      <Plus className="h-3 w-3 mr-1" /> Add line
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </div>
+                  {items.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground">{emptyText}</p>
+                  )}
+                  <div className="space-y-2">
+                    {items.map(({ line, idx }) => (
+                      <div key={idx} className="space-y-1 border rounded p-2">
+                        <div className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Name</Label>
+                            <Select
+                              value={line.label || ''}
+                              onValueChange={(v) => {
+                                if (v === '__add_new__') {
+                                  setNewPresetTargetIdx(idx);
+                                  setNewPreset({ name: '', default_amount: 0, requires_weight: false });
+                                  setNewPresetOpen(true);
+                                  return;
+                                }
+                                const preset = presets.find(p => p.name === v);
+                                updateExtra(idx, {
+                                  label: v,
+                                  amount: preset && (!line.amount || line.amount === 0) ? preset.default_amount : line.amount,
+                                });
+                              }}
+                            >
+                              <SelectTrigger><SelectValue placeholder={sectionKind === 'category' ? 'Select category' : 'Select item'} /></SelectTrigger>
+                              <SelectContent>
+                                {presets.map(p => (
+                                  <SelectItem key={p.id} value={p.name}>
+                                    {p.name}{p.requires_weight ? ' (weight)' : ''}
+                                  </SelectItem>
+                                ))}
+                                {line.label && !presets.some(p => p.name === line.label) && (
+                                  <SelectItem value={line.label}>{line.label}</SelectItem>
+                                )}
+                                <SelectItem value="__add_new__">+ Add new {sectionKind === 'category' ? 'category' : 'item'}…</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Amount</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.amount}
+                              onChange={(e) => updateExtra(idx, { amount: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" onClick={() => removeExtra(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 pl-1">
+                          <Checkbox
+                            id={`extra-required-${idx}`}
+                            checked={line.required === true}
+                            onCheckedChange={(c) => updateExtra(idx, { required: c === true })}
+                          />
+                          <Label htmlFor={`extra-required-${idx}`} className="text-[11px] font-normal cursor-pointer">
+                            Compulsory (auto-added, customer cannot opt out)
+                          </Label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
             <div className="space-y-1">
               <Label className="text-xs">Indemnity clause text</Label>

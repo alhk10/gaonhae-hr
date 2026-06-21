@@ -21,6 +21,7 @@ export interface PublicCompetitionListRow {
   coaching_paid: boolean;
   category_count: number;
   category_names: string[];
+  extra_categories: string[];
   certificate_url: string | null;
   proof_url: string | null;
   status: string;
@@ -47,6 +48,7 @@ export interface CompetitionExtraLine {
   amount: number;
   required?: boolean;
   weight_kg?: number | null;
+  kind?: 'category' | 'other';
 }
 
 export interface CompetitionExtraLinePreset {
@@ -122,6 +124,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
           label: String(l.label || ''),
           amount: Number(l.amount || 0),
           required: l.required === true,
+          kind: l.kind === 'other' ? 'other' : 'category',
         }))
       : [],
   })) as CompetitionEvent[];
@@ -158,6 +161,7 @@ export const adminUpsertCompetitionEvent = async (input: {
       label: l.label,
       amount: l.amount,
       required: l.required === true,
+      kind: l.kind === 'other' ? 'other' : 'category',
     })) as any,
     p_coaching_required: input.coaching_required,
     p_indemnity_template_url: input.indemnity_template_url ?? null,
@@ -450,7 +454,7 @@ export const submitCompetitionPayment = async (
           fullName: `${fn} ${ln}`.trim(),
           competitionName: input.event_name,
           coachingName: input.coaching_label,
-          categories: input.extra_lines.map(l => l.label).filter(Boolean),
+          categories: input.extra_lines.filter(l => l.kind !== 'other').map(l => l.label).filter(Boolean),
           amount: input.amount,
           referenceNumber: inserted.reference_number,
         },

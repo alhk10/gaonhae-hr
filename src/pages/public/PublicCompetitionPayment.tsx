@@ -274,6 +274,7 @@ const PublicCompetitionPayment: React.FC = () => {
           return {
             label: line.label,
             amount: Number(line.amount || 0),
+            kind: ((line as any).kind === 'other' ? 'other' : 'category') as 'category' | 'other',
             ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
           };
         });
@@ -611,61 +612,68 @@ const PublicCompetitionPayment: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedEvent.extra_lines.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Additional Items</Label>
-                      <div className="space-y-2 rounded-md border p-3">
-                        {selectedEvent.extra_lines.map((line, idx) => {
-                          const checked = selectedExtras.includes(idx);
-                          const required = line.required === true;
-                          const needsWeight = weightRequiredLabels.has(line.label);
-                          const weightVal = extraWeights[idx] || '';
-                          const weightInvalid = checked && needsWeight && (() => {
-                            const n = parseFloat(weightVal);
-                            return !Number.isFinite(n) || n <= 0;
-                          })();
-                          return (
-                            <div key={idx} className="space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`extra-${idx}`}
-                                  checked={checked}
-                                  disabled={required}
-                                  onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
-                                />
-                                <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
-                                  {line.label}
-                                  {required && (
-                                    <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
-                                  )}
-                                </Label>
-                                <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
-                              </div>
-                              {checked && needsWeight && (
-                                <div className="ml-6 flex items-center gap-2">
-                                  <Label htmlFor={`extra-weight-${idx}`} className="text-xs text-muted-foreground whitespace-nowrap">
-                                    Weight (kg) *
-                                  </Label>
-                                  <Input
-                                    id={`extra-weight-${idx}`}
-                                    type="number"
-                                    inputMode="decimal"
-                                    step="0.1"
-                                    min="10"
-                                    max="200"
-                                    value={weightVal}
-                                    onChange={(e) => setExtraWeights(prev => ({ ...prev, [idx]: e.target.value }))}
-                                    placeholder="e.g. 62.5"
-                                    className={`h-8 w-32 ${weightInvalid ? 'border-destructive' : ''}`}
+                  {selectedEvent.extra_lines.length > 0 && (['category', 'other'] as const).map((sectionKind) => {
+                    const sectionTitle = sectionKind === 'category' ? 'Categories' : 'Other';
+                    const items = selectedEvent.extra_lines
+                      .map((line, idx) => ({ line, idx }))
+                      .filter(({ line }) => ((line as any).kind || 'category') === sectionKind);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={sectionKind} className="space-y-2">
+                        <Label>{sectionTitle}</Label>
+                        <div className="space-y-2 rounded-md border p-3">
+                          {items.map(({ line, idx }) => {
+                            const checked = selectedExtras.includes(idx);
+                            const required = line.required === true;
+                            const needsWeight = weightRequiredLabels.has(line.label);
+                            const weightVal = extraWeights[idx] || '';
+                            const weightInvalid = checked && needsWeight && (() => {
+                              const n = parseFloat(weightVal);
+                              return !Number.isFinite(n) || n <= 0;
+                            })();
+                            return (
+                              <div key={idx} className="space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`extra-${idx}`}
+                                    checked={checked}
+                                    disabled={required}
+                                    onCheckedChange={(v) => !required && toggleExtra(idx, v === true)}
                                   />
+                                  <Label htmlFor={`extra-${idx}`} className="text-sm font-normal flex-1 cursor-pointer">
+                                    {line.label}
+                                    {required && (
+                                      <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">Required</span>
+                                    )}
+                                  </Label>
+                                  <span className="text-sm">${Number(line.amount).toFixed(2)}</span>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                {checked && needsWeight && (
+                                  <div className="ml-6 flex items-center gap-2">
+                                    <Label htmlFor={`extra-weight-${idx}`} className="text-xs text-muted-foreground whitespace-nowrap">
+                                      Weight (kg) *
+                                    </Label>
+                                    <Input
+                                      id={`extra-weight-${idx}`}
+                                      type="number"
+                                      inputMode="decimal"
+                                      step="0.1"
+                                      min="10"
+                                      max="200"
+                                      value={weightVal}
+                                      onChange={(e) => setExtraWeights(prev => ({ ...prev, [idx]: e.target.value }))}
+                                      placeholder="e.g. 62.5"
+                                      className={`h-8 w-32 ${weightInvalid ? 'border-destructive' : ''}`}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
 
                   {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
