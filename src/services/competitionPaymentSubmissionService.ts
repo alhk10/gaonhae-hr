@@ -454,7 +454,7 @@ export const submitCompetitionPayment = async (
           fullName: `${fn} ${ln}`.trim(),
           competitionName: input.event_name,
           coachingName: input.coaching_label,
-          categories: input.extra_lines.map(l => l.label).filter(Boolean),
+          categories: input.extra_lines.filter(l => l.kind !== 'other').map(l => l.label).filter(Boolean),
           amount: input.amount,
           referenceNumber: inserted.reference_number,
         },
