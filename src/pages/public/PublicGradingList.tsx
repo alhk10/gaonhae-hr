@@ -2186,6 +2186,7 @@ const CompetitionsTab: React.FC<{
           <TableBody>
             {[...(rows as PublicCompetitionListRow[])]
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+              .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
               .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
               .flatMap((r) => {
                 const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
