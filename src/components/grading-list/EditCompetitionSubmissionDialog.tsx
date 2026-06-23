@@ -2,19 +2,23 @@
  * Admin edit dialog for a single competition_payment_submissions row.
  * Opened from the Competitions tab pencil icon on /grading-list.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import {
   getCompetitionSubmissionForEdit,
   adminPatchCompetitionSubmission,
   adminReplaceCompetitionSubmissionFile,
+  updateCompetitionSubmissionCategories,
+  getPublicCompetitionEvents,
 } from '@/services/competitionPaymentSubmissionService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { SignedImage } from '@/components/common/SignedMedia';
