@@ -50,6 +50,7 @@ export const AU_BELT_LEVELS = [...AU_FOUNDATION, ...COMMON_BELTS] as const;
 export const BELT_LEVELS = [
   ...SG_FOUNDATION,
   ...AU_FOUNDATION,
+  'Foundation', // legacy AU value, kept for existing records
   ...COMMON_BELTS,
 ] as const;
 
