@@ -2089,6 +2089,33 @@ const CompetitionsTab: React.FC<{
     );
   };
 
+  const handlePrintPdf = () => {
+    const eventName =
+      eventFilter && eventFilter !== 'all'
+        ? sortedEvents.find((e: any) => e.id === eventFilter)?.name || 'All events'
+        : 'All events';
+    const branchLabel = localBranchFilter === 'all' ? 'All branches' : localBranchFilter;
+    const printRows = [...(rows as PublicCompetitionListRow[])]
+      .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+      .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
+      .flatMap((r) => {
+        const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
+        const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
+        const merged = productCats.length > 0 ? productCats : extraCats;
+        const cats = merged.length > 0 ? merged : [''];
+        return cats.map((cat) => ({
+          branch_name: r.branch_name,
+          student_name: r.student_name,
+          current_belt: r.current_belt,
+          category: cat || null,
+          poomsae_1: r.poomsae_1,
+          poomsae_2: r.poomsae_2,
+        }));
+      });
+    generateCompetitionPrintPDF({ rows: printRows, eventName, branchName: branchLabel });
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2107,13 +2134,30 @@ const CompetitionsTab: React.FC<{
               </SelectContent>
             </Select>
           )}
+          <Select value={localBranchFilter} onValueChange={setLocalBranchFilter}>
+            <SelectTrigger className="h-8 text-xs w-[180px]">
+              <SelectValue placeholder="All branches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All branches</SelectItem>
+              {branchOptionsLocal.map((b) => (
+                <SelectItem key={b} value={b} className="text-xs">{b}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {canEdit && (
-          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
-            <Settings className="h-3.5 w-3.5 mr-1" /> Events
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrintPdf} disabled={rows.length === 0}>
+            <Printer className="h-3.5 w-3.5 mr-1" /> Print
           </Button>
-        )}
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+              <Settings className="h-3.5 w-3.5 mr-1" /> Events
+            </Button>
+          )}
+        </div>
       </div>
+
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="overflow-x-auto">
         <Table>
