@@ -2317,6 +2317,12 @@ const CompetitionsTab: React.FC<{
           )}
         </DialogContent>
       </Dialog>
+
+      <EditCompetitionSubmissionDialog
+        submissionId={editingId}
+        onClose={() => setEditingId(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+      />
     </div>
   );
 };
