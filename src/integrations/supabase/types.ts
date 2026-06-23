@@ -7477,25 +7477,46 @@ export type Database = {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
       }
-      admin_upsert_competition_event: {
-        Args: {
-          p_coaching_amount: number
-          p_coaching_label: string
-          p_coaching_required?: boolean
-          p_display_order: number
-          p_extra_lines: Json
-          p_id: string
-          p_indemnity_clause: string
-          p_indemnity_template_name?: string
-          p_indemnity_template_url?: string
-          p_is_active: boolean
-          p_name: string
-          p_require_indemnity_form: boolean
-          p_require_passport: boolean
-          p_require_photo: boolean
-        }
-        Returns: string
-      }
+      admin_upsert_competition_event:
+        | {
+            Args: {
+              p_coaching_amount: number
+              p_coaching_label: string
+              p_coaching_required?: boolean
+              p_display_order: number
+              p_extra_lines: Json
+              p_id: string
+              p_indemnity_clause: string
+              p_indemnity_template_name?: string
+              p_indemnity_template_url?: string
+              p_is_active: boolean
+              p_name: string
+              p_require_indemnity_form: boolean
+              p_require_passport: boolean
+              p_require_photo: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_coaching_amount: number
+              p_coaching_label: string
+              p_coaching_required?: boolean
+              p_display_order: number
+              p_extra_lines: Json
+              p_id: string
+              p_indemnity_clause: string
+              p_indemnity_template_name?: string
+              p_indemnity_template_url?: string
+              p_is_active: boolean
+              p_name: string
+              p_require_grading_card?: boolean
+              p_require_indemnity_form: boolean
+              p_require_passport: boolean
+              p_require_photo: boolean
+            }
+            Returns: string
+          }
       admin_upsert_competition_extra_line_preset: {
         Args: {
           p_default_amount: number
@@ -7806,6 +7827,7 @@ export type Database = {
           indemnity_template_url: string
           is_active: boolean
           name: string
+          require_grading_card: boolean
           require_indemnity_form: boolean
           require_passport: boolean
           require_photo: boolean
