@@ -287,6 +287,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
           )}
         </DialogContent>
       </Dialog>
+
+      <EditSeminarSubmissionDialog
+        submissionId={editingId}
+        onClose={() => setEditingId(null)}
+        onSaved={invalidate}
+      />
     </div>
   );
 };
