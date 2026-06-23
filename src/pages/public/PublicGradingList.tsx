@@ -2421,6 +2421,19 @@ const CompetitionsTab: React.FC<{
         onClose={() => setEditingId(null)}
         onSaved={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
       />
+
+      <GradingCardUploadDialog
+        open={!!gradingCardDialog}
+        onOpenChange={(o) => { if (!o) setGradingCardDialog(null); }}
+        submissionId={gradingCardDialog?.row.submission_id || null}
+        studentName={gradingCardDialog?.row.student_name}
+        existingUrls={gradingCardDialog?.row.grading_card_urls || []}
+        pendingVerify={gradingCardDialog?.pendingVerify || false}
+        onUploaded={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+        onVerifyAfter={async () => {
+          if (gradingCardDialog) await doVerify(gradingCardDialog.row.submission_id);
+        }}
+      />
     </div>
   );
 };
