@@ -101,6 +101,33 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =
     );
   });
 
+const isNetworkError = (e: any): boolean => {
+  const msg = (e?.message || String(e || '')).toLowerCase();
+  if (e instanceof TypeError) return true;
+  if (msg.includes('failed to fetch')) return true;
+  if (msg.includes('networkerror')) return true;
+  if (msg.includes('network request failed')) return true;
+  if (msg.includes('load failed')) return true;
+  if (msg.includes('timed out')) return true;
+  const status = e?.status || e?.statusCode;
+  if (typeof status === 'number' && status >= 500) return true;
+  return false;
+};
+
+const retry = async <T,>(fn: () => Promise<T>, attempts = 3, backoffMs = 800): Promise<T> => {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i === attempts - 1 || !isNetworkError(e)) throw e;
+      await new Promise(r => setTimeout(r, backoffMs * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
 export const submitSeminarPayment = async (
   input: SubmitSeminarPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
