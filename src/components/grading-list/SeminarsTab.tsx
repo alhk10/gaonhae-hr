@@ -176,9 +176,19 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                     <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
                   </TableCell>
                   <TableCell className="px-2 py-1">
-                    {r.paid_status === 'pending' ? (
-                      <div className="flex items-center gap-1">
-                        {canEdit && (
+                    <div className="flex items-center gap-1">
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(r.submission_id)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit submission"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {r.paid_status === 'pending' && canEdit && (
+                        <>
                           <button
                             type="button"
                             onClick={() => handleVerify(r)}
@@ -188,8 +198,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                           >
                             <CheckCircle className="h-4 w-4" />
                           </button>
-                        )}
-                        {canEdit && (
                           <button
                             type="button"
                             onClick={() => setRejectRow(r)}
@@ -198,12 +206,14 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                           >
                             <XCircle className="h-4 w-4" />
                           </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                        </>
+                      )}
+                      {!canEdit && r.paid_status !== 'pending' && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </TableCell>
+
                   {canDelete && (
                     <TableCell className="px-2 py-1">
                       {onRequestDelete && (
