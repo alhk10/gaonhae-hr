@@ -41,6 +41,8 @@ export interface PublicCompetitionListRow {
   indemnity_form_url: string | null;
   passport_url: string | null;
   photo_url: string | null;
+  require_grading_card: boolean;
+  grading_card_urls: string[];
 }
 
 export interface CompetitionExtraLine {
@@ -108,6 +110,7 @@ export interface CompetitionEvent {
   extra_lines: CompetitionExtraLine[];
   indemnity_template_url: string | null;
   indemnity_template_name: string | null;
+  require_grading_card: boolean;
 }
 
 export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
@@ -119,6 +122,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     coaching_required: r.coaching_required !== false,
     indemnity_template_url: r.indemnity_template_url ?? null,
     indemnity_template_name: r.indemnity_template_name ?? null,
+    require_grading_card: r.require_grading_card === true,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),
@@ -145,6 +149,7 @@ export const adminUpsertCompetitionEvent = async (input: {
   extra_lines: CompetitionExtraLine[];
   indemnity_template_url?: string | null;
   indemnity_template_name?: string | null;
+  require_grading_card?: boolean;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
     p_id: input.id,
@@ -166,6 +171,7 @@ export const adminUpsertCompetitionEvent = async (input: {
     p_coaching_required: input.coaching_required,
     p_indemnity_template_url: input.indemnity_template_url ?? null,
     p_indemnity_template_name: input.indemnity_template_name ?? null,
+    p_require_grading_card: input.require_grading_card === true,
   });
   if (error) throw error;
   return data as string;
