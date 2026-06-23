@@ -107,9 +107,8 @@ const calculateAge = (dob: string | Date | null | undefined): number | null => {
 /**
  * Determine the default belt for a brand-new student based on country and DOB.
  * Rules:
- *   - Australia + age < 5 → "Foundation"
- *   - Singapore + age < 5 → "Foundation 1"
- *   - Any country + age ≥ 5 → "White"
+ *   - Any country + age < 7 → "Foundation 1"
+ *   - Any country + age ≥ 7 → "White"
  *   - Missing country or DOB → null (let the UI keep the field empty)
  */
 export const getDefaultBeltForNewStudent = (
@@ -119,8 +118,8 @@ export const getDefaultBeltForNewStudent = (
   if (!country || !dob) return null;
   const age = calculateAge(dob);
   if (age === null) return null;
-  if (age >= 5) return 'White';
-  return country === 'Australia' ? 'Foundation' : 'Foundation 1';
+  if (age >= 7) return 'White';
+  return 'Foundation 1';
 };
 
 /**
