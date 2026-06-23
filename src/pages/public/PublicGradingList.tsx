@@ -76,7 +76,8 @@ import {
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
-import { getNextBeltLevel } from '@/constants/beltLevels';
+import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
+import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
