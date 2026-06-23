@@ -67,6 +67,7 @@ export const BELT_LEVELS_ARRAY: string[] = [...BELT_LEVELS];
 const FOUNDATION_TO_BLACK_TIP: ReadonlySet<string> = new Set([
   ...SG_FOUNDATION,
   ...AU_FOUNDATION,
+  'Foundation', // legacy AU value
   'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
   'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
 ]);
