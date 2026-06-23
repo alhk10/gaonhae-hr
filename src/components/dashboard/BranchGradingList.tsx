@@ -136,6 +136,7 @@ const getTermPaidLabel = (status: string): string => {
 const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStudentClick }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { branches } = useBranches();
 
   const [selectedTerm, setSelectedTerm] = useState<string>('');
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string } | null>(null);
