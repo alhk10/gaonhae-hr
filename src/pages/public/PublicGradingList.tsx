@@ -76,7 +76,8 @@ import {
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
-import { getNextBeltLevel } from '@/constants/beltLevels';
+import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
+import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
@@ -1933,8 +1934,15 @@ const CompetitionsTab: React.FC<{
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
 
-  const handleVerify = async (submissionId: string) => {
+  const gradingCardRequiredAndMissing = (r: PublicCompetitionListRow): boolean => {
+    return r.require_grading_card === true
+      && isFoundationToBlackTip(r.current_belt)
+      && (!r.grading_card_urls || r.grading_card_urls.length === 0);
+  };
+
+  const doVerify = async (submissionId: string) => {
     setVerifyingId(submissionId);
     try {
       await verifyCompetitionSubmission(submissionId, verifiedBy);
@@ -1948,6 +1956,16 @@ const CompetitionsTab: React.FC<{
       setVerifyingId(null);
     }
   };
+
+  const handleVerify = async (submissionId: string) => {
+    const r = (rows as PublicCompetitionListRow[]).find(x => x.submission_id === submissionId);
+    if (r && gradingCardRequiredAndMissing(r)) {
+      setGradingCardDialog({ row: r, pendingVerify: true });
+      return;
+    }
+    await doVerify(submissionId);
+  };
+
 
 
   const handleReject = async () => {
@@ -2262,7 +2280,32 @@ const CompetitionsTab: React.FC<{
                         <ImageIcon className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
+                    {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
+                      r.grading_card_urls && r.grading_card_urls.length > 0 ? (
+                        <button
+                          type="button"
+                          title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
+                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                          className="text-green-700 relative"
+                        >
+                          <IdCard className="h-3.5 w-3.5" />
+                          <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
+                            {r.grading_card_urls.length}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Grading card required — click to upload"
+                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                          className="text-amber-600 hover:text-amber-700"
+                        >
+                          <IdCard className="h-3.5 w-3.5" />
+                          <AlertTriangle className="h-2.5 w-2.5 -ml-1 -mt-2 inline" />
+                        </button>
+                      )
+                    ) : null}
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && !(r.require_grading_card && isFoundationToBlackTip(r.current_belt)) && (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </div>
@@ -2377,6 +2420,19 @@ const CompetitionsTab: React.FC<{
         submissionId={editingId}
         onClose={() => setEditingId(null)}
         onSaved={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+      />
+
+      <GradingCardUploadDialog
+        open={!!gradingCardDialog}
+        onOpenChange={(o) => { if (!o) setGradingCardDialog(null); }}
+        submissionId={gradingCardDialog?.row.submission_id || null}
+        studentName={gradingCardDialog?.row.student_name}
+        existingUrls={gradingCardDialog?.row.grading_card_urls || []}
+        pendingVerify={gradingCardDialog?.pendingVerify || false}
+        onUploaded={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+        onVerifyAfter={async () => {
+          if (gradingCardDialog) await doVerify(gradingCardDialog.row.submission_id);
+        }}
       />
     </div>
   );

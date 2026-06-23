@@ -53,6 +53,7 @@ const emptyForm = () => ({
   extra_lines: [] as CompetitionExtraLine[],
   indemnity_template_url: null as string | null,
   indemnity_template_name: null as string | null,
+  require_grading_card: false,
 });
 
 const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
@@ -133,6 +134,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       })),
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
+      require_grading_card: e.require_grading_card === true,
     });
   };
 
@@ -163,6 +165,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
           .filter(l => l.label || l.amount > 0),
         indemnity_template_url: form.indemnity_template_url,
         indemnity_template_name: form.indemnity_template_name,
+        require_grading_card: form.require_grading_card,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['competition-events-admin'] });
@@ -546,6 +549,23 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                   Photo upload
                 </Label>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Required from Admins</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="req-grading-card"
+                  checked={form.require_grading_card}
+                  onCheckedChange={(c) => setForm({ ...form, require_grading_card: c === true })}
+                />
+                <Label htmlFor="req-grading-card" className="text-xs font-normal cursor-pointer">
+                  Grading card upload
+                </Label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Admin must upload a grading card before verifying. Applies only to colour-belt participants (Foundation 1 → Black Tip).
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

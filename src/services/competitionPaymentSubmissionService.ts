@@ -41,6 +41,8 @@ export interface PublicCompetitionListRow {
   indemnity_form_url: string | null;
   passport_url: string | null;
   photo_url: string | null;
+  require_grading_card: boolean;
+  grading_card_urls: string[];
 }
 
 export interface CompetitionExtraLine {
@@ -108,6 +110,7 @@ export interface CompetitionEvent {
   extra_lines: CompetitionExtraLine[];
   indemnity_template_url: string | null;
   indemnity_template_name: string | null;
+  require_grading_card: boolean;
 }
 
 export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
@@ -119,6 +122,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     coaching_required: r.coaching_required !== false,
     indemnity_template_url: r.indemnity_template_url ?? null,
     indemnity_template_name: r.indemnity_template_name ?? null,
+    require_grading_card: r.require_grading_card === true,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),
@@ -145,6 +149,7 @@ export const adminUpsertCompetitionEvent = async (input: {
   extra_lines: CompetitionExtraLine[];
   indemnity_template_url?: string | null;
   indemnity_template_name?: string | null;
+  require_grading_card?: boolean;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
     p_id: input.id,
@@ -166,6 +171,7 @@ export const adminUpsertCompetitionEvent = async (input: {
     p_coaching_required: input.coaching_required,
     p_indemnity_template_url: input.indemnity_template_url ?? null,
     p_indemnity_template_name: input.indemnity_template_name ?? null,
+    p_require_grading_card: input.require_grading_card === true,
   });
   if (error) throw error;
   return data as string;
@@ -752,4 +758,40 @@ export const adminReplaceCompetitionSubmissionFile = async (
   if (updErr) throw updErr;
   return url;
 };
+
+/**
+ * Admin-only: upload one or more grading card files (images or PDF) for a competition
+ * submission. Appends signed URLs to `grading_card_urls`.
+ */
+export const adminUploadCompetitionGradingCards = async (
+  submissionId: string,
+  files: File[],
+): Promise<string[]> => {
+  if (!files || files.length === 0) return [];
+  const ts = Date.now();
+  const newUrls: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const path = `competition/${submissionId}/grading-card-${ts}-${i}.${ext}`;
+    await safeUpload('Grading card', path, file, file.type);
+    const url = await safeSignedUrl('Grading card', path);
+    newUrls.push(url);
+  }
+  // Read existing then append (avoid clobbering concurrent uploads in worst case)
+  const { data: existing, error: readErr } = await supabase
+    .from('competition_payment_submissions' as any)
+    .select('grading_card_urls')
+    .eq('id', submissionId)
+    .maybeSingle();
+  if (readErr) throw readErr;
+  const merged = [ ...((existing as any)?.grading_card_urls || []), ...newUrls ];
+  const { error: updErr } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update({ grading_card_urls: merged })
+    .eq('id', submissionId);
+  if (updErr) throw updErr;
+  return merged;
+};
+
 
