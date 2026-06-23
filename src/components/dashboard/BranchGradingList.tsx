@@ -44,6 +44,8 @@ import { InlineScorecardCell, InlineBmiCell } from '@/components/grading/InlineS
 import { ScorecardColumnHeader, AddScorecardColumnHeader } from '@/components/grading/ScorecardColumnHeader';
 import { listColumns, scorecardColumnsKey } from '@/services/gradingScorecardColumnService';
 import { downloadGradingCertificatePDF, generateBulkGradingCertificatesPDFAsync, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
+import { generateGradingPrepPDF } from '@/utils/gradingPrepPDFGenerator';
+import { useBranches } from '@/hooks/useBranches';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
