@@ -138,19 +138,33 @@ export const submitSeminarPayment = async (
 
   const proofExt = input.proof_file.name.split('.').pop() || 'jpg';
   const proofPath = `public-seminars/${input.branch_id}/${ts}_${safeName}_proof.${proofExt}`;
-  const { error: proofErr } = await withTimeout(
-    supabase.storage
-      .from('payment-proofs')
-      .upload(proofPath, input.proof_file, { upsert: false, contentType: input.proof_file.type }),
-    30000,
-    'Proof upload',
-  );
-  if (proofErr) throw new Error(`Proof upload failed: ${(proofErr as any).message || 'unknown error'}`);
+  console.info('[/seminars] uploading proof', { path: proofPath, size: input.proof_file.size, type: input.proof_file.type });
+  try {
+    const { error } = await retry(() => withTimeout(
+      supabase.storage
+        .from('payment-proofs')
+        .upload(proofPath, input.proof_file, { upsert: false, contentType: input.proof_file.type }),
+      20000,
+      'Proof upload',
+    ));
+    if (error) throw error;
+  } catch (e: any) {
+    console.error('[/seminars] proof upload error', e);
+    throw new Error(`Proof upload failed: ${e?.message || 'unknown error'}`);
+  }
 
-  const { data: signed } = await supabase.storage
-    .from('payment-proofs')
-    .createSignedUrl(proofPath, 60 * 60 * 24 * 365 * 5);
-  const proofUrl = signed?.signedUrl ?? proofPath;
+  let proofUrl = proofPath;
+  try {
+    const { data: signed, error: sErr } = await retry(() => withTimeout(
+      Promise.resolve(supabase.storage.from('payment-proofs').createSignedUrl(proofPath, 60 * 60 * 24 * 365 * 5)),
+      15000,
+      'Proof signed URL',
+    ));
+    if (sErr) throw sErr;
+    proofUrl = signed?.signedUrl ?? proofPath;
+  } catch (e) {
+    console.warn('[/seminars] signed URL fallback', e);
+  }
 
   const row = {
     first_name: fn,
@@ -168,12 +182,19 @@ export const submitSeminarPayment = async (
     proof_url: proofUrl,
   };
 
-  const { data, error } = await withTimeout(
-    Promise.resolve(supabase.rpc('submit_seminar_payment' as any, { _row: row as any })),
-    15000,
-    'Submission',
-  );
-  if (error) throw new Error(`Submission failed: ${error.message || 'unknown error'}`);
+  let data: any;
+  try {
+    const res = await retry(() => withTimeout(
+      Promise.resolve(supabase.rpc('submit_seminar_payment' as any, { _row: row as any })),
+      15000,
+      'Submission',
+    ));
+    if ((res as any).error) throw (res as any).error;
+    data = (res as any).data;
+  } catch (e: any) {
+    console.error('[/seminars] RPC error', e);
+    throw new Error(`Submission failed: ${e?.message || 'unknown error'}`);
+  }
   const inserted = Array.isArray(data) ? data[0] : data;
   if (!inserted) throw new Error('Submission failed: no record returned');
 
