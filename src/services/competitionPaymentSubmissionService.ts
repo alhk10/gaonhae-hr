@@ -402,23 +402,9 @@ export const submitCompetitionPayment = async (
   const proofExt = input.proof_file.name.split('.').pop() || 'jpg';
   const proofPath = `public-comps/${input.branch_id}/${ts}_${safeName}_proof.${proofExt}`;
   console.info('[/comps] uploading proof', { path: proofPath, size: input.proof_file.size, type: input.proof_file.type });
-  const { error: proofErr } = await withTimeout(
-    supabase.storage
-      .from('payment-proofs')
-      .upload(proofPath, input.proof_file, { upsert: false, contentType: input.proof_file.type }),
-    30000,
-    'Proof upload',
-  );
-  if (proofErr) {
-    console.error('[/comps] proof upload error', proofErr);
-    throw new Error(`Proof upload failed: ${(proofErr as any).message || 'unknown error'}`);
-  }
+  await safeUpload('Proof', proofPath, input.proof_file, input.proof_file.type);
   console.info('[/comps] proof uploaded');
-
-  const { data: proofSigned } = await supabase.storage
-    .from('payment-proofs')
-    .createSignedUrl(proofPath, 60 * 60 * 24 * 365 * 5);
-  const proofUrl = proofSigned?.signedUrl ?? proofPath;
+  const proofUrl = await safeSignedUrl('Proof', proofPath);
 
   // Upload certificate (optional)
   let certificateUrl: string | null = null;
@@ -426,21 +412,8 @@ export const submitCompetitionPayment = async (
     const certExt = input.certificate_file.name.split('.').pop() || 'jpg';
     const certPath = `public-comps/${input.branch_id}/${ts}_${safeName}_cert.${certExt}`;
     console.info('[/comps] uploading certificate', { path: certPath, size: input.certificate_file.size });
-    const { error: cErr } = await withTimeout(
-      supabase.storage
-        .from('payment-proofs')
-        .upload(certPath, input.certificate_file, { upsert: false, contentType: input.certificate_file.type }),
-      30000,
-      'Certificate upload',
-    );
-    if (cErr) {
-      console.error('[/comps] cert upload error', cErr);
-      throw new Error(`Certificate upload failed: ${(cErr as any).message || 'unknown error'}`);
-    }
-    const { data: certSigned } = await supabase.storage
-      .from('payment-proofs')
-      .createSignedUrl(certPath, 60 * 60 * 24 * 365 * 5);
-    certificateUrl = certSigned?.signedUrl ?? certPath;
+    await safeUpload('Certificate', certPath, input.certificate_file, input.certificate_file.type);
+    certificateUrl = await safeSignedUrl('Certificate', certPath);
     console.info('[/comps] certificate uploaded');
   }
 
@@ -449,36 +422,25 @@ export const submitCompetitionPayment = async (
     if (!file) return null;
     const ext = file.name.split('.').pop() || 'jpg';
     const p = `public-comps/${input.branch_id}/${ts}_${safeName}_${kind}.${ext}`;
-    const { error: e } = await withTimeout(
-      supabase.storage
-        .from('payment-proofs')
-        .upload(p, file, { upsert: false, contentType: file.type }),
-      30000,
-      `${kind} upload`,
-    );
-    if (e) throw new Error(`${kind} upload failed: ${(e as any).message || 'unknown error'}`);
-    const { data: signed } = await supabase.storage
-      .from('payment-proofs')
-      .createSignedUrl(p, 60 * 60 * 24 * 365 * 5);
-    return signed?.signedUrl ?? p;
+    await safeUpload(kind, p, file, file.type);
+    return await safeSignedUrl(kind, p);
   };
 
   const indemnityFormUrl = await uploadOptional(input.indemnity_form_file, 'indemnity');
   const passportUrl = await uploadOptional(input.passport_file, 'passport');
   const photoUrl = await uploadOptional(input.photo_file, 'photo');
 
-  // Signature: convert data URL to File and upload
+  // Signature: decode data URL to File without fetch() and upload
   let signatureUrl: string | null = null;
   if (input.signature_data_url) {
+    let sigFile: File;
     try {
-      const res = await fetch(input.signature_data_url);
-      const blob = await res.blob();
-      const sigFile = new File([blob], `${safeName}_signature.png`, { type: 'image/png' });
-      signatureUrl = await uploadOptional(sigFile, 'signature');
-    } catch (e) {
-      console.error('[/comps] signature upload error', e);
-      throw new Error('Signature upload failed');
+      sigFile = dataUrlToFile(input.signature_data_url, `${safeName}_signature.png`);
+    } catch (e: any) {
+      console.error('[/comps] signature decode error', e);
+      throw new Error(`Signature upload failed: ${e?.message || 'could not decode signature'}`);
     }
+    signatureUrl = await uploadOptional(sigFile, 'signature');
   }
 
   const row = {
@@ -504,14 +466,18 @@ export const submitCompetitionPayment = async (
   };
 
   console.info('[/comps] calling submit_competition_payment RPC');
-  const { data, error } = await withTimeout(
-    Promise.resolve(supabase.rpc('submit_competition_payment' as any, { _row: row as any })),
-    15000,
-    'Submission',
-  );
-  if (error) {
-    console.error('[/comps] RPC error', error);
-    throw new Error(`Submission failed: ${error.message || 'unknown error'}`);
+  let data: any;
+  try {
+    const res = await retry(() => withTimeout(
+      Promise.resolve(supabase.rpc('submit_competition_payment' as any, { _row: row as any })),
+      15000,
+      'Submission',
+    ));
+    if ((res as any).error) throw (res as any).error;
+    data = (res as any).data;
+  } catch (e: any) {
+    console.error('[/comps] RPC error', e);
+    throw new Error(`Submission failed: ${e?.message || 'unknown error'}`);
   }
   const inserted = Array.isArray(data) ? data[0] : data;
   if (!inserted) {
