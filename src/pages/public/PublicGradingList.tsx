@@ -1884,6 +1884,7 @@ const CompetitionsTab: React.FC<{
   onRequestDelete?: (id: string, studentName: string) => void;
 }> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
