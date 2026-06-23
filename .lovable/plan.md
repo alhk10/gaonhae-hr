@@ -1,42 +1,49 @@
-## Problem
+## Goal
+Add a missing "Categories" editor to the Edit competition submission dialog (Competitions tab on `/grading-list`), so admins can change which categories a competitor is registered for after submission.
 
-The /comps form shows a bare **"Failed to fetch"** on submit. That string is the raw `TypeError` thrown by the browser when a `fetch()` call cannot complete (network blip, dropped mobile connection, CORS edge case, or the OS killing the request mid-upload).
+## Where
+`src/components/grading-list/EditCompetitionSubmissionDialog.tsx`
 
-In `src/services/competitionPaymentSubmissionService.ts → submitCompetitionPayment`, each Supabase Storage `upload()` is handled like this:
+## What it edits
+Two underlying data points on `competition_payment_submissions`:
+1. `category_product_ids` (uuid[]) — categories tied to the event's official category products (defined per event in `competition_event_categories`).
+2. `extra_lines` (jsonb) — ad-hoc/extra category entries with `{ label, amount, kind: 'category' }` (kept alongside `kind: 'other'` lines, which we leave untouched).
 
-```ts
-const { error: proofErr } = await withTimeout(supabase.storage.from('payment-proofs').upload(...), 30000, 'Proof upload');
-if (proofErr) throw new Error(`Proof upload failed: ${proofErr.message}`);
-```
+## UI changes
+Insert a new "Categories" section between the Poomsae 2 row and the existing Files section:
 
-That only wraps the **returned** `{ error }` path. When supabase-js throws a `TypeError("Failed to fetch")` (network failure before the response is parsed), it bypasses the wrapper and bubbles up unchanged — which is exactly what the screenshot shows. So we don't even know which step failed (proof, certificate, indemnity, passport, photo, signature, or the final RPC).
+- Heading: "Categories" (text-xs font-semibold), same density as rest of dialog.
+- **Event categories** (only shown when the submission has an `event_id`):
+  - Fetch the event via existing `getPublicCompetitionEvents()` and find the matching event; render its `categories` array as a grid of checkboxes (label = category product name, with `$amount` to the right).
+  - Pre-check whatever is in `category_product_ids`.
+  - Show a small "Total selected: $X.XX" line under the grid.
+  - If no `event_id` on the row, show a muted hint: "No event linked — only extra categories editable."
+- **Extra categories** (rows from `extra_lines` where `kind === 'category'`):
+  - Editable list: each row = Label input (h-7 text-xs) + Amount input (h-7 text-xs, number, step 0.01) + trash button.
+  - "Add extra category" button (size sm, variant outline) appends a blank row.
+  - `extra_lines` entries with `kind === 'other'` are preserved as-is (not shown, not modified).
 
-## Fix
+## Save flow
+On "Save changes":
+1. Existing `adminPatchCompetitionSubmission(...)` call — extend the patch with the recomputed `extra_lines` JSON (merging the edited category rows with the untouched `other` rows).
+2. After that resolves, if `event_id` is present and the checked set changed, call existing `updateCompetitionSubmissionCategories(submissionId, selectedProductIds)`.
+3. `refetch()` then `onSaved?.()` and close as today.
 
-Make submission resilient and self-describing in `src/services/competitionPaymentSubmissionService.ts`:
+Error handling: any thrown error → existing `toast.error` path. No partial-save toasts.
 
-1. **Wrap every upload + RPC in a try/catch** that:
-   - Catches both the returned `{ error }` and any thrown `TypeError`/network error.
-   - Re-throws with a labeled message, e.g. `"Proof upload failed: Failed to fetch (network)"`, `"Signature upload failed: ..."`, `"Submission RPC failed: ..."`. The user (and console) will see which step actually broke.
+## State additions
+- `selectedCategoryIds: string[]`
+- `extraCategoryLines: Array<{ label: string; amount: number }>`
+- Reset both inside the existing `useEffect([row])` block from `row.category_product_ids` and `row.extra_lines`.
 
-2. **Add a small retry helper** (`retry(fn, { attempts: 3, backoffMs: 800 })`) and use it for each storage `upload()`, `createSignedUrl()`, and the final `supabase.rpc('submit_competition_payment', ...)`. Retry only on network-class failures (`TypeError`, `Failed to fetch`, timeouts, HTTP 5xx) — never on validation errors. This handles transient mobile-network drops, which is the most likely root cause given a 358KB proof file and otherwise healthy bucket policies.
-
-3. **Convert data-URL signatures to a Blob without `fetch()`** — decode base64 → `Uint8Array` → `new File([...], 'signature.png', { type: 'image/png' })`. This removes one fragile `fetch()` call entirely and avoids a known Android WebView failure mode where `fetch(dataUrl)` rejects with "Failed to fetch" on large canvas PNGs.
-
-4. **Keep the existing 30s `withTimeout`** but lower per-upload timeout to 20s and let the retry layer cover transient timeouts; the final RPC stays at 15s.
-
-5. **Surface the labeled error** in `PublicCompetitionPayment.tsx`'s `submitError` (already wired) and also `console.error` the original cause for prod debugging.
-
-Apply the same three changes to `src/services/seminarPaymentSubmissionService.ts` (mirror file) so the seminar form benefits from the same hardening.
+## Data fetching
+- Reuse existing `getPublicCompetitionEvents` via `useQuery({ queryKey: ['public-competition-events'] })` with `staleTime: 5 * 60 * 1000`.
+- Derive `eventCategoryOptions` via `useMemo` from the loaded event matching `row.event_id`.
 
 ## Out of scope
+- No DB / migration / RPC changes — `admin_update_competition_submission_categories` and `extra_lines` writes via row update already exist and are used today.
+- No changes to `/comps` public form, Seminar dialog, or list/print views.
+- No automatic recompute of `amount` (admin already edits Amount manually in the same dialog); we just show the selected-category subtotal as guidance.
 
-- No changes to RLS, storage bucket config, RPC, or the public form's UI/fields.
-- No schema or migration changes.
-- No retry on the RPC's *business* errors (duplicate reference, validation), only on network failures.
-
-## Verification
-
-- Submit a /comps form with throttled "Slow 3G" in DevTools → expect retries, then either success or a labeled error like "Proof upload failed: …".
-- Force-fail by going offline mid-submit → expect a clear `"<step> failed: Failed to fetch"` message instead of a bare one.
-- Happy path with normal network → unchanged behavior, single attempt, success.
+## Files touched
+- `src/components/grading-list/EditCompetitionSubmissionDialog.tsx` (only).
