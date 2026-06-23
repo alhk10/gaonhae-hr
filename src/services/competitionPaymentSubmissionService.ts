@@ -637,3 +637,76 @@ export const getCompetitionSubmissionDeleteContext = async (id: string) => {
     invoice_number: (row?.invoice_number ?? null) as string | null,
   };
 };
+
+/**
+ * Fetch the full submission row (all columns) for the admin edit dialog
+ * opened from the Competitions tab on /grading-list.
+ */
+export const getCompetitionSubmissionForEdit = async (id: string): Promise<any> => {
+  const { data, error } = await supabase
+    .from('competition_payment_submissions' as any)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Patch arbitrary editable fields on a competition submission row.
+ * Used by the admin edit dialog.
+ */
+export const adminPatchCompetitionSubmission = async (
+  id: string,
+  patch: Record<string, any>,
+): Promise<void> => {
+  const clean: any = { ...patch };
+  if (typeof clean.first_name === 'string') clean.first_name = clean.first_name.trim().toUpperCase();
+  if (typeof clean.last_name === 'string') clean.last_name = clean.last_name.trim().toUpperCase();
+  if (typeof clean.email === 'string') clean.email = clean.email.trim().toLowerCase() || null;
+  if (clean.current_belt === '') clean.current_belt = null;
+  if (clean.gender === '') clean.gender = null;
+  const { error } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update(clean)
+    .eq('id', id);
+  if (error) throw error;
+};
+
+/**
+ * Replace an uploaded file (proof / certificate / signature / indemnity /
+ * passport / photo) and patch the matching *_url column on the submission row.
+ */
+export const adminReplaceCompetitionSubmissionFile = async (
+  id: string,
+  kind: 'proof' | 'certificate' | 'signature' | 'indemnity' | 'passport' | 'photo',
+  file: File,
+  branchId: string,
+): Promise<string> => {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const safe = `edit_${Date.now()}_${kind}.${ext}`;
+  const path = `public-comps/${branchId}/${safe}`;
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (upErr) throw new Error(`${kind} upload failed: ${upErr.message}`);
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const url = signed?.signedUrl ?? path;
+  const colMap: Record<string, string> = {
+    proof: 'proof_url',
+    certificate: 'certificate_url',
+    signature: 'signature_url',
+    indemnity: 'indemnity_form_url',
+    passport: 'passport_url',
+    photo: 'photo_url',
+  };
+  const { error: updErr } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update({ [colMap[kind]]: url })
+    .eq('id', id);
+  if (updErr) throw updErr;
+  return url;
+};
+

@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
+import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
@@ -1883,6 +1884,7 @@ const CompetitionsTab: React.FC<{
   onRequestDelete?: (id: string, studentName: string) => void;
 }> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-competition-list', branchFilter],
@@ -2211,30 +2213,43 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  {r.paid_status === 'pending verification' ? (
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1">
+                    {canEdit && (
                       <button
                         type="button"
-                        onClick={() => handleVerify(r.submission_id)}
-                        disabled={verifyingId === r.submission_id}
-                        className="text-green-600 hover:text-green-800 disabled:opacity-50"
-                        title="Verify"
+                        onClick={() => setEditingId(r.submission_id)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Edit submission"
                       >
-                        <CheckCircle className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setRejectingId(r.submission_id); setRejectReason(''); }}
-                        className="text-red-600 hover:text-red-800"
-                        title="Reject"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                    )}
+                    {r.paid_status === 'pending verification' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleVerify(r.submission_id)}
+                          disabled={verifyingId === r.submission_id}
+                          className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                          title="Verify"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRejectingId(r.submission_id); setRejectReason(''); }}
+                          className="text-red-600 hover:text-red-800"
+                          title="Reject"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : !canEdit ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : null}
+                  </div>
                 </TableCell>
+
                 {canDelete && (
                   <TableCell className="px-2 py-1">
                     <button
@@ -2302,6 +2317,12 @@ const CompetitionsTab: React.FC<{
           )}
         </DialogContent>
       </Dialog>
+
+      <EditCompetitionSubmissionDialog
+        submissionId={editingId}
+        onClose={() => setEditingId(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+      />
     </div>
   );
 };

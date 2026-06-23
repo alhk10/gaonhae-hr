@@ -5,7 +5,8 @@
  */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil } from 'lucide-react';
+import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -58,6 +59,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [busyId, setBusyId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-seminar-list', branchFilter, statusFilter],
@@ -174,9 +176,19 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                     <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
                   </TableCell>
                   <TableCell className="px-2 py-1">
-                    {r.paid_status === 'pending' ? (
-                      <div className="flex items-center gap-1">
-                        {canEdit && (
+                    <div className="flex items-center gap-1">
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(r.submission_id)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit submission"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {r.paid_status === 'pending' && canEdit && (
+                        <>
                           <button
                             type="button"
                             onClick={() => handleVerify(r)}
@@ -186,8 +198,6 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                           >
                             <CheckCircle className="h-4 w-4" />
                           </button>
-                        )}
-                        {canEdit && (
                           <button
                             type="button"
                             onClick={() => setRejectRow(r)}
@@ -196,12 +206,14 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                           >
                             <XCircle className="h-4 w-4" />
                           </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                        </>
+                      )}
+                      {!canEdit && r.paid_status !== 'pending' && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </TableCell>
+
                   {canDelete && (
                     <TableCell className="px-2 py-1">
                       {onRequestDelete && (
@@ -275,6 +287,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
           )}
         </DialogContent>
       </Dialog>
+
+      <EditSeminarSubmissionDialog
+        submissionId={editingId}
+        onClose={() => setEditingId(null)}
+        onSaved={invalidate}
+      />
     </div>
   );
 };

@@ -364,3 +364,63 @@ export const updateSeminarSubmissionDetails = async (
     .eq('id', id);
   if (error) throw error;
 };
+
+/**
+ * Fetch the full seminar submission row for the admin edit dialog.
+ */
+export const getSeminarSubmissionForEdit = async (id: string): Promise<any> => {
+  const { data, error } = await supabase
+    .from('seminar_payment_submissions' as any)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * Patch arbitrary editable fields on a seminar submission row.
+ */
+export const adminPatchSeminarSubmission = async (
+  id: string,
+  patch: Record<string, any>,
+): Promise<void> => {
+  const clean: any = { ...patch };
+  if (typeof clean.first_name === 'string') clean.first_name = clean.first_name.trim().toUpperCase();
+  if (typeof clean.last_name === 'string') clean.last_name = clean.last_name.trim().toUpperCase();
+  if (typeof clean.email === 'string') clean.email = clean.email.trim().toLowerCase() || null;
+  if (clean.current_belt === '') clean.current_belt = null;
+  if (clean.gender === '') clean.gender = null;
+  const { error } = await supabase
+    .from('seminar_payment_submissions' as any)
+    .update(clean)
+    .eq('id', id);
+  if (error) throw error;
+};
+
+/**
+ * Replace the proof file on a seminar submission row.
+ */
+export const adminReplaceSeminarSubmissionProof = async (
+  id: string,
+  file: File,
+  branchId: string,
+): Promise<string> => {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `public-seminars/${branchId}/edit_${Date.now()}_proof.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const url = signed?.signedUrl ?? path;
+  const { error: updErr } = await supabase
+    .from('seminar_payment_submissions' as any)
+    .update({ proof_url: url })
+    .eq('id', id);
+  if (updErr) throw updErr;
+  return url;
+};
+
