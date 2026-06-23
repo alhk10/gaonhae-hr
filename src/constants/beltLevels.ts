@@ -37,7 +37,7 @@ export const COMMON_BELTS = [
 
 // Country-specific foundation belts
 export const SG_FOUNDATION = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
-export const AU_FOUNDATION = ['Foundation'] as const;
+export const AU_FOUNDATION = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
 
 // Country-specific full lists
 export const SG_BELT_LEVELS = [...SG_FOUNDATION, ...COMMON_BELTS] as const;
@@ -50,6 +50,7 @@ export const AU_BELT_LEVELS = [...AU_FOUNDATION, ...COMMON_BELTS] as const;
 export const BELT_LEVELS = [
   ...SG_FOUNDATION,
   ...AU_FOUNDATION,
+  'Foundation', // legacy AU value, kept for existing records
   ...COMMON_BELTS,
 ] as const;
 
@@ -66,6 +67,7 @@ export const BELT_LEVELS_ARRAY: string[] = [...BELT_LEVELS];
 const FOUNDATION_TO_BLACK_TIP: ReadonlySet<string> = new Set([
   ...SG_FOUNDATION,
   ...AU_FOUNDATION,
+  'Foundation', // legacy AU value
   'White', 'Yellow Tip', 'Yellow', 'Green Tip', 'Green',
   'Blue Tip', 'Blue', 'Red Tip', 'Red', 'Black Tip',
 ]);
@@ -105,9 +107,8 @@ const calculateAge = (dob: string | Date | null | undefined): number | null => {
 /**
  * Determine the default belt for a brand-new student based on country and DOB.
  * Rules:
- *   - Australia + age < 5 → "Foundation"
- *   - Singapore + age < 5 → "Foundation 1"
- *   - Any country + age ≥ 5 → "White"
+ *   - Any country + age < 7 → "Foundation 1"
+ *   - Any country + age ≥ 7 → "White"
  *   - Missing country or DOB → null (let the UI keep the field empty)
  */
 export const getDefaultBeltForNewStudent = (
@@ -117,8 +118,8 @@ export const getDefaultBeltForNewStudent = (
   if (!country || !dob) return null;
   const age = calculateAge(dob);
   if (age === null) return null;
-  if (age >= 5) return 'White';
-  return country === 'Australia' ? 'Foundation' : 'Foundation 1';
+  if (age >= 7) return 'White';
+  return 'Foundation 1';
 };
 
 /**
