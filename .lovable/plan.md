@@ -1,64 +1,54 @@
-# Mirror grading-tab verify behavior on competition & seminar tabs
+## Add Print button for Grading Preparation PDF
 
-## Current behavior
+Add a **Print** button to the right of the "Yet to Receive" tab in the `Students for Grading` toolbar (`src/components/dashboard/BranchGradingList.tsx`). Clicking it generates a PDF of the **currently displayed students** (respects the active term + tab filter) using `jsPDF` (already used elsewhere, e.g. `taxExport.ts`).
 
-- **Grading tab** (`PublicGradingList.tsx`): green check button calls `verifyGradingSubmission` → RPC `admin_verify_grading_submission` flips status to `verified`. No student matching, no invoice creation.
-- **Competition tab** (inside `PublicGradingList.tsx`) and **Seminar tab** (`SeminarsTab.tsx`): green check opens a "Match student & verify" dialog (fuzzy search + create-new-student) and then imports the submission as an invoice.
-- **Superadmin Dashboard**: `PublicCompetitionSubmissionApprovals` and `PublicSeminarSubmissionApprovals` already provide the full match-and-import workflow.
+### PDF contents
 
-## Target behavior
+Title: `Grading Preparation — {Branch Name} — {Term Name}` with generation date.
 
-- On `/grading-list`, the competition and seminar verify buttons become **one-click verify** (same as grading tab): mark status `verified`, no matching, no invoice generation.
-- **Student matching + invoice import remains exclusively on the Superadmin Dashboard**, performed by superadmins via the existing approval components.
-- Reject button on both tabs is unchanged.
+Table columns:
+| # | Student Name | Belt | Ready for Grading | Paid | Slot | School Fees |
+|---|--------------|------|-------------------|------|------|-------------|
 
-## Changes
+- **Student Name** — filled (uppercase, matches on-screen formatting)
+- **Belt** — filled (current belt)
+- **Ready for Grading** — blank box (for manual tick)
+- **Paid** — blank box (for manual tick)
+- **Slot** — blank line (for manual write-in)
+- **School Fees** — blank box (for manual tick)
 
-### 1. New SQL migration — verify-only RPCs
+Sorting matches the on-screen order (belt rank → DOB → name).
 
-Add two security-definer functions modeled on `admin_verify_grading_submission`:
+### UI
 
-- `public.admin_verify_competition_submission(p_id uuid, p_verified_by text)` — updates `competition_payment_submissions` set `status = 'verified'`, `reviewed_by`, `reviewed_at`, `updated_at`, gated on current `status = 'pending_verification'`.
-- `public.admin_verify_seminar_submission(p_id uuid, p_verified_by text)` — same shape against `seminar_payment_submissions`.
-- `GRANT EXECUTE ... TO authenticated` for both.
+In the toolbar row (lines ~798-805), add to the right of the `<Tabs>`:
 
-### 2. Service wrappers
+```
+<Button size="sm" variant="outline" onClick={handlePrintPrep} className="h-8 text-xs">
+  <Printer className="w-3.5 h-3.5 mr-1" /> Print
+</Button>
+```
 
-- `src/services/competitionPaymentSubmissionService.ts`: add `verifyCompetitionSubmission(id, verifiedBy)` calling the new RPC.
-- `src/services/seminarPaymentSubmissionService.ts`: add `verifySeminarSubmission(id, verifiedBy)` calling the new RPC.
+Place inside the same flex container so it sits far-right; if the toolbar isn't already flex with `justify-between`, wrap accordingly.
 
-### 3. `SeminarsTab.tsx`
+### Implementation
 
-- Replace the "Accept (match & verify)" handler with a direct call to `verifySeminarSubmission` (pattern copied from grading tab's `handleVerify`).
-- Remove the match dialog (`acceptingRow` state, suggested-matches block, student search, "Create new student from submission & verify" button) — these are no longer reachable from this tab.
-- Keep the reject dialog and delete column untouched.
-- Update tooltip from "Accept (match & verify)" to "Verify".
-- Invalidate `['public-seminar-list']`, `['pending-seminar-submissions']`, `['pending-seminar-submissions-count']` on success.
+New helper `utils/gradingPrepPDFGenerator.ts`:
+- Function `generateGradingPrepPDF({ students, branchName, termName })`.
+- A4 portrait, jsPDF, simple ruled table with empty cells for tick/write columns, page breaks when `y > 280`.
+- Saves as `Grading_Prep_{Branch}_{Term}.pdf`.
 
-### 4. Competition table inside `PublicGradingList.tsx`
+In `BranchGradingList.tsx`:
+- Import `Printer` from `lucide-react` and the new helper.
+- `handlePrintPrep` calls helper with `displayedStudents`, current term name (lookup from `branchTerms`), and branch name (already available via prop or query).
 
-The competition rows are rendered by an inner component (around lines 1884–2280) that currently calls `importCompetitionSubmission` from an "Accept" dialog.
+### Out of scope
 
-- Replace the green check action so it calls a new `handleVerifyCompetition` → `verifyCompetitionSubmission(submission_id, verifiedBy)`.
-- Remove the match-student dialog (`acceptingId` state, suggested matches, search, "Create new" path) from this component only — superadmin dashboard already owns that flow.
-- Keep reject dialog and all other table columns/edits unchanged.
-- Invalidate `['public-competition-list']`, `['pending-competition-submissions']`, `['pending-competition-submissions-count']` on success.
+- No DB or service changes.
+- No changes to the other tabs (Weekly Timetable, Students, Invoice & Payment, Inventory, Notices).
+- No changes to existing Actions column or other PDF exports.
 
-### 5. No frontend access change required
+### Files
 
-Role gating already restricts these icons to `canEdit`. The match-and-import path remains available only via `PublicCompetitionSubmissionApprovals` / `PublicSeminarSubmissionApprovals` on the superadmin dashboard, which is already routed under superadmin-only access.
-
-## Out of scope
-
-- No changes to grading tab.
-- No changes to superadmin dashboard approval components.
-- No changes to public submission forms, edge functions, or email templates.
-- No changes to `extra_lines` / categories work from prior turns.
-
-## Files touched
-
-- `supabase/migrations/<new>.sql` (new)
-- `src/services/competitionPaymentSubmissionService.ts`
-- `src/services/seminarPaymentSubmissionService.ts`
-- `src/components/grading-list/SeminarsTab.tsx`
-- `src/pages/public/PublicGradingList.tsx` (competition inner component only)
+- **Edit** `src/components/dashboard/BranchGradingList.tsx` — add button + handler.
+- **Create** `src/utils/gradingPrepPDFGenerator.ts` — PDF builder.
