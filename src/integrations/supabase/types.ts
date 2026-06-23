@@ -1086,6 +1086,7 @@ export type Database = {
           indemnity_template_url: string | null
           is_active: boolean
           name: string
+          require_grading_card: boolean
           require_indemnity_form: boolean
           require_passport: boolean
           require_photo: boolean
@@ -1105,6 +1106,7 @@ export type Database = {
           indemnity_template_url?: string | null
           is_active?: boolean
           name: string
+          require_grading_card?: boolean
           require_indemnity_form?: boolean
           require_passport?: boolean
           require_photo?: boolean
@@ -1124,6 +1126,7 @@ export type Database = {
           indemnity_template_url?: string | null
           is_active?: boolean
           name?: string
+          require_grading_card?: boolean
           require_indemnity_form?: boolean
           require_passport?: boolean
           require_photo?: boolean
@@ -1192,6 +1195,7 @@ export type Database = {
           extra_lines: Json
           first_name: string
           gender: string | null
+          grading_card_urls: string[]
           id: string
           indemnity_form_url: string | null
           last_name: string
@@ -1231,6 +1235,7 @@ export type Database = {
           extra_lines?: Json
           first_name: string
           gender?: string | null
+          grading_card_urls?: string[]
           id?: string
           indemnity_form_url?: string | null
           last_name: string
@@ -1270,6 +1275,7 @@ export type Database = {
           extra_lines?: Json
           first_name?: string
           gender?: string | null
+          grading_card_urls?: string[]
           id?: string
           indemnity_form_url?: string | null
           last_name?: string
@@ -7834,6 +7840,7 @@ export type Database = {
           event_name: string
           extra_categories: string[]
           gender: string
+          grading_card_urls: string[]
           indemnity_form_url: string
           paid_status: string
           passport_url: string
@@ -7843,6 +7850,7 @@ export type Database = {
           proof_url: string
           reference_number: string
           reporting_at: string
+          require_grading_card: boolean
           signature_url: string
           status: string
           student_name: string
