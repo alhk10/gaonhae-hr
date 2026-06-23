@@ -313,6 +313,83 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =
     );
   });
 
+// Retry only on network-class failures, never on validation/business errors.
+const isNetworkError = (e: any): boolean => {
+  const msg = (e?.message || String(e || '')).toLowerCase();
+  if (e instanceof TypeError) return true;
+  if (msg.includes('failed to fetch')) return true;
+  if (msg.includes('networkerror')) return true;
+  if (msg.includes('network request failed')) return true;
+  if (msg.includes('load failed')) return true;
+  if (msg.includes('timed out')) return true;
+  const status = e?.status || e?.statusCode;
+  if (typeof status === 'number' && status >= 500) return true;
+  return false;
+};
+
+const retry = async <T,>(fn: () => Promise<T>, attempts = 3, backoffMs = 800): Promise<T> => {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i === attempts - 1 || !isNetworkError(e)) throw e;
+      await new Promise(r => setTimeout(r, backoffMs * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
+// Wrap an upload so both thrown errors AND {error} returns become labeled exceptions.
+const safeUpload = async (
+  label: string,
+  path: string,
+  file: File | Blob,
+  contentType: string | undefined,
+): Promise<void> => {
+  try {
+    const { error } = await retry(() => withTimeout(
+      supabase.storage.from('payment-proofs').upload(path, file, { upsert: false, contentType }),
+      20000,
+      `${label} upload`,
+    ));
+    if (error) throw error;
+  } catch (e: any) {
+    console.error(`[/comps] ${label} upload error`, e);
+    const reason = e?.message || 'unknown error';
+    throw new Error(`${label} upload failed: ${reason}`);
+  }
+};
+
+const safeSignedUrl = async (label: string, path: string): Promise<string> => {
+  try {
+    const { data, error } = await retry(() => withTimeout(
+      Promise.resolve(supabase.storage.from('payment-proofs').createSignedUrl(path, 60 * 60 * 24 * 365 * 5)),
+      15000,
+      `${label} signed URL`,
+    ));
+    if (error) throw error;
+    return data?.signedUrl ?? path;
+  } catch (e: any) {
+    console.warn(`[/comps] ${label} signed URL fallback`, e);
+    return path;
+  }
+};
+
+// Convert a data URL to a File without using fetch() — avoids an Android WebView
+// failure mode where fetch(dataUrl) rejects with "Failed to fetch" for large PNGs.
+const dataUrlToFile = (dataUrl: string, filename: string, fallbackType = 'image/png'): File => {
+  const match = /^data:([^;,]+)?(?:;base64)?,(.*)$/i.exec(dataUrl);
+  if (!match) throw new Error('Invalid signature data URL');
+  const mime = match[1] || fallbackType;
+  const isBase64 = /;base64,/i.test(dataUrl);
+  const raw = isBase64 ? atob(match[2]) : decodeURIComponent(match[2]);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new File([bytes], filename, { type: mime });
+};
+
 export const submitCompetitionPayment = async (
   input: SubmitCompetitionPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
