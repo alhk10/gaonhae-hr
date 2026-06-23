@@ -37,7 +37,7 @@ export const COMMON_BELTS = [
 
 // Country-specific foundation belts
 export const SG_FOUNDATION = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
-export const AU_FOUNDATION = ['Foundation'] as const;
+export const AU_FOUNDATION = ['Foundation 1', 'Foundation 2', 'Foundation 3'] as const;
 
 // Country-specific full lists
 export const SG_BELT_LEVELS = [...SG_FOUNDATION, ...COMMON_BELTS] as const;

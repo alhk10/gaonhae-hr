@@ -1,25 +1,28 @@
-## Fix Grading Preparation PDF layout
+## Goal
 
-The current PDF overflows the A4 page width ("School Fees" clipped at the right edge). Adjust `src/utils/gradingPrepPDFGenerator.ts` only — no other files change.
+From Term 2 onward, all Australian branches (Morley + others) use the Foundation 1 / 2 / 3 progression instead of the single "Foundation" belt — matching Singapore. New-student default rules also widen: students under 7 (was under 5) default to Foundation 1.
 
-### Changes to `generateGradingPrepPDF`
+Belt-list change only. No bulk update of existing student belt records in this plan — that can be a follow-up data migration once UI behaviour is confirmed.
 
-1. **Resize columns to fit A4 usable width (186mm)** — sum of column widths must equal `usableW`, not exceed it. New widths (mm):
-   - `#` 8, `Student Name` 56, `Belt` 22, `Ready for Grading` 28, `Paid` 14, `Slot` 40, `School Fees` 18 → total 186mm.
-   - Remove the "distribute leftover to name col" block; widths now sum exactly.
+## Changes — `src/constants/beltLevels.ts`
 
-2. **Wrap header text** — use `doc.splitTextToSize(label, colW - 3)` for each header cell and render line-by-line. Grow header row height to fit the tallest wrapped label (e.g. "Ready for Grading", "School Fees" wrap to 2 lines). Center-align wrapped lines vertically.
+1. **AU foundation list** — change `AU_FOUNDATION` from `['Foundation']` to `['Foundation 1', 'Foundation 2', 'Foundation 3']`. `AU_BELT_LEVELS` then mirrors `SG_BELT_LEVELS`.
+2. **Union `BELT_LEVELS`** — keep the legacy `'Foundation'` value in the union (and in `FOUNDATION_TO_BLACK_TIP`) so existing student records on `'Foundation'` still validate, display, and qualify for AU/Morley certificates. It will simply no longer appear in dropdowns.
+3. **`getDefaultBeltForNewStudent`** — raise the age cutoff from `< 5` to `< 7` for BOTH countries, and return `'Foundation 1'` for AU as well as SG. Age ≥ 7 → `'White'`. Result:
 
-3. **Reduce text size**
-   - Header row: 8pt (was 9pt), bold (already bold — keep).
-   - Body rows: 8pt (was 9pt). Reduce row height from 8mm → 7mm.
-   - Title/meta block unchanged.
+   ```text
+   age < 7  → Foundation 1   (any country)
+   age ≥ 7  → White
+   ```
 
-4. **Bold first data row** — set `helvetica/bold` when `idx === 1`, normal afterwards. (Per request: "bold first row" — interpreted as the first student row, since the header is already bold.)
+## Out of scope (call-outs)
 
-5. Update name-truncation width check to use the new name column width.
+- No data migration of existing `students.belt_level = 'Foundation'` rows to `'Foundation 2'`. Confirm whether to run that as a separate one-off update afterward (Morley only, or all AU branches).
+- No changes to grading product names, grading flow, or `nextGradingProduct.ts` — `Foundation >> White`-style products on existing students continue to resolve via the union list.
+- No UI/component edits: every belt dropdown already reads from `getBeltLevelsForCountry(country)` (registration, add/edit student, trial, public payment forms), so they pick up the new list automatically.
 
-### Out of scope
+## Verification
 
-- No change to `BranchGradingList.tsx` or the print button.
-- No change to columns shown or data sourced.
+- AU branch student dropdowns show Foundation 1/2/3 (no plain "Foundation").
+- SG behaviour unchanged in the dropdown; new SG student aged 6 now defaults to Foundation 1 instead of White.
+- Existing students saved as `'Foundation'` still render and still get AU foundation certificates.
