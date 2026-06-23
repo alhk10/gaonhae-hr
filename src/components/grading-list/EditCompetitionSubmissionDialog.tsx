@@ -297,6 +297,82 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Categories</Label>
+              {row?.event_id ? (
+                eventCategoryOptions.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 border rounded p-2">
+                    {eventCategoryOptions.map((c) => {
+                      const checked = selectedCategoryIds.includes(c.product_id);
+                      return (
+                        <label key={c.product_id} className="flex items-center gap-2 text-xs cursor-pointer py-0.5">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => toggleCategory(c.product_id, v === true)}
+                          />
+                          <span className="flex-1 truncate">{c.name}</span>
+                          <span className="text-muted-foreground">${Number(c.base_price).toFixed(2)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground">No categories configured for this event.</div>
+                )
+              ) : (
+                <div className="text-[11px] text-muted-foreground">No event linked — only extra categories editable.</div>
+              )}
+
+              <div className="space-y-1">
+                <div className="text-[11px] text-muted-foreground">Extra categories</div>
+                {extraCategoryLines.map((l, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      className="h-7 text-xs flex-1"
+                      placeholder="Label"
+                      value={l.label}
+                      onChange={(e) =>
+                        setExtraCategoryLines((prev) => prev.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x)))
+                      }
+                    />
+                    <Input
+                      className="h-7 text-xs w-24"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={l.amount}
+                      onChange={(e) =>
+                        setExtraCategoryLines((prev) => prev.map((x, i) => (i === idx ? { ...x, amount: Number(e.target.value) || 0 } : x)))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setExtraCategoryLines((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setExtraCategoryLines((prev) => [...prev, { label: '', amount: 0 }])}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add extra category
+                </Button>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground">
+                Selected categories subtotal: ${selectedCategoryTotal.toFixed(2)}
+              </div>
+            </div>
+
+
             <div>
               <Label className="text-xs font-semibold">Files</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
