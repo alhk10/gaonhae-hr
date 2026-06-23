@@ -806,6 +806,30 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                   <TabsTrigger value="yet_to_receive" className="text-xs h-6 px-2">Yet to Receive</TabsTrigger>
                 </TabsList>
               </Tabs>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => {
+                  if (!displayedStudents.length) {
+                    toast.error('No students to print');
+                    return;
+                  }
+                  const branchName = branches.find(b => b.id === branchId)?.name || 'Branch';
+                  const termName = availableTerms.find(t => t.id === selectedTerm)?.name || 'Term';
+                  generateGradingPrepPDF({
+                    students: displayedStudents.map(s => ({
+                      student_name: s.student_name,
+                      current_belt: s.current_belt,
+                    })),
+                    branchName,
+                    termName,
+                  });
+                }}
+                title="Print grading preparation checklist"
+              >
+                <Printer className="w-3.5 h-3.5 mr-1" /> Print
+              </Button>
             </div>
             <div className="flex gap-2">
               {selectedIds.size > 0 && (
