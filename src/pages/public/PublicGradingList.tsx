@@ -1912,11 +1912,20 @@ const CompetitionsTab: React.FC<{
   }, [events]);
 
   const [eventFilter, setEventFilter] = useState<string>('');
+  const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
   useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);
     }
   }, [sortedEvents, eventFilter]);
+
+  const branchOptionsLocal = React.useMemo(() => {
+    const set = new Set<string>();
+    (rows as PublicCompetitionListRow[]).forEach((r) => {
+      if (r.branch_name) set.add(r.branch_name);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
