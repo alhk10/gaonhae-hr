@@ -58,9 +58,19 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['public-competition-events'],
+    queryFn: getPublicCompetitionEvents,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<string | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [extraCategoryLines, setExtraCategoryLines] = useState<Array<{ label: string; amount: number }>>([]);
+  const [otherExtraLines, setOtherExtraLines] = useState<any[]>([]);
+  const [originalCategoryIds, setOriginalCategoryIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (row) {
@@ -81,18 +91,57 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
         coaching_label: row.coaching_label ?? '',
         coaching_amount: row.coaching_amount ?? 0,
       });
+      const catIds: string[] = Array.isArray(row.category_product_ids) ? row.category_product_ids : [];
+      setSelectedCategoryIds(catIds);
+      setOriginalCategoryIds(catIds);
+      const extras: any[] = Array.isArray(row.extra_lines) ? row.extra_lines : [];
+      setExtraCategoryLines(
+        extras
+          .filter((l) => l && l.kind !== 'other')
+          .map((l) => ({ label: String(l.label || ''), amount: Number(l.amount || 0) })),
+      );
+      setOtherExtraLines(extras.filter((l) => l && l.kind === 'other'));
     }
   }, [row]);
 
   const branchObj = branches.find((b: any) => b.id === form.branch_id);
   const beltOptions = getBeltLevelsForCountry((branchObj as any)?.country || 'Singapore');
 
+  const eventCategoryOptions = useMemo(() => {
+    if (!row?.event_id) return [] as Array<{ product_id: string; name: string; base_price: number }>;
+    const ev = (events as any[]).find((e: any) => e.id === row.event_id);
+    return ((ev?.categories ?? []) as any[]).map((c: any) => ({
+      product_id: String(c.product_id),
+      name: String(c.name || ''),
+      base_price: Number(c.base_price || 0),
+    }));
+  }, [events, row?.event_id]);
+
+  const selectedCategoryTotal = useMemo(() => {
+    const sum = eventCategoryOptions
+      .filter((c) => selectedCategoryIds.includes(c.product_id))
+      .reduce((acc, c) => acc + (Number(c.base_price) || 0), 0);
+    const extraSum = extraCategoryLines.reduce((acc, l) => acc + (Number(l.amount) || 0), 0);
+    return sum + extraSum;
+  }, [eventCategoryOptions, selectedCategoryIds, extraCategoryLines]);
+
   const setField = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const toggleCategory = (id: string, checked: boolean) => {
+    setSelectedCategoryIds((prev) =>
+      checked ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id),
+    );
+  };
 
   const handleSave = async () => {
     if (!submissionId) return;
     setSaving(true);
     try {
+      const cleanedExtras = extraCategoryLines
+        .map((l) => ({ label: l.label.trim(), amount: Number(l.amount) || 0, kind: 'category' as const }))
+        .filter((l) => l.label.length > 0);
+      const mergedExtraLines = [...cleanedExtras, ...otherExtraLines];
+
       await adminPatchCompetitionSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -109,7 +158,17 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
         reporting_at: form.reporting_at ? new Date(form.reporting_at).toISOString() : null,
         coaching_label: form.coaching_label,
         coaching_amount: Number(form.coaching_amount) || 0,
+        extra_lines: mergedExtraLines,
       });
+
+      if (row?.event_id) {
+        const a = [...selectedCategoryIds].sort().join(',');
+        const b = [...originalCategoryIds].sort().join(',');
+        if (a !== b) {
+          await updateCompetitionSubmissionCategories(submissionId, selectedCategoryIds);
+        }
+      }
+
       toast.success('Saved');
       onSaved?.();
       onClose();
