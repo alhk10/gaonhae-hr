@@ -2280,7 +2280,32 @@ const CompetitionsTab: React.FC<{
                         <ImageIcon className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
+                    {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
+                      r.grading_card_urls && r.grading_card_urls.length > 0 ? (
+                        <button
+                          type="button"
+                          title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
+                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                          className="text-green-700 relative"
+                        >
+                          <IdCard className="h-3.5 w-3.5" />
+                          <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
+                            {r.grading_card_urls.length}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Grading card required — click to upload"
+                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                          className="text-amber-600 hover:text-amber-700"
+                        >
+                          <IdCard className="h-3.5 w-3.5" />
+                          <AlertTriangle className="h-2.5 w-2.5 -ml-1 -mt-2 inline" />
+                        </button>
+                      )
+                    ) : null}
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && !(r.require_grading_card && isFoundationToBlackTip(r.current_belt)) && (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </div>
