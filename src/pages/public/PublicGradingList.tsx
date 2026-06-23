@@ -1933,8 +1933,15 @@ const CompetitionsTab: React.FC<{
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
 
-  const handleVerify = async (submissionId: string) => {
+  const gradingCardRequiredAndMissing = (r: PublicCompetitionListRow): boolean => {
+    return r.require_grading_card === true
+      && isFoundationToBlackTip(r.current_belt)
+      && (!r.grading_card_urls || r.grading_card_urls.length === 0);
+  };
+
+  const doVerify = async (submissionId: string) => {
     setVerifyingId(submissionId);
     try {
       await verifyCompetitionSubmission(submissionId, verifiedBy);
@@ -1948,6 +1955,16 @@ const CompetitionsTab: React.FC<{
       setVerifyingId(null);
     }
   };
+
+  const handleVerify = async (submissionId: string) => {
+    const r = (rows as PublicCompetitionListRow[]).find(x => x.submission_id === submissionId);
+    if (r && gradingCardRequiredAndMissing(r)) {
+      setGradingCardDialog({ row: r, pendingVerify: true });
+      return;
+    }
+    await doVerify(submissionId);
+  };
+
 
 
   const handleReject = async () => {
