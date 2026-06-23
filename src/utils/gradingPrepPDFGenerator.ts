@@ -23,24 +23,21 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
   const pageHeight = 297;
   const marginL = 12;
   const marginR = 12;
-  const usableW = pageWidth - marginL - marginR;
+  const usableW = pageWidth - marginL - marginR; // 186mm
 
-  // Columns (mm)
+  // Columns (mm) — sum must equal usableW (186)
   const cols = [
     { key: 'idx', label: '#', w: 8, align: 'center' as const },
-    { key: 'name', label: 'Student Name', w: 60, align: 'left' as const },
-    { key: 'belt', label: 'Belt', w: 26, align: 'left' as const },
-    { key: 'ready', label: 'Ready for Grading', w: 26, align: 'center' as const },
-    { key: 'paid', label: 'Paid', w: 18, align: 'center' as const },
-    { key: 'slot', label: 'Slot', w: 36, align: 'center' as const },
-    { key: 'fees', label: 'School Fees', w: 22, align: 'center' as const },
+    { key: 'name', label: 'Student Name', w: 56, align: 'left' as const },
+    { key: 'belt', label: 'Belt', w: 22, align: 'left' as const },
+    { key: 'ready', label: 'Ready for Grading', w: 28, align: 'center' as const },
+    { key: 'paid', label: 'Paid', w: 14, align: 'center' as const },
+    { key: 'slot', label: 'Slot', w: 40, align: 'center' as const },
+    { key: 'fees', label: 'School Fees', w: 18, align: 'center' as const },
   ];
-  const tableW = cols.reduce((s, c) => s + c.w, 0);
-  // Distribute leftover to name col if any
-  const leftover = usableW - tableW;
-  if (leftover > 0) cols[1].w += leftover;
 
-  const rowH = 8;
+  const bodyRowH = 7;
+  const lineH = 3.2;
 
   const drawHeader = () => {
     doc.setFont('helvetica', 'bold');
@@ -56,32 +53,47 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
 
   const drawTableHeader = (y: number) => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    let x = marginL;
-    // Header background line
+    doc.setFontSize(8);
+
+    // Pre-wrap labels & compute row height
+    const wrapped = cols.map(c => doc.splitTextToSize(c.label, c.w - 2) as string[]);
+    const maxLines = Math.max(...wrapped.map(w => w.length));
+    const headerH = Math.max(bodyRowH, maxLines * lineH + 2.5);
+
     doc.setDrawColor(0);
     doc.setLineWidth(0.2);
-    doc.line(marginL, y, marginL + usableW, y);
-    const textY = y + 5.2;
-    cols.forEach(c => {
+
+    let x = marginL;
+    cols.forEach((c, i) => {
+      const lines = wrapped[i];
+      const totalTextH = lines.length * lineH;
+      const startY = y + (headerH - totalTextH) / 2 + lineH - 0.6;
       const tx = c.align === 'center' ? x + c.w / 2 : x + 1.5;
-      doc.text(c.label, tx, textY, { align: c.align });
+      lines.forEach((ln, li) => {
+        doc.text(ln, tx, startY + li * lineH, { align: c.align });
+      });
       x += c.w;
     });
-    doc.line(marginL, y + rowH, marginL + usableW, y + rowH);
-    // Verticals
+
+    // Borders
+    doc.line(marginL, y, marginL + usableW, y);
+    doc.line(marginL, y + headerH, marginL + usableW, y + headerH);
     let vx = marginL;
-    doc.line(vx, y, vx, y + rowH);
+    doc.line(vx, y, vx, y + headerH);
     cols.forEach(c => {
       vx += c.w;
-      doc.line(vx, y, vx, y + rowH);
+      doc.line(vx, y, vx, y + headerH);
     });
+
     doc.setFont('helvetica', 'normal');
-    return y + rowH;
+    return y + headerH;
   };
 
   const drawRow = (y: number, idx: number, s: GradingPrepStudent) => {
-    doc.setFontSize(9);
+    doc.setFontSize(8);
+    // Bold first data row, normal afterwards
+    doc.setFont('helvetica', idx === 1 ? 'bold' : 'normal');
+
     let x = marginL;
     const values: Record<string, string> = {
       idx: String(idx),
@@ -92,15 +104,14 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
       slot: '',
       fees: '',
     };
-    const textY = y + 5.4;
+    const textY = y + 4.8;
     cols.forEach(c => {
       const v = values[c.key];
       if (v) {
         const tx = c.align === 'center' ? x + c.w / 2 : x + 1.5;
-        // Truncate name if needed
         let text = v;
-        if (c.key === 'name' && doc.getTextWidth(text) > c.w - 3) {
-          while (text.length > 0 && doc.getTextWidth(text + '…') > c.w - 3) {
+        if (c.key === 'name' && doc.getTextWidth(text) > c.w - 2) {
+          while (text.length > 0 && doc.getTextWidth(text + '…') > c.w - 2) {
             text = text.slice(0, -1);
           }
           text = text + '…';
@@ -109,16 +120,17 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
       }
       x += c.w;
     });
+
     // Borders
     doc.setLineWidth(0.15);
-    doc.line(marginL, y + rowH, marginL + usableW, y + rowH);
+    doc.line(marginL, y + bodyRowH, marginL + usableW, y + bodyRowH);
     let vx = marginL;
-    doc.line(vx, y, vx, y + rowH);
+    doc.line(vx, y, vx, y + bodyRowH);
     cols.forEach(c => {
       vx += c.w;
-      doc.line(vx, y, vx, y + rowH);
+      doc.line(vx, y, vx, y + bodyRowH);
     });
-    return y + rowH;
+    return y + bodyRowH;
   };
 
   drawHeader();
@@ -126,7 +138,7 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
   y = drawTableHeader(y);
 
   students.forEach((s, i) => {
-    if (y + rowH > pageHeight - 14) {
+    if (y + bodyRowH > pageHeight - 14) {
       doc.addPage();
       drawHeader();
       y = 34;
