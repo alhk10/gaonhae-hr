@@ -299,6 +299,7 @@ export interface SubmitCompetitionPaymentInput {
   indemnity_form_file?: File | null;
   passport_file?: File | null;
   photo_file?: File | null;
+  weight_kg?: number | null;
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
@@ -469,6 +470,7 @@ export const submitCompetitionPayment = async (
     coaching_label: input.coaching_label,
     coaching_amount: input.coaching_amount,
     extra_lines: input.extra_lines,
+    weight_kg: input.weight_kg ?? null,
   };
 
   console.info('[/comps] calling submit_competition_payment RPC');
