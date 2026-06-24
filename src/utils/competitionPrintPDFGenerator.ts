@@ -110,8 +110,18 @@ export function generateCompetitionPrintPDF({ rows, eventName, branchName }: Com
     doc.setFont('helvetica', 'normal');
 
     let x = marginL;
+    const fmtTime = (iso: string | null): string => {
+      if (!iso) return '';
+      const m = String(iso).match(/T(\d{2}:\d{2})/);
+      if (m) return m[1];
+      const m2 = String(iso).match(/(\d{2}:\d{2})/);
+      return m2 ? m2[1] : '';
+    };
     const values: Record<string, string> = {
       idx: String(idx),
+      comp: fmtTime(r.competition_at),
+      report: fmtTime(r.reporting_at),
+      court: r.court || '',
       branch: r.branch_name || '',
       name: (r.student_name || '').toUpperCase(),
       belt: r.current_belt || '',
