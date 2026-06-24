@@ -2196,6 +2196,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Age</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Categories</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
@@ -2237,6 +2238,14 @@ const CompetitionsTab: React.FC<{
                   {r.gender && (
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
+                </TableCell>
+                <TableCell className="text-xs px-2 py-1">
+                  {(() => {
+                    if (!r.date_of_birth) return '—';
+                    const y = new Date(r.date_of_birth).getFullYear();
+                    if (!y || Number.isNaN(y)) return '—';
+                    return new Date().getFullYear() - y;
+                  })()}
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1">
