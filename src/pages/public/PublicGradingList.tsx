@@ -2239,6 +2239,14 @@ const CompetitionsTab: React.FC<{
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
                 </TableCell>
+                <TableCell className="text-xs px-2 py-1">
+                  {(() => {
+                    if (!r.date_of_birth) return '—';
+                    const y = new Date(r.date_of_birth).getFullYear();
+                    if (!y || Number.isNaN(y)) return '—';
+                    return new Date().getFullYear() - y;
+                  })()}
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1">
                   <div className="text-[11px] leading-tight whitespace-nowrap">
