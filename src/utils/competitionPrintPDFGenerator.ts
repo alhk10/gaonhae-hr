@@ -12,6 +12,9 @@ export interface CompetitionPrintRow {
   category: string | null;
   poomsae_1: string | null;
   poomsae_2: string | null;
+  competition_at: string | null;
+  reporting_at: string | null;
+  court: string | null;
 }
 
 export interface CompetitionPrintPDFOptions {
