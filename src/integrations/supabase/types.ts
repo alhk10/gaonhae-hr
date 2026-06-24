@@ -7588,6 +7588,15 @@ export type Database = {
           student_number: string
         }[]
       }
+      find_duplicate_students: {
+        Args: { p_criteria?: Json }
+        Returns: {
+          group_key: string
+          last_activity_at: string
+          match_reason: string
+          student_id: string
+        }[]
+      }
       find_grading_submission_student_matches: {
         Args: { p_id: string }
         Returns: {
@@ -8273,6 +8282,10 @@ export type Database = {
           last_name: string
           status: string
         }[]
+      }
+      merge_students: {
+        Args: { p_drop_ids: string[]; p_keep_id: string }
+        Returns: Json
       }
       partner_create_approved_claim: {
         Args: {
