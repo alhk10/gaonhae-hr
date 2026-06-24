@@ -43,6 +43,7 @@ export interface PublicCompetitionListRow {
   photo_url: string | null;
   require_grading_card: boolean;
   grading_card_urls: string[];
+  date_of_birth: string | null;
 }
 
 export interface CompetitionExtraLine {
