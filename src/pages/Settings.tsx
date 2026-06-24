@@ -13,6 +13,7 @@ import EducationResourcesManagement from '@/components/settings/EducationResourc
 import { NotificationSettingsManagement } from '@/components/settings/NotificationSettingsManagement';
 import { TermCalendarManagement } from '@/components/settings/TermCalendarManagement';
 import { BranchTimetableManagement } from '@/components/settings/BranchTimetableManagement';
+import DuplicateStudentsManager from '@/components/settings/DuplicateStudentsManager';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmployees } from '@/services/employeeService';
@@ -79,6 +80,7 @@ const Settings = () => {
             <TabsTrigger value="terms">Terms</TabsTrigger>
             <TabsTrigger value="education">Education</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="auth-users" className="mt-6">
@@ -128,6 +130,10 @@ const Settings = () => {
 
           <TabsContent value="notifications" className="mt-6">
             <NotificationSettingsManagement />
+          </TabsContent>
+
+          <TabsContent value="duplicates" className="mt-6">
+            <DuplicateStudentsManager />
           </TabsContent>
         </Tabs>
       </div>
