@@ -128,6 +128,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [gender, setGender] = useState<string>('');
+  const [weightKg, setWeightKg] = useState<string>('');
   const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
   const [extraWeights, setExtraWeights] = useState<Record<number, string>>({});
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
@@ -300,6 +301,7 @@ const PublicCompetitionPayment: React.FC = () => {
         indemnity_form_file: selectedEvent.require_indemnity_form ? indemnityFormFile : null,
         passport_file: selectedEvent.require_passport ? passportFile : null,
         photo_file: selectedEvent.require_photo ? photoFile : null,
+        weight_kg: weightKg.trim() === '' ? null : Number(weightKg),
       });
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
@@ -534,6 +536,20 @@ const PublicCompetitionPayment: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input
+                      id="weight"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      placeholder="e.g. 62.5"
+                      value={weightKg}
+                      onChange={(e) => setWeightKg(e.target.value)}
+                    />
                   </div>
 
                   {selectedEvent.require_photo && (

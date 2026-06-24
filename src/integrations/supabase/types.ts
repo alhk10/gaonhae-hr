@@ -1215,6 +1215,7 @@ export type Database = {
           signature_url: string | null
           status: string
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           amount?: number | null
@@ -1255,6 +1256,7 @@ export type Database = {
           signature_url?: string | null
           status?: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           amount?: number | null
@@ -1295,6 +1297,7 @@ export type Database = {
           signature_url?: string | null
           status?: string
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {

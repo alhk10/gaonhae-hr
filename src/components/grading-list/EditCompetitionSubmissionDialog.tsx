@@ -90,6 +90,7 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
         reporting_at: row.reporting_at ? String(row.reporting_at).slice(0, 16) : '',
         coaching_label: row.coaching_label ?? '',
         coaching_amount: row.coaching_amount ?? 0,
+        weight_kg: row.weight_kg ?? '',
       });
       const catIds: string[] = Array.isArray(row.category_product_ids) ? row.category_product_ids : [];
       setSelectedCategoryIds(catIds);
@@ -159,6 +160,7 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
         coaching_label: form.coaching_label,
         coaching_amount: Number(form.coaching_amount) || 0,
         extra_lines: mergedExtraLines,
+        weight_kg: form.weight_kg === '' || form.weight_kg == null ? null : Number(form.weight_kg),
       });
 
       if (row?.event_id) {
@@ -369,6 +371,20 @@ const EditCompetitionSubmissionDialog: React.FC<Props> = ({ submissionId, onClos
 
               <div className="text-[11px] text-muted-foreground">
                 Selected categories subtotal: ${selectedCategoryTotal.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Weight (kg)</Label>
+                <Input
+                  className="h-8 text-xs"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.weight_kg ?? ''}
+                  onChange={(e) => setField('weight_kg', e.target.value)}
+                />
               </div>
             </div>
 
