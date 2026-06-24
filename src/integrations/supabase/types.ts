@@ -7870,6 +7870,7 @@ export type Database = {
           court: string
           created_at: string
           current_belt: string
+          date_of_birth: string
           event_id: string
           event_name: string
           extra_categories: string[]
