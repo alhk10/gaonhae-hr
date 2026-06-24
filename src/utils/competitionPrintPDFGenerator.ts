@@ -12,6 +12,9 @@ export interface CompetitionPrintRow {
   category: string | null;
   poomsae_1: string | null;
   poomsae_2: string | null;
+  competition_at: string | null;
+  reporting_at: string | null;
+  court: string | null;
 }
 
 export interface CompetitionPrintPDFOptions {
@@ -29,16 +32,19 @@ export function generateCompetitionPrintPDF({ rows, eventName, branchName }: Com
   const usableW = pageWidth - marginL - marginR; // 277mm
 
   const cols = [
-    { key: 'idx', label: '#', w: 8, align: 'center' as const },
-    { key: 'branch', label: 'Branch', w: 26, align: 'left' as const },
-    { key: 'name', label: 'Name', w: 48, align: 'left' as const },
-    { key: 'belt', label: 'Belt', w: 22, align: 'left' as const },
-    { key: 'category', label: 'Category', w: 47, align: 'left' as const },
-    { key: 'p1', label: 'Poomsae 1', w: 26, align: 'left' as const },
-    { key: 'p1s', label: 'P1 Score', w: 20, align: 'center' as const },
-    { key: 'p2', label: 'Poomsae 2', w: 26, align: 'left' as const },
-    { key: 'p2s', label: 'P2 Score', w: 20, align: 'center' as const },
-    { key: 'remarks', label: 'Remarks', w: 34, align: 'left' as const },
+    { key: 'idx', label: '#', w: 7, align: 'center' as const },
+    { key: 'comp', label: 'Comp Time', w: 18, align: 'center' as const },
+    { key: 'report', label: 'Report Time', w: 18, align: 'center' as const },
+    { key: 'court', label: 'Court', w: 13, align: 'center' as const },
+    { key: 'branch', label: 'Branch', w: 22, align: 'left' as const },
+    { key: 'name', label: 'Name', w: 40, align: 'left' as const },
+    { key: 'belt', label: 'Belt', w: 18, align: 'left' as const },
+    { key: 'category', label: 'Category', w: 40, align: 'left' as const },
+    { key: 'p1', label: 'Poomsae 1', w: 24, align: 'left' as const },
+    { key: 'p1s', label: 'P1 Score', w: 18, align: 'center' as const },
+    { key: 'p2', label: 'Poomsae 2', w: 24, align: 'left' as const },
+    { key: 'p2s', label: 'P2 Score', w: 18, align: 'center' as const },
+    { key: 'remarks', label: 'Remarks', w: 17, align: 'left' as const },
   ];
 
   const bodyRowH = 8;
@@ -104,8 +110,18 @@ export function generateCompetitionPrintPDF({ rows, eventName, branchName }: Com
     doc.setFont('helvetica', 'normal');
 
     let x = marginL;
+    const fmtTime = (iso: string | null): string => {
+      if (!iso) return '';
+      const m = String(iso).match(/T(\d{2}:\d{2})/);
+      if (m) return m[1];
+      const m2 = String(iso).match(/(\d{2}:\d{2})/);
+      return m2 ? m2[1] : '';
+    };
     const values: Record<string, string> = {
       idx: String(idx),
+      comp: fmtTime(r.competition_at),
+      report: fmtTime(r.reporting_at),
+      court: r.court || '',
       branch: r.branch_name || '',
       name: (r.student_name || '').toUpperCase(),
       belt: r.current_belt || '',
