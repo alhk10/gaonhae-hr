@@ -1889,7 +1889,7 @@ const CompetitionsTab: React.FC<{
   const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-competition-list', branchFilter],
+    queryKey: ['public-competition-list', 'v2-dob', branchFilter],
     queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
   });
 
@@ -2239,11 +2239,14 @@ const CompetitionsTab: React.FC<{
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
                 </TableCell>
-                <TableCell className="text-xs px-2 py-1">
+                <TableCell className="text-xs px-2 py-1 tabular-nums">
                   {(() => {
-                    if (!r.date_of_birth) return '—';
-                    const y = new Date(r.date_of_birth).getFullYear();
-                    if (!y || Number.isNaN(y)) return '—';
+                    const dob = r.date_of_birth;
+                    if (!dob) return '—';
+                    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob));
+                    if (!m) return '—';
+                    const y = parseInt(m[1], 10);
+                    if (!y) return '—';
                     return new Date().getFullYear() - y;
                   })()}
                 </TableCell>
