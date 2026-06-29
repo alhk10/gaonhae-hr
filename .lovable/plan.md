@@ -1,40 +1,24 @@
-## Issue
+## Reinstate Albert as active employee — but keep Klara portal access revoked
 
-Screenshot shows the Competitions tab with `Green / Red / Blue Tip` under the **Age** header — i.e. belt values rendered in the Age column. After re-checking:
+Target: `EMP1750865290864` — CORPUZ ALBERT JR TIGGANGAY.
 
-- `get_public_competition_list` RPC **does** return `date_of_birth` (verified in DB).
-- The TSX has 17 `<TableCell>`s matching 17 `<TableHead>`s. The Age cell at line 2242 correctly reads `r.date_of_birth`, and Belt at line 2250 reads `r.current_belt`.
+### Current state
+- `public.employees`: row exists, `email` cleared, `resign_date = 2026-06-29`.
+- `auth.users`: no row for `albertcorpuz873@gmail.com` (login already revoked).
+- `public.student_auth`: no row.
 
-The most likely cause of the screenshot is a stale React-Query cache from before `date_of_birth` was added to the row type (the in-memory cache returns rows without `date_of_birth`, but in that case the cell renders `'—'`, not a belt — so there is also a real shift bug we need to flush out). I'll harden the column so it can't be confused with Belt and force a clean refetch.
+### Change (data-only, one update)
+Update `public.employees` where `id = 'EMP1750865290864'`:
+- `resign_date → NULL` (he is still employed)
+- `email` stays **NULL** (do not restore `albertcorpuz873@gmail.com`)
 
-## Fix (frontend only)
+That's the entire change.
 
-In `src/pages/public/PublicGradingList.tsx`, Competitions section:
+### Why this keeps him out of Klara
+Login resolves `auth.users.email → employees.email` in `processUserSession`. With no `auth.users` row for that address AND no `employees.email` to match against, there is no path to a Klara session for him. He appears in active staff lists, payroll, attendance, etc., exactly like any other employee without a portal login.
 
-1. Replace the inline IIFE Age cell with a small parser that handles `YYYY-MM-DD` safely in UTC (avoids timezone off-by-one) and never falls through to a non-numeric value:
-   ```ts
-   const ageByYear = (dob?: string | null): number | null => {
-     if (!dob) return null;
-     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dob);
-     if (!m) return null;
-     const y = parseInt(m[1], 10);
-     if (!y) return null;
-     return new Date().getFullYear() - y;
-   };
-   ```
-   Render: `{ageByYear(r.date_of_birth) ?? '—'}` wrapped in `tabular-nums` so it visually cannot be mistaken for a belt label.
+### Not changed
+`auth.users`, `student_auth`, `superadmin_users`, `admin_access`, `employee_page_access`, RLS, edge functions, frontend code, payroll history, attendance history.
 
-2. Bump the React-Query `queryKey` for the competition list (e.g. add a `'v2'` segment) so any cached pre-migration payload is discarded on next mount.
-
-3. Re-confirm head/cell count and that no conditional `<TableCell>` is rendered in the Age slot.
-
-## Out of scope
-
-- Seminars tab (no Age column there by design).
-- PDF print generator, edit dialog, public submission form.
-
-## Technical notes
-
-- No DB changes — RPC already returns `date_of_birth date`.
-- No service-layer changes — `PublicCompetitionListRow.date_of_birth` already exists.
-- Pure presentational edit in `PublicGradingList.tsx`.
+### Out of scope
+Giving him a new Klara email later (separate request), other employees, back-pay for the days marked resigned.
