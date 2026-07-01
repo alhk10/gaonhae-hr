@@ -215,6 +215,37 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
 
   const isLoading = attendanceLoading || studentsLoading;
 
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const handleApproveRequest = async (row: any) => {
+    setApprovingId(row.id);
+    try {
+      await approveLessonRequestBooking(row, row.booking);
+      toast.success(`${row.student_first_name || 'Student'} added to class`);
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count'] });
+      queryClient.invalidateQueries({ queryKey: ['slot-attendance', branchId, slot?.timetableId, slot?.date] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to approve');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+  const handleRejectRequest = async (row: any) => {
+    setApprovingId(row.id);
+    try {
+      await rejectLessonRequest(row.id, 'Rejected from slot dialog');
+      toast.success('Request rejected');
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reject');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   if (!slot) return null;
 
   return (
