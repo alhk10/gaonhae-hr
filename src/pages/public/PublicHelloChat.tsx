@@ -363,8 +363,8 @@ const PublicHelloChat: React.FC = () => {
 
   // Identify -> match
   const handleIdentify = async () => {
-    if (!firstName.trim() || !lastName.trim() || !branchId) {
-      toast.error('Please fill first name, last name and branch');
+    if (!firstName.trim() || !branchId) {
+      toast.error('Please fill first name and branch');
       return;
     }
     const hasAltIdentity = !!gender && (!!email.trim() || !!phone.trim());
