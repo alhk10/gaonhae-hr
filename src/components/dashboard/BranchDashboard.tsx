@@ -1369,7 +1369,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
           {hasApprovals && (
             <TabsTrigger value="approvals" className="text-xs sm:text-sm bg-orange-100 text-orange-700 font-semibold data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-              Approvals ({pendingRequests.length + unverifiedPayments.length + pendingRegCount})
+              Approvals ({pendingRequests.length + unverifiedPayments.length + pendingRegCount + pendingLessonReqCount})
             </TabsTrigger>
           )}
         </TabsList>
