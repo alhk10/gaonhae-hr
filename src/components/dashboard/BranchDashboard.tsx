@@ -92,6 +92,8 @@ import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
 import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
+import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
+import { getPendingLessonRequestCount } from '@/services/chatLessonRequestService';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
