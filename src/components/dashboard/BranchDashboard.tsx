@@ -92,6 +92,8 @@ import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
 import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
+import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
+import { getPendingLessonRequestCount } from '@/services/chatLessonRequestService';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
@@ -1114,7 +1116,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
+  const { data: pendingLessonReqCount = 0 } = useQuery({
+    queryKey: ['pending-lesson-requests-count', branchId],
+    queryFn: () => getPendingLessonRequestCount(branchId),
+    enabled: !!branchId,
+    refetchInterval: 60_000,
+  });
+
+  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0 || pendingLessonReqCount > 0;
 
   const invalidateAllBranchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
@@ -1155,6 +1164,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['pending-inventory-orders'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['pending-claims-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
     };
 
     const channel = supabase
@@ -1214,6 +1226,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, () => {
         invalidateApprovalCounts();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'public_chat_callback_requests' }, () => {
+        invalidateApprovalCounts();
+      })
       .subscribe();
 
     return () => {
@@ -1242,7 +1257,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       setActiveTab('approvals');
     }
     prevHasApprovalsRef.current = hasApprovals;
-  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals, activeTab]);
+  }, [pendingRequests, unverifiedPayments, pendingRegCount, pendingLessonReqCount, hasApprovals, activeTab]);
 
   const filteredStudents = students.filter(student => {
     // Always exclude withdrawn students
@@ -1360,7 +1375,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <TabsTrigger value="notices" className="text-xs sm:text-sm">Notices</TabsTrigger>
           {hasApprovals && (
             <TabsTrigger value="approvals" className="text-xs sm:text-sm bg-orange-100 text-orange-700 font-semibold data-[state=active]:bg-orange-500 data-[state=active]:text-white">
-              Approvals ({pendingRequests.length + unverifiedPayments.length + pendingRegCount})
+              Approvals ({pendingRequests.length + unverifiedPayments.length + pendingRegCount + pendingLessonReqCount})
             </TabsTrigger>
           )}
         </TabsList>
@@ -1844,6 +1859,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <PublicGradingSubmissionApprovals branchId={branchId} />
           <PublicCompetitionSubmissionApprovals branchId={branchId} />
           <PublicGuardsPurchaseApprovals branchId={branchId} />
+          <PublicHelloLessonRequestApprovals branchId={branchId} />
 
           {pendingRequests.length > 0 && (
             <Card>

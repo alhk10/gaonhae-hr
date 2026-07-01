@@ -1,0 +1,1 @@
+ALTER TABLE public.public_chat_callback_requests ADD COLUMN IF NOT EXISTS handled_booking_keys text[] NOT NULL DEFAULT '{}';

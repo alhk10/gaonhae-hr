@@ -34,6 +34,7 @@ import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionA
 import PublicSeminarSubmissionApprovals from './PublicSeminarSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
+import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
@@ -208,6 +209,7 @@ const SuperadminDashboard = () => {
         <PublicSeminarSubmissionApprovals />
         <PublicGuardsPurchaseApprovals />
         <PublicHelloCallbackApprovals />
+        <PublicHelloLessonRequestApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
         {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
         {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}

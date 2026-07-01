@@ -29,6 +29,12 @@ import {
   ClassAttendanceRecord,
   StudentForAttendance,
 } from '@/services/classAttendanceService';
+import {
+  listPendingLessonRequestsForSlot,
+  approveLessonRequestBooking,
+  rejectLessonRequest,
+} from '@/services/chatLessonRequestService';
+import { CalendarClock } from 'lucide-react';
 
 interface SlotAttendanceDialogProps {
   open: boolean;
@@ -107,6 +113,15 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
       slot?.ageFrom,
       slot?.ageTo,
       slot?.classType
+    ),
+    enabled: open && !!slot,
+  });
+
+  // Fetch pending /hello lesson requests targeting this exact slot
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['pending-lesson-requests-slot', branchId, slot?.timetableId, slot?.date, slot?.startTime, slot?.endTime],
+    queryFn: () => listPendingLessonRequestsForSlot(
+      branchId, slot!.date, slot!.startTime, slot!.endTime, slot!.timetableId,
     ),
     enabled: open && !!slot,
   });
@@ -200,6 +215,37 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
 
   const isLoading = attendanceLoading || studentsLoading;
 
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const handleApproveRequest = async (row: any) => {
+    setApprovingId(row.id);
+    try {
+      await approveLessonRequestBooking(row, row.booking);
+      toast.success(`${row.student_first_name || 'Student'} added to class`);
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count'] });
+      queryClient.invalidateQueries({ queryKey: ['slot-attendance', branchId, slot?.timetableId, slot?.date] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to approve');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+  const handleRejectRequest = async (row: any) => {
+    setApprovingId(row.id);
+    try {
+      await rejectLessonRequest(row.id, 'Rejected from slot dialog');
+      toast.success('Request rejected');
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reject');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   if (!slot) return null;
 
   return (
@@ -213,6 +259,48 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
             </span>
           </DialogTitle>
         </DialogHeader>
+
+        {pendingRequests.length > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-2 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+              <CalendarClock className="h-3.5 w-3.5" />
+              Pending /hello booking{pendingRequests.length === 1 ? '' : 's'} ({pendingRequests.length})
+            </div>
+            {pendingRequests.map((r: any) => {
+              const name = `${r.student_first_name || ''} ${r.student_last_name || ''}`.trim().toUpperCase() || 'Student';
+              return (
+                <div key={`${r.id}-${r.booking.key}`} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{r.contact_email || r.contact_phone || ''}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleApproveRequest(r)}
+                      disabled={approvingId === r.id}
+                    >
+                      {approvingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleRejectRequest(r)}
+                      disabled={approvingId === r.id}
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
 
         {isLoading ? (
           <div className="space-y-3 py-4">

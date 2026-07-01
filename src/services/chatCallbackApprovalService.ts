@@ -53,6 +53,7 @@ export const listUnmatchedChatCallbacks = async (
     .select('*')
     .is('matched_student_id', null)
     .neq('status', 'rejected')
+    .neq('type', 'lesson_schedule_request')
     .order('created_at', { ascending: false });
   if (branchId) q = q.eq('branch_id', branchId);
   const { data, error } = await q;
@@ -65,7 +66,8 @@ export const getUnmatchedChatCallbackCount = async (branchId?: string): Promise<
     .from('public_chat_callback_requests')
     .select('*', { count: 'exact', head: true })
     .is('matched_student_id', null)
-    .neq('status', 'rejected');
+    .neq('status', 'rejected')
+    .neq('type', 'lesson_schedule_request');
   if (branchId) q = q.eq('branch_id', branchId);
   const { count } = await q;
   return count || 0;

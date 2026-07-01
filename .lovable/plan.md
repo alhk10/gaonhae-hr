@@ -1,32 +1,68 @@
 ## Goal
 
-On `/hello`, make student matching tolerant of compound names, allow the user to type the full name into "First name" alone, and make "Last name" optional. Also auto-capitalise the first/last name inputs as the user types.
+Make /hello lesson schedule requests (like Emily Hana's Morley booking) visible on the Branch Dashboard Approvals area **and inside the Weekly Timetable slot dialog for each requested timeslot**, and let approving actually book (and cancel) the requested lessons in one click.
+
+## Background
+
+The row exists in `public_chat_callback_requests` (id `d3f5c206…`, branch Morley, type `lesson_schedule_request`, status `new`, `matched_student_id = NULL`). It currently only surfaces on the Superadmin Dashboard's "Public Hello Chat — Unmatched" card, which just sets `matched_student_id` and never touches `student_scheduled_classes`.
 
 ## Changes
 
-### 1. Token-based name matching in `match_student_by_identity` RPC
+### 1. Persist student link when the /hello request is submitted
 
-New migration that `CREATE OR REPLACE`s the RPC. Signature, return columns, `SECURITY DEFINER`, and `search_path` unchanged.
+`src/services/publicChatService.ts` → `submitLessonRequest`:
+- After `submitCallback` returns the new callback id, update the row with `matched_student_id = input.student_id`. Message text stays as-is.
 
-Split both the typed input and each stored student's `first_name` + `last_name` into uppercase whitespace-delimited tokens. A student matches when:
+### 2. New service: `src/services/chatLessonRequestService.ts`
 
-- **First-name check:** at least one token from the typed First name field appears in the union of the stored student's first-name and last-name tokens. So typing `Earl`, `John`, `Earl John`, `Earl Lucero`, or `John Lucero` all match a student stored as `Earl John` / `Lucero II`.
-- **Last-name check:** if the typed Last name is non-empty, at least one of its tokens must also appear in that same union. If blank, this check is skipped.
+Shared helper used by every approval surface below.
 
-Branch, and the DOB **or** gender + email/phone fallback conditions, remain exactly as today.
+- `listPendingLessonRequests(branchId?)`: `public_chat_callback_requests` where `type = 'lesson_schedule_request'` AND `status IN ('new','matched')` AND `matched_student_id IS NOT NULL`, optionally filtered by branch. Returns rows plus a parsed `{ cancellations: [{scheduled_class_id}], new_bookings: [{date,start_time,end_time,class_type,timetable_id}] }` derived from the `message` (regex on the existing `Cancel:` / `Book:` blocks).
+- `listPendingLessonRequestsForSlot(branchId, date, start_time, end_time, timetable_id?)`: same base query, then filters the parsed `new_bookings` to only those matching the slot. Used by the Weekly Timetable slot dialog.
+- `getPendingLessonRequestCount(branchId?)`: `head:true` count with the same base filter.
+- `approveLessonRequest(row, parsed)`:
+  1. For each `cancellations[].scheduled_class_id` → `update student_scheduled_classes set status='cancelled'`.
+  2. For each `new_bookings[]` → look up the student's active enrollment for that branch/term. Insert `student_scheduled_classes(enrollment_id, timetable_id, scheduled_date, start_time, end_time, status='scheduled')`.
+  3. Set callback `status='approved'`.
+- `approveLessonRequestBooking(row, booking)`: variant that approves only one `new_bookings[]` entry (used from the slot dialog); marks the callback `status='approved'` only once every parsed booking has been inserted/cancelled, otherwise leaves status as-is with an internal flag on the row's `message`/`notes` metadata (or a new `handled_booking_ids` JSON column — see Technical below).
+- `rejectLessonRequest(id, reason)`: `status='rejected'`, `rejected_at=now()`, `rejected_reason=reason`.
 
-### 2. `/hello` identify form — `src/pages/public/PublicHelloChat.tsx`
+### 3. Branch + Superadmin Dashboard approval card
 
-- First name and Last name `Input`s: `onChange` stores `e.target.value.toUpperCase()` immediately; remove the `onBlur` uppercase handler.
-- Last name label changes from `Last name *` to `Last name` and the submit-guard no longer requires it. First name and branch stay required; DOB stays "recommended".
-- Pass `last_name` as an empty string when blank; the RPC treats that as "skip last-name check".
+New `src/components/dashboard/PublicHelloLessonRequestApprovals.tsx` (`branchId?`).
+- One card per pending request: student name, branch, submitted timestamp, parsed Cancel/Book lists (DD/MM/YYYY HH:MM–HH:MM (class type)).
+- Actions: `Approve & Book` (calls `approveLessonRequest`), `Reject`.
 
-## Technical notes
+Wire-up:
+- `BranchDashboard.tsx`: add `pendingLessonReqCount` query, include in `hasApprovals` and the Approvals-tab badge (line 1117 / 1363), render the card near line 1846, add `public_chat_callback_requests` to the realtime invalidation block.
+- `SuperadminDashboard.tsx`: render the new card next to `PublicHelloCallbackApprovals` (line 210).
+- `chatCallbackApprovalService.listUnmatchedChatCallbacks`: exclude `type='lesson_schedule_request'` so lesson requests never appear in the generic Unmatched card.
 
-Token comparison uses `regexp_split_to_array(upper(trim(...)), '\s+')` and the array-overlap operator `&&` against the union of each student's first-name and last-name token arrays. Empty typed arrays short-circuit the corresponding check.
+### 4. Inline approval inside the Weekly Timetable slot dialog
+
+`src/components/dashboard/SlotAttendanceDialog.tsx` (the "Kids · Wed, Jul 1, 2026 · 5:00 PM" dialog in the screenshot):
+- Add a `useQuery` calling `listPendingLessonRequestsForSlot(branchId, scheduled_date, start_time, end_time, timetable_id)`.
+- Above the `Attendance (n) / Add Students (n)` tabs, render a compact amber "Pending /hello bookings (n)" section listing each pending student with:
+  - Student name + submitted timestamp.
+  - `Approve & Add` → calls `approveLessonRequestBooking` for that booking only, then invalidates the slot's attendance/`Add Students` queries so the student immediately appears under Attendance.
+  - `Reject` → `rejectLessonRequest` with an inline reason input.
+- Section auto-hides when there are no pending bookings for the slot.
+
+### 5. Backfill Emily Hana's existing row
+
+One-time update: set `matched_student_id = d4409ba0-4229-4235-a772-19a75bb11c45` on callback `d3f5c206-4598-4300-b585-7c4ccd7fc31d` so the new UI surfaces it immediately.
+
+## Technical
+
+Per-booking approval needs to know which entries in a multi-booking request have already been handled. Add a nullable `handled_booking_keys text[]` column to `public_chat_callback_requests` (key format `YYYY-MM-DD|HH:MM|HH:MM|timetable_id`). `approveLessonRequestBooking` appends the key; `listPendingLessonRequests*` filters out keys that are already present. Callback `status` flips to `approved` when every parsed `new_bookings[]` key is handled (cancellations count as handled immediately on first approve, or handled together with the first per-booking approve).
+
+Migration:
+- `ALTER TABLE public.public_chat_callback_requests ADD COLUMN IF NOT EXISTS handled_booking_keys text[] NOT NULL DEFAULT '{}';`
+- No new tables, no grant/RLS changes.
 
 ## Out of scope
 
-- Public Student Registration form and other intake forms.
-- Fuzzy/typo matching or nickname handling.
-- Changing DOB / gender / email / phone fallback logic, or which fields are required beyond making last name optional.
+- Editing requested slots inside the approval UI (approver approves as-is or rejects).
+- Notifications / emails on approval.
+- Changing how entitlements or enrollments are computed — new rows use existing `student_scheduled_classes` semantics.
+- Any change to `PublicHelloChat.tsx` request-building code beyond writing `matched_student_id`.
