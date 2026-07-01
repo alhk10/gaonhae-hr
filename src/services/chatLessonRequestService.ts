@@ -182,11 +182,13 @@ export const listPendingLessonRequestsForSlot = async (
   return out;
 };
 
-/** Find the active enrollment for a student on a given date in a branch. */
+/** Find the active enrollment for a student on a given date in a branch,
+ *  or auto-create one from the student's paid lesson invoice for that term. */
 const resolveEnrollment = async (
   studentId: string,
   branchId: string,
   date: string,
+  timetableId: string | null,
 ): Promise<string> => {
   const { data: terms, error: termErr } = await supabase
     .from('term_calendars')
@@ -197,6 +199,7 @@ const resolveEnrollment = async (
   if (termErr) throw termErr;
   const termIds = (terms || []).map((t: any) => t.id);
   if (termIds.length === 0) throw new Error(`No term covers ${date} at this branch`);
+
   const { data: enrolls, error: enErr } = await supabase
     .from('student_class_enrollments')
     .select('id, term_id, status')
@@ -206,10 +209,72 @@ const resolveEnrollment = async (
     .in('term_id', termIds)
     .limit(1);
   if (enErr) throw enErr;
-  if (!enrolls || enrolls.length === 0) {
-    throw new Error('No active enrollment found for this student in this term');
+  if (enrolls && enrolls.length > 0) return enrolls[0].id;
+
+  // No enrollment — auto-create one from a matching paid lesson invoice item.
+  const termId = termIds[0];
+
+  let classType: string | null = null;
+  if (timetableId) {
+    const { data: tt } = await supabase
+      .from('branch_timetables')
+      .select('class_type')
+      .eq('id', timetableId)
+      .maybeSingle();
+    classType = (tt as any)?.class_type ?? null;
   }
-  return enrolls[0].id;
+
+  const { data: invs } = await supabase
+    .from('invoices')
+    .select('id, status')
+    .eq('student_id', studentId)
+    .eq('branch_id', branchId)
+    .in('status', ['paid', 'verified', 'partially_paid', 'sent', 'draft']);
+  const invoiceIds = (invs || []).map((i: any) => i.id);
+  if (invoiceIds.length === 0) {
+    throw new Error('No paid lesson invoice found for this term — cannot create enrollment');
+  }
+
+  const { data: items } = await supabase
+    .from('invoice_items')
+    .select('id, product_id, total_amount, quantity, description, metadata, created_at')
+    .in('invoice_id', invoiceIds)
+    .order('created_at', { ascending: false });
+  const lessonItem = (items || []).find((it: any) => it?.metadata?.term_id === termId);
+  if (!lessonItem) {
+    throw new Error('No paid lesson invoice found for this term — cannot create enrollment');
+  }
+
+  let pricingTierId: string | undefined;
+  let tierName = 'Custom';
+  if (classType) {
+    const { data: tier } = await supabase
+      .from('class_pricing_tiers')
+      .select('id, tier_name')
+      .eq('branch_id', branchId)
+      .eq('class_type', classType)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    if (tier) {
+      pricingTierId = (tier as any).id;
+      tierName = (tier as any).tier_name || tierName;
+    }
+  }
+
+  const { createEnrollment } = await import('./classEnrollmentService');
+  const enrollmentId = await createEnrollment({
+    student_id: studentId,
+    term_id: termId,
+    branch_id: branchId,
+    class_type: classType || 'Class',
+    pricing_tier_id: pricingTierId,
+    tier_name: tierName,
+    total_price: Number(lessonItem.total_amount) || 0,
+    invoice_item_id: lessonItem.id,
+    notes: 'Auto-created from /hello lesson approval',
+  });
+  return enrollmentId;
 };
 
 /** Apply cancellations (once) and insert the scheduled class rows. */
