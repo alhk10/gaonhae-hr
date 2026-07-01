@@ -814,11 +814,11 @@ const PublicHelloChat: React.FC = () => {
               <CardContent className="p-3 space-y-3">
                 <div className="space-y-1">
                   <Label className="text-xs">First name *</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => setFirstName(s => s.trim().toUpperCase())} className="h-10" />
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Last name *</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName(s => s.trim().toUpperCase())} className="h-10" />
+                  <Label className="text-xs">Last name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Date of birth (recommended)</Label>
