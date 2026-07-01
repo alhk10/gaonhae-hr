@@ -301,7 +301,7 @@ const applyBookings = async (
 
   for (const b of bookings) {
     if (row.handled_booking_keys.includes(b.key)) continue;
-    const enrollmentId = await resolveEnrollment(row.matched_student_id, row.branch_id!, b.date);
+    const enrollmentId = await resolveEnrollment(row.matched_student_id, row.branch_id!, b.date, b.timetable_id);
     const { error } = await supabase
       .from('student_scheduled_classes')
       .insert({
