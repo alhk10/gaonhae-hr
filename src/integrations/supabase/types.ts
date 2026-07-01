@@ -4527,6 +4527,7 @@ export type Database = {
           email_sent_at: string | null
           first_name: string | null
           gender: string | null
+          handled_booking_keys: string[]
           id: string
           last_name: string | null
           matched_student_id: string | null
@@ -4550,6 +4551,7 @@ export type Database = {
           email_sent_at?: string | null
           first_name?: string | null
           gender?: string | null
+          handled_booking_keys?: string[]
           id?: string
           last_name?: string | null
           matched_student_id?: string | null
@@ -4573,6 +4575,7 @@ export type Database = {
           email_sent_at?: string | null
           first_name?: string | null
           gender?: string | null
+          handled_booking_keys?: string[]
           id?: string
           last_name?: string | null
           matched_student_id?: string | null
