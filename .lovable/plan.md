@@ -1,24 +1,32 @@
-## Reinstate Albert as active employee — but keep Klara portal access revoked
+## Goal
 
-Target: `EMP1750865290864` — CORPUZ ALBERT JR TIGGANGAY.
+On `/hello`, make student matching tolerant of compound names, allow the user to type the full name into "First name" alone, and make "Last name" optional. Also auto-capitalise the first/last name inputs as the user types.
 
-### Current state
-- `public.employees`: row exists, `email` cleared, `resign_date = 2026-06-29`.
-- `auth.users`: no row for `albertcorpuz873@gmail.com` (login already revoked).
-- `public.student_auth`: no row.
+## Changes
 
-### Change (data-only, one update)
-Update `public.employees` where `id = 'EMP1750865290864'`:
-- `resign_date → NULL` (he is still employed)
-- `email` stays **NULL** (do not restore `albertcorpuz873@gmail.com`)
+### 1. Token-based name matching in `match_student_by_identity` RPC
 
-That's the entire change.
+New migration that `CREATE OR REPLACE`s the RPC. Signature, return columns, `SECURITY DEFINER`, and `search_path` unchanged.
 
-### Why this keeps him out of Klara
-Login resolves `auth.users.email → employees.email` in `processUserSession`. With no `auth.users` row for that address AND no `employees.email` to match against, there is no path to a Klara session for him. He appears in active staff lists, payroll, attendance, etc., exactly like any other employee without a portal login.
+Split both the typed input and each stored student's `first_name` + `last_name` into uppercase whitespace-delimited tokens. A student matches when:
 
-### Not changed
-`auth.users`, `student_auth`, `superadmin_users`, `admin_access`, `employee_page_access`, RLS, edge functions, frontend code, payroll history, attendance history.
+- **First-name check:** at least one token from the typed First name field appears in the union of the stored student's first-name and last-name tokens. So typing `Earl`, `John`, `Earl John`, `Earl Lucero`, or `John Lucero` all match a student stored as `Earl John` / `Lucero II`.
+- **Last-name check:** if the typed Last name is non-empty, at least one of its tokens must also appear in that same union. If blank, this check is skipped.
 
-### Out of scope
-Giving him a new Klara email later (separate request), other employees, back-pay for the days marked resigned.
+Branch, and the DOB **or** gender + email/phone fallback conditions, remain exactly as today.
+
+### 2. `/hello` identify form — `src/pages/public/PublicHelloChat.tsx`
+
+- First name and Last name `Input`s: `onChange` stores `e.target.value.toUpperCase()` immediately; remove the `onBlur` uppercase handler.
+- Last name label changes from `Last name *` to `Last name` and the submit-guard no longer requires it. First name and branch stay required; DOB stays "recommended".
+- Pass `last_name` as an empty string when blank; the RPC treats that as "skip last-name check".
+
+## Technical notes
+
+Token comparison uses `regexp_split_to_array(upper(trim(...)), '\s+')` and the array-overlap operator `&&` against the union of each student's first-name and last-name token arrays. Empty typed arrays short-circuit the corresponding check.
+
+## Out of scope
+
+- Public Student Registration form and other intake forms.
+- Fuzzy/typo matching or nickname handling.
+- Changing DOB / gender / email / phone fallback logic, or which fields are required beyond making last name optional.
