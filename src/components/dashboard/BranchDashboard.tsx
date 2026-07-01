@@ -1226,6 +1226,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, () => {
         invalidateApprovalCounts();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'public_chat_callback_requests' }, () => {
+        invalidateApprovalCounts();
+      })
       .subscribe();
 
     return () => {
