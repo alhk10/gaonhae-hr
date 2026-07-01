@@ -1164,6 +1164,9 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       queryClient.invalidateQueries({ queryKey: ['pending-inventory-orders'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['pending-claims-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-count', branchId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-lesson-requests-slot'] });
     };
 
     const channel = supabase
