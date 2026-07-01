@@ -232,7 +232,7 @@ export const submitLessonRequest = async (input: SubmitLessonRequestInput): Prom
   }
   if (input.notes) lines.push(`Notes: ${input.notes}`);
 
-  return submitCallback({
+  const id = await submitCallback({
     session_id: input.session_id,
     branch_id: input.branch_id,
     branch_name: input.branch_name,
@@ -245,6 +245,12 @@ export const submitLessonRequest = async (input: SubmitLessonRequestInput): Prom
     type: 'lesson_schedule_request',
     preferred_time: null,
   });
+  // Link the request to the known student so branch approvers can act on it.
+  await supabase
+    .from('public_chat_callback_requests')
+    .update({ matched_student_id: input.student_id } as any)
+    .eq('id', id);
+  return id;
 };
 
 // ---------- Calendar data RPCs ----------
