@@ -29,6 +29,12 @@ import {
   ClassAttendanceRecord,
   StudentForAttendance,
 } from '@/services/classAttendanceService';
+import {
+  listPendingLessonRequestsForSlot,
+  approveLessonRequestBooking,
+  rejectLessonRequest,
+} from '@/services/chatLessonRequestService';
+import { CalendarClock } from 'lucide-react';
 
 interface SlotAttendanceDialogProps {
   open: boolean;
