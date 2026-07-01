@@ -1853,6 +1853,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <PublicGradingSubmissionApprovals branchId={branchId} />
           <PublicCompetitionSubmissionApprovals branchId={branchId} />
           <PublicGuardsPurchaseApprovals branchId={branchId} />
+          <PublicHelloLessonRequestApprovals branchId={branchId} />
 
           {pendingRequests.length > 0 && (
             <Card>
