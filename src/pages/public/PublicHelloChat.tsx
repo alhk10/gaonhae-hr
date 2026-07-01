@@ -363,8 +363,8 @@ const PublicHelloChat: React.FC = () => {
 
   // Identify -> match
   const handleIdentify = async () => {
-    if (!firstName.trim() || !lastName.trim() || !branchId) {
-      toast.error('Please fill first name, last name and branch');
+    if (!firstName.trim() || !branchId) {
+      toast.error('Please fill first name and branch');
       return;
     }
     const hasAltIdentity = !!gender && (!!email.trim() || !!phone.trim());
@@ -814,11 +814,11 @@ const PublicHelloChat: React.FC = () => {
               <CardContent className="p-3 space-y-3">
                 <div className="space-y-1">
                   <Label className="text-xs">First name *</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => setFirstName(s => s.trim().toUpperCase())} className="h-10" />
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Last name *</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName(s => s.trim().toUpperCase())} className="h-10" />
+                  <Label className="text-xs">Last name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Date of birth (recommended)</Label>
