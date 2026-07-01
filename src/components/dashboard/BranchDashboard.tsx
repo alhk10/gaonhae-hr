@@ -1116,7 +1116,14 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0;
+  const { data: pendingLessonReqCount = 0 } = useQuery({
+    queryKey: ['pending-lesson-requests-count', branchId],
+    queryFn: () => getPendingLessonRequestCount(branchId),
+    enabled: !!branchId,
+    refetchInterval: 60_000,
+  });
+
+  const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0 || pendingLessonReqCount > 0;
 
   const invalidateAllBranchData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['branch-invoices', branchId] });
