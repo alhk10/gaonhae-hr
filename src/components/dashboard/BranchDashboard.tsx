@@ -1257,7 +1257,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       setActiveTab('approvals');
     }
     prevHasApprovalsRef.current = hasApprovals;
-  }, [pendingRequests, unverifiedPayments, pendingRegCount, hasApprovals, activeTab]);
+  }, [pendingRequests, unverifiedPayments, pendingRegCount, pendingLessonReqCount, hasApprovals, activeTab]);
 
   const filteredStudents = students.filter(student => {
     // Always exclude withdrawn students
