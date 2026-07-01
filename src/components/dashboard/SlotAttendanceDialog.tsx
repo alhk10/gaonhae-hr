@@ -117,6 +117,15 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
     enabled: open && !!slot,
   });
 
+  // Fetch pending /hello lesson requests targeting this exact slot
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['pending-lesson-requests-slot', branchId, slot?.timetableId, slot?.date, slot?.startTime, slot?.endTime],
+    queryFn: () => listPendingLessonRequestsForSlot(
+      branchId, slot!.date, slot!.startTime, slot!.endTime, slot!.timetableId,
+    ),
+    enabled: open && !!slot,
+  });
+
   // Get students not yet in attendance
   const studentsInAttendance = useMemo(() => {
     return new Set(attendance.map(a => a.student_id));
