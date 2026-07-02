@@ -295,6 +295,11 @@ const PayrollProcessing = () => {
     milestoneBonusThreshold?: number;
   } | null>(null);
 
+  const [payeeDialogEmployeeId, setPayeeDialogEmployeeId] = useState<string | null>(null);
+  const payeeDialogEmployee = payeeDialogEmployeeId
+    ? allEmployees.find((e) => e.id === payeeDialogEmployeeId)
+    : null;
+
   // Load all employee data with allowances and deductions - OPTIMIZED
   useEffect(() => {
     const loadAllEmployeeData = async () => {
