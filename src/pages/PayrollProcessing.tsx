@@ -27,6 +27,7 @@ import { supabase as authService } from '@/integrations/supabase/client';
 import { forceRefreshSession } from '@/services/sessionRefreshService';
 import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDate } from '@/utils/dateFormat';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
@@ -294,6 +295,11 @@ const PayrollProcessing = () => {
     milestoneBonus?: number;
     milestoneBonusThreshold?: number;
   } | null>(null);
+
+  const [payeeDialogEmployeeId, setPayeeDialogEmployeeId] = useState<string | null>(null);
+  const payeeDialogEmployee = payeeDialogEmployeeId
+    ? allEmployees.find((e) => e.id === payeeDialogEmployeeId)
+    : null;
 
   // Load all employee data with allowances and deductions - OPTIMIZED
   useEffect(() => {
@@ -1730,7 +1736,15 @@ const PayrollProcessing = () => {
               
               return (
                 <TableRow key={employee.id} className="h-12">
-                  <TableCell className="font-medium py-2">{employee.name}</TableCell>
+                  <TableCell className="font-medium py-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayeeDialogEmployeeId(employee.id)}
+                      className="text-left underline-offset-2 hover:underline hover:text-primary"
+                    >
+                      {employee.name}
+                    </button>
+                  </TableCell>
                   <TableCell className="py-2">
                     <Badge variant="outline">Monthly</Badge>
                   </TableCell>
@@ -1754,7 +1768,15 @@ const PayrollProcessing = () => {
               
               return (
                 <TableRow key={employee.id} className="h-12">
-                  <TableCell className="font-medium py-2">{employee.name}</TableCell>
+                  <TableCell className="font-medium py-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayeeDialogEmployeeId(employee.id)}
+                      className="text-left underline-offset-2 hover:underline hover:text-primary"
+                    >
+                      {employee.name}
+                    </button>
+                  </TableCell>
                   <TableCell className="py-2">
                     <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
                   </TableCell>
@@ -2166,6 +2188,40 @@ const PayrollProcessing = () => {
             }}
           />
         )}
+
+        <Dialog
+          open={!!payeeDialogEmployeeId}
+          onOpenChange={(open) => !open && setPayeeDialogEmployeeId(null)}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Payee Details</DialogTitle>
+            </DialogHeader>
+            {payeeDialogEmployee ? (
+              <div className="grid grid-cols-3 gap-y-2 text-sm">
+                <div className="text-muted-foreground">Employee Name</div>
+                <div className="col-span-2 font-medium">
+                  {payeeDialogEmployee.display_name || payeeDialogEmployee.name || '—'}
+                </div>
+                <div className="text-muted-foreground">Date of Birth</div>
+                <div className="col-span-2">
+                  {payeeDialogEmployee.dateOfBirth ? formatDate(payeeDialogEmployee.dateOfBirth) : '—'}
+                </div>
+                <div className="text-muted-foreground">NRIC / FIN</div>
+                <div className="col-span-2">{payeeDialogEmployee.nric || '—'}</div>
+                <div className="text-muted-foreground">Bank Name</div>
+                <div className="col-span-2">{payeeDialogEmployee.bankName || '—'}</div>
+                <div className="text-muted-foreground">Bank Account Name</div>
+                <div className="col-span-2">{payeeDialogEmployee.name || '—'}</div>
+                <div className="text-muted-foreground">Bank Account Number</div>
+                <div className="col-span-2 font-mono">{payeeDialogEmployee.bankAccount || '—'}</div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Employee not found.</div>
+            )}
+          </DialogContent>
+        </Dialog>
+
       </div>
     </ResponsiveLayout>
   );
