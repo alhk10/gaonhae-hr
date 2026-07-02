@@ -27,6 +27,7 @@ import { supabase as authService } from '@/integrations/supabase/client';
 import { forceRefreshSession } from '@/services/sessionRefreshService';
 import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/usePayrollPersistence';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDate } from '@/utils/dateFormat';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
