@@ -1767,7 +1767,15 @@ const PayrollProcessing = () => {
               
               return (
                 <TableRow key={employee.id} className="h-12">
-                  <TableCell className="font-medium py-2">{employee.name}</TableCell>
+                  <TableCell className="font-medium py-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayeeDialogEmployeeId(employee.id)}
+                      className="text-left underline-offset-2 hover:underline hover:text-primary"
+                    >
+                      {employee.name}
+                    </button>
+                  </TableCell>
                   <TableCell className="py-2">
                     <Badge variant="success" className="text-xs">Dynamic Pricing</Badge>
                   </TableCell>
