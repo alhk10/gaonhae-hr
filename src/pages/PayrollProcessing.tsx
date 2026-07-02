@@ -2187,6 +2187,40 @@ const PayrollProcessing = () => {
             }}
           />
         )}
+
+        <Dialog
+          open={!!payeeDialogEmployeeId}
+          onOpenChange={(open) => !open && setPayeeDialogEmployeeId(null)}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Payee Details</DialogTitle>
+            </DialogHeader>
+            {payeeDialogEmployee ? (
+              <div className="grid grid-cols-3 gap-y-2 text-sm">
+                <div className="text-muted-foreground">Employee Name</div>
+                <div className="col-span-2 font-medium">
+                  {payeeDialogEmployee.display_name || payeeDialogEmployee.name || '—'}
+                </div>
+                <div className="text-muted-foreground">Date of Birth</div>
+                <div className="col-span-2">
+                  {payeeDialogEmployee.dateOfBirth ? formatDate(payeeDialogEmployee.dateOfBirth) : '—'}
+                </div>
+                <div className="text-muted-foreground">NRIC / FIN</div>
+                <div className="col-span-2">{payeeDialogEmployee.nric || '—'}</div>
+                <div className="text-muted-foreground">Bank Name</div>
+                <div className="col-span-2">{payeeDialogEmployee.bankName || '—'}</div>
+                <div className="text-muted-foreground">Bank Account Name</div>
+                <div className="col-span-2">{payeeDialogEmployee.name || '—'}</div>
+                <div className="text-muted-foreground">Bank Account Number</div>
+                <div className="col-span-2 font-mono">{payeeDialogEmployee.bankAccount || '—'}</div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Employee not found.</div>
+            )}
+          </DialogContent>
+        </Dialog>
+
       </div>
     </ResponsiveLayout>
   );
