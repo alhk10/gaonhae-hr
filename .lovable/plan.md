@@ -1,33 +1,23 @@
-## Problem
+## Plan
 
-Approving Emily Hana's `/hello` booking fails with **"No active enrollment found for this student in this term"**.
+Make each employee name in the **Payment Processing** table (`src/pages/PayrollProcessing.tsx`, the step shown in your screenshot) clickable. Clicking opens a small read-only dialog with:
 
-Root cause: `approveLessonRequestBooking` in `src/services/chatLessonRequestService.ts` requires a row in `student_class_enrollments` (because `student_scheduled_classes.enrollment_id` FKs to it). Emily has a paid/verified invoice for Term 2 2026 with a lesson item and an auto-created entitlement (10 sessions), but no `student_class_enrollments` row — that row is only created when the invoice UI collects class slots at invoice time. Since her lessons were left "to be booked later", the enrollment was never inserted.
+- Employee Name (display_name || name)
+- Date of Birth (DD/MM/YYYY via `formatDate`)
+- NRIC / FIN
+- Bank Account Name (the employee's legal name — from `employees.name`)
+- Bank Account Number
+- Bank Name (added for context since it's already in the row)
 
-## Fix
+### Changes
+- `src/pages/PayrollProcessing.tsx`
+  - Add `selectedPayeeId` state and a new `EmployeePayeeDialog` component (inline or new file).
+  - Render name cells as a `<button>` with `underline hover:text-primary`, `onClick` sets the id.
+  - Dialog fetches the full employee record from the already-loaded `availableEmployees` list (no extra query) and shows the 5 fields in a two-column read-only layout.
+  - Superadmin-only? — assume visible to anyone who can already see this Payment Processing step (no extra gating), since the bank number is already displayed in the same row.
 
-In `chatLessonRequestService.ts` → `resolveEnrollment`, if no active enrollment exists for the student/branch/term, auto-create one from the matching paid lesson invoice item instead of throwing.
+### Out of scope
+- No editing from the dialog (view only).
+- No changes to the casual/full-time payroll calculations or the "Paid" checkbox behavior.
 
-### Steps (single file: `src/services/chatLessonRequestService.ts`)
-
-1. Keep existing lookup for an active enrollment.
-2. If none found:
-   - Locate the term covering the booking date (already computed).
-   - Find a lesson `invoice_items` row for this student/branch where `metadata->>'term_id' = <termId>` and its `invoices.status` is one of `paid`, `verified`, `partially_paid`, `sent`, `draft` (i.e. not `cancelled`). Pick the most recent.
-   - Resolve `class_type` from the booking's `timetable_id` via `branch_timetables.class_type` (fallback: product name).
-   - Resolve `pricing_tier_id` / `tier_name` / `total_price` from the invoice item's `product_id` via `class_pricing_tiers` for that branch + class_type (fallback: `tier_name = 'Custom'`, `total_price = invoice_item.total_amount`).
-   - Call the existing `createEnrollment(...)` helper from `classEnrollmentService.ts` with `invoice_item_id` linked, `notes: 'Auto-created from /hello lesson approval'`, and use the returned id.
-3. If still no invoice item is found, throw a clearer error: `"No paid lesson invoice found for this term — cannot create enrollment"`.
-
-No UI changes. No migration. No other services touched.
-
-## Verification
-
-- Reopen the Wednesday 4 PM Junior slot dialog for Emily Hana, click **Approve** — the toast should succeed, the pending row disappears, and a new row appears under Attendance for that slot.
-- Confirm a `student_class_enrollments` row now exists for Emily (Term 2 2026, Morley) and a `student_scheduled_classes` row for 2026-07-01 16:00 links to it.
-
-## Out of scope
-
-- Backfilling enrollments for other students.
-- Changing entitlement counting or the invoice auto-enrollment flow.
-- Any UI copy or layout changes.
+Confirm and I'll implement.
