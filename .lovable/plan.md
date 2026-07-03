@@ -1,23 +1,15 @@
-## Plan
+# Change 6-Slot Milestone Bonus to 8-Slot Milestone Bonus
 
-Make each employee name in the **Payment Processing** table (`src/pages/PayrollProcessing.tsx`, the step shown in your screenshot) clickable. Clicking opens a small read-only dialog with:
+Rename the lowest slot-booking milestone from "6 slots" to "8 slots". The bonus amount stays whatever is currently configured in `slot_pricing_config.milestone_5_slots_bonus` (we're only changing the threshold count, not the dollar value or the DB column name).
 
-- Employee Name (display_name || name)
-- Date of Birth (DD/MM/YYYY via `formatDate`)
-- NRIC / FIN
-- Bank Account Name (the employee's legal name — from `employees.name`)
-- Bank Account Number
-- Bank Name (added for context since it's already in the row)
+## Changes
 
-### Changes
-- `src/pages/PayrollProcessing.tsx`
-  - Add `selectedPayeeId` state and a new `EmployeePayeeDialog` component (inline or new file).
-  - Render name cells as a `<button>` with `underline hover:text-primary`, `onClick` sets the id.
-  - Dialog fetches the full employee record from the already-loaded `availableEmployees` list (no extra query) and shows the 5 fields in a two-column read-only layout.
-  - Superadmin-only? — assume visible to anyone who can already see this Payment Processing step (no extra gating), since the bank number is already displayed in the same row.
+1. **`src/utils/slotPayCalculation.ts`** (line 213) — change `else if (slotCount >= 6)` to `>= 8`.
+2. **`src/services/slotBookingPayrollService.ts`** (lines 210-211) — change `>= 6` check and the assigned `milestoneBonusThreshold` value from `6` to `8`; update the `// 6, 12, or 16` comment to `// 8, 12, or 16`.
+3. **`src/components/dashboard/ViewPricingRatesDialog.tsx`** (line 79) — change label `"6 Slots"` to `"8 Slots"`.
+4. **`src/components/slot-booking/PricingSettingsTab.tsx`** (line 130) — change label `"6 Slots Bonus ($)"` to `"8 Slots Bonus ($)"` (input still binds to `milestone_5_slots_bonus`).
 
-### Out of scope
-- No editing from the dialog (view only).
-- No changes to the casual/full-time payroll calculations or the "Paid" checkbox behavior.
+## Out of scope
 
-Confirm and I'll implement.
+- No DB migration — the column `milestone_5_slots_bonus` and its stored value are unchanged.
+- No changes to the 12- and 16-slot tiers.

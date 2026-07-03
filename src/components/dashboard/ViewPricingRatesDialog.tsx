@@ -76,7 +76,7 @@ const ViewPricingRatesDialog: React.FC<Props> = ({ open, onOpenChange }) => {
             </Section>
 
             <Section icon={<Trophy className="w-4 h-4" />} title="Monthly Milestone Bonuses">
-              <Row label="6 Slots" value={config.milestone_5_slots_bonus} />
+              <Row label="8 Slots" value={config.milestone_5_slots_bonus} />
               <Row label="12 Slots" value={config.milestone_10_slots_bonus} />
               <Row label="16 Slots" value={config.milestone_16_slots_bonus} />
             </Section>
