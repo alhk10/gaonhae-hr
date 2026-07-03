@@ -127,7 +127,7 @@ const PricingSettingsTab: React.FC<PricingSettingsTabProps> = ({ onConfigChange 
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="milestone_5">6 Slots Bonus ($)</Label>
+              <Label htmlFor="milestone_5">8 Slots Bonus ($)</Label>
               <Input
                 id="milestone_5"
                 type="number"

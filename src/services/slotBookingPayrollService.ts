@@ -10,7 +10,7 @@ interface SlotBookingPayData {
   fullSlotRate?: number;
   rateBreakdown?: Array<{ item: string; amount: number }>;
   milestoneBonus?: number;
-  milestoneBonusThreshold?: number; // 6, 12, or 16
+  milestoneBonusThreshold?: number; // 8, 12, or 16
   breakdown: Array<{
     date: string;
     branchName: string;
@@ -207,8 +207,8 @@ export const getSlotBookingPayForPeriod = async (
       milestoneBonusThreshold = 16;
     } else if (totalSlots >= 12) {
       milestoneBonusThreshold = 12;
-    } else if (totalSlots >= 6) {
-      milestoneBonusThreshold = 6;
+    } else if (totalSlots >= 8) {
+      milestoneBonusThreshold = 8;
     }
 
     console.log('[SlotBookingPayroll] Total slots with attendance:', totalSlots, 'Total pay:', totalPay, 'Milestone bonus:', milestoneBonus);
