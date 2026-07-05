@@ -15,6 +15,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTime } from '@/utils/dateFormat';
 import { Copy, Trash2, Send, Ban, MessageSquare } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   listDevices, registerDevice, updateDevice, deleteDevice,
   listCampaigns, createCampaign, cancelCampaign,
@@ -485,14 +486,32 @@ function DevicesTab() {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm">Paste this token into the Android app. It is shown <strong>once</strong>.</p>
-              <div className="p-3 bg-muted rounded font-mono text-xs break-all">{issued}</div>
-              <Button
-                variant="outline"
-                onClick={() => { navigator.clipboard.writeText(issued); toast({ title: 'Copied' }); }}
-              >
-                <Copy className="w-4 h-4 mr-2" /> Copy
-              </Button>
+              <p className="text-sm">Scan this QR code with the SMS Bridge Android app to pair instantly.</p>
+              <div className="flex justify-center p-4 bg-white rounded border">
+                <QRCodeSVG
+                  value={JSON.stringify({
+                    v: 1,
+                    url: import.meta.env.VITE_SUPABASE_URL,
+                    anon: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                    token: issued,
+                    delay,
+                  })}
+                  size={240}
+                  level="M"
+                />
+              </div>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Manual entry (fallback)</summary>
+                <div className="p-3 mt-2 bg-muted rounded font-mono text-xs break-all">{issued}</div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => { navigator.clipboard.writeText(issued); toast({ title: 'Copied' }); }}
+                >
+                  <Copy className="w-3 h-3 mr-2" /> Copy token
+                </Button>
+              </details>
               <DialogFooter>
                 <Button onClick={() => { setShowAdd(false); setIssued(null); }}>Done</Button>
               </DialogFooter>

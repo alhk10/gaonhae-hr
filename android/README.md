@@ -15,10 +15,9 @@ A minimal Kotlin/Android app that pairs with the Lovable SMS Bridge:
 1. Open the `android/` folder in Android Studio (open as project).
 2. Connect your phone via USB (developer mode + USB debugging on).
 3. Run the app on the device.
-4. In the webapp: **SMS Bridge → Devices → Register device**. Copy the one-time token.
-5. In the Android app config screen, fill in:
-   - Supabase URL: `https://qwdcbfnuywgubumlgscy.supabase.co`
-   - Supabase anon key: (copy from webapp `.env`)
+4. In the webapp: **SMS Bridge → Devices → Register device**. A QR code appears.
+5. In the Android app, tap **Scan QR to pair** and point the camera at the QR. URL, anon key, token, and delay auto-fill.
+6. (Fallback) You can still paste the token manually if scanning isn't possible.
    - Device token: paste
    - Send delay (ms): default 3000
 6. Grant SMS + notification permissions when prompted.
