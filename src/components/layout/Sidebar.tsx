@@ -28,6 +28,7 @@ import {
   Share2,
   ChevronRight,
   Image as ImageIcon,
+  MessageSquare,
 } from 'lucide-react';
 import { getEmployees } from '@/services/employeeService';
 import { EmployeeProfile } from '@/types/employee';
@@ -188,6 +189,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
       );
 
       adminItems.push({ icon: FileText, label: 'Documents', path: '/documents' });
+      adminItems.push({ icon: MessageSquare, label: 'SMS Bridge', path: '/sms' });
       adminItems.push({ icon: Settings, label: 'System Settings', path: '/settings' });
 
       // Add Sales Settings if user has access
