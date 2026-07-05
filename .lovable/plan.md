@@ -1,53 +1,20 @@
-## Goal
-Give you a **working, installable `SmsBridge-debug.apk`** without needing Android Studio on your computer — GitHub builds it for you on every push, and you download the APK from the Actions tab.
+## Verification result
 
-## Why this route
-The Lovable sandbox can't run the Android SDK / Gradle build (needs ~10 GB tooling + a long build). GitHub Actions has a free Android build environment pre-installed and will hand you the APK as a downloadable artifact within ~5 minutes.
+Your Lovable → GitHub sync completed successfully. No code changes needed.
 
-## What I'll add
+**Repository**: https://github.com/alhk10/gaonhae-hr (public, reachable)
 
-### 1. `.github/workflows/android.yml`
-Workflow that runs on every push touching `android/**` (and via manual "Run workflow"):
-- Checks out the repo
-- Installs JDK 17 + Android SDK
-- Runs `./gradlew :app:assembleDebug` inside `android/`
-- Uploads `android/app/build/outputs/apk/debug/app-debug.apk` as an artifact named `SmsBridge-debug-apk`
+**Latest commit on `main`**:
+- `047ef9d` — "Added GitHub auto-build APK" — 2026-07-05 07:12 UTC
 
-### 2. Gradle wrapper files (required for CI, currently missing)
-- `android/gradlew` (unix launcher, executable)
-- `android/gradlew.bat` (Windows launcher)
-- `android/gradle/wrapper/gradle-wrapper.jar`
-- `android/gradle/wrapper/gradle-wrapper.properties` (pins Gradle 8.7)
+**Required files present**:
+- `android/` folder — contains `app/`, `gradle/`, `gradlew`, `gradlew.bat`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`, `BUILD_APK.md`, `README.md`
+- `.github/workflows/android.yml` — served with HTTP 200 from `main` branch
 
-### 3. `android/BUILD_APK.md` — step-by-step user guide
-Two paths:
+## What to do next
 
-**A. GitHub Actions (recommended, no local tools):**
-1. Click **GitHub → Export project** in Lovable (top-right).
-2. On GitHub, open the repo → **Actions** tab → enable workflows if prompted.
-3. Pick **Build Android APK** → **Run workflow** → wait ~5 min.
-4. Open the finished run → **Artifacts** → download `SmsBridge-debug-apk.zip`.
-5. Unzip → transfer `app-debug.apk` to your phone (email, Drive, USB).
-6. On the phone: tap the APK → allow "Install unknown apps" for your file manager → Install.
-7. Open **SMS Bridge**, tap **Scan QR to pair**, point at the QR from the webapp, then **Save & Start**.
-8. Grant SMS + Notifications + Camera permissions. Turn OFF battery optimisation for SMS Bridge.
+1. Open **https://github.com/alhk10/gaonhae-hr/actions** in your browser.
+2. You should see a workflow run for commit `047ef9d` (either in progress or completed).
+3. When it finishes, click the run and download the APK from the **Artifacts** section at the bottom.
 
-**B. Local build with Android Studio (fallback):**
-1. Install Android Studio (Hedgehog+).
-2. Open the `android/` folder → let Gradle sync.
-3. Plug in phone (USB debugging on) → press ▶ Run, or **Build → Build APK**.
-4. Install the APK from `android/app/build/outputs/apk/debug/`.
-
-## What you get
-- APK is **debug-signed** — installs and works, just can't be published to Play (and we're sideload-only anyway because of SMS permissions).
-- Same source you already have — QR pairing, 3s delay, foreground sync service — nothing behavioural changes.
-
-## Files touched
-- `.github/workflows/android.yml` (new)
-- `android/gradlew` (new, executable)
-- `android/gradlew.bat` (new)
-- `android/gradle/wrapper/gradle-wrapper.jar` (new, binary via lovable-assets)
-- `android/gradle/wrapper/gradle-wrapper.properties` (new)
-- `android/BUILD_APK.md` (new)
-
-No webapp, database, or edge-function changes.
+If the Actions run failed, share the error log and I'll switch to build mode to fix the workflow.
