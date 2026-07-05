@@ -15,7 +15,7 @@ Prerequisite: this Lovable project is connected to GitHub (in Lovable: **+ menu 
 5. Wait ~5 minutes for the green ✓.
 6. Click the finished run → scroll to **Artifacts** → download **`SmsBridge-debug-apk`** (a zip).
 7. Unzip it — inside is **`app-debug.apk`**.
-8. Send that file to your phone (email attachment, Google Drive, USB cable, WhatsApp to yourself, etc.).
+8. Send that file to your phone with USB cable, Google Drive download, or direct browser download. Avoid WhatsApp, Telegram, Gmail, and Drive preview because they can rename or alter APK files.
 
 ### Install on your phone
 
@@ -47,7 +47,10 @@ Only needed if you don't want to use GitHub.
 
 ## Troubleshooting
 
-- **"App not installed" on phone** — you already have an older SMS Bridge installed with a different signature; uninstall it first.
+- **"App not installed" on Android 14** — uninstall any older **SMS Bridge** app first, then install the new `app-debug.apk` again. Android rejects an app update when the package name matches but the signing key changed.
+- **Parse error / APK won't open** — make sure you extracted the artifact zip and are tapping `app-debug.apk`, not `SmsBridge-debug-apk.zip`.
+- **Installed from Google Drive** — download the zip to local storage first, extract it with Android's built-in **Files** app, then install from **Files** rather than Drive preview.
+- **Unknown apps blocked** — enable **Settings → Apps → Special app access → Install unknown apps** for the app opening the APK, usually Chrome, Files, or Drive.
 - **Actions build fails on `Set up Android SDK`** — re-run the workflow; the SDK action occasionally times out on first fetch.
 - **QR scan does nothing** — grant Camera permission in Android settings, then tap Scan again.
 - **SMS never send** — check the phone has SIM + credit, SMS permission granted, and the app isn't battery-restricted.

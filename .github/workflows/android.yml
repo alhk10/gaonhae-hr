@@ -31,6 +31,14 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
+      - name: Verify debug APK
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          file "$APK"
+          apksigner verify --verbose --print-certs "$APK"
+          aapt dump badging "$APK" | head -40
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

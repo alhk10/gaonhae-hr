@@ -36,6 +36,16 @@ The persistent notification means the service keeps running. Battery-optimize th
 
 This app uses restricted SMS permissions. Google Play blocks non-default SMS handlers with these permissions, so **sideload only** (`Build → Generate Signed APK` and install on your phone). Do not publish to Play.
 
+## Android 14 sideload checklist
+
+If Android says **"App not installed"** or shows a parse error:
+
+1. Uninstall any existing **SMS Bridge** app first.
+2. Download the GitHub Actions artifact zip locally, then extract it.
+3. Install the extracted `app-debug.apk`, not the zip.
+4. Open the APK from Android's built-in **Files** app instead of Drive preview.
+5. Enable **Install unknown apps** for the app opening the APK.
+
 ## Files
 
 ```
