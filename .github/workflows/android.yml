@@ -36,8 +36,10 @@ jobs:
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
           file "$APK"
-          apksigner verify --verbose --print-certs "$APK"
-          aapt dump badging "$APK" | head -40
+          BT_DIR="$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/ | sort -V | tail -1)"
+          echo "Using build-tools: $BT_DIR"
+          "${BT_DIR}apksigner" verify --verbose --print-certs "$APK"
+          "${BT_DIR}aapt" dump badging "$APK" | head -40
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
