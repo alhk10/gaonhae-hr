@@ -15,6 +15,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTime } from '@/utils/dateFormat';
 import { Copy, Trash2, Send, Ban, MessageSquare } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   listDevices, registerDevice, updateDevice, deleteDevice,
   listCampaigns, createCampaign, cancelCampaign,
