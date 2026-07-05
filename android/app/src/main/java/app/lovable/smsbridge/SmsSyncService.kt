@@ -9,8 +9,7 @@ import android.os.IBinder
 import android.telephony.SmsManager
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlin.coroutines.resume
 
 class SmsSyncService : Service() {
 
@@ -45,6 +44,7 @@ class SmsSyncService : Service() {
                     for ((idx, m) in result.messages.withIndex()) {
                         sendOne(m)
                         if (idx != result.messages.lastIndex) {
+                            // Enforce delay between messages
                             delay(result.sendDelayMs.toLong())
                         }
                     }
@@ -60,45 +60,50 @@ class SmsSyncService : Service() {
     private suspend fun sendOne(m: OutboundMessage) {
         val ctx = applicationContext
         val sentAction = "app.lovable.smsbridge.SMS_SENT_${m.id}"
-        val sentIntent = Intent(sentAction).apply { setPackage(packageName) }
-        val pi = PendingIntent.getBroadcast(
-            ctx, m.id.hashCode(), sentIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        )
 
-        val resultCode = CompletableDeferred<Int>()
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(c: Context?, i: Intent?) { resultCode.complete(resultCode) as Any }
-        }
-        // Simpler: use suspendCancellableCoroutine
-        val result = kotlinx.coroutines.suspendCancellableCoroutine<Int> { cont ->
-            val recv = object : android.content.BroadcastReceiver() {
-                override fun onReceive(c: Context?, i: Intent?) {
-                    try { ctx.unregisterReceiver(this) } catch (_: Exception) {}
-                    if (cont.isActive) cont.resume(resultCode) { }
+        val result: Int = withTimeoutOrNull(30_000L) {
+            suspendCancellableCoroutine<Int> { cont ->
+                val recv = object : android.content.BroadcastReceiver() {
+                    override fun onReceive(c: Context?, i: Intent?) {
+                        try { ctx.unregisterReceiver(this) } catch (_: Exception) {}
+                        if (cont.isActive) cont.resume(resultCode)
+                    }
                 }
-            }
-            val filter = IntentFilter(sentAction)
-            if (Build.VERSION.SDK_INT >= 33) {
-                ctx.registerReceiver(recv, filter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                ctx.registerReceiver(recv, filter)
-            }
-            try {
-                val sm = if (Build.VERSION.SDK_INT >= 31) ctx.getSystemService(SmsManager::class.java)
-                         else SmsManager.getDefault()
-                val parts = sm.divideMessage(m.body)
-                if (parts.size > 1) {
-                    val piList = ArrayList<PendingIntent>().apply { repeat(parts.size) { add(pi) } }
-                    sm.sendMultipartTextMessage(m.phone, null, parts, piList, null)
+                val filter = IntentFilter(sentAction)
+                if (Build.VERSION.SDK_INT >= 33) {
+                    ctx.registerReceiver(recv, filter, Context.RECEIVER_NOT_EXPORTED)
                 } else {
-                    sm.sendTextMessage(m.phone, null, m.body, pi, null)
+                    @Suppress("UnspecifiedRegisterReceiverFlag")
+                    ctx.registerReceiver(recv, filter)
                 }
-            } catch (e: Exception) {
-                try { ctx.unregisterReceiver(recv) } catch (_: Exception) {}
-                if (cont.isActive) cont.resume(Activity.RESULT_CANCELED) { }
+                cont.invokeOnCancellation {
+                    try { ctx.unregisterReceiver(recv) } catch (_: Exception) {}
+                }
+
+                val sentIntent = Intent(sentAction).setPackage(packageName)
+                val pi = PendingIntent.getBroadcast(
+                    ctx, m.id.hashCode(), sentIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+
+                try {
+                    val sm = if (Build.VERSION.SDK_INT >= 31)
+                        ctx.getSystemService(SmsManager::class.java)
+                    else @Suppress("DEPRECATION") SmsManager.getDefault()
+
+                    val parts = sm.divideMessage(m.body)
+                    if (parts.size > 1) {
+                        val piList = ArrayList<PendingIntent>().apply { repeat(parts.size) { add(pi) } }
+                        sm.sendMultipartTextMessage(m.phone, null, parts, piList, null)
+                    } else {
+                        sm.sendTextMessage(m.phone, null, m.body, pi, null)
+                    }
+                } catch (e: Exception) {
+                    try { ctx.unregisterReceiver(recv) } catch (_: Exception) {}
+                    if (cont.isActive) cont.resume(Activity.RESULT_CANCELED)
+                }
             }
-        }
+        } ?: Activity.RESULT_CANCELED
 
         val ok = result == Activity.RESULT_OK
         try {
