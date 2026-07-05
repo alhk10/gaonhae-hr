@@ -1,53 +1,45 @@
-## Problem
-Android shows "App not installed" / parse error when installing `app-debug.apk` transferred directly to the phone. This almost always means one of:
+## Goal
+Make the debug APK more reliable to sideload on your Android 14 TCL Nxtpaper 14 T612B.
 
-1. **File corruption during transfer** (most common) — the APK was truncated or altered (email, messaging apps, cloud previews often do this).
-2. **minSdkVersion too high** for the phone's Android version.
-3. **APK signature / v1 signing missing** — some newer Android versions reject unsigned or v2-only debug APKs on certain devices.
-4. **ABI mismatch** — unlikely for a Capacitor/webview app, but possible if the workflow produced an arch-specific APK.
+## What the error likely means
+Because your phone is Android 14, `minSdk = 26` is not the problem. Since you already downloaded the zip through Google Drive and extracted the APK, the remaining likely causes are:
 
-## Investigation steps (no code changes yet)
+1. An existing app with the same package name but a different signature is already installed.
+2. The APK installer dislikes the current debug signing metadata.
+3. The copied APK is still being altered/truncated by Drive or the file manager.
+4. Android 14 is rejecting something that will be visible from a stronger APK verification step.
 
-1. Read `android/app/build.gradle.kts` (or `build.gradle`) to confirm:
-   - `minSdkVersion` / `targetSdkVersion`
-   - `applicationId`
-   - signing config for `debug`
-   - whether it produces a universal APK or split by ABI
-2. Read `.github/workflows/android.yml` to confirm which task builds the artifact (`assembleDebug` vs `bundleDebug`) and what file it uploads.
-3. Confirm the artifact uploaded is `app-debug.apk` (not `.aab`, which cannot be sideloaded).
+## Plan
+1. **Harden the Android debug APK config**
+   - Add an explicit debug signing config.
+   - Enable v1 and v2 signing explicitly.
+   - Disable APK splits so the workflow always produces one universal APK.
+   - Keep `minSdk = 26` because Android 14 supports it.
 
-## Likely fixes (applied after investigation, in build mode)
+2. **Improve GitHub Actions artifact validation**
+   - After `assembleDebug`, add a verification step that prints APK metadata using Android SDK tools.
+   - This will confirm the artifact is truly an APK, signed, and installable-format before upload.
 
-- **A. Re-download properly.** Download the zip on the phone from GitHub Actions directly (Chrome on Android), unzip with a file manager, install. Skip WhatsApp/Telegram/Gmail — they can corrupt or rename the APK. This alone resolves ~80% of parse errors.
-- **B. Lower `minSdkVersion`** if the phone's Android is below it (Capacitor defaults to 22 or 23; we can drop to 22).
-- **C. Enable both v1 (JAR) and v2 signing** in the debug signing config so older/newer devices both accept it.
-- **D. Force a single universal debug APK** (disable ABI splits) so the artifact runs on any device.
-- **E. Enable "Install unknown apps"** for the app used to open the APK (Files, Chrome) in Android Settings — this is a device setting, not a code fix, but I'll call it out.
+3. **Update install instructions**
+   - Add a short Android 14 troubleshooting checklist:
+     - Uninstall any old `SMS Bridge` app first.
+     - Download the GitHub Actions zip directly on the phone if possible.
+     - Extract `app-debug.apk`, not install the zip.
+     - Try Android’s built-in Files app, not Drive preview.
+     - Enable “Install unknown apps” for the installer app.
 
-## Technical section
+4. **You retry with the next APK artifact**
+   - Push will trigger the APK workflow.
+   - Download the new `SmsBridge-debug-apk` artifact, extract it, uninstall the old app if present, then install `app-debug.apk`.
 
-Expected changes if B–D are needed:
+## Technical changes
+- `android/app/build.gradle.kts`
+  - Add explicit `signingConfigs.debug` settings.
+  - Link debug build type to that config.
+  - Add `splits { abi { isEnable = false } }`.
 
-```kotlin
-// android/app/build.gradle.kts
-android {
-    defaultConfig {
-        minSdk = 22
-    }
-    signingConfigs {
-        getByName("debug") {
-            // ensure v1SigningEnabled = true, v2SigningEnabled = true
-        }
-    }
-    splits { abi { isEnable = false } }
-}
-```
+- `.github/workflows/android.yml`
+  - Add an APK verification step after build and before upload.
 
-Workflow stays on `./gradlew assembleDebug` and uploads `app/build/outputs/apk/debug/app-debug.apk`.
-
-## Deliverable
-After investigating the two files, I'll either (a) tell you the transfer method is the cause and give exact download steps, or (b) push a small `android/app/build.gradle.kts` fix, let CI rebuild, and you retry with the new APK.
-
-## What I need from you to speed this up
-- Your phone's Android version (Settings → About phone).
-- How you transferred the APK (WhatsApp, Google Drive, USB, etc.).
+- `android/BUILD_APK.md` or `android/README.md`
+  - Add Android 14 sideload troubleshooting notes.
