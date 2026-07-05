@@ -1,14 +1,16 @@
 package app.lovable.smsbridge
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.zxing.integration.android.IntentIntegrator
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,6 +39,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         ll.addView(TextView(this).apply { text = "SMS Bridge"; textSize = 22f })
+
+        val scanBtn = Button(this).apply { text = "Scan QR to pair" }
+        ll.addView(scanBtn)
+
         ll.addView(label("Supabase URL"))
         urlEt = editText("https://xxx.supabase.co"); ll.addView(urlEt)
         ll.addView(label("Supabase anon key"))
@@ -67,6 +73,17 @@ class MainActivity : AppCompatActivity() {
         pollEt.setText(Config.pollIntervalSeconds(this).toString())
         enabledCb.isChecked = Config.enabled(this)
 
+        scanBtn.setOnClickListener {
+            ensureCameraPerm {
+                IntentIntegrator(this).apply {
+                    setOrientationLocked(true)
+                    setBeepEnabled(false)
+                    setPrompt("Scan pairing QR from SMS Bridge webapp")
+                    setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+                }.initiateScan()
+            }
+        }
+
         saveBtn.setOnClickListener {
             Config.save(
                 this,
@@ -93,6 +110,41 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(root)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (result != null) {
+            val text = result.contents
+            if (text.isNullOrBlank()) {
+                super.onActivityResult(requestCode, resultCode, data)
+                return
+            }
+            try {
+                val j = JSONObject(text)
+                urlEt.setText(j.optString("url"))
+                anonEt.setText(j.optString("anon"))
+                tokenEt.setText(j.optString("token"))
+                if (j.has("delay")) delayEt.setText(j.optInt("delay", 3000).toString())
+                enabledCb.isChecked = true
+                Toast.makeText(this, "Paired. Tap Save & Start.", Toast.LENGTH_LONG).show()
+                status("Scanned. Review fields and tap Save & Start.")
+            } catch (e: Exception) {
+                Toast.makeText(this, "Invalid QR: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun ensureCameraPerm(then: () -> Unit) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {
+            then()
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 2)
+            Toast.makeText(this, "Grant camera permission, then tap Scan again.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun status(t: String) { statusTv.text = t }
