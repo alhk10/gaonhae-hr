@@ -5666,6 +5666,255 @@ export type Database = {
           },
         ]
       }
+      sms_campaigns: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          failed_count: number
+          filters_json: Json
+          id: string
+          name: string
+          scheduled_at: string
+          sent_count: number
+          status: string
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          filters_json?: Json
+          id?: string
+          name: string
+          scheduled_at?: string
+          sent_count?: number
+          status?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          filters_json?: Json
+          id?: string
+          name?: string
+          scheduled_at?: string
+          sent_count?: number
+          status?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_devices: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          last_seen_at: string | null
+          poll_interval_seconds: number
+          send_delay_ms: number
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          last_seen_at?: string | null
+          poll_interval_seconds?: number
+          send_delay_ms?: number
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          last_seen_at?: string | null
+          poll_interval_seconds?: number
+          send_delay_ms?: number
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          body: string
+          created_at: string
+          direction: string
+          id: string
+          outbound_id: string | null
+          phone: string
+          sent_at: string
+          status: string | null
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          direction: string
+          id?: string
+          outbound_id?: string | null
+          phone: string
+          sent_at?: string
+          status?: string | null
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          outbound_id?: string | null
+          phone?: string
+          sent_at?: string
+          status?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_outbound_id_fkey"
+            columns: ["outbound_id"]
+            isOneToOne: false
+            referencedRelation: "sms_outbound"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "sms_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_outbound: {
+        Row: {
+          body: string
+          campaign_id: string | null
+          created_at: string
+          device_id: string | null
+          device_message_id: string | null
+          error: string | null
+          id: string
+          phone: string
+          send_at: string
+          sent_at: string | null
+          status: string
+          student_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          campaign_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          device_message_id?: string | null
+          error?: string | null
+          id?: string
+          phone: string
+          send_at?: string
+          sent_at?: string | null
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          campaign_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          device_message_id?: string | null
+          error?: string | null
+          id?: string
+          phone?: string
+          send_at?: string
+          sent_at?: string | null
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_outbound_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sms_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_outbound_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "sms_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_outbound_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_threads: {
+        Row: {
+          created_at: string
+          id: string
+          last_direction: string | null
+          last_message_at: string
+          last_snippet: string | null
+          phone: string
+          student_id: string | null
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_direction?: string | null
+          last_message_at?: string
+          last_snippet?: string | null
+          phone: string
+          student_id?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_direction?: string | null
+          last_message_at?: string
+          last_snippet?: string | null
+          phone?: string
+          student_id?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_threads_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_posts: {
         Row: {
           approved_at: string | null
@@ -8311,6 +8560,9 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sms_current_email: { Args: never; Returns: string }
+      sms_is_admin: { Args: never; Returns: boolean }
+      sms_is_superadmin: { Args: never; Returns: boolean }
       submit_competition_payment: {
         Args: { _row: Json }
         Returns: {
