@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.handle-email-suppression]
 verify_jwt = false
+
+[functions.sms-fetch-pending]
+verify_jwt = false
+
+[functions.sms-report-status]
+verify_jwt = false
+
+[functions.sms-inbound]
+verify_jwt = false
