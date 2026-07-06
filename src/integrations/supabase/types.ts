@@ -5711,6 +5711,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_device_branches: {
+        Row: {
+          branch_id: string
+          created_at: string
+          device_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          device_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          device_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_device_branches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_device_branches_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "sms_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_devices: {
         Row: {
           active: boolean
@@ -5804,6 +5837,7 @@ export type Database = {
       sms_outbound: {
         Row: {
           body: string
+          branch_id: string | null
           campaign_id: string | null
           created_at: string
           device_id: string | null
@@ -5819,6 +5853,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          branch_id?: string | null
           campaign_id?: string | null
           created_at?: string
           device_id?: string | null
@@ -5834,6 +5869,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          branch_id?: string | null
           campaign_id?: string | null
           created_at?: string
           device_id?: string | null
@@ -5848,6 +5884,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sms_outbound_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sms_outbound_campaign_id_fkey"
             columns: ["campaign_id"]

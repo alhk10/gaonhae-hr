@@ -73,6 +73,35 @@ export async function deleteDevice(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* Device ↔ branch tags */
+export async function listDeviceBranches(): Promise<Record<string, string[]>> {
+  const { data, error } = await (supabase as any)
+    .from('sms_device_branches')
+    .select('device_id, branch_id');
+  if (error) throw error;
+  const map: Record<string, string[]> = {};
+  for (const r of data ?? []) {
+    (map[r.device_id] ||= []).push(r.branch_id);
+  }
+  return map;
+}
+
+export async function setDeviceBranch(deviceId: string, branchId: string, enabled: boolean): Promise<void> {
+  if (enabled) {
+    const { error } = await (supabase as any)
+      .from('sms_device_branches')
+      .upsert({ device_id: deviceId, branch_id: branchId }, { onConflict: 'device_id,branch_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await (supabase as any)
+      .from('sms_device_branches')
+      .delete()
+      .eq('device_id', deviceId)
+      .eq('branch_id', branchId);
+    if (error) throw error;
+  }
+}
+
 /* Campaigns */
 export interface RecipientFilters {
   branchIds?: string[];
@@ -99,10 +128,10 @@ export async function createCampaign(params: {
   body: string;
   scheduledAt: Date;
   filters: RecipientFilters;
-  recipients: { student_id: string | null; phone: string; first_name?: string }[];
+  recipients: { student_id: string | null; phone: string; first_name?: string; branch_id?: string | null }[];
 }): Promise<SmsCampaign> {
   const { name, body, scheduledAt, filters, recipients } = params;
-  const dedup = new Map<string, { student_id: string | null; phone: string; first_name?: string }>();
+  const dedup = new Map<string, { student_id: string | null; phone: string; first_name?: string; branch_id?: string | null }>();
   for (const r of recipients) {
     const p = normalizePhone(r.phone);
     if (p.length < 8) continue;
@@ -128,6 +157,7 @@ export async function createCampaign(params: {
     const rows = uniq.map((r) => ({
       campaign_id: campaign.id,
       student_id: r.student_id,
+      branch_id: r.branch_id ?? null,
       phone: r.phone,
       body: personalize(body, r.first_name),
       send_at: scheduledAt.toISOString(),
@@ -142,6 +172,7 @@ export async function createCampaign(params: {
   }
   return campaign as SmsCampaign;
 }
+
 
 export function personalize(body: string, firstName?: string): string {
   return body.replace(/\{first_name\}/gi, firstName?.trim() || 'there');

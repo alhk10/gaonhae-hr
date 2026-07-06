@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranches } from '@/hooks/useBranches';
@@ -23,6 +24,7 @@ import {
   listCampaigns, createCampaign, cancelCampaign,
   listThreads, listMessages, markThreadRead, sendQuickReply,
   fetchRecipients, personalize,
+  listDeviceBranches, setDeviceBranch,
   type SmsDevice, type SmsCampaign, type SmsThread, type SmsMessage,
 } from '@/services/smsService';
 
@@ -134,6 +136,7 @@ function ComposeTab() {
           student_id: r.id,
           phone: r.phone,
           first_name: r.first_name,
+          branch_id: r.branch_id ?? null,
         })),
       });
       toast({ title: 'Campaign queued', description: `${uniquePhones} recipients queued.` });
@@ -250,10 +253,12 @@ function normalizePhone(raw: string): string | null {
 }
 
 function ManualSendTab() {
+  const { branches } = useBranches();
   const [name, setName] = useState('');
   const [phonesText, setPhonesText] = useState('');
   const [firstName, setFirstName] = useState('');
   const [body, setBody] = useState('');
+  const [branchId, setBranchId] = useState<string>('none');
   const [scheduleNow, setScheduleNow] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -301,11 +306,12 @@ function ManualSendTab() {
         name: campaignName,
         body,
         scheduledAt: when,
-        filters: { manual: true } as any,
+        filters: { manual: true, branchId: branchId !== 'none' ? branchId : null } as any,
         recipients: parsed.valid.map((phone) => ({
           student_id: null,
           phone,
           first_name: firstName.trim() || undefined,
+          branch_id: branchId !== 'none' ? branchId : null,
         })),
       });
       toast({ title: 'Queued', description: `${parsed.valid.length} recipients queued.` });
@@ -355,6 +361,19 @@ function ManualSendTab() {
         <div>
           <Label>Recipient name (optional, used for {'{first_name}'})</Label>
           <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. John" />
+        </div>
+
+        <div>
+          <Label>Branch (for device routing)</Label>
+          <Select value={branchId} onValueChange={setBranchId}>
+            <SelectTrigger><SelectValue placeholder="No branch (any device)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No branch (any device)</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
@@ -633,14 +652,32 @@ function ConversationsTab() {
 
 /* ---------- Devices ---------- */
 function DevicesTab() {
+  const { branches } = useBranches();
   const [devices, setDevices] = useState<SmsDevice[]>([]);
+  const [deviceBranches, setDeviceBranchesMap] = useState<Record<string, string[]>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [label, setLabel] = useState('');
   const [delay, setDelay] = useState(3000);
   const [issued, setIssued] = useState<string | null>(null);
 
-  const load = () => listDevices().then(setDevices).catch(() => {});
+  const load = () => {
+    listDevices().then(setDevices).catch(() => {});
+    listDeviceBranches().then(setDeviceBranchesMap).catch(() => {});
+  };
   useEffect(() => { load(); }, []);
+
+  const toggleBranch = async (deviceId: string, branchId: string, enabled: boolean) => {
+    try {
+      await setDeviceBranch(deviceId, branchId, enabled);
+      setDeviceBranchesMap((prev) => {
+        const cur = new Set(prev[deviceId] ?? []);
+        if (enabled) cur.add(branchId); else cur.delete(branchId);
+        return { ...prev, [deviceId]: Array.from(cur) };
+      });
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    }
+  };
 
   const create = async () => {
     if (!label.trim()) return;
@@ -654,6 +691,8 @@ function DevicesTab() {
     }
   };
 
+  const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? id;
+
   return (
     <Card className="mt-4">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -665,6 +704,7 @@ function DevicesTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Label</TableHead>
+              <TableHead>Branches</TableHead>
               <TableHead>Delay (ms)</TableHead>
               <TableHead>Active</TableHead>
               <TableHead>Last seen</TableHead>
@@ -672,9 +712,48 @@ function DevicesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {devices.map((d) => (
+            {devices.map((d) => {
+              const tagged = deviceBranches[d.id] ?? [];
+              return (
               <TableRow key={d.id}>
                 <TableCell className="font-medium">{d.label}</TableCell>
+                <TableCell>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 max-w-[260px] justify-start font-normal">
+                        {tagged.length === 0 ? (
+                          <span className="text-muted-foreground">All branches</span>
+                        ) : (
+                          <span className="flex flex-wrap gap-1">
+                            {tagged.slice(0, 3).map((id) => (
+                              <Badge key={id} variant="secondary" className="text-[10px]">{branchName(id)}</Badge>
+                            ))}
+                            {tagged.length > 3 && <span className="text-xs text-muted-foreground">+{tagged.length - 3}</span>}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2">
+                      <div className="max-h-60 overflow-auto space-y-1">
+                        {branches.map((b) => {
+                          const checked = tagged.includes(b.id);
+                          return (
+                            <label key={b.id} className="flex items-center gap-2 text-sm cursor-pointer px-1 py-0.5 rounded hover:bg-muted">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => toggleBranch(d.id, b.id, !!v)}
+                              />
+                              {b.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground pt-2 border-t mt-2">
+                        No selection = device receives SMS for any branch.
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </TableCell>
                 <TableCell>
                   <Input
                     type="number"
@@ -705,9 +784,9 @@ function DevicesTab() {
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+            );})}
             {devices.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No devices</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No devices</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
