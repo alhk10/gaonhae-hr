@@ -301,7 +301,7 @@ function ManualSendTab() {
         name: campaignName,
         body,
         scheduledAt: when,
-        filters: { manual: true },
+        filters: { manual: true } as any,
         recipients: parsed.valid.map((phone) => ({
           student_id: null,
           phone,
