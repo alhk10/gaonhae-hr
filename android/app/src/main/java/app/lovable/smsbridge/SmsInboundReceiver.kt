@@ -25,7 +25,7 @@ class SmsInboundReceiver : BroadcastReceiver() {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > DEDUPE_LIMIT
         })
 
-        fun handle(ctx: Context, intent: Intent, source: String, pending: PendingResult) {
+        fun handle(ctx: Context, intent: Intent, source: String, pending: BroadcastReceiver.PendingResult) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             InboundLog.append(ctx, "ignored action=${intent.action} source=$source")
             pending.finish()
