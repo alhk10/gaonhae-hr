@@ -42,6 +42,7 @@ object SmsInboxScanner {
         var newestTimestamp = lastTimestamp
         var newestId = lastId
         var rowsSeen = 0
+        var newRows = 0
 
         val cursor = ctx.contentResolver.query(
             Uri.parse("content://sms/inbox"),
