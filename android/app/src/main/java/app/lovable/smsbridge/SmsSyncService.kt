@@ -124,11 +124,6 @@ class SmsSyncService : Service() {
                 val date = it.getLong(dateIdx)
                 val key = SmsInboundReceiver.keyFor(address, date, body)
 
-                if (date < lastTimestamp || (date == lastTimestamp && id <= lastId)) {
-                    if (Config.wasInboundProcessed(ctx, key)) skipped++ else skipped++
-                    continue
-                }
-
                 if (Config.wasInboundProcessed(ctx, key)) {
                     skipped++
                     if (date > newestTimestamp || (date == newestTimestamp && id > newestId)) {
