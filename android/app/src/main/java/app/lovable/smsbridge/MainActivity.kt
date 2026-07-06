@@ -81,9 +81,14 @@ class MainActivity : AppCompatActivity() {
         val testLogBtn = Button(this).apply { text = "Test inbound log" }
         val testForwardBtn = Button(this).apply { text = "Test forward inbound" }
         val scanInboxBtn = Button(this).apply { text = "Scan phone inbox now" }
+        val rcsNoteTv = TextView(this).apply {
+            text = "Note: only classic SMS can be forwarded. RCS/Chat messages (blue bubbles in Google Messages) are stored in a private database Android does not expose to third-party apps. Disable RCS on the sender for testing."
+            textSize = 12f
+            setPadding(0, 8, 0, 8)
+        }
         ll.addView(requestPermsBtn); ll.addView(openSettingsBtn)
         ll.addView(viewLogBtn); ll.addView(clearLogBtn)
-        ll.addView(testLogBtn); ll.addView(testForwardBtn); ll.addView(scanInboxBtn)
+        ll.addView(testLogBtn); ll.addView(testForwardBtn); ll.addView(scanInboxBtn); ll.addView(rcsNoteTv)
 
         statusTv = TextView(this).apply { setPadding(0, 24, 0, 0) }
         ll.addView(statusTv)

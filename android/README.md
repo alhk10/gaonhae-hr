@@ -32,6 +32,15 @@ The persistent notification means the service keeps running. Battery-optimize th
   2. for each message: `SmsManager.sendTextMessage()`, await the sent-broadcast, POST `/functions/v1/sms-report-status`, `delay(send_delay_ms)`
 - **SmsInboundReceiver** listens to `android.provider.Telephony.SMS_RECEIVED`. On each SMS it POSTs to `/functions/v1/sms-inbound`.
 
+## Known limitation: RCS / Chat messages cannot be forwarded
+
+Android exposes classic SMS/MMS to third-party apps via the `SMS_RECEIVED` broadcast and the `content://sms/inbox` provider. **RCS ("Chat features" in Google Messages) is different** — those messages are stored in Google Messages' private database and are never delivered to other apps. There is no public API to read them.
+
+Symptoms: the message appears normally in Google Messages (blue "Chat" bubble) but SMS Bridge shows `checked N, forwarded 0` and nothing arrives in the Conversations tab.
+
+Workaround for testing / production: on the sending phone, disable RCS (Google Messages → Settings → RCS chats → off), or send from a number that doesn't support RCS (shortcodes, bank OTPs, iPhone with iMessage off). The bubble must be **green (SMS)** for SMS Bridge to see it.
+
+
 ## Distribution
 
 This app uses restricted SMS permissions. Google Play blocks non-default SMS handlers with these permissions, so **sideload only** (`Build → Generate Signed APK` and install on your phone). Do not publish to Play.
