@@ -160,3 +160,8 @@ export const FILE_UPLOAD_CONSTANTS = {
     'image/heif',
   ],
 } as const;
+
+// SMS Bridge Android APK download (rolling GitHub Release)
+export const ANDROID_APK_URL =
+  'https://github.com/alhk10/gaonhae-hr/releases/download/android-latest/app-debug.apk';
+
