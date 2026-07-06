@@ -593,6 +593,40 @@ function ConversationsTab() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showNew} onOpenChange={setShowNew}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New conversation</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Phone number</Label>
+              <Input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="+6591234567 or 91234567"
+              />
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                rows={4}
+                value={newBody}
+                onChange={(e) => setNewBody(e.target.value)}
+                placeholder="Type your first message…"
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                {newBody.length} chars · {segmentCount(newBody)} SMS segment{segmentCount(newBody) === 1 ? '' : 's'}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button onClick={startNew} disabled={sendingNew || !newBody.trim() || !newPhone.trim()}>
+              <Send className="w-4 h-4 mr-2" /> Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
