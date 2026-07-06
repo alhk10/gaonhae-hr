@@ -86,6 +86,7 @@ object SmsInboxScanner {
                     continue
                 }
 
+                newRows++
                 val ok = SmsInboundReceiver.forwardInbound(ctx, source, address, body, date)
                 if (ok) forwarded++ else failed++
             }
