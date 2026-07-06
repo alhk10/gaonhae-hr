@@ -73,6 +73,35 @@ export async function deleteDevice(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* Device ↔ branch tags */
+export async function listDeviceBranches(): Promise<Record<string, string[]>> {
+  const { data, error } = await (supabase as any)
+    .from('sms_device_branches')
+    .select('device_id, branch_id');
+  if (error) throw error;
+  const map: Record<string, string[]> = {};
+  for (const r of data ?? []) {
+    (map[r.device_id] ||= []).push(r.branch_id);
+  }
+  return map;
+}
+
+export async function setDeviceBranch(deviceId: string, branchId: string, enabled: boolean): Promise<void> {
+  if (enabled) {
+    const { error } = await (supabase as any)
+      .from('sms_device_branches')
+      .upsert({ device_id: deviceId, branch_id: branchId }, { onConflict: 'device_id,branch_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await (supabase as any)
+      .from('sms_device_branches')
+      .delete()
+      .eq('device_id', deviceId)
+      .eq('branch_id', branchId);
+    if (error) throw error;
+  }
+}
+
 /* Campaigns */
 export interface RecipientFilters {
   branchIds?: string[];
