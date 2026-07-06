@@ -100,12 +100,16 @@ object SmsInboxScanner {
             Config.saveInboundCursor(ctx, newestTimestamp, newestId)
         }
 
-        val noRowsWarning = if (rowsSeen == 0) {
-            "No SMS rows found in Android inbox. If the message appears in your chat app, it may be RCS/chat and not carrier SMS."
-        } else null
-        if (noRowsWarning != null) InboundLog.append(ctx, noRowsWarning)
+        val warning = when {
+            rowsSeen == 0 ->
+                "No SMS rows found in Android inbox. If the message appears in Google Messages as a blue (Chat) bubble, it's RCS \u2014 Android does not expose RCS messages to third-party apps. Disable RCS/Chat features on the sender to test."
+            newRows == 0 ->
+                "Checked $rowsSeen SMS rows, none are new. If your test message shows in Google Messages as a blue (Chat) bubble, it's RCS and cannot be forwarded. Disable RCS/Chat features on the sender and re-send."
+            else -> null
+        }
+        if (warning != null) InboundLog.append(ctx, warning)
 
-        InboundLog.append(ctx, "inbox scan source=$source checked=$checked forwarded=$forwarded skipped=$skipped failed=$failed cursorTs=$newestTimestamp cursorId=$newestId")
-        return InboxScanResult(checked, forwarded, skipped, failed, newestTimestamp, newestId, noRowsWarning)
+        InboundLog.append(ctx, "inbox scan source=$source checked=$checked forwarded=$forwarded skipped=$skipped failed=$failed newRows=$newRows cursorTs=$newestTimestamp cursorId=$newestId")
+        return InboxScanResult(checked, forwarded, skipped, failed, newestTimestamp, newestId, warning)
     }
 }
