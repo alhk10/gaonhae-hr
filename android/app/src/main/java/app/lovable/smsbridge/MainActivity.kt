@@ -14,6 +14,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
 
@@ -73,8 +77,11 @@ class MainActivity : AppCompatActivity() {
         val openSettingsBtn = Button(this).apply { text = "Open app settings" }
         val viewLogBtn = Button(this).apply { text = "View inbound log" }
         val clearLogBtn = Button(this).apply { text = "Clear inbound log" }
+        val testLogBtn = Button(this).apply { text = "Test inbound log" }
+        val testForwardBtn = Button(this).apply { text = "Test forward inbound" }
         ll.addView(requestPermsBtn); ll.addView(openSettingsBtn)
         ll.addView(viewLogBtn); ll.addView(clearLogBtn)
+        ll.addView(testLogBtn); ll.addView(testForwardBtn)
 
         statusTv = TextView(this).apply { setPadding(0, 24, 0, 0) }
         ll.addView(statusTv)
@@ -108,12 +115,15 @@ class MainActivity : AppCompatActivity() {
                 pollEt.text.toString().toIntOrNull() ?: 60,
                 enabledCb.isChecked
             )
+            InboundLog.append(this, "Save & Start tapped enabled=${enabledCb.isChecked}")
             requestPerms()
             if (Config.enabled(this)) {
                 SmsSyncService.start(this)
+                InboundLog.append(this, "foreground service start requested")
                 status("Service started.")
             } else {
                 SmsSyncService.stop(this)
+                InboundLog.append(this, "foreground service stop requested because disabled")
                 status("Saved (disabled).")
             }
             refreshPermStatus()
@@ -121,6 +131,7 @@ class MainActivity : AppCompatActivity() {
 
         stopBtn.setOnClickListener {
             SmsSyncService.stop(this)
+            InboundLog.append(this, "Stop service tapped")
             status("Service stopped.")
         }
 
@@ -152,8 +163,18 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Log cleared", Toast.LENGTH_SHORT).show()
         }
 
+        testLogBtn.setOnClickListener {
+            InboundLog.append(this, "manual local log test OK")
+            Toast.makeText(this, "Wrote test log entry", Toast.LENGTH_SHORT).show()
+        }
+
+        testForwardBtn.setOnClickListener {
+            runInboundForwardSelfTest()
+        }
+
         setContentView(root)
 
+        InboundLog.append(this, "app opened")
         // Force permission prompt on every launch
         requestPerms()
         refreshPermStatus()
@@ -193,6 +214,11 @@ class MainActivity : AppCompatActivity() {
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val resultText = permissions.mapIndexed { idx, perm ->
+            val granted = grantResults.getOrNull(idx) == PackageManager.PERMISSION_GRANTED
+            "${perm.substringAfterLast('.')}=${if (granted) "granted" else "denied"}"
+        }.joinToString(", ")
+        InboundLog.append(this, "permission result request=$requestCode $resultText")
         refreshPermStatus()
     }
 
@@ -229,6 +255,34 @@ class MainActivity : AppCompatActivity() {
         )
         if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
         val missing = perms.filter { !granted(it) }.toTypedArray()
-        if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing, 1)
+        if (missing.isNotEmpty()) {
+            InboundLog.append(this, "requesting permissions ${missing.joinToString { it.substringAfterLast('.') }}")
+            ActivityCompat.requestPermissions(this, missing, 1)
+        } else {
+            InboundLog.append(this, "all SMS permissions already granted")
+        }
+    }
+
+    private fun runInboundForwardSelfTest() {
+        val ctx = applicationContext
+        InboundLog.append(ctx, "manual forward self-test started")
+        Toast.makeText(this, "Testing inbound forward…", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.format(Date())
+                ApiClient(ctx).postInbound("+6500000000", "SMS Bridge inbound self-test", iso)
+                InboundLog.append(ctx, "manual forward self-test OK")
+                runOnUiThread {
+                    Toast.makeText(this, "Forward self-test OK", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                InboundLog.append(ctx, "manual forward self-test FAILED err=${e.message}")
+                runOnUiThread {
+                    Toast.makeText(this, "Forward self-test failed: ${e.message?.take(80)}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
     }
 }

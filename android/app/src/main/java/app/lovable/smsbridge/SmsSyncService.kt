@@ -1,11 +1,13 @@
 package app.lovable.smsbridge
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
+import android.provider.Telephony
 import android.telephony.SmsManager
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
@@ -15,17 +17,22 @@ class SmsSyncService : Service() {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var api: ApiClient
+    private var inboundReceiver: BroadcastReceiver? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        InboundLog.append(applicationContext, "service onCreate")
         api = ApiClient(applicationContext)
+        registerInboundReceiver()
         startForeground(NOTIF_ID, buildNotification("SMS Bridge active"))
         scope.launch { loop() }
     }
 
     override fun onDestroy() {
+        InboundLog.append(applicationContext, "service onDestroy")
+        unregisterInboundReceiver()
         scope.cancel()
         super.onDestroy()
     }
@@ -130,6 +137,40 @@ class SmsSyncService : Service() {
     private fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIF_ID, buildNotification(text))
+    }
+
+    private fun registerInboundReceiver() {
+        if (inboundReceiver != null) return
+        inboundReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                SmsInboundReceiver.handle(context.applicationContext, intent, "service", goAsync())
+            }
+        }
+        val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION).apply { priority = 1000 }
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                applicationContext.registerReceiver(inboundReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                applicationContext.registerReceiver(inboundReceiver, filter)
+            }
+            InboundLog.append(applicationContext, "dynamic inbound receiver registered")
+        } catch (e: Exception) {
+            InboundLog.append(applicationContext, "dynamic inbound receiver FAILED to register err=${e.message}")
+            inboundReceiver = null
+        }
+    }
+
+    private fun unregisterInboundReceiver() {
+        val receiver = inboundReceiver ?: return
+        try {
+            applicationContext.unregisterReceiver(receiver)
+            InboundLog.append(applicationContext, "dynamic inbound receiver unregistered")
+        } catch (e: Exception) {
+            InboundLog.append(applicationContext, "dynamic inbound receiver unregister ignored err=${e.message}")
+        } finally {
+            inboundReceiver = null
+        }
     }
 
     companion object {
