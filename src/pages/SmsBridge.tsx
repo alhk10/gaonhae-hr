@@ -251,10 +251,12 @@ function normalizePhone(raw: string): string | null {
 }
 
 function ManualSendTab() {
+  const { branches } = useBranches();
   const [name, setName] = useState('');
   const [phonesText, setPhonesText] = useState('');
   const [firstName, setFirstName] = useState('');
   const [body, setBody] = useState('');
+  const [branchId, setBranchId] = useState<string>('none');
   const [scheduleNow, setScheduleNow] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
