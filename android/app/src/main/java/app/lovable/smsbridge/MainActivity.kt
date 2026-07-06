@@ -80,9 +80,10 @@ class MainActivity : AppCompatActivity() {
         val clearLogBtn = Button(this).apply { text = "Clear inbound log" }
         val testLogBtn = Button(this).apply { text = "Test inbound log" }
         val testForwardBtn = Button(this).apply { text = "Test forward inbound" }
+        val scanInboxBtn = Button(this).apply { text = "Scan phone inbox now" }
         ll.addView(requestPermsBtn); ll.addView(openSettingsBtn)
         ll.addView(viewLogBtn); ll.addView(clearLogBtn)
-        ll.addView(testLogBtn); ll.addView(testForwardBtn)
+        ll.addView(testLogBtn); ll.addView(testForwardBtn); ll.addView(scanInboxBtn)
 
         statusTv = TextView(this).apply { setPadding(0, 24, 0, 0) }
         ll.addView(statusTv)
@@ -121,6 +122,7 @@ class MainActivity : AppCompatActivity() {
             if (Config.enabled(this)) {
                 SmsSyncService.start(this)
                 InboundLog.append(this, "foreground service start requested")
+                runInboxScan("save-start")
                 status("Service started.")
             } else {
                 SmsSyncService.stop(this)
@@ -173,6 +175,10 @@ class MainActivity : AppCompatActivity() {
             runInboundForwardSelfTest()
         }
 
+        scanInboxBtn.setOnClickListener {
+            runInboxScan("manual-button")
+        }
+
         setContentView(root)
 
         InboundLog.append(this, "app opened")
@@ -220,6 +226,7 @@ class MainActivity : AppCompatActivity() {
             "${perm.substringAfterLast('.')}=${if (granted) "granted" else "denied"}"
         }.joinToString(", ")
         InboundLog.append(this, "permission result request=$requestCode $resultText")
+        if (grantResults.any { it == PackageManager.PERMISSION_GRANTED }) runInboxScan("permission-result")
         refreshPermStatus()
     }
 
@@ -270,7 +277,37 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, missing, 1)
         } else {
             InboundLog.append(this, "all SMS permissions already granted")
+            if (Config.enabled(this)) runInboxScan("permissions-already-granted")
         }
+    }
+
+    private fun runInboxScan(source: String) {
+        val ctx = applicationContext
+        InboundLog.append(ctx, "manual inbox scan requested source=$source")
+        Toast.makeText(this, "Scanning phone inbox…", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val result = SmsInboxScanner.scan(ctx, source)
+                runOnUiThread {
+                    refreshPermStatus()
+                    val warning = result.warning
+                    val message = if (warning != null) {
+                        warning
+                    } else {
+                        "Inbox scan: checked ${result.checked}, forwarded ${result.forwarded}, failed ${result.failed}"
+                    }
+                    Toast.makeText(this, message.take(180), Toast.LENGTH_LONG).show()
+                    status(message)
+                }
+            } catch (e: Exception) {
+                InboundLog.append(ctx, "manual inbox scan FAILED source=$source err=${e.message}")
+                runOnUiThread {
+                    val message = "Inbox scan failed: ${e.message?.take(120)}"
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    status(message)
+                }
+            }
+        }.start()
     }
 
     private fun runInboundForwardSelfTest() {
