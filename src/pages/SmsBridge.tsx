@@ -38,12 +38,26 @@ function segmentCount(text: string): number {
 export default function SmsBridgePage() {
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold">SMS Bridge</h1>
-        <p className="text-sm text-muted-foreground">
-          Compose scheduled SMS campaigns and view replies from your paired Android device.
-        </p>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">SMS Bridge</h1>
+          <p className="text-sm text-muted-foreground">
+            Compose scheduled SMS campaigns and view replies from your paired Android device.
+          </p>
+        </div>
+        <div className="flex flex-col items-start sm:items-end">
+          <Button asChild>
+            <a href={ANDROID_APK_URL} target="_blank" rel="noopener noreferrer">
+              <Download className="w-4 h-4 mr-2" />
+              Download APK
+            </a>
+          </Button>
+          <span className="text-[11px] text-muted-foreground mt-1">
+            Android 8+ · sideload on the phone that will send SMS.
+          </span>
+        </div>
       </div>
+
       <Tabs defaultValue="compose">
         <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="compose">Compose</TabsTrigger>
