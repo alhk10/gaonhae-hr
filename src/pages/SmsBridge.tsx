@@ -304,11 +304,12 @@ function ManualSendTab() {
         name: campaignName,
         body,
         scheduledAt: when,
-        filters: { manual: true } as any,
+        filters: { manual: true, branchId: branchId !== 'none' ? branchId : null } as any,
         recipients: parsed.valid.map((phone) => ({
           student_id: null,
           phone,
           first_name: firstName.trim() || undefined,
+          branch_id: branchId !== 'none' ? branchId : null,
         })),
       });
       toast({ title: 'Queued', description: `${parsed.valid.length} recipients queued.` });
