@@ -362,6 +362,19 @@ function ManualSendTab() {
         </div>
 
         <div>
+          <Label>Branch (for device routing)</Label>
+          <Select value={branchId} onValueChange={setBranchId}>
+            <SelectTrigger><SelectValue placeholder="No branch (any device)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No branch (any device)</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label>Message body</Label>
           <Textarea
             rows={4}
