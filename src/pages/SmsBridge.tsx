@@ -14,7 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBranches } from '@/hooks/useBranches';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTime } from '@/utils/dateFormat';
-import { Copy, Trash2, Send, Ban, MessageSquare } from 'lucide-react';
+import { Copy, Trash2, Send, Ban, MessageSquare, Download } from 'lucide-react';
+import { ANDROID_APK_URL } from '@/config/constants';
+
 import { QRCodeSVG } from 'qrcode.react';
 import {
   listDevices, registerDevice, updateDevice, deleteDevice,
