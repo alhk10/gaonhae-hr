@@ -1,6 +1,7 @@
 package app.lovable.smsbridge
 
 import android.Manifest
+import android.app.ActivityManager
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -244,7 +245,16 @@ class MainActivity : AppCompatActivity() {
             "SEND ${mark(Manifest.permission.SEND_SMS)}  " +
             "RECEIVE ${mark(Manifest.permission.RECEIVE_SMS)}  " +
             "READ ${mark(Manifest.permission.READ_SMS)}$notif" +
-            "\nBridge enabled: ${if (Config.enabled(this)) "yes" else "no"}"
+            "\nBridge enabled: ${if (Config.enabled(this)) "yes" else "no"}" +
+            "  Service running: ${if (isBridgeServiceRunning()) "yes" else "no"}" +
+            "\nInbox cursor: ts=${Config.inboundLastTimestamp(this)} id=${Config.inboundLastId(this)}"
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isBridgeServiceRunning(): Boolean {
+        val manager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        return manager.getRunningServices(Int.MAX_VALUE)
+            .any { it.service.className == SmsSyncService::class.java.name }
     }
 
     private fun requestPerms() {

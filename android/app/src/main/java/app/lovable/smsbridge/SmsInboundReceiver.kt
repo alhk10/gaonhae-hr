@@ -25,6 +25,54 @@ class SmsInboundReceiver : BroadcastReceiver() {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > DEDUPE_LIMIT
         })
 
+        fun keyFor(addr: String, timestampMillis: Long, body: String): String = "$addr|$timestampMillis|${body.hashCode()}"
+
+        fun forwardInbound(ctx: Context, source: String, addr: String, body: String, timestampMillis: Long): Boolean {
+            if (addr.isBlank()) {
+                InboundLog.append(ctx, "skipped blank originating address source=$source")
+                return true
+            }
+            if (body.isBlank()) {
+                InboundLog.append(ctx, "skipped blank SMS body source=$source from=$addr")
+                return true
+            }
+
+            val key = keyFor(addr, timestampMillis, body)
+            if (Config.wasInboundProcessed(ctx, key)) {
+                InboundLog.append(ctx, "SMS_RECEIVED already processed source=$source from=$addr len=${body.length}")
+                return true
+            }
+
+            var duplicate = false
+            synchronized(recentKeys) {
+                if (recentKeys.containsKey(key)) {
+                    duplicate = true
+                } else {
+                    recentKeys[key] = System.currentTimeMillis()
+                }
+            }
+            if (duplicate) {
+                InboundLog.append(ctx, "SMS_RECEIVED duplicate ignored source=$source from=$addr len=${body.length}")
+                return true
+            }
+
+            val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date(timestampMillis.takeIf { it > 0L } ?: System.currentTimeMillis()))
+
+            InboundLog.append(ctx, "SMS_RECEIVED source=$source from=$addr len=${body.length} posting…")
+            return try {
+                ApiClient(ctx).postInbound(addr, body, iso)
+                Config.markInboundProcessed(ctx, key)
+                InboundLog.append(ctx, "  -> OK forwarded source=$source from=$addr")
+                true
+            } catch (e: Exception) {
+                synchronized(recentKeys) { recentKeys.remove(key) }
+                InboundLog.append(ctx, "  -> FAILED source=$source from=$addr err=${e.message}")
+                false
+            }
+        }
+
         fun handle(ctx: Context, intent: Intent, source: String, pending: BroadcastReceiver.PendingResult) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             InboundLog.append(ctx, "ignored action=${intent.action} source=$source")
@@ -45,40 +93,13 @@ class SmsInboundReceiver : BroadcastReceiver() {
         }
 
         val byAddress = msgs.groupBy { it.originatingAddress ?: "" }
-        val api = ApiClient(ctx)
-        val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.format(Date())
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 for ((addr, group) in byAddress) {
-                    if (addr.isBlank()) {
-                        InboundLog.append(ctx, "skipped blank originating address source=$source")
-                        continue
-                    }
                     val body = group.joinToString("") { it.messageBody ?: "" }
                     val newestTimestamp = group.maxOfOrNull { it.timestampMillis } ?: 0L
-                    val key = "$addr|$newestTimestamp|${body.hashCode()}"
-                    var duplicate = false
-                    synchronized(recentKeys) {
-                        if (recentKeys.containsKey(key)) {
-                            duplicate = true
-                        } else {
-                            recentKeys[key] = System.currentTimeMillis()
-                        }
-                    }
-                    if (duplicate) {
-                        InboundLog.append(ctx, "SMS_RECEIVED duplicate ignored source=$source from=$addr len=${body.length}")
-                        continue
-                    }
-                    InboundLog.append(ctx, "SMS_RECEIVED source=$source from=$addr len=${body.length} posting…")
-                    try {
-                        api.postInbound(addr, body, iso)
-                        InboundLog.append(ctx, "  -> OK forwarded source=$source from=$addr")
-                    } catch (e: Exception) {
-                        InboundLog.append(ctx, "  -> FAILED source=$source from=$addr err=${e.message}")
-                    }
+                    forwardInbound(ctx, source, addr, body, newestTimestamp)
                 }
             } finally { pending.finish() }
         }

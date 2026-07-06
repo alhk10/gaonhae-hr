@@ -24,6 +24,15 @@ object Config {
     fun sendDelayMs(ctx: Context) = prefs(ctx).getInt("send_delay_ms", 3000)
     fun pollIntervalSeconds(ctx: Context) = prefs(ctx).getInt("poll_interval_seconds", 60)
     fun enabled(ctx: Context) = prefs(ctx).getBoolean("enabled", false)
+    fun inboundLastTimestamp(ctx: Context) = prefs(ctx).getLong("inbound_last_timestamp", 0L)
+    fun inboundLastId(ctx: Context) = prefs(ctx).getLong("inbound_last_id", 0L)
+    fun inboundProcessedKeys(ctx: Context): List<String> =
+        prefs(ctx).getString("inbound_processed_keys", "")
+            ?.lines()
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+
+    fun wasInboundProcessed(ctx: Context, key: String): Boolean = inboundProcessedKeys(ctx).contains(key)
 
     fun save(
         ctx: Context,
@@ -44,6 +53,23 @@ object Config {
         prefs(ctx).edit()
             .putInt("send_delay_ms", delayMs)
             .putInt("poll_interval_seconds", pollSeconds)
+            .apply()
+    }
+
+    fun saveInboundCursor(ctx: Context, timestamp: Long, id: Long) {
+        prefs(ctx).edit()
+            .putLong("inbound_last_timestamp", timestamp)
+            .putLong("inbound_last_id", id)
+            .apply()
+    }
+
+    fun markInboundProcessed(ctx: Context, key: String) {
+        val keys = inboundProcessedKeys(ctx).toMutableList()
+        keys.remove(key)
+        keys.add(key)
+        while (keys.size > 200) keys.removeAt(0)
+        prefs(ctx).edit()
+            .putString("inbound_processed_keys", keys.joinToString("\n"))
             .apply()
     }
 }
