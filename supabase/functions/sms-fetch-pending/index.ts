@@ -47,14 +47,29 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const limit = Math.min(Number(url.searchParams.get('limit') ?? '20'), 100);
 
-    // Fetch queued rows due to send
-    const { data: rows, error } = await admin
+    // Look up branch tags for this device
+    const { data: tagRows } = await admin
+      .from('sms_device_branches')
+      .select('branch_id')
+      .eq('device_id', device.id);
+    const taggedBranches = (tagRows ?? []).map((r: any) => r.branch_id as string);
+
+    // Fetch queued rows due to send. If device is tagged to specific branches,
+    // only pull messages for those branches (untagged/null branch messages fall
+    // through to wildcard devices only).
+    let q = admin
       .from('sms_outbound')
       .select('id, phone, body, campaign_id')
       .eq('status', 'queued')
       .lte('send_at', new Date().toISOString())
       .order('send_at', { ascending: true })
       .limit(limit);
+    if (taggedBranches.length > 0) {
+      q = q.in('branch_id', taggedBranches);
+    } else {
+      q = q.is('branch_id', null);
+    }
+    const { data: rows, error } = await q;
     if (error) throw error;
 
     const ids = (rows ?? []).map((r) => r.id);
