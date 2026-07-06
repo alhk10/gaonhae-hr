@@ -59,13 +59,15 @@ export default function SmsBridgePage() {
       </div>
 
       <Tabs defaultValue="compose">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
           <TabsTrigger value="compose">Compose</TabsTrigger>
+          <TabsTrigger value="manual">Manual</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="conversations">Conversations</TabsTrigger>
           <TabsTrigger value="devices">Devices</TabsTrigger>
         </TabsList>
         <TabsContent value="compose"><ComposeTab /></TabsContent>
+        <TabsContent value="manual"><ManualSendTab /></TabsContent>
         <TabsContent value="campaigns"><CampaignsTab /></TabsContent>
         <TabsContent value="conversations"><ConversationsTab /></TabsContent>
         <TabsContent value="devices"><DevicesTab /></TabsContent>
@@ -238,6 +240,172 @@ function ComposeTab() {
   );
 }
 
+/* ---------- Manual send ---------- */
+function normalizePhone(raw: string): string | null {
+  const s = raw.trim().replace(/[\s\-()]/g, '');
+  if (!s) return null;
+  if (/^\+\d{7,15}$/.test(s)) return s;
+  if (/^\d{7,15}$/.test(s)) return s;
+  return null;
+}
+
+function ManualSendTab() {
+  const [name, setName] = useState('');
+  const [phonesText, setPhonesText] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [body, setBody] = useState('');
+  const [scheduleNow, setScheduleNow] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const [device, setDevice] = useState<SmsDevice | null>(null);
+
+  useEffect(() => {
+    listDevices().then((d) => setDevice(d[0] ?? null)).catch(() => {});
+  }, []);
+
+  const parsed = useMemo(() => {
+    const tokens = phonesText.split(/[\s,;]+/).filter(Boolean);
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    const seen = new Set<string>();
+    for (const t of tokens) {
+      const n = normalizePhone(t);
+      if (n) {
+        if (!seen.has(n)) { seen.add(n); valid.push(n); }
+      } else {
+        invalid.push(t);
+      }
+    }
+    return { valid, invalid };
+  }, [phonesText]);
+
+  const delayMs = device?.send_delay_ms ?? 3000;
+  const etaSeconds = Math.round((parsed.valid.length * delayMs) / 1000);
+  const eta = etaSeconds < 60 ? `${etaSeconds}s` : `${Math.round(etaSeconds / 60)} min`;
+  const segs = segmentCount(body);
+
+  const submit = async () => {
+    if (!body.trim() || parsed.valid.length === 0) {
+      toast({ title: 'Missing info', description: 'At least one valid number and a message body are required', variant: 'destructive' });
+      return;
+    }
+    const when = scheduleNow ? new Date() : new Date(scheduledAt);
+    if (isNaN(when.getTime())) {
+      toast({ title: 'Invalid schedule', variant: 'destructive' });
+      return;
+    }
+    const campaignName = name.trim() || `Manual send — ${formatDateTime(when.toISOString())}`;
+    setSubmitting(true);
+    try {
+      await createCampaign({
+        name: campaignName,
+        body,
+        scheduledAt: when,
+        filters: { manual: true } as any,
+        recipients: parsed.valid.map((phone) => ({
+          student_id: null,
+          phone,
+          first_name: firstName.trim() || undefined,
+        })),
+      });
+      toast({ title: 'Queued', description: `${parsed.valid.length} recipients queued.` });
+      setName('');
+      setPhonesText('');
+      setFirstName('');
+      setBody('');
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle>Send to manual numbers</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>Campaign name (optional)</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Auto: Manual send — date/time" />
+        </div>
+
+        <div>
+          <Label>Phone numbers</Label>
+          <Textarea
+            rows={4}
+            value={phonesText}
+            onChange={(e) => setPhonesText(e.target.value)}
+            placeholder={'One per line or comma-separated\n+6591234567\n91234568'}
+          />
+          <div className="text-xs mt-1 flex flex-wrap gap-x-4">
+            <span className="text-muted-foreground">
+              Valid: <strong className="text-foreground">{parsed.valid.length}</strong>
+            </span>
+            {parsed.invalid.length > 0 && (
+              <span className="text-destructive">
+                Invalid ({parsed.invalid.length}): {parsed.invalid.slice(0, 5).join(', ')}
+                {parsed.invalid.length > 5 ? '…' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <Label>Recipient name (optional, used for {'{first_name}'})</Label>
+          <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. John" />
+        </div>
+
+        <div>
+          <Label>Message body</Label>
+          <Textarea
+            rows={4}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Hi {first_name}, ..."
+          />
+          <div className="text-xs text-muted-foreground mt-1 flex justify-between">
+            <span>Merge tag: <code>{'{first_name}'}</code></span>
+            <span>{body.length} chars · {segs} SMS segment{segs === 1 ? '' : 's'}</span>
+          </div>
+          {body && (
+            <div className="text-xs mt-1 p-2 bg-muted rounded">
+              Preview: {personalize(body, firstName.trim() || undefined)}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox checked={scheduleNow} onCheckedChange={(v) => setScheduleNow(!!v)} id="manual-now" />
+          <Label htmlFor="manual-now">Send now</Label>
+        </div>
+        {!scheduleNow && (
+          <div>
+            <Label>Schedule at</Label>
+            <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+          </div>
+        )}
+
+        <div className="rounded bg-muted p-3 text-sm space-y-1">
+          <div>Recipients: <strong>{parsed.valid.length}</strong></div>
+          <div>Per-message delay: <strong>{delayMs} ms</strong> ({(delayMs / 1000).toFixed(1)}s){' '}
+            {!device && <span className="text-destructive">(no device registered)</span>}
+          </div>
+          <div>Estimated completion: <strong>{eta}</strong></div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={submit} disabled={submitting || parsed.valid.length === 0 || !body.trim()}>
+            <Send className="w-4 h-4 mr-2" />
+            {scheduleNow ? 'Send Now' : 'Schedule'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ---------- Campaigns ---------- */
 function CampaignsTab() {
   const [rows, setRows] = useState<SmsCampaign[]>([]);
@@ -306,6 +474,10 @@ function ConversationsTab() {
   const [selected, setSelected] = useState<SmsThread | null>(null);
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [reply, setReply] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [newBody, setNewBody] = useState('');
+  const [sendingNew, setSendingNew] = useState(false);
 
   const loadThreads = () => listThreads().then(setThreads).catch(() => {});
   useEffect(() => {
@@ -338,10 +510,34 @@ function ConversationsTab() {
     }
   };
 
+  const startNew = async () => {
+    const phone = normalizePhone(newPhone);
+    if (!phone || !newBody.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a valid phone number and message', variant: 'destructive' });
+      return;
+    }
+    setSendingNew(true);
+    try {
+      await sendQuickReply(phone, newBody.trim());
+      toast({ title: 'Queued', description: 'Message will be sent on next device poll.' });
+      setShowNew(false);
+      setNewPhone('');
+      setNewBody('');
+      setTimeout(loadThreads, 500);
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSendingNew(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
       <Card className="md:col-span-1">
-        <CardHeader><CardTitle className="text-base">Threads</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Threads</CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setShowNew(true)}>New</Button>
+        </CardHeader>
         <CardContent className="p-0 max-h-[70vh] overflow-auto">
           {threads.length === 0 && <div className="p-4 text-sm text-muted-foreground">No conversations</div>}
           {threads.map((t) => (
@@ -397,6 +593,40 @@ function ConversationsTab() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showNew} onOpenChange={setShowNew}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New conversation</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Phone number</Label>
+              <Input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="+6591234567 or 91234567"
+              />
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                rows={4}
+                value={newBody}
+                onChange={(e) => setNewBody(e.target.value)}
+                placeholder="Type your first message…"
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                {newBody.length} chars · {segmentCount(newBody)} SMS segment{segmentCount(newBody) === 1 ? '' : 's'}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button onClick={startNew} disabled={sendingNew || !newBody.trim() || !newPhone.trim()}>
+              <Send className="w-4 h-4 mr-2" /> Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

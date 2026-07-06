@@ -1,28 +1,32 @@
-# Add "Download APK" button to SMS Bridge page
+# Add manual phone-number sending
 
-## What changes
+Currently the Compose tab only targets students filtered from the database, and Conversations only lets you reply to existing threads. This adds a way to send SMS to any phone number typed by hand — no student record required.
 
-1. **`.github/workflows/android.yml`** — after the APK is built and verified, publish it to a rolling GitHub Release so there's a stable public download URL.
-   - Adds `permissions: contents: write` to the job.
-   - New step uses `softprops/action-gh-release@v2` to create/update a release tagged `android-latest` with `app-debug.apk` attached.
-   - Uses the built-in `GITHUB_TOKEN` — no extra secrets.
-   - Resulting stable URL:
-     `https://github.com/alhk10/gaonhae-hr/releases/download/android-latest/app-debug.apk`
+## What the user sees
 
-2. **`src/config/constants.ts`** — add:
-   ```ts
-   export const ANDROID_APK_URL =
-     'https://github.com/alhk10/gaonhae-hr/releases/download/android-latest/app-debug.apk';
-   ```
-   so the URL lives in one place.
+New **"Manual"** sub-tab inside the SMS Bridge page (alongside Compose / Campaigns / Conversations / Devices), containing one card:
 
-3. **`src/pages/SmsBridge.tsx`** — add a "Download APK" button in the header row (right side of the title/description block).
-   - shadcn `Button` + `Download` lucide icon, rendered as an `<a href={ANDROID_APK_URL} target="_blank" rel="noopener">` (or `asChild`).
-   - Small helper text under the button: "Android 8+ · sideload on the phone that will send SMS."
-   - Header becomes a flex row that stacks on mobile.
+- **Phone numbers** — textarea, one per line or comma-separated. Accepts local (e.g. `91234567`) or E.164 (`+6591234567`). Numbers are normalized, de-duplicated, and invalid ones are highlighted before send.
+- **Recipient name (optional)** — used for the `{first_name}` merge tag. Applies to all numbers in this batch. If blank, `{first_name}` renders as an empty string.
+- **Message body** — same textarea/segment counter as Compose. Same `{first_name}` merge tag.
+- **Send now / Schedule at** — same controls as Compose.
+- Summary line: unique valid numbers, per-message delay from the paired device, estimated completion.
+- **Send** button.
+
+On submit it calls the existing `createCampaign` service with `recipients: [{ student_id: null, phone, first_name }]` — no schema, no edge-function, no service changes needed. The campaign appears in the Campaigns tab, and any replies land in Conversations exactly like student-sourced sends. Campaign name auto-fills as `Manual send — DD/MM/YYYY HH:mm` if left blank.
+
+## Also (small quality-of-life)
+
+In the **Conversations** tab header, add a **"New conversation"** button that opens a small dialog: phone number + first message → uses `sendQuickReply(phone, body)`. This lets the user start a 1-to-1 chat with a brand new number without going through the Manual tab.
+
+## Files changed
+
+- `src/pages/SmsBridge.tsx` — add `<TabsTrigger value="manual">Manual</TabsTrigger>`, a new `ManualSendTab` component, and the "New conversation" dialog in `ConversationsTab`. Grid becomes `grid-cols-5`.
+- No changes to `src/services/smsService.ts` — `createCampaign` and `sendQuickReply` already accept arbitrary phones and nullable `student_id`.
+- No DB migration, no edge function, no new Supabase tables.
 
 ## Out of scope
 
-- No changes to Android sources, signing config, or SMS Bridge business logic.
-- No Supabase tables, edge functions, or migrations.
-- Repo is public → the download link works for anyone. If you make the repo private later, GitHub will require auth to download.
+- No opt-out / consent tracking for manual numbers (same behavior as today's campaigns).
+- No CSV upload — only paste/type. Say the word if you want CSV too.
+- No changes to the Android app or workflow.
