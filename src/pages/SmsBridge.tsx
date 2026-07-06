@@ -59,13 +59,15 @@ export default function SmsBridgePage() {
       </div>
 
       <Tabs defaultValue="compose">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
           <TabsTrigger value="compose">Compose</TabsTrigger>
+          <TabsTrigger value="manual">Manual</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="conversations">Conversations</TabsTrigger>
           <TabsTrigger value="devices">Devices</TabsTrigger>
         </TabsList>
         <TabsContent value="compose"><ComposeTab /></TabsContent>
+        <TabsContent value="manual"><ManualSendTab /></TabsContent>
         <TabsContent value="campaigns"><CampaignsTab /></TabsContent>
         <TabsContent value="conversations"><ConversationsTab /></TabsContent>
         <TabsContent value="devices"><DevicesTab /></TabsContent>
