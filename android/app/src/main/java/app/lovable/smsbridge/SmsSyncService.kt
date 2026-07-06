@@ -143,7 +143,7 @@ class SmsSyncService : Service() {
         if (inboundReceiver != null) return
         inboundReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                SmsInboundReceiver.handle(context.applicationContext, intent, "service")
+                SmsInboundReceiver.handle(context.applicationContext, intent, "service", goAsync())
             }
         }
         val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION).apply { priority = 1000 }

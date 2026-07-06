@@ -16,7 +16,7 @@ import java.util.TimeZone
 
 class SmsInboundReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
-        handle(ctx, intent, "manifest")
+        handle(ctx, intent, "manifest", goAsync())
     }
 
     companion object {
@@ -25,19 +25,22 @@ class SmsInboundReceiver : BroadcastReceiver() {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > DEDUPE_LIMIT
         })
 
-        fun handle(ctx: Context, intent: Intent, source: String) {
+        fun handle(ctx: Context, intent: Intent, source: String, pending: PendingResult) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             InboundLog.append(ctx, "ignored action=${intent.action} source=$source")
+            pending.finish()
             return
         }
         if (!Config.enabled(ctx)) {
             InboundLog.append(ctx, "SMS received source=$source but bridge is DISABLED - dropped")
+            pending.finish()
             return
         }
 
         val msgs = Telephony.Sms.Intents.getMessagesFromIntent(intent)
         if (msgs == null) {
             InboundLog.append(ctx, "SMS_RECEIVED source=$source but getMessagesFromIntent returned null")
+            pending.finish()
             return
         }
 
@@ -47,7 +50,6 @@ class SmsInboundReceiver : BroadcastReceiver() {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date())
 
-        val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 for ((addr, group) in byAddress) {
@@ -58,12 +60,17 @@ class SmsInboundReceiver : BroadcastReceiver() {
                     val body = group.joinToString("") { it.messageBody ?: "" }
                     val newestTimestamp = group.maxOfOrNull { it.timestampMillis } ?: 0L
                     val key = "$addr|$newestTimestamp|${body.hashCode()}"
+                    var duplicate = false
                     synchronized(recentKeys) {
                         if (recentKeys.containsKey(key)) {
-                            InboundLog.append(ctx, "SMS_RECEIVED duplicate ignored source=$source from=$addr len=${body.length}")
-                            continue
+                            duplicate = true
+                        } else {
+                            recentKeys[key] = System.currentTimeMillis()
                         }
-                        recentKeys[key] = System.currentTimeMillis()
+                    }
+                    if (duplicate) {
+                        InboundLog.append(ctx, "SMS_RECEIVED duplicate ignored source=$source from=$addr len=${body.length}")
+                        continue
                     }
                     InboundLog.append(ctx, "SMS_RECEIVED source=$source from=$addr len=${body.length} posting…")
                     try {
