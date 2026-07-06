@@ -474,6 +474,10 @@ function ConversationsTab() {
   const [selected, setSelected] = useState<SmsThread | null>(null);
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [reply, setReply] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [newBody, setNewBody] = useState('');
+  const [sendingNew, setSendingNew] = useState(false);
 
   const loadThreads = () => listThreads().then(setThreads).catch(() => {});
   useEffect(() => {
@@ -506,10 +510,34 @@ function ConversationsTab() {
     }
   };
 
+  const startNew = async () => {
+    const phone = normalizePhone(newPhone);
+    if (!phone || !newBody.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a valid phone number and message', variant: 'destructive' });
+      return;
+    }
+    setSendingNew(true);
+    try {
+      await sendQuickReply(phone, newBody.trim());
+      toast({ title: 'Queued', description: 'Message will be sent on next device poll.' });
+      setShowNew(false);
+      setNewPhone('');
+      setNewBody('');
+      setTimeout(loadThreads, 500);
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSendingNew(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
       <Card className="md:col-span-1">
-        <CardHeader><CardTitle className="text-base">Threads</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Threads</CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setShowNew(true)}>New</Button>
+        </CardHeader>
         <CardContent className="p-0 max-h-[70vh] overflow-auto">
           {threads.length === 0 && <div className="p-4 text-sm text-muted-foreground">No conversations</div>}
           {threads.map((t) => (
