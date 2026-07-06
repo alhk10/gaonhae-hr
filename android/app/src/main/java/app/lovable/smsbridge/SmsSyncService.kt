@@ -1,15 +1,19 @@
 package app.lovable.smsbridge
 
 import android.app.*
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.provider.Telephony
 import android.telephony.SmsManager
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 
@@ -43,6 +47,11 @@ class SmsSyncService : Service() {
         while (scope.isActive) {
             var poll = Config.pollIntervalSeconds(applicationContext).coerceAtLeast(15)
             try {
+                pollInboundInbox()
+            } catch (e: Exception) {
+                InboundLog.append(applicationContext, "inbox poll FAILED err=${e.message}")
+            }
+            try {
                 val result = api.fetchPending()
                 Config.updateFromServer(applicationContext, result.sendDelayMs, result.pollIntervalSeconds)
                 poll = result.pollIntervalSeconds.coerceAtLeast(15)
@@ -62,6 +71,88 @@ class SmsSyncService : Service() {
             }
             delay(poll * 1000L)
         }
+    }
+
+    private fun pollInboundInbox() {
+        val ctx = applicationContext
+        if (!Config.enabled(ctx)) {
+            InboundLog.append(ctx, "inbox poll skipped because bridge is disabled")
+            return
+        }
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            InboundLog.append(ctx, "inbox poll skipped because READ_SMS is not granted")
+            return
+        }
+
+        val lastTimestamp = Config.inboundLastTimestamp(ctx)
+        val lastId = Config.inboundLastId(ctx)
+        val firstRunLookbackMs = 15 * 60 * 1000L
+        val retryLookbackMs = 5 * 60 * 1000L
+        val since = if (lastTimestamp > 0L) {
+            (lastTimestamp - retryLookbackMs).coerceAtLeast(0L)
+        } else {
+            (System.currentTimeMillis() - firstRunLookbackMs).coerceAtLeast(0L)
+        }
+
+        var checked = 0
+        var forwarded = 0
+        var skipped = 0
+        var failed = 0
+        var newestTimestamp = lastTimestamp
+        var newestId = lastId
+
+        val uri = Uri.parse("content://sms/inbox")
+        val projection = arrayOf("_id", "address", "body", "date")
+        val cursor = ctx.contentResolver.query(
+            uri,
+            projection,
+            "date >= ?",
+            arrayOf(since.toString()),
+            "date ASC, _id ASC"
+        )
+
+        cursor?.use {
+            val idIdx = it.getColumnIndexOrThrow("_id")
+            val addressIdx = it.getColumnIndexOrThrow("address")
+            val bodyIdx = it.getColumnIndexOrThrow("body")
+            val dateIdx = it.getColumnIndexOrThrow("date")
+            while (it.moveToNext() && checked < 100) {
+                checked++
+                val id = it.getLong(idIdx)
+                val address = it.getString(addressIdx) ?: ""
+                val body = it.getString(bodyIdx) ?: ""
+                val date = it.getLong(dateIdx)
+                val key = SmsInboundReceiver.keyFor(address, date, body)
+
+                if (Config.wasInboundProcessed(ctx, key)) {
+                    skipped++
+                    if (date > newestTimestamp || (date == newestTimestamp && id > newestId)) {
+                        newestTimestamp = date
+                        newestId = id
+                    }
+                    continue
+                }
+
+                val ok = SmsInboundReceiver.forwardInbound(ctx, "inbox", address, body, date)
+                if (ok) {
+                    forwarded++
+                    if (date > newestTimestamp || (date == newestTimestamp && id > newestId)) {
+                        newestTimestamp = date
+                        newestId = id
+                    }
+                } else {
+                    failed++
+                }
+            }
+        } ?: run {
+            InboundLog.append(ctx, "inbox poll returned no cursor")
+            return
+        }
+
+        if (newestTimestamp > lastTimestamp || (newestTimestamp == lastTimestamp && newestId > lastId)) {
+            Config.saveInboundCursor(ctx, newestTimestamp, newestId)
+        }
+        InboundLog.append(ctx, "inbox poll checked=$checked forwarded=$forwarded skipped=$skipped failed=$failed cursorTs=$newestTimestamp cursorId=$newestId")
     }
 
     private suspend fun sendOne(m: OutboundMessage) {

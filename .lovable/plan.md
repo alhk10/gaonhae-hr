@@ -1,24 +1,22 @@
-## Problem
+## Plan
 
-GitHub Actions build fails at "Set up Android SDK" step:
-```
-Warning: An error occurred while preparing SDK package Android Emulator: Error on ZipFile unknown archive.
-Error: The process '/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager' failed with exit code 1
-```
+1. **Add an Android inbox fallback**
+   - Keep the existing SMS broadcast receiver.
+   - Add a periodic `Telephony.Sms.Inbox` scan inside `SmsSyncService` using `READ_SMS`.
+   - Forward any unread/new inbox SMS that has not already been processed.
+   - Store the last processed SMS timestamp/id locally so old messages are not re-sent after app restart.
 
-`android-actions/setup-android@v3` auto-installs the Android **Emulator** package by default, and its download is currently corrupted/failing on the runner. The APK build doesn't need the emulator at all.
+2. **Strengthen duplicate protection**
+   - Use a stable key from sender + timestamp + body hash for both broadcast and inbox-polled messages.
+   - Share the same forwarding function so both paths write identical inbound logs and call `/sms-inbound` the same way.
 
-## Fix
+3. **Improve APK diagnostics**
+   - Add log lines such as `inbox poll checked N messages`, `inbox poll forwarded`, and exact forwarding failures.
+   - Show whether `READ_SMS`/`RECEIVE_SMS` are granted, bridge is enabled, and service is running.
 
-Update `.github/workflows/android.yml` — the "Set up Android SDK" step — to explicitly list only the packages we need (skip emulator):
+4. **Verify server path remains unchanged**
+   - The web conversations tab already reads `sms_threads`/`sms_messages`.
+   - The `sms-inbound` edge function already creates those records, so the likely missing piece is the APK never posting inbound SMS.
 
-```yaml
-- name: Set up Android SDK
-  uses: android-actions/setup-android@v3
-  with:
-    packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
-```
-
-This bypasses the failing emulator download. Gradle will still find everything it needs to assemble the debug APK.
-
-No other files change. After push, re-run the workflow; the APK artifact and rolling release will publish as before.
+5. **Expected result**
+   - Even if Android/OEM blocks the SMS broadcast, the foreground service will detect received messages from the phone inbox and forward them into the Conversations tab.
