@@ -1,10 +1,13 @@
 package app.lovable.smsbridge
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -21,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pollEt: EditText
     private lateinit var enabledCb: CheckBox
     private lateinit var statusTv: TextView
+    private lateinit var permTv: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +66,16 @@ class MainActivity : AppCompatActivity() {
         val stopBtn = Button(this).apply { text = "Stop service" }
         ll.addView(saveBtn); ll.addView(stopBtn)
 
+        permTv = TextView(this).apply { setPadding(0, 24, 0, 8); textSize = 12f }
+        ll.addView(permTv)
+
+        val requestPermsBtn = Button(this).apply { text = "Grant SMS permissions" }
+        val openSettingsBtn = Button(this).apply { text = "Open app settings" }
+        val viewLogBtn = Button(this).apply { text = "View inbound log" }
+        val clearLogBtn = Button(this).apply { text = "Clear inbound log" }
+        ll.addView(requestPermsBtn); ll.addView(openSettingsBtn)
+        ll.addView(viewLogBtn); ll.addView(clearLogBtn)
+
         statusTv = TextView(this).apply { setPadding(0, 24, 0, 0) }
         ll.addView(statusTv)
 
@@ -102,6 +116,7 @@ class MainActivity : AppCompatActivity() {
                 SmsSyncService.stop(this)
                 status("Saved (disabled).")
             }
+            refreshPermStatus()
         }
 
         stopBtn.setOnClickListener {
@@ -109,7 +124,44 @@ class MainActivity : AppCompatActivity() {
             status("Service stopped.")
         }
 
+        requestPermsBtn.setOnClickListener { requestPerms() }
+
+        openSettingsBtn.setOnClickListener {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+            startActivity(intent)
+        }
+
+        viewLogBtn.setOnClickListener {
+            val text = InboundLog.read(this)
+            AlertDialog.Builder(this)
+                .setTitle("Inbound SMS log (newest at bottom)")
+                .setMessage(if (text.isBlank()) "(no entries yet — send a test SMS to this phone)" else text)
+                .setPositiveButton("Close", null)
+                .setNeutralButton("Copy") { _, _ ->
+                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("inbound.log", text))
+                    Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+
+        clearLogBtn.setOnClickListener {
+            InboundLog.clear(this)
+            Toast.makeText(this, "Log cleared", Toast.LENGTH_SHORT).show()
+        }
+
         setContentView(root)
+
+        // Force permission prompt on every launch
+        requestPerms()
+        refreshPermStatus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshPermStatus()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -137,6 +189,13 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        refreshPermStatus()
+    }
+
     private fun ensureCameraPerm(then: () -> Unit) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED) {
@@ -149,6 +208,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun status(t: String) { statusTv.text = t }
 
+    private fun granted(p: String) =
+        ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
+
+    private fun refreshPermStatus() {
+        fun mark(p: String) = if (granted(p)) "✓" else "✗"
+        val notif = if (Build.VERSION.SDK_INT >= 33) "  NOTIF ${mark(Manifest.permission.POST_NOTIFICATIONS)}" else ""
+        permTv.text = "Permissions:  " +
+            "SEND ${mark(Manifest.permission.SEND_SMS)}  " +
+            "RECEIVE ${mark(Manifest.permission.RECEIVE_SMS)}  " +
+            "READ ${mark(Manifest.permission.READ_SMS)}$notif" +
+            "\nBridge enabled: ${if (Config.enabled(this)) "yes" else "no"}"
+    }
+
     private fun requestPerms() {
         val perms = mutableListOf(
             Manifest.permission.SEND_SMS,
@@ -156,9 +228,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_SMS,
         )
         if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
-        val missing = perms.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }.toTypedArray()
+        val missing = perms.filter { !granted(it) }.toTypedArray()
         if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing, 1)
     }
 }

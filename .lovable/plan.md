@@ -1,45 +1,42 @@
-## Goal
-Allow superadmins to tag each SMS device to one or many branches, and route outbound SMS to the device tagged for the recipient's branch.
+## Diagnosis
+Edge function `sms-inbound` has received **zero** requests — the Android app is not forwarding inbound SMS to Supabase. Sending works, so pairing/network/tokens are fine. The failure is on the phone.
 
-## Database
-New join table `public.sms_device_branches`:
-- `device_id uuid` → `sms_devices.id` (cascade delete)
-- `branch_id uuid` → `branches.id` (cascade delete)
-- PK `(device_id, branch_id)`
-- GRANTs: `authenticated` (select), `service_role` (all). RLS: select for authenticated; insert/update/delete via `is_superadmin()` (existing helper).
+Most likely: `RECEIVE_SMS`/`READ_SMS` runtime permission was never granted (they must be requested separately from `SEND_SMS` on Android 6+), or errors in `postInbound` are being silently swallowed by the receiver.
 
-No changes to `sms_devices` schema. `sms_outbound` already has the recipient phone; branch is derived from the linked student (or, for manual sends, from the campaign's branch context — see Routing below).
+## Fix — Force perms + local log
 
-## Routing rule
-- A device with **zero tags** = wildcard (handles any branch — preserves current behavior for the existing device).
-- A device with tags = only picks up messages whose recipient branch is in its tag set.
-- `sms-fetch-pending` edge function will, per request:
-  1. Look up the calling device's tagged branch_ids.
-  2. If empty → fetch pending as today (any branch).
-  3. Else → join `sms_outbound → students.branch_id` and filter `IN (tagged branches)`. Messages without a resolvable branch (manual sends with no branch) fall through to wildcard devices only.
+### Android app changes
 
-## Manual send branch context
-`createCampaign` already accepts a `filters` blob; the Manual tab will add an optional "Branch" select (single) so manual sends carry a `branch_id` on the outbound row for routing. New nullable column `sms_outbound.branch_id uuid` (backfilled from `students.branch_id` on insert via existing service code). Existing rows stay null → wildcard.
+**`MainActivity.kt`**
+- On every `onCreate`, immediately call `requestPerms()` (currently only fires after Save & Start). Adds `RECEIVE_SMS`, `READ_SMS`, `SEND_SMS`, `POST_NOTIFICATIONS` prompts on launch.
+- Add an "Open app settings" button so users can grant a permission that was previously "Don't ask again".
+- Add a "View inbound log" button that reads the last ~50 lines of `inbound.log` from app-internal storage and shows them in a scrollable dialog.
+- Add a status line showing granted/denied state of `RECEIVE_SMS`, `READ_SMS`, `SEND_SMS` after launch.
 
-## UI (Devices tab, `src/pages/SmsBridge.tsx`)
-- New "Branches" column between Label and Delay.
-- Cell shows chips of tagged branch names + a "+" popover with a checkbox list of all branches (uses existing `useBranches`).
-- Toggling a checkbox inserts/deletes a row in `sms_device_branches` and refreshes.
-- Untagged device shows a muted "All branches" chip.
-- Superadmin-only (already the case for this tab).
+**`SmsInboundReceiver.kt`**
+- Replace the swallowed `catch (_: Exception) {}` with a call to a new `InboundLog.append(ctx, line)` helper that writes timestamped entries to `filesDir/inbound.log` (rotated at ~64KB).
+- Log every step: "SMS_RECEIVED from <addr>", "posting to sms-inbound…", "OK 200" or "ERROR <code/message>". Also log when the receiver early-returns because `Config.enabled(ctx)` is false.
+- Still call `postInbound` in `Dispatchers.IO`; log the response body when non-2xx.
 
-## Service layer (`src/services/smsService.ts`)
-- `listDeviceBranches(): Promise<Record<deviceId, string[]>>`
-- `setDeviceBranch(deviceId, branchId, enabled: boolean)`
-- Extend outbound creation in `createCampaign` to write `branch_id` (from student or manual selector).
+**`ApiClient.kt`**
+- Make `postInbound` return the HTTP status code and error body (throw on non-2xx) so the receiver can log it.
+
+**New `InboundLog.kt`**
+- Simple appender: `append(ctx, line)`, `read(ctx): String`, `clear(ctx)`. Writes to `filesDir/inbound.log`.
+
+### No changes to
+- Web app UI, edge functions, database schema, or `smsService.ts`. The server side is confirmed healthy (empty logs = no requests reached it).
+
+### After rebuild
+User sideloads the new APK, launches the app once (grants all SMS permissions when prompted), sends a test SMS to the phone, then taps "View inbound log" to see exactly what happened. Once the log shows a real HTTP error we can fix the specific cause; if it shows nothing, the OS never delivered the broadcast (permission or default-SMS-app issue).
 
 ## Files touched
-- Migration: create `sms_device_branches`, add `sms_outbound.branch_id`.
-- `supabase/functions/sms-fetch-pending/index.ts` — routing filter.
-- `src/services/smsService.ts` — new helpers, outbound branch_id.
-- `src/pages/SmsBridge.tsx` — Branches column + popover, Manual tab branch select.
+- `android/app/src/main/java/app/lovable/smsbridge/MainActivity.kt`
+- `android/app/src/main/java/app/lovable/smsbridge/SmsInboundReceiver.kt`
+- `android/app/src/main/java/app/lovable/smsbridge/ApiClient.kt`
+- `android/app/src/main/java/app/lovable/smsbridge/InboundLog.kt` (new)
 
 ## Out of scope
-- No changes to Android app (routing is server-side; device just polls as today).
-- No per-branch load balancing across multiple wildcard devices.
-- No historical backfill of `sms_outbound.branch_id`.
+- WorkManager retry queue.
+- Default-SMS-app switch (not required for `SMS_RECEIVED_ACTION`, only for `SMS_DELIVER`).
+- Server-side changes.

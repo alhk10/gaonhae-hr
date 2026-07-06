@@ -73,6 +73,11 @@ class ApiClient(private val ctx: Context) {
         val req = requestBuilder("/sms-inbound")
             .post(payload.toString().toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(req).execute().use { }
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                val err = resp.body?.string().orEmpty().take(300)
+                throw RuntimeException("sms-inbound ${resp.code}: $err")
+            }
+        }
     }
 }

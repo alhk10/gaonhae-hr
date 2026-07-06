@@ -14,12 +14,21 @@ import java.util.TimeZone
 
 class SmsInboundReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
-        if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        if (!Config.enabled(ctx)) return
+        if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+            InboundLog.append(ctx, "ignored action=${intent.action}")
+            return
+        }
+        if (!Config.enabled(ctx)) {
+            InboundLog.append(ctx, "SMS received but bridge is DISABLED - dropped")
+            return
+        }
 
-        val msgs = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
+        val msgs = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+        if (msgs == null) {
+            InboundLog.append(ctx, "SMS_RECEIVED but getMessagesFromIntent returned null")
+            return
+        }
 
-        // Group by originating address so multipart messages become one body
         val byAddress = msgs.groupBy { it.originatingAddress ?: "" }
         val api = ApiClient(ctx)
         val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
@@ -30,9 +39,18 @@ class SmsInboundReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 for ((addr, group) in byAddress) {
-                    if (addr.isBlank()) continue
+                    if (addr.isBlank()) {
+                        InboundLog.append(ctx, "skipped blank originating address")
+                        continue
+                    }
                     val body = group.joinToString("") { it.messageBody ?: "" }
-                    try { api.postInbound(addr, body, iso) } catch (_: Exception) {}
+                    InboundLog.append(ctx, "SMS_RECEIVED from=$addr len=${body.length} posting…")
+                    try {
+                        api.postInbound(addr, body, iso)
+                        InboundLog.append(ctx, "  -> OK forwarded from=$addr")
+                    } catch (e: Exception) {
+                        InboundLog.append(ctx, "  -> FAILED from=$addr err=${e.message}")
+                    }
                 }
             } finally { pending.finish() }
         }
