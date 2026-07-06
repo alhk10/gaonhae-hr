@@ -134,6 +134,7 @@ function ComposeTab() {
           student_id: r.id,
           phone: r.phone,
           first_name: r.first_name,
+          branch_id: r.branch_id ?? null,
         })),
       });
       toast({ title: 'Campaign queued', description: `${uniquePhones} recipients queued.` });
