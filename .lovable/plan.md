@@ -1,42 +1,29 @@
-## Diagnosis
-Edge function `sms-inbound` has received **zero** requests — the Android app is not forwarding inbound SMS to Supabase. Sending works, so pairing/network/tokens are fine. The failure is on the phone.
+Plan to fix the empty inbound log:
 
-Most likely: `RECEIVE_SMS`/`READ_SMS` runtime permission was never granted (they must be requested separately from `SEND_SMS` on Android 6+), or errors in `postInbound` are being silently swallowed by the receiver.
+1. **Remove the fragile manifest receiver restriction**
+   - Update `AndroidManifest.xml` so `SmsInboundReceiver` no longer requires `android.permission.BROADCAST_SMS` on the receiver declaration.
+   - Keep `RECEIVE_SMS` permission and the `SMS_RECEIVED` intent filter.
 
-## Fix — Force perms + local log
+2. **Add a second inbound capture path while the bridge is enabled**
+   - In `SmsSyncService`, dynamically register an SMS receiver for `Telephony.Sms.Intents.SMS_RECEIVED_ACTION` while the foreground service is running.
+   - Unregister it safely when the service stops.
+   - This gives the app a live receiver path even if the OEM/device blocks or ignores the manifest receiver.
 
-### Android app changes
+3. **Make the log prove whether the APK/service is actually active**
+   - Append log entries on app launch, permission request result, Save & Start, service start, dynamic receiver registration, and service stop.
+   - If the log remains empty after opening the app, then the installed APK is not the updated build or file logging is failing.
+   - If service/start logs appear but no SMS logs appear, then Android/OEM/RCS is not delivering `SMS_RECEIVED` to this app.
 
-**`MainActivity.kt`**
-- On every `onCreate`, immediately call `requestPerms()` (currently only fires after Save & Start). Adds `RECEIVE_SMS`, `READ_SMS`, `SEND_SMS`, `POST_NOTIFICATIONS` prompts on launch.
-- Add an "Open app settings" button so users can grant a permission that was previously "Don't ask again".
-- Add a "View inbound log" button that reads the last ~50 lines of `inbound.log` from app-internal storage and shows them in a scrollable dialog.
-- Add a status line showing granted/denied state of `RECEIVE_SMS`, `READ_SMS`, `SEND_SMS` after launch.
+4. **Add an inbound self-test button**
+   - Add a “Test inbound log” button that writes a local log entry immediately.
+   - Add a “Test forward inbound” button that posts a dummy inbound SMS to `sms-inbound` using the saved Supabase URL/token.
+   - This separates local receiver problems from network/API problems.
 
-**`SmsInboundReceiver.kt`**
-- Replace the swallowed `catch (_: Exception) {}` with a call to a new `InboundLog.append(ctx, line)` helper that writes timestamped entries to `filesDir/inbound.log` (rotated at ~64KB).
-- Log every step: "SMS_RECEIVED from <addr>", "posting to sms-inbound…", "OK 200" or "ERROR <code/message>". Also log when the receiver early-returns because `Config.enabled(ctx)` is false.
-- Still call `postInbound` in `Dispatchers.IO`; log the response body when non-2xx.
+5. **Keep server-side unchanged**
+   - No database, web app, or edge function changes unless the self-test forward reaches `sms-inbound` and returns a real server error.
 
-**`ApiClient.kt`**
-- Make `postInbound` return the HTTP status code and error body (throw on non-2xx) so the receiver can log it.
-
-**New `InboundLog.kt`**
-- Simple appender: `append(ctx, line)`, `read(ctx): String`, `clear(ctx)`. Writes to `filesDir/inbound.log`.
-
-### No changes to
-- Web app UI, edge functions, database schema, or `smsService.ts`. The server side is confirmed healthy (empty logs = no requests reached it).
-
-### After rebuild
-User sideloads the new APK, launches the app once (grants all SMS permissions when prompted), sends a test SMS to the phone, then taps "View inbound log" to see exactly what happened. Once the log shows a real HTTP error we can fix the specific cause; if it shows nothing, the OS never delivered the broadcast (permission or default-SMS-app issue).
-
-## Files touched
-- `android/app/src/main/java/app/lovable/smsbridge/MainActivity.kt`
-- `android/app/src/main/java/app/lovable/smsbridge/SmsInboundReceiver.kt`
-- `android/app/src/main/java/app/lovable/smsbridge/ApiClient.kt`
-- `android/app/src/main/java/app/lovable/smsbridge/InboundLog.kt` (new)
-
-## Out of scope
-- WorkManager retry queue.
-- Default-SMS-app switch (not required for `SMS_RECEIVED_ACTION`, only for `SMS_DELIVER`).
-- Server-side changes.
+Expected result after installing the rebuilt APK:
+- Opening the app creates log entries.
+- Save & Start logs service + dynamic receiver registration.
+- A real SMS should log either `SMS_RECEIVED ... posting` or show that Android never delivered the SMS broadcast.
+- The forward self-test confirms whether Supabase posting works independently of Android SMS delivery.
