@@ -1,22 +1,28 @@
 ## Plan
 
-1. **Add an Android inbox fallback**
-   - Keep the existing SMS broadcast receiver.
-   - Add a periodic `Telephony.Sms.Inbox` scan inside `SmsSyncService` using `READ_SMS`.
-   - Forward any unread/new inbox SMS that has not already been processed.
-   - Store the last processed SMS timestamp/id locally so old messages are not re-sent after app restart.
+1. **Treat the server path as working**
+   - The inbound self-test appearing in Conversations confirms the QR pairing, device token, Supabase URL, anon key, and `/sms-inbound` edge function are working.
+   - The remaining failure is on the Android side: real SMS broadcast/inbox detection is not producing a forward.
 
-2. **Strengthen duplicate protection**
-   - Use a stable key from sender + timestamp + body hash for both broadcast and inbox-polled messages.
-   - Share the same forwarding function so both paths write identical inbound logs and call `/sms-inbound` the same way.
+2. **Add a manual inbox scanner button**
+   - Add **Scan phone inbox now** to the APK.
+   - This will immediately read the latest SMS rows from `content://sms/inbox` and forward any not-yet-processed messages.
+   - This avoids waiting for the background service poll interval and gives an immediate diagnostic result.
 
-3. **Improve APK diagnostics**
-   - Add log lines such as `inbox poll checked N messages`, `inbox poll forwarded`, and exact forwarding failures.
-   - Show whether `READ_SMS`/`RECEIVE_SMS` are granted, bridge is enabled, and service is running.
+3. **Make inbox polling broader and more reliable**
+   - Change the inbox fallback to query the latest SMS rows by `date DESC` instead of relying only on `date >= cursor`.
+   - This handles OEM/provider timestamp quirks and cursor mistakes.
+   - Keep duplicate protection so old messages are not repeatedly forwarded.
 
-4. **Verify server path remains unchanged**
-   - The web conversations tab already reads `sms_threads`/`sms_messages`.
-   - The `sms-inbound` edge function already creates those records, so the likely missing piece is the APK never posting inbound SMS.
+4. **Run inbox scan on key events**
+   - Run a scan after **Save & Start**.
+   - Run a scan after SMS permissions are granted.
+   - Keep the existing foreground service periodic polling as the background fallback.
 
-5. **Expected result**
-   - Even if Android/OEM blocks the SMS broadcast, the foreground service will detect received messages from the phone inbox and forward them into the Conversations tab.
+5. **Improve logs for real SMS diagnosis**
+   - Log whether the inbox query returned rows.
+   - Log sender/date/body length for each candidate SMS without exposing full message body.
+   - Log clear outcomes: `forwarded`, `already processed`, `failed`, or `permission missing`.
+
+6. **Add user-facing warning for unsupported message type**
+   - If inbox scanning returns no SMS rows while the user sees the message in their messaging app, show a note that RCS/chat messages are not exposed as SMS to third-party apps; only carrier SMS/MMS in the Android SMS provider can be forwarded.
