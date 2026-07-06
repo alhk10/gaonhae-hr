@@ -24,6 +24,7 @@ import {
   listCampaigns, createCampaign, cancelCampaign,
   listThreads, listMessages, markThreadRead, sendQuickReply,
   fetchRecipients, personalize,
+  listDeviceBranches, setDeviceBranch,
   type SmsDevice, type SmsCampaign, type SmsThread, type SmsMessage,
 } from '@/services/smsService';
 
