@@ -66,9 +66,8 @@ Deno.serve(async (req) => {
       .limit(limit);
     if (taggedBranches.length > 0) {
       q = q.in('branch_id', taggedBranches);
-    } else {
-      q = q.is('branch_id', null);
     }
+    // Untagged devices act as wildcard and receive any pending message.
     const { data: rows, error } = await q;
     if (error) throw error;
 
