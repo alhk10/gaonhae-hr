@@ -1,35 +1,49 @@
-## Diagnosis
+## Problem
 
-The scan result — **checked 50, forwarded 0, failed 0** — is the smoking gun. The scanner read 50 rows from the Android SMS inbox and every one was either already processed or older than 24h. Zero *new* SMS rows appeared for the message you're testing with.
+On `/grading-list` (PublicGradingList), the generated certificate prints the **student's live belt** (`students.current_belt`) instead of the **belt they graded from** for that specific grading (`grading_registrations.current_belt`).
 
-Combined with **Google Messages + RCS ON**, the cause is almost certainly:
+- Ayden Tan graded Yellow Tip → Yellow, but his `students.current_belt` is still `Foundation 3` (never re-synced from an earlier grading), so cert reads "Foundation 3".
+- Xavier Toh graded Red Tip → Red, but his `students.current_belt` is `Blue`, so cert reads "Blue Belt".
 
-> The test message is arriving as **RCS / Chat**, not as classic SMS. RCS messages are stored in Google Messages' private database and are **not** exposed to third-party apps via `content://sms/inbox` or the `SMS_RECEIVED` broadcast. No amount of Android-side polling or receiver work can see them — the OS never hands them to us.
+The row itself already carries the correct registration snapshot in `r.current_belt` — the display column "Yellow Tip → Yellow" comes from that field. The bug is only in the certificate input builder.
 
-The self-test worked earlier because it bypasses the phone entirely and POSTs directly to `/sms-inbound`. Outbound sending works because `SmsManager.sendTextMessage` forces a classic SMS. Only *inbound* from an RCS-capable peer is invisible.
+## Root cause
 
-## Verification steps (do these first, before any code change)
+`src/pages/public/PublicGradingList.tsx` line 1018 and 1031:
 
-1. On the sending phone, disable RCS/Chat features (Google Messages → Settings → RCS chats → off), or send from a phone/service that doesn't support RCS (e.g. a shortcode, a bank OTP, or an iPhone with iMessage off to your number).
-2. Send a fresh test SMS. In Google Messages the thread bubble should be **green (SMS)**, not blue (Chat).
-3. In SMS Bridge tap **Scan phone inbox now**. Expect `forwarded ≥ 1` and the message to appear in the Conversations tab.
+```ts
+const belt = beltOverride ?? r.student_current_belt ?? r.current_belt;
+```
 
-If step 3 forwards the message, RCS was the whole problem. If it still shows `forwarded 0`, we have a different bug and I'll dig into the log line for that specific SMS.
+This prefers the live student belt over the registration's frozen "from-belt". When the two diverge (student promoted past this grading, or never re-synced), the cert prints the wrong belt.
 
-## Code changes (small, UX-only)
+## Fix
 
-Only after we confirm RCS is the cause, add these so future users aren't stuck:
+Swap the fallback order so the **registration's `current_belt`** (the belt they actually graded from) is the source of truth, with `student_current_belt` only as a fallback when the registration snapshot is missing.
 
-1. **`SmsInboxScanner.kt`** — track `newRows` (rows newer than the saved cursor). When `checked > 0` but `newRows == 0`, return a warning: *"No new SMS in the Android inbox. If your test message appears in Google Messages as a Chat (blue) bubble, it's RCS and Android will not expose it to third-party apps. Disable RCS/Chat features on the sender to test."*
-2. **`MainActivity.kt`** — surface that warning in the toast and status line after a manual scan, and add a one-line note under the "Scan phone inbox now" button: *"RCS/Chat messages cannot be forwarded — only classic SMS."*
-3. **`android/README.md`** — add a short "Known limitation: RCS" section with the same explanation and the workaround.
+### Changes in `src/pages/public/PublicGradingList.tsx`
 
-No changes to the receiver, service, edge function, or Supabase schema. The forwarding pipeline is already proven working by the self-test.
+1. **`rowToCertInput` (line 1018)** — change to:
+   ```ts
+   const belt = beltOverride ?? r.current_belt ?? r.student_current_belt;
+   ```
 
-## Why not "just read RCS too"
+2. **`certFilename` (line 1031)** — same swap for consistent filenames:
+   ```ts
+   const belt = beltOverride ?? r.current_belt ?? r.student_current_belt ?? 'Belt';
+   ```
 
-Google Messages' RCS store is a private app database with no public API; reading it requires being the system default SMS app *and* reverse-engineering an undocumented schema that changes between versions. Not viable for a sideloaded bridge APK.
+3. Tooltip at line 1500 already uses `r.current_belt` — no change needed.
 
-## Summary
+## Scope
 
-Please run the 3 verification steps above and tell me what happens. If a non-RCS SMS forwards, I'll implement the UX warnings. If it still doesn't forward, paste the new log lines and I'll debug from real evidence instead of guessing.
+- Frontend-only, single file.
+- No schema, service, or data changes.
+- The two other certificate call sites (`components/sales/GradingListTab.tsx`, `components/dashboard/BranchGradingList.tsx`) already use the registration snapshot correctly (`current_belt: reg.current_belt || student.current_belt`) — no change needed there.
+
+## Verification
+
+After the change, on `/grading-list`:
+- Ayden Tan's certificate reads **"Yellow Tip Belt"**.
+- Xavier Toh's certificate reads **"Red Tip Belt"**.
+- Every other row's certificate matches the "X → Y" belt column shown next to the student's name.
