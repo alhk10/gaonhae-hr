@@ -182,7 +182,7 @@ const PublicHelloChat: React.FC = () => {
   // Payment
   const [payCategory, setPayCategory] = useState<{ id: string; label: string } | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
+  const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('bank_transfer');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
