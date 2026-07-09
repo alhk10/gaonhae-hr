@@ -1348,15 +1348,19 @@ const PublicHelloChat: React.FC = () => {
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isSGBranch && <SelectItem value="paynow">PayNow</SelectItem>}
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      {allowedPayMethods.map(m => (
+                        <SelectItem key={m} value={m}>
+                          {m === 'paynow' ? 'PayNow' : 'Bank Transfer'}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <PaymentInfoDisplay
                     paymentMethod={payMethod}
                     bankTransferInfo={paymentOptions?.bank_transfer_info}
-                    paynowQrUrl={paymentOptions?.paynow_qr_url}
+                    paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
                   />
+
                   <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
