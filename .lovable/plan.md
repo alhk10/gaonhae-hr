@@ -1,35 +1,15 @@
-## Change
+## Restrict PayNow to Singapore branches on `/hello`
 
-Replace the single **Make a payment** button on `/hello` (after the student is matched) with four direct-action buttons that each jump straight into the products step for that category, skipping the intermediate "What would you like to pay for?" screen.
+Kayden is at Morley (Australia) but the payment step shows PayNow. PayNow is a Singapore-only rail, so students at Australian branches shouldn't see it.
 
-## File
+### Change (frontend only)
 
-`src/pages/public/PublicHelloChat.tsx`
+File: `src/pages/public/PublicHelloChat.tsx`
 
-## Buttons (in order)
+1. Use the existing `isSGBranch` flag (already computed from `branch?.country`).
+2. In the payment-method `Select` (~line 1328–1334): only render the `PayNow` `SelectItem` when `isSGBranch` is true. Always render `Bank Transfer`.
+3. Change the initial `payMethod` state (line 185) so it defaults to `bank_transfer`, and add an effect that sets it to `'paynow'` only when `isSGBranch` becomes true (keeps the current SG default). For non-SG branches this guarantees the selected method is `bank_transfer` and the PayNow QR block never renders.
 
-| Label | Category (existing ID) |
-| --- | --- |
-| Pay Term Fees | `SCHOOL_FEES_CATEGORY_ID` |
-| Register for grading | `GRADING_CATEGORY_ID` |
-| Order Uniforms and Apparel | `UNIFORMS_CATEGORY_ID` |
-| Order Protection Guards and Accessories | `117cdc13-1296-4651-bc4b-f0449873cbf1` |
+### Out of scope
 
-## Implementation notes
-
-- In the `stage === 'matched'` block (around lines 922–943), replace the `Make a payment` button with four buttons. Each `onClick` does:
-  ```ts
-  setPayCategory(<matching CATEGORIES entry>);
-  setCart([]);
-  goTo('payment_products');
-  ```
-- Keep the existing **Schedule / Reschedule a lesson** button unchanged below them.
-- Use the primary button style for the first (Pay Term Fees), `variant="outline"` for the other three, matching the current visual hierarchy. Height/spacing stays `h-11` inside the same `Card` / `CardContent` wrapper.
-- No changes to `CATEGORIES` labels, the `payment_category` stage code, routing, or any backend logic — `payment_category` remains reachable via back navigation but is no longer the default landing.
-
-## Verification
-
-Load `/hello`, identify a student, and confirm:
-- Four new buttons appear with the exact labels above.
-- Each button jumps straight to the correct product list (Term Fees / Grading / Uniforms / Guards).
-- Schedule / Reschedule a lesson still works.
+No changes to other public payment pages (grading, seminar, guards, competition) or the staff-facing invoice dialogs — this fix is scoped to the `/hello` chat flow the user reported. Happy to extend to those flows if you want.
