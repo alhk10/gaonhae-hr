@@ -921,9 +921,25 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  <Button onClick={() => goTo('payment_category')} className="w-full h-11 justify-between">
-                    Make a payment <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  {[
+                    { id: SCHOOL_FEES_CATEGORY_ID, label: 'Pay Term Fees', primary: true },
+                    { id: GRADING_CATEGORY_ID, label: 'Register for grading', primary: false },
+                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel', primary: false },
+                    { id: '117cdc13-1296-4651-bc4b-f0449873cbf1', label: 'Order Protection Guards and Accessories', primary: false },
+                  ].map(btn => {
+                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        key={btn.id}
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant={btn.primary ? 'default' : 'outline'}
+                        className="w-full h-11 justify-between"
+                      >
+                        {btn.label} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })}
                   <Button
                     onClick={() => {
                       if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
