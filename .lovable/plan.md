@@ -1,32 +1,34 @@
-Add a GST breakdown line under the amount to pay in the `/hello` public chat payment stage.
+## Problem
 
-### Scope
-- File: `src/pages/public/PublicHelloChat.tsx` around the `payment_pay` stage (lines ~1307-1355).
-- No backend changes; this is a display-only update.
+On `/hello`, students from non-Singapore branches (e.g. Kayden — Morley, Australia) are still seeing **PayNow** as a payment option, even though PayNow is Singapore-only. The current guard in `PublicHelloChat.tsx` only hides the PayNow `<SelectItem>` when `isSGBranch` is true, which is fragile:
 
-### Current behavior
-- Singapore branches: show Subtotal + GST (9%) + Total.
-- Non-Singapore branches: show only "Amount to pay".
+- If `branch` hasn't loaded yet when the user reaches the payment step, or the user reached the payment step before the branch data resolved, the trigger can still display an unintended value.
+- The PayNow QR / info card is still rendered based purely on `payMethod`, so if `payMethod` ever ends up as `'paynow'` for an AU branch, the QR shows.
+- There is no server-side stripping — the RPC returns `paynow_qr_url` regardless of branch country.
 
-### New behavior
-For every branch, show the GST component directly under the "Amount to pay" line:
-- **Singapore**: `GST (9%)` — calculated on top of the cart subtotal, matching the existing breakdown.
-- **Australia**: `GST included amount (10%)` — calculated as the GST portion already embedded in the displayed amount to pay (e.g., $380.00 × 10/110 = $34.55).
-- **Other branches**: no GST line if the branch has no configured GST rule.
+## Fix
 
-### Implementation details
-1. Introduce a per-branch GST configuration in the component:
-   - `GST_RATE`: 0.09 for Singapore, 0.10 for Australia.
-   - `gstIsIncluded`: true for Australia, false for Singapore.
-2. Compute the display values:
-   - For included-GST branches: `gstAmount = cartTotal * (rate / (1 + rate))`.
-   - For added-GST branches: keep existing `gstAmount = cartTotal * rate` and `totalWithTax = cartTotal + gstAmount`.
-3. Update the JSX in `payment_pay`:
-   - Always render the "Amount to pay" line.
-   - Immediately below it, render the GST line for Singapore and Australia.
-   - For Singapore, keep the existing full breakdown (Subtotal / GST / Total) as is, or collapse it into the same unified format.
-4. Verify the label reads "GST included amount" for Australian branches and the calculation matches the user's expectation.
+Harden `/hello` payment selection so PayNow is impossible for non-Singapore branches, and defense-in-depth on the server.
 
-### Out of scope
-- No changes to payment submission logic or invoice totals.
-- No changes to other payment pages (grading, seminar, guards, competition, staff invoice dialogs).
+### 1. `src/pages/public/PublicHelloChat.tsx`
+
+- Introduce a single derived flag `paynowAllowed = isSGBranch`.
+- Build an `allowedMethods` array (`['paynow','bank_transfer']` for SG, `['bank_transfer']` otherwise) and render `<SelectItem>` from it — no inline conditional.
+- Force-normalize `payMethod`: whenever `paynowAllowed` becomes false, if `payMethod === 'paynow'` reset to `'bank_transfer'` (covers async branch load and any stale state).
+- Pass `paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}` to `PaymentInfoDisplay` so even a mis-set `payMethod` cannot render the SG QR for AU users.
+- Keep the existing GST breakdown untouched.
+
+### 2. `supabase/functions` / RPC `get_public_payment_options`
+
+Add a new migration that updates `get_public_payment_options` to return `paynow_qr_url = NULL` when the branch's `country` is not `'Singapore'` (case-insensitive). This guarantees no non-SG branch can ever receive a PayNow QR from the backend.
+
+## Out of scope
+
+- Other public payment pages (grading/seminar/competition/guards) — only `/hello` was reported. If the same pattern exists there we can follow up in a separate task.
+- Bank transfer info content, GST display, or any product/pricing logic.
+
+## Verification
+
+- Load `/hello` as a Morley (AU) student → payment step shows only "Bank Transfer" in the dropdown, no PayNow QR rendered, `payMethod` submitted as `bank_transfer`.
+- Load `/hello` as a Singapore branch student → PayNow still available and defaults to PayNow as today.
+- `supabase--read_query` confirms `get_public_payment_options` returns null `paynow_qr_url` for Morley.
