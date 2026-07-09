@@ -369,10 +369,23 @@ const PublicHelloChat: React.FC = () => {
   const gstLabel = isSGBranch ? 'GST (9%)' : 'GST included amount (10%)';
 
 
-  // Default to PayNow for Singapore branches; bank transfer elsewhere (PayNow is SG-only)
+  // PayNow is Singapore-only. Force bank transfer for any non-SG branch, even if
+  // branch data loads late or a stale payMethod is present.
+  const paynowAllowed = isSGBranch;
+  const allowedPayMethods: Array<'paynow' | 'bank_transfer'> = paynowAllowed
+    ? ['paynow', 'bank_transfer']
+    : ['bank_transfer'];
   useEffect(() => {
-    setPayMethod(isSGBranch ? 'paynow' : 'bank_transfer');
-  }, [isSGBranch]);
+    if (!paynowAllowed && payMethod === 'paynow') {
+      setPayMethod('bank_transfer');
+    } else if (paynowAllowed && payMethod !== 'paynow' && payMethod !== 'bank_transfer') {
+      setPayMethod('paynow');
+    }
+  }, [paynowAllowed, payMethod]);
+  useEffect(() => {
+    // On branch change, reset default: PayNow for SG, Bank Transfer elsewhere.
+    setPayMethod(paynowAllowed ? 'paynow' : 'bank_transfer');
+  }, [paynowAllowed]);
 
   // Identify -> match
   const handleIdentify = async () => {
@@ -1335,15 +1348,19 @@ const PublicHelloChat: React.FC = () => {
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isSGBranch && <SelectItem value="paynow">PayNow</SelectItem>}
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      {allowedPayMethods.map(m => (
+                        <SelectItem key={m} value={m}>
+                          {m === 'paynow' ? 'PayNow' : 'Bank Transfer'}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <PaymentInfoDisplay
                     paymentMethod={payMethod}
                     bankTransferInfo={paymentOptions?.bank_transfer_info}
-                    paynowQrUrl={paymentOptions?.paynow_qr_url}
+                    paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
                   />
+
                   <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
