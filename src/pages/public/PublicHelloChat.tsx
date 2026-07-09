@@ -182,7 +182,7 @@ const PublicHelloChat: React.FC = () => {
   // Payment
   const [payCategory, setPayCategory] = useState<{ id: string; label: string } | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
+  const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('bank_transfer');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
@@ -360,6 +360,11 @@ const PublicHelloChat: React.FC = () => {
   const GST_RATE = 0.09;
   const gstAmount = isSGBranch ? cartTotal * GST_RATE : 0;
   const totalWithTax = cartTotal + gstAmount;
+
+  // Default to PayNow for Singapore branches; bank transfer elsewhere (PayNow is SG-only)
+  useEffect(() => {
+    setPayMethod(isSGBranch ? 'paynow' : 'bank_transfer');
+  }, [isSGBranch]);
 
   // Identify -> match
   const handleIdentify = async () => {
@@ -1328,7 +1333,7 @@ const PublicHelloChat: React.FC = () => {
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="paynow">PayNow</SelectItem>
+                      {isSGBranch && <SelectItem value="paynow">PayNow</SelectItem>}
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                     </SelectContent>
                   </Select>
