@@ -361,6 +361,11 @@ const PublicHelloChat: React.FC = () => {
   const gstAmount = isSGBranch ? cartTotal * GST_RATE : 0;
   const totalWithTax = cartTotal + gstAmount;
 
+  // Default to PayNow for Singapore branches; bank transfer elsewhere (PayNow is SG-only)
+  useEffect(() => {
+    setPayMethod(isSGBranch ? 'paynow' : 'bank_transfer');
+  }, [isSGBranch]);
+
   // Identify -> match
   const handleIdentify = async () => {
     if (!firstName.trim() || !branchId) {
