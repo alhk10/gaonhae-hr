@@ -1333,7 +1333,7 @@ const PublicHelloChat: React.FC = () => {
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="paynow">PayNow</SelectItem>
+                      {isSGBranch && <SelectItem value="paynow">PayNow</SelectItem>}
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                     </SelectContent>
                   </Select>
