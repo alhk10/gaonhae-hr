@@ -357,9 +357,17 @@ const PublicHelloChat: React.FC = () => {
     [cart, branch?.country],
   );
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
-  const GST_RATE = 0.09;
-  const gstAmount = isSGBranch ? cartTotal * GST_RATE : 0;
-  const totalWithTax = cartTotal + gstAmount;
+  const isAUBranch = branch?.country?.toLowerCase() === 'australia';
+  const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
+  const gstIncluded = isAUBranch;
+  const gstAmount = isSGBranch
+    ? cartTotal * GST_RATE
+    : gstIncluded
+      ? cartTotal * (GST_RATE / (1 + GST_RATE))
+      : 0;
+  const totalWithTax = cartTotal + (isSGBranch ? gstAmount : 0);
+  const gstLabel = isSGBranch ? 'GST (9%)' : 'GST included amount (10%)';
+
 
   // Default to PayNow for Singapore branches; bank transfer elsewhere (PayNow is SG-only)
   useEffect(() => {
@@ -1309,27 +1317,21 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">Choose payment method and upload your proof.</Bubble>
               <Card>
                 <CardContent className="p-3 space-y-3">
-                  {isSGBranch ? (
-                    <div className="space-y-1 text-sm">
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Amount to pay</span>
+                      <span className="text-base font-bold tabular-nums">
+                        ${(isSGBranch ? totalWithTax : cartTotal).toFixed(2)}
+                      </span>
+                    </div>
+                    {(isSGBranch || gstIncluded) && (
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="tabular-nums">${cartTotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">GST (9%)</span>
+                        <span className="text-muted-foreground">{gstLabel}</span>
                         <span className="tabular-nums">${gstAmount.toFixed(2)}</span>
                       </div>
-                      <div className="flex items-center justify-between pt-1 border-t">
-                        <span className="font-semibold">Total</span>
-                        <span className="text-base font-bold tabular-nums">${totalWithTax.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold">Amount to pay</span>
-                      <span className="text-base font-bold tabular-nums">${cartTotal.toFixed(2)}</span>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
                   <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
