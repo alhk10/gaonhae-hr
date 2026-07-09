@@ -1,15 +1,32 @@
-## Restrict PayNow to Singapore branches on `/hello`
+Add a GST breakdown line under the amount to pay in the `/hello` public chat payment stage.
 
-Kayden is at Morley (Australia) but the payment step shows PayNow. PayNow is a Singapore-only rail, so students at Australian branches shouldn't see it.
+### Scope
+- File: `src/pages/public/PublicHelloChat.tsx` around the `payment_pay` stage (lines ~1307-1355).
+- No backend changes; this is a display-only update.
 
-### Change (frontend only)
+### Current behavior
+- Singapore branches: show Subtotal + GST (9%) + Total.
+- Non-Singapore branches: show only "Amount to pay".
 
-File: `src/pages/public/PublicHelloChat.tsx`
+### New behavior
+For every branch, show the GST component directly under the "Amount to pay" line:
+- **Singapore**: `GST (9%)` — calculated on top of the cart subtotal, matching the existing breakdown.
+- **Australia**: `GST included amount (10%)` — calculated as the GST portion already embedded in the displayed amount to pay (e.g., $380.00 × 10/110 = $34.55).
+- **Other branches**: no GST line if the branch has no configured GST rule.
 
-1. Use the existing `isSGBranch` flag (already computed from `branch?.country`).
-2. In the payment-method `Select` (~line 1328–1334): only render the `PayNow` `SelectItem` when `isSGBranch` is true. Always render `Bank Transfer`.
-3. Change the initial `payMethod` state (line 185) so it defaults to `bank_transfer`, and add an effect that sets it to `'paynow'` only when `isSGBranch` becomes true (keeps the current SG default). For non-SG branches this guarantees the selected method is `bank_transfer` and the PayNow QR block never renders.
+### Implementation details
+1. Introduce a per-branch GST configuration in the component:
+   - `GST_RATE`: 0.09 for Singapore, 0.10 for Australia.
+   - `gstIsIncluded`: true for Australia, false for Singapore.
+2. Compute the display values:
+   - For included-GST branches: `gstAmount = cartTotal * (rate / (1 + rate))`.
+   - For added-GST branches: keep existing `gstAmount = cartTotal * rate` and `totalWithTax = cartTotal + gstAmount`.
+3. Update the JSX in `payment_pay`:
+   - Always render the "Amount to pay" line.
+   - Immediately below it, render the GST line for Singapore and Australia.
+   - For Singapore, keep the existing full breakdown (Subtotal / GST / Total) as is, or collapse it into the same unified format.
+4. Verify the label reads "GST included amount" for Australian branches and the calculation matches the user's expectation.
 
 ### Out of scope
-
-No changes to other public payment pages (grading, seminar, guards, competition) or the staff-facing invoice dialogs — this fix is scoped to the `/hello` chat flow the user reported. Happy to extend to those flows if you want.
+- No changes to payment submission logic or invoice totals.
+- No changes to other payment pages (grading, seminar, guards, competition, staff invoice dialogs).
