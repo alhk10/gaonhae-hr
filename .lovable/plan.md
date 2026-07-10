@@ -1,34 +1,36 @@
 ## Problem
 
-On `/hello`, students from non-Singapore branches (e.g. Kayden — Morley, Australia) are still seeing **PayNow** as a payment option, even though PayNow is Singapore-only. The current guard in `PublicHelloChat.tsx` only hides the PayNow `<SelectItem>` when `isSGBranch` is true, which is fragile:
+`/hello`, `/comps`, `/pay`, `/guards`, and `/seminars` all load payment info from one RPC — `get_public_payment_options`. When a Singapore branch is selected the PayNow QR does not show.
 
-- If `branch` hasn't loaded yet when the user reaches the payment step, or the user reached the payment step before the branch data resolved, the trigger can still display an unintended value.
-- The PayNow QR / info card is still rendered based purely on `payMethod`, so if `payMethod` ever ends up as `'paynow'` for an AU branch, the QR shows.
-- There is no server-side stripping — the RPC returns `paynow_qr_url` regardless of branch country.
+Root cause is in the RPC's template lookup. There are two active rows in `invoice_templates` with `branch_id = NULL`:
+- one with `paynow_qr_url` set
+- one with `paynow_qr_url = NULL`
+
+Current SQL:
+
+```sql
+ORDER BY (it.branch_id = p_branch_id) DESC NULLS LAST
+LIMIT 1
+```
+
+For SG branches (which have no branch-specific template) both global rows tie and Postgres returns the one without a QR. Verified: `SELECT * FROM get_public_payment_options('headquarters','White')` returns `branch_country: Singapore` with `paynow_qr_url: NULL`, so `PaymentInfoDisplay` renders nothing on all five public pages.
 
 ## Fix
 
-Harden `/hello` payment selection so PayNow is impossible for non-Singapore branches, and defense-in-depth on the server.
+Update `get_public_payment_options` template selection to be deterministic and prefer rows that actually carry payment info:
 
-### 1. `src/pages/public/PublicHelloChat.tsx`
+```sql
+ORDER BY
+  (it.branch_id = p_branch_id) DESC,
+  (it.paynow_qr_url IS NOT NULL) DESC,
+  (it.bank_transfer_info IS NOT NULL) DESC,
+  it.updated_at DESC NULLS LAST
+LIMIT 1
+```
 
-- Introduce a single derived flag `paynowAllowed = isSGBranch`.
-- Build an `allowedMethods` array (`['paynow','bank_transfer']` for SG, `['bank_transfer']` otherwise) and render `<SelectItem>` from it — no inline conditional.
-- Force-normalize `payMethod`: whenever `paynowAllowed` becomes false, if `payMethod === 'paynow'` reset to `'bank_transfer'` (covers async branch load and any stale state).
-- Pass `paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}` to `PaymentInfoDisplay` so even a mis-set `payMethod` cannot render the SG QR for AU users.
-- Keep the existing GST breakdown untouched.
-
-### 2. `supabase/functions` / RPC `get_public_payment_options`
-
-Add a new migration that updates `get_public_payment_options` to return `paynow_qr_url = NULL` when the branch's `country` is not `'Singapore'` (case-insensitive). This guarantees no non-SG branch can ever receive a PayNow QR from the backend.
+Keep the existing Singapore-only guard that strips `paynow_qr_url` for non-SG branches. Because all five pages (`PublicHelloChat`, `PublicCompetitionPayment`, `PublicGradingPayment`, `PublicGuardsPurchase`, `PublicSeminarPayment`) already read `paynow_qr_url` from this RPC and render it via `PaymentInfoDisplay`, no frontend changes are needed — the QR will appear automatically for every SG branch after the migration.
 
 ## Out of scope
 
-- Other public payment pages (grading/seminar/competition/guards) — only `/hello` was reported. If the same pattern exists there we can follow up in a separate task.
-- Bank transfer info content, GST display, or any product/pricing logic.
-
-## Verification
-
-- Load `/hello` as a Morley (AU) student → payment step shows only "Bank Transfer" in the dropdown, no PayNow QR rendered, `payMethod` submitted as `bank_transfer`.
-- Load `/hello` as a Singapore branch student → PayNow still available and defaults to PayNow as today.
-- `supabase--read_query` confirms `get_public_payment_options` returns null `paynow_qr_url` for Morley.
+- Not deduping the two global `invoice_templates` rows — that's a data-cleanup task the user can do in Sales Settings.
+- Not changing which payment methods are offered on `/comps`, `/pay`, `/guards`, `/seminars` for non-SG branches. Those pages currently always show PayNow in the dropdown; the user only asked to ensure PayNow + QR appear for SG, not to restrict AU. Say the word if you also want PayNow hidden for AU branches on those four pages (like `/hello` already does).
