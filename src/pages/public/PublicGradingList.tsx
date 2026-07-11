@@ -853,7 +853,13 @@ const PublicGradingList: React.FC = () => {
     // Table 1: students per slot by branch (exclude rejected)
     const slotHead = ['Slot', ...branches, 'Total'];
     const colTotals = new Array(branches.length).fill(0);
+    const colAmounts = new Array(branches.length).fill(0);
     let grandTotalStudents = 0;
+    let grandTotalAmount = 0;
+    const isPaidOrVerified = (s: string | null | undefined) => {
+      const v = (s || '').toLowerCase();
+      return v === 'paid' || v === 'verified';
+    };
     const slotBody = groups.map((g) => {
       const items = g.items.filter((r) => (r.paid_status || '').toLowerCase() !== 'rejected');
       const label = [
@@ -862,12 +868,25 @@ const PublicGradingList: React.FC = () => {
         g.header.start_time ? g.header.start_time.slice(0, 5) : null,
       ].filter(Boolean).join(' — ');
       const counts = branches.map((b) => items.filter((r) => (r.branch_name || '—') === b).length);
+      const amounts = branches.map((b) =>
+        items
+          .filter((r) => (r.branch_name || '—') === b && isPaidOrVerified(r.paid_status))
+          .reduce((s, r) => s + (Number(r.amount) || 0), 0)
+      );
       counts.forEach((c, i) => { colTotals[i] += c; });
+      amounts.forEach((a, i) => { colAmounts[i] += a; });
       const rowTotal = counts.reduce((s, n) => s + n, 0);
+      const rowAmount = amounts.reduce((s, n) => s + n, 0);
       grandTotalStudents += rowTotal;
-      return [label, ...counts.map(String), String(rowTotal)];
+      grandTotalAmount += rowAmount;
+      const cells = counts.map((c, i) => `${c}\n(${formatCurrency(amounts[i])})`);
+      return [label, ...cells, `${rowTotal}\n(${formatCurrency(rowAmount)})`];
     });
-    slotBody.push(['Total', ...colTotals.map(String), String(grandTotalStudents)]);
+    slotBody.push([
+      'Total',
+      ...colTotals.map((c, i) => `${c}\n(${formatCurrency(colAmounts[i])})`),
+      `${grandTotalStudents}\n(${formatCurrency(grandTotalAmount)})`,
+    ]);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
