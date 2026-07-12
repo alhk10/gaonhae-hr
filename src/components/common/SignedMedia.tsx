@@ -43,16 +43,20 @@ interface SignedLinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 
 }
 
 export const SignedLink = ({ href, children, onClick, ...rest }: SignedLinkProps) => {
+  const resolved = useResolvedUrl(href);
   const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (onClick) onClick(e);
     if (e.defaultPrevented) return;
     if (!href) return;
+    // If already resolved, let the browser follow the signed href naturally.
+    if (resolved && resolved !== href) return;
+    // Otherwise prevent default and resolve on demand before opening.
     e.preventDefault();
-    const resolved = await resolveStorageUrl(href);
-    if (resolved) window.open(resolved, rest.target ?? '_blank', 'noopener,noreferrer');
+    const r = await resolveStorageUrl(href);
+    if (r) window.open(r, rest.target ?? '_blank', 'noopener,noreferrer');
   };
   return (
-    <a href={href ?? '#'} {...rest} onClick={handleClick}>
+    <a href={resolved ?? href ?? '#'} {...rest} onClick={handleClick}>
       {children}
     </a>
   );
