@@ -330,6 +330,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 }) => {
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
+  const addProductTriggerRef = useRef<HTMLButtonElement>(null);
+
+
 
   // ─── Shared State ───────────────────────────────────────────────
   const [internalOpen, setInternalOpen] = useState(false);
