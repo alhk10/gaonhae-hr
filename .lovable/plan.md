@@ -1,22 +1,17 @@
 ## Goal
-Let superadmins add a new product directly from the Create Invoice dialog on the branch dashboard. Non-superadmin users see no such option.
+In SMS Bridge → Conversations, show the matched student name above the phone number in each thread row and in the selected-thread header.
 
-## Changes (frontend only)
+## Changes
 
-**src/components/sales/InvoiceDialog.tsx**
-1. Import `AddProductDialog` and `useAuth`.
-2. Read `userrole` from `useAuth`; compute `isSuperadmin = userrole === 'superadmin'`.
-3. Pass an optional `onAddProduct` render prop / superadmin flag into `ProductSearchSelect` (only when `isSuperadmin && isCreateMode`).
-4. In `ProductSearchSelect`, when the flag is set, render an "+ Add new product" row at the bottom of the `CommandList` (inside a separate `CommandGroup`). Clicking it:
-   - Closes the popover.
-   - Opens `AddProductDialog` via a hidden trigger (state-driven `open`), or by rendering `<AddProductDialog trigger={...}/>` where the trigger is the command row.
-5. On `onProductAdded`, call `loadProducts()` (passed down as `onProductCreated` callback) so the newly created product appears in the list. Auto-select the new product if its id is returned (optional; keep simple — just refresh list and let user pick).
-
-## Access control
-- Only `userrole === 'superadmin'` sees the "Add new product" row.
-- No backend/RLS changes — product creation already exists via `AddProductDialog` and is governed by existing product policies.
+**src/pages/SmsBridge.tsx (`ConversationsTab`)**
+1. Add a `phoneToName` state (`Record<string, string>`).
+2. After `loadThreads()` resolves, collect distinct normalized phones and query `students` (`id, first_name, last_name, phone`) via a single `.in('phone', phones)` fetch. Build the map keyed by `normalizePhone(phone)` → `"FIRST LAST"` (uppercase to match project convention). Merge in existing map so lookups persist while switching.
+3. In the thread list row (~line 568-570): render two lines:
+   - Line 1: student name (font-medium text-sm) — fallback to phone if no match.
+   - Line 2: phone (text-xs text-muted-foreground).
+   - Keep unread badge aligned right.
+4. In the selected thread card title (~line 583): show `name • phone` when name exists, else phone.
 
 ## Out of scope
-- No changes to edit/view mode.
-- No changes to product service, schema, or permissions.
-- No changes to other invoice flows.
+- No schema changes; no changes to Compose/Manual/Campaigns/Devices.
+- No changes to smsService (query lives in the component to avoid broad service refactor).
