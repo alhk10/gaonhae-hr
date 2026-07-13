@@ -497,6 +497,12 @@ function ConversationsTab() {
   const [newPhone, setNewPhone] = useState('');
   const [newBody, setNewBody] = useState('');
   const [sendingNew, setSendingNew] = useState(false);
+  const [phoneToName, setPhoneToName] = useState<Record<string, string>>({});
+
+  const phoneKey = (p: string) => {
+    const d = (p ?? '').replace(/\D/g, '');
+    return d.slice(-8);
+  };
 
   const loadThreads = () => listThreads().then(setThreads).catch(() => {});
   useEffect(() => {
@@ -511,6 +517,29 @@ function ConversationsTab() {
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
+
+  useEffect(() => {
+    const keys = Array.from(new Set(threads.map((t) => phoneKey(t.phone)).filter((k) => k.length >= 8)));
+    const missing = keys.filter((k) => !(k in phoneToName));
+    if (missing.length === 0) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('students')
+        .select('first_name, last_name, phone')
+        .not('phone', 'is', null)
+        .neq('phone', '');
+      if (!data) return;
+      const map: Record<string, string> = {};
+      for (const s of data as any[]) {
+        const k = phoneKey(s.phone);
+        if (k.length >= 8 && !map[k]) {
+          map[k] = `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim().toUpperCase();
+        }
+      }
+      setPhoneToName((prev) => ({ ...map, ...prev }));
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads]);
 
   useEffect(() => {
     if (!selected) { setMessages([]); return; }
@@ -559,20 +588,26 @@ function ConversationsTab() {
         </CardHeader>
         <CardContent className="p-0 max-h-[70vh] overflow-auto">
           {threads.length === 0 && <div className="p-4 text-sm text-muted-foreground">No conversations</div>}
-          {threads.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelected(t)}
-              className={`w-full text-left p-3 border-b hover:bg-muted ${selected?.id === t.id ? 'bg-muted' : ''}`}
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-sm">{t.phone}</span>
-                {t.unread_count > 0 && <Badge>{t.unread_count}</Badge>}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">{t.last_snippet}</div>
-              <div className="text-[10px] text-muted-foreground">{formatDateTime(t.last_message_at)}</div>
-            </button>
-          ))}
+          {threads.map((t) => {
+            const name = phoneToName[phoneKey(t.phone)];
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSelected(t)}
+                className={`w-full text-left p-3 border-b hover:bg-muted ${selected?.id === t.id ? 'bg-muted' : ''}`}
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    {name && <div className="font-medium text-sm truncate">{name}</div>}
+                    <div className={name ? 'text-xs text-muted-foreground' : 'font-medium text-sm'}>{t.phone}</div>
+                  </div>
+                  {t.unread_count > 0 && <Badge>{t.unread_count}</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground truncate mt-1">{t.last_snippet}</div>
+                <div className="text-[10px] text-muted-foreground">{formatDateTime(t.last_message_at)}</div>
+              </button>
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -580,7 +615,7 @@ function ConversationsTab() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
-            {selected ? selected.phone : 'Select a thread'}
+            {selected ? (phoneToName[phoneKey(selected.phone)] ? `${phoneToName[phoneKey(selected.phone)]} • ${selected.phone}` : selected.phone) : 'Select a thread'}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-3 min-h-[50vh]">
