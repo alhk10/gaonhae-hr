@@ -23,6 +23,7 @@ import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditSe
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
+import AddProductDialog from './AddProductDialog';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { submitActionRequest } from '@/services/invoiceActionRequestService';
 import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
