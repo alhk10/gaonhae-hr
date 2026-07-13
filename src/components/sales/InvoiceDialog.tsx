@@ -1487,6 +1487,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         )}
       </DialogHeader>
 
+      {isSuperadmin && isCreateMode && (
+        <AddProductDialog
+          trigger={<button ref={addProductTriggerRef} type="button" className="hidden" aria-hidden />}
+          onProductAdded={() => { loadProducts(); }}
+        />
+      )}
+
       {/* ─── CREATE MODE FORM ─── */}
       {isCreateMode && (
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
