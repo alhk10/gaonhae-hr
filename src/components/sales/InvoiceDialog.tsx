@@ -1580,7 +1580,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                     <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
                     <SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} />
+                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} onAddNew={isSuperadmin && isCreateMode ? () => addProductTriggerRef.current?.click() : undefined} />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div><Label className="text-[10px] text-muted-foreground">Qty</Label><Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="h-7 text-xs px-1" /></div>
