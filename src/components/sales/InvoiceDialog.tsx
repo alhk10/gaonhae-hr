@@ -221,7 +221,8 @@ const ProductSearchSelect: React.FC<{
   onValueChange: (value: string) => void;
   outOfCriteriaIds?: Set<string>;
   container?: HTMLElement | null;
-}> = ({ products, value, onValueChange, outOfCriteriaIds, container }) => {
+  onAddNew?: () => void;
+}> = ({ products, value, onValueChange, outOfCriteriaIds, container, onAddNew }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
@@ -262,6 +263,18 @@ const ProductSearchSelect: React.FC<{
                 </CommandItem>
               ))}
             </CommandGroup>
+            {onAddNew && (
+              <CommandGroup>
+                <CommandItem
+                  value="__add_new_product__"
+                  onSelect={() => { setOpen(false); setSearch(''); onAddNew(); }}
+                  className="text-primary font-medium"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add new product
+                </CommandItem>
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
