@@ -497,6 +497,12 @@ function ConversationsTab() {
   const [newPhone, setNewPhone] = useState('');
   const [newBody, setNewBody] = useState('');
   const [sendingNew, setSendingNew] = useState(false);
+  const [phoneToName, setPhoneToName] = useState<Record<string, string>>({});
+
+  const phoneKey = (p: string) => {
+    const d = (p ?? '').replace(/\D/g, '');
+    return d.slice(-8);
+  };
 
   const loadThreads = () => listThreads().then(setThreads).catch(() => {});
   useEffect(() => {
@@ -511,6 +517,29 @@ function ConversationsTab() {
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
+
+  useEffect(() => {
+    const keys = Array.from(new Set(threads.map((t) => phoneKey(t.phone)).filter((k) => k.length >= 8)));
+    const missing = keys.filter((k) => !(k in phoneToName));
+    if (missing.length === 0) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('students')
+        .select('first_name, last_name, phone')
+        .not('phone', 'is', null)
+        .neq('phone', '');
+      if (!data) return;
+      const map: Record<string, string> = {};
+      for (const s of data as any[]) {
+        const k = phoneKey(s.phone);
+        if (k.length >= 8 && !map[k]) {
+          map[k] = `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim().toUpperCase();
+        }
+      }
+      setPhoneToName((prev) => ({ ...map, ...prev }));
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads]);
 
   useEffect(() => {
     if (!selected) { setMessages([]); return; }
