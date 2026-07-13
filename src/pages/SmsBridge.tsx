@@ -608,12 +608,6 @@ function ConversationsTab() {
               </button>
             );
           })}
-                {t.unread_count > 0 && <Badge>{t.unread_count}</Badge>}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">{t.last_snippet}</div>
-              <div className="text-[10px] text-muted-foreground">{formatDateTime(t.last_message_at)}</div>
-            </button>
-          ))}
         </CardContent>
       </Card>
 
