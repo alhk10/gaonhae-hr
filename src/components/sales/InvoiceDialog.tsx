@@ -23,6 +23,7 @@ import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditSe
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
 import { getProducts, getProductCategories } from '@/services/productService';
+import AddProductDialog from './AddProductDialog';
 import { getGradingSlots, type GradingSlot } from '@/services/gradingService';
 import { submitActionRequest } from '@/services/invoiceActionRequestService';
 import { createDeletionRequest } from '@/services/paymentDeletionRequestService';
@@ -221,7 +222,8 @@ const ProductSearchSelect: React.FC<{
   onValueChange: (value: string) => void;
   outOfCriteriaIds?: Set<string>;
   container?: HTMLElement | null;
-}> = ({ products, value, onValueChange, outOfCriteriaIds, container }) => {
+  onAddNew?: () => void;
+}> = ({ products, value, onValueChange, outOfCriteriaIds, container, onAddNew }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedName = products.find(p => p.id === value)?.name;
@@ -262,6 +264,18 @@ const ProductSearchSelect: React.FC<{
                 </CommandItem>
               ))}
             </CommandGroup>
+            {onAddNew && (
+              <CommandGroup>
+                <CommandItem
+                  value="__add_new_product__"
+                  onSelect={() => { setOpen(false); setSearch(''); onAddNew(); }}
+                  className="text-primary font-medium"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add new product
+                </CommandItem>
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -316,6 +330,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 }) => {
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
+  const addProductTriggerRef = useRef<HTMLButtonElement>(null);
+
+
 
   // ─── Shared State ───────────────────────────────────────────────
   const [internalOpen, setInternalOpen] = useState(false);
@@ -1470,6 +1487,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         )}
       </DialogHeader>
 
+      {isSuperadmin && isCreateMode && (
+        <AddProductDialog
+          trigger={<button ref={addProductTriggerRef} type="button" className="hidden" aria-hidden />}
+          onProductAdded={() => { loadProducts(); }}
+        />
+      )}
+
       {/* ─── CREATE MODE FORM ─── */}
       {isCreateMode && (
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
@@ -1563,7 +1587,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                     <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
                     <SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} />
+                  <ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} onAddNew={isSuperadmin && isCreateMode ? () => addProductTriggerRef.current?.click() : undefined} />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 items-end">
                   <div><Label className="text-[10px] text-muted-foreground">Qty</Label><Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="h-7 text-xs px-1" /></div>
@@ -1615,7 +1639,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                   })}
                   <TableRow className="bg-muted/30">
                     <TableCell className="px-2"><Select value={newItem.category_id || '__all__'} onValueChange={(val) => handleCategoryChange(val === '__all__' ? '' : val)}><SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></TableCell>
-                    <TableCell className="px-2"><ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} /></TableCell>
+                    <TableCell className="px-2"><ProductSearchSelect products={filteredProducts} value={newItem.product_id} onValueChange={handleProductChangeCreate} outOfCriteriaIds={outOfCriteriaProductIds} container={dialogContentEl} onAddNew={isSuperadmin && isCreateMode ? () => addProductTriggerRef.current?.click() : undefined} /></TableCell>
                     <TableCell className="px-2"><Input type="number" min="1" value={newItem.quantity || ''} onChange={(e) => handleNewItemChange('quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))} onBlur={() => { if (newItem.quantity < 1) handleNewItemChange('quantity', 1); }} className="w-12 h-7 text-xs px-1" /></TableCell>
                     <TableCell className="px-2"><Input type="number" min="0" step="0.01" value={newItem.unit_price || ''} onChange={(e) => { const p = parseFloat(e.target.value); handleNewItemChange('unit_price', e.target.value === '' ? 0 : (isNaN(p) ? 0 : p)); }} disabled={selectedProduct && selectedProduct.base_price > 0} className={`w-14 h-7 text-xs px-1 ${selectedProduct && selectedProduct.base_price > 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}`} /></TableCell>
                     <TableCell className="px-2"><span className="text-muted-foreground">-</span></TableCell>
