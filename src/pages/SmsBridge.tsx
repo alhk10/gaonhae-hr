@@ -588,14 +588,26 @@ function ConversationsTab() {
         </CardHeader>
         <CardContent className="p-0 max-h-[70vh] overflow-auto">
           {threads.length === 0 && <div className="p-4 text-sm text-muted-foreground">No conversations</div>}
-          {threads.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelected(t)}
-              className={`w-full text-left p-3 border-b hover:bg-muted ${selected?.id === t.id ? 'bg-muted' : ''}`}
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-sm">{t.phone}</span>
+          {threads.map((t) => {
+            const name = phoneToName[phoneKey(t.phone)];
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSelected(t)}
+                className={`w-full text-left p-3 border-b hover:bg-muted ${selected?.id === t.id ? 'bg-muted' : ''}`}
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    {name && <div className="font-medium text-sm truncate">{name}</div>}
+                    <div className={name ? 'text-xs text-muted-foreground' : 'font-medium text-sm'}>{t.phone}</div>
+                  </div>
+                  {t.unread_count > 0 && <Badge>{t.unread_count}</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground truncate mt-1">{t.last_snippet}</div>
+                <div className="text-[10px] text-muted-foreground">{formatDateTime(t.last_message_at)}</div>
+              </button>
+            );
+          })}
                 {t.unread_count > 0 && <Badge>{t.unread_count}</Badge>}
               </div>
               <div className="text-xs text-muted-foreground truncate">{t.last_snippet}</div>
