@@ -615,7 +615,7 @@ function ConversationsTab() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
-            {selected ? selected.phone : 'Select a thread'}
+            {selected ? (phoneToName[phoneKey(selected.phone)] ? `${phoneToName[phoneKey(selected.phone)]} • ${selected.phone}` : selected.phone) : 'Select a thread'}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-3 min-h-[50vh]">
