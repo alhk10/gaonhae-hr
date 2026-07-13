@@ -1,18 +1,22 @@
-## Change
+## Goal
+Let superadmins add a new product directly from the Create Invoice dialog on the branch dashboard. Non-superadmin users see no such option.
 
-In `PublicGradingList.tsx` → `handleDownloadSummaryPdf`, update the "Students per slot by branch" table so each branch cell shows the count on the first line and the paid+verified amount in brackets on a second line.
+## Changes (frontend only)
 
-## Details
+**src/components/sales/InvoiceDialog.tsx**
+1. Import `AddProductDialog` and `useAuth`.
+2. Read `userrole` from `useAuth`; compute `isSuperadmin = userrole === 'superadmin'`.
+3. Pass an optional `onAddProduct` render prop / superadmin flag into `ProductSearchSelect` (only when `isSuperadmin && isCreateMode`).
+4. In `ProductSearchSelect`, when the flag is set, render an "+ Add new product" row at the bottom of the `CommandList` (inside a separate `CommandGroup`). Clicking it:
+   - Closes the popover.
+   - Opens `AddProductDialog` via a hidden trigger (state-driven `open`), or by rendering `<AddProductDialog trigger={...}/>` where the trigger is the command row.
+5. On `onProductAdded`, call `loadProducts()` (passed down as `onProductCreated` callback) so the newly created product appears in the list. Auto-select the new product if its id is returned (optional; keep simple — just refresh list and let user pick).
 
-For each slot row × branch column:
-- Line 1: current student count (excluding `rejected`) — unchanged.
-- Line 2: `($X.XX)` — sum of `amount` for that slot × branch where `paid_status` is `paid` or `verified`. Show `($0.00)` when none.
+## Access control
+- Only `userrole === 'superadmin'` sees the "Add new product" row.
+- No backend/RLS changes — product creation already exists via `AddProductDialog` and is governed by existing product policies.
 
-Apply the same treatment to:
-- The `Total` column (row total amount across branches).
-- The bottom `Total` row (column total amount across slots).
-- Grand total cell (sum of all paid+verified amounts).
-
-Format amounts with the existing `formatCurrency` helper, matching Table 2's currency style. Cells stay center-aligned; the bracketed amount renders slightly smaller via a newline in the cell string (autotable wraps naturally at 8pt).
-
-No changes to Table 2 (amount collected by branch), no schema or service changes.
+## Out of scope
+- No changes to edit/view mode.
+- No changes to product service, schema, or permissions.
+- No changes to other invoice flows.
