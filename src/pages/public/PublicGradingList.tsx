@@ -2429,7 +2429,8 @@ const CompetitionsTab: React.FC<{
                   </TableCell>
                 )}
               </TableRow>
-                ));
+                );
+                });
               })}
           </TableBody>
         </Table>
