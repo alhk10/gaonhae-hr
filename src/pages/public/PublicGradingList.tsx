@@ -2248,7 +2248,12 @@ const CompetitionsTab: React.FC<{
             {[...(rows as PublicCompetitionListRow[])]
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
-              .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
+              .sort((a, b) => {
+                const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
+                const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
+                if (ta !== tb) return ta - tb;
+                return (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' });
+              })
               .flatMap((r) => {
                 const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
                 const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
