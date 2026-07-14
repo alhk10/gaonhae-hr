@@ -2110,7 +2110,7 @@ const CompetitionsTab: React.FC<{
       value={value ?? ''}
       onValueChange={(v) => onChange(v === POOMSAE_CLEAR ? null : v)}
     >
-      <SelectTrigger className="h-7 text-[11px] min-w-[140px]">
+      <SelectTrigger className="h-7 text-[11px] min-w-[112px] w-[112px]">
         <SelectValue placeholder="—" />
       </SelectTrigger>
       <SelectContent>
