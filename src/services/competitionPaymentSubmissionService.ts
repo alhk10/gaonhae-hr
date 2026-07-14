@@ -811,5 +811,34 @@ export const adminSetCompetitionGradingCards = async (
   if (error) throw error;
 };
 
+/**
+ * Admin-only: replace a single grading card at `index` with a newly uploaded file.
+ * Returns the new signed URL.
+ */
+export const adminReplaceCompetitionGradingCardAt = async (
+  submissionId: string,
+  index: number,
+  file: File,
+): Promise<string> => {
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+  const path = `competition/${submissionId}/grading-card-${Date.now()}-r${index}.${ext}`;
+  await safeUpload('Grading card', path, file, file.type);
+  const newUrl = await safeSignedUrl('Grading card', path);
+  const { data: existing, error: readErr } = await supabase
+    .from('competition_payment_submissions' as any)
+    .select('grading_card_urls')
+    .eq('id', submissionId)
+    .maybeSingle();
+  if (readErr) throw readErr;
+  const current: string[] = ((existing as any)?.grading_card_urls || []).slice();
+  if (index < 0 || index >= current.length) {
+    throw new Error('Grading card index out of range');
+  }
+  current[index] = newUrl;
+  await adminSetCompetitionGradingCards(submissionId, current);
+  return newUrl;
+};
+
+
 
 
