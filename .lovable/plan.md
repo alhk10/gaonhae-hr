@@ -1,35 +1,28 @@
-# Plan: Cap grading card uploads at 2 files total
+## Add Reupload button to the certificate preview dialog
 
-## Scope
-`src/components/grading-list/GradingCardUploadDialog.tsx` only. Enforce a maximum of 2 grading card files per submission (existing + newly picked combined).
+Small enhancement to the shared preview `Dialog` inside `CompetitionsTab` in `src/pages/public/PublicGradingList.tsx`. The page is already behind the admin unlock password, so no extra gate is needed.
 
-## Changes
+### Changes
 
-1. **Compute remaining slots**
-   - `const MAX_FILES = 2;`
-   - `const remaining = Math.max(0, MAX_FILES - existingUrls.length - files.length);`
+1. **Extend preview state** — change `preview` from `{ url, title }` to `{ url, title, kind?, submissionId?, branchId? }`. Only certificate opens pass `kind: 'certificate'` (plus `submissionId` and `branchId`) so the Reupload button appears only there and knows what to patch. Other openers (proof, signature, indemnity, passport, photo) are unchanged.
 
-2. **`handlePick`** — trim the incoming selection so combined total never exceeds 2:
-   - Filter to image/PDF as today.
-   - Slice to `remaining`.
-   - If the user picked more than `remaining`, show a toast: "Only 2 grading card files allowed — extra files ignored."
-   - If `remaining === 0` before picking, toast: "Maximum of 2 grading card files reached" and return.
+2. **Update the certificate `Thumb`** at line 2324 to pass the extra fields:
+   ```
+   <Thumb url={r.certificate_url}
+          title={`${r.student_name} — Certificate`}
+          kind="certificate"
+          submissionId={r.submission_id}
+          branchId={r.branch_id} />
+   ```
+   `Thumb` gains optional props and forwards them into `setPreview`.
 
-3. **Add-files button**
-   - Disable "Add files" button when `remaining === 0`.
-   - Update helper text near the file list: "{existingUrls.length + files.length} of 2 files".
+3. **Add a Reupload control** to the preview `DialogHeader` (line 2467), rendered only when `preview.kind === 'certificate'`:
+   - Hidden `<input type="file" accept="image/*,application/pdf">` triggered by a small `Button` with an `Upload` icon (label "Reupload").
+   - On file pick: call `adminReplaceCompetitionSubmissionFile(submissionId, 'certificate', file, branchId)` (already exists in `competitionPaymentSubmissionService.ts`).
+   - Show a `busy` state on the button while uploading; on success: toast, `qc.invalidateQueries({ queryKey: ['public-competition-list'] })`, update `preview.url` to the new signed URL so the new image renders immediately, and reset rotation.
+   - On failure: toast the error message.
 
-4. **Existing files list**
-   - Keep the "Already uploaded" list as-is; it counts toward the cap.
+4. **Out of scope** — proof/signature/other docs (only the certificate preview per the request), grading tab certificates, storage/RLS/service changes, bulk reupload.
 
-5. **Submit button**
-   - Unchanged behaviour aside from cap. Still gated by password unlock and `files.length > 0 || pendingVerify`.
-
-## Out of scope
-- Backend/RLS or storage changes.
-- Server-side enforcement (existing service call `adminUploadCompetitionGradingCards` is unchanged).
-- Deleting already-uploaded grading cards from within this dialog.
-
-## Technical notes
-- No new dependencies, no migrations.
-- Only one file edited.
+### Files touched
+- `src/pages/public/PublicGradingList.tsx` (only)

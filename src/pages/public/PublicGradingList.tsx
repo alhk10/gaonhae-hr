@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon, Printer } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon, Printer, Upload } from 'lucide-react';
 import { generateCompetitionPrintPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,7 +36,9 @@ import {
   updateCompetitionSchedule,
   verifyCompetitionSubmission,
   rejectCompetitionSubmission,
+  adminReplaceCompetitionSubmissionFile,
   type PublicCompetitionListRow,
+
 
 } from '@/services/competitionPaymentSubmissionService';
 import {
@@ -1962,8 +1964,10 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [reuploadBusy, setReuploadBusy] = useState(false);
+
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -2123,12 +2127,18 @@ const CompetitionsTab: React.FC<{
     </Select>
   );
 
-  const Thumb: React.FC<{ url: string | null; title: string }> = ({ url, title }) => {
+  const Thumb: React.FC<{
+    url: string | null;
+    title: string;
+    kind?: 'certificate';
+    submissionId?: string;
+    branchId?: string;
+  }> = ({ url, title, kind, submissionId, branchId }) => {
     if (!url) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title })}
+        onClick={() => setPreview({ url, title, kind, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
@@ -2141,6 +2151,7 @@ const CompetitionsTab: React.FC<{
       </button>
     );
   };
+
 
   const handlePrintPdf = () => {
     const eventName =
@@ -2321,7 +2332,7 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
+                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} kind="certificate" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
@@ -2466,16 +2477,62 @@ const CompetitionsTab: React.FC<{
         <DialogContent className="max-w-3xl">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
-              title="Rotate 90°"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {preview?.kind === 'certificate' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="cert-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'certificate',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success('Certificate replaced');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload certificate');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('cert-reupload-input')?.click()}
+                    title="Reupload certificate"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
+                title="Rotate 90°"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
+
           {preview && (
             <div className="flex items-center justify-center overflow-hidden">
               <SignedImage
