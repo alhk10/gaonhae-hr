@@ -2127,12 +2127,18 @@ const CompetitionsTab: React.FC<{
     </Select>
   );
 
-  const Thumb: React.FC<{ url: string | null; title: string }> = ({ url, title }) => {
+  const Thumb: React.FC<{
+    url: string | null;
+    title: string;
+    kind?: 'certificate';
+    submissionId?: string;
+    branchId?: string;
+  }> = ({ url, title, kind, submissionId, branchId }) => {
     if (!url) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title })}
+        onClick={() => setPreview({ url, title, kind, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
@@ -2145,6 +2151,7 @@ const CompetitionsTab: React.FC<{
       </button>
     );
   };
+
 
   const handlePrintPdf = () => {
     const eventName =
