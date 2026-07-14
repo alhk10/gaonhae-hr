@@ -34,8 +34,10 @@ const GradingCardUploadDialog: React.FC<Props> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [password, setPassword] = useState('');
+  const unlocked = UNLOCK_PASSWORDS.includes(password);
 
-  const reset = () => { setFiles([]); };
+  const reset = () => { setFiles([]); setPassword(''); };
 
   const handlePick = (list: FileList | null) => {
     if (!list) return;
