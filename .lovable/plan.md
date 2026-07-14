@@ -1,24 +1,49 @@
-## Fix
+## Problem
 
-Miguel Juan Rodriguez (Morley, DOB 2022-11-22, age 3) currently has `current_belt = 'Foundation'` — the legacy AU value. The active AU list is `Foundation 1 / 2 / 3`, so grading products named `Foundation 1 >> Foundation 2` etc. are filtered out (name-match rule compares normalized 'From' to the student's belt).
+Uploading grading cards on the Competitions tab fails with `new row violates row-level security policy`. The recent security migration restricted `payment-proofs` INSERT to admins only, but the staff member uploading grading cards doesn't pass `check_employee_admin_access()`.
 
-### Data change
+## Fix (two parts)
 
-Run one UPDATE via the insert tool:
+### 1. Frontend password gate
 
-```sql
-UPDATE public.students
-SET current_belt = 'Foundation 1'
-WHERE id = '5613adb0-9ef1-4193-8bd5-bf8d44ac358f';
-```
+Before the existing "Upload grading card" dialog performs its upload, require the operator to enter one of two shared unlock passwords:
 
-No code changes. No migration.
+- `Hp84311884`
+- `Hp97533488`
 
-### Expected result
+Behavior in `src/components/grading-list/GradingCardUploadDialog.tsx`:
 
-After the update, the Grading dropdown for Miguel at Morley will include `Foundation 1 >> Foundation 2` (plus the stage/provisional items already showing) — provided that product is in Morley's branch price-rule pool. If it isn't, we'll add it to Morley's pool as a follow-up.
+- Add a small password `<Input type="password">` inside the dialog (above Add files).
+- The **Upload** / **Upload & Verify** button stays disabled until the entered value exactly matches one of the two allowed passwords (client-side check).
+- Once a matching password is entered, unlock the button; on submit, proceed with the current `adminUploadCompetitionGradingCards(...)` flow.
+- Wrong password → inline error, no upload attempted.
+- Passwords are hard-coded constants in that component (matches the user's request; no backend involvement).
 
-### Not in scope
+No other dialogs are changed — this gate is scoped to the grading-card upload dialog only.
 
-- Backfilling other students still on legacy `Foundation`. If you want a global sweep (AU students only), say so and I'll add a second UPDATE.
-- Any change to the belt-matching rules themselves.
+### 2. Backend: let the upload actually succeed
+
+The password gate alone won't help while the storage RLS still blocks the INSERT. Relax `payment-proofs` INSERT so the write goes through, keeping reads admin-only (files are always served via signed URLs).
+
+New migration adjusting `storage.objects` policies for bucket `payment-proofs`:
+
+- **INSERT**: allow `anon` + `authenticated` (this also restores public grading/seminar/guards/chat payment proofs and student-portal proof uploads that the previous migration broke).
+- **SELECT**: unchanged — superadmin or `check_employee_admin_access()` only.
+- **UPDATE**: admins only (unchanged).
+- **DELETE**: superadmin only (unchanged).
+
+Other buckets touched by the last security migration (`documents`, `receipts`) stay as-is; only `payment-proofs` has non-admin writers.
+
+## Verification
+
+1. Open the Competitions tab, click Upload grading card for the failing row.
+2. Try upload with an empty/wrong password → button disabled / error, no request sent.
+3. Enter `Hp84311884` (or `Hp97533488`) → button enables, upload succeeds, `grading_card_urls` updates.
+4. Confirm public payment portals and student-portal proof uploads still work (same bucket).
+5. Confirm admins can still view proofs via signed URLs.
+
+## Not in scope
+
+- Rotating or storing these two passwords in the DB / secrets — kept as client-side constants per request.
+- Any change to who can *see* proofs.
+- Any other security-finding rework.

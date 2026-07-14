@@ -3,7 +3,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Upload, Trash2, FileText, Image as ImageIcon, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminUploadCompetitionGradingCards } from '@/services/competitionPaymentSubmissionService';
 
@@ -19,6 +21,7 @@ interface Props {
 }
 
 const ACCEPT = 'image/*,application/pdf';
+const UNLOCK_PASSWORDS = ['Hp84311884', 'Hp97533488'];
 
 const GradingCardUploadDialog: React.FC<Props> = ({
   open,
@@ -33,8 +36,10 @@ const GradingCardUploadDialog: React.FC<Props> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [password, setPassword] = useState('');
+  const unlocked = UNLOCK_PASSWORDS.includes(password);
 
-  const reset = () => { setFiles([]); };
+  const reset = () => { setFiles([]); setPassword(''); };
 
   const handlePick = (list: FileList | null) => {
     if (!list) return;
@@ -53,6 +58,10 @@ const GradingCardUploadDialog: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     if (!submissionId) return;
+    if (!unlocked) {
+      toast.error('Enter the unlock password to upload');
+      return;
+    }
     if (files.length === 0 && !pendingVerify) {
       toast.error('Add at least one file');
       return;
@@ -139,9 +148,28 @@ const GradingCardUploadDialog: React.FC<Props> = ({
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="grading-card-unlock" className="text-xs flex items-center gap-1">
+            <Lock className="h-3 w-3" /> Unlock password
+          </Label>
+          <Input
+            id="grading-card-unlock"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password to enable upload"
+            disabled={busy}
+            className="h-8 text-xs"
+            autoComplete="off"
+          />
+          {password.length > 0 && !unlocked && (
+            <p className="text-[11px] text-destructive">Incorrect password</p>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={busy || (files.length === 0 && !pendingVerify)}>
+          <Button onClick={handleSubmit} disabled={busy || !unlocked || (files.length === 0 && !pendingVerify)}>
             {busy
               ? 'Saving…'
               : pendingVerify
