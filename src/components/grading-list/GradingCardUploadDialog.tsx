@@ -19,6 +19,7 @@ interface Props {
 }
 
 const ACCEPT = 'image/*,application/pdf';
+const UNLOCK_PASSWORDS = ['Hp84311884', 'Hp97533488'];
 
 const GradingCardUploadDialog: React.FC<Props> = ({
   open,
