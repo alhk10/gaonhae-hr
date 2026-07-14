@@ -2512,7 +2512,7 @@ const CompetitionsTab: React.FC<{
                           file,
                           preview.branchId,
                         );
-                        toast.success('Certificate replaced');
+                        toast.success(preview.url ? 'Certificate replaced' : 'Certificate uploaded');
                         setPreview((p) => (p ? { ...p, url: newUrl } : p));
                         setPreviewRotation(0);
                         qc.invalidateQueries({ queryKey: ['public-competition-list'] });
@@ -2529,11 +2529,12 @@ const CompetitionsTab: React.FC<{
                     size="sm"
                     disabled={reuploadBusy}
                     onClick={() => document.getElementById('cert-reupload-input')?.click()}
-                    title="Reupload certificate"
+                    title={preview.url ? 'Reupload certificate' : 'Upload certificate'}
                   >
                     <Upload className="h-4 w-4 mr-1" />
-                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                    {reuploadBusy ? 'Uploading…' : (preview.url ? 'Reupload' : 'Upload')}
                   </Button>
+
                 </>
               )}
               <Button
