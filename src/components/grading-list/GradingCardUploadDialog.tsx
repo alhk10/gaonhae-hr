@@ -40,16 +40,28 @@ const GradingCardUploadDialog: React.FC<Props> = ({
   const [password, setPassword] = useState('');
   const unlocked = UNLOCK_PASSWORDS.includes(password);
 
+  const totalCount = existingUrls.length + files.length;
+  const remaining = Math.max(0, MAX_FILES - totalCount);
+
   const reset = () => { setFiles([]); setPassword(''); };
 
   const handlePick = (list: FileList | null) => {
     if (!list) return;
-    const next = Array.from(list).filter(f =>
+    if (remaining === 0) {
+      toast.error(`Maximum of ${MAX_FILES} grading card files reached`);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    const valid = Array.from(list).filter(f =>
       f.type.startsWith('image/') || f.type === 'application/pdf'
     );
-    if (next.length === 0) {
+    if (valid.length === 0) {
       toast.error('Only images or PDF files are allowed');
       return;
+    }
+    const next = valid.slice(0, remaining);
+    if (valid.length > remaining) {
+      toast.error(`Only ${MAX_FILES} grading card files allowed — extra files ignored`);
     }
     setFiles(prev => [...prev, ...next]);
     if (inputRef.current) inputRef.current.value = '';
