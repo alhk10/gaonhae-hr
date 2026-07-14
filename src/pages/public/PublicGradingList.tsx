@@ -2259,9 +2259,13 @@ const CompetitionsTab: React.FC<{
                 const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
                 const merged = productCats.length > 0 ? productCats : extraCats;
                 const cats = merged.length > 0 ? merged : [''];
-                return cats.map((cat, idx) => (
-              <TableRow key={`${r.submission_id}__${idx}`}>
-                <TableCell className="text-xs px-2 py-1">{r.event_name || '—'}</TableCell>
+                return cats.map((cat, idx) => {
+                  const branchColor = branchColorMap.get(r.branch_id) || '#6b7280';
+                  return (
+              <TableRow
+                key={`${r.submission_id}__${idx}`}
+                style={{ borderLeft: `4px solid ${branchColor}` }}
+              >
                 <TableCell className="px-2 py-1">
                   <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 </TableCell>
@@ -2271,7 +2275,12 @@ const CompetitionsTab: React.FC<{
                 <TableCell className="px-2 py-1">
                   <CourtCell id={r.submission_id} value={r.court} />
                 </TableCell>
-                <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
+                <TableCell
+                  className="text-xs px-2 py-1 font-medium"
+                  style={{ backgroundColor: `${branchColor}22` }}
+                >
+                  {r.branch_name || '—'}
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">
                   <div>{r.student_name}</div>
                   {r.gender && (
