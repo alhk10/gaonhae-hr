@@ -36,7 +36,9 @@ import {
   updateCompetitionSchedule,
   verifyCompetitionSubmission,
   rejectCompetitionSubmission,
+  adminReplaceCompetitionSubmissionFile,
   type PublicCompetitionListRow,
+
 
 } from '@/services/competitionPaymentSubmissionService';
 import {
