@@ -1,17 +1,24 @@
-## Goal
-In SMS Bridge → Conversations, show the matched student name above the phone number in each thread row and in the selected-thread header.
+## Fix
 
-## Changes
+Miguel Juan Rodriguez (Morley, DOB 2022-11-22, age 3) currently has `current_belt = 'Foundation'` — the legacy AU value. The active AU list is `Foundation 1 / 2 / 3`, so grading products named `Foundation 1 >> Foundation 2` etc. are filtered out (name-match rule compares normalized 'From' to the student's belt).
 
-**src/pages/SmsBridge.tsx (`ConversationsTab`)**
-1. Add a `phoneToName` state (`Record<string, string>`).
-2. After `loadThreads()` resolves, collect distinct normalized phones and query `students` (`id, first_name, last_name, phone`) via a single `.in('phone', phones)` fetch. Build the map keyed by `normalizePhone(phone)` → `"FIRST LAST"` (uppercase to match project convention). Merge in existing map so lookups persist while switching.
-3. In the thread list row (~line 568-570): render two lines:
-   - Line 1: student name (font-medium text-sm) — fallback to phone if no match.
-   - Line 2: phone (text-xs text-muted-foreground).
-   - Keep unread badge aligned right.
-4. In the selected thread card title (~line 583): show `name • phone` when name exists, else phone.
+### Data change
 
-## Out of scope
-- No schema changes; no changes to Compose/Manual/Campaigns/Devices.
-- No changes to smsService (query lives in the component to avoid broad service refactor).
+Run one UPDATE via the insert tool:
+
+```sql
+UPDATE public.students
+SET current_belt = 'Foundation 1'
+WHERE id = '5613adb0-9ef1-4193-8bd5-bf8d44ac358f';
+```
+
+No code changes. No migration.
+
+### Expected result
+
+After the update, the Grading dropdown for Miguel at Morley will include `Foundation 1 >> Foundation 2` (plus the stage/provisional items already showing) — provided that product is in Morley's branch price-rule pool. If it isn't, we'll add it to Morley's pool as a follow-up.
+
+### Not in scope
+
+- Backfilling other students still on legacy `Foundation`. If you want a global sweep (AU students only), say so and I'll add a second UPDATE.
+- Any change to the belt-matching rules themselves.
