@@ -148,9 +148,28 @@ const GradingCardUploadDialog: React.FC<Props> = ({
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="grading-card-unlock" className="text-xs flex items-center gap-1">
+            <Lock className="h-3 w-3" /> Unlock password
+          </Label>
+          <Input
+            id="grading-card-unlock"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password to enable upload"
+            disabled={busy}
+            className="h-8 text-xs"
+            autoComplete="off"
+          />
+          {password.length > 0 && !unlocked && (
+            <p className="text-[11px] text-destructive">Incorrect password</p>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={busy || (files.length === 0 && !pendingVerify)}>
+          <Button onClick={handleSubmit} disabled={busy || !unlocked || (files.length === 0 && !pendingVerify)}>
             {busy
               ? 'Saving…'
               : pendingVerify
