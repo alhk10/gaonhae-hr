@@ -3,11 +3,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, Trash2, FileText, Image as ImageIcon, Lock } from 'lucide-react';
+import { Upload, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminUploadCompetitionGradingCards } from '@/services/competitionPaymentSubmissionService';
+import {
+  adminUploadCompetitionGradingCards,
+  adminSetCompetitionGradingCards,
+} from '@/services/competitionPaymentSubmissionService';
 
 interface Props {
   open: boolean;
@@ -22,7 +23,6 @@ interface Props {
 
 const ACCEPT = 'image/*,application/pdf';
 const MAX_FILES = 2;
-const UNLOCK_PASSWORDS = ['Hp84311884', 'Hp97533488'];
 
 const GradingCardUploadDialog: React.FC<Props> = ({
   open,
@@ -37,13 +37,12 @@ const GradingCardUploadDialog: React.FC<Props> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const [password, setPassword] = useState('');
-  const unlocked = UNLOCK_PASSWORDS.includes(password);
+  const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
 
   const totalCount = existingUrls.length + files.length;
   const remaining = Math.max(0, MAX_FILES - totalCount);
 
-  const reset = () => { setFiles([]); setPassword(''); };
+  const reset = () => { setFiles([]); };
 
   const handlePick = (list: FileList | null) => {
     if (!list) return;
@@ -69,12 +68,23 @@ const GradingCardUploadDialog: React.FC<Props> = ({
 
   const removeAt = (i: number) => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
+  const removeExisting = async (i: number) => {
+    if (!submissionId) return;
+    setDeletingIdx(i);
+    try {
+      const next = existingUrls.filter((_, idx) => idx !== i);
+      await adminSetCompetitionGradingCards(submissionId, next);
+      toast.success('Grading card removed');
+      onUploaded?.();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to remove grading card');
+    } finally {
+      setDeletingIdx(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!submissionId) return;
-    if (!unlocked) {
-      toast.error('Enter the unlock password to upload');
-      return;
-    }
     if (files.length === 0 && !pendingVerify) {
       toast.error('Add at least one file');
       return;
@@ -115,10 +125,19 @@ const GradingCardUploadDialog: React.FC<Props> = ({
             <div className="text-xs text-muted-foreground">Already uploaded ({existingUrls.length})</div>
             <ul className="text-xs space-y-0.5">
               {existingUrls.map((u, i) => (
-                <li key={u} className="truncate">
-                  <a href={u} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <li key={u} className="flex items-center gap-2">
+                  <a href={u} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex-1">
                     Grading card {i + 1}
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => removeExisting(i)}
+                    disabled={busy || deletingIdx !== null}
+                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                    title="Remove"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -166,28 +185,9 @@ const GradingCardUploadDialog: React.FC<Props> = ({
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="grading-card-unlock" className="text-xs flex items-center gap-1">
-            <Lock className="h-3 w-3" /> Unlock password
-          </Label>
-          <Input
-            id="grading-card-unlock"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter password to enable upload"
-            disabled={busy}
-            className="h-8 text-xs"
-            autoComplete="off"
-          />
-          {password.length > 0 && !unlocked && (
-            <p className="text-[11px] text-destructive">Incorrect password</p>
-          )}
-        </div>
-
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={busy || !unlocked || (files.length === 0 && !pendingVerify)}>
+          <Button onClick={handleSubmit} disabled={busy || (files.length === 0 && !pendingVerify)}>
             {busy
               ? 'Saving…'
               : pendingVerify
