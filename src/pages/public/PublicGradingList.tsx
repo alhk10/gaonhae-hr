@@ -1964,8 +1964,10 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [reuploadBusy, setReuploadBusy] = useState(false);
+
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
