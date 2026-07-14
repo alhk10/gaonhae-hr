@@ -2134,7 +2134,21 @@ const CompetitionsTab: React.FC<{
     submissionId?: string;
     branchId?: string;
   }> = ({ url, title, kind, submissionId, branchId }) => {
-    if (!url) return <span className="text-xs text-muted-foreground">—</span>;
+    if (!url) {
+      if (kind === 'certificate' && submissionId && branchId) {
+        return (
+          <button
+            type="button"
+            onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload certificate"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+        );
+      }
+      return <span className="text-xs text-muted-foreground">—</span>;
+    }
     return (
       <button
         type="button"
@@ -2151,6 +2165,7 @@ const CompetitionsTab: React.FC<{
       </button>
     );
   };
+
 
 
   const handlePrintPdf = () => {
