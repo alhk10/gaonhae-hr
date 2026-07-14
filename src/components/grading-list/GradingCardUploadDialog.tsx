@@ -134,17 +134,22 @@ const GradingCardUploadDialog: React.FC<Props> = ({
             className="hidden"
             onChange={(e) => handlePick(e.target.files)}
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="h-8 text-xs"
-          >
-            <Upload className="h-3.5 w-3.5 mr-1" />
-            Add files
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy || remaining === 0}
+              className="h-8 text-xs"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Add files
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              {totalCount} of {MAX_FILES} files
+            </span>
+          </div>
 
           {files.length > 0 && (
             <ul className="space-y-1">
