@@ -797,4 +797,19 @@ export const adminUploadCompetitionGradingCards = async (
   return merged;
 };
 
+/**
+ * Admin-only: overwrite the grading_card_urls array (used to remove entries).
+ */
+export const adminSetCompetitionGradingCards = async (
+  submissionId: string,
+  urls: string[],
+): Promise<void> => {
+  const { error } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update({ grading_card_urls: urls })
+    .eq('id', submissionId);
+  if (error) throw error;
+};
+
+
 
