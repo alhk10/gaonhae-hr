@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon, Printer } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon, Printer, Upload } from 'lucide-react';
 import { generateCompetitionPrintPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
