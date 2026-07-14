@@ -2130,10 +2130,11 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate';
+    kind?: 'certificate' | 'grading-card';
     submissionId?: string;
     branchId?: string;
-  }> = ({ url, title, kind, submissionId, branchId }) => {
+    row?: PublicCompetitionListRow;
+  }> = ({ url, title, kind, submissionId, branchId, row }) => {
     if (!url) {
       if (kind === 'certificate' && submissionId && branchId) {
         return (
@@ -2147,12 +2148,24 @@ const CompetitionsTab: React.FC<{
           </button>
         );
       }
+      if (kind === 'grading-card' && submissionId && row) {
+        return (
+          <button
+            type="button"
+            onClick={() => setGradingCardDialog({ row, pendingVerify: false })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload grading card"
+          >
+            <IdCard className="h-4 w-4" />
+          </button>
+        );
+      }
       return <span className="text-xs text-muted-foreground">—</span>;
     }
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
@@ -2350,32 +2363,20 @@ const CompetitionsTab: React.FC<{
                   <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} kind="certificate" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
-                    r.grading_card_urls && r.grading_card_urls.length > 0 ? (
-                      <button
-                        type="button"
-                        title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
-                        onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
-                        className="text-green-700 relative"
-                      >
-                        <IdCard className="h-4 w-4" />
-                        <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
-                          {r.grading_card_urls.length}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        title="Grading card required — click to upload"
-                        onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
-                        className="text-amber-600 hover:text-amber-700"
-                      >
-                        <IdCard className="h-4 w-4" />
-                        <AlertTriangle className="h-2.5 w-2.5 -ml-1 -mt-2 inline" />
-                      </button>
-                    )
+                  {r.grading_card_urls && r.grading_card_urls.length > 0 ? (
+                    <button
+                      type="button"
+                      title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
+                      onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                      className="text-green-700 relative"
+                    >
+                      <IdCard className="h-4 w-4" />
+                      <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
+                        {r.grading_card_urls.length}
+                      </span>
+                    </button>
                   ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
+                    <Thumb url={null} title={`${r.student_name} — Grading Card`} kind="grading-card" submissionId={r.submission_id} row={r} />
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
