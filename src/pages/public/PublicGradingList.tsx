@@ -2090,6 +2090,7 @@ const CompetitionsTab: React.FC<{
     return (
       <Input
         value={local}
+        maxLength={4}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => {
           const next = local.trim() === '' ? null : local.trim();
@@ -2097,7 +2098,7 @@ const CompetitionsTab: React.FC<{
           scheduleMutation.mutate({ id, patch: { court: next } });
         }}
         placeholder="—"
-        className="h-7 text-[11px] w-[70px] px-1"
+        className="h-7 text-[11px] w-[42px] px-1"
       />
     );
   };
