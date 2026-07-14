@@ -21,6 +21,7 @@ interface Props {
 }
 
 const ACCEPT = 'image/*,application/pdf';
+const MAX_FILES = 2;
 const UNLOCK_PASSWORDS = ['Hp84311884', 'Hp97533488'];
 
 const GradingCardUploadDialog: React.FC<Props> = ({
@@ -39,16 +40,28 @@ const GradingCardUploadDialog: React.FC<Props> = ({
   const [password, setPassword] = useState('');
   const unlocked = UNLOCK_PASSWORDS.includes(password);
 
+  const totalCount = existingUrls.length + files.length;
+  const remaining = Math.max(0, MAX_FILES - totalCount);
+
   const reset = () => { setFiles([]); setPassword(''); };
 
   const handlePick = (list: FileList | null) => {
     if (!list) return;
-    const next = Array.from(list).filter(f =>
+    if (remaining === 0) {
+      toast.error(`Maximum of ${MAX_FILES} grading card files reached`);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    const valid = Array.from(list).filter(f =>
       f.type.startsWith('image/') || f.type === 'application/pdf'
     );
-    if (next.length === 0) {
+    if (valid.length === 0) {
       toast.error('Only images or PDF files are allowed');
       return;
+    }
+    const next = valid.slice(0, remaining);
+    if (valid.length > remaining) {
+      toast.error(`Only ${MAX_FILES} grading card files allowed — extra files ignored`);
     }
     setFiles(prev => [...prev, ...next]);
     if (inputRef.current) inputRef.current.value = '';
@@ -121,17 +134,22 @@ const GradingCardUploadDialog: React.FC<Props> = ({
             className="hidden"
             onChange={(e) => handlePick(e.target.files)}
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="h-8 text-xs"
-          >
-            <Upload className="h-3.5 w-3.5 mr-1" />
-            Add files
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy || remaining === 0}
+              className="h-8 text-xs"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Add files
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              {totalCount} of {MAX_FILES} files
+            </span>
+          </div>
 
           {files.length > 0 && (
             <ul className="space-y-1">
