@@ -53,6 +53,8 @@ import { SignedImage } from '@/components/common/SignedMedia';
 import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getBranches } from '@/services/settingsService';
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import {
   getPublicGradingList,
   getPublicGradingSlotsByDate,
