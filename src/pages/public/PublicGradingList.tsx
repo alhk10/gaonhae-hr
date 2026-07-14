@@ -1964,7 +1964,7 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
 
@@ -2134,7 +2134,21 @@ const CompetitionsTab: React.FC<{
     submissionId?: string;
     branchId?: string;
   }> = ({ url, title, kind, submissionId, branchId }) => {
-    if (!url) return <span className="text-xs text-muted-foreground">—</span>;
+    if (!url) {
+      if (kind === 'certificate' && submissionId && branchId) {
+        return (
+          <button
+            type="button"
+            onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload certificate"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+        );
+      }
+      return <span className="text-xs text-muted-foreground">—</span>;
+    }
     return (
       <button
         type="button"
@@ -2151,6 +2165,7 @@ const CompetitionsTab: React.FC<{
       </button>
     );
   };
+
 
 
   const handlePrintPdf = () => {
@@ -2497,7 +2512,7 @@ const CompetitionsTab: React.FC<{
                           file,
                           preview.branchId,
                         );
-                        toast.success('Certificate replaced');
+                        toast.success(preview.url ? 'Certificate replaced' : 'Certificate uploaded');
                         setPreview((p) => (p ? { ...p, url: newUrl } : p));
                         setPreviewRotation(0);
                         qc.invalidateQueries({ queryKey: ['public-competition-list'] });
@@ -2514,11 +2529,12 @@ const CompetitionsTab: React.FC<{
                     size="sm"
                     disabled={reuploadBusy}
                     onClick={() => document.getElementById('cert-reupload-input')?.click()}
-                    title="Reupload certificate"
+                    title={preview.url ? 'Reupload certificate' : 'Upload certificate'}
                   >
                     <Upload className="h-4 w-4 mr-1" />
-                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                    {reuploadBusy ? 'Uploading…' : (preview.url ? 'Reupload' : 'Upload')}
                   </Button>
+
                 </>
               )}
               <Button
@@ -2534,15 +2550,20 @@ const CompetitionsTab: React.FC<{
           </DialogHeader>
 
           {preview && (
-            <div className="flex items-center justify-center overflow-hidden">
-              <SignedImage
-                src={preview.url}
-                className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
-                alt={preview.title}
-                style={{ transform: `rotate(${previewRotation}deg)` }}
-              />
+            <div className="flex items-center justify-center overflow-hidden min-h-[200px]">
+              {preview.url ? (
+                <SignedImage
+                  src={preview.url}
+                  className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
+                  alt={preview.title}
+                  style={{ transform: `rotate(${previewRotation}deg)` }}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground py-12">No certificate uploaded yet. Use the Upload button above.</div>
+              )}
             </div>
           )}
+
         </DialogContent>
       </Dialog>
 
