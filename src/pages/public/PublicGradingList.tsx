@@ -2130,10 +2130,11 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate';
+    kind?: 'certificate' | 'grading-card';
     submissionId?: string;
     branchId?: string;
-  }> = ({ url, title, kind, submissionId, branchId }) => {
+    row?: PublicCompetitionListRow;
+  }> = ({ url, title, kind, submissionId, branchId, row }) => {
     if (!url) {
       if (kind === 'certificate' && submissionId && branchId) {
         return (
@@ -2147,12 +2148,24 @@ const CompetitionsTab: React.FC<{
           </button>
         );
       }
+      if (kind === 'grading-card' && submissionId && row) {
+        return (
+          <button
+            type="button"
+            onClick={() => setGradingCardDialog({ row, pendingVerify: false })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload grading card"
+          >
+            <IdCard className="h-4 w-4" />
+          </button>
+        );
+      }
       return <span className="text-xs text-muted-foreground">—</span>;
     }
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
