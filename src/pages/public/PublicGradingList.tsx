@@ -2332,7 +2332,7 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
+                  <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} kind="certificate" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
