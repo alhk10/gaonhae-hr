@@ -2550,15 +2550,20 @@ const CompetitionsTab: React.FC<{
           </DialogHeader>
 
           {preview && (
-            <div className="flex items-center justify-center overflow-hidden">
-              <SignedImage
-                src={preview.url}
-                className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
-                alt={preview.title}
-                style={{ transform: `rotate(${previewRotation}deg)` }}
-              />
+            <div className="flex items-center justify-center overflow-hidden min-h-[200px]">
+              {preview.url ? (
+                <SignedImage
+                  src={preview.url}
+                  className="max-w-full max-h-[80vh] h-auto object-contain rounded transition-transform"
+                  alt={preview.title}
+                  style={{ transform: `rotate(${previewRotation}deg)` }}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground py-12">No certificate uploaded yet. Use the Upload button above.</div>
+              )}
             </div>
           )}
+
         </DialogContent>
       </Dialog>
 
