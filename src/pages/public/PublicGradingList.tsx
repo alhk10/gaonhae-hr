@@ -1949,6 +1949,19 @@ const CompetitionsTab: React.FC<{
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
+  const { data: branchesForColor = [] } = useQuery({
+    queryKey: ['branches-for-competition-color'],
+    queryFn: getBranches,
+    staleTime: 5 * 60_000,
+  });
+  const branchColorMap = React.useMemo(() => {
+    const m = new Map<string, string>();
+    branchesForColor.forEach((b: any) => {
+      m.set(b.id, convertTailwindColorToHex(b.color || '#6b7280'));
+    });
+    return m;
+  }, [branchesForColor]);
+
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
