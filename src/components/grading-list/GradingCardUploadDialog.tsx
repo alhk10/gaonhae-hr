@@ -58,6 +58,10 @@ const GradingCardUploadDialog: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     if (!submissionId) return;
+    if (!unlocked) {
+      toast.error('Enter the unlock password to upload');
+      return;
+    }
     if (files.length === 0 && !pendingVerify) {
       toast.error('Add at least one file');
       return;
