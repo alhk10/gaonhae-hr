@@ -2224,8 +2224,6 @@ const CompetitionsTab: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
-
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
@@ -2239,6 +2237,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Grading Card</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
