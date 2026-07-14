@@ -1,49 +1,33 @@
-## Problem
+Scope: `src/pages/public/PublicGradingList.tsx` — Competitions table only (no schema or service changes).
 
-Uploading grading cards on the Competitions tab fails with `new row violates row-level security policy`. The recent security migration restricted `payment-proofs` INSERT to admins only, but the staff member uploading grading cards doesn't pass `check_employee_admin_access()`.
+### 1. Column changes
+- Remove the **Event** column (header + cell at ~line 2211 / 2244).
+- Insert a new **Grading Card** column between **Cert** and **Proof** (after line 2225).
+  - Cell renders the grading card icon/thumb currently living in the Docs column: if `require_grading_card && isFoundationToBlackTip(current_belt)` show green `IdCard` (with count badge) opening `setGradingCardDialog(...)`; otherwise `—`.
+  - Keep the same icon in the Docs column as well? No — move it out of Docs into this new column to avoid duplication.
 
-## Fix (two parts)
+### 2. Column sizing
+- **Court**: shrink input to ~4 characters. Change `CourtCell` input `w-[70px]` → `w-[42px]`, add `maxLength={4}`.
+- **Poomsae 1 / Poomsae 2**: reduce width by 20%. The `Select` inside `renderPoomsae` inherits its width; add an explicit `w-[112px]` (down from the current ~140px effective) on the `SelectTrigger`, or wrap the cell in a `w-[112px]` container.
 
-### 1. Frontend password gate
+### 3. Auto-default Reporting time
+- Already implemented in `DateTimeCell` (line 2059–2064): setting `competition_at` writes `reporting_at = competition_at − 90 min`. Verify and leave as-is. No further changes needed here unless the user wants the default to also fire on rows where `reporting_at` is manually cleared (out of scope unless requested).
 
-Before the existing "Upload grading card" dialog performs its upload, require the operator to enter one of two shared unlock passwords:
+### 4. Auto-sort by competition time
+- In the table body sort (line 2236), replace the name-only sort with:
+  1. `competition_at` ascending (nulls last)
+  2. tiebreak by `student_name`
+- Matches the sort already used by `handlePrintPdf` (lines 2138–2143) — reuse the same comparator.
 
-- `Hp84311884`
-- `Hp97533488`
+### 5. Colour-code branches
+- Fetch branches via existing `useBranches` / `getBranches` and build a `branchId → color` map (fallback `#6b7280`).
+- On each `TableRow`, apply a left border in the branch colour, e.g. `style={{ borderLeft: '4px solid <color>' }}`, and tint the Branch cell text/background lightly with the same colour (`backgroundColor: <color>15`).
+- Uses the existing `branches.color` field (same source used by `SlotBooking` / `AdminSlotBooking`).
 
-Behavior in `src/components/grading-list/GradingCardUploadDialog.tsx`:
+### Out of scope
+- Database migrations, service layer, PDF print output, other tabs (Grading / Seminars / Guards).
+- Behavior of the `reporting_at` field when the user manually edits it (still user-editable and saved as typed).
 
-- Add a small password `<Input type="password">` inside the dialog (above Add files).
-- The **Upload** / **Upload & Verify** button stays disabled until the entered value exactly matches one of the two allowed passwords (client-side check).
-- Once a matching password is entered, unlock the button; on submit, proceed with the current `adminUploadCompetitionGradingCards(...)` flow.
-- Wrong password → inline error, no upload attempted.
-- Passwords are hard-coded constants in that component (matches the user's request; no backend involvement).
-
-No other dialogs are changed — this gate is scoped to the grading-card upload dialog only.
-
-### 2. Backend: let the upload actually succeed
-
-The password gate alone won't help while the storage RLS still blocks the INSERT. Relax `payment-proofs` INSERT so the write goes through, keeping reads admin-only (files are always served via signed URLs).
-
-New migration adjusting `storage.objects` policies for bucket `payment-proofs`:
-
-- **INSERT**: allow `anon` + `authenticated` (this also restores public grading/seminar/guards/chat payment proofs and student-portal proof uploads that the previous migration broke).
-- **SELECT**: unchanged — superadmin or `check_employee_admin_access()` only.
-- **UPDATE**: admins only (unchanged).
-- **DELETE**: superadmin only (unchanged).
-
-Other buckets touched by the last security migration (`documents`, `receipts`) stay as-is; only `payment-proofs` has non-admin writers.
-
-## Verification
-
-1. Open the Competitions tab, click Upload grading card for the failing row.
-2. Try upload with an empty/wrong password → button disabled / error, no request sent.
-3. Enter `Hp84311884` (or `Hp97533488`) → button enables, upload succeeds, `grading_card_urls` updates.
-4. Confirm public payment portals and student-portal proof uploads still work (same bucket).
-5. Confirm admins can still view proofs via signed URLs.
-
-## Not in scope
-
-- Rotating or storing these two passwords in the DB / secrets — kept as client-side constants per request.
-- Any change to who can *see* proofs.
-- Any other security-finding rework.
+### Verification
+- Open Competitions tab: Event column gone, Grading Card column appears between Cert and Proof, rows sorted by competition time, Court input narrow (4 chars), Poomsae dropdowns visibly narrower, each row shows its branch colour on the left edge.
+- Edit a competition time → reporting time auto-updates to −1h30m.
