@@ -2477,16 +2477,62 @@ const CompetitionsTab: React.FC<{
         <DialogContent className="max-w-3xl">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
-              title="Rotate 90°"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {preview?.kind === 'certificate' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="cert-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'certificate',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success('Certificate replaced');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload certificate');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('cert-reupload-input')?.click()}
+                    title="Reupload certificate"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
+                title="Rotate 90°"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
+
           {preview && (
             <div className="flex items-center justify-center overflow-hidden">
               <SignedImage
