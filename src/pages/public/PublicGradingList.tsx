@@ -53,6 +53,8 @@ import { SignedImage } from '@/components/common/SignedMedia';
 import { resolveStorageUrl } from '@/utils/storageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getBranches } from '@/services/settingsService';
+import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import {
   getPublicGradingList,
   getPublicGradingSlotsByDate,
@@ -1947,6 +1949,19 @@ const CompetitionsTab: React.FC<{
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
+  const { data: branchesForColor = [] } = useQuery({
+    queryKey: ['branches-for-competition-color'],
+    queryFn: getBranches,
+    staleTime: 5 * 60_000,
+  });
+  const branchColorMap = React.useMemo(() => {
+    const m = new Map<string, string>();
+    branchesForColor.forEach((b: any) => {
+      m.set(b.id, convertTailwindColorToHex(b.color || '#6b7280'));
+    });
+    return m;
+  }, [branchesForColor]);
+
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -2075,6 +2090,7 @@ const CompetitionsTab: React.FC<{
     return (
       <Input
         value={local}
+        maxLength={4}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => {
           const next = local.trim() === '' ? null : local.trim();
@@ -2082,7 +2098,7 @@ const CompetitionsTab: React.FC<{
           scheduleMutation.mutate({ id, patch: { court: next } });
         }}
         placeholder="—"
-        className="h-7 text-[11px] w-[70px] px-1"
+        className="h-7 text-[11px] w-[42px] px-1"
       />
     );
   };
@@ -2095,7 +2111,7 @@ const CompetitionsTab: React.FC<{
       value={value ?? ''}
       onValueChange={(v) => onChange(v === POOMSAE_CLEAR ? null : v)}
     >
-      <SelectTrigger className="h-7 text-[11px] min-w-[140px]">
+      <SelectTrigger className="h-7 text-[11px] min-w-[112px] w-[112px]">
         <SelectValue placeholder="—" />
       </SelectTrigger>
       <SelectContent>
@@ -2208,8 +2224,6 @@ const CompetitionsTab: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="h-7 px-2 text-[11px]">Event</TableHead>
-
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Court</TableHead>
@@ -2223,6 +2237,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 1</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Grading Card</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
@@ -2233,15 +2248,24 @@ const CompetitionsTab: React.FC<{
             {[...(rows as PublicCompetitionListRow[])]
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
-              .sort((a, b) => (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' }))
+              .sort((a, b) => {
+                const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
+                const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
+                if (ta !== tb) return ta - tb;
+                return (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' });
+              })
               .flatMap((r) => {
                 const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
                 const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
                 const merged = productCats.length > 0 ? productCats : extraCats;
                 const cats = merged.length > 0 ? merged : [''];
-                return cats.map((cat, idx) => (
-              <TableRow key={`${r.submission_id}__${idx}`}>
-                <TableCell className="text-xs px-2 py-1">{r.event_name || '—'}</TableCell>
+                return cats.map((cat, idx) => {
+                  const branchColor = branchColorMap.get(r.branch_id) || '#6b7280';
+                  return (
+              <TableRow
+                key={`${r.submission_id}__${idx}`}
+                style={{ borderLeft: `4px solid ${branchColor}` }}
+              >
                 <TableCell className="px-2 py-1">
                   <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 </TableCell>
@@ -2251,7 +2275,12 @@ const CompetitionsTab: React.FC<{
                 <TableCell className="px-2 py-1">
                   <CourtCell id={r.submission_id} value={r.court} />
                 </TableCell>
-                <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
+                <TableCell
+                  className="text-xs px-2 py-1 font-medium"
+                  style={{ backgroundColor: `${branchColor}22` }}
+                >
+                  {r.branch_name || '—'}
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">
                   <div>{r.student_name}</div>
                   {r.gender && (
@@ -2295,6 +2324,35 @@ const CompetitionsTab: React.FC<{
                   <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
+                  {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
+                    r.grading_card_urls && r.grading_card_urls.length > 0 ? (
+                      <button
+                        type="button"
+                        title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
+                        onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                        className="text-green-700 relative"
+                      >
+                        <IdCard className="h-4 w-4" />
+                        <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
+                          {r.grading_card_urls.length}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        title="Grading card required — click to upload"
+                        onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        <IdCard className="h-4 w-4" />
+                        <AlertTriangle className="h-2.5 w-2.5 -ml-1 -mt-2 inline" />
+                      </button>
+                    )
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="px-2 py-1">
                   <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
@@ -2319,32 +2377,7 @@ const CompetitionsTab: React.FC<{
                         <ImageIcon className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    {r.require_grading_card && isFoundationToBlackTip(r.current_belt) ? (
-                      r.grading_card_urls && r.grading_card_urls.length > 0 ? (
-                        <button
-                          type="button"
-                          title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
-                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
-                          className="text-green-700 relative"
-                        >
-                          <IdCard className="h-3.5 w-3.5" />
-                          <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
-                            {r.grading_card_urls.length}
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          title="Grading card required — click to upload"
-                          onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
-                          className="text-amber-600 hover:text-amber-700"
-                        >
-                          <IdCard className="h-3.5 w-3.5" />
-                          <AlertTriangle className="h-2.5 w-2.5 -ml-1 -mt-2 inline" />
-                        </button>
-                      )
-                    ) : null}
-                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && !(r.require_grading_card && isFoundationToBlackTip(r.current_belt)) && (
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </div>
@@ -2400,7 +2433,8 @@ const CompetitionsTab: React.FC<{
                   </TableCell>
                 )}
               </TableRow>
-                ));
+                );
+                });
               })}
           </TableBody>
         </Table>
