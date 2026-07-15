@@ -7584,6 +7584,10 @@ export type Database = {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
+      admin_append_competition_grading_cards: {
+        Args: { p_id: string; p_new_urls: string[] }
+        Returns: string[]
+      }
       admin_competition_submission_delete_context: {
         Args: { p_id: string }
         Returns: {
@@ -7703,6 +7707,10 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
+      admin_replace_competition_grading_card_at: {
+        Args: { p_id: string; p_index: number; p_new_url: string }
+        Returns: string[]
+      }
       admin_reset_password: {
         Args: {
           new_password_hash: string
@@ -7721,6 +7729,10 @@ export type Database = {
       }
       admin_set_competition_event_active: {
         Args: { p_active: boolean; p_id: string }
+        Returns: undefined
+      }
+      admin_set_competition_grading_cards: {
+        Args: { p_id: string; p_urls: string[] }
         Returns: undefined
       }
       admin_update_competition_poomsae: {
