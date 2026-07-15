@@ -2190,7 +2190,7 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate' | 'grading-card' | 'proof';
+    kind?: 'certificate' | 'grading-card' | 'proof' | 'photo';
     submissionId?: string;
     branchId?: string;
     row?: PublicCompetitionListRow;
@@ -2203,6 +2203,18 @@ const CompetitionsTab: React.FC<{
             onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
             className="text-amber-600 hover:text-amber-700"
             title="Upload certificate"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+        );
+      }
+      if (kind === 'photo' && submissionId && branchId) {
+        return (
+          <button
+            type="button"
+            onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload photo"
           >
             <Upload className="h-4 w-4" />
           </button>
@@ -2225,7 +2237,7 @@ const CompetitionsTab: React.FC<{
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : undefined, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : kind === 'photo' ? 'photo' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
