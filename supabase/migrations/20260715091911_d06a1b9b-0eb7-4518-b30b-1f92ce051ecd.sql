@@ -1,0 +1,2 @@
+ALTER TABLE public.student_grading_history DROP CONSTRAINT student_grading_history_result_check;
+ALTER TABLE public.student_grading_history ADD CONSTRAINT student_grading_history_result_check CHECK (result IS NULL OR result = ANY (ARRAY['pass','fail','conditional_pass','double']));
