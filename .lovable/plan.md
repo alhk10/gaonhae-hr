@@ -1,27 +1,23 @@
-## Status
+## Update Rory and Henry to Foundation 1 → Foundation 2
 
-The `grading_registrations_result_check` constraint has already been updated in the database to accept `'double'`. Emily's scores (avg 8.0 → `'double'`) will save once the browser has the latest DB state.
+Both students currently have `current_belt = 'White'` on their student record, and the visible grading registration is set as White → Yellow Tip. You want them shown as Foundation 1 → Foundation 2.
 
-**Action for you:** hard-refresh the tab (Ctrl+Shift+R). The error toast in the screenshot was almost certainly from a request fired before the migration finished.
+### Data changes (no code changes)
 
-## Additional preventive fix
+1. **`students` table** — set `current_belt = 'Foundation 1'` for:
+   - RORY MCINTOSH
+   - HENRY MORGAN
 
-While auditing I found a sibling constraint that will bite the same way if we ever start writing grading history rows: `student_grading_history_result_check` still only allows `pass | fail | conditional_pass`. Nothing writes to it automatically today, but manual writes / future features would break.
+2. **`grading_registrations` table** — for each of their visible registrations (the ones currently showing White → Yellow Tip in the grading list):
+   - `current_belt = 'Foundation 1'`
+   - `target_belt = 'Foundation 2'`
 
-Migration:
+Registration IDs affected:
+- Rory: `7421a197-e454-405c-982c-de205df5edb9`
+- Henry: `e117bd46-4198-4508-96a6-2e365fc9de2d`
 
-```sql
-ALTER TABLE public.student_grading_history
-  DROP CONSTRAINT student_grading_history_result_check;
+### Left untouched
+- The second, older registration each student has (`current_belt = 'Foundation'`, `target_belt = 'White'`) is not modified.
+- No invoice / product / slot changes — only the belt fields shown in the grading list.
 
-ALTER TABLE public.student_grading_history
-  ADD CONSTRAINT student_grading_history_result_check
-  CHECK (result IS NULL OR result = ANY (ARRAY['pass','fail','conditional_pass','double']));
-```
-
-No code changes.
-
-## Out of scope
-
-- Any UI changes
-- Scoring band thresholds
+Confirm and I'll run the two updates.
