@@ -2190,7 +2190,7 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate' | 'grading-card';
+    kind?: 'certificate' | 'grading-card' | 'proof';
     submissionId?: string;
     branchId?: string;
     row?: PublicCompetitionListRow;
@@ -2225,7 +2225,7 @@ const CompetitionsTab: React.FC<{
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : undefined, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
