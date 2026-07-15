@@ -561,9 +561,13 @@ const PublicGradingList: React.FC = () => {
 
 
 
-  const openLightbox = async (storedUrl: string) => {
+  const openLightbox = async (
+    storedUrl: string,
+    ctx?: { submissionId: string; branchId: string },
+  ) => {
     const resolved = await resolveStorageUrl(storedUrl);
     setLightboxUrl(resolved || storedUrl);
+    setLightboxCtx(ctx || null);
   };
 
   const loadLogoDataUrl = (): Promise<{ dataUrl: string; w: number; h: number } | null> =>
