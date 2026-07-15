@@ -25,6 +25,7 @@ import {
   getPublicSeminarList,
   rejectSeminarSubmission,
   verifySeminarSubmission,
+  adminReplaceSeminarSubmissionProof,
   type PublicSeminarListRow,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
