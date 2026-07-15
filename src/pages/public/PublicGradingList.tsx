@@ -1411,7 +1411,12 @@ const PublicGradingList: React.FC = () => {
                               {r.proof_url ? (
                                 <button
                                   type="button"
-                                  onClick={() => openLightbox(r.proof_url!)}
+                                  onClick={() => openLightbox(
+                                    r.proof_url!,
+                                    r.source === 'submission' && r.submission_id && r.branch_id
+                                      ? { submissionId: r.submission_id, branchId: r.branch_id }
+                                      : undefined,
+                                  )}
                                   className="block"
                                   title="Click to enlarge"
                                 >
