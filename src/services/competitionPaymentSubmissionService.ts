@@ -781,19 +781,17 @@ export const adminUploadCompetitionGradingCards = async (
     const url = await safeSignedUrl('Grading card', path);
     newUrls.push(url);
   }
-  // Read existing then append (avoid clobbering concurrent uploads in worst case)
-  const { data: existing, error: readErr } = await supabase
-    .from('competition_payment_submissions' as any)
-    .select('grading_card_urls')
-    .eq('id', submissionId)
-    .maybeSingle();
-  if (readErr) throw readErr;
-  const merged = [ ...((existing as any)?.grading_card_urls || []), ...newUrls ];
-  const { error: updErr } = await supabase
-    .from('competition_payment_submissions' as any)
-    .update({ grading_card_urls: merged })
-    .eq('id', submissionId);
-  if (updErr) throw updErr;
+  // Persist via SECURITY DEFINER RPC — the page runs anonymously (client-side
+  // password gate), so a direct table UPDATE would be silently blocked by RLS.
+  const { data, error } = await supabase.rpc(
+    'admin_append_competition_grading_cards' as any,
+    { p_id: submissionId, p_new_urls: newUrls },
+  );
+  if (error) throw error;
+  const merged = (data as string[] | null) || [];
+  if (merged.length === 0) {
+    throw new Error('Grading card save failed — submission not found');
+  }
   return merged;
 };
 
@@ -804,10 +802,10 @@ export const adminSetCompetitionGradingCards = async (
   submissionId: string,
   urls: string[],
 ): Promise<void> => {
-  const { error } = await supabase
-    .from('competition_payment_submissions' as any)
-    .update({ grading_card_urls: urls })
-    .eq('id', submissionId);
+  const { error } = await supabase.rpc(
+    'admin_set_competition_grading_cards' as any,
+    { p_id: submissionId, p_urls: urls },
+  );
   if (error) throw error;
 };
 
@@ -824,18 +822,15 @@ export const adminReplaceCompetitionGradingCardAt = async (
   const path = `competition/${submissionId}/grading-card-${Date.now()}-r${index}.${ext}`;
   await safeUpload('Grading card', path, file, file.type);
   const newUrl = await safeSignedUrl('Grading card', path);
-  const { data: existing, error: readErr } = await supabase
-    .from('competition_payment_submissions' as any)
-    .select('grading_card_urls')
-    .eq('id', submissionId)
-    .maybeSingle();
-  if (readErr) throw readErr;
-  const current: string[] = ((existing as any)?.grading_card_urls || []).slice();
-  if (index < 0 || index >= current.length) {
-    throw new Error('Grading card index out of range');
+  const { data, error } = await supabase.rpc(
+    'admin_replace_competition_grading_card_at' as any,
+    { p_id: submissionId, p_index: index, p_new_url: newUrl },
+  );
+  if (error) throw error;
+  const updated = (data as string[] | null) || [];
+  if (updated.length === 0) {
+    throw new Error('Grading card replace failed — submission or index invalid');
   }
-  current[index] = newUrl;
-  await adminSetCompetitionGradingCards(submissionId, current);
   return newUrl;
 };
 
