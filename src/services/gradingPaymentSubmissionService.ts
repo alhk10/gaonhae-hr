@@ -526,3 +526,29 @@ export const submitGradingPayment = async (
     ids: inserted.map(r => r.id),
   };
 };
+
+/**
+ * Replace the proof file on a grading payment submission row.
+ */
+export const adminReplaceGradingSubmissionProof = async (
+  id: string,
+  file: File,
+  branchId: string,
+): Promise<string> => {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `public-grading/${branchId}/edit_${Date.now()}_proof.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const url = signed?.signedUrl ?? path;
+  const { error: updErr } = await supabase
+    .from('grading_payment_submissions')
+    .update({ proof_url: url })
+    .eq('id', id);
+  if (updErr) throw updErr;
+  return url;
+};
