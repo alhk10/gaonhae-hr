@@ -2453,7 +2453,7 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} kind="proof" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   <div className="flex items-center gap-1">
