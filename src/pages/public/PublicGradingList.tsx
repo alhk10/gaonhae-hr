@@ -2024,7 +2024,7 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
 
