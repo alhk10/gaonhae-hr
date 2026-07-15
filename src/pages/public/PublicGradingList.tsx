@@ -2611,6 +2611,49 @@ const CompetitionsTab: React.FC<{
 
                 </>
               )}
+              {preview?.kind === 'proof' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="comp-proof-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'proof',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success('Payment proof replaced');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload payment proof');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('comp-proof-reupload-input')?.click()}
+                    title="Reupload payment proof"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 variant="ghost"
