@@ -77,6 +77,7 @@ import {
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
   rejectGradingSubmission,
+  adminReplaceGradingSubmissionProof,
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
