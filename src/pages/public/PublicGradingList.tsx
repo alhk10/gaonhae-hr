@@ -2730,7 +2730,7 @@ const CompetitionsTab: React.FC<{
                   style={{ transform: `rotate(${previewRotation}deg)` }}
                 />
               ) : (
-                <div className="text-sm text-muted-foreground py-12">No certificate uploaded yet. Use the Upload button above.</div>
+                <div className="text-sm text-muted-foreground py-12">No file uploaded yet. Use the Upload button above.</div>
               )}
             </div>
           )}
