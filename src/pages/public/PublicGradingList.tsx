@@ -1631,19 +1631,64 @@ const PublicGradingList: React.FC = () => {
       />
 
       {/* Proof lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); } }}>
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); setLightboxCtx(null); } }}>
         <DialogContent className="max-w-3xl p-2">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="sr-only">Payment proof</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
-              title="Rotate 90°"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1 ml-auto">
+              {lightboxCtx && (
+                <>
+                  <input
+                    id="grading-proof-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !lightboxCtx) return;
+                      setLightboxReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceGradingSubmissionProof(
+                          lightboxCtx.submissionId,
+                          file,
+                          lightboxCtx.branchId,
+                        );
+                        toast.success('Payment proof replaced');
+                        const resolved = await resolveStorageUrl(newUrl);
+                        setLightboxUrl(resolved || newUrl);
+                        setLightboxRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload payment proof');
+                      } finally {
+                        setLightboxReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={lightboxReuploadBusy}
+                    onClick={() => document.getElementById('grading-proof-reupload-input')?.click()}
+                    title="Reupload payment proof"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {lightboxReuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+                title="Rotate 90°"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
           {lightboxUrl && (
             <div className="flex items-center justify-center overflow-hidden">
@@ -1657,6 +1702,7 @@ const PublicGradingList: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
 
       {/* Reject dialog */}
       <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>
