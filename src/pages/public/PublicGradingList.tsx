@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Image as ImageIcon, Printer, Upload } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
 import { generateCompetitionPrintPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -2024,7 +2024,7 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof'; submissionId?: string; branchId?: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof' | 'photo'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
 
@@ -2190,7 +2190,7 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate' | 'grading-card' | 'proof';
+    kind?: 'certificate' | 'grading-card' | 'proof' | 'photo';
     submissionId?: string;
     branchId?: string;
     row?: PublicCompetitionListRow;
@@ -2203,6 +2203,18 @@ const CompetitionsTab: React.FC<{
             onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
             className="text-amber-600 hover:text-amber-700"
             title="Upload certificate"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+        );
+      }
+      if (kind === 'photo' && submissionId && branchId) {
+        return (
+          <button
+            type="button"
+            onClick={() => setPreview({ url: null, title, kind, submissionId, branchId })}
+            className="text-amber-600 hover:text-amber-700"
+            title="Upload photo"
           >
             <Upload className="h-4 w-4" />
           </button>
@@ -2225,7 +2237,7 @@ const CompetitionsTab: React.FC<{
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : undefined, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : kind === 'photo' ? 'photo' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
@@ -2337,6 +2349,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Poomsae 2</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Cert</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Grading Card</TableHead>
+              <TableHead className="h-7 px-2 text-[11px]">Photo</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
@@ -2453,6 +2466,9 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
+                  <Thumb url={r.photo_url} title={`${r.student_name} — Photo`} kind="photo" submissionId={r.submission_id} branchId={r.branch_id} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
                   <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} kind="proof" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
@@ -2472,12 +2488,7 @@ const CompetitionsTab: React.FC<{
                         <IdCard className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    {r.photo_url ? (
-                      <button type="button" title="Photo" onClick={() => setPreview({ url: r.photo_url!, title: `${r.student_name} — Photo` })} className="text-green-700">
-                        <ImageIcon className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </div>
@@ -2654,6 +2665,49 @@ const CompetitionsTab: React.FC<{
                   </Button>
                 </>
               )}
+              {preview?.kind === 'photo' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="comp-photo-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'photo',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success(preview.url ? 'Photo replaced' : 'Photo uploaded');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload photo');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('comp-photo-reupload-input')?.click()}
+                    title={preview.url ? 'Reupload photo' : 'Upload photo'}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : (preview.url ? 'Reupload' : 'Upload')}
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 variant="ghost"
@@ -2676,7 +2730,7 @@ const CompetitionsTab: React.FC<{
                   style={{ transform: `rotate(${previewRotation}deg)` }}
                 />
               ) : (
-                <div className="text-sm text-muted-foreground py-12">No certificate uploaded yet. Use the Upload button above.</div>
+                <div className="text-sm text-muted-foreground py-12">No file uploaded yet. Use the Upload button above.</div>
               )}
             </div>
           )}
