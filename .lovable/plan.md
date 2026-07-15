@@ -1,33 +1,42 @@
-Add a "Reupload" button in the Payment Proof preview dialog on every tab of `/grading-list` (Grading, Competitions, Seminars), matching the existing certificate reupload UX in `CompetitionsTab` (Upload icon + label, replaces the currently viewed proof, refreshes the list).
+## Add "Photo" column to Competitions tab
 
-## Scope
+In `src/pages/public/PublicGradingList.tsx` (Competitions table only — the screenshot is `/grading-list` → Competitions tab).
 
-- Only staff who can already open the preview see the button (same visibility as the existing certificate Reupload — no new role checks).
-- Accepts `image/*,application/pdf`, single file, uploads to the `payment-proofs` bucket under the same `public-*` path prefixes the initial submission uses, then updates `proof_url` on the submission row.
-- On success: toast "Payment proof replaced", swap the preview to the new signed URL, reset rotation, invalidate the tab's list query.
+### Header
+Insert `<TableHead>Photo</TableHead>` between `Grading Card` (line 2339) and `Proof` (line 2340).
 
-## Files to change
+### Body cell
+Insert a new `<TableCell>` between the Grading Card cell (line 2425-2454) and the Proof cell (line 2455-2457), rendering:
 
-### 1. `src/services/gradingPaymentSubmissionService.ts` (new helper)
-Add `adminReplaceGradingSubmissionProof(submissionId, file, branchId)` mirroring `adminReplaceSeminarSubmissionProof`:
-- Build path `public-grading/{branchId}/{ts}_replace_proof.{ext}` (matches existing initial-upload convention).
-- Upload to `payment-proofs` bucket (`upsert: false`), create 5-year signed URL.
-- Update `grading_payment_submissions.proof_url` where `id = submissionId`, return the new URL.
+```tsx
+<Thumb
+  url={r.photo_url}
+  title={`${r.student_name} — Photo`}
+  kind="photo"
+  submissionId={r.submission_id}
+  branchId={r.branch_id}
+/>
+```
 
-### 2. `src/pages/public/PublicGradingList.tsx`
-- Import the new grading helper.
-- Extend `preview` state (currently only competition uses `kind`/`submissionId`/`branchId`) so the shared `preview` dialog at line 2507 also handles `kind: 'proof'` and a `source: 'grading' | 'competition'` discriminator.
-- Wire the grading tab's `openLightbox(r.proof_url!)` call (line 1407) to instead call `setPreview({ url, title, kind: 'proof', source: 'grading', submissionId: r.submission_id, branchId: r.branch_id })` when `r.source === 'submission'` (only submissions have a mutable proof; legacy paid rows have none).
-- In `CompetitionsTab`, change the proof `Thumb` (line 2398) so its onClick opens the preview with `kind: 'proof', source: 'competition', submissionId, branchId` (extend the `Thumb` props to pass these through for the proof case).
-- In the shared preview dialog header, render a second Reupload block when `preview.kind === 'proof'` — same hidden file input pattern as certificate, calling the correct service based on `preview.source`, then `qc.invalidateQueries` for `['public-grading-list']` or `['public-competition-list']`.
+### Thumb + preview dialog updates
+Extend the existing `Thumb` component and the shared `preview` dialog (already handles `certificate` and `proof`) to also handle `kind: 'photo'`:
 
-### 3. `src/components/grading-list/SeminarsTab.tsx`
-- Extend local `preview` state with optional `kind: 'proof'`, `submissionId`, `branchId`.
-- Change the proof `Thumb` at line 176 to set that state.
-- Add the same Reupload button + hidden input in the preview dialog header, calling `adminReplaceSeminarSubmissionProof(submissionId, file, branchId)`, then invalidate the seminar list query.
+- `Thumb`: when `kind === 'photo'` and no URL, render an upload button (mirrors the certificate empty-state) that opens a file picker; on select, uploads via a new `adminReplaceCompetitionSubmissionPhoto` helper.
+- `preview` dialog: when `preview.kind === 'photo'`, show a "Reupload" button that calls the same helper — identical UX to the certificate reupload block (lines ~2570–2609).
 
-## Out of scope
+### New service helper
+Add `adminReplaceCompetitionSubmissionPhoto(submissionId, file, branchId)` to `src/services/competitionPaymentSubmissionService.ts`, matching the existing `adminReplaceCompetitionSubmissionFile('proof', …)` pattern but writing to `photo_url` on the competition submission row and uploading to the `payment-proofs` bucket under `public-competition/{branchId}/{ts}_photo.{ext}`.
 
-- Guards purchase list (separate page `/guards-purchase-list`).
-- Any RLS / storage policy changes — the existing `payment-proofs` policies already allow the staff-side upload/update paths used by the current certificate reupload and initial submission flows.
-- No database migration.
+### Docs cell cleanup
+Remove the small photo icon inside the "Docs" cell (lines 2475–2479) and drop `photo_url` from the empty-state check on line 2480, since Photo now has its own column.
+
+### Out of scope
+- Grading tab (no photo column there today).
+- Seminars tab.
+- RLS / storage policy / migration changes (bucket + column already exist).
+- Bulk photo operations.
+
+### Technical notes
+- `Thumb` currently accepts `kind?: 'certificate' | 'grading-card' | 'proof'` (line 2193) — widen to include `'photo'`.
+- `preview` state (line 2027) already has `kind?: 'certificate' | 'proof'` — widen to include `'photo'` and reuse the existing dialog shell.
+- Invalidate `['public-competition-list']` after upload, same as the certificate flow.
