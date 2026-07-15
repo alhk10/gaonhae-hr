@@ -1,0 +1,2 @@
+ALTER TABLE public.grading_registrations DROP CONSTRAINT grading_registrations_result_check;
+ALTER TABLE public.grading_registrations ADD CONSTRAINT grading_registrations_result_check CHECK (result IS NULL OR result = ANY (ARRAY['pass','fail','conditional_pass','double']));
