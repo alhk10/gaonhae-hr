@@ -175,7 +175,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1 text-right">${Number(r.amount).toFixed(2)}</TableCell>
                   <TableCell className="px-2 py-1">
-                    <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                    <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} submissionId={r.submission_id} branchId={r.branch_id} />
                   </TableCell>
                   <TableCell className="px-2 py-1">
                     <div className="flex items-center gap-1">
