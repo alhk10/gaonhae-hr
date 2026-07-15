@@ -100,6 +100,8 @@ const isWithinResultWindow = (gradingDate: string | null | undefined): boolean =
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
 const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
 
+const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
+
 const statusVariant = (status: string) => {
   switch (status) {
     case 'paid':
@@ -2366,14 +2368,27 @@ const CompetitionsTab: React.FC<{
                   {r.grading_card_urls && r.grading_card_urls.length > 0 ? (
                     <button
                       type="button"
-                      title={`Grading card (${r.grading_card_urls.length}) — click to add more`}
+                      title={`Grading card file 1${r.grading_card_urls.length > 1 ? ` of ${r.grading_card_urls.length}` : ''} — click to manage`}
                       onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
-                      className="text-green-700 relative"
+                      className="relative block h-10 w-10 overflow-hidden rounded border bg-muted/30 hover:opacity-80"
                     >
-                      <IdCard className="h-4 w-4" />
-                      <span className="absolute -top-1 -right-1 text-[8px] leading-none bg-green-600 text-white rounded-full px-0.5">
-                        {r.grading_card_urls.length}
-                      </span>
+                      {isPdfUrl(r.grading_card_urls[0]) ? (
+                        <span className="flex h-full w-full items-center justify-center text-green-700">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                      ) : (
+                        <SignedImage
+                          src={r.grading_card_urls[0]}
+                          className="h-full w-full object-cover"
+                          alt={`${r.student_name} — Grading card file 1`}
+                          fallback={<span className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">…</span>}
+                        />
+                      )}
+                      {r.grading_card_urls.length > 1 && (
+                        <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1 text-[8px] leading-3 text-primary-foreground">
+                          {r.grading_card_urls.length}
+                        </span>
+                      )}
                     </button>
                   ) : (
                     <Thumb url={null} title={`${r.student_name} — Grading Card`} kind="grading-card" submissionId={r.submission_id} row={r} />
