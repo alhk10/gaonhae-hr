@@ -109,12 +109,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
-  const Thumb: React.FC<{ url: string | null; title: string }> = ({ url, title }) => {
+  const Thumb: React.FC<{ url: string | null; title: string; submissionId?: string; branchId?: string | null }> = ({ url, title, submissionId, branchId }) => {
     if (!url) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <button
         type="button"
-        onClick={() => { setPreview({ url, title }); setPreviewRotation(0); }}
+        onClick={() => { setPreview({ url, title, submissionId, branchId: branchId || undefined }); setPreviewRotation(0); }}
         className="block"
         title="Click to view"
       >
