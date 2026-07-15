@@ -2665,6 +2665,49 @@ const CompetitionsTab: React.FC<{
                   </Button>
                 </>
               )}
+              {preview?.kind === 'photo' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="comp-photo-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'photo',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success(preview.url ? 'Photo replaced' : 'Photo uploaded');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload photo');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('comp-photo-reupload-input')?.click()}
+                    title={preview.url ? 'Reupload photo' : 'Upload photo'}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : (preview.url ? 'Reupload' : 'Upload')}
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 variant="ghost"
