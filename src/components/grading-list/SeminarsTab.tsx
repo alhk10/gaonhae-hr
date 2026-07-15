@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw, Pencil } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload } from 'lucide-react';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,7 @@ import {
   getPublicSeminarList,
   rejectSeminarSubmission,
   verifySeminarSubmission,
+  adminReplaceSeminarSubmissionProof,
   type PublicSeminarListRow,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,8 +58,9 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; title: string; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
+  const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -107,12 +109,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
-  const Thumb: React.FC<{ url: string | null; title: string }> = ({ url, title }) => {
+  const Thumb: React.FC<{ url: string | null; title: string; submissionId?: string; branchId?: string | null }> = ({ url, title, submissionId, branchId }) => {
     if (!url) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <button
         type="button"
-        onClick={() => { setPreview({ url, title }); setPreviewRotation(0); }}
+        onClick={() => { setPreview({ url, title, submissionId, branchId: branchId || undefined }); setPreviewRotation(0); }}
         className="block"
         title="Click to view"
       >
@@ -173,7 +175,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1 text-right">${Number(r.amount).toFixed(2)}</TableCell>
                   <TableCell className="px-2 py-1">
-                    <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                    <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} submissionId={r.submission_id} branchId={r.branch_id} />
                   </TableCell>
                   <TableCell className="px-2 py-1">
                     <div className="flex items-center gap-1">
@@ -265,15 +267,59 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
         <DialogContent className="max-w-3xl">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="text-sm">{preview?.title}</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
-              title="Rotate 90°"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {preview?.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="seminar-proof-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceSeminarSubmissionProof(
+                          preview.submissionId,
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success('Payment proof replaced');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        invalidate();
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload payment proof');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('seminar-proof-reupload-input')?.click()}
+                    title="Reupload payment proof"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setPreviewRotation((r) => (r + 90) % 360)}
+                title="Rotate 90°"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
           {preview && (
             <div className="flex items-center justify-center overflow-hidden">

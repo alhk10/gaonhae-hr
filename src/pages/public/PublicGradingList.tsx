@@ -77,6 +77,7 @@ import {
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
   rejectGradingSubmission,
+  adminReplaceGradingSubmissionProof,
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
@@ -142,6 +143,8 @@ const PublicGradingList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxRotation, setLightboxRotation] = useState(0);
+  const [lightboxCtx, setLightboxCtx] = useState<{ submissionId: string; branchId: string } | null>(null);
+  const [lightboxReuploadBusy, setLightboxReuploadBusy] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -558,9 +561,13 @@ const PublicGradingList: React.FC = () => {
 
 
 
-  const openLightbox = async (storedUrl: string) => {
+  const openLightbox = async (
+    storedUrl: string,
+    ctx?: { submissionId: string; branchId: string },
+  ) => {
     const resolved = await resolveStorageUrl(storedUrl);
     setLightboxUrl(resolved || storedUrl);
+    setLightboxCtx(ctx || null);
   };
 
   const loadLogoDataUrl = (): Promise<{ dataUrl: string; w: number; h: number } | null> =>
@@ -1404,7 +1411,12 @@ const PublicGradingList: React.FC = () => {
                               {r.proof_url ? (
                                 <button
                                   type="button"
-                                  onClick={() => openLightbox(r.proof_url!)}
+                                  onClick={() => openLightbox(
+                                    r.proof_url!,
+                                    r.source === 'submission' && r.submission_id && r.branch_id
+                                      ? { submissionId: r.submission_id, branchId: r.branch_id }
+                                      : undefined,
+                                  )}
                                   className="block"
                                   title="Click to enlarge"
                                 >
@@ -1619,19 +1631,64 @@ const PublicGradingList: React.FC = () => {
       />
 
       {/* Proof lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); } }}>
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxRotation(0); setLightboxCtx(null); } }}>
         <DialogContent className="max-w-3xl p-2">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
             <DialogTitle className="sr-only">Payment proof</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
-              title="Rotate 90°"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1 ml-auto">
+              {lightboxCtx && (
+                <>
+                  <input
+                    id="grading-proof-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !lightboxCtx) return;
+                      setLightboxReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceGradingSubmissionProof(
+                          lightboxCtx.submissionId,
+                          file,
+                          lightboxCtx.branchId,
+                        );
+                        toast.success('Payment proof replaced');
+                        const resolved = await resolveStorageUrl(newUrl);
+                        setLightboxUrl(resolved || newUrl);
+                        setLightboxRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload payment proof');
+                      } finally {
+                        setLightboxReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={lightboxReuploadBusy}
+                    onClick={() => document.getElementById('grading-proof-reupload-input')?.click()}
+                    title="Reupload payment proof"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {lightboxReuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+                title="Rotate 90°"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
           {lightboxUrl && (
             <div className="flex items-center justify-center overflow-hidden">
@@ -1645,6 +1702,7 @@ const PublicGradingList: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
 
       {/* Reject dialog */}
       <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>
@@ -1966,7 +2024,7 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
-  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate'; submissionId?: string; branchId?: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
 
@@ -2132,7 +2190,7 @@ const CompetitionsTab: React.FC<{
   const Thumb: React.FC<{
     url: string | null;
     title: string;
-    kind?: 'certificate' | 'grading-card';
+    kind?: 'certificate' | 'grading-card' | 'proof';
     submissionId?: string;
     branchId?: string;
     row?: PublicCompetitionListRow;
@@ -2167,7 +2225,7 @@ const CompetitionsTab: React.FC<{
     return (
       <button
         type="button"
-        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : undefined, submissionId, branchId })}
+        onClick={() => setPreview({ url, title, kind: kind === 'certificate' ? 'certificate' : kind === 'proof' ? 'proof' : undefined, submissionId, branchId })}
         className="block"
         title="Click to view"
       >
@@ -2395,7 +2453,7 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} />
+                  <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} kind="proof" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
                   <div className="flex items-center gap-1">
@@ -2551,6 +2609,49 @@ const CompetitionsTab: React.FC<{
                     {reuploadBusy ? 'Uploading…' : (preview.url ? 'Reupload' : 'Upload')}
                   </Button>
 
+                </>
+              )}
+              {preview?.kind === 'proof' && preview.submissionId && preview.branchId && (
+                <>
+                  <input
+                    id="comp-proof-reupload-input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !preview?.submissionId || !preview?.branchId) return;
+                      setReuploadBusy(true);
+                      try {
+                        const newUrl = await adminReplaceCompetitionSubmissionFile(
+                          preview.submissionId,
+                          'proof',
+                          file,
+                          preview.branchId,
+                        );
+                        toast.success('Payment proof replaced');
+                        setPreview((p) => (p ? { ...p, url: newUrl } : p));
+                        setPreviewRotation(0);
+                        qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to reupload payment proof');
+                      } finally {
+                        setReuploadBusy(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={reuploadBusy}
+                    onClick={() => document.getElementById('comp-proof-reupload-input')?.click()}
+                    title="Reupload payment proof"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {reuploadBusy ? 'Uploading…' : 'Reupload'}
+                  </Button>
                 </>
               )}
               <Button
