@@ -143,6 +143,8 @@ const PublicGradingList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxRotation, setLightboxRotation] = useState(0);
+  const [lightboxCtx, setLightboxCtx] = useState<{ submissionId: string; branchId: string } | null>(null);
+  const [lightboxReuploadBusy, setLightboxReuploadBusy] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
