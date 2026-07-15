@@ -2466,6 +2466,9 @@ const CompetitionsTab: React.FC<{
                   )}
                 </TableCell>
                 <TableCell className="px-2 py-1">
+                  <Thumb url={r.photo_url} title={`${r.student_name} — Photo`} kind="photo" submissionId={r.submission_id} branchId={r.branch_id} />
+                </TableCell>
+                <TableCell className="px-2 py-1">
                   <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} kind="proof" submissionId={r.submission_id} branchId={r.branch_id} />
                 </TableCell>
                 <TableCell className="px-2 py-1">
@@ -2485,12 +2488,7 @@ const CompetitionsTab: React.FC<{
                         <IdCard className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    {r.photo_url ? (
-                      <button type="button" title="Photo" onClick={() => setPreview({ url: r.photo_url!, title: `${r.student_name} — Photo` })} className="text-green-700">
-                        <ImageIcon className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && !r.photo_url && (
+                    {!r.signature_url && !r.indemnity_form_url && !r.passport_url && (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </div>
