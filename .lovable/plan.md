@@ -1,33 +1,27 @@
-## Problem
+## Status
 
-Saving Yumi's scorecard fails with:
-`new row for relation "grading_registrations" violates check constraint "grading_registrations_result_check"`
+The `grading_registrations_result_check` constraint has already been updated in the database to accept `'double'`. Emily's scores (avg 8.0 → `'double'`) will save once the browser has the latest DB state.
 
-Yumi's scores (8.0 average) cause `computeAutoResult` to return `'double'`, but the database check constraint only allows `'pass' | 'fail' | 'conditional_pass'`. So every auto-save that lands in the `double` band is rejected — that's why her row (and any other high-scorer) can't be saved.
+**Action for you:** hard-refresh the tab (Ctrl+Shift+R). The error toast in the screenshot was almost certainly from a request fired before the migration finished.
 
-Current constraint:
-```
-CHECK (result = ANY (ARRAY['pass','fail','conditional_pass']))
-```
+## Additional preventive fix
 
-App code (`src/constants/scorecardLabels.ts`) returns: `'pass' | 'double' | 'fail' | null` and the UI already renders a `double` badge.
+While auditing I found a sibling constraint that will bite the same way if we ever start writing grading history rows: `student_grading_history_result_check` still only allows `pass | fail | conditional_pass`. Nothing writes to it automatically today, but manual writes / future features would break.
 
-## Fix
-
-Single migration that drops and recreates the check constraint to include `'double'`:
+Migration:
 
 ```sql
-ALTER TABLE public.grading_registrations
-  DROP CONSTRAINT grading_registrations_result_check;
+ALTER TABLE public.student_grading_history
+  DROP CONSTRAINT student_grading_history_result_check;
 
-ALTER TABLE public.grading_registrations
-  ADD CONSTRAINT grading_registrations_result_check
+ALTER TABLE public.student_grading_history
+  ADD CONSTRAINT student_grading_history_result_check
   CHECK (result IS NULL OR result = ANY (ARRAY['pass','fail','conditional_pass','double']));
 ```
 
-No code changes needed — the frontend already handles `double`.
+No code changes.
 
 ## Out of scope
 
-- Changing scoring band thresholds
-- Any other grading tab behaviour
+- Any UI changes
+- Scoring band thresholds
