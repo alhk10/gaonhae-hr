@@ -1209,6 +1209,7 @@ export type Database = {
           poomsae_2: string | null
           proof_url: string
           reference_number: string
+          registered: boolean
           reporting_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1250,6 +1251,7 @@ export type Database = {
           poomsae_2?: string | null
           proof_url: string
           reference_number?: string
+          registered?: boolean
           reporting_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1291,6 +1293,7 @@ export type Database = {
           poomsae_2?: string | null
           proof_url?: string
           reference_number?: string
+          registered?: boolean
           reporting_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -8191,6 +8194,7 @@ export type Database = {
           poomsae_2: string
           proof_url: string
           reference_number: string
+          registered: boolean
           reporting_at: string
           require_grading_card: boolean
           signature_url: string
