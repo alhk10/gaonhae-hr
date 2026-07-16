@@ -2034,6 +2034,16 @@ const CompetitionsTab: React.FC<{
   const [busy, setBusy] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
+  const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
+
+  const registeredMutation = useMutation({
+    mutationFn: ({ id, registered }: { id: string; registered: boolean }) =>
+      setCompetitionRegistered(id, registered),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update registered'),
+  });
 
   const gradingCardRequiredAndMissing = (r: PublicCompetitionListRow): boolean => {
     return r.require_grading_card === true
