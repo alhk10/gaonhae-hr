@@ -2300,6 +2300,25 @@ const CompetitionsTab: React.FC<{
     generateCompetitionPrintPDF({ rows: printRows, eventName, branchName: branchLabel });
   };
 
+  const handlePrintReport = () => {
+    const eventName =
+      eventFilter && eventFilter !== 'all'
+        ? sortedEvents.find((e: any) => e.id === eventFilter)?.name || 'All events'
+        : 'All events';
+    const reportRows = (rows as PublicCompetitionListRow[])
+      .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+      .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
+      .map((r) => ({
+        branch_name: r.branch_name,
+        student_name: r.student_name,
+        amount: r.amount,
+        paid: r.paid_status === 'paid',
+      }));
+    generateCompetitionPaymentReportPDF({ rows: reportRows, eventName });
+  };
+
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
