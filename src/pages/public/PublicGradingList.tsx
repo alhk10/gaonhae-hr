@@ -2544,6 +2544,18 @@ const CompetitionsTab: React.FC<{
                     )}
                   </div>
                 </TableCell>
+                {canDelete && (
+                  <TableCell className="px-2 py-1">
+                    {idx === 0 ? (
+                      <Checkbox
+                        checked={!!r.registered}
+                        onCheckedChange={(v) =>
+                          registeredMutation.mutate({ id: r.submission_id, registered: !!v })
+                        }
+                      />
+                    ) : null}
+                  </TableCell>
+                )}
                 <TableCell className="px-2 py-1">
                   <div className="flex items-center gap-1">
                     {canEdit && (
