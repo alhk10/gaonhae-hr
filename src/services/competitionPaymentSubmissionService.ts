@@ -44,7 +44,16 @@ export interface PublicCompetitionListRow {
   require_grading_card: boolean;
   grading_card_urls: string[];
   date_of_birth: string | null;
+  registered: boolean;
 }
+
+export const setCompetitionRegistered = async (id: string, registered: boolean) => {
+  const { error } = await supabase
+    .from('competition_payment_submissions' as any)
+    .update({ registered } as any)
+    .eq('id', id);
+  if (error) throw error;
+};
 
 export interface CompetitionExtraLine {
   label: string;

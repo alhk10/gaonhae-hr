@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
-import { generateCompetitionPrintPDF } from '@/utils/competitionPrintPDFGenerator';
+import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -37,6 +37,7 @@ import {
   verifyCompetitionSubmission,
   rejectCompetitionSubmission,
   adminReplaceCompetitionSubmissionFile,
+  setCompetitionRegistered,
   type PublicCompetitionListRow,
 
 
@@ -2033,6 +2034,16 @@ const CompetitionsTab: React.FC<{
   const [busy, setBusy] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
+  const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
+
+  const registeredMutation = useMutation({
+    mutationFn: ({ id, registered }: { id: string; registered: boolean }) =>
+      setCompetitionRegistered(id, registered),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public-competition-list'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to update registered'),
+  });
 
   const gradingCardRequiredAndMissing = (r: PublicCompetitionListRow): boolean => {
     return r.require_grading_card === true
@@ -2262,6 +2273,7 @@ const CompetitionsTab: React.FC<{
     const printRows = [...(rows as PublicCompetitionListRow[])]
       .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
       .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
       .sort((a, b) => {
         const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
         const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
@@ -2287,6 +2299,25 @@ const CompetitionsTab: React.FC<{
       });
     generateCompetitionPrintPDF({ rows: printRows, eventName, branchName: branchLabel });
   };
+
+  const handlePrintReport = () => {
+    const eventName =
+      eventFilter && eventFilter !== 'all'
+        ? sortedEvents.find((e: any) => e.id === eventFilter)?.name || 'All events'
+        : 'All events';
+    const reportRows = (rows as PublicCompetitionListRow[])
+      .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+      .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
+      .map((r) => ({
+        branch_name: r.branch_name,
+        student_name: r.student_name,
+        amount: r.amount,
+        paid: r.paid_status === 'paid',
+      }));
+    generateCompetitionPaymentReportPDF({ rows: reportRows, eventName });
+  };
+
 
   return (
     <div className="space-y-2">
@@ -2317,11 +2348,28 @@ const CompetitionsTab: React.FC<{
               ))}
             </SelectContent>
           </Select>
+          {canDelete && (
+            <Select value={registeredFilter} onValueChange={(v) => setRegisteredFilter(v as any)}>
+              <SelectTrigger className="h-8 text-xs w-[150px]">
+                <SelectValue placeholder="Registered" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All (registered)</SelectItem>
+                <SelectItem value="yes" className="text-xs">Registered</SelectItem>
+                <SelectItem value="no" className="text-xs">Not registered</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handlePrintPdf} disabled={rows.length === 0}>
             <Printer className="h-3.5 w-3.5 mr-1" /> Print
           </Button>
+          {canDelete && (
+            <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={rows.length === 0}>
+              <Printer className="h-3.5 w-3.5 mr-1" /> Print Report
+            </Button>
+          )}
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
               <Settings className="h-3.5 w-3.5 mr-1" /> Events
@@ -2329,6 +2377,7 @@ const CompetitionsTab: React.FC<{
           )}
         </div>
       </div>
+
 
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="overflow-x-auto">
@@ -2352,6 +2401,7 @@ const CompetitionsTab: React.FC<{
               <TableHead className="h-7 px-2 text-[11px]">Photo</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Docs</TableHead>
+              {canDelete && <TableHead className="h-7 px-2 text-[11px]">Registered</TableHead>}
               <TableHead className="h-7 px-2 text-[11px]">Actions</TableHead>
               {canDelete && <TableHead className="h-7 px-2 text-[11px] w-8" />}
             </TableRow>
@@ -2360,6 +2410,7 @@ const CompetitionsTab: React.FC<{
             {[...(rows as PublicCompetitionListRow[])]
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+              .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
               .sort((a, b) => {
                 const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
                 const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
@@ -2493,6 +2544,18 @@ const CompetitionsTab: React.FC<{
                     )}
                   </div>
                 </TableCell>
+                {canDelete && (
+                  <TableCell className="px-2 py-1">
+                    {idx === 0 ? (
+                      <Checkbox
+                        checked={!!r.registered}
+                        onCheckedChange={(v) =>
+                          registeredMutation.mutate({ id: r.submission_id, registered: !!v })
+                        }
+                      />
+                    ) : null}
+                  </TableCell>
+                )}
                 <TableCell className="px-2 py-1">
                   <div className="flex items-center gap-1">
                     {canEdit && (
