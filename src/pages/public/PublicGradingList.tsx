@@ -2409,6 +2409,7 @@ const CompetitionsTab: React.FC<{
             {[...(rows as PublicCompetitionListRow[])]
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+              .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
               .sort((a, b) => {
                 const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
                 const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
