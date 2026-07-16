@@ -2328,11 +2328,28 @@ const CompetitionsTab: React.FC<{
               ))}
             </SelectContent>
           </Select>
+          {canDelete && (
+            <Select value={registeredFilter} onValueChange={(v) => setRegisteredFilter(v as any)}>
+              <SelectTrigger className="h-8 text-xs w-[150px]">
+                <SelectValue placeholder="Registered" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All (registered)</SelectItem>
+                <SelectItem value="yes" className="text-xs">Registered</SelectItem>
+                <SelectItem value="no" className="text-xs">Not registered</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handlePrintPdf} disabled={rows.length === 0}>
             <Printer className="h-3.5 w-3.5 mr-1" /> Print
           </Button>
+          {canDelete && (
+            <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={rows.length === 0}>
+              <Printer className="h-3.5 w-3.5 mr-1" /> Print Report
+            </Button>
+          )}
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
               <Settings className="h-3.5 w-3.5 mr-1" /> Events
@@ -2340,6 +2357,7 @@ const CompetitionsTab: React.FC<{
           )}
         </div>
       </div>
+
 
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="overflow-x-auto">
