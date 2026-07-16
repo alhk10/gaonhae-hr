@@ -37,6 +37,7 @@ import {
   verifyCompetitionSubmission,
   rejectCompetitionSubmission,
   adminReplaceCompetitionSubmissionFile,
+  setCompetitionRegistered,
   type PublicCompetitionListRow,
 
 
