@@ -1,25 +1,26 @@
 ## Goal
 
-Change two public URLs:
-- `/grading-list` (admin list page) → `/access`
-- `/pay` (public grading payment form) → `/grading`
+On the Summary tab of `/access`, make each non-zero count clickable: clicking jumps to the matching tab with that branch pre-selected in its branch filter.
 
-## Changes
+## How it works
 
-**src/App.tsx**
-- `<Route path="/pay" .../>` becomes `<Route path="/grading" element={<PublicGradingPayment />} />`
-- `<Route path="/grading-list" .../>` becomes `<Route path="/access" element={<PublicGradingList />} />`
-- Add backwards-compatible redirects so existing links/QR codes keep working:
-  - `/pay` → redirect to `/grading`
-  - `/grading-list` → redirect to `/access`
-- Update the existing `/guardspurchase-list` redirect to point at `/access`.
+**src/pages/public/PublicGradingList.tsx**
+- Convert the `Tabs` from `defaultValue="summary"` to a controlled `value`/`onValueChange` pair backed by new state `activeTab`.
+- Add a handler `handleSummaryDrill(tab, branchName)` that sets `activeTab` and the shared `branchFilter` state (branch name), then passes the branch through to whichever tab needs its own local filter.
+- Pass `onDrill={handleSummaryDrill}` into `<SummaryTab />`.
 
-**src/pages/public/PublicHelloChat.tsx**
-- `navigate('/grading-list')` → `navigate('/access')`
+**src/components/grading-list/SummaryTab.tsx**
+- Accept an optional `onDrill?: (tab: 'school-fees'|'grading'|'competitions'|'seminars'|'guards', branch: string) => void`.
+- Render each non-zero cell value in the "Pending approvals by branch" table as a button-styled link (underline on hover, `text-primary`, `cursor-pointer`) that calls `onDrill` with the column's tab key and the row's branch name. Zero cells stay as the plain `–`.
+- Same treatment for the "Uncollected guards by branch" rows: the count and the branch row drill into the Guards tab filtered to that branch.
+- Total row and grand-total cells stay non-clickable (no single branch).
 
-**Comment/doc references** (no behaviour change): update the "Mounted at /pay" / "/grading-list" header comments in `PublicGradingPayment.tsx`, `PublicGradingList.tsx`, `PublicCompetitionPayment.tsx`, `PublicSeminarPayment.tsx`, `PublicGuardsPurchase.tsx`, and the affected service/dialog files.
+**Per-tab branch filter wiring**
+- School Fees and Seminars already receive the shared `branchFilter` (branch name) — no change needed.
+- Competitions tab uses its own `localBranchFilter`; add an optional `initialBranchFilter` prop and sync it into `localBranchFilter` via an effect keyed on the prop so drilling applies it.
+- Guards list (`PublicGuardsPurchaseList`) filters by branch **id**, not name; add an optional `initialBranchName` prop, resolve it to the branch id via the existing `branches` list, and apply it to its internal `branchFilter` when it changes.
 
 ## Notes
 
-- Component file names and the `src/components/grading-list/` folder stay as-is; only URLs change.
-- No database or edge function changes needed — no server-side code references these paths.
+- No database or service changes; all frontend state wiring.
+- Clicking the same cell again re-applies the same filter (idempotent).
