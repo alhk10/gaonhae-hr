@@ -599,6 +599,18 @@ const PublicSeminarPayment: React.FC = () => {
 
                   {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
+                      {selectedPackages.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span>{selectedPackages.length} packages</span>
+                          <span>${combined.gross_amount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {discountAmount > 0 && (
+                        <div className="flex items-center justify-between text-green-700">
+                          <span>Multi-package discount</span>
+                          <span>-${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       {gstRate > 0 ? (
                         <>
                           <div className="flex items-center justify-between">
