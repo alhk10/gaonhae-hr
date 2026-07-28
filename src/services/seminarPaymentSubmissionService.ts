@@ -345,10 +345,12 @@ export const submitSeminarPayment = async (
 export const getPublicSeminarList = async (
   branchId?: string | null,
   status?: 'paid' | 'pending' | 'rejected' | null,
+  eventId?: string | null,
 ): Promise<PublicSeminarListRow[]> => {
   const { data, error } = await supabase.rpc('get_public_seminar_list' as any, {
     p_branch_id: branchId ?? null,
     p_status: status ?? null,
+    p_event_id: eventId ?? null,
   });
   if (error) throw error;
   return (data || []) as PublicSeminarListRow[];
