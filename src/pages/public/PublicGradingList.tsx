@@ -2025,9 +2025,16 @@ const CompetitionsTab: React.FC<{
 
   const [eventFilter, setEventFilter] = useState<string>('');
   const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
+  const [paidFilter, setPaidFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  // Filters coming from the Summary tab drill-through
   useEffect(() => {
     setLocalBranchFilter(branchFilter || 'all');
-  }, [branchFilter]);
+    if (drillPendingOnly) {
+      setPaidFilter('pending');
+      setEventFilter('all');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchFilter, drillNonce, drillPendingOnly]);
   useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);
