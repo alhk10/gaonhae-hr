@@ -1,70 +1,31 @@
 ## Goal
 
-Make seminars work like competitions: multiple seminar events, an "Events" settings button, and event/branch filters on the `/grading-list` Seminars tab. The public `/seminars` booking page reads events and their packages from the database instead of the hard-coded June 2026 options.
+Make the public `/seminars` page look and behave exactly like `/comps`, driven by the seminar events that admins configure in the Seminars tab settings on `/grading-list`.
 
-## Current state (verified)
+## Current gap
 
-- `seminar_payment_submissions` has no `event_id`; the package is stored as free text (`package_code`, `package_label`, `session_dates[]`, `amount`).
-- Seminar packages are hard-coded in `src/services/seminarPaymentSubmissionService.ts` as `SEMINAR_OPTIONS` (13 Jun / 20 Jun / combo, Bukit Merah).
-- `SeminarsTab.tsx` has only a status filter; branch filter is passed in from the page. No event concept, no settings button.
-- Competitions already have `competition_events` (name, is_active, display_order, indemnity clause/template, require_passport / require_photo / require_grading_card, coaching item, extra_lines jsonb) plus `CompetitionEventsSettingsDialog.tsx` and an event filter in `CompetitionsTab` inside `PublicGradingList.tsx`.
+`/seminars` already reads events and packages from the database, but the layout is still the old single-seminar form: hard-coded title, event picker buried mid-form, plain file inputs, no pre-submission document checklist, no GST breakdown.
 
-## Plan
+## Changes (all in `src/pages/public/PublicSeminarPayment.tsx`)
 
-### 1. Database
+1. **Header** — replace the hard-coded "Unarmed Combat Seminar / Bukit Merah Branch · June 2026" with "Seminar Registration" plus the selected event name as the subtitle. Card title becomes "Registration Details".
 
-New table `seminar_events`, mirroring `competition_events` but with a `packages` jsonb list instead of coaching/extra lines:
+2. **Event-first form** — move the Seminar (event) select to the top of the form, exactly like the Event field on `/comps`. Everything below stays hidden until an event is chosen, with the same "No active seminars. Please contact the academy." message when nothing is open. Auto-select when only one active event exists.
 
-- `name`, `is_active`, `display_order`
-- `packages` jsonb: array of `{ code, label, amount, session_dates[] }`
-- `indemnity_clause`, `indemnity_template_url`, `indemnity_template_name`
-- `require_passport`, `require_photo`, `require_grading_card`
-- `created_at`, `updated_at` with update trigger
-- Grants: `select` to `anon` and `authenticated` (public booking page reads it), full to `service_role`; RLS with public read of active events and admin write via the existing security-definer pattern used by competitions.
+3. **Document checklist alert** — mirror the `/comps` "Before you submit — documents required" panel: numbered list built from the event's passport / photo / grading-card / indemnity requirements, a "Download Indemnity Form (PDF)" button when a template is attached, and the "Accepted formats: PDF, JPG, PNG (max 5 MB each)" note.
 
-Add `event_id uuid references seminar_events(id)` to `seminar_payment_submissions` (nullable).
+4. **Field order and components** — same sequence as `/comps`: First/Last name, Email, Branch, Date of Birth, Gender, Current Belt (age-filtered like `/comps`), then packages, then uploads. All uploads switch from raw file inputs to the shared `ProofOfPaymentUpload` component (photo, passport, grading card, signed indemnity form, payment proof) so previews, size checks, and PDF rules match.
 
-Backfill: create the event "Unarmed Combat Seminar (Jun 2026)" carrying the three existing packages, and set `event_id` on all existing submission rows to it.
+5. **Packages block** — keep the radio list of the event's packages, styled like the competition Categories block, showing each package label, session dates, and price.
 
-Security-definer RPCs mirroring the competition ones (the grading list runs anonymously, so direct table writes are blocked by RLS):
+6. **Indemnity clause and signature** — same layout as `/comps`: scrollable clause box, agreement checkbox, signature pad, all required only when the event defines a clause.
 
-- `get_public_seminar_events()`
-- `admin_upsert_seminar_event(...)`, `admin_delete_seminar_event(p_id)`, `admin_set_seminar_event_active(p_id, p_active)`
+7. **Totals** — add the same GST-aware summary as `/comps` (subtotal excl. GST, GST at the branch country rate, total incl. GST; single Total line for non-GST countries), and show the amount on the submit button.
 
-Update `submit_seminar_payment` to accept and store `event_id`, and `get_public_seminar_list` to accept `p_event_id` and return `event_id` / `event_name`.
-
-### 2. Service layer — `src/services/seminarPaymentSubmissionService.ts`
-
-- Add `SeminarEvent` / `SeminarPackage` types and CRUD helpers wrapping the new RPCs.
-- Add `uploadSeminarIndemnityTemplate` (same bucket/pattern as the competition template upload).
-- Extend `getPublicSeminarList(branchId, status, eventId)` and the row type with `event_id` / `event_name`.
-- `SubmitSeminarPaymentInput` gains `event_id`; keep `SEMINAR_OPTIONS` only as a fallback until the backfill event exists, then remove it.
-
-### 3. Settings dialog — new `src/components/grading-list/SeminarEventsSettingsDialog.tsx`
-
-Copy of `CompetitionEventsSettingsDialog` structure: left column lists events with active toggle, edit and delete; right column is the form with
-
-- name, active switch, display order
-- packages editor (add/remove rows: label, amount, session dates — dates entered as a repeatable date list, displayed DD/MM/YYYY)
-- indemnity clause textarea + template upload/download/remove
-- requirement checkboxes: passport, photo, grading card
-
-### 4. Seminars tab — `src/components/grading-list/SeminarsTab.tsx`
-
-- Add an event `Select` (defaults to the newest active event, plus an "All events" option), keeping the existing status filter and the branch filter passed from the page.
-- Add an "Events" settings button (same gating as competitions — visible with the admin password unlock flag already used on the page) that opens the new dialog.
-- Add an "Event" column to the table; query key and fetch include `eventFilter`.
-
-### 5. Public page — `src/pages/public/PublicSeminarPayment.tsx`
-
-- Fetch active seminar events; if more than one, show an event picker, otherwise auto-select the single active event.
-- Package radio/select is built from the selected event's `packages`; amount and session dates come from the chosen package.
-- Honour the event's requirement toggles (passport / photo / grading card uploads) and render the indemnity clause + signature and template download when present, matching `/comps`.
-- Submit with `event_id`.
+8. **Success screen** — mirror the competition confirmation card and reset every field (including event, package, and all uploads) on "Submit Another Registration".
 
 ## Technical notes
 
-- All writes from `/grading-list` go through security-definer RPCs — that page is anonymous, so direct `update`/`insert` on the tables silently fails under RLS (same issue previously hit with grading cards).
-- Dates render through `@/utils/dateFormat` helpers (DD/MM/YYYY); no native date inputs.
-- Uploads reuse the `payment-proofs` bucket paths already used by seminars/competitions.
-- Existing submissions keep working: `event_id` is nullable and the list still returns rows under "All events" even if unlinked.
+- No database or service changes needed: `getPublicSeminarEvents`, `submitSeminarPayment` (event_id, passport, photo, grading card, indemnity, signature) and the Seminars tab settings dialog already support all of this.
+- Age-based belt filtering and the GST rate helper are copied from `PublicCompetitionPayment.tsx`; shared helpers (`DobPicker`, `calcAge`) already exist in both files.
+- Validation follows the event flags: a required document blocks submission only when the selected event asks for it.
