@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -30,8 +30,11 @@ import {
   rejectSchoolFeesSubmission,
   getSchoolFeesDeleteContext,
   deleteSchoolFeesSubmission,
+  getSchoolFeesStudentMatches,
+  matchSchoolFeesSubmission,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
+
 
 interface Props {
   branchFilter: string;
@@ -88,6 +91,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
+  const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -103,13 +107,28 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     staleTime: 0,
   });
 
+  const { data: matches = [], isLoading: matchesLoading } = useQuery({
+    queryKey: ['school-fees-student-matches', matchRow?.id],
+    queryFn: () => getSchoolFeesStudentMatches(matchRow!.id),
+    enabled: !!matchRow,
+    staleTime: 0,
+  });
+
+
   const filtered = useMemo(() => {
     let res = rows as SchoolFeesRow[];
     if (branchFilter !== 'all') res = res.filter((r) => (r.branch_name || '—') === branchFilter);
     const q = search.trim().toLowerCase();
-    if (q) res = res.filter((r) => (r.student_name || '').toLowerCase().includes(q));
+    if (q) {
+      res = res.filter((r) =>
+        `${r.student_name || ''} ${r.contact_name || ''} ${r.contact_email || ''} ${r.reference_number || ''}`
+          .toLowerCase()
+          .includes(q),
+      );
+    }
     return res;
   }, [rows, branchFilter, search]);
+
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['school-fees-list'] });
@@ -159,7 +178,24 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     }
   };
 
+  const handleMatch = async (studentId: string) => {
+    if (!matchRow) return;
+    setBusy(true);
+    try {
+      await matchSchoolFeesSubmission(matchRow.id, studentId, actor);
+      toast.success('Student linked and invoice created');
+      setMatchRow(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not link student');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const isPdf = (url?: string | null) => !!url && url.toLowerCase().includes('.pdf');
+
+
 
   return (
     <div className="space-y-3">
@@ -213,7 +249,23 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
               {filtered.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                  <TableCell className="text-xs font-medium">{row.student_name || '—'}</TableCell>
+                  <TableCell className="text-xs font-medium">
+                    <div>{row.student_name || row.contact_name || '—'}</div>
+                    {!row.student_id && (
+                      <div className="space-y-0.5">
+                        <Badge variant="outline" className="text-[10px] bg-orange-100 text-orange-800 border-orange-200">
+                          Unmatched
+                        </Badge>
+                        {row.contact_email && (
+                          <div className="text-[10px] text-muted-foreground break-all">{row.contact_email}</div>
+                        )}
+                        {row.contact_dob && (
+                          <div className="text-[10px] text-muted-foreground">DOB {row.contact_dob}</div>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+
                   <TableCell className="text-xs">{row.branch_name || '—'}</TableCell>
                   <TableCell className="text-xs max-w-[220px]">
                     <span className="line-clamp-2 break-words">{itemsSummary(row) || '—'}</span>
@@ -254,6 +306,19 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   {(canEdit || canDelete) && (
                     <TableCell className="text-right whitespace-nowrap">
+                      {canEdit && !row.student_id && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-blue-600"
+                          title="Link to student"
+                          disabled={busy}
+                          onClick={() => setMatchRow(row)}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      )}
+
                       {canEdit && row.status !== 'verified' && (
                         <Button
                           size="icon"
@@ -394,7 +459,53 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Match to student */}
+      <Dialog open={!!matchRow} onOpenChange={(o) => !o && setMatchRow(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">Link payment to a student</DialogTitle>
+            <DialogDescription className="text-xs">
+              {matchRow?.contact_name || '—'}
+              {matchRow?.contact_email ? ` · ${matchRow.contact_email}` : ''}
+              {matchRow?.contact_dob ? ` · DOB ${matchRow.contact_dob}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {matchesLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" /> Finding matches…
+            </div>
+          ) : matches.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-6 text-center">
+              No likely student matches found.
+            </p>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto divide-y">
+              {matches.map((m) => (
+                <div key={m.student_id} className="flex items-center gap-2 py-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium truncate">{m.full_name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {[m.student_number, m.email, m.branch_id, m.current_belt].filter(Boolean).join(' · ')}
+                    </div>
+                    {m.reason && <div className="text-[10px] text-blue-700">{m.reason}</div>}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={busy}
+                    onClick={() => handleMatch(m.student_id)}
+                  >
+                    Link
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 };
 

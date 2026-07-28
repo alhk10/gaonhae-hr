@@ -80,6 +80,7 @@ const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
 // Public grading payment module
 const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
+const PublicSchoolFeesPayment = lazy(() => import('./pages/public/PublicSchoolFeesPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
 const PublicCompetitionPayment = lazy(() => import('./pages/public/PublicCompetitionPayment'));
 const PublicSeminarPayment = lazy(() => import('./pages/public/PublicSeminarPayment'));
@@ -156,6 +157,7 @@ function App() {
                     <Route path="/register" element={<StudentRegistration />} />
                     <Route path="/grading" element={<PublicGradingPayment />} />
                     <Route path="/pay" element={<Navigate to="/grading" replace />} />
+                    <Route path="/fees" element={<PublicSchoolFeesPayment />} />
                     <Route path="/comps" element={<PublicCompetitionPayment />} />
                     <Route path="/seminars" element={<PublicSeminarPayment />} />
                     <Route path="/access" element={<PublicGradingList />} />
