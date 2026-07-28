@@ -178,7 +178,24 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     }
   };
 
+  const handleMatch = async (studentId: string) => {
+    if (!matchRow) return;
+    setBusy(true);
+    try {
+      await matchSchoolFeesSubmission(matchRow.id, studentId, actor);
+      toast.success('Student linked and invoice created');
+      setMatchRow(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not link student');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const isPdf = (url?: string | null) => !!url && url.toLowerCase().includes('.pdf');
+
+
 
   return (
     <div className="space-y-3">
