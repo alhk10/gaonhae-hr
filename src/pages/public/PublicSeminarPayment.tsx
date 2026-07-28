@@ -476,7 +476,7 @@ const PublicSeminarPayment: React.FC = () => {
                     <Checkbox checked={indemnityAccepted} onCheckedChange={(v) => setIndemnityAccepted(!!v)} />
                     <span>I have read and agree to the declaration above.</span>
                   </label>
-                  <SignaturePad onChange={setSignatureDataUrl} />
+                  <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
                 </div>
               )}
 
