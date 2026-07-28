@@ -254,7 +254,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
                   {uncollected.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
-                      <td className="py-2 px-2 text-right">{r.count}</td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.count} branch={r.branch} tab="guards" onDrill={onDrill} /></td>
                       <td className="py-2 pl-2 text-right">{money(r.amount)}</td>
                     </tr>
                   ))}
