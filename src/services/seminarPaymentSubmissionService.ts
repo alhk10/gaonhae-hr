@@ -25,7 +25,33 @@ export interface SeminarEvent {
   require_passport: boolean;
   require_photo: boolean;
   require_grading_card: boolean;
+  multi_package_discount: boolean;
 }
+
+/**
+ * Multi-package discount ladder: 1 → $0, 2 → $10, 3 → $20, 4 → $30, +$10 per extra.
+ * Shared by /seminars and the admin edit dialog so the two never drift.
+ */
+export const seminarMultiPackageDiscount = (count: number): number =>
+  Math.max(0, (Math.max(0, count) - 1) * 10);
+
+/** Combines several selected packages into the single stored submission shape. */
+export const combineSeminarPackages = (
+  packages: SeminarPackageOption[],
+  applyDiscount: boolean,
+) => {
+  const gross = packages.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const discount = applyDiscount ? Math.min(gross, seminarMultiPackageDiscount(packages.length)) : 0;
+  const dates = Array.from(new Set(packages.flatMap(p => p.session_dates || []))).sort();
+  return {
+    package_code: packages.map(p => p.code).join(','),
+    package_label: packages.map(p => p.label).join(' + '),
+    session_dates: dates,
+    gross_amount: gross,
+    discount_amount: discount,
+    amount: Math.max(0, gross - discount),
+  };
+};
 
 export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
   const { data, error } = await supabase.rpc('get_public_seminar_events' as any);
