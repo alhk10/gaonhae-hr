@@ -270,11 +270,15 @@ const PublicSeminarPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setDob(undefined); setGender(''); setCurrentBelt('');
-                  setPackageCode(''); setProofFile(null);
+                  setEventId(''); setPackageCode('');
+                  setProofFile(null); setPassportFile(null); setPhotoFile(null);
+                  setGradingCardFile(null); setIndemnityFormFile(null);
+                  setSignatureDataUrl(null); setIndemnityAccepted(false);
+                  setSubmitError(null);
                 }}
                 className="w-full"
               >
-                Submit Another Booking
+                Submit Another Registration
               </Button>
             </CardContent>
           </Card>
