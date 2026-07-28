@@ -4848,6 +4848,54 @@ export type Database = {
         }
         Relationships: []
       }
+      seminar_events: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          indemnity_clause: string | null
+          indemnity_template_name: string | null
+          indemnity_template_url: string | null
+          is_active: boolean
+          name: string
+          packages: Json
+          require_grading_card: boolean
+          require_passport: boolean
+          require_photo: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          indemnity_clause?: string | null
+          indemnity_template_name?: string | null
+          indemnity_template_url?: string | null
+          is_active?: boolean
+          name: string
+          packages?: Json
+          require_grading_card?: boolean
+          require_passport?: boolean
+          require_photo?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          indemnity_clause?: string | null
+          indemnity_template_name?: string | null
+          indemnity_template_url?: string | null
+          is_active?: boolean
+          name?: string
+          packages?: Json
+          require_grading_card?: boolean
+          require_passport?: boolean
+          require_photo?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       seminar_payment_submissions: {
         Row: {
           amount: number
@@ -4859,21 +4907,27 @@ export type Database = {
           current_belt: string | null
           date_of_birth: string | null
           email: string | null
+          event_id: string | null
           first_name: string
           gender: string | null
+          grading_card_urls: string[]
           id: string
+          indemnity_form_url: string | null
           last_name: string
           matched_invoice_id: string | null
           matched_student_id: string | null
           notes: string | null
           package_code: string
           package_label: string
+          passport_url: string | null
           payment_method: string
+          photo_url: string | null
           proof_url: string
           reference_number: string
           reviewed_at: string | null
           reviewed_by: string | null
           session_dates: string[]
+          signature_url: string | null
           status: string
           updated_at: string
         }
@@ -4887,21 +4941,27 @@ export type Database = {
           current_belt?: string | null
           date_of_birth?: string | null
           email?: string | null
+          event_id?: string | null
           first_name: string
           gender?: string | null
+          grading_card_urls?: string[]
           id?: string
+          indemnity_form_url?: string | null
           last_name: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
           package_code: string
           package_label: string
+          passport_url?: string | null
           payment_method: string
+          photo_url?: string | null
           proof_url: string
           reference_number?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           session_dates?: string[]
+          signature_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -4915,21 +4975,27 @@ export type Database = {
           current_belt?: string | null
           date_of_birth?: string | null
           email?: string | null
+          event_id?: string | null
           first_name?: string
           gender?: string | null
+          grading_card_urls?: string[]
           id?: string
+          indemnity_form_url?: string | null
           last_name?: string
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
           package_code?: string
           package_label?: string
+          passport_url?: string | null
           payment_method?: string
+          photo_url?: string | null
           proof_url?: string
           reference_number?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           session_dates?: string[]
+          signature_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -4939,6 +5005,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seminar_payment_submissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "seminar_events"
             referencedColumns: ["id"]
           },
           {
@@ -7627,6 +7700,7 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      admin_delete_seminar_event: { Args: { p_id: string }; Returns: undefined }
       admin_delete_seminar_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -7738,6 +7812,10 @@ export type Database = {
         Args: { p_id: string; p_urls: string[] }
         Returns: undefined
       }
+      admin_set_seminar_event_active: {
+        Args: { p_active: boolean; p_id: string }
+        Returns: undefined
+      }
       admin_update_competition_poomsae: {
         Args: { p_id: string; p_poomsae_1: string; p_poomsae_2: string }
         Returns: undefined
@@ -7838,6 +7916,22 @@ export type Database = {
           p_is_active: boolean
           p_name: string
           p_requires_weight: boolean
+        }
+        Returns: string
+      }
+      admin_upsert_seminar_event: {
+        Args: {
+          p_display_order: number
+          p_id: string
+          p_indemnity_clause?: string
+          p_indemnity_template_name?: string
+          p_indemnity_template_url?: string
+          p_is_active: boolean
+          p_name: string
+          p_packages: Json
+          p_require_grading_card?: boolean
+          p_require_passport?: boolean
+          p_require_photo?: boolean
         }
         Returns: string
       }
@@ -8371,8 +8465,24 @@ export type Database = {
           slot_start: string
         }[]
       }
+      get_public_seminar_events: {
+        Args: never
+        Returns: {
+          display_order: number
+          id: string
+          indemnity_clause: string
+          indemnity_template_name: string
+          indemnity_template_url: string
+          is_active: boolean
+          name: string
+          packages: Json
+          require_grading_card: boolean
+          require_passport: boolean
+          require_photo: boolean
+        }[]
+      }
       get_public_seminar_list: {
-        Args: { p_branch_id?: string; p_status?: string }
+        Args: { p_branch_id?: string; p_event_id?: string; p_status?: string }
         Returns: {
           amount: number
           branch_id: string
@@ -8383,8 +8493,12 @@ export type Database = {
           current_belt: string
           date_of_birth: string
           email: string
+          event_id: string
+          event_name: string
           first_name: string
           gender: string
+          grading_card_urls: string[]
+          indemnity_form_url: string
           invoice_number: string
           last_name: string
           matched_invoice_id: string
@@ -8392,9 +8506,12 @@ export type Database = {
           package_code: string
           package_label: string
           paid_status: string
+          passport_url: string
+          photo_url: string
           proof_url: string
           reference_number: string
           session_dates: string[]
+          signature_url: string
           status: string
           student_name: string
           submission_id: string
