@@ -465,7 +465,12 @@ const PublicSeminarPayment: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Seminar Package *</Label>
+                    <Label>Seminar Package{multiSelectAllowed ? 's' : ''} *</Label>
+                    {multiSelectAllowed && (
+                      <p className="text-xs text-muted-foreground">
+                        Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.
+                      </p>
+                    )}
                     <div className="space-y-2 rounded-md border p-3">
                       {(selectedEvent.packages || []).length === 0 && (
                         <div className="text-sm text-muted-foreground">
@@ -473,7 +478,7 @@ const PublicSeminarPayment: React.FC = () => {
                         </div>
                       )}
                       {(selectedEvent.packages || []).map((opt) => {
-                        const checked = packageCode === opt.code;
+                        const checked = packageCodes.includes(opt.code);
                         return (
                           <label
                             key={opt.code}
@@ -482,11 +487,11 @@ const PublicSeminarPayment: React.FC = () => {
                             }`}
                           >
                             <input
-                              type="radio"
+                              type={multiSelectAllowed ? 'checkbox' : 'radio'}
                               name="seminar-package"
                               className="mt-1"
                               checked={checked}
-                              onChange={() => setPackageCode(opt.code)}
+                              onChange={() => togglePackage(opt.code)}
                             />
                             <div className="flex-1 text-sm">
                               <div className="font-medium">{opt.label}</div>
