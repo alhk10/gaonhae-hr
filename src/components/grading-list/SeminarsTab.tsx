@@ -143,7 +143,20 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold mr-auto">Unarmed Combat Seminar</h2>
+        <h2 className="text-lg font-semibold mr-auto">Seminars</h2>
+        <Select value={eventFilter} onValueChange={setEventFilter}>
+          <SelectTrigger className="w-[200px] h-8 text-xs">
+            <SelectValue placeholder="All seminars" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All seminars</SelectItem>
+            {events.map((ev) => (
+              <SelectItem key={ev.id} value={ev.id}>
+                {ev.name}{ev.is_active ? '' : ' (inactive)'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
           <SelectTrigger className="w-[160px] h-8 text-xs">
             <SelectValue placeholder="Sale status" />
@@ -155,6 +168,11 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+        {canEdit && (
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Events
+          </Button>
+        )}
       </div>
 
       {rows.length === 0 ? (
@@ -167,6 +185,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                 <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
+                <TableHead className="h-7 px-2 text-[11px]">Seminar</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Package</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
                 <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
