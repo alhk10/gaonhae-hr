@@ -28,6 +28,7 @@ import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import SummaryTab from '@/components/grading-list/SummaryTab';
+import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -1229,8 +1230,9 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
         <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="school-fees">School Fees</TabsTrigger>
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
@@ -1238,6 +1240,13 @@ const PublicGradingList: React.FC = () => {
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab />
+          </TabsContent>
+          <TabsContent value="school-fees" className="mt-4">
+            <SchoolFeesTab
+              branchFilter={branchFilter}
+              canEdit={editMode}
+              canDelete={canDelete}
+            />
           </TabsContent>
           <TabsContent value="grading" className="space-y-4 mt-4">
 

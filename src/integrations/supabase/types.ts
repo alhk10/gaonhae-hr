@@ -7643,6 +7643,12 @@ export type Database = {
     }
     Functions: {
       _next_invoice_number: { Args: never; Returns: string }
+      _resolve_chat_submission_invoice: {
+        Args: {
+          p_sub: Database["public"]["Tables"]["public_chat_payment_submissions"]["Row"]
+        }
+        Returns: string
+      }
       _resolve_public_student_term: {
         Args: { p_student_id: string }
         Returns: {
@@ -7704,6 +7710,10 @@ export type Database = {
       }
       admin_delete_guards_purchase: {
         Args: { p_id: string }
+        Returns: undefined
+      }
+      admin_delete_school_fees_submission: {
+        Args: { p_deleted_by?: string; p_id: string }
         Returns: undefined
       }
       admin_delete_seminar_event: { Args: { p_id: string }; Returns: undefined }
@@ -7786,6 +7796,10 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
+      admin_reject_school_fees_submission: {
+        Args: { p_id: string; p_reason?: string; p_reviewed_by?: string }
+        Returns: undefined
+      }
       admin_reject_seminar_submission: {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
@@ -7801,6 +7815,10 @@ export type Database = {
           target_email: string
         }
         Returns: undefined
+      }
+      admin_school_fees_delete_context: {
+        Args: { p_id: string }
+        Returns: Json
       }
       admin_seminar_submission_delete_context: {
         Args: { p_id: string }
@@ -7969,6 +7987,10 @@ export type Database = {
       }
       admin_verify_grading_submission: {
         Args: { p_id: string; p_verified_by: string }
+        Returns: undefined
+      }
+      admin_verify_school_fees_submission: {
+        Args: { p_id: string; p_verified_by?: string }
         Returns: undefined
       }
       admin_verify_seminar_submission: {
@@ -8487,6 +8509,29 @@ export type Database = {
           slot_id: string
           slot_location: string
           slot_start: string
+        }[]
+      }
+      get_public_school_fees_list: {
+        Args: { p_branch_id?: string; p_status?: string }
+        Returns: {
+          amount: number
+          branch_id: string
+          branch_name: string
+          category: string
+          created_at: string
+          id: string
+          invoice_id: string
+          invoice_number: string
+          invoice_status: string
+          items: Json
+          payment_id: string
+          payment_method: string
+          payment_number: string
+          payment_verification_status: string
+          proof_url: string
+          status: string
+          student_id: string
+          student_name: string
         }[]
       }
       get_public_seminar_events: {
