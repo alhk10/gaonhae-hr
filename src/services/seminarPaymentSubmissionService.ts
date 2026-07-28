@@ -320,6 +320,7 @@ export const submitSeminarPayment = async (
     package_label: input.package_label,
     session_dates: input.session_dates,
     amount: input.amount,
+    discount_amount: input.discount_amount ?? 0,
     payment_method: input.payment_method,
     proof_url: proofUrl,
     passport_url: passportUrl,
