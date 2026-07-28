@@ -14,6 +14,7 @@ import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import {
   getSeminarSubmissionForEdit,
   adminPatchSeminarSubmission,
+  combineSeminarPackages,
   adminReplaceSeminarSubmissionProof,
   getPublicSeminarEvents,
 } from '@/services/seminarPaymentSubmissionService';
