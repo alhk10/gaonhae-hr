@@ -37,6 +37,9 @@ interface Props {
   branchFilter: string;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Bump to re-apply drill filters from the Summary tab */
+  drillNonce?: number;
+  drillPendingOnly?: boolean;
 }
 
 const statusClass = (s: string) => {
