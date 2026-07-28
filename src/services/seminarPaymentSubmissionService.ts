@@ -141,6 +141,7 @@ export interface PublicSeminarListRow {
   package_label: string;
   session_dates: string[];
   amount: number;
+  discount_amount: number;
   proof_url: string | null;
   status: string;
   paid_status: 'paid' | 'pending' | 'rejected';
