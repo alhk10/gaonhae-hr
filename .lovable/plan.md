@@ -1,26 +1,24 @@
-## Goal
+## Problem
 
-On the Summary tab of `/access`, make each non-zero count clickable: clicking jumps to the matching tab with that branch pre-selected in its branch filter.
+Clicking a Summary number switches tab and sets the branch filter, but the Competitions and Seminars tables come back empty, and rows already verified/collected still show.
 
-## How it works
+Confirmed cause: the Summary tables use branch **names**, while `get_public_competition_list` and `get_public_seminar_list` filter with `WHERE branch_id = p_branch_id`. The frontend passes the branch name into `p_branch_id`, so no rows match and the tabs render empty.
 
-**src/pages/public/PublicGradingList.tsx**
-- Convert the `Tabs` from `defaultValue="summary"` to a controlled `value`/`onValueChange` pair backed by new state `activeTab`.
-- Add a handler `handleSummaryDrill(tab, branchName)` that sets `activeTab` and the shared `branchFilter` state (branch name), then passes the branch through to whichever tab needs its own local filter.
-- Pass `onDrill={handleSummaryDrill}` into `<SummaryTab />`.
+## Changes
 
-**src/components/grading-list/SummaryTab.tsx**
-- Accept an optional `onDrill?: (tab: 'school-fees'|'grading'|'competitions'|'seminars'|'guards', branch: string) => void`.
-- Render each non-zero cell value in the "Pending approvals by branch" table as a button-styled link (underline on hover, `text-primary`, `cursor-pointer`) that calls `onDrill` with the column's tab key and the row's branch name. Zero cells stay as the plain `–`.
-- Same treatment for the "Uncollected guards by branch" rows: the count and the branch row drill into the Guards tab filtered to that branch.
-- Total row and grand-total cells stay non-clickable (no single branch).
+1. **Stop sending branch names into the RPCs** (`PublicGradingList.tsx`, `SeminarsTab.tsx`)
+   - Call `getPublicCompetitionList(null)` and `getPublicSeminarList(null, ...)` and filter by `branch_name` on the client (Competitions already does this via `localBranchFilter`; add the same to Seminars), or map name → branch id before calling. Client-side filtering is preferred so it stays consistent with the other tabs.
 
-**Per-tab branch filter wiring**
-- School Fees and Seminars already receive the shared `branchFilter` (branch name) — no change needed.
-- Competitions tab uses its own `localBranchFilter`; add an optional `initialBranchFilter` prop and sync it into `localBranchFilter` via an effect keyed on the prop so drilling applies it.
-- Guards list (`PublicGuardsPurchaseList`) filters by branch **id**, not name; add an optional `initialBranchName` prop, resolve it to the branch id via the existing `branches` list, and apply it to its internal `branchFilter` when it changes.
+2. **Drill also applies a status filter**
+   - Extend `onDrill` to carry an intent: `pending` (from "Pending approvals by branch") or `uncollected` (from "Uncollected guards by branch").
+   - School Fees / Grading / Competitions / Seminars: set their status filter to pending-verification so verified and rejected rows are hidden.
+   - Guards: set the collected filter to "uncollected" (plus the branch), matching the second summary table.
 
-## Notes
+3. **Guards branch prop** — already wired via `initialBranchName`; add an `initialCollectedFilter` prop so the drill can set it.
 
-- No database or service changes; all frontend state wiring.
-- Clicking the same cell again re-applies the same filter (idempotent).
+4. **Reset behaviour** — filters set by a drill remain user-editable; returning to Summary and drilling again overwrites them.
+
+## Technical notes
+
+- Files: `src/components/grading-list/SummaryTab.tsx`, `src/pages/public/PublicGradingList.tsx`, `src/components/grading-list/SeminarsTab.tsx`, `src/components/grading-list/SchoolFeesTab.tsx`, `src/pages/public/PublicGuardsPurchaseList.tsx`.
+- No database or RPC changes needed.

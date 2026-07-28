@@ -28,23 +28,25 @@ const emptyCounts = (): Counts => ({ schoolFees: 0, grading: 0, competitions: 0,
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 export type SummaryDrillTab = 'school-fees' | 'grading' | 'competitions' | 'seminars' | 'guards';
+export type SummaryDrillIntent = 'pending' | 'uncollected';
 
 interface SummaryTabProps {
-  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
 }
 
 const DrillCell: React.FC<{
   value: number;
   branch: string;
   tab: SummaryDrillTab;
-  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
-}> = ({ value, branch, tab, onDrill }) => {
+  intent?: SummaryDrillIntent;
+  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
+}> = ({ value, branch, tab, intent = 'pending', onDrill }) => {
   if (!value) return <span>–</span>;
   if (!onDrill) return <span>{value}</span>;
   return (
     <button
       type="button"
-      onClick={() => onDrill(tab, branch)}
+      onClick={() => onDrill(tab, branch, intent)}
       className="text-primary underline-offset-2 hover:underline font-medium"
     >
       {value}
@@ -254,7 +256,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
                   {uncollected.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
-                      <td className="py-2 px-2 text-right"><DrillCell value={r.count} branch={r.branch} tab="guards" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.count} branch={r.branch} tab="guards" intent="uncollected" onDrill={onDrill} /></td>
                       <td className="py-2 pl-2 text-right">{money(r.amount)}</td>
                     </tr>
                   ))}

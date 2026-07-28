@@ -3,7 +3,7 @@
  * Lists school-fee payments submitted through the public /hello chat and lets
  * unlocked staff verify, reject or delete a submission (with its auto invoice).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,9 @@ interface Props {
   branchFilter: string;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Bump to re-apply drill filters from the Summary tab */
+  drillNonce?: number;
+  drillPendingOnly?: boolean;
 }
 
 const statusClass = (s: string) => {
@@ -70,12 +73,16 @@ const itemsSummary = (row: SchoolFeesRow) =>
 const methodLabel = (m?: string | null) =>
   m === 'bank_transfer' ? 'Bank transfer' : m === 'paynow' ? 'PayNow' : (m || '—');
 
-const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete }) => {
+const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_verification' | 'verified' | 'rejected'>('all');
+  useEffect(() => {
+    if (drillPendingOnly) setStatusFilter('pending_verification');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drillNonce, drillPendingOnly]);
   const [search, setSearch] = useState('');
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);

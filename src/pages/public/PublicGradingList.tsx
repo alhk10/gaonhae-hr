@@ -125,6 +125,7 @@ const PublicGradingList: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('summary');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
     try {
@@ -1241,8 +1242,9 @@ const PublicGradingList: React.FC = () => {
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
-              onDrill={(tab, branch) => {
+              onDrill={(tab, branch, intent) => {
                 setBranchFilter(branch);
+                setDrill({ intent, nonce: Date.now() });
                 setActiveTab(tab);
               }}
             />
@@ -1250,6 +1252,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
             />
@@ -1591,6 +1595,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="competitions" className="mt-4">
             <CompetitionsTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canDelete={canDelete}
               canEdit={editMode}
               verifiedBy={user?.employeeId || user?.email || 'system'}
@@ -1600,6 +1606,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="seminars" className="mt-4">
             <SeminarsTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'seminar', id, studentName: name })}
@@ -1609,6 +1617,9 @@ const PublicGradingList: React.FC = () => {
             <PublicGuardsPurchaseList
               embedded
               initialBranchName={branchFilter}
+              initialCollectedFilter={drill?.intent === 'uncollected' ? 'no' : undefined}
+              initialStatusFilter={drill?.intent === 'pending' ? 'pending_verification' : undefined}
+              drillNonce={drill?.nonce}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
@@ -1990,14 +2001,18 @@ const CompetitionsTab: React.FC<{
   canDelete?: boolean;
   canEdit?: boolean;
   verifiedBy: string;
+  drillNonce?: number;
+  drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
+  // NOTE: the RPC filters on branch **id** while we hold branch **names**, so
+  // fetch every branch and filter client-side.
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-competition-list', 'v2-dob', branchFilter],
-    queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
+    queryKey: ['public-competition-list', 'v2-dob'],
+    queryFn: () => getPublicCompetitionList(null),
   });
 
   const { data: events = [] } = useQuery({
@@ -2021,9 +2036,16 @@ const CompetitionsTab: React.FC<{
 
   const [eventFilter, setEventFilter] = useState<string>('');
   const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
+  const [paidFilter, setPaidFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  // Filters coming from the Summary tab drill-through
   useEffect(() => {
     setLocalBranchFilter(branchFilter || 'all');
-  }, [branchFilter]);
+    if (drillPendingOnly) {
+      setPaidFilter('pending');
+      setEventFilter('all');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchFilter, drillNonce, drillPendingOnly]);
   useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);
@@ -2374,6 +2396,17 @@ const CompetitionsTab: React.FC<{
               ))}
             </SelectContent>
           </Select>
+          <Select value={paidFilter} onValueChange={(v) => setPaidFilter(v as any)}>
+            <SelectTrigger className="h-8 text-xs w-[160px]">
+              <SelectValue placeholder="Payment status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+              <SelectItem value="paid" className="text-xs">Paid</SelectItem>
+              <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
           {canDelete && (
             <Select value={registeredFilter} onValueChange={(v) => setRegisteredFilter(v as any)}>
               <SelectTrigger className="h-8 text-xs w-[150px]">
@@ -2437,6 +2470,12 @@ const CompetitionsTab: React.FC<{
               .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
               .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
               .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
+              .filter((r) => {
+                if (paidFilter === 'all') return true;
+                if (paidFilter === 'paid') return r.paid_status === 'paid';
+                if (paidFilter === 'rejected') return r.paid_status === 'rejected';
+                return r.paid_status !== 'paid' && r.paid_status !== 'rejected';
+              })
               .sort((a, b) => {
                 const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
                 const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
