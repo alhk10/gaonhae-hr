@@ -299,109 +299,18 @@ const PublicSeminarPayment: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Unarmed Combat Seminar</h1>
+          <h1 className="text-2xl font-semibold">Seminar Registration</h1>
           <p className="text-sm text-muted-foreground">
-            Bukit Merah Branch · June 2026
+            {selectedEvent?.name || 'Select a seminar to begin'}
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Booking Details</CardTitle>
+            <CardTitle className="text-base">Registration Details</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name *</Label>
-                  <Input
-                    id="first_name"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value.toUpperCase())}
-                    placeholder="First name"
-                    maxLength={60}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input
-                    id="last_name"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value.toUpperCase())}
-                    placeholder="Last name"
-                    maxLength={60}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  maxLength={255}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Date of Birth *</Label>
-                <DobPicker value={dob} onChange={setDob} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender *</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger id="gender">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="branch">Branch *</Label>
-                <Select value={branchId} onValueChange={setBranchId}>
-                  <SelectTrigger id="branch">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="belt">Current Belt *</Label>
-                <Select
-                  value={currentBelt}
-                  onValueChange={setCurrentBelt}
-                  disabled={!branchId}
-                >
-                  <SelectTrigger id="belt">
-                    <SelectValue placeholder="Select current belt" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {beltOptions.map((b) => (
-                      <SelectItem key={b} value={b}>{b}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="seminar-event">Seminar *</Label>
                 <Select
@@ -418,154 +327,330 @@ const PublicSeminarPayment: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {!eventsLoading && events.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No active seminars. Please contact the academy.</p>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Seminar Package *</Label>
-                <div className="space-y-2 rounded-md border p-3">
-                  {(selectedEvent?.packages || []).length === 0 && (
-                    <div className="text-sm text-muted-foreground">Select a seminar to see packages.</div>
-                  )}
-                  {(selectedEvent?.packages || []).map((opt) => {
-                    const checked = packageCode === opt.code;
-                    return (
-                      <label
-                        key={opt.code}
-                        className={`flex items-start gap-3 p-2 rounded-md cursor-pointer border ${
-                          checked ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="seminar-package"
-                          className="mt-1"
-                          checked={checked}
-                          onChange={() => setPackageCode(opt.code)}
-                        />
-                        <div className="flex-1 text-sm">
-                          <div className="font-medium">{opt.label}</div>
+              {selectedEvent && (
+                <>
+                  {(indemnityFormRequired ||
+                    selectedEvent.require_passport ||
+                    selectedEvent.require_photo ||
+                    selectedEvent.require_grading_card) && (
+                    <Alert className="border-primary/40 bg-primary/5">
+                      <FileText className="h-4 w-4" />
+                      <AlertDescription className="space-y-2">
+                        <div className="text-sm font-semibold text-foreground">
+                          Before you submit — documents required
                         </div>
-                        <span className="text-sm font-semibold whitespace-nowrap">
-                          ${opt.amount.toFixed(2)}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {(selectedEvent?.require_passport || selectedEvent?.require_photo || selectedEvent?.require_grading_card) && (
-                <div className="space-y-3 rounded-md border p-3">
-                  <Label className="text-sm font-semibold">Supporting documents</Label>
-                  {selectedEvent?.require_passport && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Passport / NRIC *</Label>
-                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setPassportFile(e.target.files?.[0] ?? null)} />
-                    </div>
+                        <ol className="list-decimal pl-4 space-y-1 text-xs text-foreground/90">
+                          {indemnityFormRequired && (
+                            <li>Download the Indemnity Form, print it, fill it in, sign it, and reupload below.</li>
+                          )}
+                          {selectedEvent.require_passport && (
+                            <li>Prepare a clear photo or scan of the participant&apos;s passport / NRIC.</li>
+                          )}
+                          {selectedEvent.require_photo && (
+                            <li>Prepare a recent participant photo (head and shoulders).</li>
+                          )}
+                          {selectedEvent.require_grading_card && (
+                            <li>Prepare a clear photo or scan of the participant&apos;s grading card.</li>
+                          )}
+                        </ol>
+                        {indemnityFormRequired && (
+                          <Button type="button" size="sm" variant="default" className="mt-1" asChild>
+                            <a
+                              href={selectedEvent.indemnity_template_url!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={selectedEvent.indemnity_template_name || 'Indemnity-Form.pdf'}
+                            >
+                              <Download className="h-3.5 w-3.5 mr-1.5" />
+                              Download Indemnity Form (PDF)
+                            </a>
+                          </Button>
+                        )}
+                        <p className="text-[11px] text-muted-foreground pt-1">
+                          Accepted formats: PDF, JPG, PNG (max 5 MB each).
+                        </p>
+                      </AlertDescription>
+                    </Alert>
                   )}
-                  {selectedEvent?.require_photo && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Photo *</Label>
-                      <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
-                    </div>
-                  )}
-                  {selectedEvent?.require_grading_card && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Grading card *</Label>
-                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setGradingCardFile(e.target.files?.[0] ?? null)} />
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {indemnityFormRequired && (
-                <div className="space-y-2 rounded-md border p-3">
-                  <Label className="text-sm font-semibold">Indemnity form</Label>
-                  <a
-                    href={selectedEvent!.indemnity_template_url!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-primary underline"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Download form
-                  </a>
-                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setIndemnityFormFile(e.target.files?.[0] ?? null)} />
-                  <p className="text-xs text-muted-foreground">Upload the signed form (image or PDF).</p>
-                </div>
-              )}
-
-              {signatureRequired && (
-                <div className="space-y-2 rounded-md border p-3">
-                  <Label className="text-sm font-semibold">Indemnity declaration</Label>
-                  <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs">
-                    {selectedEvent!.indemnity_clause}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name">First Name *</Label>
+                      <Input
+                        id="first_name"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value.toUpperCase())}
+                        placeholder="First name"
+                        maxLength={60}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name">Last Name *</Label>
+                      <Input
+                        id="last_name"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value.toUpperCase())}
+                        placeholder="Last name"
+                        maxLength={60}
+                      />
+                    </div>
                   </div>
-                  <label className="flex items-start gap-2 text-xs">
-                    <Checkbox checked={indemnityAccepted} onCheckedChange={(v) => setIndemnityAccepted(!!v)} />
-                    <span>I have read and agree to the declaration above.</span>
-                  </label>
-                  <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
-                </div>
-              )}
 
-
-              {selectedPackage && (
-                <div className="rounded-md border p-3 bg-background text-sm">
-                  <div className="flex items-center justify-between font-semibold">
-                    <span>Total</span>
-                    <span>${selectedPackage.amount.toFixed(2)}</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      maxLength={255}
+                    />
                   </div>
-                </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="branch">Branch *</Label>
+                    <Select value={branchId} onValueChange={setBranchId}>
+                      <SelectTrigger id="branch">
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date of Birth *</Label>
+                    <DobPicker value={dob} onChange={setDob} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender *</Label>
+                    <Select value={gender} onValueChange={setGender}>
+                      <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="belt">Current Belt *</Label>
+                    <Select value={currentBelt} onValueChange={setCurrentBelt} disabled={!branchId}>
+                      <SelectTrigger id="belt">
+                        <SelectValue placeholder="Select current belt" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {beltOptions.map((b) => (
+                          <SelectItem key={b} value={b}>{b}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Seminar Package *</Label>
+                    <div className="space-y-2 rounded-md border p-3">
+                      {(selectedEvent.packages || []).length === 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          No packages configured for this seminar.
+                        </div>
+                      )}
+                      {(selectedEvent.packages || []).map((opt) => {
+                        const checked = packageCode === opt.code;
+                        return (
+                          <label
+                            key={opt.code}
+                            className={`flex items-start gap-3 p-2 rounded-md cursor-pointer border ${
+                              checked ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="seminar-package"
+                              className="mt-1"
+                              checked={checked}
+                              onChange={() => setPackageCode(opt.code)}
+                            />
+                            <div className="flex-1 text-sm">
+                              <div className="font-medium">{opt.label}</div>
+                              {opt.session_dates?.length > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  {opt.session_dates.map(formatDate).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-sm font-semibold whitespace-nowrap">
+                              ${opt.amount.toFixed(2)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedEvent.require_photo && (
+                    <ProofOfPaymentUpload
+                      value={photoFile}
+                      onChange={setPhotoFile}
+                      required
+                      acceptPdf={false}
+                      maxSizeMB={5}
+                      label="Participant Photo"
+                    />
+                  )}
+
+                  {selectedEvent.require_passport && (
+                    <ProofOfPaymentUpload
+                      value={passportFile}
+                      onChange={setPassportFile}
+                      required
+                      acceptPdf
+                      maxSizeMB={5}
+                      label="Passport / NRIC"
+                    />
+                  )}
+
+                  {selectedEvent.require_grading_card && (
+                    <ProofOfPaymentUpload
+                      value={gradingCardFile}
+                      onChange={setGradingCardFile}
+                      required
+                      acceptPdf
+                      maxSizeMB={5}
+                      label="Grading Card"
+                    />
+                  )}
+
+                  {indemnityFormRequired && (
+                    <div className="space-y-2">
+                      <ProofOfPaymentUpload
+                        value={indemnityFormFile}
+                        onChange={setIndemnityFormFile}
+                        required
+                        acceptPdf
+                        maxSizeMB={5}
+                        label="Signed Indemnity Form"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload the completed and signed indemnity form (PDF or photo).
+                      </p>
+                    </div>
+                  )}
+
+                  {signatureRequired && (
+                    <div className="space-y-2">
+                      <Label>Indemnity Clause *</Label>
+                      <div className="border rounded-md p-3 bg-muted/30 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                        {selectedEvent.indemnity_clause}
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="accept-indemnity"
+                          checked={indemnityAccepted}
+                          onCheckedChange={(v) => setIndemnityAccepted(!!v)}
+                        />
+                        <Label htmlFor="accept-indemnity" className="text-xs font-normal leading-snug">
+                          I have read and agree to the indemnity clause above.
+                        </Label>
+                      </div>
+                      <Label className="text-xs">Signature *</Label>
+                      <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
+                    </div>
+                  )}
+
+                  {totalAmount > 0 && (
+                    <div className="rounded-md border p-3 bg-background text-sm space-y-1">
+                      {gstRate > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span>Subtotal (excl. GST)</span>
+                            <span>${(totalAmount - gstAmount).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>GST ({(gstRate * 100).toFixed(0)}%)</span>
+                            <span>${gstAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between font-semibold border-t pt-1 mt-1">
+                            <span>Total (incl. GST)</span>
+                            <span>${totalAmount.toFixed(2)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between font-semibold">
+                          <span>Total</span>
+                          <span>${totalAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment Method</Label>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(v) => setPaymentMethod(v as 'paynow' | 'bank_transfer')}
+                    >
+                      <SelectTrigger id="payment-method">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paynow">PayNow</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {paymentMethod === 'paynow' ? (
+                    <PaymentInfoDisplay paymentMethod="paynow" paynowQrUrl={qrUrl} />
+                  ) : bankInfo ? (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm whitespace-pre-wrap">
+                      {bankInfo}
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription className="text-sm">
+                        Bank transfer details are not configured for this branch.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <ProofOfPaymentUpload
+                    value={proofFile}
+                    onChange={setProofFile}
+                    required
+                    acceptPdf={false}
+                    maxSizeMB={5}
+                  />
+
+                  {submitError && (
+                    <Alert variant="destructive">
+                      <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button type="submit" className="w-full" disabled={!canSubmit}>
+                    {submitting
+                      ? 'Submitting...'
+                      : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
+                  </Button>
+                </>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(v) => setPaymentMethod(v as 'paynow' | 'bank_transfer')}
-                >
-                  <SelectTrigger id="payment-method">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paynow">PayNow</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {paymentMethod === 'paynow' ? (
-                <PaymentInfoDisplay paymentMethod="paynow" paynowQrUrl={qrUrl} />
-              ) : bankInfo ? (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm whitespace-pre-wrap">
-                  {bankInfo}
-                </div>
-              ) : (
-                <Alert>
-                  <AlertDescription className="text-sm">
-                    Bank transfer details are not configured for this branch.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <ProofOfPaymentUpload
-                value={proofFile}
-                onChange={setProofFile}
-                required
-                acceptPdf={false}
-              />
-
-              {submitError && (
-                <Alert variant="destructive">
-                  <AlertDescription className="text-sm break-words">{submitError}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {submitting
-                  ? 'Submitting...'
-                  : `Submit Payment${selectedPackage ? ` ($${selectedPackage.amount.toFixed(2)})` : ''}`}
-              </Button>
             </form>
           </CardContent>
         </Card>
