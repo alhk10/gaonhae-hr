@@ -186,6 +186,17 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
             ))}
           </SelectContent>
         </Select>
+        <Select value={localBranchFilter} onValueChange={setLocalBranchFilter}>
+          <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectValue placeholder="All branches" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All branches</SelectItem>
+            {branchOptions.map((b) => (
+              <SelectItem key={b} value={b}>{b}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
           <SelectTrigger className="w-[160px] h-8 text-xs">
             <SelectValue placeholder="Sale status" />
