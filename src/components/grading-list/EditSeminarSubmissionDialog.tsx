@@ -15,7 +15,7 @@ import {
   getSeminarSubmissionForEdit,
   adminPatchSeminarSubmission,
   adminReplaceSeminarSubmissionProof,
-  SEMINAR_OPTIONS,
+  getPublicSeminarEvents,
 } from '@/services/seminarPaymentSubmissionService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { SignedImage } from '@/components/common/SignedMedia';
