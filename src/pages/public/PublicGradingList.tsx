@@ -1608,6 +1608,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="guards" className="mt-4">
             <PublicGuardsPurchaseList
               embedded
+              initialBranchName={branchFilter}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
