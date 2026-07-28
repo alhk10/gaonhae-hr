@@ -2,7 +2,7 @@
  * Public guards purchase list (no auth, password gated).
  * Mounted at /guardspurchase-list.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,16 +41,27 @@ const statusVariant = (s: string) => {
 interface PublicGuardsPurchaseListProps {
   embedded?: boolean;
   canDelete?: boolean;
+  /** Branch NAME to preselect (resolved to branch id internally). 'all' clears. */
+  initialBranchName?: string;
   onRequestDelete?: (id: string, studentName: string) => void;
 }
 
-const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, onRequestDelete }) => {
+const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, initialBranchName, onRequestDelete }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const { branches } = useBranches();
   const [unlocked, setUnlocked] = useState<boolean>(() => embedded || sessionStorage.getItem(SS_KEY) === '1');
   const [pwInput, setPwInput] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  useEffect(() => {
+    if (!initialBranchName) return;
+    if (initialBranchName === 'all') {
+      setBranchFilter('all');
+      return;
+    }
+    const match = branches.find((b) => b.name === initialBranchName);
+    if (match) setBranchFilter(match.id);
+  }, [initialBranchName, branches]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [collectedFilter, setCollectedFilter] = useState<string>('all');
   const [search, setSearch] = useState('');

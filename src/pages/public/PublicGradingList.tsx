@@ -122,6 +122,7 @@ const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
+  const [activeTab, setActiveTab] = useState<string>('summary');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
@@ -1229,7 +1230,7 @@ const PublicGradingList: React.FC = () => {
             <Lock className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs defaultValue="summary" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
@@ -1239,7 +1240,12 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
-            <SummaryTab />
+            <SummaryTab
+              onDrill={(tab, branch) => {
+                setBranchFilter(branch);
+                setActiveTab(tab);
+              }}
+            />
           </TabsContent>
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
@@ -1602,6 +1608,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="guards" className="mt-4">
             <PublicGuardsPurchaseList
               embedded
+              initialBranchName={branchFilter}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
@@ -2014,6 +2021,9 @@ const CompetitionsTab: React.FC<{
 
   const [eventFilter, setEventFilter] = useState<string>('');
   const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
+  useEffect(() => {
+    setLocalBranchFilter(branchFilter || 'all');
+  }, [branchFilter]);
   useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);

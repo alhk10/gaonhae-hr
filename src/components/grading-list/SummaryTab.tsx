@@ -27,8 +27,32 @@ interface Counts {
 const emptyCounts = (): Counts => ({ schoolFees: 0, grading: 0, competitions: 0, seminars: 0, guards: 0 });
 
 const money = (n: number) => `$${n.toFixed(2)}`;
+export type SummaryDrillTab = 'school-fees' | 'grading' | 'competitions' | 'seminars' | 'guards';
 
-const SummaryTab: React.FC = () => {
+interface SummaryTabProps {
+  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+}
+
+const DrillCell: React.FC<{
+  value: number;
+  branch: string;
+  tab: SummaryDrillTab;
+  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+}> = ({ value, branch, tab, onDrill }) => {
+  if (!value) return <span>–</span>;
+  if (!onDrill) return <span>{value}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onDrill(tab, branch)}
+      className="text-primary underline-offset-2 hover:underline font-medium"
+    >
+      {value}
+    </button>
+  );
+};
+
+const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
@@ -179,11 +203,11 @@ const SummaryTab: React.FC = () => {
                   {pending.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
-                      <td className="py-2 px-2 text-right">{r.schoolFees || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.grading || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.competitions || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.seminars || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.guards || '–'}</td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.schoolFees} branch={r.branch} tab="school-fees" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.grading} branch={r.branch} tab="grading" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.competitions} branch={r.branch} tab="competitions" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.seminars} branch={r.branch} tab="seminars" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.guards} branch={r.branch} tab="guards" onDrill={onDrill} /></td>
                       <td className="py-2 pl-2 text-right font-semibold">{r.total}</td>
                     </tr>
                   ))}
@@ -230,7 +254,7 @@ const SummaryTab: React.FC = () => {
                   {uncollected.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
-                      <td className="py-2 px-2 text-right">{r.count}</td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.count} branch={r.branch} tab="guards" onDrill={onDrill} /></td>
                       <td className="py-2 pl-2 text-right">{money(r.amount)}</td>
                     </tr>
                   ))}
