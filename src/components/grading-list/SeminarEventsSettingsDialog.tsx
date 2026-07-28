@@ -47,6 +47,7 @@ const emptyForm = () => ({
   require_passport: false,
   require_photo: false,
   require_grading_card: false,
+  multi_package_discount: false,
 });
 
 const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
