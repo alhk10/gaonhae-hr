@@ -21,16 +21,16 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
-import CompetitionEventsSettingsDialog from '@/components/access/CompetitionEventsSettingsDialog';
+import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
-import DeleteRowConfirmDialog from '@/components/access/DeleteRowConfirmDialog';
-import SeminarsTab from '@/components/access/SeminarsTab';
-import SummaryTab from '@/components/access/SummaryTab';
-import SchoolFeesTab from '@/components/access/SchoolFeesTab';
+import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
+import SeminarsTab from '@/components/grading-list/SeminarsTab';
+import SummaryTab from '@/components/grading-list/SummaryTab';
+import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
 
-import EditCompetitionSubmissionDialog from '@/components/access/EditCompetitionSubmissionDialog';
+import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
   getPublicCompetitionList,
   adminDeleteCompetitionSubmission,
@@ -86,7 +86,7 @@ import {
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
-import GradingCardUploadDialog from '@/components/access/GradingCardUploadDialog';
+import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
