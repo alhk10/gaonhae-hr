@@ -125,6 +125,7 @@ const PublicGradingList: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('summary');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
     try {
