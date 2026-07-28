@@ -246,6 +246,41 @@ export const submitSeminarPayment = async (
     console.warn('[/seminars] signed URL fallback', e);
   }
 
+  // Optional supporting documents
+  const uploadExtra = async (file: File, suffix: string): Promise<string> => {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `public-seminars/${input.branch_id}/${Date.now()}_${safeName}_${suffix}.${ext}`;
+    const { error } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw new Error(`${suffix} upload failed: ${error.message}`);
+    const { data: signed } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    return signed?.signedUrl ?? path;
+  };
+
+  const passportUrl = input.passport_file ? await uploadExtra(input.passport_file, 'passport') : null;
+  const photoUrl = input.photo_file ? await uploadExtra(input.photo_file, 'photo') : null;
+  const indemnityUrl = input.indemnity_form_file ? await uploadExtra(input.indemnity_form_file, 'indemnity') : null;
+  const gradingCardUrls: string[] = [];
+  for (const [i, f] of (input.grading_card_files || []).entries()) {
+    gradingCardUrls.push(await uploadExtra(f, `grading_card_${i + 1}`));
+  }
+
+  let signatureUrl: string | null = null;
+  if (input.signature_data_url) {
+    try {
+      const blob = await (await fetch(input.signature_data_url)).blob();
+      signatureUrl = await uploadExtra(
+        new File([blob], 'signature.png', { type: 'image/png' }),
+        'signature',
+      );
+    } catch (e) {
+      console.warn('[/seminars] signature upload failed', e);
+    }
+  }
+
   const row = {
     first_name: fn,
     last_name: ln,
@@ -254,12 +289,18 @@ export const submitSeminarPayment = async (
     date_of_birth: input.date_of_birth,
     gender: input.gender || null,
     current_belt: input.current_belt || null,
+    event_id: input.event_id || null,
     package_code: input.package_code,
     package_label: input.package_label,
     session_dates: input.session_dates,
     amount: input.amount,
     payment_method: input.payment_method,
     proof_url: proofUrl,
+    passport_url: passportUrl,
+    photo_url: photoUrl,
+    grading_card_urls: gradingCardUrls,
+    signature_url: signatureUrl,
+    indemnity_form_url: indemnityUrl,
   };
 
   let data: any;
