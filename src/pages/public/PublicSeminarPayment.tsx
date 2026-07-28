@@ -168,14 +168,18 @@ const PublicSeminarPayment: React.FC = () => {
 
   const age = useMemo(() => (dob ? calcAge(dob) : null), [dob]);
   const beltOptions = useMemo(
-    () => getBeltLevelsForCountry(selectedBranch?.country),
-    [selectedBranch?.country],
+    () => filterBeltsByAge(getBeltLevelsForCountry(selectedBranch?.country), age),
+    [selectedBranch?.country, age],
   );
 
   const selectedPackage = useMemo(
     () => (selectedEvent?.packages || []).find(o => o.code === packageCode),
     [selectedEvent, packageCode],
   );
+
+  const totalAmount = selectedPackage?.amount ?? 0;
+  const gstRate = gstRateForCountry(selectedBranch?.country);
+  const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
 
   const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);
   const indemnityFormRequired = !!selectedEvent?.indemnity_template_url;
