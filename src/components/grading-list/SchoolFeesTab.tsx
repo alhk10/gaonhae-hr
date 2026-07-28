@@ -3,7 +3,7 @@
  * Lists school-fee payments submitted through the public /hello chat and lets
  * unlocked staff verify, reject or delete a submission (with its auto invoice).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
