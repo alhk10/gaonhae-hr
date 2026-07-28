@@ -104,9 +104,16 @@ const PublicSeminarPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [gender, setGender] = useState<string>('');
   const [currentBelt, setCurrentBelt] = useState<string>('');
+  const [eventId, setEventId] = useState<string>('');
   const [packageCode, setPackageCode] = useState<SeminarPackageCode | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [gradingCardFile, setGradingCardFile] = useState<File | null>(null);
+  const [indemnityFormFile, setIndemnityFormFile] = useState<File | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [indemnityAccepted, setIndemnityAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
@@ -116,6 +123,23 @@ const PublicSeminarPayment: React.FC = () => {
     queryFn: getPublicBranches,
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: allEvents = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ['public-seminar-events'],
+    queryFn: getPublicSeminarEvents,
+    staleTime: 60 * 1000,
+  });
+
+  const events = useMemo(() => allEvents.filter(e => e.is_active), [allEvents]);
+
+  useEffect(() => {
+    if (!eventId && events.length > 0) setEventId(events[0].id);
+  }, [events, eventId]);
+
+  const selectedEvent = useMemo(
+    () => events.find(e => e.id === eventId) || null,
+    [events, eventId],
+  );
 
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
@@ -129,9 +153,12 @@ const PublicSeminarPayment: React.FC = () => {
   );
 
   const selectedPackage = useMemo(
-    () => SEMINAR_OPTIONS.find(o => o.code === packageCode),
-    [packageCode],
+    () => (selectedEvent?.packages || []).find(o => o.code === packageCode),
+    [selectedEvent, packageCode],
   );
+
+  const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);
+  const indemnityFormRequired = !!selectedEvent?.indemnity_template_url;
 
   const { data: options } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
@@ -147,13 +174,19 @@ const PublicSeminarPayment: React.FC = () => {
     !!dob &&
     !!gender &&
     !!currentBelt &&
+    !!selectedEvent &&
     !!selectedPackage &&
     !!proofFile &&
+    (!selectedEvent?.require_passport || !!passportFile) &&
+    (!selectedEvent?.require_photo || !!photoFile) &&
+    (!selectedEvent?.require_grading_card || !!gradingCardFile) &&
+    (!indemnityFormRequired || !!indemnityFormFile) &&
+    (!signatureRequired || (!!signatureDataUrl && indemnityAccepted)) &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || !selectedPackage) return;
+    if (!canSubmit || !dob || !proofFile || !selectedPackage || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -167,12 +200,18 @@ const PublicSeminarPayment: React.FC = () => {
         date_of_birth: isoDob,
         gender,
         current_belt: currentBelt,
+        event_id: selectedEvent.id,
         package_code: selectedPackage.code,
         package_label: selectedPackage.label,
         session_dates: selectedPackage.session_dates,
         amount: selectedPackage.amount,
         payment_method: paymentMethod,
         proof_file: proofFile,
+        passport_file: selectedEvent.require_passport ? passportFile : null,
+        photo_file: selectedEvent.require_photo ? photoFile : null,
+        grading_card_files: selectedEvent.require_grading_card && gradingCardFile ? [gradingCardFile] : [],
+        indemnity_form_file: indemnityFormRequired ? indemnityFormFile : null,
+        signature_data_url: signatureRequired ? signatureDataUrl : null,
       });
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
