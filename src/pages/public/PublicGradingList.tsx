@@ -1617,8 +1617,8 @@ const PublicGradingList: React.FC = () => {
             <PublicGuardsPurchaseList
               embedded
               initialBranchName={branchFilter}
-              initialCollectedFilter={drill ? 'no' : undefined}
-              initialStatusFilter={drill?.intent === 'pending' ? 'pending' : undefined}
+              initialCollectedFilter={drill?.intent === 'uncollected' ? 'no' : undefined}
+              initialStatusFilter={drill?.intent === 'pending' ? 'pending_verification' : undefined}
               drillNonce={drill?.nonce}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
