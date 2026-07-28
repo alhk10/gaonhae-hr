@@ -1990,14 +1990,18 @@ const CompetitionsTab: React.FC<{
   canDelete?: boolean;
   canEdit?: boolean;
   verifiedBy: string;
+  drillNonce?: number;
+  drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, canEdit, verifiedBy, onRequestDelete }) => {
+}> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
+  // NOTE: the RPC filters on branch **id** while we hold branch **names**, so
+  // fetch every branch and filter client-side.
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-competition-list', 'v2-dob', branchFilter],
-    queryFn: () => getPublicCompetitionList(branchFilter === 'all' ? null : branchFilter),
+    queryKey: ['public-competition-list', 'v2-dob'],
+    queryFn: () => getPublicCompetitionList(null),
   });
 
   const { data: events = [] } = useQuery({
