@@ -334,6 +334,18 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                   <Plus className="h-3 w-3 mr-1" /> Add package
                 </Button>
               </div>
+              <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
+                <Switch
+                  checked={form.multi_package_discount}
+                  onCheckedChange={(v) => setForm(f => ({ ...f, multi_package_discount: v }))}
+                />
+                <div className="text-[11px] leading-snug">
+                  <div className="font-medium">Multi-package discount</div>
+                  <div className="text-muted-foreground">
+                    Participants may pick several packages: $10 off for 2, $20 for 3, $30 for 4, +$10 per extra.
+                  </div>
+                </div>
+              </div>
               {form.packages.length === 0 && (
                 <div className="text-[11px] text-muted-foreground">No packages yet.</div>
               )}
