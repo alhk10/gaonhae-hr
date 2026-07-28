@@ -53,17 +53,20 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [unlocked, setUnlocked] = useState<boolean>(() => embedded || sessionStorage.getItem(SS_KEY) === '1');
   const [pwInput, setPwInput] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [collectedFilter, setCollectedFilter] = useState<string>('all');
   useEffect(() => {
     if (!initialBranchName) return;
     if (initialBranchName === 'all') {
       setBranchFilter('all');
-      return;
+    } else {
+      const match = branches.find((b) => b.name === initialBranchName);
+      if (match) setBranchFilter(match.id);
     }
-    const match = branches.find((b) => b.name === initialBranchName);
-    if (match) setBranchFilter(match.id);
-  }, [initialBranchName, branches]);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [collectedFilter, setCollectedFilter] = useState<string>('all');
+    if (initialCollectedFilter) setCollectedFilter(initialCollectedFilter);
+    if (initialStatusFilter) setStatusFilter(initialStatusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBranchName, initialCollectedFilter, initialStatusFilter, drillNonce, branches]);
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
