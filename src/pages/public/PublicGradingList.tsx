@@ -1595,6 +1595,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="competitions" className="mt-4">
             <CompetitionsTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canDelete={canDelete}
               canEdit={editMode}
               verifiedBy={user?.employeeId || user?.email || 'system'}
@@ -1604,6 +1606,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="seminars" className="mt-4">
             <SeminarsTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'seminar', id, studentName: name })}
@@ -1613,6 +1617,9 @@ const PublicGradingList: React.FC = () => {
             <PublicGuardsPurchaseList
               embedded
               initialBranchName={branchFilter}
+              initialCollectedFilter={drill ? 'no' : undefined}
+              initialStatusFilter={drill?.intent === 'pending' ? 'pending' : undefined}
+              drillNonce={drill?.nonce}
               canDelete={canDelete}
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
