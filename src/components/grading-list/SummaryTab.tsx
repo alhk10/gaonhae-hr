@@ -28,23 +28,25 @@ const emptyCounts = (): Counts => ({ schoolFees: 0, grading: 0, competitions: 0,
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 export type SummaryDrillTab = 'school-fees' | 'grading' | 'competitions' | 'seminars' | 'guards';
+export type SummaryDrillIntent = 'pending' | 'uncollected';
 
 interface SummaryTabProps {
-  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
 }
 
 const DrillCell: React.FC<{
   value: number;
   branch: string;
   tab: SummaryDrillTab;
-  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
-}> = ({ value, branch, tab, onDrill }) => {
+  intent?: SummaryDrillIntent;
+  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
+}> = ({ value, branch, tab, intent = 'pending', onDrill }) => {
   if (!value) return <span>–</span>;
   if (!onDrill) return <span>{value}</span>;
   return (
     <button
       type="button"
-      onClick={() => onDrill(tab, branch)}
+      onClick={() => onDrill(tab, branch, intent)}
       className="text-primary underline-offset-2 hover:underline font-medium"
     >
       {value}
