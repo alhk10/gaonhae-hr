@@ -9,6 +9,7 @@ export type SeminarPackageCode = string;
 export interface SeminarPackageOption {
   code: SeminarPackageCode;
   label: string;
+  description?: string | null;
   amount: number;
   session_dates: string[]; // ISO yyyy-MM-dd
 }
