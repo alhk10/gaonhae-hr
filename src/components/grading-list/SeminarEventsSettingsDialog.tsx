@@ -377,6 +377,13 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  <Textarea
+                    className="text-xs min-h-[48px]"
+                    placeholder="Description (optional, shown under the package name)"
+                    value={p.description || ''}
+                    onChange={(e) => updatePackage(idx, { description: e.target.value })}
+                  />
+
                   <div className="flex flex-wrap items-center gap-1">
                     {(p.session_dates || []).map(d => (
                       <Badge key={d} variant="secondary" className="text-[10px] gap-1">
