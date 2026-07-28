@@ -27,8 +27,32 @@ interface Counts {
 const emptyCounts = (): Counts => ({ schoolFees: 0, grading: 0, competitions: 0, seminars: 0, guards: 0 });
 
 const money = (n: number) => `$${n.toFixed(2)}`;
+export type SummaryDrillTab = 'school-fees' | 'grading' | 'competitions' | 'seminars' | 'guards';
 
-const SummaryTab: React.FC = () => {
+interface SummaryTabProps {
+  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+}
+
+const DrillCell: React.FC<{
+  value: number;
+  branch: string;
+  tab: SummaryDrillTab;
+  onDrill?: (tab: SummaryDrillTab, branch: string) => void;
+}> = ({ value, branch, tab, onDrill }) => {
+  if (!value) return <span>–</span>;
+  if (!onDrill) return <span>{value}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onDrill(tab, branch)}
+      className="text-primary underline-offset-2 hover:underline font-medium"
+    >
+      {value}
+    </button>
+  );
+};
+
+const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
