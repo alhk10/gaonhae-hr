@@ -249,7 +249,23 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
               {filtered.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                  <TableCell className="text-xs font-medium">{row.student_name || '—'}</TableCell>
+                  <TableCell className="text-xs font-medium">
+                    <div>{row.student_name || row.contact_name || '—'}</div>
+                    {!row.student_id && (
+                      <div className="space-y-0.5">
+                        <Badge variant="outline" className="text-[10px] bg-orange-100 text-orange-800 border-orange-200">
+                          Unmatched
+                        </Badge>
+                        {row.contact_email && (
+                          <div className="text-[10px] text-muted-foreground break-all">{row.contact_email}</div>
+                        )}
+                        {row.contact_dob && (
+                          <div className="text-[10px] text-muted-foreground">DOB {row.contact_dob}</div>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+
                   <TableCell className="text-xs">{row.branch_name || '—'}</TableCell>
                   <TableCell className="text-xs max-w-[220px]">
                     <span className="line-clamp-2 break-words">{itemsSummary(row) || '—'}</span>
