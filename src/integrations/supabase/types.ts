@@ -8072,6 +8072,20 @@ export type Database = {
           student_number: string
         }[]
       }
+      find_school_fees_submission_student_matches: {
+        Args: { p_id: string }
+        Returns: {
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          full_name: string
+          reason: string
+          score: number
+          student_id: string
+          student_number: string
+        }[]
+      }
       find_seminar_submission_student_matches: {
         Args: { p_id: string }
         Returns: {
