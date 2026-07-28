@@ -7780,6 +7780,14 @@ export type Database = {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
       }
+      admin_match_school_fees_submission: {
+        Args: { p_id: string; p_matched_by?: string; p_student_id: string }
+        Returns: {
+          invoice_id: string
+          invoice_number: string
+          payment_number: string
+        }[]
+      }
       admin_match_seminar_submission: {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
@@ -8275,6 +8283,16 @@ export type Database = {
           total_weeks: number
         }[]
       }
+      get_public_class_products: {
+        Args: { p_branch_id: string }
+        Returns: {
+          base_price: number
+          branch_price: number
+          description: string
+          product_id: string
+          product_name: string
+        }[]
+      }
       get_public_competition_events: {
         Args: never
         Returns: {
@@ -8518,6 +8536,9 @@ export type Database = {
           branch_id: string
           branch_name: string
           category: string
+          contact_dob: string
+          contact_email: string
+          contact_name: string
           created_at: string
           id: string
           invoice_id: string
@@ -8529,6 +8550,7 @@ export type Database = {
           payment_number: string
           payment_verification_status: string
           proof_url: string
+          reference_number: string
           status: string
           student_id: string
           student_name: string
@@ -8709,6 +8731,15 @@ export type Database = {
               timetable_id: string
             }[]
           }
+      get_public_terms_for_branch: {
+        Args: { p_branch_id: string }
+        Returns: {
+          end_date: string
+          start_date: string
+          term_id: string
+          term_name: string
+        }[]
+      }
       get_student_by_auth_id_for_auth: {
         Args: { p_auth_user_id: string; p_email?: string }
         Returns: {
@@ -8846,6 +8877,24 @@ export type Database = {
           invoice_id: string
           invoice_number: string
           payment_number: string
+        }[]
+      }
+      submit_public_school_fees: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_date_of_birth: string
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_payment_method: string
+          p_product_id: string
+          p_proof_url: string
+          p_term_id: string
+        }
+        Returns: {
+          id: string
+          reference_number: string
         }[]
       }
       submit_seminar_payment: {
