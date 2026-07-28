@@ -4,7 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 
-export type SeminarPackageCode = 'single_13' | 'single_20' | 'combo';
+export type SeminarPackageCode = string;
 
 export interface SeminarPackageOption {
   code: SeminarPackageCode;
@@ -13,26 +13,93 @@ export interface SeminarPackageOption {
   session_dates: string[]; // ISO yyyy-MM-dd
 }
 
-export const SEMINAR_OPTIONS: SeminarPackageOption[] = [
-  {
-    code: 'single_13',
-    label: 'Sat, 13 Jun 2026 · 4:00 PM · Bukit Merah Branch',
-    amount: 81.75,
-    session_dates: ['2026-06-13'],
-  },
-  {
-    code: 'single_20',
-    label: 'Sat, 20 Jun 2026 · 4:00 PM · Bukit Merah Branch',
-    amount: 81.75,
-    session_dates: ['2026-06-20'],
-  },
-  {
-    code: 'combo',
-    label: 'Sat, 13 & 20 Jun 2026 · 4:00 PM · Bukit Merah Branch (Combo)',
-    amount: 130.80,
-    session_dates: ['2026-06-13', '2026-06-20'],
-  },
-];
+export interface SeminarEvent {
+  id: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  packages: SeminarPackageOption[];
+  indemnity_clause: string | null;
+  indemnity_template_url: string | null;
+  indemnity_template_name: string | null;
+  require_passport: boolean;
+  require_photo: boolean;
+  require_grading_card: boolean;
+}
+
+export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
+  const { data, error } = await supabase.rpc('get_public_seminar_events' as any);
+  if (error) throw error;
+  return ((data || []) as any[]).map((e) => ({
+    ...e,
+    packages: Array.isArray(e.packages) ? e.packages : [],
+  })) as SeminarEvent[];
+};
+
+export const adminUpsertSeminarEvent = async (input: {
+  id: string | null;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  packages: SeminarPackageOption[];
+  indemnity_clause: string | null;
+  indemnity_template_url: string | null;
+  indemnity_template_name: string | null;
+  require_passport: boolean;
+  require_photo: boolean;
+  require_grading_card: boolean;
+}): Promise<string> => {
+  const { data, error } = await supabase.rpc('admin_upsert_seminar_event' as any, {
+    p_id: input.id,
+    p_name: input.name,
+    p_is_active: input.is_active,
+    p_display_order: input.display_order,
+    p_packages: input.packages as any,
+    p_indemnity_clause: input.indemnity_clause,
+    p_indemnity_template_url: input.indemnity_template_url,
+    p_indemnity_template_name: input.indemnity_template_name,
+    p_require_passport: input.require_passport,
+    p_require_photo: input.require_photo,
+    p_require_grading_card: input.require_grading_card,
+  });
+  if (error) throw error;
+  return data as string;
+};
+
+export const adminSetSeminarEventActive = async (id: string, active: boolean) => {
+  const { error } = await supabase.rpc('admin_set_seminar_event_active' as any, {
+    p_id: id,
+    p_active: active,
+  });
+  if (error) throw error;
+};
+
+export const adminDeleteSeminarEvent = async (id: string) => {
+  const { error } = await supabase.rpc('admin_delete_seminar_event' as any, { p_id: id });
+  if (error) throw error;
+};
+
+export const uploadSeminarIndemnityTemplate = async (file: File): Promise<string> => {
+  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+    throw new Error('Indemnity template must be a PDF file');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Indemnity template must be 10 MB or smaller');
+  }
+  const safeName = file.name.replace(/[^a-z0-9._-]/gi, '_');
+  const path = `public-seminars/templates/${Date.now()}_${safeName}`;
+  const { error } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: 'application/pdf' });
+  if (error) throw new Error(`Template upload failed: ${error.message || 'unknown error'}`);
+  const { data: signed, error: signErr } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  if (signErr || !signed?.signedUrl) {
+    throw new Error(`Could not generate download URL: ${signErr?.message || 'unknown error'}`);
+  }
+  return signed.signedUrl;
+};
 
 export interface PublicSeminarListRow {
   submission_id: string;
