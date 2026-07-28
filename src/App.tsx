@@ -154,13 +154,15 @@ function App() {
                     {/* Public routes */}
                     <Route path="/" element={<HostnameRouter />} />
                     <Route path="/register" element={<StudentRegistration />} />
-                    <Route path="/pay" element={<PublicGradingPayment />} />
+                    <Route path="/grading" element={<PublicGradingPayment />} />
+                    <Route path="/pay" element={<Navigate to="/grading" replace />} />
                     <Route path="/comps" element={<PublicCompetitionPayment />} />
                     <Route path="/seminars" element={<PublicSeminarPayment />} />
-                    <Route path="/grading-list" element={<PublicGradingList />} />
+                    <Route path="/access" element={<PublicGradingList />} />
+                    <Route path="/grading-list" element={<Navigate to="/access" replace />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
                     <Route path="/guards" element={<PublicGuardsPurchase />} />
-                    <Route path="/guardspurchase-list" element={<Navigate to="/grading-list" replace />} />
+                    <Route path="/guardspurchase-list" element={<Navigate to="/access" replace />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     
