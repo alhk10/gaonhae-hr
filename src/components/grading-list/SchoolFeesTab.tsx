@@ -119,9 +119,16 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     let res = rows as SchoolFeesRow[];
     if (branchFilter !== 'all') res = res.filter((r) => (r.branch_name || '—') === branchFilter);
     const q = search.trim().toLowerCase();
-    if (q) res = res.filter((r) => (r.student_name || '').toLowerCase().includes(q));
+    if (q) {
+      res = res.filter((r) =>
+        `${r.student_name || ''} ${r.contact_name || ''} ${r.contact_email || ''} ${r.reference_number || ''}`
+          .toLowerCase()
+          .includes(q),
+      );
+    }
     return res;
   }, [rows, branchFilter, search]);
+
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['school-fees-list'] });
