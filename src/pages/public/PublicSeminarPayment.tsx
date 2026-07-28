@@ -492,7 +492,7 @@ const PublicSeminarPayment: React.FC = () => {
                               <div className="font-medium">{opt.label}</div>
                               {opt.session_dates?.length > 0 && (
                                 <div className="text-xs text-muted-foreground">
-                                  {opt.session_dates.map(formatDate).join(', ')}
+                                  {opt.session_dates.map((d) => formatDate(d)).join(', ')}
                                 </div>
                               )}
                             </div>
