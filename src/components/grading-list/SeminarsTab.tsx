@@ -56,6 +56,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  const [eventFilter, setEventFilter] = useState<string>('all');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,13 +67,21 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['public-seminar-events'],
+    queryFn: getPublicSeminarEvents,
+    staleTime: 60 * 1000,
+  });
+
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-seminar-list', branchFilter, statusFilter],
+    queryKey: ['public-seminar-list', branchFilter, statusFilter, eventFilter],
     queryFn: () => getPublicSeminarList(
       branchFilter === 'all' ? null : branchFilter,
       statusFilter === 'all' ? null : statusFilter,
+      eventFilter === 'all' ? null : eventFilter,
     ),
   });
+
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
