@@ -1,6 +1,6 @@
 /**
  * Service for school-fee payments submitted through the public /hello chat.
- * Backed by SECURITY DEFINER functions so the public /grading-list page can read
+ * Backed by SECURITY DEFINER functions so the public /access page can read
  * and moderate them without an authenticated Supabase session.
  */
 import { supabase } from '@/integrations/supabase/client';

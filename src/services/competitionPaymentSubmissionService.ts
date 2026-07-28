@@ -1,6 +1,6 @@
 /**
  * Service for the public competition payment module.
- * Used by /comps and the Competitions tab on /grading-list.
+ * Used by /comps and the Competitions tab on /access.
  */
 import { supabase } from '@/integrations/supabase/client';
 
@@ -701,7 +701,7 @@ export const getCompetitionSubmissionDeleteContext = async (id: string) => {
 
 /**
  * Fetch the full submission row (all columns) for the admin edit dialog
- * opened from the Competitions tab on /grading-list.
+ * opened from the Competitions tab on /access.
  */
 export const getCompetitionSubmissionForEdit = async (id: string): Promise<any> => {
   const { data, error } = await supabase

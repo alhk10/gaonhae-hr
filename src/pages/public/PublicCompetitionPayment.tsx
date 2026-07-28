@@ -1,6 +1,6 @@
 /**
  * Public competition payment page (no auth).
- * Mounted at /comps. Event-driven: admin defines events in /grading-list settings,
+ * Mounted at /comps. Event-driven: admin defines events in /access settings,
  * this page renders only the fields required by the selected event.
  */
 import React, { useEffect, useMemo, useState } from 'react';

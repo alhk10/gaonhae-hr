@@ -1,6 +1,6 @@
 /**
  * Service for the public grading payment module.
- * Used by the public /pay and /grading-list pages (no auth required).
+ * Used by the public /pay and /access pages (no auth required).
  */
 import { supabase } from '@/integrations/supabase/client';
 
