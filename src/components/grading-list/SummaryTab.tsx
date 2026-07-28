@@ -179,11 +179,11 @@ const SummaryTab: React.FC = () => {
                   {pending.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
-                      <td className="py-2 px-2 text-right">{r.schoolFees || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.grading || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.competitions || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.seminars || '–'}</td>
-                      <td className="py-2 px-2 text-right">{r.guards || '–'}</td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.schoolFees} branch={r.branch} tab="school-fees" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.grading} branch={r.branch} tab="grading" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.competitions} branch={r.branch} tab="competitions" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.seminars} branch={r.branch} tab="seminars" onDrill={onDrill} /></td>
+                      <td className="py-2 px-2 text-right"><DrillCell value={r.guards} branch={r.branch} tab="guards" onDrill={onDrill} /></td>
                       <td className="py-2 pl-2 text-right font-semibold">{r.total}</td>
                     </tr>
                   ))}
