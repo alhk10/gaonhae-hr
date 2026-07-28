@@ -126,7 +126,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const addPackage = () => {
     setForm(prev => ({
       ...prev,
-      packages: [...prev.packages, { code: '', label: '', amount: 0, session_dates: [] }],
+      packages: [...prev.packages, { code: '', label: '', description: '', amount: 0, session_dates: [] }],
     }));
   };
 
