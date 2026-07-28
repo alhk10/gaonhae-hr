@@ -122,6 +122,7 @@ const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
+  const [activeTab, setActiveTab] = useState<string>('summary');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
