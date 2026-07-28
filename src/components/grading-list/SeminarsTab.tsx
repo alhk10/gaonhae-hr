@@ -3,7 +3,7 @@
  * Multi-event: filter by seminar event + branch, manage events via settings.
  * Mirrors the Competitions tab pattern.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings } from 'lucide-react';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
