@@ -14,6 +14,7 @@ import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import {
   getSeminarSubmissionForEdit,
   adminPatchSeminarSubmission,
+  combineSeminarPackages,
   adminReplaceSeminarSubmissionProof,
   getPublicSeminarEvents,
 } from '@/services/seminarPaymentSubmissionService';
@@ -71,10 +72,17 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
   const branchObj = branches.find((b: any) => b.id === form.branch_id);
   const beltOptions = getBeltLevelsForCountry((branchObj as any)?.country || 'Singapore');
 
-  const packageOptions = React.useMemo(() => {
-    const ev = seminarEvents.find((e) => e.id === form.event_id);
-    return ev?.packages ?? [];
-  }, [seminarEvents, form.event_id]);
+  const selectedEvent = React.useMemo(
+    () => seminarEvents.find((e) => e.id === form.event_id),
+    [seminarEvents, form.event_id],
+  );
+  const packageOptions = selectedEvent?.packages ?? [];
+  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+
+  const selectedCodes: string[] = React.useMemo(
+    () => String(form.package_code || '').split(',').map((c: string) => c.trim()).filter(Boolean),
+    [form.package_code],
+  );
 
   const setField = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
@@ -82,20 +90,31 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     setForm((f: any) => ({ ...f, event_id: eventId, package_code: '' }));
   };
 
-  const handlePackageChange = (code: string) => {
-    const pkg = packageOptions.find((o) => o.code === code);
+  const applyCodes = (codes: string[]) => {
+    const pkgs = packageOptions.filter((o) => codes.includes(o.code));
+    const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
     setForm((f: any) => ({
       ...f,
-      package_code: code,
-      amount: pkg?.amount ?? f.amount,
+      package_code: combined.package_code,
+      amount: pkgs.length > 0 ? combined.amount : f.amount,
     }));
+  };
+
+  const handlePackageToggle = (code: string) => {
+    if (!multiSelectAllowed) { applyCodes([code]); return; }
+    applyCodes(
+      selectedCodes.includes(code)
+        ? selectedCodes.filter((c) => c !== code)
+        : [...selectedCodes, code],
+    );
   };
 
   const handleSave = async () => {
     if (!submissionId) return;
     setSaving(true);
     try {
-      const pkg = packageOptions.find((o) => o.code === form.package_code);
+      const pkgs = packageOptions.filter((o) => selectedCodes.includes(o.code));
+      const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
       await adminPatchSeminarSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -105,10 +124,11 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
         branch_id: form.branch_id,
         current_belt: form.current_belt,
         amount: Number(form.amount) || 0,
+        discount_amount: pkgs.length > 0 ? combined.discount_amount : (row?.discount_amount ?? 0),
         event_id: form.event_id || null,
         package_code: form.package_code,
-        package_label: pkg?.label ?? row?.package_label,
-        session_dates: pkg?.session_dates ?? row?.session_dates,
+        package_label: pkgs.length > 0 ? combined.package_label : row?.package_label,
+        session_dates: pkgs.length > 0 ? combined.session_dates : row?.session_dates,
       });
       toast.success('Saved');
       onSaved?.();
@@ -208,15 +228,25 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label className="text-xs">Package</Label>
-                <Select value={form.package_code || ''} onValueChange={handlePackageChange}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    {packageOptions.map((o) => (
-                      <SelectItem key={o.code} value={o.code} className="text-xs">{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">
+                  Package{multiSelectAllowed ? 's (multi-package discount applies)' : ''}
+                </Label>
+                <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
+                  {packageOptions.length === 0 && (
+                    <div className="text-[10px] text-muted-foreground">No packages for this event</div>
+                  )}
+                  {packageOptions.map((o) => (
+                    <label key={o.code} className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type={multiSelectAllowed ? 'checkbox' : 'radio'}
+                        checked={selectedCodes.includes(o.code)}
+                        onChange={() => handlePackageToggle(o.code)}
+                      />
+                      <span className="flex-1">{o.label}</span>
+                      <span className="text-[11px] text-muted-foreground">${Number(o.amount).toFixed(2)}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 

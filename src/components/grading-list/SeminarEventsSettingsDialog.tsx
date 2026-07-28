@@ -47,6 +47,7 @@ const emptyForm = () => ({
   require_passport: false,
   require_photo: false,
   require_grading_card: false,
+  multi_package_discount: false,
 });
 
 const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
@@ -86,6 +87,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_passport: e.require_passport === true,
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
+      multi_package_discount: e.multi_package_discount === true,
     });
     requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
@@ -191,6 +193,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_passport: form.require_passport,
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
+        multi_package_discount: form.multi_package_discount,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['seminar-events-admin'] });
@@ -330,6 +333,18 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={addPackage}>
                   <Plus className="h-3 w-3 mr-1" /> Add package
                 </Button>
+              </div>
+              <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
+                <Switch
+                  checked={form.multi_package_discount}
+                  onCheckedChange={(v) => setForm(f => ({ ...f, multi_package_discount: v }))}
+                />
+                <div className="text-[11px] leading-snug">
+                  <div className="font-medium">Multi-package discount</div>
+                  <div className="text-muted-foreground">
+                    Participants may pick several packages: $10 off for 2, $20 for 3, $30 for 4, +$10 per extra.
+                  </div>
+                </div>
               </div>
               {form.packages.length === 0 && (
                 <div className="text-[11px] text-muted-foreground">No packages yet.</div>

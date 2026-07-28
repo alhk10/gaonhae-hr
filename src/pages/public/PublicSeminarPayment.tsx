@@ -28,6 +28,7 @@ import {
 import {
   submitSeminarPayment,
   getPublicSeminarEvents,
+  combineSeminarPackages,
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 
@@ -126,7 +127,7 @@ const PublicSeminarPayment: React.FC = () => {
   const [gender, setGender] = useState<string>('');
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [eventId, setEventId] = useState<string>('');
-  const [packageCode, setPackageCode] = useState<SeminarPackageCode | ''>('');
+  const [packageCodes, setPackageCodes] = useState<SeminarPackageCode[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
@@ -173,12 +174,27 @@ const PublicSeminarPayment: React.FC = () => {
     [selectedBranch?.country, age],
   );
 
-  const selectedPackage = useMemo(
-    () => (selectedEvent?.packages || []).find(o => o.code === packageCode),
-    [selectedEvent, packageCode],
+  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+
+  const selectedPackages = useMemo(
+    () => (selectedEvent?.packages || []).filter(o => packageCodes.includes(o.code)),
+    [selectedEvent, packageCodes],
   );
 
-  const totalAmount = selectedPackage?.amount ?? 0;
+  const togglePackage = (code: SeminarPackageCode) => {
+    setPackageCodes(prev => {
+      if (!multiSelectAllowed) return [code];
+      return prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code];
+    });
+  };
+
+  const combined = useMemo(
+    () => combineSeminarPackages(selectedPackages, multiSelectAllowed),
+    [selectedPackages, multiSelectAllowed],
+  );
+
+  const discountAmount = combined.discount_amount;
+  const totalAmount = combined.amount;
   const gstRate = gstRateForCountry(selectedBranch?.country);
   const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
 
@@ -200,7 +216,7 @@ const PublicSeminarPayment: React.FC = () => {
     !!gender &&
     !!currentBelt &&
     !!selectedEvent &&
-    !!selectedPackage &&
+    selectedPackages.length > 0 &&
     !!proofFile &&
     (!selectedEvent?.require_passport || !!passportFile) &&
     (!selectedEvent?.require_photo || !!photoFile) &&
@@ -211,7 +227,7 @@ const PublicSeminarPayment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || !selectedPackage || !selectedEvent) return;
+    if (!canSubmit || !dob || !proofFile || selectedPackages.length === 0 || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -226,10 +242,11 @@ const PublicSeminarPayment: React.FC = () => {
         gender,
         current_belt: currentBelt,
         event_id: selectedEvent.id,
-        package_code: selectedPackage.code,
-        package_label: selectedPackage.label,
-        session_dates: selectedPackage.session_dates,
-        amount: selectedPackage.amount,
+        package_code: combined.package_code,
+        package_label: combined.package_label,
+        session_dates: combined.session_dates,
+        amount: combined.amount,
+        discount_amount: combined.discount_amount,
         payment_method: paymentMethod,
         proof_file: proofFile,
         passport_file: selectedEvent.require_passport ? passportFile : null,
@@ -271,7 +288,7 @@ const PublicSeminarPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setDob(undefined); setGender(''); setCurrentBelt('');
-                  setEventId(''); setPackageCode('');
+                  setEventId(''); setPackageCodes([]);
                   setProofFile(null); setPassportFile(null); setPhotoFile(null);
                   setGradingCardFile(null); setIndemnityFormFile(null);
                   setSignatureDataUrl(null); setIndemnityAccepted(false);
@@ -316,7 +333,7 @@ const PublicSeminarPayment: React.FC = () => {
                 <Label htmlFor="seminar-event">Seminar *</Label>
                 <Select
                   value={eventId}
-                  onValueChange={(v) => { setEventId(v); setPackageCode(''); }}
+                  onValueChange={(v) => { setEventId(v); setPackageCodes([]); }}
                   disabled={eventsLoading || events.length === 0}
                 >
                   <SelectTrigger id="seminar-event">
@@ -465,7 +482,12 @@ const PublicSeminarPayment: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Seminar Package *</Label>
+                    <Label>Seminar Package{multiSelectAllowed ? 's' : ''} *</Label>
+                    {multiSelectAllowed && (
+                      <p className="text-xs text-muted-foreground">
+                        Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.
+                      </p>
+                    )}
                     <div className="space-y-2 rounded-md border p-3">
                       {(selectedEvent.packages || []).length === 0 && (
                         <div className="text-sm text-muted-foreground">
@@ -473,7 +495,7 @@ const PublicSeminarPayment: React.FC = () => {
                         </div>
                       )}
                       {(selectedEvent.packages || []).map((opt) => {
-                        const checked = packageCode === opt.code;
+                        const checked = packageCodes.includes(opt.code);
                         return (
                           <label
                             key={opt.code}
@@ -482,11 +504,11 @@ const PublicSeminarPayment: React.FC = () => {
                             }`}
                           >
                             <input
-                              type="radio"
+                              type={multiSelectAllowed ? 'checkbox' : 'radio'}
                               name="seminar-package"
                               className="mt-1"
                               checked={checked}
-                              onChange={() => setPackageCode(opt.code)}
+                              onChange={() => togglePackage(opt.code)}
                             />
                             <div className="flex-1 text-sm">
                               <div className="font-medium">{opt.label}</div>
@@ -577,6 +599,18 @@ const PublicSeminarPayment: React.FC = () => {
 
                   {totalAmount > 0 && (
                     <div className="rounded-md border p-3 bg-background text-sm space-y-1">
+                      {selectedPackages.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span>{selectedPackages.length} packages</span>
+                          <span>${combined.gross_amount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {discountAmount > 0 && (
+                        <div className="flex items-center justify-between text-green-700">
+                          <span>Multi-package discount</span>
+                          <span>-${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       {gstRate > 0 ? (
                         <>
                           <div className="flex items-center justify-between">

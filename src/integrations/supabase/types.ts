@@ -4857,6 +4857,7 @@ export type Database = {
           indemnity_template_name: string | null
           indemnity_template_url: string | null
           is_active: boolean
+          multi_package_discount: boolean
           name: string
           packages: Json
           require_grading_card: boolean
@@ -4872,6 +4873,7 @@ export type Database = {
           indemnity_template_name?: string | null
           indemnity_template_url?: string | null
           is_active?: boolean
+          multi_package_discount?: boolean
           name: string
           packages?: Json
           require_grading_card?: boolean
@@ -4887,6 +4889,7 @@ export type Database = {
           indemnity_template_name?: string | null
           indemnity_template_url?: string | null
           is_active?: boolean
+          multi_package_discount?: boolean
           name?: string
           packages?: Json
           require_grading_card?: boolean
@@ -4906,6 +4909,7 @@ export type Database = {
           created_at: string
           current_belt: string | null
           date_of_birth: string | null
+          discount_amount: number
           email: string | null
           event_id: string | null
           first_name: string
@@ -4940,6 +4944,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth?: string | null
+          discount_amount?: number
           email?: string | null
           event_id?: string | null
           first_name: string
@@ -4974,6 +4979,7 @@ export type Database = {
           created_at?: string
           current_belt?: string | null
           date_of_birth?: string | null
+          discount_amount?: number
           email?: string | null
           event_id?: string | null
           first_name?: string
@@ -7919,22 +7925,40 @@ export type Database = {
         }
         Returns: string
       }
-      admin_upsert_seminar_event: {
-        Args: {
-          p_display_order: number
-          p_id: string
-          p_indemnity_clause?: string
-          p_indemnity_template_name?: string
-          p_indemnity_template_url?: string
-          p_is_active: boolean
-          p_name: string
-          p_packages: Json
-          p_require_grading_card?: boolean
-          p_require_passport?: boolean
-          p_require_photo?: boolean
-        }
-        Returns: string
-      }
+      admin_upsert_seminar_event:
+        | {
+            Args: {
+              p_display_order: number
+              p_id: string
+              p_indemnity_clause?: string
+              p_indemnity_template_name?: string
+              p_indemnity_template_url?: string
+              p_is_active: boolean
+              p_name: string
+              p_packages: Json
+              p_require_grading_card?: boolean
+              p_require_passport?: boolean
+              p_require_photo?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_display_order: number
+              p_id: string
+              p_indemnity_clause?: string
+              p_indemnity_template_name?: string
+              p_indemnity_template_url?: string
+              p_is_active: boolean
+              p_multi_package_discount?: boolean
+              p_name: string
+              p_packages: Json
+              p_require_grading_card?: boolean
+              p_require_passport?: boolean
+              p_require_photo?: boolean
+            }
+            Returns: string
+          }
       admin_verify_accessory_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: Json
@@ -8474,6 +8498,7 @@ export type Database = {
           indemnity_template_name: string
           indemnity_template_url: string
           is_active: boolean
+          multi_package_discount: boolean
           name: string
           packages: Json
           require_grading_card: boolean
@@ -8492,6 +8517,7 @@ export type Database = {
           created_at: string
           current_belt: string
           date_of_birth: string
+          discount_amount: number
           email: string
           event_id: string
           event_name: string
