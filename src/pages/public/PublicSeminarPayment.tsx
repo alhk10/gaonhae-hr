@@ -1,10 +1,11 @@
 /**
  * Public seminar booking page (no auth).
- * Mounted at /seminars. Mirror of /comps for Unarmed Combat Seminar.
+ * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
+ * events (packages, indemnity, required uploads) in /grading-list settings.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,18 +13,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
 } from '@/services/gradingPaymentSubmissionService';
 import {
   submitSeminarPayment,
-  SEMINAR_OPTIONS,
+  getPublicSeminarEvents,
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 
