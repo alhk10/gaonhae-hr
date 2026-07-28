@@ -126,7 +126,7 @@ const PublicSeminarPayment: React.FC = () => {
   const [gender, setGender] = useState<string>('');
   const [currentBelt, setCurrentBelt] = useState<string>('');
   const [eventId, setEventId] = useState<string>('');
-  const [packageCode, setPackageCode] = useState<SeminarPackageCode | ''>('');
+  const [packageCodes, setPackageCodes] = useState<SeminarPackageCode[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
