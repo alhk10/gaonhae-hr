@@ -2021,6 +2021,9 @@ const CompetitionsTab: React.FC<{
   const [eventFilter, setEventFilter] = useState<string>('');
   const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
   useEffect(() => {
+    setLocalBranchFilter(branchFilter || 'all');
+  }, [branchFilter]);
+  useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);
     }
