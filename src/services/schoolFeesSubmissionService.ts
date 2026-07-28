@@ -98,3 +98,107 @@ export const deleteSchoolFeesSubmission = async (id: string, deletedBy: string):
   });
   if (error) throw error;
 };
+
+/* ------------------------------------------------------------------ */
+/* Public /fees page                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface PublicClassProduct {
+  product_id: string;
+  product_name: string;
+  description: string | null;
+  base_price: number;
+  branch_price: number;
+}
+
+export interface PublicBranchTerm {
+  term_id: string;
+  term_name: string;
+  start_date: string;
+  end_date: string;
+}
+
+export const getPublicClassProducts = async (branchId: string): Promise<PublicClassProduct[]> => {
+  const { data, error } = await supabase.rpc('get_public_class_products' as any, {
+    p_branch_id: branchId,
+  });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    base_price: Number(r.base_price ?? 0),
+    branch_price: Number(r.branch_price ?? 0),
+  })) as PublicClassProduct[];
+};
+
+export const getPublicTermsForBranch = async (branchId: string): Promise<PublicBranchTerm[]> => {
+  const { data, error } = await supabase.rpc('get_public_terms_for_branch' as any, {
+    p_branch_id: branchId,
+  });
+  if (error) throw error;
+  return (data || []) as PublicBranchTerm[];
+};
+
+export interface SubmitSchoolFeesInput {
+  first_name: string;
+  last_name: string;
+  email: string;
+  date_of_birth: string;
+  branch_id: string;
+  product_id: string;
+  term_id: string | null;
+  amount: number;
+  payment_method: 'paynow' | 'bank_transfer';
+  proof_file: File;
+}
+
+export const submitSchoolFeesPayment = async (
+  input: SubmitSchoolFeesInput,
+): Promise<{ id: string; reference_number: string }> => {
+  const ext = input.proof_file.name.split('.').pop() || 'jpg';
+  const ts = Date.now();
+  const safeName = `${input.first_name} ${input.last_name}`
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_');
+  const path = `public-fees/${input.branch_id}/${ts}_${safeName}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, input.proof_file, { upsert: false, contentType: input.proof_file.type });
+  if (uploadError) throw uploadError;
+
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const proofUrl = signed?.signedUrl ?? path;
+
+  const { data, error } = await supabase.rpc('submit_public_school_fees' as any, {
+    p_first_name: input.first_name,
+    p_last_name: input.last_name,
+    p_email: input.email,
+    p_date_of_birth: input.date_of_birth,
+    p_branch_id: input.branch_id,
+    p_product_id: input.product_id,
+    p_term_id: input.term_id,
+    p_amount: input.amount,
+    p_payment_method: input.payment_method,
+    p_proof_url: proofUrl,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row as { id: string; reference_number: string };
+};
+
+export const matchSchoolFeesSubmission = async (
+  id: string,
+  studentId: string,
+  matchedBy: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_match_school_fees_submission' as any, {
+    p_id: id,
+    p_student_id: studentId,
+    p_matched_by: matchedBy,
+  });
+  if (error) throw error;
+};
+
