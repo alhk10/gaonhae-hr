@@ -2385,6 +2385,17 @@ const CompetitionsTab: React.FC<{
               ))}
             </SelectContent>
           </Select>
+          <Select value={paidFilter} onValueChange={(v) => setPaidFilter(v as any)}>
+            <SelectTrigger className="h-8 text-xs w-[160px]">
+              <SelectValue placeholder="Payment status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+              <SelectItem value="paid" className="text-xs">Paid</SelectItem>
+              <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
           {canDelete && (
             <Select value={registeredFilter} onValueChange={(v) => setRegisteredFilter(v as any)}>
               <SelectTrigger className="h-8 text-xs w-[150px]">
