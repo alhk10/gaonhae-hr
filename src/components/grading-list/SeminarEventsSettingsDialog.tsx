@@ -1,6 +1,6 @@
 /**
  * Seminar Events settings dialog — mirror of CompetitionEventsSettingsDialog.
- * Opened from the "Events" button on the Seminars tab of /grading-list.
+ * Opened from the "Events" button on the Seminars tab of /access.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

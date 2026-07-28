@@ -1,6 +1,6 @@
 /**
  * Public grading payment page (no auth).
- * Mounted at /pay. Intended subdomain: payment.gaonhae.app.
+ * Mounted at /grading. Intended subdomain: payment.gaonhae.app.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';

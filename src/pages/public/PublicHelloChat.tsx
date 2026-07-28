@@ -606,7 +606,7 @@ const PublicHelloChat: React.FC = () => {
         contact_last_name: lastName,
       });
       if (payCategory.id === GRADING_CATEGORY_ID) {
-        navigate('/grading-list');
+        navigate('/access');
         return;
       }
       if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {

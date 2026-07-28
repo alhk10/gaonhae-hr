@@ -1,6 +1,6 @@
 /**
  * Shared confirmation dialog for admin row deletions across the
- * /grading-list page (grading, competitions, guards tabs).
+ * /access page (grading, competitions, guards tabs).
  *
  * Surfaces critical context before the destructive action:
  * - Linked student name (if matched)

@@ -1,5 +1,5 @@
 /**
- * Seminars tab embedded in /grading-list.
+ * Seminars tab embedded in /access.
  * Multi-event: filter by seminar event + branch, manage events via settings.
  * Mirrors the Competitions tab pattern.
  */

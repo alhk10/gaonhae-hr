@@ -1,7 +1,7 @@
 /**
  * Public seminar booking page (no auth).
  * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
- * events (packages, indemnity, required uploads) in /grading-list settings.
+ * events (packages, indemnity, required uploads) in /access settings.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';

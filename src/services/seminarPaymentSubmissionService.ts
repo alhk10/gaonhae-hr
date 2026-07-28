@@ -1,6 +1,6 @@
 /**
  * Service for the public seminar payment module.
- * Used by /seminars and the Seminars tab on /grading-list.
+ * Used by /seminars and the Seminars tab on /access.
  */
 import { supabase } from '@/integrations/supabase/client';
 

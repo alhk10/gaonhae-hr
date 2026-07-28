@@ -1,6 +1,6 @@
 /**
  * Public guards purchase page (no auth). Mounted at /guards.
- * Mirrors /pay flow: buyer details + product selection + payment + proof upload.
+ * Mirrors /grading flow: buyer details + product selection + payment + proof upload.
  */
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
