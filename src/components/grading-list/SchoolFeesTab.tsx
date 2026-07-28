@@ -1,5 +1,5 @@
 /**
- * School Fees tab embedded in /grading-list.
+ * School Fees tab embedded in /access.
  * Lists school-fee payments submitted through the public /hello chat and lets
  * unlocked staff verify, reject or delete a submission (with its auto invoice).
  */

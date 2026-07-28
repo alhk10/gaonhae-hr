@@ -1,6 +1,6 @@
 /**
  * Admin edit dialog for a single competition_payment_submissions row.
- * Opened from the Competitions tab pencil icon on /grading-list.
+ * Opened from the Competitions tab pencil icon on /access.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';

@@ -1,6 +1,6 @@
 /**
  * Admin edit dialog for a single seminar_payment_submissions row.
- * Opened from the Seminars tab pencil icon on /grading-list.
+ * Opened from the Seminars tab pencil icon on /access.
  */
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
