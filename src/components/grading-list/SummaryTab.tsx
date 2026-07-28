@@ -7,6 +7,7 @@ import { getPublicGradingList, getPublicBranches } from '@/services/gradingPayme
 import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissionService';
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
+import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 
 const NO_BRANCH = '—';
 
@@ -16,13 +17,14 @@ const isPending = (s?: string | null) => {
 };
 
 interface Counts {
+  schoolFees: number;
   grading: number;
   competitions: number;
   seminars: number;
   guards: number;
 }
 
-const emptyCounts = (): Counts => ({ grading: 0, competitions: 0, seminars: 0, guards: 0 });
+const emptyCounts = (): Counts => ({ schoolFees: 0, grading: 0, competitions: 0, seminars: 0, guards: 0 });
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -47,13 +49,18 @@ const SummaryTab: React.FC = () => {
     queryFn: listGuardsPurchases,
     staleTime: 30 * 1000,
   });
+  const { data: schoolFeesRows = [], isLoading: l5 } = useQuery({
+    queryKey: ['school-fees-list', 'all'],
+    queryFn: () => getSchoolFeesList(null, null),
+    staleTime: 30 * 1000,
+  });
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
     queryFn: getPublicBranches,
     staleTime: 5 * 60 * 1000,
   });
 
-  const isLoading = l1 || l2 || l3 || l4;
+  const isLoading = l1 || l2 || l3 || l4 || l5;
 
   const branchNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -69,6 +76,9 @@ const SummaryTab: React.FC = () => {
       map.get(b)![key] += 1;
     };
 
+    for (const r of schoolFeesRows as any[]) {
+      if (isPending(r.status)) bump(r.branch_name, 'schoolFees');
+    }
     for (const r of gradingRows as any[]) {
       if (r.source === 'submission' && isPending(r.paid_status)) bump(r.branch_name, 'grading');
     }
@@ -86,13 +96,14 @@ const SummaryTab: React.FC = () => {
       .map(([branch, counts]) => ({
         branch,
         ...counts,
-        total: counts.grading + counts.competitions + counts.seminars + counts.guards,
+        total: counts.schoolFees + counts.grading + counts.competitions + counts.seminars + counts.guards,
       }))
       .filter((r) => r.total > 0)
       .sort((a, b) => a.branch.localeCompare(b.branch));
 
     const totals = rows.reduce(
       (acc, r) => ({
+        schoolFees: acc.schoolFees + r.schoolFees,
         grading: acc.grading + r.grading,
         competitions: acc.competitions + r.competitions,
         seminars: acc.seminars + r.seminars,
@@ -103,7 +114,7 @@ const SummaryTab: React.FC = () => {
     );
 
     return { rows, totals };
-  }, [gradingRows, competitionRows, seminarRows, guardsRows, branchNameById]);
+  }, [schoolFeesRows, gradingRows, competitionRows, seminarRows, guardsRows, branchNameById]);
 
   const uncollected = useMemo(() => {
     const map = new Map<string, { count: number; amount: number }>();
@@ -156,6 +167,7 @@ const SummaryTab: React.FC = () => {
                 <thead>
                   <tr className="border-b text-muted-foreground">
                     <th className="text-left font-medium py-2 pr-2">Branch</th>
+                    <th className="text-right font-medium py-2 px-2">Fees</th>
                     <th className="text-right font-medium py-2 px-2">Grading</th>
                     <th className="text-right font-medium py-2 px-2">Comps</th>
                     <th className="text-right font-medium py-2 px-2">Seminars</th>
@@ -167,6 +179,7 @@ const SummaryTab: React.FC = () => {
                   {pending.rows.map((r) => (
                     <tr key={r.branch} className="border-b last:border-0">
                       <td className="py-2 pr-2 font-medium">{r.branch}</td>
+                      <td className="py-2 px-2 text-right">{r.schoolFees || '–'}</td>
                       <td className="py-2 px-2 text-right">{r.grading || '–'}</td>
                       <td className="py-2 px-2 text-right">{r.competitions || '–'}</td>
                       <td className="py-2 px-2 text-right">{r.seminars || '–'}</td>
@@ -176,6 +189,7 @@ const SummaryTab: React.FC = () => {
                   ))}
                   <tr className="bg-muted/50">
                     <td className="py-2 pr-2 font-semibold">Total</td>
+                    <td className="py-2 px-2 text-right font-semibold">{pending.totals.schoolFees}</td>
                     <td className="py-2 px-2 text-right font-semibold">{pending.totals.grading}</td>
                     <td className="py-2 px-2 text-right font-semibold">{pending.totals.competitions}</td>
                     <td className="py-2 px-2 text-right font-semibold">{pending.totals.seminars}</td>
