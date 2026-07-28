@@ -126,6 +126,13 @@ export interface PublicSeminarListRow {
   reference_number: string;
   email: string | null;
   created_at: string;
+  event_id: string | null;
+  event_name: string | null;
+  passport_url: string | null;
+  photo_url: string | null;
+  grading_card_urls: string[] | null;
+  signature_url: string | null;
+  indemnity_form_url: string | null;
 }
 
 export interface SeminarStudentMatch {
@@ -148,12 +155,18 @@ export interface SubmitSeminarPaymentInput {
   date_of_birth: string;
   gender: string;
   current_belt: string;
+  event_id: string;
   package_code: SeminarPackageCode;
   package_label: string;
   session_dates: string[];
   amount: number;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
+  passport_file?: File | null;
+  photo_file?: File | null;
+  grading_card_files?: File[];
+  indemnity_form_file?: File | null;
+  signature_data_url?: string | null;
 }
 
 const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
