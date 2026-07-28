@@ -1229,7 +1229,7 @@ const PublicGradingList: React.FC = () => {
             <Lock className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs defaultValue="summary" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
@@ -1239,7 +1239,12 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
-            <SummaryTab />
+            <SummaryTab
+              onDrill={(tab, branch) => {
+                setBranchFilter(branch);
+                setActiveTab(tab);
+              }}
+            />
           </TabsContent>
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
