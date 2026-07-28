@@ -27,6 +27,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
+import SummaryTab from '@/components/grading-list/SummaryTab';
+
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
   getPublicCompetitionList,
