@@ -43,10 +43,15 @@ interface PublicGuardsPurchaseListProps {
   canDelete?: boolean;
   /** Branch NAME to preselect (resolved to branch id internally). 'all' clears. */
   initialBranchName?: string;
+  /** 'no' = uncollected only, 'yes' = collected only */
+  initialCollectedFilter?: string;
+  initialStatusFilter?: string;
+  /** Bump to re-apply the initial filters above */
+  drillNonce?: number;
   onRequestDelete?: (id: string, studentName: string) => void;
 }
 
-const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, initialBranchName, onRequestDelete }) => {
+const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, initialBranchName, initialCollectedFilter, initialStatusFilter, drillNonce, onRequestDelete }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const { branches } = useBranches();
