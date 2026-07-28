@@ -512,6 +512,11 @@ const PublicSeminarPayment: React.FC = () => {
                             />
                             <div className="flex-1 text-sm">
                               <div className="font-medium">{opt.label}</div>
+                              {opt.description && (
+                                <div className="text-xs text-muted-foreground whitespace-pre-line">
+                                  {opt.description}
+                                </div>
+                              )}
                               {opt.session_dates?.length > 0 && (
                                 <div className="text-xs text-muted-foreground">
                                   {opt.session_dates.map((d) => formatDate(d)).join(', ')}

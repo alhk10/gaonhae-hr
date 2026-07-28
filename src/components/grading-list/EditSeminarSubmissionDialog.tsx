@@ -236,13 +236,21 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
                     <div className="text-[10px] text-muted-foreground">No packages for this event</div>
                   )}
                   {packageOptions.map((o) => (
-                    <label key={o.code} className="flex items-center gap-2 text-xs cursor-pointer">
+                    <label key={o.code} className="flex items-start gap-2 text-xs cursor-pointer">
                       <input
+                        className="mt-0.5"
                         type={multiSelectAllowed ? 'checkbox' : 'radio'}
                         checked={selectedCodes.includes(o.code)}
                         onChange={() => handlePackageToggle(o.code)}
                       />
-                      <span className="flex-1">{o.label}</span>
+                      <span className="flex-1">
+                        <span className="block">{o.label}</span>
+                        {o.description && (
+                          <span className="block text-[10px] text-muted-foreground whitespace-pre-line">
+                            {o.description}
+                          </span>
+                        )}
+                      </span>
                       <span className="text-[11px] text-muted-foreground">${Number(o.amount).toFixed(2)}</span>
                     </label>
                   ))}

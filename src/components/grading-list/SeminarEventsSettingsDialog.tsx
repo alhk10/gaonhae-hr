@@ -78,6 +78,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       packages: (e.packages || []).map(p => ({
         code: p.code,
         label: p.label,
+        description: p.description ?? '',
         amount: Number(p.amount || 0),
         session_dates: Array.isArray(p.session_dates) ? p.session_dates : [],
       })),
@@ -125,7 +126,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const addPackage = () => {
     setForm(prev => ({
       ...prev,
-      packages: [...prev.packages, { code: '', label: '', amount: 0, session_dates: [] }],
+      packages: [...prev.packages, { code: '', label: '', description: '', amount: 0, session_dates: [] }],
     }));
   };
 
@@ -168,6 +169,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       .map(p => ({
         code: (p.code || '').trim() || slugify(p.label),
         label: (p.label || '').trim(),
+        description: (p.description || '').trim() || null,
         amount: Number(p.amount) || 0,
         session_dates: p.session_dates || [],
       }))
@@ -375,6 +377,13 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  <Textarea
+                    className="text-xs min-h-[48px]"
+                    placeholder="Description (optional, shown under the package name)"
+                    value={p.description || ''}
+                    onChange={(e) => updatePackage(idx, { description: e.target.value })}
+                  />
+
                   <div className="flex flex-wrap items-center gap-1">
                     {(p.session_dates || []).map(d => (
                       <Badge key={d} variant="secondary" className="text-[10px] gap-1">

@@ -9,6 +9,7 @@ export type SeminarPackageCode = string;
 export interface SeminarPackageOption {
   code: SeminarPackageCode;
   label: string;
+  description?: string | null;
   amount: number;
   session_dates: string[]; // ISO yyyy-MM-dd
 }
@@ -58,7 +59,10 @@ export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
   if (error) throw error;
   return ((data || []) as any[]).map((e) => ({
     ...e,
-    packages: Array.isArray(e.packages) ? e.packages : [],
+    packages: (Array.isArray(e.packages) ? e.packages : []).map((p: any) => ({
+      ...p,
+      description: p?.description ?? null,
+    })),
   })) as SeminarEvent[];
 };
 
