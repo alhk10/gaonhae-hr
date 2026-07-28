@@ -375,9 +375,30 @@ const PublicSeminarPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="seminar-event">Seminar *</Label>
+                <Select
+                  value={eventId}
+                  onValueChange={(v) => { setEventId(v); setPackageCode(''); }}
+                  disabled={eventsLoading || events.length === 0}
+                >
+                  <SelectTrigger id="seminar-event">
+                    <SelectValue placeholder={eventsLoading ? 'Loading…' : (events.length ? 'Select seminar' : 'No open seminars')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((ev) => (
+                      <SelectItem key={ev.id} value={ev.id}>{ev.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Seminar Package *</Label>
                 <div className="space-y-2 rounded-md border p-3">
-                  {SEMINAR_OPTIONS.map((opt) => {
+                  {(selectedEvent?.packages || []).length === 0 && (
+                    <div className="text-sm text-muted-foreground">Select a seminar to see packages.</div>
+                  )}
+                  {(selectedEvent?.packages || []).map((opt) => {
                     const checked = packageCode === opt.code;
                     return (
                       <label
@@ -404,6 +425,61 @@ const PublicSeminarPayment: React.FC = () => {
                   })}
                 </div>
               </div>
+
+              {(selectedEvent?.require_passport || selectedEvent?.require_photo || selectedEvent?.require_grading_card) && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Supporting documents</Label>
+                  {selectedEvent?.require_passport && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Passport / NRIC *</Label>
+                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setPassportFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                  {selectedEvent?.require_photo && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Photo *</Label>
+                      <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                  {selectedEvent?.require_grading_card && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Grading card *</Label>
+                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setGradingCardFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {indemnityFormRequired && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Indemnity form</Label>
+                  <a
+                    href={selectedEvent!.indemnity_template_url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary underline"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download form
+                  </a>
+                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setIndemnityFormFile(e.target.files?.[0] ?? null)} />
+                  <p className="text-xs text-muted-foreground">Upload the signed form (image or PDF).</p>
+                </div>
+              )}
+
+              {signatureRequired && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Indemnity declaration</Label>
+                  <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs">
+                    {selectedEvent!.indemnity_clause}
+                  </div>
+                  <label className="flex items-start gap-2 text-xs">
+                    <Checkbox checked={indemnityAccepted} onCheckedChange={(v) => setIndemnityAccepted(!!v)} />
+                    <span>I have read and agree to the declaration above.</span>
+                  </label>
+                  <SignaturePad onChange={setSignatureDataUrl} />
+                </div>
+              )}
+
 
               {selectedPackage && (
                 <div className="rounded-md border p-3 bg-background text-sm">
