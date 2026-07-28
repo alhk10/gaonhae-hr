@@ -459,7 +459,53 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Match to student */}
+      <Dialog open={!!matchRow} onOpenChange={(o) => !o && setMatchRow(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">Link payment to a student</DialogTitle>
+            <DialogDescription className="text-xs">
+              {matchRow?.contact_name || '—'}
+              {matchRow?.contact_email ? ` · ${matchRow.contact_email}` : ''}
+              {matchRow?.contact_dob ? ` · DOB ${matchRow.contact_dob}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {matchesLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" /> Finding matches…
+            </div>
+          ) : matches.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-6 text-center">
+              No likely student matches found.
+            </p>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto divide-y">
+              {matches.map((m) => (
+                <div key={m.student_id} className="flex items-center gap-2 py-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium truncate">{m.full_name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {[m.student_number, m.email, m.branch_id, m.current_belt].filter(Boolean).join(' · ')}
+                    </div>
+                    {m.reason && <div className="text-[10px] text-blue-700">{m.reason}</div>}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={busy}
+                    onClick={() => handleMatch(m.student_id)}
+                  >
+                    Link
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 };
 
