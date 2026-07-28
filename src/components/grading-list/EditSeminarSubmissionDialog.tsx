@@ -197,11 +197,22 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
                 <Input className="h-8 text-xs" type="number" step="0.01" value={form.amount ?? ''} onChange={(e) => setField('amount', e.target.value)} />
               </div>
               <div className="sm:col-span-2">
+                <Label className="text-xs">Event</Label>
+                <Select value={form.event_id || ''} onValueChange={handleEventChange}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {seminarEvents.map((e) => (
+                      <SelectItem key={e.id} value={e.id} className="text-xs">{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
                 <Label className="text-xs">Package</Label>
                 <Select value={form.package_code || ''} onValueChange={handlePackageChange}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    {SEMINAR_OPTIONS.map((o) => (
+                    {packageOptions.map((o) => (
                       <SelectItem key={o.code} value={o.code} className="text-xs">{o.label}</SelectItem>
                     ))}
                   </SelectContent>
