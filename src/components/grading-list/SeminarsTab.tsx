@@ -48,15 +48,19 @@ interface Props {
   branchFilter: string;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Bump to re-apply drill filters (branch + pending only) */
+  drillNonce?: number;
+  drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
 }
 
-const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequestDelete }) => {
+const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
+  const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -67,20 +71,45 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Apply filters coming from the Summary tab drill-through
+  useEffect(() => {
+    setLocalBranchFilter(branchFilter || 'all');
+    if (drillPendingOnly) {
+      setStatusFilter('pending');
+      setEventFilter('all');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchFilter, drillNonce, drillPendingOnly]);
+
   const { data: events = [] } = useQuery({
     queryKey: ['public-seminar-events'],
     queryFn: getPublicSeminarEvents,
     staleTime: 60 * 1000,
   });
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-seminar-list', branchFilter, statusFilter, eventFilter],
+  // NOTE: the RPC filters on branch **id**; we hold branch **names** here, so
+  // fetch all branches and filter client-side.
+  const { data: allRows = [], isLoading } = useQuery({
+    queryKey: ['public-seminar-list', statusFilter, eventFilter],
     queryFn: () => getPublicSeminarList(
-      branchFilter === 'all' ? null : branchFilter,
+      null,
       statusFilter === 'all' ? null : statusFilter,
       eventFilter === 'all' ? null : eventFilter,
     ),
   });
+
+  const branchOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    (allRows as PublicSeminarListRow[]).forEach((r) => { if (r.branch_name) set.add(r.branch_name); });
+    return Array.from(set).sort();
+  }, [allRows]);
+
+  const rows = React.useMemo(
+    () => (allRows as PublicSeminarListRow[]).filter(
+      (r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter,
+    ),
+    [allRows, localBranchFilter],
+  );
 
 
   const invalidate = () => {
