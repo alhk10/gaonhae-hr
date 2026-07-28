@@ -91,6 +91,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
+  const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -105,6 +106,14 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     enabled: !!deleteRow,
     staleTime: 0,
   });
+
+  const { data: matches = [], isLoading: matchesLoading } = useQuery({
+    queryKey: ['school-fees-student-matches', matchRow?.id],
+    queryFn: () => getSchoolFeesStudentMatches(matchRow!.id),
+    enabled: !!matchRow,
+    staleTime: 0,
+  });
+
 
   const filtered = useMemo(() => {
     let res = rows as SchoolFeesRow[];
