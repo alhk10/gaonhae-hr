@@ -74,6 +74,7 @@ export const adminUpsertSeminarEvent = async (input: {
   require_passport: boolean;
   require_photo: boolean;
   require_grading_card: boolean;
+  multi_package_discount: boolean;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_seminar_event' as any, {
     p_id: input.id,
@@ -87,6 +88,7 @@ export const adminUpsertSeminarEvent = async (input: {
     p_require_passport: input.require_passport,
     p_require_photo: input.require_photo,
     p_require_grading_card: input.require_grading_card,
+    p_multi_package_discount: input.multi_package_discount,
   });
   if (error) throw error;
   return data as string;
