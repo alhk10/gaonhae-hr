@@ -371,6 +371,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
         onClose={() => setEditingId(null)}
         onSaved={invalidate}
       />
+
+      <SeminarEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };
