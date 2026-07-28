@@ -1,12 +1,13 @@
 /**
  * Seminars tab embedded in /grading-list.
- * Lists Unarmed Combat Seminar bookings with inline match-and-verify
- * plus reject. Mirrors the Competitions tab pattern.
+ * Multi-event: filter by seminar event + branch, manage events via settings.
+ * Mirrors the Competitions tab pattern.
  */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings } from 'lucide-react';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
+import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +24,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import {
   getPublicSeminarList,
+  getPublicSeminarEvents,
   rejectSeminarSubmission,
   verifySeminarSubmission,
   adminReplaceSeminarSubmissionProof,
