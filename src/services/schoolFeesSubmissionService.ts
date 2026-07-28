@@ -207,3 +207,29 @@ export const matchSchoolFeesSubmission = async (
   if (error) throw error;
 };
 
+
+export interface SchoolFeesStudentMatch {
+  student_id: string;
+  student_number: string | null;
+  full_name: string;
+  email: string | null;
+  date_of_birth: string | null;
+  branch_id: string | null;
+  current_belt: string | null;
+  score: number;
+  reason: string | null;
+}
+
+export const getSchoolFeesStudentMatches = async (
+  id: string,
+): Promise<SchoolFeesStudentMatch[]> => {
+  const { data, error } = await supabase.rpc(
+    'find_school_fees_submission_student_matches' as any,
+    { p_id: id },
+  );
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    score: Number(r.score ?? 0),
+  })) as SchoolFeesStudentMatch[];
+};
