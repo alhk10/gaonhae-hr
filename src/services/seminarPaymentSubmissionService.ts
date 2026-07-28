@@ -186,6 +186,7 @@ export interface SubmitSeminarPaymentInput {
   package_label: string;
   session_dates: string[];
   amount: number;
+  discount_amount?: number;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
   passport_file?: File | null;
