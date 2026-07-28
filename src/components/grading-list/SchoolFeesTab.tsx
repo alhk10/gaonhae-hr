@@ -73,12 +73,16 @@ const itemsSummary = (row: SchoolFeesRow) =>
 const methodLabel = (m?: string | null) =>
   m === 'bank_transfer' ? 'Bank transfer' : m === 'paynow' ? 'PayNow' : (m || '—');
 
-const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete }) => {
+const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_verification' | 'verified' | 'rejected'>('all');
+  useEffect(() => {
+    if (drillPendingOnly) setStatusFilter('pending_verification');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drillNonce, drillPendingOnly]);
   const [search, setSearch] = useState('');
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
