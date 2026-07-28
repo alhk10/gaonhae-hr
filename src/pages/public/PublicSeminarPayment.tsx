@@ -173,12 +173,27 @@ const PublicSeminarPayment: React.FC = () => {
     [selectedBranch?.country, age],
   );
 
-  const selectedPackage = useMemo(
-    () => (selectedEvent?.packages || []).find(o => o.code === packageCode),
-    [selectedEvent, packageCode],
+  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+
+  const selectedPackages = useMemo(
+    () => (selectedEvent?.packages || []).filter(o => packageCodes.includes(o.code)),
+    [selectedEvent, packageCodes],
   );
 
-  const totalAmount = selectedPackage?.amount ?? 0;
+  const togglePackage = (code: SeminarPackageCode) => {
+    setPackageCodes(prev => {
+      if (!multiSelectAllowed) return [code];
+      return prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code];
+    });
+  };
+
+  const combined = useMemo(
+    () => combineSeminarPackages(selectedPackages, multiSelectAllowed),
+    [selectedPackages, multiSelectAllowed],
+  );
+
+  const discountAmount = combined.discount_amount;
+  const totalAmount = combined.amount;
   const gstRate = gstRateForCountry(selectedBranch?.country);
   const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
 
