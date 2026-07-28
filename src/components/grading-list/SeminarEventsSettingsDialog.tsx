@@ -193,6 +193,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_passport: form.require_passport,
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
+        multi_package_discount: form.multi_package_discount,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['seminar-events-admin'] });
