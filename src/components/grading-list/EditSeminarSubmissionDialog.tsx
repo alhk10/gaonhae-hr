@@ -41,6 +41,12 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: seminarEvents = [] } = useQuery({
+    queryKey: ['public-seminar-events'],
+    queryFn: getPublicSeminarEvents,
+    staleTime: 60 * 1000,
+  });
+
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -55,6 +61,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
         gender: row.gender ?? '',
         branch_id: row.branch_id ?? '',
         current_belt: row.current_belt ?? '',
+        event_id: row.event_id ?? '',
         package_code: row.package_code ?? '',
         amount: row.amount ?? 0,
       });
@@ -64,10 +71,19 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
   const branchObj = branches.find((b: any) => b.id === form.branch_id);
   const beltOptions = getBeltLevelsForCountry((branchObj as any)?.country || 'Singapore');
 
+  const packageOptions = React.useMemo(() => {
+    const ev = seminarEvents.find((e) => e.id === form.event_id);
+    return ev?.packages ?? [];
+  }, [seminarEvents, form.event_id]);
+
   const setField = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  const handleEventChange = (eventId: string) => {
+    setForm((f: any) => ({ ...f, event_id: eventId, package_code: '' }));
+  };
+
   const handlePackageChange = (code: string) => {
-    const pkg = SEMINAR_OPTIONS.find((o) => o.code === code);
+    const pkg = packageOptions.find((o) => o.code === code);
     setForm((f: any) => ({
       ...f,
       package_code: code,
@@ -79,7 +95,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     if (!submissionId) return;
     setSaving(true);
     try {
-      const pkg = SEMINAR_OPTIONS.find((o) => o.code === form.package_code);
+      const pkg = packageOptions.find((o) => o.code === form.package_code);
       await adminPatchSeminarSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -89,6 +105,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
         branch_id: form.branch_id,
         current_belt: form.current_belt,
         amount: Number(form.amount) || 0,
+        event_id: form.event_id || null,
         package_code: form.package_code,
         package_label: pkg?.label ?? row?.package_label,
         session_dates: pkg?.session_dates ?? row?.session_dates,
