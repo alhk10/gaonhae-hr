@@ -78,6 +78,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       packages: (e.packages || []).map(p => ({
         code: p.code,
         label: p.label,
+        description: p.description ?? '',
         amount: Number(p.amount || 0),
         session_dates: Array.isArray(p.session_dates) ? p.session_dates : [],
       })),
