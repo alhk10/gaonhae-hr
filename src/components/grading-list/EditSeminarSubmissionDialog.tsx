@@ -208,15 +208,25 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label className="text-xs">Package</Label>
-                <Select value={form.package_code || ''} onValueChange={handlePackageChange}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    {packageOptions.map((o) => (
-                      <SelectItem key={o.code} value={o.code} className="text-xs">{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">
+                  Package{multiSelectAllowed ? 's (multi-package discount applies)' : ''}
+                </Label>
+                <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
+                  {packageOptions.length === 0 && (
+                    <div className="text-[10px] text-muted-foreground">No packages for this event</div>
+                  )}
+                  {packageOptions.map((o) => (
+                    <label key={o.code} className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type={multiSelectAllowed ? 'checkbox' : 'radio'}
+                        checked={selectedCodes.includes(o.code)}
+                        onChange={() => handlePackageToggle(o.code)}
+                      />
+                      <span className="flex-1">{o.label}</span>
+                      <span className="text-[11px] text-muted-foreground">${Number(o.amount).toFixed(2)}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
