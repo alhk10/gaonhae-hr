@@ -306,6 +306,19 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   {(canEdit || canDelete) && (
                     <TableCell className="text-right whitespace-nowrap">
+                      {canEdit && !row.student_id && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-blue-600"
+                          title="Link to student"
+                          disabled={busy}
+                          onClick={() => setMatchRow(row)}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      )}
+
                       {canEdit && row.status !== 'verified' && (
                         <Button
                           size="icon"
