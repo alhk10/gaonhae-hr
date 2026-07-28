@@ -28,6 +28,7 @@ import {
 import {
   submitSeminarPayment,
   getPublicSeminarEvents,
+  combineSeminarPackages,
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 
@@ -215,7 +216,7 @@ const PublicSeminarPayment: React.FC = () => {
     !!gender &&
     !!currentBelt &&
     !!selectedEvent &&
-    !!selectedPackage &&
+    selectedPackages.length > 0 &&
     !!proofFile &&
     (!selectedEvent?.require_passport || !!passportFile) &&
     (!selectedEvent?.require_photo || !!photoFile) &&
@@ -226,7 +227,7 @@ const PublicSeminarPayment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || !selectedPackage || !selectedEvent) return;
+    if (!canSubmit || !dob || !proofFile || selectedPackages.length === 0 || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -241,10 +242,11 @@ const PublicSeminarPayment: React.FC = () => {
         gender,
         current_belt: currentBelt,
         event_id: selectedEvent.id,
-        package_code: selectedPackage.code,
-        package_label: selectedPackage.label,
-        session_dates: selectedPackage.session_dates,
-        amount: selectedPackage.amount,
+        package_code: combined.package_code,
+        package_label: combined.package_label,
+        session_dates: combined.session_dates,
+        amount: combined.amount,
+        discount_amount: combined.discount_amount,
         payment_method: paymentMethod,
         proof_file: proofFile,
         passport_file: selectedEvent.require_passport ? passportFile : null,
@@ -286,7 +288,7 @@ const PublicSeminarPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setDob(undefined); setGender(''); setCurrentBelt('');
-                  setEventId(''); setPackageCode('');
+                  setEventId(''); setPackageCodes([]);
                   setProofFile(null); setPassportFile(null); setPhotoFile(null);
                   setGradingCardFile(null); setIndemnityFormFile(null);
                   setSignatureDataUrl(null); setIndemnityAccepted(false);
@@ -331,7 +333,7 @@ const PublicSeminarPayment: React.FC = () => {
                 <Label htmlFor="seminar-event">Seminar *</Label>
                 <Select
                   value={eventId}
-                  onValueChange={(v) => { setEventId(v); setPackageCode(''); }}
+                  onValueChange={(v) => { setEventId(v); setPackageCodes([]); }}
                   disabled={eventsLoading || events.length === 0}
                 >
                   <SelectTrigger id="seminar-event">
