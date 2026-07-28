@@ -22,7 +22,12 @@ export interface SchoolFeesRow {
   created_at: string;
   student_id: string | null;
   student_name: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_dob: string | null;
+  reference_number: string | null;
   branch_id: string | null;
+
   branch_name: string | null;
   category: string | null;
   items: SchoolFeesItem[];
