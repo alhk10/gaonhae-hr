@@ -169,6 +169,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       .map(p => ({
         code: (p.code || '').trim() || slugify(p.label),
         label: (p.label || '').trim(),
+        description: (p.description || '').trim() || null,
         amount: Number(p.amount) || 0,
         session_dates: p.session_dates || [],
       }))
