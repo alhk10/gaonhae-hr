@@ -27,6 +27,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
+import SummaryTab from '@/components/grading-list/SummaryTab';
+
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
   getPublicCompetitionList,
@@ -1226,14 +1228,19 @@ const PublicGradingList: React.FC = () => {
             <Lock className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs defaultValue="grading" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="summary" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
           </TabsList>
+          <TabsContent value="summary" className="space-y-4 mt-4">
+            <SummaryTab />
+          </TabsContent>
           <TabsContent value="grading" className="space-y-4 mt-4">
+
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h1 className="text-lg font-semibold">Grading List</h1>
             </div>
