@@ -1,10 +1,11 @@
 /**
  * Public seminar booking page (no auth).
- * Mounted at /seminars. Mirror of /comps for Unarmed Combat Seminar.
+ * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
+ * events (packages, indemnity, required uploads) in /grading-list settings.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,18 +13,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
   getPublicPaymentOptions,
 } from '@/services/gradingPaymentSubmissionService';
 import {
   submitSeminarPayment,
-  SEMINAR_OPTIONS,
+  getPublicSeminarEvents,
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 
@@ -101,9 +104,16 @@ const PublicSeminarPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [gender, setGender] = useState<string>('');
   const [currentBelt, setCurrentBelt] = useState<string>('');
+  const [eventId, setEventId] = useState<string>('');
   const [packageCode, setPackageCode] = useState<SeminarPackageCode | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [gradingCardFile, setGradingCardFile] = useState<File | null>(null);
+  const [indemnityFormFile, setIndemnityFormFile] = useState<File | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [indemnityAccepted, setIndemnityAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
@@ -113,6 +123,23 @@ const PublicSeminarPayment: React.FC = () => {
     queryFn: getPublicBranches,
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: allEvents = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ['public-seminar-events'],
+    queryFn: getPublicSeminarEvents,
+    staleTime: 60 * 1000,
+  });
+
+  const events = useMemo(() => allEvents.filter(e => e.is_active), [allEvents]);
+
+  useEffect(() => {
+    if (!eventId && events.length > 0) setEventId(events[0].id);
+  }, [events, eventId]);
+
+  const selectedEvent = useMemo(
+    () => events.find(e => e.id === eventId) || null,
+    [events, eventId],
+  );
 
   const selectedBranch = useMemo(
     () => branches.find(b => b.id === branchId),
@@ -126,9 +153,12 @@ const PublicSeminarPayment: React.FC = () => {
   );
 
   const selectedPackage = useMemo(
-    () => SEMINAR_OPTIONS.find(o => o.code === packageCode),
-    [packageCode],
+    () => (selectedEvent?.packages || []).find(o => o.code === packageCode),
+    [selectedEvent, packageCode],
   );
+
+  const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);
+  const indemnityFormRequired = !!selectedEvent?.indemnity_template_url;
 
   const { data: options } = useQuery({
     queryKey: ['public-payment-options', branchId, currentBelt],
@@ -144,13 +174,19 @@ const PublicSeminarPayment: React.FC = () => {
     !!dob &&
     !!gender &&
     !!currentBelt &&
+    !!selectedEvent &&
     !!selectedPackage &&
     !!proofFile &&
+    (!selectedEvent?.require_passport || !!passportFile) &&
+    (!selectedEvent?.require_photo || !!photoFile) &&
+    (!selectedEvent?.require_grading_card || !!gradingCardFile) &&
+    (!indemnityFormRequired || !!indemnityFormFile) &&
+    (!signatureRequired || (!!signatureDataUrl && indemnityAccepted)) &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || !selectedPackage) return;
+    if (!canSubmit || !dob || !proofFile || !selectedPackage || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -164,12 +200,18 @@ const PublicSeminarPayment: React.FC = () => {
         date_of_birth: isoDob,
         gender,
         current_belt: currentBelt,
+        event_id: selectedEvent.id,
         package_code: selectedPackage.code,
         package_label: selectedPackage.label,
         session_dates: selectedPackage.session_dates,
         amount: selectedPackage.amount,
         payment_method: paymentMethod,
         proof_file: proofFile,
+        passport_file: selectedEvent.require_passport ? passportFile : null,
+        photo_file: selectedEvent.require_photo ? photoFile : null,
+        grading_card_files: selectedEvent.require_grading_card && gradingCardFile ? [gradingCardFile] : [],
+        indemnity_form_file: indemnityFormRequired ? indemnityFormFile : null,
+        signature_data_url: signatureRequired ? signatureDataUrl : null,
       });
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
@@ -333,9 +375,30 @@ const PublicSeminarPayment: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="seminar-event">Seminar *</Label>
+                <Select
+                  value={eventId}
+                  onValueChange={(v) => { setEventId(v); setPackageCode(''); }}
+                  disabled={eventsLoading || events.length === 0}
+                >
+                  <SelectTrigger id="seminar-event">
+                    <SelectValue placeholder={eventsLoading ? 'Loading…' : (events.length ? 'Select seminar' : 'No open seminars')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((ev) => (
+                      <SelectItem key={ev.id} value={ev.id}>{ev.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Seminar Package *</Label>
                 <div className="space-y-2 rounded-md border p-3">
-                  {SEMINAR_OPTIONS.map((opt) => {
+                  {(selectedEvent?.packages || []).length === 0 && (
+                    <div className="text-sm text-muted-foreground">Select a seminar to see packages.</div>
+                  )}
+                  {(selectedEvent?.packages || []).map((opt) => {
                     const checked = packageCode === opt.code;
                     return (
                       <label
@@ -362,6 +425,61 @@ const PublicSeminarPayment: React.FC = () => {
                   })}
                 </div>
               </div>
+
+              {(selectedEvent?.require_passport || selectedEvent?.require_photo || selectedEvent?.require_grading_card) && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Supporting documents</Label>
+                  {selectedEvent?.require_passport && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Passport / NRIC *</Label>
+                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setPassportFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                  {selectedEvent?.require_photo && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Photo *</Label>
+                      <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                  {selectedEvent?.require_grading_card && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Grading card *</Label>
+                      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setGradingCardFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {indemnityFormRequired && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Indemnity form</Label>
+                  <a
+                    href={selectedEvent!.indemnity_template_url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary underline"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download form
+                  </a>
+                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setIndemnityFormFile(e.target.files?.[0] ?? null)} />
+                  <p className="text-xs text-muted-foreground">Upload the signed form (image or PDF).</p>
+                </div>
+              )}
+
+              {signatureRequired && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label className="text-sm font-semibold">Indemnity declaration</Label>
+                  <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs">
+                    {selectedEvent!.indemnity_clause}
+                  </div>
+                  <label className="flex items-start gap-2 text-xs">
+                    <Checkbox checked={indemnityAccepted} onCheckedChange={(v) => setIndemnityAccepted(!!v)} />
+                    <span>I have read and agree to the declaration above.</span>
+                  </label>
+                  <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
+                </div>
+              )}
+
 
               {selectedPackage && (
                 <div className="rounded-md border p-3 bg-background text-sm">

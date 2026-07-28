@@ -1,12 +1,13 @@
 /**
  * Seminars tab embedded in /grading-list.
- * Lists Unarmed Combat Seminar bookings with inline match-and-verify
- * plus reject. Mirrors the Competitions tab pattern.
+ * Multi-event: filter by seminar event + branch, manage events via settings.
+ * Mirrors the Competitions tab pattern.
  */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings } from 'lucide-react';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
+import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +24,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import {
   getPublicSeminarList,
+  getPublicSeminarEvents,
   rejectSeminarSubmission,
   verifySeminarSubmission,
   adminReplaceSeminarSubmissionProof,
@@ -54,6 +56,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  const [eventFilter, setEventFilter] = useState<string>('all');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -63,13 +67,21 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['public-seminar-events'],
+    queryFn: getPublicSeminarEvents,
+    staleTime: 60 * 1000,
+  });
+
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-seminar-list', branchFilter, statusFilter],
+    queryKey: ['public-seminar-list', branchFilter, statusFilter, eventFilter],
     queryFn: () => getPublicSeminarList(
       branchFilter === 'all' ? null : branchFilter,
       statusFilter === 'all' ? null : statusFilter,
+      eventFilter === 'all' ? null : eventFilter,
     ),
   });
+
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['public-seminar-list'] });
@@ -131,7 +143,20 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold mr-auto">Unarmed Combat Seminar</h2>
+        <h2 className="text-lg font-semibold mr-auto">Seminars</h2>
+        <Select value={eventFilter} onValueChange={setEventFilter}>
+          <SelectTrigger className="w-[200px] h-8 text-xs">
+            <SelectValue placeholder="All seminars" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All seminars</SelectItem>
+            {events.map((ev) => (
+              <SelectItem key={ev.id} value={ev.id}>
+                {ev.name}{ev.is_active ? '' : ' (inactive)'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
           <SelectTrigger className="w-[160px] h-8 text-xs">
             <SelectValue placeholder="Sale status" />
@@ -143,6 +168,11 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+        {canEdit && (
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Events
+          </Button>
+        )}
       </div>
 
       {rows.length === 0 ? (
@@ -155,6 +185,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                 <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
+                <TableHead className="h-7 px-2 text-[11px]">Seminar</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Package</TableHead>
                 <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
                 <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
@@ -169,6 +200,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
                   <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
                   <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
+                  <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
                   <TableCell className="px-2 py-1">
                     <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
@@ -339,6 +371,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, onRequ
         onClose={() => setEditingId(null)}
         onSaved={invalidate}
       />
+
+      <SeminarEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 };
