@@ -1241,8 +1241,9 @@ const PublicGradingList: React.FC = () => {
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
-              onDrill={(tab, branch) => {
+              onDrill={(tab, branch, intent) => {
                 setBranchFilter(branch);
+                setDrill({ intent, nonce: Date.now() });
                 setActiveTab(tab);
               }}
             />
@@ -1250,6 +1251,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
               branchFilter={branchFilter}
+              drillNonce={drill?.nonce}
+              drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
             />
