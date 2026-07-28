@@ -87,6 +87,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_passport: e.require_passport === true,
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
+      multi_package_discount: e.multi_package_discount === true,
     });
     requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
