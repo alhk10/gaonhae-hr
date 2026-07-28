@@ -31,6 +31,26 @@ import {
 } from '@/services/seminarPaymentSubmissionService';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
+const DAN_BELTS = new Set(['1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan']);
+const FOUNDATION_ALL = new Set(['Foundation', 'Foundation 1', 'Foundation 2', 'Foundation 3']);
+
+const filterBeltsByAge = (belts: string[], age: number | null): string[] => {
+  if (age === null) return belts;
+  return belts.filter((b) => {
+    if (FOUNDATION_ALL.has(b)) return age <= 5;
+    if (POOM_BELTS.has(b)) return age < 15;
+    if (DAN_BELTS.has(b)) return age >= 15;
+    return true;
+  });
+};
+
+const gstRateForCountry = (country?: string | null): number => {
+  const c = (country || '').toLowerCase();
+  if (c === 'singapore' || c === 'sg') return 0.09;
+  if (c === 'australia' || c === 'au') return 0.10;
+  return 0;
+};
 
 const calcAge = (dob: Date, ref: Date = new Date()): number => {
   let age = ref.getFullYear() - dob.getFullYear();
