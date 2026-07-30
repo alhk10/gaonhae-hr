@@ -1,22 +1,26 @@
 ## Goal
 
-On the public `/fees` page, class prices from Products & Services are weekly rates. Charge the full term instead: weekly price × number of weeks in the selected term (typically 12).
+On `/fees`, the Class dropdown should list only the class products that are actually offered at the selected branch, using the branch-specific price.
 
-## Changes (frontend only, `src/pages/public/PublicSchoolFeesPayment.tsx`)
+## Current behaviour (verified)
 
-1. **Week count helper** — derive weeks from the selected term's `start_date`/`end_date`:
-   `weeks = Math.max(1, Math.round((end - start + 1 day) / 7 days))`. Fall back to 12 when no term is selected.
+`get_public_class_products(p_branch_id)` returns **all 20** active products in the Classes category (minus Trial/Ad-Hoc/Private) for every branch, and LEFT JOINs `price_rules` only to override the price. Products with no branch rule still appear at base price.
 
-2. **Line-item pricing** — `subtotal = branch_price × weeks`. GST logic unchanged (9% for Singapore branches, applied to the subtotal as today), so GST and Total automatically reflect the term amount.
+Branch coverage today (active class price rules):
+- balmoral 16, bukit-merah 15, jurong-west 15, kembangan 15, yishun 15, BR1768967806476 3
+- headquarters and the two BR17690142… branches: 0
 
-3. **Class dropdown labels** — show the weekly rate plus the term total, e.g.
-   `Black Tip & Above 1x Weekend — $50.00/wk × 12 = $600.00`.
+## Change
 
-4. **Summary box** — the line row shows `Class name — Term name (12 weeks)` with the term amount; GST and Total rows unchanged.
+**Migration — replace `get_public_class_products`:**
+- Change the `LEFT JOIN price_rules` to an `INNER JOIN` on `product_id = p.id AND branch_id = p_branch_id AND is_active = true`, so products without a branch price rule are hidden.
+- Also respect rule date windows: `(effective_from IS NULL OR effective_from <= current_date) AND (effective_to IS NULL OR effective_to >= current_date)`.
+- Price returned = `pr.price_override`, falling back to `p.base_price` when the rule has no override (e.g. rules that only set a discount %).
+- Keep the existing category filter, `is_active`, name exclusions, and name ordering.
+- If a branch has more than one matching rule for a product, pick one deterministically (`DISTINCT ON (p.id)` ordered by most specific/most recent rule) so no duplicate dropdown rows.
 
-5. **Submit button** already uses `totalAmount`, so it will show the term total; the submitted `amount` sent to `submit_public_school_fees` becomes the term total.
+**Frontend:** no change required — `PublicSchoolFeesPayment.tsx` already builds each label from `product_name` + `branch_price` (× term weeks), and already shows "No classes are configured for this branch" when the list comes back empty.
 
-## Notes
+## Note
 
-- No database or product-price changes; product records stay as weekly rates.
-- Term length comes from the term calendar, so terms shorter/longer than 12 weeks price correctly.
+Branches with no class price rules (headquarters and the two new BR… branches) will now show the empty-state message instead of base-price classes. Price rules need to be added in Products & Services for those branches to appear.
