@@ -32,8 +32,10 @@ import {
   deleteSchoolFeesSubmission,
   getSchoolFeesStudentMatches,
   matchSchoolFeesSubmission,
+  getSchoolFeesInvoiceDetail,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
+import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 
 
@@ -90,11 +92,47 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [search, setSearch] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
+  const [invoiceRow, setInvoiceRow] = useState<SchoolFeesRow | null>(null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Build the invoice PDF for the selected row and preview it inline
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    if (!invoiceRow) {
+      setInvoiceUrl(null);
+      setInvoiceError(null);
+      return;
+    }
+    setInvoiceLoading(true);
+    setInvoiceError(null);
+    (async () => {
+      try {
+        const detail = await getSchoolFeesInvoiceDetail(invoiceRow.id);
+        if (!detail) throw new Error('No invoice found for this payment');
+        const blob = await getInvoicePDFBlob(detail);
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setInvoiceUrl(objectUrl);
+      } catch (e: any) {
+        if (!cancelled) setInvoiceError(e?.message || 'Could not load invoice');
+      } finally {
+        if (!cancelled) setInvoiceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [invoiceRow]);
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['school-fees-list', statusFilter],
@@ -317,8 +355,20 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     )}
                   </TableCell>
                   <TableCell className="text-xs font-mono whitespace-nowrap">
-                    {row.invoice_number || '—'}
+                    {row.invoice_id ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceRow(row)}
+                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                        title="View invoice"
+                      >
+                        {row.invoice_number || 'View'}
+                      </button>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
+
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${statusClass(row.status)}`}>
                       {statusLabel(row.status)}
@@ -384,7 +434,63 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
         </div>
       )}
 
+      {/* Paid invoice preview */}
+      <Dialog open={!!invoiceRow} onOpenChange={(o) => !o && setInvoiceRow(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Invoice {invoiceRow?.invoice_number || ''}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {invoiceRow?.student_name || invoiceRow?.contact_name || '—'} —{' '}
+              {formatCurrency(Number(invoiceRow?.amount || 0))}
+              {invoiceRow?.invoice_status ? ` · ${invoiceRow.invoice_status}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {invoiceLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Generating invoice…
+            </div>
+          ) : invoiceError ? (
+            <p className="py-10 text-center text-xs text-destructive">{invoiceError}</p>
+          ) : invoiceUrl ? (
+            <iframe
+              src={invoiceUrl}
+              title="Invoice preview"
+              className="w-full h-[70vh] rounded border"
+            />
+          ) : null}
+          <DialogFooter className="gap-2">
+            {invoiceUrl && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => window.open(invoiceUrl, '_blank')}
+                >
+                  Open / Print
+                </Button>
+                <Button
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = invoiceUrl;
+                    a.download = `${invoiceRow?.invoice_number || 'invoice'}.pdf`;
+                    a.click();
+                  }}
+                >
+                  Download
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Proof preview */}
+
       <Dialog open={!!proofRow} onOpenChange={(o) => !o && setProofRow(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

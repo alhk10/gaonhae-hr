@@ -8572,6 +8572,10 @@ export type Database = {
           slot_start: string
         }[]
       }
+      get_public_school_fees_invoice: {
+        Args: { p_submission_id: string }
+        Returns: Json
+      }
       get_public_school_fees_list: {
         Args: { p_branch_id?: string; p_status?: string }
         Returns: {

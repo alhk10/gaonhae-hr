@@ -279,3 +279,61 @@ export const getSchoolFeesStudentMatches = async (
     score: Number(r.score ?? 0),
   })) as SchoolFeesStudentMatch[];
 };
+
+/* ------------------------------------------------------------------ */
+/* Inline invoice preview (matched submissions)                        */
+/* ------------------------------------------------------------------ */
+
+import type { InvoiceData } from '@/utils/invoicePDFGenerator';
+
+/**
+ * Loads the full invoice created for a matched school-fee submission,
+ * shaped for the shared invoice PDF generator. Returns null when the
+ * submission has not been matched to a student yet.
+ */
+export const getSchoolFeesInvoiceDetail = async (
+  submissionId: string,
+): Promise<InvoiceData | null> => {
+  const { data, error } = await supabase.rpc('get_public_school_fees_invoice' as any, {
+    p_submission_id: submissionId,
+  });
+  if (error) throw error;
+  if (!data) return null;
+
+  const raw = data as any;
+  const items = Array.isArray(raw.items) ? raw.items : [];
+
+  return {
+    id: raw.id,
+    invoice_number: raw.invoice_number,
+    issue_date: raw.issue_date,
+    due_date: raw.due_date,
+    subtotal: Number(raw.subtotal || 0),
+    tax_amount: Number(raw.tax_amount || 0),
+    discount_amount: Number(raw.discount_amount || 0),
+    total_amount: Number(raw.total_amount || 0),
+    amount_paid: Number(raw.amount_paid || 0),
+    balance_due: Number(raw.balance_due || 0),
+    notes: raw.notes ?? null,
+    status: raw.status ?? null,
+    student: {
+      name: raw.student?.name || '',
+      address: raw.student?.address ?? null,
+      phone: raw.student?.phone ?? null,
+      email: raw.student?.email ?? null,
+    },
+    branch: {
+      name: raw.branch?.name || '',
+      address: raw.branch?.address ?? undefined,
+    },
+    items: items.map((it: any, idx: number) => ({
+      id: String(idx),
+      description: it.description || '',
+      quantity: Number(it.quantity || 1),
+      unit_price: Number(it.unit_price || 0),
+      total_amount: Number(it.total_price || 0),
+      tax_rate: 0,
+      tax_amount: 0,
+    })),
+  };
+};
