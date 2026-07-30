@@ -152,7 +152,17 @@ const PublicSchoolFeesPayment: React.FC = () => {
   );
   const selectedTerm = useMemo(() => terms.find(t => t.term_id === termId) || null, [terms, termId]);
 
-  const subtotal = Number(selectedProduct?.branch_price ?? 0);
+  const termWeeks = useMemo(() => {
+    if (!selectedTerm) return 12;
+    const start = new Date(selectedTerm.start_date).getTime();
+    const end = new Date(selectedTerm.end_date).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 12;
+    const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+    return Math.max(1, Math.round(days / 7));
+  }, [selectedTerm]);
+
+  const weeklyPrice = Number(selectedProduct?.branch_price ?? 0);
+  const subtotal = weeklyPrice * termWeeks;
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
@@ -342,8 +352,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.product_id} value={p.product_id}>
-                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}
+                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk × {termWeeks} = ${(Number(p.branch_price) * termWeeks).toFixed(2)}
                       </SelectItem>
+
                     ))}
                   </SelectContent>
                 </Select>
@@ -366,7 +377,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     <span className="text-muted-foreground">
                       {selectedProduct.product_name}
                       {selectedTerm ? ` — ${selectedTerm.term_name}` : ''}
+                      {` (${termWeeks} weeks × $${weeklyPrice.toFixed(2)})`}
                     </span>
+
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
                   {isSingapore && (
