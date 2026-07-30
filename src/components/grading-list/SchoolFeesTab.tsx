@@ -355,8 +355,20 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     )}
                   </TableCell>
                   <TableCell className="text-xs font-mono whitespace-nowrap">
-                    {row.invoice_number || '—'}
+                    {row.invoice_id ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceRow(row)}
+                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                        title="View invoice"
+                      >
+                        {row.invoice_number || 'View'}
+                      </button>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
+
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${statusClass(row.status)}`}>
                       {statusLabel(row.status)}
