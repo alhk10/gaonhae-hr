@@ -219,7 +219,25 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+        {canEdit && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            title="Class availability & pricing"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+
+      <SchoolFeeProductSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        actor={actor}
+      />
+
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
