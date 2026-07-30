@@ -431,6 +431,26 @@ export const getPublicBranches = async (): Promise<PublicBranch[]> => {
   return (data || []) as PublicBranch[];
 };
 
+export interface StudentCountByMonth {
+  branch_name: string;
+  month: number;
+  student_count: number;
+}
+
+export const getPublicStudentCountsByMonth = async (
+  year: number,
+): Promise<StudentCountByMonth[]> => {
+  const { data, error } = await (supabase as any).rpc('get_public_student_counts_by_month', {
+    p_year: year,
+  });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    branch_name: r.branch_name || '—',
+    month: Number(r.month),
+    student_count: Number(r.student_count || 0),
+  }));
+};
+
 export const getPublicPaymentOptions = async (
   branchId: string,
   currentBelt: string,

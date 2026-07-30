@@ -1,13 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PackageOpen, ClipboardList } from 'lucide-react';
-import { getPublicGradingList, getPublicBranches } from '@/services/gradingPaymentSubmissionService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, PackageOpen, ClipboardList, Users } from 'lucide-react';
+import { getPublicGradingList, getPublicBranches, getPublicStudentCountsByMonth } from '@/services/gradingPaymentSubmissionService';
 import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissionService';
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 
 const NO_BRANCH = '—';
 
@@ -86,7 +90,32 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const currentYear = new Date().getFullYear();
+  const [countYear, setCountYear] = useState<number>(currentYear);
+  const { data: studentCounts = [], isLoading: loadingCounts } = useQuery({
+    queryKey: ['public-student-counts-by-month', countYear],
+    queryFn: () => getPublicStudentCountsByMonth(countYear),
+    staleTime: 60 * 1000,
+  });
+
+  const studentCountTable = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const r of studentCounts) {
+      const b = r.branch_name || NO_BRANCH;
+      if (!map.has(b)) map.set(b, Array(12).fill(0));
+      if (r.month >= 1 && r.month <= 12) map.get(b)![r.month - 1] = r.student_count;
+    }
+    const rows = Array.from(map.entries())
+      .map(([branch, months]) => ({ branch, months, peak: Math.max(0, ...months) }))
+      .filter((r) => r.peak > 0)
+      .sort((a, b) => a.branch.localeCompare(b.branch));
+    const totals = Array(12).fill(0) as number[];
+    for (const r of rows) r.months.forEach((v, i) => (totals[i] += v));
+    return { rows, totals, peakTotal: Math.max(0, ...totals) };
+  }, [studentCounts]);
+
   const isLoading = l1 || l2 || l3 || l4 || l5;
+
 
   const branchNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -271,7 +300,73 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Student count by branch
+            </span>
+            <Select value={String(countYear)} onValueChange={(v) => setCountYear(Number(v))}>
+              <SelectTrigger className="h-7 w-[92px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[currentYear, currentYear + 1].map((y) => (
+                  <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          {loadingCounts ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading counts…
+            </div>
+          ) : studentCountTable.rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No paid lessons recorded for {countYear}.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-left font-medium py-2 pr-2 sticky left-0 bg-background">Branch</th>
+                    {MONTH_LABELS.map((m) => (
+                      <th key={m} className="text-right font-medium py-2 px-1.5">{m}</th>
+                    ))}
+                    <th className="text-right font-medium py-2 pl-2">Peak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentCountTable.rows.map((r) => (
+                    <tr key={r.branch} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium sticky left-0 bg-background">{r.branch}</td>
+                      {r.months.map((v, i) => (
+                        <td key={i} className="py-2 px-1.5 text-right">{v || '–'}</td>
+                      ))}
+                      <td className="py-2 pl-2 text-right font-semibold">{r.peak}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/50">
+                    <td className="py-2 pr-2 font-semibold sticky left-0 bg-muted/50">Total</td>
+                    {studentCountTable.totals.map((v, i) => (
+                      <td key={i} className="py-2 px-1.5 text-right font-semibold">{v || '–'}</td>
+                    ))}
+                    <td className="py-2 pl-2 text-right font-semibold">{studentCountTable.peakTotal}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Term payments count in every month they cover; 4-week payments count only in their starting month.
+          </p>
+        </CardContent>
+      </Card>
     </div>
+
   );
 };
 

@@ -8657,6 +8657,14 @@ export type Database = {
           submission_id: string
         }[]
       }
+      get_public_student_counts_by_month: {
+        Args: { p_year: number }
+        Returns: {
+          branch_name: string
+          month: number
+          student_count: number
+        }[]
+      }
       get_public_student_invoiced_terms: {
         Args: { p_session_id: string; p_student_id: string }
         Returns: {
