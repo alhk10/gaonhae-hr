@@ -1,31 +1,35 @@
-# Inline paid invoice in School Fees tab (/access)
+## Goal
 
-## Current state (verified)
-- `/fees` and `/hello` both write into `public_chat_payment_submissions`; the School Fees tab lists them via the `get_public_school_fees_list` RPC, which already returns `invoice_id`, `invoice_number`, `invoice_status`, `payment_id`, `payment_number` and `payment_verification_status`.
-- `admin_match_school_fees_submission` creates a paid invoice + payment row on match; verify/reject RPCs already exist and are wired into the tab.
-- The tab currently renders the invoice number as plain text; there is no invoice view.
-- `src/utils/invoicePDFGenerator.ts` exists (`generateInvoicePDF`, `getInvoicePDFBlob`), but `/access` runs unauthenticated (password gate only), so invoice data must come from a SECURITY DEFINER RPC — normal invoice queries are blocked by RLS.
+Add a "Student count" card to the Summary tab in `/access` showing, for each branch, how many distinct students are covered by paid lessons in each of the 12 months of a selected year.
 
-## What will be built
+## Counting rules
 
-### 1. Database
-New SECURITY DEFINER RPC `get_public_school_fees_invoice(p_submission_id uuid)` returning everything the PDF needs for a matched submission:
-- invoice header (number, dates, subtotal, tax, discount, total, amount paid, balance, status, notes)
-- invoice items (description, qty, unit price, total)
-- student name/email/phone and branch name/address
-- payment summary (number, method, date, amount, reference)
-Granted to `anon` and `authenticated`; returns nothing when the submission has no matched invoice.
+Source: `entitlements` (created from paid lesson invoices), joined to `products` and `branches`.
 
-### 2. Service layer
-`getSchoolFeesInvoiceDetail(submissionId)` in `src/services/schoolFeesSubmissionService.ts`, mapping the RPC result into the existing `InvoiceData` shape used by the PDF generator.
+- Only active entitlements for lesson products (exclude Trial Lesson and Ad-Hoc Lesson).
+- **Term payments** (coverage longer than ~5 weeks, e.g. 03/01–29/03): the student is counted in every month the period touches.
+- **4-week payments** (coverage of 5 weeks / 35 days or less): the student is counted in one month only — the month `valid_from` falls in.
+- Each student is counted at most once per branch per month, even with several entitlements.
+- Branch comes from `entitlements.branch_scope`, resolved to a branch name; unresolved values group under "—".
 
-### 3. UI in `SchoolFeesTab.tsx`
-- **Invoice column**: when `invoice_id` exists, the invoice number becomes a button opening a preview dialog that renders the generated invoice PDF inline in an iframe, with Download and Print buttons. Unmatched rows keep the "—".
-- The invoice reflects its paid state (paid/verified status and amount paid come straight from the invoice record) — no separate receipt document.
-- Dialog is mobile-friendly (`max-w-[95vw]`, tall iframe, text-xs controls) and matches the existing preview-dialog styling in the tab.
-- **Matching and verification stay user-driven** from this tab: the existing "Link to student" (match) action and the Verify / Reject actions remain available to users with edit permission, including for rows already matched but not yet verified.
-- After a match or verify action the list refetches so the invoice button and updated status appear without a page reload.
+## Data access
 
-## Notes
-- No change to how submissions arrive — both `/fees` and `/hello` already land in the same tab.
-- Dates in the PDF use the DD/MM/YYYY helpers already used by the invoice generator.
+`/access` is a public, password-gated page, so the browser uses the anon role and cannot read `entitlements` directly.
+
+- New `SECURITY DEFINER` RPC `get_public_student_counts_by_month(p_year int)` returning `branch_name`, `month` (1–12), `student_count`, with `GRANT EXECUTE` to `anon` and `authenticated`. It applies the rules above entirely in SQL and returns only aggregate counts (no student identities).
+- New service helper `getPublicStudentCountsByMonth(year)` in `src/services/gradingPaymentSubmissionService.ts`.
+
+## UI
+
+In `src/components/grading-list/SummaryTab.tsx`, below the existing pending/guards cards:
+
+- A card titled "Student count by branch" with a year selector defaulting to the current calendar year and also offering the next year.
+- Table: one row per branch, columns Jan–Dec plus a "Peak" column (highest month), and a Total row summing branches per month.
+- Blank/dash cells for zero, horizontally scrollable on mobile, compact `text-xs` styling matching the other summary tables.
+- Counts are display-only (no drill-through) in this first version.
+
+## Technical notes
+
+- Month overlap computed with `generate_series` over months of the year intersected against `[valid_from, valid_to]`, with a `CASE` that collapses short (<= 35 day) entitlements to the `valid_from` month.
+- Distinct counting via `count(distinct student_id)` per branch/month.
+- Query cached with React Query keyed on the selected year.
