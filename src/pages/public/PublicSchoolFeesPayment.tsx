@@ -352,8 +352,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.product_id} value={p.product_id}>
-                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}
+                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk × {termWeeks} = ${(Number(p.branch_price) * termWeeks).toFixed(2)}
                       </SelectItem>
+
                     ))}
                   </SelectContent>
                 </Select>
