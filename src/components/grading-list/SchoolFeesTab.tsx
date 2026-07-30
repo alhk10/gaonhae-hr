@@ -90,11 +90,47 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [search, setSearch] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
+  const [invoiceRow, setInvoiceRow] = useState<SchoolFeesRow | null>(null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Build the invoice PDF for the selected row and preview it inline
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    if (!invoiceRow) {
+      setInvoiceUrl(null);
+      setInvoiceError(null);
+      return;
+    }
+    setInvoiceLoading(true);
+    setInvoiceError(null);
+    (async () => {
+      try {
+        const detail = await getSchoolFeesInvoiceDetail(invoiceRow.id);
+        if (!detail) throw new Error('No invoice found for this payment');
+        const blob = await getInvoicePDFBlob(detail);
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setInvoiceUrl(objectUrl);
+      } catch (e: any) {
+        if (!cancelled) setInvoiceError(e?.message || 'Could not load invoice');
+      } finally {
+        if (!cancelled) setInvoiceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [invoiceRow]);
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['school-fees-list', statusFilter],
