@@ -34,6 +34,7 @@ import {
   matchSchoolFeesSubmission,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
+import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 
 
 interface Props {
