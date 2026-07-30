@@ -1,13 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PackageOpen, ClipboardList } from 'lucide-react';
-import { getPublicGradingList, getPublicBranches } from '@/services/gradingPaymentSubmissionService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, PackageOpen, ClipboardList, Users } from 'lucide-react';
+import { getPublicGradingList, getPublicBranches, getPublicStudentCountsByMonth } from '@/services/gradingPaymentSubmissionService';
 import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissionService';
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 
 const NO_BRANCH = '—';
 
