@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ import {
   matchSchoolFeesSubmission,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
+import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 
 
 interface Props {
@@ -87,6 +88,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drillNonce, drillPendingOnly]);
   const [search, setSearch] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -218,7 +220,25 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+        {canEdit && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            title="Class availability & pricing"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+
+      <SchoolFeeProductSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        actor={actor}
+      />
+
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">

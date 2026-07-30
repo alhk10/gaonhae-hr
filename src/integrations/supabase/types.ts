@@ -7836,6 +7836,16 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_set_class_product_branch_pricing: {
+        Args: {
+          p_actor?: string
+          p_available: boolean
+          p_branch_id: string
+          p_price_override: number
+          p_product_id: string
+        }
+        Returns: string
+      }
       admin_set_competition_event_active: {
         Args: { p_active: boolean; p_id: string }
         Returns: undefined
@@ -8117,6 +8127,18 @@ export type Database = {
           reports: boolean
           slot_booking: boolean
           slotBooking: boolean
+        }[]
+      }
+      get_class_products_for_branch_admin: {
+        Args: { p_branch_id: string }
+        Returns: {
+          base_price: number
+          description: string
+          is_available: boolean
+          price_override: number
+          product_id: string
+          product_name: string
+          rule_id: string
         }[]
       }
       get_current_employee_id: { Args: never; Returns: string }

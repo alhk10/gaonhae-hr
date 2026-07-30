@@ -1,26 +1,36 @@
-## Goal
+# School Fees — Class availability & pricing settings
 
-On `/fees`, the Class dropdown should list only the class products that are actually offered at the selected branch, using the branch-specific price.
+Add a gear button to the right of the status filter in the School Fees tab of `/access`. It opens a dialog where staff pick a branch and control, per class product: whether it is offered at that branch and what the weekly price is. This drives exactly what the public `/fees` page lists (which reads `get_public_class_products`).
 
-## Current behaviour (verified)
+## UI
 
-`get_public_class_products(p_branch_id)` returns **all 20** active products in the Classes category (minus Trial/Ad-Hoc/Private) for every branch, and LEFT JOINs `price_rules` only to override the price. Products with no branch rule still appear at base price.
+`src/components/grading-list/SchoolFeesTab.tsx`
+- Add a `Settings` icon button (h-8, outline) immediately right of the status `Select`, shown only when `canEdit` is true (same password gate as verify/reject).
+- Opens new `SchoolFeeProductSettingsDialog`.
 
-Branch coverage today (active class price rules):
-- balmoral 16, bukit-merah 15, jurong-west 15, kembangan 15, yishun 15, BR1768967806476 3
-- headquarters and the two BR17690142… branches: 0
+New `src/components/grading-list/SchoolFeeProductSettingsDialog.tsx`
+- Branch dropdown at top (loaded from branches; uses the same text branch id used by `price_rules`, e.g. `balmoral`).
+- Table of all active class-category products (excluding Trial / Ad-Hoc / Private Lesson):
+  - Product name + base price (read-only)
+  - "Available" switch → toggles the branch price rule active/inactive
+  - "Branch price /wk" numeric input → `price_override` (blank = fall back to base price)
+- Inline dirty-row tracking with a single Save button; toast on success; invalidates the `/fees` product query key.
+- Compact styling consistent with existing dialogs (h-7 inputs, text-xs, `max-w-[95vw]`).
 
-## Change
+## Backend (migration)
 
-**Migration — replace `get_public_class_products`:**
-- Change the `LEFT JOIN price_rules` to an `INNER JOIN` on `product_id = p.id AND branch_id = p_branch_id AND is_active = true`, so products without a branch price rule are hidden.
-- Also respect rule date windows: `(effective_from IS NULL OR effective_from <= current_date) AND (effective_to IS NULL OR effective_to >= current_date)`.
-- Price returned = `pr.price_override`, falling back to `p.base_price` when the rule has no override (e.g. rules that only set a discount %).
-- Keep the existing category filter, `is_active`, name exclusions, and name ordering.
-- If a branch has more than one matching rule for a product, pick one deterministically (`DISTINCT ON (p.id)` ordered by most specific/most recent rule) so no duplicate dropdown rows.
+Because `/access` runs unauthenticated, add two `SECURITY DEFINER` RPCs granted to `anon, authenticated`:
 
-**Frontend:** no change required — `PublicSchoolFeesPayment.tsx` already builds each label from `product_name` + `branch_price` (× term weeks), and already shows "No classes are configured for this branch" when the list comes back empty.
+1. `get_class_products_for_branch_admin(p_branch_id text)` — returns every active class product with `product_id, product_name, base_price, rule_id, price_override, is_available` via `LEFT JOIN price_rules` on that branch (no inner join, so unavailable products still appear).
+2. `admin_set_class_product_branch_pricing(p_branch_id text, p_product_id uuid, p_available boolean, p_price_override numeric, p_actor text)` — upserts the branch price rule (`rule_name` defaults to `<branch> class pricing`), sets `is_active = p_available`, `price_override`, `updated_by`, `updated_at`.
 
-## Note
+Both leave `get_public_class_products` unchanged, so the public `/fees` list automatically reflects edits.
 
-Branches with no class price rules (headquarters and the two new BR… branches) will now show the empty-state message instead of base-price classes. Price rules need to be added in Products & Services for those branches to appear.
+## Service
+
+`src/services/schoolFeesSubmissionService.ts` — add `getClassProductsForBranchAdmin()` and `setClassProductBranchPricing()` wrappers plus a `BranchClassProduct` type.
+
+## Notes
+
+- Pricing edited here is the weekly rate; `/fees` continues to multiply by term weeks.
+- Deactivating a rule hides the class from `/fees` for that branch but does not touch existing invoices.
