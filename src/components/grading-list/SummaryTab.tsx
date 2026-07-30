@@ -90,7 +90,32 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const currentYear = new Date().getFullYear();
+  const [countYear, setCountYear] = useState<number>(currentYear);
+  const { data: studentCounts = [], isLoading: loadingCounts } = useQuery({
+    queryKey: ['public-student-counts-by-month', countYear],
+    queryFn: () => getPublicStudentCountsByMonth(countYear),
+    staleTime: 60 * 1000,
+  });
+
+  const studentCountTable = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const r of studentCounts) {
+      const b = r.branch_name || NO_BRANCH;
+      if (!map.has(b)) map.set(b, Array(12).fill(0));
+      if (r.month >= 1 && r.month <= 12) map.get(b)![r.month - 1] = r.student_count;
+    }
+    const rows = Array.from(map.entries())
+      .map(([branch, months]) => ({ branch, months, peak: Math.max(0, ...months) }))
+      .filter((r) => r.peak > 0)
+      .sort((a, b) => a.branch.localeCompare(b.branch));
+    const totals = Array(12).fill(0) as number[];
+    for (const r of rows) r.months.forEach((v, i) => (totals[i] += v));
+    return { rows, totals, peakTotal: Math.max(0, ...totals) };
+  }, [studentCounts]);
+
   const isLoading = l1 || l2 || l3 || l4 || l5;
+
 
   const branchNameById = useMemo(() => {
     const m = new Map<string, string>();
