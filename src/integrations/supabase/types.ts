@@ -8407,6 +8407,13 @@ export type Database = {
           tax_rate: number
         }[]
       }
+      get_public_grading_dates: {
+        Args: never
+        Returns: {
+          entries: number
+          grading_date: string
+        }[]
+      }
       get_public_grading_list: {
         Args: { p_branch_id?: string; p_from?: string; p_to?: string }
         Returns: {
