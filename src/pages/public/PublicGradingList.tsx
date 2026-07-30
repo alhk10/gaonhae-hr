@@ -63,6 +63,7 @@ import { getBranches } from '@/services/settingsService';
 import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import {
   getPublicGradingList,
+  getPublicGradingDates,
   getPublicGradingSlotsByDate,
   getPublicBranches,
   adminUpdateGradingSubmissionSlot,
@@ -178,22 +179,35 @@ const PublicGradingList: React.FC = () => {
   const [savingMass, setSavingMass] = useState(false);
 
 
+  // All grading dates on record (past + future) — independent of the row query
+  // so historical gradings can be selected and loaded on demand.
+  const { data: allDates = [] } = useQuery({
+    queryKey: ['public-grading-dates'],
+    queryFn: getPublicGradingDates,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const dateOptions = useMemo(
+    () => allDates.map((d) => d.grading_date),
+    [allDates],
+  );
+
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['public-grading-list'],
-    queryFn: () => getPublicGradingList({}),
+    queryKey: ['public-grading-list', dateFilter],
+    queryFn: () => (
+      dateFilter === 'all'
+        ? getPublicGradingList({})
+        : getPublicGradingList({ from: dateFilter, to: dateFilter })
+    ),
     staleTime: 30 * 1000,
   });
 
-  const dateOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of rows) if (r.grading_date) set.add(r.grading_date);
-    return Array.from(set).sort();
-  }, [rows]);
-
+  // Default to the nearest upcoming grading date (else the most recent past one)
   useEffect(() => {
-    if (dateFilter === 'all' && dateOptions.length > 0) {
-      setDateFilter(dateOptions[0]);
-    }
+    if (dateFilter !== 'all' || dateOptions.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = [...dateOptions].filter((d) => d >= today).sort();
+    setDateFilter(upcoming[0] || dateOptions[0]);
   }, [dateOptions, dateFilter]);
 
   const branchOptions = useMemo(() => {

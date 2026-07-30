@@ -1,36 +1,21 @@
-# School Fees — Class availability & pricing settings
+# Load historical gradings on date select (/access → Grading tab)
 
-Add a gear button to the right of the status filter in the School Fees tab of `/access`. It opens a dialog where staff pick a branch and control, per class product: whether it is offered at that branch and what the weekly price is. This drives exactly what the public `/fees` page lists (which reads `get_public_class_products`).
+## Cause (verified)
 
-## UI
-
-`src/components/grading-list/SchoolFeesTab.tsx`
-- Add a `Settings` icon button (h-8, outline) immediately right of the status `Select`, shown only when `canEdit` is true (same password gate as verify/reject).
-- Opens new `SchoolFeeProductSettingsDialog`.
-
-New `src/components/grading-list/SchoolFeeProductSettingsDialog.tsx`
-- Branch dropdown at top (loaded from branches; uses the same text branch id used by `price_rules`, e.g. `balmoral`).
-- Table of all active class-category products (excluding Trial / Ad-Hoc / Private Lesson):
-  - Product name + base price (read-only)
-  - "Available" switch → toggles the branch price rule active/inactive
-  - "Branch price /wk" numeric input → `price_override` (blank = fall back to base price)
-- Inline dirty-row tracking with a single Save button; toast on success; invalidates the `/fees` product query key.
-- Compact styling consistent with existing dialogs (h-7 inputs, text-xs, `max-w-[95vw]`).
+`get_public_grading_list` filters with `gs.grading_date >= COALESCE(p_from, CURRENT_DATE - INTERVAL '30 days')`, and the page calls `getPublicGradingList({})` with no `from`. So only the last 30 days onward is ever fetched, and the Date dropdown — built from the loaded rows — can only ever offer those same recent dates. Past gradings are therefore invisible.
 
 ## Backend (migration)
 
-Because `/access` runs unauthenticated, add two `SECURITY DEFINER` RPCs granted to `anon, authenticated`:
+Add `get_public_grading_dates()` — `SECURITY DEFINER`, granted to `anon, authenticated`. Returns the distinct `grading_date` values (with row counts) across grading slots that have at least one registration or non-rejected unmatched submission, over all time, ordered newest first. This populates the dropdown independently of the row query.
 
-1. `get_class_products_for_branch_admin(p_branch_id text)` — returns every active class product with `product_id, product_name, base_price, rule_id, price_override, is_available` via `LEFT JOIN price_rules` on that branch (no inner join, so unavailable products still appear).
-2. `admin_set_class_product_branch_pricing(p_branch_id text, p_product_id uuid, p_available boolean, p_price_override numeric, p_actor text)` — upserts the branch price rule (`rule_name` defaults to `<branch> class pricing`), sets `is_active = p_available`, `price_override`, `updated_by`, `updated_at`.
+## Frontend — `src/pages/public/PublicGradingList.tsx`
 
-Both leave `get_public_class_products` unchanged, so the public `/fees` list automatically reflects edits.
-
-## Service
-
-`src/services/schoolFeesSubmissionService.ts` — add `getClassProductsForBranchAdmin()` and `setClassProductBranchPricing()` wrappers plus a `BranchClassProduct` type.
+- New query `['public-grading-dates']` → `getPublicGradingDates()` feeds the Date dropdown, so every historical grading date is listed (newest first, with an "All upcoming" default kept as today-onward).
+- Change the list query to be date-driven: `queryKey: ['public-grading-list', dateFilter]`, calling `getPublicGradingList({ from: dateFilter, to: dateFilter })` when a specific date is selected, and `{ from: <today − 30d> }` when "All" is selected. Selecting a past date therefore loads that day's rows on demand.
+- Keep the existing default behaviour: on first load, pre-select the nearest upcoming (or most recent) date rather than "all".
+- Remove the now-redundant `dateOptions` derivation from `rows`; keep branch options derived from the loaded rows for the selected date.
+- Client-side `filteredRows` no longer needs to filter by date (the server does), only by branch — leave the guard in place harmlessly for the "all" case.
 
 ## Notes
 
-- Pricing edited here is the weekly rate; `/fees` continues to multiply by term weeks.
-- Deactivating a rule hides the class from `/fees` for that branch but does not touch existing invoices.
+Grouping, sorting, export, mass-edit and slot dialogs are unchanged; they operate on whatever rows the date query returns.
