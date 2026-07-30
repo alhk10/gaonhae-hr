@@ -63,6 +63,7 @@ import { getBranches } from '@/services/settingsService';
 import { convertTailwindColorToHex } from '@/utils/colorUtils';
 import {
   getPublicGradingList,
+  getPublicGradingDates,
   getPublicGradingSlotsByDate,
   getPublicBranches,
   adminUpdateGradingSubmissionSlot,
