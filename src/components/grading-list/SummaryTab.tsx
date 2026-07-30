@@ -300,7 +300,73 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Student count by branch
+            </span>
+            <Select value={String(countYear)} onValueChange={(v) => setCountYear(Number(v))}>
+              <SelectTrigger className="h-7 w-[92px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[currentYear, currentYear + 1].map((y) => (
+                  <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          {loadingCounts ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading counts…
+            </div>
+          ) : studentCountTable.rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No paid lessons recorded for {countYear}.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-left font-medium py-2 pr-2 sticky left-0 bg-background">Branch</th>
+                    {MONTH_LABELS.map((m) => (
+                      <th key={m} className="text-right font-medium py-2 px-1.5">{m}</th>
+                    ))}
+                    <th className="text-right font-medium py-2 pl-2">Peak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentCountTable.rows.map((r) => (
+                    <tr key={r.branch} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium sticky left-0 bg-background">{r.branch}</td>
+                      {r.months.map((v, i) => (
+                        <td key={i} className="py-2 px-1.5 text-right">{v || '–'}</td>
+                      ))}
+                      <td className="py-2 pl-2 text-right font-semibold">{r.peak}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/50">
+                    <td className="py-2 pr-2 font-semibold sticky left-0 bg-muted/50">Total</td>
+                    {studentCountTable.totals.map((v, i) => (
+                      <td key={i} className="py-2 px-1.5 text-right font-semibold">{v || '–'}</td>
+                    ))}
+                    <td className="py-2 pl-2 text-right font-semibold">{studentCountTable.peakTotal}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Term payments count in every month they cover; 4-week payments count only in their starting month.
+          </p>
+        </CardContent>
+      </Card>
     </div>
+
   );
 };
 
