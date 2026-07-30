@@ -152,7 +152,17 @@ const PublicSchoolFeesPayment: React.FC = () => {
   );
   const selectedTerm = useMemo(() => terms.find(t => t.term_id === termId) || null, [terms, termId]);
 
-  const subtotal = Number(selectedProduct?.branch_price ?? 0);
+  const termWeeks = useMemo(() => {
+    if (!selectedTerm) return 12;
+    const start = new Date(selectedTerm.start_date).getTime();
+    const end = new Date(selectedTerm.end_date).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 12;
+    const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
+    return Math.max(1, Math.round(days / 7));
+  }, [selectedTerm]);
+
+  const weeklyPrice = Number(selectedProduct?.branch_price ?? 0);
+  const subtotal = weeklyPrice * termWeeks;
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
