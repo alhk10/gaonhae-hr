@@ -32,8 +32,10 @@ import {
   deleteSchoolFeesSubmission,
   getSchoolFeesStudentMatches,
   matchSchoolFeesSubmission,
+  getSchoolFeesInvoiceDetail,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
+import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 
 
