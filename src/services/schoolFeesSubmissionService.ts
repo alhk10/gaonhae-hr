@@ -135,6 +135,52 @@ export const getPublicClassProducts = async (branchId: string): Promise<PublicCl
   })) as PublicClassProduct[];
 };
 
+/** Admin view of a class product's availability + price at one branch. */
+export interface BranchClassProduct {
+  product_id: string;
+  product_name: string;
+  description: string | null;
+  base_price: number;
+  rule_id: string | null;
+  price_override: number | null;
+  is_available: boolean;
+}
+
+export const getClassProductsForBranchAdmin = async (
+  branchId: string,
+): Promise<BranchClassProduct[]> => {
+  if (!branchId) return [];
+  const { data, error } = await supabase.rpc('get_class_products_for_branch_admin' as any, {
+    p_branch_id: branchId,
+  });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    base_price: Number(r.base_price ?? 0),
+    price_override: r.price_override === null || r.price_override === undefined
+      ? null
+      : Number(r.price_override),
+    is_available: !!r.is_available,
+  })) as BranchClassProduct[];
+};
+
+export const setClassProductBranchPricing = async (
+  branchId: string,
+  productId: string,
+  available: boolean,
+  priceOverride: number | null,
+  actor?: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_class_product_branch_pricing' as any, {
+    p_branch_id: branchId,
+    p_product_id: productId,
+    p_available: available,
+    p_price_override: priceOverride,
+    p_actor: actor || null,
+  });
+  if (error) throw error;
+};
+
 export const getPublicTermsForBranch = async (branchId: string): Promise<PublicBranchTerm[]> => {
   const { data, error } = await supabase.rpc('get_public_terms_for_branch' as any, {
     p_branch_id: branchId,
