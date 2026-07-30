@@ -88,6 +88,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drillNonce, drillPendingOnly]);
   const [search, setSearch] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
