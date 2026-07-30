@@ -377,7 +377,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     <span className="text-muted-foreground">
                       {selectedProduct.product_name}
                       {selectedTerm ? ` — ${selectedTerm.term_name}` : ''}
+                      {` (${termWeeks} weeks × $${weeklyPrice.toFixed(2)})`}
                     </span>
+
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
                   {isSingapore && (
