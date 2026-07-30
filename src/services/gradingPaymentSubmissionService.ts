@@ -458,6 +458,21 @@ export const getPublicGradingList = async (params: {
   return (data || []) as PublicGradingListRow[];
 };
 
+export interface PublicGradingDate {
+  grading_date: string;
+  entries: number;
+}
+
+/** All grading dates on record (past + future), newest first. */
+export const getPublicGradingDates = async (): Promise<PublicGradingDate[]> => {
+  const { data, error } = await supabase.rpc('get_public_grading_dates' as any);
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    grading_date: r.grading_date,
+    entries: Number(r.entries ?? 0),
+  }));
+};
+
 export const getPublicGradingProducts = async (
   branchId: string,
   currentBelts: string[],
