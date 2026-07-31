@@ -82,7 +82,8 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   const authData = useAuth();
-  const { user, userrole, userType } = authData;
+  const { user, userrole, userType, activeUserType } = authData;
+  const effectiveUserType = activeUserType || userType;
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
