@@ -13,7 +13,7 @@ import StudentSwitcher from '@/components/dashboard/StudentSwitcher';
 import BranchDashboardView from '@/components/dashboard/BranchDashboardView';
 import PortalSwitcher from '@/components/dashboard/PortalSwitcher';
 import RoleChooser from '@/components/auth/RoleChooser';
-import { useBranchAccess } from '@/hooks/useBranchAccess';
+import { usePortalOptions } from '@/hooks/usePortalOptions';
 import { logger } from '@/utils/logger';
 import { UserType } from '@/types/auth';
 
