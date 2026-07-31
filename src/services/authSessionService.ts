@@ -145,9 +145,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       };
     }
 
-        adminAccess, pageAccess, isSuperadmin: false, linkedStudents
-      };
-    }
+
 
     // Priority 5: No data found — email may still map to student records
     const fallbackStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
