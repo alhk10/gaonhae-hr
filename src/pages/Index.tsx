@@ -82,7 +82,7 @@ const Index = () => {
   const renderDashboard = () => {
     try {
       // Students get their own dashboard without sidebar
-      if (userType === 'student') {
+      if (effectiveType === 'student') {
         return (
           <>
             <StudentSwitcher
