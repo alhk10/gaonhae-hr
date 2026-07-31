@@ -28,6 +28,7 @@ export interface SessionResult {
   user: SessionUserData | null;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
   userType: UserType;
+  availableUserTypes: UserType[];
   userDetails: any;
   adminAccess: any;
   pageAccess: any;
