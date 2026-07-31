@@ -69,6 +69,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setPageAccess(null);
     setLinkedStudents([]);
     setSelectedStudentId(null);
+    setAvailableUserTypes([]);
+    setActiveUserTypeState(null);
+    sessionStorage.removeItem(ACTIVE_USER_TYPE_KEY);
   };
 
   const handleUserSession = async (session: Session | null, finalize: boolean = false) => {
