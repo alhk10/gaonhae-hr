@@ -102,6 +102,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAdminAccess(result.adminAccess);
     setPageAccess(result.pageAccess);
 
+    // Dual-role support (employee who is also a student)
+    const available = result.availableUserTypes?.length ? result.availableUserTypes : [result.userType];
+    setAvailableUserTypes(available);
+    const savedType = sessionStorage.getItem(ACTIVE_USER_TYPE_KEY) as UserType | null;
+    const nextActive = savedType && available.includes(savedType) ? savedType : result.userType;
+    setActiveUserTypeState(nextActive);
+
     // Handle multi-student support
     const students = result.linkedStudents || [];
     setLinkedStudents(students);
@@ -117,6 +124,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (finalize || initDoneRef.current) {
       setIsLoading(false);
     }
+  };
+
+  const handleSetActiveUserType = (type: UserType) => {
+    setActiveUserTypeState(type);
+    sessionStorage.setItem(ACTIVE_USER_TYPE_KEY, type);
   };
 
   const handleSetSelectedStudent = (studentId: string) => {
