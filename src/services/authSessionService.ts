@@ -104,13 +104,17 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       }
     }
     const availableUserTypes: UserType[] = linkedStudents.length > 0 ? ['employee', 'student'] : ['employee'];
+    // Accounts provisioned as students keep landing in the student portal by default,
+    // but now also get the employee/branch options in the switcher.
+    const defaultUserType: UserType = isStudentProvisioned && linkedStudents.length > 0 ? 'student' : 'employee';
+    const studentIdForUser = studentData?.id;
 
     // Priority 2: Superadmin employee
     if (finalUserData?.isSuperadmin || (isSuperadmin && finalUserData)) {
       logger.info('User is superadmin employee');
       return {
-        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, studentId: studentIdForUser, department: finalUserData.department, position: finalUserData.position },
+        userrole: 'superadmin', userType: defaultUserType, availableUserTypes, userDetails: finalUserData,
         adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
@@ -119,8 +123,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     if (isSuperadmin && !finalUserData) {
       logger.info('User is superadmin (no employee record)');
       return {
-        user: { id: authUserId, email, name: email, role: 'superadmin' },
-        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: null,
+        user: { id: authUserId, email, name: email, role: 'superadmin', studentId: studentIdForUser },
+        userrole: 'superadmin', userType: defaultUserType, availableUserTypes, userDetails: null,
         adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
@@ -135,8 +139,12 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
       logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee', dualRole: availableUserTypes.length > 1 });
       return {
-        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, studentId: studentIdForUser, department: finalUserData.department, position: finalUserData.position },
+        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: defaultUserType, availableUserTypes, userDetails: finalUserData,
+        adminAccess, pageAccess, isSuperadmin: false, linkedStudents
+      };
+    }
+
         adminAccess, pageAccess, isSuperadmin: false, linkedStudents
       };
     }
