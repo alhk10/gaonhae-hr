@@ -46,6 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [availableUserTypes, setAvailableUserTypes] = useState<UserType[]>([]);
+  const [activeUserType, setActiveUserTypeState] = useState<UserType | null>(null);
   const { toast } = useToast();
 
   // Sequence counter to prevent stale session processing
