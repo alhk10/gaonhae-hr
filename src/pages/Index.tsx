@@ -12,6 +12,7 @@ import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import StudentSwitcher from '@/components/dashboard/StudentSwitcher';
 import RoleChooser from '@/components/auth/RoleChooser';
 import { logger } from '@/utils/logger';
+import { UserType } from '@/types/auth';
 
 const Index = () => {
   const { 
@@ -31,6 +32,14 @@ const Index = () => {
 
   const effectiveType = activeUserType || userType;
   const isDualRole = (availableUserTypes?.length || 0) > 1;
+  const [roleChosen, setRoleChosen] = React.useState(
+    () => sessionStorage.getItem('activeUserType') !== null
+  );
+
+  const handleChooseRole = (t: UserType) => {
+    setActiveUserType(t);
+    setRoleChosen(true);
+  };
 
   const ModeToggle = isDualRole ? (
     <div className="flex justify-end p-2">
