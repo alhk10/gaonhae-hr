@@ -22,9 +22,6 @@ const Index = () => {
     user, 
     userrole, 
     userType, 
-    availableUserTypes,
-    activeUserType,
-    setActiveUserType,
     requiresPasswordChange, 
     isLoading, 
     login,
@@ -33,24 +30,8 @@ const Index = () => {
     setSelectedStudent
   } = useAuth();
 
-  const { hasAccess: hasBranchAccess } = useBranchAccess();
+  const { options: portalOptions, effectiveType, setActiveUserType, isDualRole } = usePortalOptions();
 
-  // Superadmins already have a branch tab inside DashboardSwitcher
-  const canUseBranch = hasBranchAccess && userrole !== 'superadmin';
-
-  const portalOptions = React.useMemo<UserType[]>(() => {
-    const base = (availableUserTypes?.length ? availableUserTypes : userType ? [userType] : []) as UserType[];
-    const opts: UserType[] = base.filter((t) => t === 'employee' || t === 'student');
-    if (canUseBranch) opts.push('branch');
-    return opts;
-  }, [availableUserTypes, userType, canUseBranch]);
-
-  const isDualRole = portalOptions.includes('employee') && portalOptions.includes('student');
-
-
-  const rawType = activeUserType || userType;
-  const effectiveType: UserType | null =
-    rawType && portalOptions.includes(rawType) ? rawType : (portalOptions[0] || rawType);
 
   const [roleChosen, setRoleChosen] = React.useState(
     () => sessionStorage.getItem('activeUserType') !== null
