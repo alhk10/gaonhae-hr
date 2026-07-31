@@ -8853,6 +8853,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      login_email_exists: { Args: { p_email: string }; Returns: boolean }
       match_student_by_identity: {
         Args: {
           p_branch_id: string
