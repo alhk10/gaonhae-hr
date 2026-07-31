@@ -59,32 +59,24 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   logger.debug('Processing user session', { email, authUserId });
 
   try {
-    // FAST PATH: Student from JWT metadata
-    if (userMetadata?.user_type === 'student' && userMetadata?.student_id) {
-      logger.info('Fast path: Student from JWT metadata');
-      const linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
-      const studentName = userMetadata.name || email.split('@')[0];
-      return {
-        user: { id: authUserId, email, name: studentName, studentId: userMetadata.student_id },
-        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: { id: userMetadata.student_id, name: studentName, email },
-        adminAccess: null, pageAccess: null, isSuperadmin: false,
-        linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: userMetadata.student_id, name: studentName, email }]
-      };
-    }
+    const isStudentProvisioned = !!(userMetadata?.user_type === 'student' && userMetadata?.student_id);
 
-    // PARALLEL: All three checks with individual timeouts (6s each)
-    logger.debug('Running parallel auth checks');
-    const [studentData, userData, isSuperadminInitial] = await Promise.all([
+    // Run the employee/superadmin checks for everyone — including accounts that
+    // were provisioned as students — so dual-access people get both portals.
+    const [studentDataRaw, userData, isSuperadminInitial] = await Promise.all([
       withTimeout(getStudentByAuthIdRPC(authUserId, email), 6000, null),
       withTimeout(getUserData(email, authUserId).catch(() => null), 6000, null),
       withTimeout(checkSuperadminRPC(email), 6000, false)
     ]);
-    
+
     let isSuperadmin = isSuperadminInitial;
     let finalUserData = userData;
-    
-    logger.debug('Parallel auth checks complete', { 
-      hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
+    const studentData = studentDataRaw || (isStudentProvisioned
+      ? { id: userMetadata.student_id, name: userMetadata.name || email.split('@')[0], email }
+      : null);
+
+    logger.debug('Parallel auth checks complete', {
+      hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin
     });
 
     const hasEmployeeSide = !!finalUserData || isSuperadmin;
@@ -100,6 +92,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: studentData.id, name: studentData.name, email: studentData.email }]
       };
     }
+
 
     // Employee side: also resolve any student records linked to the same email
     // so dual-role people can switch into the student portal.
