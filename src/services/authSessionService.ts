@@ -59,32 +59,24 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
   logger.debug('Processing user session', { email, authUserId });
 
   try {
-    // FAST PATH: Student from JWT metadata
-    if (userMetadata?.user_type === 'student' && userMetadata?.student_id) {
-      logger.info('Fast path: Student from JWT metadata');
-      const linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
-      const studentName = userMetadata.name || email.split('@')[0];
-      return {
-        user: { id: authUserId, email, name: studentName, studentId: userMetadata.student_id },
-        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: { id: userMetadata.student_id, name: studentName, email },
-        adminAccess: null, pageAccess: null, isSuperadmin: false,
-        linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: userMetadata.student_id, name: studentName, email }]
-      };
-    }
+    const isStudentProvisioned = !!(userMetadata?.user_type === 'student' && userMetadata?.student_id);
 
-    // PARALLEL: All three checks with individual timeouts (6s each)
-    logger.debug('Running parallel auth checks');
-    const [studentData, userData, isSuperadminInitial] = await Promise.all([
+    // Run the employee/superadmin checks for everyone — including accounts that
+    // were provisioned as students — so dual-access people get both portals.
+    const [studentDataRaw, userData, isSuperadminInitial] = await Promise.all([
       withTimeout(getStudentByAuthIdRPC(authUserId, email), 6000, null),
       withTimeout(getUserData(email, authUserId).catch(() => null), 6000, null),
       withTimeout(checkSuperadminRPC(email), 6000, false)
     ]);
-    
+
     let isSuperadmin = isSuperadminInitial;
     let finalUserData = userData;
-    
-    logger.debug('Parallel auth checks complete', { 
-      hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
+    const studentData = studentDataRaw || (isStudentProvisioned
+      ? { id: userMetadata.student_id, name: userMetadata.name || email.split('@')[0], email }
+      : null);
+
+    logger.debug('Parallel auth checks complete', {
+      hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin
     });
 
     const hasEmployeeSide = !!finalUserData || isSuperadmin;
@@ -101,6 +93,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       };
     }
 
+
     // Employee side: also resolve any student records linked to the same email
     // so dual-role people can switch into the student portal.
     let linkedStudents: LinkedStudentInfo[] = [];
@@ -111,13 +104,17 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       }
     }
     const availableUserTypes: UserType[] = linkedStudents.length > 0 ? ['employee', 'student'] : ['employee'];
+    // Accounts provisioned as students keep landing in the student portal by default,
+    // but now also get the employee/branch options in the switcher.
+    const defaultUserType: UserType = isStudentProvisioned && linkedStudents.length > 0 ? 'student' : 'employee';
+    const studentIdForUser = studentData?.id;
 
     // Priority 2: Superadmin employee
     if (finalUserData?.isSuperadmin || (isSuperadmin && finalUserData)) {
       logger.info('User is superadmin employee');
       return {
-        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, studentId: studentIdForUser, department: finalUserData.department, position: finalUserData.position },
+        userrole: 'superadmin', userType: defaultUserType, availableUserTypes, userDetails: finalUserData,
         adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
@@ -126,8 +123,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     if (isSuperadmin && !finalUserData) {
       logger.info('User is superadmin (no employee record)');
       return {
-        user: { id: authUserId, email, name: email, role: 'superadmin' },
-        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: null,
+        user: { id: authUserId, email, name: email, role: 'superadmin', studentId: studentIdForUser },
+        userrole: 'superadmin', userType: defaultUserType, availableUserTypes, userDetails: null,
         adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
@@ -142,11 +139,13 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
       logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee', dualRole: availableUserTypes.length > 1 });
       return {
-        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, studentId: studentIdForUser, department: finalUserData.department, position: finalUserData.position },
+        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: defaultUserType, availableUserTypes, userDetails: finalUserData,
         adminAccess, pageAccess, isSuperadmin: false, linkedStudents
       };
     }
+
+
 
     // Priority 5: No data found — email may still map to student records
     const fallbackStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
