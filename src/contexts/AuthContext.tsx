@@ -103,10 +103,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setPageAccess(result.pageAccess);
 
     // Dual-role support (employee who is also a student)
-    const available = result.availableUserTypes?.length ? result.availableUserTypes : [result.userType];
+    const available = (result.availableUserTypes?.length ? result.availableUserTypes : [result.userType]) as UserType[];
     setAvailableUserTypes(available);
     const savedType = sessionStorage.getItem(ACTIVE_USER_TYPE_KEY) as UserType | null;
-    const nextActive = savedType && available.includes(savedType) ? savedType : result.userType;
+    // 'branch' access is resolved client-side (branch access / superadmin), so allow it through here.
+    const isSavedValid = savedType && (savedType === 'branch' || available.includes(savedType));
+    const nextActive = isSavedValid ? savedType : (result.userType as UserType);
     setActiveUserTypeState(nextActive);
 
     // Handle multi-student support

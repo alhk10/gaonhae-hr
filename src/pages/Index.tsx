@@ -10,7 +10,10 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import StudentSwitcher from '@/components/dashboard/StudentSwitcher';
+import BranchDashboardView from '@/components/dashboard/BranchDashboardView';
+import PortalSwitcher from '@/components/dashboard/PortalSwitcher';
 import RoleChooser from '@/components/auth/RoleChooser';
+import { useBranchAccess } from '@/hooks/useBranchAccess';
 import { logger } from '@/utils/logger';
 import { UserType } from '@/types/auth';
 
@@ -30,8 +33,25 @@ const Index = () => {
     setSelectedStudent
   } = useAuth();
 
-  const effectiveType = activeUserType || userType;
-  const isDualRole = (availableUserTypes?.length || 0) > 1;
+  const { hasAccess: hasBranchAccess } = useBranchAccess();
+
+  // Superadmins already have a branch tab inside DashboardSwitcher
+  const canUseBranch = hasBranchAccess && userrole !== 'superadmin';
+
+  const portalOptions = React.useMemo<UserType[]>(() => {
+    const base = (availableUserTypes?.length ? availableUserTypes : userType ? [userType] : []) as UserType[];
+    const opts: UserType[] = base.filter((t) => t === 'employee' || t === 'student');
+    if (canUseBranch) opts.push('branch');
+    return opts;
+  }, [availableUserTypes, userType, canUseBranch]);
+
+  const isDualRole = portalOptions.includes('employee') && portalOptions.includes('student');
+
+
+  const rawType = activeUserType || userType;
+  const effectiveType: UserType | null =
+    rawType && portalOptions.includes(rawType) ? rawType : (portalOptions[0] || rawType);
+
   const [roleChosen, setRoleChosen] = React.useState(
     () => sessionStorage.getItem('activeUserType') !== null
   );
@@ -41,25 +61,14 @@ const Index = () => {
     setRoleChosen(true);
   };
 
-  const ModeToggle = isDualRole ? (
-    <div className="flex justify-end p-2">
-      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-        {(['employee', 'student'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setActiveUserType(t)}
-            className={`px-3 py-1 text-xs rounded ${
-              effectiveType === t
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'employee' ? 'Employee' : 'Student'}
-          </button>
-        ))}
-      </div>
-    </div>
-  ) : null;
+  const ModeToggle = (
+    <PortalSwitcher
+      options={portalOptions}
+      value={effectiveType}
+      onChange={setActiveUserType}
+    />
+  );
+
 
   logger.debug('Index: Rendering', { user: !!user, userrole, userType, effectiveType, isLoading });
 
@@ -90,10 +99,8 @@ const Index = () => {
   }
 
   if (isDualRole && !roleChosen) {
-    return <RoleChooser name={user?.name} onSelect={handleChooseRole} />;
+    return <RoleChooser name={user?.name} options={portalOptions} onSelect={handleChooseRole} />;
   }
-
-
 
   const renderDashboard = () => {
     try {
@@ -110,6 +117,12 @@ const Index = () => {
           </>
         );
       }
+
+      if (effectiveType === 'branch') {
+        return <BranchDashboardView />;
+      }
+
+
       
       switch (userrole) {
         case 'superadmin':
