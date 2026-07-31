@@ -29,6 +29,9 @@ export interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
   userType: UserType | null;
+  availableUserTypes: UserType[];
+  activeUserType: UserType | null;
+  setActiveUserType: (type: UserType) => void;
   userDetails: any;
   adminAccess: any;
   pageAccess: any;

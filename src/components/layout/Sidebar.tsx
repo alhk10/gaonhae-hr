@@ -82,7 +82,8 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
   const authData = useAuth();
-  const { user, userrole, userType } = authData;
+  const { user, userrole, userType, activeUserType } = authData;
+  const effectiveUserType = activeUserType || userType;
   const location = useLocation();
   const isMobile = useIsMobile();
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeProfile | null>(null);
@@ -146,7 +147,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     // Generate menu based on role
     
     // Students don't see the sidebar menu (they have their own portal)
-    if (userType === 'student') {
+    if (effectiveUserType === 'student') {
       return [];
     }
     
@@ -319,7 +320,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     }
 
     return menuItems;
-  }, [userrole, userType, currentEmployee, hasSalesAccess, hasBranchAccess]);
+  }, [userrole, effectiveUserType, currentEmployee, hasSalesAccess, hasBranchAccess]);
 
   const menuItems = getMenuItems();
 

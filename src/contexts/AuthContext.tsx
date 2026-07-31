@@ -10,12 +10,16 @@ import { clearAllResumeState } from '@/hooks/useSessionState';
 
 const SESSION_STORAGE_KEY = 'selectedStudentId';
 const RECOVERY_FLAG_KEY = 'requiresPasswordChange';
+const ACTIVE_USER_TYPE_KEY = 'activeUserType';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userrole: null,
   userType: null,
+  availableUserTypes: [],
+  activeUserType: null,
+  setActiveUserType: () => {},
   userDetails: null,
   adminAccess: null,
   pageAccess: null,
@@ -42,6 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [availableUserTypes, setAvailableUserTypes] = useState<UserType[]>([]);
+  const [activeUserType, setActiveUserTypeState] = useState<UserType | null>(null);
   const { toast } = useToast();
 
   // Sequence counter to prevent stale session processing
@@ -63,6 +69,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setPageAccess(null);
     setLinkedStudents([]);
     setSelectedStudentId(null);
+    setAvailableUserTypes([]);
+    setActiveUserTypeState(null);
+    sessionStorage.removeItem(ACTIVE_USER_TYPE_KEY);
   };
 
   const handleUserSession = async (session: Session | null, finalize: boolean = false) => {
@@ -93,6 +102,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAdminAccess(result.adminAccess);
     setPageAccess(result.pageAccess);
 
+    // Dual-role support (employee who is also a student)
+    const available = result.availableUserTypes?.length ? result.availableUserTypes : [result.userType];
+    setAvailableUserTypes(available);
+    const savedType = sessionStorage.getItem(ACTIVE_USER_TYPE_KEY) as UserType | null;
+    const nextActive = savedType && available.includes(savedType) ? savedType : result.userType;
+    setActiveUserTypeState(nextActive);
+
     // Handle multi-student support
     const students = result.linkedStudents || [];
     setLinkedStudents(students);
@@ -108,6 +124,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (finalize || initDoneRef.current) {
       setIsLoading(false);
     }
+  };
+
+  const handleSetActiveUserType = (type: UserType) => {
+    setActiveUserTypeState(type);
+    sessionStorage.setItem(ACTIVE_USER_TYPE_KEY, type);
   };
 
   const handleSetSelectedStudent = (studentId: string) => {
@@ -323,6 +344,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     userrole,
     userType,
+    availableUserTypes,
+    activeUserType,
+    setActiveUserType: handleSetActiveUserType,
     userDetails,
     adminAccess,
     pageAccess,

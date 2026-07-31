@@ -28,6 +28,7 @@ export interface SessionResult {
   user: SessionUserData | null;
   userrole: 'employee' | 'admin' | 'superadmin' | null;
   userType: UserType;
+  availableUserTypes: UserType[];
   userDetails: any;
   adminAccess: any;
   pageAccess: any;
@@ -65,7 +66,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       const studentName = userMetadata.name || email.split('@')[0];
       return {
         user: { id: authUserId, email, name: studentName, studentId: userMetadata.student_id },
-        userrole: null, userType: 'student', userDetails: { id: userMetadata.student_id, name: studentName, email },
+        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: { id: userMetadata.student_id, name: studentName, email },
         adminAccess: null, pageAccess: null, isSuperadmin: false,
         linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: userMetadata.student_id, name: studentName, email }]
       };
@@ -86,25 +87,38 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       hasStudent: !!studentData, hasEmployee: !!finalUserData, isSuperadmin 
     });
 
-    // Priority 1: Student
-    if (studentData) {
+    const hasEmployeeSide = !!finalUserData || isSuperadmin;
+
+    // Student-only: no employee record and not a superadmin
+    if (studentData && !hasEmployeeSide) {
       logger.info('User is a student');
       const linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
       return {
         user: { id: authUserId, email, name: studentData.name, studentId: studentData.id },
-        userrole: null, userType: 'student', userDetails: studentData,
+        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: studentData,
         adminAccess: null, pageAccess: null, isSuperadmin: false,
         linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: studentData.id, name: studentData.name, email: studentData.email }]
       };
     }
+
+    // Employee side: also resolve any student records linked to the same email
+    // so dual-role people can switch into the student portal.
+    let linkedStudents: LinkedStudentInfo[] = [];
+    if (hasEmployeeSide) {
+      linkedStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
+      if (linkedStudents.length === 0 && studentData) {
+        linkedStudents = [{ id: studentData.id, name: studentData.name, email: studentData.email }];
+      }
+    }
+    const availableUserTypes: UserType[] = linkedStudents.length > 0 ? ['employee', 'student'] : ['employee'];
 
     // Priority 2: Superadmin employee
     if (finalUserData?.isSuperadmin || (isSuperadmin && finalUserData)) {
       logger.info('User is superadmin employee');
       return {
         user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: 'superadmin', userType: 'employee', userDetails: finalUserData,
-        adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents: []
+        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
 
@@ -113,8 +127,8 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       logger.info('User is superadmin (no employee record)');
       return {
         user: { id: authUserId, email, name: email, role: 'superadmin' },
-        userrole: 'superadmin', userType: 'employee', userDetails: null,
-        adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents: []
+        userrole: 'superadmin', userType: 'employee', availableUserTypes, userDetails: null,
+        adminAccess: null, pageAccess: null, isSuperadmin: true, linkedStudents
       };
     }
 
@@ -126,19 +140,29 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
         withTimeout(getUserPageAccess(finalUserData.id).catch(() => DEFAULT_PAGE_ACCESS), 3000, DEFAULT_PAGE_ACCESS)
       ]);
       const hasAdminPermissions = adminAccess && Object.values(adminAccess).some(Boolean);
-      logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee' });
+      logger.info('User is employee', { role: hasAdminPermissions ? 'admin' : 'employee', dualRole: availableUserTypes.length > 1 });
       return {
         user: { id: authUserId, email, name: finalUserData.name, employeeId: finalUserData.id, department: finalUserData.department, position: finalUserData.position },
-        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', userDetails: finalUserData,
-        adminAccess, pageAccess, isSuperadmin: false, linkedStudents: []
+        userrole: hasAdminPermissions ? 'admin' : 'employee', userType: 'employee', availableUserTypes, userDetails: finalUserData,
+        adminAccess, pageAccess, isSuperadmin: false, linkedStudents
       };
     }
 
-    // Priority 5: No data found
+    // Priority 5: No data found — email may still map to student records
+    const fallbackStudents = await withTimeout(getLinkedStudentsRPC(email), 3000, []);
+    if (fallbackStudents.length > 0) {
+      logger.info('No employee record, but linked students found');
+      return {
+        user: { id: authUserId, email, name: fallbackStudents[0].name, studentId: fallbackStudents[0].id },
+        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: null,
+        adminAccess: null, pageAccess: null, isSuperadmin: false, linkedStudents: fallbackStudents
+      };
+    }
+
     logger.warn('No user data found, returning minimal session', { email });
     return {
       user: { id: authUserId, email, name: email.split('@')[0] },
-      userrole: 'employee', userType: 'employee', userDetails: null,
+      userrole: 'employee', userType: 'employee', availableUserTypes: ['employee'], userDetails: null,
       adminAccess: null, pageAccess: DEFAULT_PAGE_ACCESS, isSuperadmin: false, linkedStudents: []
     };
 
@@ -146,7 +170,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
     logger.error('Session processing error', error);
     return {
       user: { id: authUserId, email, name: email.split('@')[0] },
-      userrole: 'employee', userType: 'employee', userDetails: null,
+      userrole: 'employee', userType: 'employee', availableUserTypes: ['employee'], userDetails: null,
       adminAccess: null, pageAccess: DEFAULT_PAGE_ACCESS, isSuperadmin: false, linkedStudents: []
     };
   }

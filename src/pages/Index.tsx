@@ -17,6 +17,9 @@ const Index = () => {
     user, 
     userrole, 
     userType, 
+    availableUserTypes,
+    activeUserType,
+    setActiveUserType,
     requiresPasswordChange, 
     isLoading, 
     login,
@@ -25,7 +28,30 @@ const Index = () => {
     setSelectedStudent
   } = useAuth();
 
-  logger.debug('Index: Rendering', { user: !!user, userrole, userType, isLoading });
+  const effectiveType = activeUserType || userType;
+  const isDualRole = (availableUserTypes?.length || 0) > 1;
+
+  const ModeToggle = isDualRole ? (
+    <div className="flex justify-end p-2">
+      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+        {(['employee', 'student'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setActiveUserType(t)}
+            className={`px-3 py-1 text-xs rounded ${
+              effectiveType === t
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t === 'employee' ? 'Employee' : 'Student'}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  logger.debug('Index: Rendering', { user: !!user, userrole, userType, effectiveType, isLoading });
 
   if (isLoading) {
     return (
@@ -56,7 +82,7 @@ const Index = () => {
   const renderDashboard = () => {
     try {
       // Students get their own dashboard without sidebar
-      if (userType === 'student') {
+      if (effectiveType === 'student') {
         return (
           <>
             <StudentSwitcher
@@ -98,9 +124,10 @@ const Index = () => {
   };
 
   // Students get a simplified layout without sidebar
-  if (userType === 'student') {
+  if (effectiveType === 'student') {
     return (
       <div className="min-h-screen bg-gray-50">
+        {ModeToggle}
         {renderDashboard()}
       </div>
     );
@@ -109,6 +136,7 @@ const Index = () => {
   try {
     return (
       <ResponsiveLayout>
+        {ModeToggle}
         {renderDashboard()}
       </ResponsiveLayout>
     );
