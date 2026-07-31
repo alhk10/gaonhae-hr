@@ -10,6 +10,7 @@ import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import EmployeeDashboard from '@/components/dashboard/EmployeeDashboard';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import StudentSwitcher from '@/components/dashboard/StudentSwitcher';
+import RoleChooser from '@/components/auth/RoleChooser';
 import { logger } from '@/utils/logger';
 
 const Index = () => {
