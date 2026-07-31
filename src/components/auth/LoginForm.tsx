@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import EmailVerificationDialog from './EmailVerificationDialog';
+import { buildAppUrl } from '@/utils/appUrl';
 
 const loginSchema = z.object({
   email: z.string()
@@ -110,7 +111,7 @@ const LoginForm = () => {
           email: targetEmail,
           password: tempPassword,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/reset-password`,
+            emailRedirectTo: buildAppUrl('/auth/reset-password'),
             data: {
               name: record.display_name,
               student_id: record.record_id,
@@ -126,7 +127,7 @@ const LoginForm = () => {
       }
 
       const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: buildAppUrl('/auth/reset-password'),
       });
 
       if (error) {

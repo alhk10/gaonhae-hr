@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { buildAppUrl } from '@/utils/appUrl';
 
 /**
  * Generate a secure temporary password
@@ -49,7 +50,7 @@ export const createStudentAuthAccount = async (
       email: normalizedEmail,
       password: tempPassword,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: buildAppUrl('/'),
         data: {
           name: name,
           student_id: studentId,
@@ -84,7 +85,7 @@ export const createStudentAuthAccount = async (
     let passwordResetSent = false;
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: `${window.location.origin}/auth/reset-password`
+        redirectTo: buildAppUrl('/auth/reset-password')
       });
       
       if (resetError) {
@@ -132,7 +133,7 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 export const sendPasswordResetEmail = async (email: string): Promise<boolean> => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
-      redirectTo: `${window.location.origin}/auth/reset-password`
+      redirectTo: buildAppUrl('/auth/reset-password')
     });
     
     if (error) {
