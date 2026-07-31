@@ -8045,6 +8045,14 @@ export type Database = {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
       }
+      email_portal_record: {
+        Args: { p_email: string }
+        Returns: {
+          display_name: string
+          kind: string
+          record_id: string
+        }[]
+      }
       find_competition_submission_student_matches: {
         Args: { p_id: string }
         Returns: {
@@ -8853,6 +8861,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      login_email_exists: { Args: { p_email: string }; Returns: boolean }
       match_student_by_identity: {
         Args: {
           p_branch_id: string

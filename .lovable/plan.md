@@ -1,33 +1,30 @@
-## Goal
+## What I found
 
-A person who exists both as an employee and as a student should be able to use both dashboards from one login. Today the session resolver returns a single `userType`, and the student check wins — so an employee who is also a student is locked into the student portal (and vice versa, an employee record hides the student portal).
+Albert's reset email was never sent because he has no login account at all.
 
-## Behaviour
+Verified in the database:
+- `albertcorpuz873@gmail.com` exists as an **active student** ("ALBERT TIGGANGAY CORPUZ JR").
+- There is a `student_auth` row for him created 14/07/2026, but its `auth_user_id` is **empty** — provisioning never completed.
+- There is **no matching user in the authentication system** (searched `auth.users`; zero rows).
+- Auth logs contain **no requests at all** for his email — password reset for an unknown address is silently accepted and no email is generated.
 
-- After login, a dual-role person lands on the **employee dashboard**.
-- A small **Employee / Student toggle appears in the top header** whenever both roles exist. Single-role users see no toggle and nothing changes for them.
-- Switching to Student mode shows the existing student portal (including the multi-student switcher when their email is linked to more than one student). Switching back returns to the employee dashboard.
-- The chosen mode persists for the browser session, so a refresh doesn't bounce them back.
+So the reset screen showed "check your email" while nothing was ever sent. This is not a domain/DNS or deliverability problem.
 
-## Technical changes
+## Plan
 
-**Session resolution (`src/services/authSessionService.ts`)**
-- Stop treating student and employee as mutually exclusive. Run the student, employee and superadmin lookups as today, but return both sides when present: keep `userrole`/`userDetails`/`adminAccess`/`pageAccess` for the employee side and `linkedStudents`/student details for the student side.
-- Add `availableUserTypes: UserType[]` to `SessionResult`. `userType` stays as the default/primary type, set to `employee` when both exist (matching the chosen default), `student` when only student data is found.
-- Keep the JWT fast path for student-only accounts (portal-provisioned logins) unchanged, since those never have an employee record.
+### 1. Fix Albert now (immediate)
+Provision his login account through the existing admin auth flow (`auth-admin` edge function / student auth provisioning), which creates the auth user, links `student_auth.auth_user_id`, and triggers a password-set email. Then confirm his `auth.users` row exists and `student_auth.auth_user_id` is populated.
 
-**Auth context (`src/contexts/AuthContext.tsx`, `src/types/auth.ts`)**
-- Expose `availableUserTypes`, an `activeUserType`, and `setActiveUserType(type)`.
-- `activeUserType` initialises from `sessionStorage` (key e.g. `activeUserType`) when valid, otherwise the default type; it is cleared on logout alongside the other session keys.
+### 2. Find every other student in the same broken state
+Query `student_auth` rows with a null `auth_user_id` (and active students with an email but no auth user). Report the list so you can decide whether to bulk-provision them.
 
-**Routing / UI**
-- `src/pages/Index.tsx`: switch on `activeUserType` instead of `userType` when deciding between the student portal and the employee dashboards.
-- `src/components/layout/Sidebar.tsx`: the `userType === 'student'` branch reads `activeUserType`.
-- New small `DashboardModeToggle` component rendered in `src/components/layout/Navbar.tsx` (employee mode) and above the student portal header in `Index.tsx` (student mode), shown only when `availableUserTypes.length > 1`.
+### 3. Stop the silent failure in the reset flow
+In the forgot-password path, before calling the reset, check whether the email maps to a provisioned account using a `SECURITY DEFINER` RPC that returns only a boolean (never exposes emails or user lists). If it is not provisioned:
+- Show a clear message: "No login has been set up for this email yet — please contact your branch to activate portal access," instead of the false "email sent" confirmation.
 
-**Data assumption to verify first**
-The link between an employee and a student record is by email. Before wiring the toggle, confirm with a query that dual-role people share the same email across `employees` and `students` / `student_auth`. If they don't, matching will need an explicit link and the plan's first step becomes adding that link instead.
+### 4. Harden provisioning
+`createStudentAuthAccount` currently never writes back to `student_auth`, which is how Albert ended up with a row and no auth user. Update it to record `auth_user_id` on success and to surface a clear error when signup fails, so half-provisioned rows stop appearing.
 
-## Out of scope
-
-No changes to RLS, permissions, or what either dashboard shows. Student-side data still resolves through the existing student RPCs, so a person in student mode only ever sees students linked to their own email.
+## Technical notes
+- Files: `src/services/studentAuthProvisioningService.ts`, the forgot-password UI component, and a new RPC `public.student_login_exists(p_email text)` returning boolean.
+- No change to auth email templates or the sending domain is needed — the sending pipeline is not the cause here.
