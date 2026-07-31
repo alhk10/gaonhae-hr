@@ -124,9 +124,10 @@ const Index = () => {
   };
 
   // Students get a simplified layout without sidebar
-  if (userType === 'student') {
+  if (effectiveType === 'student') {
     return (
       <div className="min-h-screen bg-gray-50">
+        {ModeToggle}
         {renderDashboard()}
       </div>
     );
@@ -135,6 +136,7 @@ const Index = () => {
   try {
     return (
       <ResponsiveLayout>
+        {ModeToggle}
         {renderDashboard()}
       </ResponsiveLayout>
     );
