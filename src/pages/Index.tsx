@@ -99,10 +99,8 @@ const Index = () => {
   }
 
   if (isDualRole && !roleChosen) {
-    return <RoleChooser name={user?.name} onSelect={handleChooseRole} />;
+    return <RoleChooser name={user?.name} options={portalOptions} onSelect={handleChooseRole} />;
   }
-
-
 
   const renderDashboard = () => {
     try {
@@ -119,6 +117,12 @@ const Index = () => {
           </>
         );
       }
+
+      if (effectiveType === 'branch') {
+        return <BranchDashboardView />;
+      }
+
+
       
       switch (userrole) {
         case 'superadmin':
