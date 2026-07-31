@@ -147,7 +147,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     // Generate menu based on role
     
     // Students don't see the sidebar menu (they have their own portal)
-    if (userType === 'student') {
+    if (effectiveUserType === 'student') {
       return [];
     }
     
@@ -320,7 +320,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     }
 
     return menuItems;
-  }, [userrole, userType, currentEmployee, hasSalesAccess, hasBranchAccess]);
+  }, [userrole, effectiveUserType, currentEmployee, hasSalesAccess, hasBranchAccess]);
 
   const menuItems = getMenuItems();
 
