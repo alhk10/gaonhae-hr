@@ -390,7 +390,7 @@ serve(async (req) => {
         const userClientForReset = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: authHeader } },
         });
-        const redirectTo = body.redirectTo || `${req.headers.get("origin") || ""}/auth/reset-password`;
+        const redirectTo = body.redirectTo || "https://gaonhae.app/auth/reset-password";
         const { error: resetErr } = await userClientForReset.auth.resetPasswordForEmail(email, { redirectTo });
         if (resetErr) console.error("Reset email failed (non-fatal):", resetErr.message);
       } catch (e) {
