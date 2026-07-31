@@ -713,16 +713,18 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                 </Button>
               )}
 
-              <Button
-                className={`justify-start h-auto p-3 md:p-4`}
-                variant="outline"
-                onClick={() => setShowPricingRates(true)}
-              >
-                <DollarSign className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                <div className="text-left">
-                  <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Pricing Rates</p>
-                </div>
-              </Button>
+              {!isFullTime && (
+                <Button
+                  className={`justify-start h-auto p-3 md:p-4`}
+                  variant="outline"
+                  onClick={() => setShowPricingRates(true)}
+                >
+                  <DollarSign className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  <div className="text-left">
+                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Pricing Rates</p>
+                  </div>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
