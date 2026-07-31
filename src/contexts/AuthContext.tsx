@@ -10,12 +10,16 @@ import { clearAllResumeState } from '@/hooks/useSessionState';
 
 const SESSION_STORAGE_KEY = 'selectedStudentId';
 const RECOVERY_FLAG_KEY = 'requiresPasswordChange';
+const ACTIVE_USER_TYPE_KEY = 'activeUserType';
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userrole: null,
   userType: null,
+  availableUserTypes: [],
+  activeUserType: null,
+  setActiveUserType: () => {},
   userDetails: null,
   adminAccess: null,
   pageAccess: null,
