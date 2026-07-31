@@ -40,10 +40,13 @@ const Index = () => {
 
   const portalOptions = React.useMemo<UserType[]>(() => {
     const base = (availableUserTypes?.length ? availableUserTypes : userType ? [userType] : []) as UserType[];
-    const opts = base.filter((t) => t === 'employee' || t === 'student');
+    const opts: UserType[] = base.filter((t) => t === 'employee' || t === 'student');
     if (canUseBranch) opts.push('branch');
     return opts;
   }, [availableUserTypes, userType, canUseBranch]);
+
+  const isDualRole = portalOptions.includes('employee') && portalOptions.includes('student');
+
 
   const rawType = activeUserType || userType;
   const effectiveType: UserType | null =
