@@ -1,4 +1,4 @@
-export type UserType = 'employee' | 'student';
+export type UserType = 'employee' | 'student' | 'branch';
 
 // Basic student info for multi-student switching
 export interface LinkedStudent {
