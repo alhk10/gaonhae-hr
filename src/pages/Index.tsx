@@ -89,6 +89,12 @@ const Index = () => {
     );
   }
 
+  if (isDualRole && !roleChosen) {
+    return <RoleChooser name={user?.name} onSelect={handleChooseRole} />;
+  }
+
+
+
   const renderDashboard = () => {
     try {
       // Students get their own dashboard without sidebar
