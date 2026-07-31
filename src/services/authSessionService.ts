@@ -66,7 +66,7 @@ export const processUserSession = async (session: Session | null): Promise<Sessi
       const studentName = userMetadata.name || email.split('@')[0];
       return {
         user: { id: authUserId, email, name: studentName, studentId: userMetadata.student_id },
-        userrole: null, userType: 'student', userDetails: { id: userMetadata.student_id, name: studentName, email },
+        userrole: null, userType: 'student', availableUserTypes: ['student'], userDetails: { id: userMetadata.student_id, name: studentName, email },
         adminAccess: null, pageAccess: null, isSuperadmin: false,
         linkedStudents: linkedStudents.length > 0 ? linkedStudents : [{ id: userMetadata.student_id, name: studentName, email }]
       };
