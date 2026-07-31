@@ -78,14 +78,61 @@ const LoginForm = () => {
     setResetMessage('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(emailValidation.data, {
+      const targetEmail = emailValidation.data.toLowerCase();
+
+      // Does a login account actually exist for this email?
+      const { data: hasLogin, error: existsError } = await supabase.rpc('login_email_exists', {
+        p_email: targetEmail,
+      });
+
+      if (existsError) {
+        setError('Unable to verify this email right now. Please try again.');
+        return;
+      }
+
+      if (!hasLogin) {
+        // No auth account yet. If the email belongs to an active student record,
+        // provision the login now so the reset email can actually be delivered.
+        const { data: records } = await supabase.rpc('email_portal_record', {
+          p_email: targetEmail,
+        });
+        const record = Array.isArray(records) ? records[0] : records;
+
+        if (!record) {
+          setError(
+            'No account found for this email. Please contact your branch so we can set up your portal access.'
+          );
+          return;
+        }
+
+        const tempPassword = `${crypto.randomUUID()}Aa1!`;
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: targetEmail,
+          password: tempPassword,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/reset-password`,
+            data: {
+              name: record.display_name,
+              student_id: record.record_id,
+              user_type: 'student',
+            },
+          },
+        });
+
+        if (signUpError && !signUpError.message.toLowerCase().includes('already registered')) {
+          setError(signUpError.message);
+          return;
+        }
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {
         setError(error.message);
       } else {
-        setResetMessage(`Password reset email sent to ${emailValidation.data}. Please check your inbox and follow the instructions.`);
+        setResetMessage(`Password reset email sent to ${targetEmail}. Please check your inbox (and spam folder) and follow the instructions.`);
       }
     } catch (err) {
       setError('Failed to send password reset email. Please try again.');
@@ -93,6 +140,7 @@ const LoginForm = () => {
       setIsResettingPassword(false);
     }
   };
+
 
   return (
     <>

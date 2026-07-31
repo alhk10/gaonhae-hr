@@ -110,21 +110,21 @@ export const createStudentAuthAccount = async (
 };
 
 /**
- * Check if an email is already registered in Supabase Auth
- * Note: This is a best-effort check since we can't directly query auth.users
+ * Check if an email already has a Supabase Auth login account
  */
 export const checkEmailExists = async (email: string): Promise<boolean> => {
-  // We can't directly check auth.users from the client
-  // The signup flow will tell us if the email is taken
-  // For now, we check if there's an employee with this email
-  const { data } = await supabase
-    .from('employees')
-    .select('id')
-    .eq('email', email.toLowerCase())
-    .maybeSingle();
-  
-  return data !== null;
+  const { data, error } = await supabase.rpc('login_email_exists', {
+    p_email: email.toLowerCase().trim(),
+  });
+
+  if (error) {
+    logger.error('Failed to check login email existence', { error: error.message });
+    return false;
+  }
+
+  return Boolean(data);
 };
+
 
 /**
  * Send a password reset email to an existing student
