@@ -37,6 +37,52 @@ const ClaimsManagementContent = () => {
   const [claims, setClaims] = useState<ClaimWithEmployee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editData, setEditData] = useState<{ type: string; amount: string; description: string }>({
+    type: '',
+    amount: '',
+    description: '',
+  });
+
+  const startEdit = (claim: ClaimWithEmployee) => {
+    setEditingId(claim.id);
+    setEditData({
+      type: claim.type,
+      amount: String(claim.amount),
+      description: claim.description || '',
+    });
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = async () => {
+    if (editingId === null) return;
+    const amount = parseFloat(editData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await updateClaim(editingId, {
+        type: editData.type,
+        amount,
+        description: editData.description,
+      });
+      toast.success('Claim updated successfully');
+      setEditingId(null);
+      await loadClaims();
+    } catch (error) {
+      console.error('Error updating claim:', error);
+      toast.error('Error updating claim');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+
 
   const loadClaims = async () => {
     setIsLoading(true);
