@@ -6,11 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/sonner';
-import { getClaims, updateClaimStatus } from '@/services/claimsService';
+import { getClaims, updateClaimStatus, updateClaim } from '@/services/claimsService';
+import { getClaimTypes, ClaimType } from '@/services/claimTypesService';
 import { getEmployeeById } from '@/services/employeeService';
 import AddClaimDialog from '@/components/claim/AddClaimDialog';
 import ClaimSettingsDialog from '@/components/claim/ClaimSettingsDialog';
 import { formatDate } from '@/utils/dateFormat';
+import { formatCurrency } from '@/utils/currencyUtils';
+import { SignedLink } from '@/components/common/SignedMedia';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Check, X, Pencil, ExternalLink } from 'lucide-react';
 
 interface ClaimWithEmployee {
   id: number;
