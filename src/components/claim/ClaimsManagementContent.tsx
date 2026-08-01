@@ -140,6 +140,7 @@ const ClaimsManagementContent = () => {
 
   useEffect(() => {
     loadClaims();
+    getClaimTypes().then(setClaimTypes).catch(() => setClaimTypes([]));
   }, []);
 
   const handleClaimSuccess = async () => {
