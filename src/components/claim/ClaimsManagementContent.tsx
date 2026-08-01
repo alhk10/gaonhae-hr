@@ -222,44 +222,104 @@ const ClaimsManagementContent = () => {
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Receipt</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClaims.map((claim) => (
+                  {filteredClaims.map((claim) => {
+                    const isEditing = editingId === claim.id;
+                    return (
                     <TableRow key={claim.id}>
                       <TableCell>{claim.employee}</TableCell>
-                      <TableCell>{claim.type}</TableCell>
-                      <TableCell>S${claim.amount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Select value={editData.type} onValueChange={(v) => setEditData(prev => ({ ...prev, type: v }))}>
+                            <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {claimTypes.map(ct => (<SelectItem key={ct.id} value={ct.name}>{ct.name}</SelectItem>))}
+                            </SelectContent>
+                          </Select>
+                        ) : claim.type}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="h-8 w-[110px]"
+                            value={editData.amount}
+                            onChange={(e) => setEditData(prev => ({ ...prev, amount: e.target.value }))}
+                          />
+                        ) : formatCurrency(claim.amount)}
+                      </TableCell>
                       <TableCell>{formatDate(new Date(claim.date))}</TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            className="h-8 w-[180px]"
+                            value={editData.description}
+                            onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Description"
+                          />
+                        ) : (
+                          <div className="max-w-[200px] truncate text-sm text-muted-foreground">{claim.description || '-'}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {claim.receipt_url ? (
+                          <SignedLink
+                            href={claim.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                          >
+                            <ExternalLink className="h-3 w-3" />View
+                          </SignedLink>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={claim.status === 'Approved' ? 'default' : claim.status === 'Rejected' ? 'destructive' : 'secondary'}>
                           {claim.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {claim.status === 'Pending' && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStatusChange(claim.id, 'Approved')}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStatusChange(claim.id, 'Rejected')}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        )}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {isEditing ? (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={saveEdit} disabled={isSaving}>
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={cancelEdit} disabled={isSaving}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => startEdit(claim)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              {claim.status === 'Pending' && (
+                                <>
+                                  <Button variant="outline" size="sm" onClick={() => handleStatusChange(claim.id, 'Approved')}>
+                                    Approve
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleStatusChange(claim.id, 'Rejected')}>
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
