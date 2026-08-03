@@ -349,6 +349,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setArtDirection(i.artDirection || '');
     setQrChoice((row.qr_choice as QrChoice) || 'none');
     setLogoChoice((row.logo_choice as LogoChoice) || (i.logoChoice as LogoChoice) || 'mark');
+    setBlendAssets(i.blendAssets !== false);
+    setBlendedIn({ qr: false, logo: false });
+    setForceOverlayQr(false);
     if (row.model) setModel(row.model);
     setCopyData({ ...EMPTY_COPY, ...(row.copy || {}) });
 
