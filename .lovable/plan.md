@@ -4,22 +4,27 @@ Add an **AI Document** tab to `/access` that turns a few typed details into on-b
 
 ## What you'll see
 
-A new tab (after Summary) visible only once the `Hp84311884` admin password has been entered, same gate as the Registered column.
+A new tab (after Summary) visible once either admin password — `Hp84311884` or `Hp97533488` — has been entered.
 
-Left side — a short form:
+Left side — a short form (everything except format and headline is optional):
 - Format: Poster (A4 portrait), Instagram square (1:1), Instagram reel (9:16)
 - Branch (optional, from the branch list)
 - Headline / event name
-- Date, time, venue (optional)
-- Key details / notes free-text box
+- Pricing (optional)
+- Date & time (optional)
+- Venue (optional)
+- Additional details (optional free-text)
 - Call to action (e.g. "Scan to register")
+- QR code: none, Seminars (`seminars-qr-code.png`), Competitions (`gaonhae_comps_qr.png`), or Payment (`gaonhae-pay-qr.png`) — shown as selectable thumbnails
 - Optional extra art direction ("add a trophy", "teen class, no young kids")
+
+Below the form — **Generation history**: a scrollable list of past generations for this browser/account showing a thumbnail, format, headline and date. Clicking one reloads its inputs, artwork and copy into the right side so it can be tweaked, re-downloaded or regenerated. Each entry has a delete action.
 
 Right side — the result:
 - Generated artwork, rendering progressively as it draws
 - Generated copy (headline, body, Instagram caption with hashtags) in editable text boxes
 - Buttons: **Regenerate image**, **Regenerate copy**, **Download PNG**, **Download PDF** (poster only), **Copy caption**
-- A "Recent generations" strip so past artwork can be reopened or re-downloaded
+
 
 ## The house style
 
@@ -38,9 +43,10 @@ Two things to flag up front:
 - Surfaces 429 / 402 / content-policy errors verbatim so the UI can show a real message.
 
 **Frontend**
-- `src/lib/ai/gaonhaeBrandPrompt.ts` — the fixed brand prompt + format-specific composition rules + prompt builder.
-- `src/components/grading-list/AiDocumentTab.tsx` — the form, streaming preview (`eventsource-parser` + `flushSync`, blurred partial frames), copy editors, and export buttons.
-- `src/pages/public/PublicGradingList.tsx` — register the tab, gated on `unlockLevel === 'full'`.
-- PNG export from the returned base64; PDF export via the existing jsPDF setup used by the other PDF generators.
+- `src/lib/ai/gaonhaeBrandPrompt.ts` — the fixed brand prompt + format-specific composition rules + prompt builder; optional pricing / date & time / venue / additional details are only appended when filled in.
+- `src/components/grading-list/AiDocumentTab.tsx` — the form, streaming preview (`eventsource-parser` + `flushSync`, blurred partial frames), copy editors, export buttons, and the generation-history list.
+- `src/pages/public/PublicGradingList.tsx` — register the tab, visible when either admin password has been accepted (both `Hp84311884` and `Hp97533488` grant access to this tab).
+- QR codes: the three supplied PNGs are added as static assets under `src/assets/qr/` and composited onto the exported PNG/PDF in a corner (never drawn by the AI model), alongside the logo overlay.
+- PNG export from the returned base64 via canvas (artwork + QR + logo); PDF export via the existing jsPDF setup used by the other PDF generators.
 
-**Storage** — new `ai_marketing_assets` table (id, branch_id, format, prompt inputs jsonb, generated copy jsonb, image_path, created_by_email, created_at) with grants + RLS matching the other `/access` public-admin tables, and images written to a `marketing-assets` folder in the existing `payment-proofs` bucket so the same signed-URL helpers work.
+**Storage** — new `ai_marketing_assets` table (id, branch_id, format, prompt inputs jsonb, generated copy jsonb, qr_choice, image_path, created_by_email, created_at) with grants + RLS matching the other `/access` public-admin tables. The generation-history list reads from this table (most recent first, paged), and images are written to a `marketing-assets` folder in the existing `payment-proofs` bucket so the same signed-URL helpers work.
