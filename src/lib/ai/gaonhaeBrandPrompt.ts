@@ -110,8 +110,12 @@ export function buildImagePrompt(
   if (lines.length) {
     parts.push(
       [
-        'Typeset the following text into the design exactly as written, spelled character for character, with no extra or invented words, using the house typography and a clear visual hierarchy:',
+        'Typeset the following text into the design exactly as written, spelled character for character, with no extra or invented words, using the house typography:',
         ...lines.map((l) => `- ${l}`),
+        'Integrate all of this text into the composition itself — it must be part of the design, never parked in a leftover blank area or stacked as a plain paragraph block under the picture.',
+        'Anchor the headline against a red or blue ribbon, banner, cloud motif or colour block; group the date, venue and price into a designed info band or panel; place the call to action inside its own shape.',
+        'Use a strong typographic hierarchy: large bold headline, medium key details, small supporting details, with varied weight, size and colour (red and blue accents on white, or reversed white-on-colour where text sits on a coloured shape).',
+        'Text and illustration may overlap and interlock, provided every word stays fully legible with strong contrast. No unstyled run-on body copy and no empty dead zones.',
         'All lettering must be crisp, correctly spelled and legible.',
       ].join('\n'),
     );
