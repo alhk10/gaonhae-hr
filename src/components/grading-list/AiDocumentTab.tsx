@@ -220,15 +220,41 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
 
     let last: string | null = null;
     try {
+      const brandAssets: BrandAsset[] = [];
+      if (blending && !textOnly) {
+        const l = logoSrc(logoChoice);
+        const q = qrSrc(qrChoice);
+        if (l) {
+          try {
+            brandAssets.push({ kind: 'logo', dataUrl: await assetToDataUrl(l) });
+          } catch {
+            /* optional */
+          }
+        }
+        if (q) {
+          try {
+            brandAssets.push({ kind: 'qr', dataUrl: await assetToDataUrl(q) });
+          } catch {
+            /* optional */
+          }
+        }
+      }
+      const sentLogo = brandAssets.some((a) => a.kind === 'logo');
+      const sentQr = brandAssets.some((a) => a.kind === 'qr');
+
       const prompt = textOnly
         ? buildTextEditPrompt(details)
-        : buildImagePrompt(format, details);
+        : buildImagePrompt(format, details, {
+            blendAssets: blending,
+            hasQr: sentQr,
+            hasLogo: sentLogo,
+          });
 
       await generateImage(
         password,
         format,
         prompt,
-        { model, baseImage, references },
+        { model, baseImage, references, brandAssets },
         (dataUrl, isFinal) => {
           last = dataUrl;
           setImage(dataUrl);
@@ -237,6 +263,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       );
 
       setTextSnapshot(textKey);
+      if (!textOnly) {
+        setBlendedIn({ qr: sentQr, logo: sentLogo });
+        setForceOverlayQr(false);
+      }
 
       if (last) {
         try {
@@ -252,7 +282,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
           await saveAsset({
             branch_id: branchId !== 'none' ? branchId : null,
             format,
-            inputs: { ...details, format, qrChoice, logoChoice, refNotes: references.map((r) => r.note || '') },
+            inputs: {
+              ...details,
+              format,
+              qrChoice,
+              logoChoice,
+              blendAssets,
+              refNotes: references.map((r) => r.note || ''),
+            },
             copy: copyData,
             qr_choice: qrChoice,
             logo_choice: logoChoice,
@@ -276,7 +313,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const handleDownload = async (kind: 'png' | 'pdf') => {
     if (!image) return;
     try {
-      const composed = await composeArtwork(image, qrChoice, logoChoice);
+      const composed = await composeArtwork(image, qrChoice, logoChoice, {
+        skipQr: skipQrOverlay,
+        skipLogo: skipLogoOverlay,
+      });
       const base = (headline || 'gaonhae-asset').replace(/[^\w\-]+/g, '_').slice(0, 40);
       if (kind === 'png') downloadDataUrl(composed, `${base}.png`);
       else await downloadPdf(composed, format, `${base}.pdf`);
@@ -284,6 +324,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       toast.error(e?.message || 'Export failed');
     }
   };
+
 
   const handleCopyCaption = async () => {
     const tags = (copyData.hashtags || []).map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
