@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
           type: "text",
           text: a.kind === "qr"
             ? "This is the exact QR code to integrate into the design. Reproduce its modules exactly — square, high contrast, unwarped, unrotated, untinted, with a quiet margin — but place it inside a designed holder that belongs to the artwork. Do not redraw or invent a QR code."
-            : "This is the exact Gaonhae Taekwondo logo to integrate into the design. Reproduce it exactly as supplied and compose it into the layout as a designed lock-up. Do not redraw, restyle, recolour or re-letter it.",
+            : "This is the exact Gaonhae Taekwondo logo to integrate into the design. Reproduce it exactly as supplied, ONCE, complete and unbroken — the full symbol together with the full 'GAONHAE TAEKWONDO' wordmark, every character present and readable. Never crop, mask, cut off, split, partially cover, fade or bleed it off the edge, and never let illustration or text overlap it. Keep its original aspect ratio and internal spacing, scaling the whole logo uniformly only; if space is tight, shrink the entire logo rather than trimming any part of it. Give it a clear margin of empty space and strong background contrast, and compose it into the layout as a designed lock-up. Do not redraw, restyle, recolour or re-letter it, and do not reuse parts of it as decoration elsewhere.",
         });
         content.push({ type: "image_url", image_url: { url: a.dataUrl } });
       });
