@@ -574,6 +574,20 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               <Input className="h-8 text-xs" value={artDirection} onChange={(e) => setArtDirection(e.target.value)} placeholder="add a trophy, teen class" />
             </div>
 
+            {(hasQr || hasLogo) && (
+              <div className="flex items-start justify-between gap-3 rounded-md border p-2">
+                <div>
+                  <Label className="text-xs">Blend QR & logo into the design</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {blendAssets
+                      ? 'The AI composes the supplied QR and logo into the artwork.'
+                      : 'They are pasted over the artwork on export.'}
+                  </p>
+                </div>
+                <Switch checked={blendAssets} onCheckedChange={setBlendAssets} />
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label className="text-xs">AI model</Label>
               <Select value={model} onValueChange={setModel}>
@@ -586,10 +600,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               </Select>
               {geminiNotice && (
                 <p className="text-[10px] text-muted-foreground">
-                  Reference images and text updates run on the Gemini image editor.
+                  Blended brand assets, reference images and text updates run on the Gemini image editor.
                 </p>
               )}
             </div>
+
 
             <div className="flex gap-2 pt-1 flex-wrap">
               {textDirty ? (
