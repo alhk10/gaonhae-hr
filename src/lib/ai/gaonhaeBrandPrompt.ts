@@ -13,16 +13,16 @@ export const FORMAT_LABELS: Record<AssetFormat, string> = {
 
 const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
   poster:
-    'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text, and a clear empty square in a bottom corner reserved for a QR code.',
+    'Vertical A4 poster composition. Illustration and typography are designed together across the whole sheet — the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands, and a clear empty square in a bottom corner reserved for a QR code. No leftover blank text zone.',
   square:
-    'Square 1:1 Instagram feed composition. Centred focal illustration, balanced margins, headline and key details typeset cleanly in the lower area.',
+    'Square 1:1 Instagram feed composition. Illustration and typography interlock across the full frame within balanced margins — text woven around and over the artwork in designed shapes, not stacked in a blank strip.',
   reel:
-    'Vertical 9:16 reel cover composition. Bold central subject, safe margins at the top and bottom so platform UI does not cover the artwork, headline typeset in the lower third.',
+    'Vertical 9:16 reel cover composition. Bold central subject with the typography integrated into the artwork across the frame, keeping safe margins at the top and bottom so platform UI does not cover the design. No blank caption band.',
 };
 
 /** Poster composition when the QR/logo are blended into the design by the model. */
 const POSTER_COMPOSITION_BLENDED =
-  'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text.';
+  'Vertical A4 poster composition. Illustration and typography are designed together across the whole sheet — the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands. No leftover blank text zone.';
 
 
 export const GAONHAE_BRAND_PROMPT = [
@@ -110,8 +110,12 @@ export function buildImagePrompt(
   if (lines.length) {
     parts.push(
       [
-        'Typeset the following text into the design exactly as written, spelled character for character, with no extra or invented words, using the house typography and a clear visual hierarchy:',
+        'Typeset the following text into the design exactly as written, spelled character for character, with no extra or invented words, using the house typography:',
         ...lines.map((l) => `- ${l}`),
+        'Integrate all of this text into the composition itself — it must be part of the design, never parked in a leftover blank area or stacked as a plain paragraph block under the picture.',
+        'Anchor the headline against a red or blue ribbon, banner, cloud motif or colour block; group the date, venue and price into a designed info band or panel; place the call to action inside its own shape.',
+        'Use a strong typographic hierarchy: large bold headline, medium key details, small supporting details, with varied weight, size and colour (red and blue accents on white, or reversed white-on-colour where text sits on a coloured shape).',
+        'Text and illustration may overlap and interlock, provided every word stays fully legible with strong contrast. No unstyled run-on body copy and no empty dead zones.',
         'All lettering must be crisp, correctly spelled and legible.',
       ].join('\n'),
     );
@@ -136,6 +140,7 @@ export function buildTextEditPrompt(details: AssetDetails): string {
     'Keep the illustration, characters, layout, composition, colours and background pixel-for-pixel identical.',
     'Replace the lettering with exactly the following, spelled character for character, keeping the same typographic style and hierarchy:',
     ...lines.map((l) => `- ${l}`),
+    'Keep the text integrated into the design — same ribbons, banners, panels and colour blocks holding the lettering; never fall back to a plain paragraph block in a blank area.',
     'Do not add, remove or move any illustration element.',
     'Leave any logo and QR code in the artwork completely untouched — same position, size and pixels.',
   ].join('\n');
