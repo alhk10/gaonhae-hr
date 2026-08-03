@@ -156,6 +156,19 @@ export async function uploadGeneratedImage(dataUrl: string): Promise<string> {
   return path;
 }
 
+/** Uploads a reference image (any image mime) and returns its storage path. */
+export async function uploadReferenceImage(dataUrl: string): Promise<string> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const path = `${FOLDER}/refs/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: blob.type || 'image/png',
+    upsert: false,
+  });
+  if (error) throw error;
+  return path;
+}
+
 export async function getAssetUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
   if (error) throw error;
@@ -168,6 +181,9 @@ export async function saveAsset(input: {
   inputs: any;
   copy: any;
   qr_choice: string | null;
+  logo_choice?: string | null;
+  model?: string | null;
+  reference_paths?: string[] | null;
   image_path: string | null;
 }): Promise<MarketingAssetRow> {
   const { data, error } = await (supabase as any)
