@@ -668,14 +668,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                     alt="Generated artwork"
                     className={`max-h-[420px] w-auto ${imageFinal ? '' : 'blur-lg'}`}
                   />
-                  {logoSrc(logoChoice) && (
+                  {!skipLogoOverlay && logoSrc(logoChoice) && (
                     <img
                       src={logoSrc(logoChoice)!}
                       alt="Logo"
                       className="absolute top-3 left-3 h-10 w-auto bg-white/90 p-1 rounded"
                     />
                   )}
-                  {qrSrc(qrChoice) && (
+                  {!skipQrOverlay && qrSrc(qrChoice) && (
                     <img
                       src={qrSrc(qrChoice)!}
                       alt="QR"
@@ -689,6 +689,12 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                 </p>
               )}
             </div>
+            {image && blendedIn.qr && (
+              <p className="text-[11px] text-muted-foreground">
+                The QR code was drawn into the design — scan-test it before printing.
+                {forceOverlayQr && ' Currently showing the pixel-exact QR pasted on top.'}
+              </p>
+            )}
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => handleDownload('png')} disabled={!image}>
                 <Download className="h-3.5 w-3.5 mr-1" /> PNG
@@ -706,7 +712,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                   <Type className="h-3.5 w-3.5 mr-1" /> Update text
                 </Button>
               )}
+              {image && blendedIn.qr && (
+                <Button size="sm" variant="outline" onClick={() => setForceOverlayQr((v) => !v)}>
+                  <ImageIcon className="h-3.5 w-3.5 mr-1" />
+                  {forceOverlayQr ? 'Use blended QR' : 'Overlay QR instead'}
+                </Button>
+              )}
             </div>
+
           </CardContent>
         </Card>
 
