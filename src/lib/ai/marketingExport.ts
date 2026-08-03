@@ -37,11 +37,30 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.src = src;
   });
 
+/** Fetches a bundled asset URL and returns it as a base64 data URL. */
+export async function assetToDataUrl(src: string): Promise<string> {
+  const blob = await (await fetch(src)).blob();
+  return await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result));
+    fr.onerror = () => reject(new Error('Could not read asset'));
+    fr.readAsDataURL(blob);
+  });
+}
+
+export interface ComposeOptions {
+  /** Skip pasting the QR (it is already blended into the artwork). */
+  skipQr?: boolean;
+  /** Skip pasting the logo (it is already blended into the artwork). */
+  skipLogo?: boolean;
+}
+
 /** Composites artwork + QR + logo onto a canvas and returns a PNG data URL. */
 export async function composeArtwork(
   imageDataUrl: string,
   choice: QrChoice,
   logoChoice: LogoChoice = 'mark',
+  opts: ComposeOptions = {},
 ): Promise<string> {
   const art = await loadImage(imageDataUrl);
   const canvas = document.createElement('canvas');
@@ -54,7 +73,8 @@ export async function composeArtwork(
   const pad = Math.round(canvas.width * 0.035);
 
   // Logo — top left, on a white pad.
-  const logoImg = logoSrc(logoChoice);
+  const logoImg = opts.skipLogo ? null : logoSrc(logoChoice);
+
   if (logoImg) {
     try {
       const logo = await loadImage(logoImg);
