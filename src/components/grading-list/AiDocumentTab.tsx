@@ -224,6 +224,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setImageFinal(false);
     if (!textOnly) setImage(null);
 
+    // Captions are generated alongside a full artwork run.
+    const copyPromise: Promise<any | null> | null = textOnly ? null : runCopyGeneration();
+
     let last: string | null = null;
     try {
       const brandAssets: BrandAsset[] = [];
