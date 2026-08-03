@@ -206,8 +206,9 @@ export async function listAssets(limit = 30): Promise<MarketingAssetRow[]> {
 }
 
 export async function deleteAsset(row: MarketingAssetRow): Promise<void> {
-  if (row.image_path) {
-    await supabase.storage.from(BUCKET).remove([row.image_path]);
+  const paths = [row.image_path, ...(row.reference_paths || [])].filter(Boolean) as string[];
+  if (paths.length) {
+    await supabase.storage.from(BUCKET).remove(paths);
   }
   const { error } = await (supabase as any).from('ai_marketing_assets').delete().eq('id', row.id);
   if (error) throw error;
