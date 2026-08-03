@@ -1,6 +1,6 @@
-# AI Document tab: logo choice, model choice, text baked into artwork
+# AI Document tab: logo choice, model choice, text in artwork, reference images
 
-Three changes to the **AI Document** tab in `/access`.
+Four changes to the **AI Document** tab in `/access`.
 
 ## 1. Logo selection
 
