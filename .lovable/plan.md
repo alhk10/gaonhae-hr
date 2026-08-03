@@ -29,7 +29,17 @@ When any of those detail fields is edited after an image already exists, the **G
 
 Text-editing runs on an image-editing capable model (the Gemini image models); if the currently selected model is OpenAI-only, the tab tells you it will use the Gemini editor for the text update.
 
+## 4. Attach reference images to the prompt
+
+A new "Reference images" area in the form: drag-and-drop or pick up to 3 images (PNG/JPG/WebP, each up to ~5 MB), shown as removable thumbnails. They are sent with the generation request as visual references, with an instruction to follow their style, layout, characters or subject while keeping the Gaonhae house style.
+
+- A short per-image usage note can be typed under each thumbnail (e.g. "match this layout", "use this character"), appended to the prompt.
+- Reference images require an image-input capable model. The Gemini image models accept them directly; GPT Image 2 / 1 Mini accept image input as well, so all four models in the Model dropdown stay usable.
+- References are also reused when the picture is being regenerated or when text is updated, so the look stays consistent.
+- Attachments are uploaded alongside the generated artwork and their paths saved with the generation, so restoring an item from history brings the references back.
+
 ## Technical detail
+
 
 - `src/lib/ai/gaonhaeBrandPrompt.ts` — replace the "leave text areas blank" clause with a typesetting block listing each supplied field verbatim; add `buildTextEditPrompt(details)` for the change-text-only instruction.
 - `src/lib/ai/marketingExport.ts` — add `LOGO_OPTIONS` / `LogoChoice` and make `composeArtwork(image, qrChoice, logoChoice)` honour the selection.
