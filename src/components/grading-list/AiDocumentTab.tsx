@@ -94,6 +94,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [model, setModel] = useState<string>(MODEL_OPTIONS[0].value);
   const [artDirection, setArtDirection] = useState('');
   const [references, setReferences] = useState<ReferenceImage[]>([]);
+  const [blendAssets, setBlendAssets] = useState(true);
 
   const [image, setImage] = useState<string | null>(null);
   const [imageFinal, setImageFinal] = useState(false);
@@ -102,6 +103,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [copyData, setCopyData] = useState<GeneratedCopy>(EMPTY_COPY);
   /** Snapshot of the text fields used for the current artwork. */
   const [textSnapshot, setTextSnapshot] = useState<string | null>(null);
+  /** Which assets the model blended into the artwork currently on screen. */
+  const [blendedIn, setBlendedIn] = useState<{ qr: boolean; logo: boolean }>({ qr: false, logo: false });
+  /** Force the pixel-exact QR back on top of a blended artwork. */
+  const [forceOverlayQr, setForceOverlayQr] = useState(false);
 
   const [history, setHistory] = useState<MarketingAssetRow[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
@@ -120,8 +125,15 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     artDirection,
   };
 
+  const hasQr = qrChoice !== 'none';
+  const hasLogo = logoChoice !== 'none';
+  const blending = blendAssets && (hasQr || hasLogo);
+  const skipQrOverlay = blendedIn.qr && !forceOverlayQr;
+  const skipLogoOverlay = blendedIn.logo;
+
   const textKey = JSON.stringify(TEXT_FIELD_KEYS.map((k) => details[k] || ''));
   const textDirty = Boolean(image && textSnapshot !== null && textSnapshot !== textKey);
+
 
   const refreshHistory = useCallback(async () => {
     try {
