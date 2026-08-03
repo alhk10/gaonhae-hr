@@ -58,17 +58,37 @@ export async function generateCopy(
   };
 }
 
+export interface ReferenceImage {
+  dataUrl: string;
+  note?: string;
+}
+
+export interface ImageGenOptions {
+  model?: string;
+  baseImage?: string | null;
+  references?: ReferenceImage[];
+}
+
 /** Streams the image; onFrame is called for every partial and the final frame. */
 export async function generateImage(
   password: string,
   format: AssetFormat,
   prompt: string,
+  options: ImageGenOptions,
   onFrame: (dataUrl: string, isFinal: boolean) => void,
 ): Promise<void> {
   const res = await fetch(FN_URL, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ password, mode: 'image', format, prompt }),
+    body: JSON.stringify({
+      password,
+      mode: 'image',
+      format,
+      prompt,
+      model: options.model,
+      baseImage: options.baseImage || undefined,
+      references: (options.references || []).slice(0, 3),
+    }),
   });
 
   if (!res.ok || !res.body) {
