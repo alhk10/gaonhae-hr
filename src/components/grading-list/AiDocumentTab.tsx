@@ -25,11 +25,14 @@ import {
   LogoChoice,
   qrSrc,
   logoSrc,
+  assetToDataUrl,
   composeArtwork,
   downloadDataUrl,
   downloadPdf,
 } from '@/lib/ai/marketingExport';
+import { Switch } from '@/components/ui/switch';
 import {
+  BrandAsset,
   GeneratedCopy,
   MarketingAssetRow,
   ReferenceImage,
