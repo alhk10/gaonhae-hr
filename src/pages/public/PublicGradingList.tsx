@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
 import DeleteRowConfirmDialog from '@/components/grading-list/DeleteRowConfirmDialog';
+import AiDocumentTab from '@/components/grading-list/AiDocumentTab';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import SummaryTab from '@/components/grading-list/SummaryTab';
 import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
@@ -1246,13 +1247,14 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Guards</TabsTrigger>
+            <TabsTrigger value="ai-document">AI Document</TabsTrigger>
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
@@ -1638,7 +1640,13 @@ const PublicGradingList: React.FC = () => {
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
           </TabsContent>
+          <TabsContent value="ai-document" className="mt-4">
+            <AiDocumentTab
+              password={unlockLevel === 'full' ? ADMIN_FULL_UNLOCK_PASSWORD : ADMIN_UNLOCK_PASSWORD}
+            />
+          </TabsContent>
         </Tabs>
+
       </div>
 
 

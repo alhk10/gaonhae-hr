@@ -113,6 +113,42 @@ export type Database = {
           },
         ]
       }
+      ai_marketing_assets: {
+        Row: {
+          branch_id: string | null
+          copy: Json | null
+          created_at: string
+          created_by_email: string | null
+          format: string
+          id: string
+          image_path: string | null
+          inputs: Json
+          qr_choice: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          copy?: Json | null
+          created_at?: string
+          created_by_email?: string | null
+          format?: string
+          id?: string
+          image_path?: string | null
+          inputs?: Json
+          qr_choice?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          copy?: Json | null
+          created_at?: string
+          created_by_email?: string | null
+          format?: string
+          id?: string
+          image_path?: string | null
+          inputs?: Json
+          qr_choice?: string | null
+        }
+        Relationships: []
+      }
       allowances: {
         Row: {
           amount: number

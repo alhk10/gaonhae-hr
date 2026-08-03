@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.sms-inbound]
 verify_jwt = false
+
+[functions.ai-marketing-asset]
+verify_jwt = false
