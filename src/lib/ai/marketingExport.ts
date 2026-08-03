@@ -89,7 +89,7 @@ export async function composeArtwork(
   }
 
   // QR — bottom right on a white pad.
-  const src = qrSrc(choice);
+  const src = opts.skipQr ? null : qrSrc(choice);
   if (src) {
     try {
       const qr = await loadImage(src);
