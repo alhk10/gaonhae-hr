@@ -25,11 +25,14 @@ import {
   LogoChoice,
   qrSrc,
   logoSrc,
+  assetToDataUrl,
   composeArtwork,
   downloadDataUrl,
   downloadPdf,
 } from '@/lib/ai/marketingExport';
+import { Switch } from '@/components/ui/switch';
 import {
+  BrandAsset,
   GeneratedCopy,
   MarketingAssetRow,
   ReferenceImage,
@@ -91,6 +94,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [model, setModel] = useState<string>(MODEL_OPTIONS[0].value);
   const [artDirection, setArtDirection] = useState('');
   const [references, setReferences] = useState<ReferenceImage[]>([]);
+  const [blendAssets, setBlendAssets] = useState(true);
 
   const [image, setImage] = useState<string | null>(null);
   const [imageFinal, setImageFinal] = useState(false);
@@ -99,6 +103,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [copyData, setCopyData] = useState<GeneratedCopy>(EMPTY_COPY);
   /** Snapshot of the text fields used for the current artwork. */
   const [textSnapshot, setTextSnapshot] = useState<string | null>(null);
+  /** Which assets the model blended into the artwork currently on screen. */
+  const [blendedIn, setBlendedIn] = useState<{ qr: boolean; logo: boolean }>({ qr: false, logo: false });
+  /** Force the pixel-exact QR back on top of a blended artwork. */
+  const [forceOverlayQr, setForceOverlayQr] = useState(false);
 
   const [history, setHistory] = useState<MarketingAssetRow[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
@@ -117,8 +125,15 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     artDirection,
   };
 
+  const hasQr = qrChoice !== 'none';
+  const hasLogo = logoChoice !== 'none';
+  const blending = blendAssets && (hasQr || hasLogo);
+  const skipQrOverlay = blendedIn.qr && !forceOverlayQr;
+  const skipLogoOverlay = blendedIn.logo;
+
   const textKey = JSON.stringify(TEXT_FIELD_KEYS.map((k) => details[k] || ''));
   const textDirty = Boolean(image && textSnapshot !== null && textSnapshot !== textKey);
+
 
   const refreshHistory = useCallback(async () => {
     try {
@@ -205,15 +220,41 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
 
     let last: string | null = null;
     try {
+      const brandAssets: BrandAsset[] = [];
+      if (blending && !textOnly) {
+        const l = logoSrc(logoChoice);
+        const q = qrSrc(qrChoice);
+        if (l) {
+          try {
+            brandAssets.push({ kind: 'logo', dataUrl: await assetToDataUrl(l) });
+          } catch {
+            /* optional */
+          }
+        }
+        if (q) {
+          try {
+            brandAssets.push({ kind: 'qr', dataUrl: await assetToDataUrl(q) });
+          } catch {
+            /* optional */
+          }
+        }
+      }
+      const sentLogo = brandAssets.some((a) => a.kind === 'logo');
+      const sentQr = brandAssets.some((a) => a.kind === 'qr');
+
       const prompt = textOnly
         ? buildTextEditPrompt(details)
-        : buildImagePrompt(format, details);
+        : buildImagePrompt(format, details, {
+            blendAssets: blending,
+            hasQr: sentQr,
+            hasLogo: sentLogo,
+          });
 
       await generateImage(
         password,
         format,
         prompt,
-        { model, baseImage, references },
+        { model, baseImage, references, brandAssets },
         (dataUrl, isFinal) => {
           last = dataUrl;
           setImage(dataUrl);
@@ -222,6 +263,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       );
 
       setTextSnapshot(textKey);
+      if (!textOnly) {
+        setBlendedIn({ qr: sentQr, logo: sentLogo });
+        setForceOverlayQr(false);
+      }
 
       if (last) {
         try {
@@ -237,7 +282,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
           await saveAsset({
             branch_id: branchId !== 'none' ? branchId : null,
             format,
-            inputs: { ...details, format, qrChoice, logoChoice, refNotes: references.map((r) => r.note || '') },
+            inputs: {
+              ...details,
+              format,
+              qrChoice,
+              logoChoice,
+              blendAssets,
+              refNotes: references.map((r) => r.note || ''),
+            },
             copy: copyData,
             qr_choice: qrChoice,
             logo_choice: logoChoice,
@@ -261,7 +313,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const handleDownload = async (kind: 'png' | 'pdf') => {
     if (!image) return;
     try {
-      const composed = await composeArtwork(image, qrChoice, logoChoice);
+      const composed = await composeArtwork(image, qrChoice, logoChoice, {
+        skipQr: skipQrOverlay,
+        skipLogo: skipLogoOverlay,
+      });
       const base = (headline || 'gaonhae-asset').replace(/[^\w\-]+/g, '_').slice(0, 40);
       if (kind === 'png') downloadDataUrl(composed, `${base}.png`);
       else await downloadPdf(composed, format, `${base}.pdf`);
@@ -269,6 +324,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       toast.error(e?.message || 'Export failed');
     }
   };
+
 
   const handleCopyCaption = async () => {
     const tags = (copyData.hashtags || []).map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
@@ -281,6 +337,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       qrChoice?: QrChoice;
       logoChoice?: LogoChoice;
       refNotes?: string[];
+      blendAssets?: boolean;
     };
     setFormat((row.format as AssetFormat) || 'poster');
     setBranchId(row.branch_id || 'none');
@@ -293,6 +350,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setArtDirection(i.artDirection || '');
     setQrChoice((row.qr_choice as QrChoice) || 'none');
     setLogoChoice((row.logo_choice as LogoChoice) || (i.logoChoice as LogoChoice) || 'mark');
+    setBlendAssets(i.blendAssets !== false);
+    setBlendedIn({ qr: false, logo: false });
+    setForceOverlayQr(false);
     if (row.model) setModel(row.model);
     setCopyData({ ...EMPTY_COPY, ...(row.copy || {}) });
 
@@ -339,7 +399,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     }
   };
 
-  const usesGeminiForImages = references.length > 0 || textDirty;
+  const usesGeminiForImages = references.length > 0 || textDirty || blending;
   const geminiNotice = usesGeminiForImages && model.startsWith('openai/');
 
   return (
@@ -518,6 +578,20 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               <Input className="h-8 text-xs" value={artDirection} onChange={(e) => setArtDirection(e.target.value)} placeholder="add a trophy, teen class" />
             </div>
 
+            {(hasQr || hasLogo) && (
+              <div className="flex items-start justify-between gap-3 rounded-md border p-2">
+                <div>
+                  <Label className="text-xs">Blend QR & logo into the design</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {blendAssets
+                      ? 'The AI composes the supplied QR and logo into the artwork.'
+                      : 'They are pasted over the artwork on export.'}
+                  </p>
+                </div>
+                <Switch checked={blendAssets} onCheckedChange={setBlendAssets} />
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label className="text-xs">AI model</Label>
               <Select value={model} onValueChange={setModel}>
@@ -530,10 +604,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               </Select>
               {geminiNotice && (
                 <p className="text-[10px] text-muted-foreground">
-                  Reference images and text updates run on the Gemini image editor.
+                  Blended brand assets, reference images and text updates run on the Gemini image editor.
                 </p>
               )}
             </div>
+
 
             <div className="flex gap-2 pt-1 flex-wrap">
               {textDirty ? (
@@ -612,14 +687,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                     alt="Generated artwork"
                     className={`max-h-[420px] w-auto ${imageFinal ? '' : 'blur-lg'}`}
                   />
-                  {logoSrc(logoChoice) && (
+                  {!skipLogoOverlay && logoSrc(logoChoice) && (
                     <img
                       src={logoSrc(logoChoice)!}
                       alt="Logo"
                       className="absolute top-3 left-3 h-10 w-auto bg-white/90 p-1 rounded"
                     />
                   )}
-                  {qrSrc(qrChoice) && (
+                  {!skipQrOverlay && qrSrc(qrChoice) && (
                     <img
                       src={qrSrc(qrChoice)!}
                       alt="QR"
@@ -633,6 +708,12 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                 </p>
               )}
             </div>
+            {image && blendedIn.qr && (
+              <p className="text-[11px] text-muted-foreground">
+                The QR code was drawn into the design — scan-test it before printing.
+                {forceOverlayQr && ' Currently showing the pixel-exact QR pasted on top.'}
+              </p>
+            )}
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => handleDownload('png')} disabled={!image}>
                 <Download className="h-3.5 w-3.5 mr-1" /> PNG
@@ -650,7 +731,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                   <Type className="h-3.5 w-3.5 mr-1" /> Update text
                 </Button>
               )}
+              {image && blendedIn.qr && (
+                <Button size="sm" variant="outline" onClick={() => setForceOverlayQr((v) => !v)}>
+                  <ImageIcon className="h-3.5 w-3.5 mr-1" />
+                  {forceOverlayQr ? 'Use blended QR' : 'Overlay QR instead'}
+                </Button>
+              )}
             </div>
+
           </CardContent>
         </Card>
 

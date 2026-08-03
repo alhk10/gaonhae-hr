@@ -63,10 +63,16 @@ export interface ReferenceImage {
   note?: string;
 }
 
+export interface BrandAsset {
+  kind: 'qr' | 'logo';
+  dataUrl: string;
+}
+
 export interface ImageGenOptions {
   model?: string;
   baseImage?: string | null;
   references?: ReferenceImage[];
+  brandAssets?: BrandAsset[];
 }
 
 /** Streams the image; onFrame is called for every partial and the final frame. */
@@ -88,6 +94,7 @@ export async function generateImage(
       model: options.model,
       baseImage: options.baseImage || undefined,
       references: (options.references || []).slice(0, 3),
+      brandAssets: (options.brandAssets || []).slice(0, 2),
     }),
   });
 

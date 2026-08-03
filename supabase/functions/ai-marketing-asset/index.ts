@@ -20,6 +20,11 @@ interface RefImage {
   note?: string;
 }
 
+interface BrandAsset {
+  kind?: "qr" | "logo";
+  dataUrl?: string;
+}
+
 interface Body {
   password?: string;
   mode?: "copy" | "image";
@@ -28,6 +33,7 @@ interface Body {
   model?: string;
   baseImage?: string;
   references?: RefImage[];
+  brandAssets?: BrandAsset[];
   details?: Record<string, string | undefined>;
 }
 
@@ -114,7 +120,8 @@ Deno.serve(async (req) => {
     const size = SIZE_BY_FORMAT[body.format ?? "poster"] ?? "1024x1536";
 
     const references = (body.references ?? []).filter((r) => r?.dataUrl).slice(0, 3);
-    const hasImageInput = Boolean(body.baseImage) || references.length > 0;
+    const brandAssets = (body.brandAssets ?? []).filter((a) => a?.dataUrl).slice(0, 2);
+    const hasImageInput = Boolean(body.baseImage) || references.length > 0 || brandAssets.length > 0;
 
     let model = body.model && ALLOWED_IMAGE_MODELS.includes(body.model)
       ? body.model
@@ -143,6 +150,15 @@ Deno.serve(async (req) => {
         });
         content.push({ type: "image_url", image_url: { url: body.baseImage } });
       }
+      brandAssets.forEach((a) => {
+        content.push({
+          type: "text",
+          text: a.kind === "qr"
+            ? "This is the exact QR code to integrate into the design. Reproduce its modules exactly — square, high contrast, unwarped, unrotated, untinted, with a quiet margin — but place it inside a designed holder that belongs to the artwork. Do not redraw or invent a QR code."
+            : "This is the exact Gaonhae Taekwondo logo to integrate into the design. Reproduce it exactly as supplied and compose it into the layout as a designed lock-up. Do not redraw, restyle, recolour or re-letter it.",
+        });
+        content.push({ type: "image_url", image_url: { url: a.dataUrl } });
+      });
       references.forEach((r, i) => {
         content.push({
           type: "text",
