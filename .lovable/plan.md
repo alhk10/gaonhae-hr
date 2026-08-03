@@ -44,7 +44,7 @@ A new "Reference images" area in the form: drag-and-drop or pick up to 3 images 
 - `src/lib/ai/gaonhaeBrandPrompt.ts` — replace the "leave text areas blank" clause with a typesetting block listing each supplied field verbatim; add `buildTextEditPrompt(details)` for the change-text-only instruction.
 - `src/lib/ai/marketingExport.ts` — add `LOGO_OPTIONS` / `LogoChoice` and make `composeArtwork(image, qrChoice, logoChoice)` honour the selection.
 - `src/assets/logo/` — add the uploaded calligraphy logo.
-- `supabase/functions/ai-marketing-asset/index.ts` — accept `model` and optional `baseImage` (base64) on `mode: "image"`; branch the request body by model family; when `baseImage` is present send it as an image part alongside the edit prompt. Keep SSE passthrough and verbatim 429/402/content-policy errors.
-- `src/services/aiMarketingAssetService.ts` — `generateImage(password, format, prompt, model, baseImage?, onFrame)`.
-- `src/components/grading-list/AiDocumentTab.tsx` — logo picker, model dropdown, dirty-field tracking to toggle Update text vs New artwork, and pass `logo_choice`/`model` through to `saveAsset` + history restore.
-- Migration: add nullable `logo_choice text` and `model text` columns to `ai_marketing_assets`.
+- `supabase/functions/ai-marketing-asset/index.ts` — accept `model`, optional `baseImage` (base64) and optional `references: {dataUrl, note?}[]` (max 3) on `mode: "image"`; branch the request body by model family; attach base image and references as image parts alongside the prompt. Keep SSE passthrough and verbatim 429/402/content-policy errors.
+- `src/services/aiMarketingAssetService.ts` — `generateImage(password, format, prompt, model, { baseImage, references }, onFrame)`; upload reference files to the same `marketing-assets` storage folder.
+- `src/components/grading-list/AiDocumentTab.tsx` — logo picker, model dropdown, reference-image dropzone with thumbnails + per-image notes, dirty-field tracking to toggle Update text vs New artwork, and pass `logo_choice`/`model`/`reference_paths` through to `saveAsset` + history restore.
+- Migration: add nullable `logo_choice text`, `model text` and `reference_paths text[]` columns to `ai_marketing_assets`.
