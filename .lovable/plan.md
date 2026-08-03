@@ -4,22 +4,27 @@ Add an **AI Document** tab to `/access` that turns a few typed details into on-b
 
 ## What you'll see
 
-A new tab (after Summary) visible only once the `Hp84311884` admin password has been entered, same gate as the Registered column.
+A new tab (after Summary) visible once either admin password — `Hp84311884` or `Hp97533488` — has been entered.
 
-Left side — a short form:
+Left side — a short form (everything except format and headline is optional):
 - Format: Poster (A4 portrait), Instagram square (1:1), Instagram reel (9:16)
 - Branch (optional, from the branch list)
 - Headline / event name
-- Date, time, venue (optional)
-- Key details / notes free-text box
+- Pricing (optional)
+- Date & time (optional)
+- Venue (optional)
+- Additional details (optional free-text)
 - Call to action (e.g. "Scan to register")
+- QR code: none, Seminars (`seminars-qr-code.png`), Competitions (`gaonhae_comps_qr.png`), or Payment (`gaonhae-pay-qr.png`) — shown as selectable thumbnails
 - Optional extra art direction ("add a trophy", "teen class, no young kids")
+
+Below the form — **Generation history**: a scrollable list of past generations for this browser/account showing a thumbnail, format, headline and date. Clicking one reloads its inputs, artwork and copy into the right side so it can be tweaked, re-downloaded or regenerated. Each entry has a delete action.
 
 Right side — the result:
 - Generated artwork, rendering progressively as it draws
 - Generated copy (headline, body, Instagram caption with hashtags) in editable text boxes
 - Buttons: **Regenerate image**, **Regenerate copy**, **Download PNG**, **Download PDF** (poster only), **Copy caption**
-- A "Recent generations" strip so past artwork can be reopened or re-downloaded
+
 
 ## The house style
 
