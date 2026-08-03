@@ -20,6 +20,11 @@ interface RefImage {
   note?: string;
 }
 
+interface BrandAsset {
+  kind?: "qr" | "logo";
+  dataUrl?: string;
+}
+
 interface Body {
   password?: string;
   mode?: "copy" | "image";
@@ -28,6 +33,7 @@ interface Body {
   model?: string;
   baseImage?: string;
   references?: RefImage[];
+  brandAssets?: BrandAsset[];
   details?: Record<string, string | undefined>;
 }
 
