@@ -123,7 +123,10 @@ export type Database = {
           id: string
           image_path: string | null
           inputs: Json
+          logo_choice: string | null
+          model: string | null
           qr_choice: string | null
+          reference_paths: string[] | null
         }
         Insert: {
           branch_id?: string | null
@@ -134,7 +137,10 @@ export type Database = {
           id?: string
           image_path?: string | null
           inputs?: Json
+          logo_choice?: string | null
+          model?: string | null
           qr_choice?: string | null
+          reference_paths?: string[] | null
         }
         Update: {
           branch_id?: string | null
@@ -145,7 +151,10 @@ export type Database = {
           id?: string
           image_path?: string | null
           inputs?: Json
+          logo_choice?: string | null
+          model?: string | null
           qr_choice?: string | null
+          reference_paths?: string[] | null
         }
         Relationships: []
       }
