@@ -23,6 +23,9 @@ export interface MarketingAssetRow {
   inputs: any;
   copy: any;
   qr_choice: string | null;
+  logo_choice: string | null;
+  model: string | null;
+  reference_paths: string[] | null;
   image_path: string | null;
   created_by_email: string | null;
   created_at: string;
