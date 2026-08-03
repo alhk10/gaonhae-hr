@@ -140,6 +140,7 @@ export function buildTextEditPrompt(details: AssetDetails): string {
     'Keep the illustration, characters, layout, composition, colours and background pixel-for-pixel identical.',
     'Replace the lettering with exactly the following, spelled character for character, keeping the same typographic style and hierarchy:',
     ...lines.map((l) => `- ${l}`),
+    'Keep the text integrated into the design — same ribbons, banners, panels and colour blocks holding the lettering; never fall back to a plain paragraph block in a blank area.',
     'Do not add, remove or move any illustration element.',
     'Leave any logo and QR code in the artwork completely untouched — same position, size and pixels.',
   ].join('\n');
