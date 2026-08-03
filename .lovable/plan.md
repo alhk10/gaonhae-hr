@@ -43,9 +43,10 @@ Two things to flag up front:
 - Surfaces 429 / 402 / content-policy errors verbatim so the UI can show a real message.
 
 **Frontend**
-- `src/lib/ai/gaonhaeBrandPrompt.ts` — the fixed brand prompt + format-specific composition rules + prompt builder.
-- `src/components/grading-list/AiDocumentTab.tsx` — the form, streaming preview (`eventsource-parser` + `flushSync`, blurred partial frames), copy editors, and export buttons.
-- `src/pages/public/PublicGradingList.tsx` — register the tab, gated on `unlockLevel === 'full'`.
-- PNG export from the returned base64; PDF export via the existing jsPDF setup used by the other PDF generators.
+- `src/lib/ai/gaonhaeBrandPrompt.ts` — the fixed brand prompt + format-specific composition rules + prompt builder; optional pricing / date & time / venue / additional details are only appended when filled in.
+- `src/components/grading-list/AiDocumentTab.tsx` — the form, streaming preview (`eventsource-parser` + `flushSync`, blurred partial frames), copy editors, export buttons, and the generation-history list.
+- `src/pages/public/PublicGradingList.tsx` — register the tab, visible when either admin password has been accepted (both `Hp84311884` and `Hp97533488` grant access to this tab).
+- QR codes: the three supplied PNGs are added as static assets under `src/assets/qr/` and composited onto the exported PNG/PDF in a corner (never drawn by the AI model), alongside the logo overlay.
+- PNG export from the returned base64 via canvas (artwork + QR + logo); PDF export via the existing jsPDF setup used by the other PDF generators.
 
-**Storage** — new `ai_marketing_assets` table (id, branch_id, format, prompt inputs jsonb, generated copy jsonb, image_path, created_by_email, created_at) with grants + RLS matching the other `/access` public-admin tables, and images written to a `marketing-assets` folder in the existing `payment-proofs` bucket so the same signed-URL helpers work.
+**Storage** — new `ai_marketing_assets` table (id, branch_id, format, prompt inputs jsonb, generated copy jsonb, qr_choice, image_path, created_by_email, created_at) with grants + RLS matching the other `/access` public-admin tables. The generation-history list reads from this table (most recent first, paged), and images are written to a `marketing-assets` folder in the existing `payment-proofs` bucket so the same signed-URL helpers work.
