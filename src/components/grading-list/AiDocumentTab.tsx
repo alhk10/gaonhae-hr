@@ -337,6 +337,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       qrChoice?: QrChoice;
       logoChoice?: LogoChoice;
       refNotes?: string[];
+      blendAssets?: boolean;
     };
     setFormat((row.format as AssetFormat) || 'poster');
     setBranchId(row.branch_id || 'none');
