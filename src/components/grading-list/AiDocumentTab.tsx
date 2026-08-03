@@ -279,6 +279,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
 
       if (last) {
         try {
+          const freshCopy = copyPromise ? await copyPromise : null;
           const path = await uploadGeneratedImage(last);
           const refPaths: string[] = [];
           for (const r of references) {
@@ -299,7 +300,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               blendAssets,
               refNotes: references.map((r) => r.note || ''),
             },
-            copy: copyData,
+            copy: freshCopy ?? copyData,
             qr_choice: qrChoice,
             logo_choice: logoChoice,
             model,
