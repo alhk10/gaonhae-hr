@@ -15,7 +15,11 @@ import { formatDate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedLink } from '@/components/common/SignedMedia';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check, X, Pencil, ExternalLink } from 'lucide-react';
+import { Check, X, Pencil, ExternalLink, CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClaimWithEmployee {
   id: number;
