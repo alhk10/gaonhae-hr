@@ -44,10 +44,13 @@ const ClaimsManagementContent = () => {
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [editData, setEditData] = useState<{ type: string; amount: string; description: string }>({
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
+  const [editData, setEditData] = useState<{ type: string; amount: string; description: string; date: string }>({
     type: '',
     amount: '',
     description: '',
+    date: '',
   });
 
   const startEdit = (claim: ClaimWithEmployee) => {
@@ -56,6 +59,7 @@ const ClaimsManagementContent = () => {
       type: claim.type,
       amount: String(claim.amount),
       description: claim.description || '',
+      date: claim.date ? new Date(claim.date).toISOString().split('T')[0] : '',
     });
   };
 
@@ -74,6 +78,7 @@ const ClaimsManagementContent = () => {
         type: editData.type,
         amount,
         description: editData.description,
+        ...(isSuperadmin && editData.date ? { date: editData.date } : {}),
       });
       toast.success('Claim updated successfully');
       setEditingId(null);
