@@ -189,21 +189,27 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const runCopyGeneration = async (): Promise<any | null> => {
+    setCopyLoading(true);
+    try {
+      const c = await generateCopy(password, format, buildCopyDetails(format, details));
+      setCopyData(c);
+      return c;
+    } catch (e: any) {
+      toast.error(e?.message || 'Caption generation failed');
+      return null;
+    } finally {
+      setCopyLoading(false);
+    }
+  };
+
   const handleGenerateCopy = async () => {
     if (!headline.trim()) {
       toast.error('Add a headline / event name first');
       return;
     }
-    setCopyLoading(true);
-    try {
-      const c = await generateCopy(password, format, buildCopyDetails(format, details));
-      setCopyData(c);
-      toast.success('Copy generated');
-    } catch (e: any) {
-      toast.error(e?.message || 'Copy generation failed');
-    } finally {
-      setCopyLoading(false);
-    }
+    const c = await runCopyGeneration();
+    if (c) toast.success('Captions generated');
   };
 
   const runGeneration = async (textOnly: boolean) => {
