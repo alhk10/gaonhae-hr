@@ -15,7 +15,11 @@ import { formatDate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedLink } from '@/components/common/SignedMedia';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check, X, Pencil, ExternalLink } from 'lucide-react';
+import { Check, X, Pencil, ExternalLink, CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClaimWithEmployee {
   id: number;
@@ -40,10 +44,13 @@ const ClaimsManagementContent = () => {
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [editData, setEditData] = useState<{ type: string; amount: string; description: string }>({
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
+  const [editData, setEditData] = useState<{ type: string; amount: string; description: string; date: string }>({
     type: '',
     amount: '',
     description: '',
+    date: '',
   });
 
   const startEdit = (claim: ClaimWithEmployee) => {
@@ -52,6 +59,7 @@ const ClaimsManagementContent = () => {
       type: claim.type,
       amount: String(claim.amount),
       description: claim.description || '',
+      date: claim.date ? new Date(claim.date).toISOString().split('T')[0] : '',
     });
   };
 
@@ -70,6 +78,7 @@ const ClaimsManagementContent = () => {
         type: editData.type,
         amount,
         description: editData.description,
+        ...(isSuperadmin && editData.date ? { date: editData.date } : {}),
       });
       toast.success('Claim updated successfully');
       setEditingId(null);
@@ -255,7 +264,34 @@ const ClaimsManagementContent = () => {
                           />
                         ) : formatCurrency(claim.amount)}
                       </TableCell>
-                      <TableCell>{formatDate(new Date(claim.date))}</TableCell>
+                      <TableCell>
+                        {isEditing && isSuperadmin ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn('h-8 w-[130px] justify-start text-left font-normal text-xs', !editData.date && 'text-muted-foreground')}
+                              >
+                                <CalendarIcon className="mr-1 h-3 w-3" />
+                                {editData.date ? formatDate(new Date(editData.date)) : 'Pick date'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={editData.date ? new Date(editData.date) : undefined}
+                                onSelect={(d) => {
+                                  if (!d) return;
+                                  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                  setEditData(prev => ({ ...prev, date: iso }));
+                                }}
+                                initialFocus
+                                className={cn('p-3 pointer-events-auto')}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        ) : formatDate(new Date(claim.date))}
+                      </TableCell>
                       <TableCell>
                         {isEditing ? (
                           <Input
