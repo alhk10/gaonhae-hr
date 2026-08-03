@@ -13,11 +13,11 @@ export const FORMAT_LABELS: Record<AssetFormat, string> = {
 
 const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
   poster:
-    'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third reserved for text and a QR code in a bottom corner.',
+    'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text, and a clear empty square in a bottom corner reserved for a QR code.',
   square:
-    'Square 1:1 Instagram feed composition. Centred focal illustration, balanced margins, clear empty space at the bottom for a short caption line.',
+    'Square 1:1 Instagram feed composition. Centred focal illustration, balanced margins, headline and key details typeset cleanly in the lower area.',
   reel:
-    'Vertical 9:16 reel cover composition. Bold central subject, safe margins at the top and bottom so platform UI does not cover the artwork, empty space in the lower third.',
+    'Vertical 9:16 reel cover composition. Bold central subject, safe margins at the top and bottom so platform UI does not cover the artwork, headline typeset in the lower third.',
 };
 
 export const GAONHAE_BRAND_PROMPT = [
@@ -28,7 +28,7 @@ export const GAONHAE_BRAND_PROMPT = [
   'cute, high-quality, modern cartoon illustrations of children in white dobok with coloured belts, performing poomsae, kicks and bows, joyful and confident expressions;',
   'bold modern geometric sans-serif typography with short impactful headings;',
   'overall feel premium, crisp and print-ready, yet warm and family friendly;',
-  'no photo-realism, no clutter, no stock-photo look, no watermarks, no gibberish text.',
+  'no photo-realism, no clutter, no stock-photo look, no watermarks.',
 ].join(' ');
 
 export interface AssetDetails {
@@ -42,26 +42,60 @@ export interface AssetDetails {
   artDirection?: string;
 }
 
+/** The detail fields that are typeset into the artwork itself. */
+export const TEXT_FIELD_KEYS: (keyof AssetDetails)[] = [
+  'headline',
+  'pricing',
+  'dateTime',
+  'venue',
+  'additionalDetails',
+  'cta',
+];
+
+function textLines(details: AssetDetails): string[] {
+  const lines: string[] = [];
+  if (details.headline) lines.push(`Headline (largest text): "${details.headline}"`);
+  if (details.dateTime) lines.push(`Date and time: "${details.dateTime}"`);
+  if (details.venue) lines.push(`Venue: "${details.venue}"`);
+  if (details.pricing) lines.push(`Price: "${details.pricing}"`);
+  if (details.additionalDetails) lines.push(`Details: "${details.additionalDetails}"`);
+  if (details.cta) lines.push(`Call to action: "${details.cta}"`);
+  return lines;
+}
+
 export function buildImagePrompt(format: AssetFormat, details: AssetDetails): string {
   const parts: string[] = [GAONHAE_BRAND_PROMPT, FORMAT_COMPOSITION[format]];
 
-  const subject: string[] = [];
-  if (details.headline) subject.push(`Subject / event: ${details.headline}.`);
-  if (details.branchName) subject.push(`Branch: ${details.branchName}.`);
-  if (details.dateTime) subject.push(`When: ${details.dateTime}.`);
-  if (details.venue) subject.push(`Where: ${details.venue}.`);
-  if (details.pricing) subject.push(`Pricing: ${details.pricing}.`);
-  if (details.additionalDetails) subject.push(`Extra details: ${details.additionalDetails}.`);
-  if (details.cta) subject.push(`Call to action: ${details.cta}.`);
-  if (subject.length) parts.push(subject.join(' '));
+  if (details.branchName) parts.push(`Branch: ${details.branchName}.`);
 
-  parts.push(
-    'Render the artwork as the visual only — keep any lettering minimal and leave clear empty areas where the headline, details and QR code will be placed afterwards.',
-  );
+  const lines = textLines(details);
+  if (lines.length) {
+    parts.push(
+      [
+        'Typeset the following text into the design exactly as written, spelled character for character, with no extra or invented words, using the house typography and a clear visual hierarchy:',
+        ...lines.map((l) => `- ${l}`),
+        'All lettering must be crisp, correctly spelled and legible.',
+      ].join('\n'),
+    );
+  }
+
+  parts.push('Leave a clean empty area in one bottom corner for a QR code and one top corner for a logo.');
 
   if (details.artDirection) parts.push(`Additional art direction: ${details.artDirection}.`);
 
   return parts.join('\n');
+}
+
+/** Instruction for changing only the lettering of an existing artwork. */
+export function buildTextEditPrompt(details: AssetDetails): string {
+  const lines = textLines(details);
+  return [
+    'Edit this existing artwork by changing ONLY the text.',
+    'Keep the illustration, characters, layout, composition, colours and background pixel-for-pixel identical.',
+    'Replace the lettering with exactly the following, spelled character for character, keeping the same typographic style and hierarchy:',
+    ...lines.map((l) => `- ${l}`),
+    'Do not add, remove or move any illustration element.',
+  ].join('\n');
 }
 
 export function buildCopyDetails(format: AssetFormat, details: AssetDetails): Record<string, string> {
