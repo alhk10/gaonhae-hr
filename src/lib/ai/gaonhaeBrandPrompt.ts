@@ -20,6 +20,11 @@ const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
     'Vertical 9:16 reel cover composition. Bold central subject, safe margins at the top and bottom so platform UI does not cover the artwork, headline typeset in the lower third.',
 };
 
+/** Poster composition when the QR/logo are blended into the design by the model. */
+const POSTER_COMPOSITION_BLENDED =
+  'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text.';
+
+
 export const GAONHAE_BRAND_PROMPT = [
   'Design in the Gaonhae Taekwondo house style:',
   'minimalist layout on a clean white background with lots of breathing space;',
