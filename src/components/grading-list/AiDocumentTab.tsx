@@ -395,7 +395,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     }
   };
 
-  const usesGeminiForImages = references.length > 0 || textDirty;
+  const usesGeminiForImages = references.length > 0 || textDirty || blending;
   const geminiNotice = usesGeminiForImages && model.startsWith('openai/');
 
   return (
