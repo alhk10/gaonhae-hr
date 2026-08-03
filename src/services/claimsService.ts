@@ -147,13 +147,18 @@ export const createClaim = async (claim: Omit<Claim, 'id'> & { receipt_url?: str
 
 export const updateClaim = async (
   id: number,
-  updates: { type?: string; amount?: number; description?: string }
+  updates: { type?: string; amount?: number; description?: string; date?: string }
 ): Promise<void> => {
   try {
     logger.debug('Updating claim', { id, updates });
+    const { date, ...rest } = updates;
+    const payload: Record<string, any> = { ...rest };
+    if (date) {
+      payload.submitted_date = new Date(`${date}T00:00:00`).toISOString();
+    }
     const { error } = await supabase
       .from('claims')
-      .update(updates)
+      .update(payload)
       .eq('id', id);
     if (error) throw error;
     logger.info('Claim updated successfully');
