@@ -82,7 +82,12 @@ function blendBlock(opts: ImagePromptOptions): string {
   if (opts.hasLogo) {
     lines.push(
       '- Logo: place the supplied Gaonhae Taekwondo logo into the composition as a designed lock-up (masthead or header area), deliberately sized and spaced, sitting on a background that suits it. Never on a plain white sticker patch or a floating box.',
-      '- Reproduce the logo exactly as supplied: do not redraw, restyle, recolour, re-letter or crop it.',
+      '- The logo must appear ONCE, complete and unbroken: the full symbol together with the full "GAONHAE TAEKWONDO" wordmark, every character present and readable.',
+      '- Never crop, mask, cut off, split, partially cover, fade or bleed the logo off the edge of the artwork, and never let illustration, text or shapes overlap it.',
+      '- Keep its original aspect ratio and internal spacing — scale the whole logo uniformly only; no stretching, squashing, rotating, recolouring, re-lettering or redrawing.',
+      '- Give the logo a clear margin of empty space on all sides and place it on a background with strong contrast so it reads as a proper lock-up.',
+      '- Do not extract, reuse or repeat parts of the logo as decoration anywhere else in the artwork.',
+      '- If space is tight, shrink the entire logo rather than trimming any part of it.',
     );
   }
   if (opts.hasQr) {
@@ -143,6 +148,7 @@ export function buildTextEditPrompt(details: AssetDetails): string {
     'Keep the text integrated into the design — same ribbons, banners, panels and colour blocks holding the lettering; never fall back to a plain paragraph block in a blank area.',
     'Do not add, remove or move any illustration element.',
     'Leave any logo and QR code in the artwork completely untouched — same position, size and pixels.',
+    'The Gaonhae Taekwondo logo must remain complete and unbroken: full symbol plus full wordmark, never cropped, masked, split, covered or resized.',
   ].join('\n');
 }
 
