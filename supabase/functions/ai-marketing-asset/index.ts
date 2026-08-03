@@ -15,11 +15,19 @@ const json = (status: number, body: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+interface RefImage {
+  dataUrl?: string;
+  note?: string;
+}
+
 interface Body {
   password?: string;
   mode?: "copy" | "image";
   format?: "poster" | "square" | "reel";
   prompt?: string;
+  model?: string;
+  baseImage?: string;
+  references?: RefImage[];
   details?: Record<string, string | undefined>;
 }
 
@@ -28,6 +36,16 @@ const SIZE_BY_FORMAT: Record<string, string> = {
   square: "1024x1024",
   reel: "1024x1536",
 };
+
+const ALLOWED_IMAGE_MODELS = [
+  "openai/gpt-image-2",
+  "openai/gpt-image-1-mini",
+  "google/gemini-3.1-flash-image",
+  "google/gemini-3-pro-image",
+];
+
+// Model used when image input (base image / references) is supplied.
+const EDIT_MODEL = "google/gemini-3.1-flash-image";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -95,21 +113,58 @@ Deno.serve(async (req) => {
     if (!body.prompt) return json(400, { error: "prompt is required" });
     const size = SIZE_BY_FORMAT[body.format ?? "poster"] ?? "1024x1536";
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-image-2",
+    const references = (body.references ?? []).filter((r) => r?.dataUrl).slice(0, 3);
+    const hasImageInput = Boolean(body.baseImage) || references.length > 0;
+
+    let model = body.model && ALLOWED_IMAGE_MODELS.includes(body.model)
+      ? body.model
+      : "openai/gpt-image-2";
+    // Image input is handled through the Gemini chat-shape image models.
+    if (hasImageInput && model.startsWith("openai/")) model = EDIT_MODEL;
+
+    let requestBody: Record<string, unknown>;
+
+    if (model.startsWith("openai/")) {
+      requestBody = {
+        model,
         prompt: body.prompt,
         size,
         quality: "low",
         n: 1,
         stream: true,
         partial_images: 1,
-      }),
+      };
+    } else {
+      const content: Record<string, unknown>[] = [{ type: "text", text: body.prompt }];
+      if (body.baseImage) {
+        content.push({
+          type: "text",
+          text: "The following image is the existing artwork. Modify only what the instruction asks for and keep everything else identical.",
+        });
+        content.push({ type: "image_url", image_url: { url: body.baseImage } });
+      }
+      references.forEach((r, i) => {
+        content.push({
+          type: "text",
+          text: `Reference image ${i + 1}${r.note ? ` — ${r.note}` : ""}. Use it as visual guidance only; keep the Gaonhae house style.`,
+        });
+        content.push({ type: "image_url", image_url: { url: r.dataUrl } });
+      });
+      requestBody = {
+        model,
+        messages: [{ role: "user", content }],
+        modalities: ["image", "text"],
+        stream: true,
+      };
+    }
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
     });
 
     if (!res.ok || !res.body) {

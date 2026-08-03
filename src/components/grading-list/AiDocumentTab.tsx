@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,20 +6,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText } from 'lucide-react';
+import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText, Upload, X, Type } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { formatDateTime } from '@/utils/dateFormat';
 import {
   AssetFormat,
   FORMAT_LABELS,
   AssetDetails,
+  TEXT_FIELD_KEYS,
   buildImagePrompt,
+  buildTextEditPrompt,
   buildCopyDetails,
 } from '@/lib/ai/gaonhaeBrandPrompt';
 import {
   QR_OPTIONS,
   QrChoice,
+  LOGO_OPTIONS,
+  LogoChoice,
   qrSrc,
+  logoSrc,
   composeArtwork,
   downloadDataUrl,
   downloadPdf,
@@ -27,6 +32,7 @@ import {
 import {
   GeneratedCopy,
   MarketingAssetRow,
+  ReferenceImage,
   deleteAsset,
   generateCopy,
   generateImage,
@@ -34,6 +40,7 @@ import {
   listAssets,
   saveAsset,
   uploadGeneratedImage,
+  uploadReferenceImage,
 } from '@/services/aiMarketingAssetService';
 
 interface Props {
@@ -49,8 +56,27 @@ const EMPTY_COPY: GeneratedCopy = {
   hashtags: [],
 };
 
+const MODEL_OPTIONS = [
+  { value: 'openai/gpt-image-2', label: 'GPT Image 2 (best text)' },
+  { value: 'openai/gpt-image-1-mini', label: 'GPT Image 1 Mini (fast)' },
+  { value: 'google/gemini-3.1-flash-image', label: 'Nano Banana 2 (fast)' },
+  { value: 'google/gemini-3-pro-image', label: 'Gemini 3 Pro Image (best quality)' },
+];
+
+const MAX_REFS = 3;
+const MAX_REF_BYTES = 5 * 1024 * 1024;
+
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result));
+    fr.onerror = () => reject(new Error('Could not read file'));
+    fr.readAsDataURL(file);
+  });
+
 const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const { branches } = useBranches();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [format, setFormat] = useState<AssetFormat>('poster');
   const [branchId, setBranchId] = useState<string>('none');
@@ -61,13 +87,18 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [cta, setCta] = useState('');
   const [qrChoice, setQrChoice] = useState<QrChoice>('none');
+  const [logoChoice, setLogoChoice] = useState<LogoChoice>('mark');
+  const [model, setModel] = useState<string>(MODEL_OPTIONS[0].value);
   const [artDirection, setArtDirection] = useState('');
+  const [references, setReferences] = useState<ReferenceImage[]>([]);
 
   const [image, setImage] = useState<string | null>(null);
   const [imageFinal, setImageFinal] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
   const [copyData, setCopyData] = useState<GeneratedCopy>(EMPTY_COPY);
+  /** Snapshot of the text fields used for the current artwork. */
+  const [textSnapshot, setTextSnapshot] = useState<string | null>(null);
 
   const [history, setHistory] = useState<MarketingAssetRow[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
@@ -85,6 +116,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     branchName,
     artDirection,
   };
+
+  const textKey = JSON.stringify(TEXT_FIELD_KEYS.map((k) => details[k] || ''));
+  const textDirty = Boolean(image && textSnapshot !== null && textSnapshot !== textKey);
 
   const refreshHistory = useCallback(async () => {
     try {
@@ -112,6 +146,34 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     refreshHistory();
   }, [refreshHistory]);
 
+  const handleAddReferences = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const room = MAX_REFS - references.length;
+    if (room <= 0) {
+      toast.error(`Maximum ${MAX_REFS} reference images`);
+      return;
+    }
+    const picked = Array.from(files).slice(0, room);
+    const next: ReferenceImage[] = [];
+    for (const f of picked) {
+      if (!f.type.startsWith('image/')) {
+        toast.error(`${f.name} is not an image`);
+        continue;
+      }
+      if (f.size > MAX_REF_BYTES) {
+        toast.error(`${f.name} is larger than 5 MB`);
+        continue;
+      }
+      try {
+        next.push({ dataUrl: await fileToDataUrl(f), note: '' });
+      } catch {
+        toast.error(`Could not read ${f.name}`);
+      }
+    }
+    if (next.length) setReferences((prev) => [...prev, ...next]);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
   const handleGenerateCopy = async () => {
     if (!headline.trim()) {
       toast.error('Add a headline / event name first');
@@ -129,30 +191,58 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     }
   };
 
-  const handleGenerateImage = async () => {
+  const runGeneration = async (textOnly: boolean) => {
     if (!headline.trim()) {
       toast.error('Add a headline / event name first');
       return;
     }
+    const baseImage = textOnly ? image : null;
+    if (textOnly && !baseImage) return;
+
     setImgLoading(true);
     setImageFinal(false);
-    setImage(null);
+    if (!textOnly) setImage(null);
+
     let last: string | null = null;
     try {
-      await generateImage(password, format, buildImagePrompt(format, details), (dataUrl, isFinal) => {
-        last = dataUrl;
-        setImage(dataUrl);
-        setImageFinal(isFinal);
-      });
+      const prompt = textOnly
+        ? buildTextEditPrompt(details)
+        : buildImagePrompt(format, details);
+
+      await generateImage(
+        password,
+        format,
+        prompt,
+        { model, baseImage, references },
+        (dataUrl, isFinal) => {
+          last = dataUrl;
+          setImage(dataUrl);
+          setImageFinal(isFinal);
+        },
+      );
+
+      setTextSnapshot(textKey);
+
       if (last) {
         try {
           const path = await uploadGeneratedImage(last);
+          const refPaths: string[] = [];
+          for (const r of references) {
+            try {
+              refPaths.push(await uploadReferenceImage(r.dataUrl));
+            } catch {
+              /* reference upload optional */
+            }
+          }
           await saveAsset({
             branch_id: branchId !== 'none' ? branchId : null,
             format,
-            inputs: { ...details, format, qrChoice },
+            inputs: { ...details, format, qrChoice, logoChoice, refNotes: references.map((r) => r.note || '') },
             copy: copyData,
             qr_choice: qrChoice,
+            logo_choice: logoChoice,
+            model,
+            reference_paths: refPaths.length ? refPaths : null,
             image_path: path,
           });
           refreshHistory();
@@ -160,7 +250,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
           console.error('Save failed', e);
         }
       }
-      toast.success('Artwork generated');
+      toast.success(textOnly ? 'Text updated' : 'Artwork generated');
     } catch (e: any) {
       toast.error(e?.message || 'Image generation failed');
     } finally {
@@ -171,7 +261,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const handleDownload = async (kind: 'png' | 'pdf') => {
     if (!image) return;
     try {
-      const composed = await composeArtwork(image, qrChoice);
+      const composed = await composeArtwork(image, qrChoice, logoChoice);
       const base = (headline || 'gaonhae-asset').replace(/[^\w\-]+/g, '_').slice(0, 40);
       if (kind === 'png') downloadDataUrl(composed, `${base}.png`);
       else await downloadPdf(composed, format, `${base}.pdf`);
@@ -187,7 +277,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   };
 
   const loadFromHistory = async (row: MarketingAssetRow) => {
-    const i = (row.inputs || {}) as AssetDetails & { qrChoice?: QrChoice };
+    const i = (row.inputs || {}) as AssetDetails & {
+      qrChoice?: QrChoice;
+      logoChoice?: LogoChoice;
+      refNotes?: string[];
+    };
     setFormat((row.format as AssetFormat) || 'poster');
     setBranchId(row.branch_id || 'none');
     setHeadline(i.headline || '');
@@ -198,12 +292,37 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setCta(i.cta || '');
     setArtDirection(i.artDirection || '');
     setQrChoice((row.qr_choice as QrChoice) || 'none');
+    setLogoChoice((row.logo_choice as LogoChoice) || (i.logoChoice as LogoChoice) || 'mark');
+    if (row.model) setModel(row.model);
     setCopyData({ ...EMPTY_COPY, ...(row.copy || {}) });
+
+    // Restore reference images
+    const paths = row.reference_paths || [];
+    if (paths.length) {
+      const restored: ReferenceImage[] = [];
+      for (let idx = 0; idx < paths.length; idx++) {
+        try {
+          const url = await getAssetUrl(paths[idx]);
+          const blob = await (await fetch(url)).blob();
+          const dataUrl = await fileToDataUrl(new File([blob], 'ref', { type: blob.type }));
+          restored.push({ dataUrl, note: i.refNotes?.[idx] || '' });
+        } catch {
+          /* ignore */
+        }
+      }
+      setReferences(restored);
+    } else {
+      setReferences([]);
+    }
+
     if (row.image_path) {
       try {
         const url = thumbs[row.id] || (await getAssetUrl(row.image_path));
         setImage(url);
         setImageFinal(true);
+        setTextSnapshot(
+          JSON.stringify(TEXT_FIELD_KEYS.map((k) => (i as any)[k] || '')),
+        );
       } catch {
         /* ignore */
       }
@@ -219,6 +338,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       toast.error(e?.message || 'Delete failed');
     }
   };
+
+  const usesGeminiForImages = references.length > 0 || textDirty;
+  const geminiNotice = usesGeminiForImages && model.startsWith('openai/');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -310,15 +432,126 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
             </div>
 
             <div className="space-y-1">
+              <Label className="text-xs">Logo</Label>
+              <div className="flex gap-2 flex-wrap">
+                {LOGO_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setLogoChoice(o.value)}
+                    className={`border rounded-md p-1.5 flex flex-col items-center gap-1 w-[86px] ${
+                      logoChoice === o.value ? 'border-primary ring-1 ring-primary' : 'border-border'
+                    }`}
+                  >
+                    {o.src ? (
+                      <img src={o.src} alt={o.label} className="h-10 w-full object-contain" />
+                    ) : (
+                      <div className="h-10 w-full flex items-center justify-center text-muted-foreground">—</div>
+                    )}
+                    <span className="text-[10px] leading-none">{o.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Reference images (optional, max {MAX_REFS})</Label>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleAddReferences(e.dataTransfer.files);
+                }}
+                className="border border-dashed rounded-md p-2 space-y-2"
+              >
+                {references.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {references.map((r, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="relative">
+                          <img src={r.dataUrl} alt={`Reference ${idx + 1}`} className="h-16 w-full object-cover rounded" />
+                          <button
+                            type="button"
+                            onClick={() => setReferences(references.filter((_, i2) => i2 !== idx))}
+                            className="absolute -top-1.5 -right-1.5 bg-background border rounded-full p-0.5"
+                            aria-label="Remove reference"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <Input
+                          className="h-6 text-[10px]"
+                          placeholder="match this layout"
+                          value={r.note || ''}
+                          onChange={(e) =>
+                            setReferences(references.map((x, i2) => (i2 === idx ? { ...x, note: e.target.value } : x)))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleAddReferences(e.target.files)}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-xs"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={references.length >= MAX_REFS}
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1" />
+                  {references.length ? 'Add another' : 'Attach or drop images'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
               <Label className="text-xs">Extra art direction (optional)</Label>
               <Input className="h-8 text-xs" value={artDirection} onChange={(e) => setArtDirection(e.target.value)} placeholder="add a trophy, teen class" />
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" className="flex-1" onClick={handleGenerateImage} disabled={imgLoading}>
-                {imgLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5 mr-1" />}
-                Generate artwork
-              </Button>
+            <div className="space-y-1">
+              <Label className="text-xs">AI model</Label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MODEL_OPTIONS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {geminiNotice && (
+                <p className="text-[10px] text-muted-foreground">
+                  Reference images and text updates run on the Gemini image editor.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1 flex-wrap">
+              {textDirty ? (
+                <>
+                  <Button size="sm" className="flex-1" onClick={() => runGeneration(true)} disabled={imgLoading}>
+                    {imgLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Type className="h-3.5 w-3.5 mr-1" />}
+                    Update text
+                  </Button>
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={() => runGeneration(false)} disabled={imgLoading}>
+                    <ImageIcon className="h-3.5 w-3.5 mr-1" /> New artwork
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" className="flex-1" onClick={() => runGeneration(false)} disabled={imgLoading}>
+                  {imgLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5 mr-1" />}
+                  Generate artwork
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="flex-1" onClick={handleGenerateCopy} disabled={copyLoading}>
                 {copyLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
                 Generate copy
@@ -379,6 +612,13 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                     alt="Generated artwork"
                     className={`max-h-[420px] w-auto ${imageFinal ? '' : 'blur-lg'}`}
                   />
+                  {logoSrc(logoChoice) && (
+                    <img
+                      src={logoSrc(logoChoice)!}
+                      alt="Logo"
+                      className="absolute top-3 left-3 h-10 w-auto bg-white/90 p-1 rounded"
+                    />
+                  )}
                   {qrSrc(qrChoice) && (
                     <img
                       src={qrSrc(qrChoice)!}
@@ -402,9 +642,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                   <Download className="h-3.5 w-3.5 mr-1" /> PDF
                 </Button>
               )}
-              <Button size="sm" variant="outline" onClick={handleGenerateImage} disabled={imgLoading}>
+              <Button size="sm" variant="outline" onClick={() => runGeneration(false)} disabled={imgLoading}>
                 <Sparkles className="h-3.5 w-3.5 mr-1" /> Regenerate image
               </Button>
+              {image && (
+                <Button size="sm" variant="outline" onClick={() => runGeneration(true)} disabled={imgLoading}>
+                  <Type className="h-3.5 w-3.5 mr-1" /> Update text
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

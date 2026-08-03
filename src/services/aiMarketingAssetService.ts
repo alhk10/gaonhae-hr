@@ -23,6 +23,9 @@ export interface MarketingAssetRow {
   inputs: any;
   copy: any;
   qr_choice: string | null;
+  logo_choice: string | null;
+  model: string | null;
+  reference_paths: string[] | null;
   image_path: string | null;
   created_by_email: string | null;
   created_at: string;
@@ -55,17 +58,37 @@ export async function generateCopy(
   };
 }
 
+export interface ReferenceImage {
+  dataUrl: string;
+  note?: string;
+}
+
+export interface ImageGenOptions {
+  model?: string;
+  baseImage?: string | null;
+  references?: ReferenceImage[];
+}
+
 /** Streams the image; onFrame is called for every partial and the final frame. */
 export async function generateImage(
   password: string,
   format: AssetFormat,
   prompt: string,
+  options: ImageGenOptions,
   onFrame: (dataUrl: string, isFinal: boolean) => void,
 ): Promise<void> {
   const res = await fetch(FN_URL, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ password, mode: 'image', format, prompt }),
+    body: JSON.stringify({
+      password,
+      mode: 'image',
+      format,
+      prompt,
+      model: options.model,
+      baseImage: options.baseImage || undefined,
+      references: (options.references || []).slice(0, 3),
+    }),
   });
 
   if (!res.ok || !res.body) {
@@ -133,6 +156,19 @@ export async function uploadGeneratedImage(dataUrl: string): Promise<string> {
   return path;
 }
 
+/** Uploads a reference image (any image mime) and returns its storage path. */
+export async function uploadReferenceImage(dataUrl: string): Promise<string> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const path = `${FOLDER}/refs/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: blob.type || 'image/png',
+    upsert: false,
+  });
+  if (error) throw error;
+  return path;
+}
+
 export async function getAssetUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
   if (error) throw error;
@@ -145,6 +181,9 @@ export async function saveAsset(input: {
   inputs: any;
   copy: any;
   qr_choice: string | null;
+  logo_choice?: string | null;
+  model?: string | null;
+  reference_paths?: string[] | null;
   image_path: string | null;
 }): Promise<MarketingAssetRow> {
   const { data, error } = await (supabase as any)
@@ -167,8 +206,9 @@ export async function listAssets(limit = 30): Promise<MarketingAssetRow[]> {
 }
 
 export async function deleteAsset(row: MarketingAssetRow): Promise<void> {
-  if (row.image_path) {
-    await supabase.storage.from(BUCKET).remove([row.image_path]);
+  const paths = [row.image_path, ...(row.reference_paths || [])].filter(Boolean) as string[];
+  if (paths.length) {
+    await supabase.storage.from(BUCKET).remove(paths);
   }
   const { error } = await (supabase as any).from('ai_marketing_assets').delete().eq('id', row.id);
   if (error) throw error;
