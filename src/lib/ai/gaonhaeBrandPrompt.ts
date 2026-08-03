@@ -68,8 +68,41 @@ function textLines(details: AssetDetails): string[] {
   return lines;
 }
 
-export function buildImagePrompt(format: AssetFormat, details: AssetDetails): string {
-  const parts: string[] = [GAONHAE_BRAND_PROMPT, FORMAT_COMPOSITION[format]];
+export interface ImagePromptOptions {
+  /** True when the supplied QR/logo images are sent to the model to integrate. */
+  blendAssets?: boolean;
+  hasQr?: boolean;
+  hasLogo?: boolean;
+}
+
+function blendBlock(opts: ImagePromptOptions): string {
+  const lines: string[] = [
+    'The supplied brand asset images must be integrated into the design itself, not pasted on as stickers.',
+  ];
+  if (opts.hasLogo) {
+    lines.push(
+      '- Logo: place the supplied Gaonhae Taekwondo logo into the composition as a designed lock-up (masthead or header area), deliberately sized and spaced, sitting on a background that suits it. Never on a plain white sticker patch or a floating box.',
+      '- Reproduce the logo exactly as supplied: do not redraw, restyle, recolour, re-letter or crop it.',
+    );
+  }
+  if (opts.hasQr) {
+    lines.push(
+      '- QR code: place the supplied QR code inside a designed holder that belongs to the artwork — a rounded panel, ribbon or framed card — with a short caption such as "Scan to register" beside or beneath it.',
+      '- Reproduce the QR modules exactly as supplied: perfectly square, high contrast, not warped, not rotated, not tinted, never overlapped by illustration or text, with a clear quiet margin around it. A distorted QR code will not scan.',
+    );
+  }
+  return lines.join('\n');
+}
+
+export function buildImagePrompt(
+  format: AssetFormat,
+  details: AssetDetails,
+  opts: ImagePromptOptions = {},
+): string {
+  const blending = Boolean(opts.blendAssets && (opts.hasQr || opts.hasLogo));
+  const composition =
+    blending && format === 'poster' ? POSTER_COMPOSITION_BLENDED : FORMAT_COMPOSITION[format];
+  const parts: string[] = [GAONHAE_BRAND_PROMPT, composition];
 
   if (details.branchName) parts.push(`Branch: ${details.branchName}.`);
 
@@ -84,7 +117,11 @@ export function buildImagePrompt(format: AssetFormat, details: AssetDetails): st
     );
   }
 
-  parts.push('Leave a clean empty area in one bottom corner for a QR code and one top corner for a logo.');
+  if (blending) {
+    parts.push(blendBlock(opts));
+  } else {
+    parts.push('Leave a clean empty area in one bottom corner for a QR code and one top corner for a logo.');
+  }
 
   if (details.artDirection) parts.push(`Additional art direction: ${details.artDirection}.`);
 
@@ -100,6 +137,7 @@ export function buildTextEditPrompt(details: AssetDetails): string {
     'Replace the lettering with exactly the following, spelled character for character, keeping the same typographic style and hierarchy:',
     ...lines.map((l) => `- ${l}`),
     'Do not add, remove or move any illustration element.',
+    'Leave any logo and QR code in the artwork completely untouched — same position, size and pixels.',
   ].join('\n');
 }
 
