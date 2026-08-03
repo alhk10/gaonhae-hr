@@ -1638,7 +1638,13 @@ const PublicGradingList: React.FC = () => {
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
           </TabsContent>
+          <TabsContent value="ai-document" className="mt-4">
+            <AiDocumentTab
+              password={unlockLevel === 'full' ? ADMIN_FULL_UNLOCK_PASSWORD : ADMIN_UNLOCK_PASSWORD}
+            />
+          </TabsContent>
         </Tabs>
+
       </div>
 
 
