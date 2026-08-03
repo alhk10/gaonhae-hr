@@ -13,16 +13,16 @@ export const FORMAT_LABELS: Record<AssetFormat, string> = {
 
 const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
   poster:
-    'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text, and a clear empty square in a bottom corner reserved for a QR code.',
+    'Vertical A4 poster composition. Illustration and typography are designed together across the whole sheet — the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands, and a clear empty square in a bottom corner reserved for a QR code. No leftover blank text zone.',
   square:
-    'Square 1:1 Instagram feed composition. Centred focal illustration, balanced margins, headline and key details typeset cleanly in the lower area.',
+    'Square 1:1 Instagram feed composition. Illustration and typography interlock across the full frame within balanced margins — text woven around and over the artwork in designed shapes, not stacked in a blank strip.',
   reel:
-    'Vertical 9:16 reel cover composition. Bold central subject, safe margins at the top and bottom so platform UI does not cover the artwork, headline typeset in the lower third.',
+    'Vertical 9:16 reel cover composition. Bold central subject with the typography integrated into the artwork across the frame, keeping safe margins at the top and bottom so platform UI does not cover the design. No blank caption band.',
 };
 
 /** Poster composition when the QR/logo are blended into the design by the model. */
 const POSTER_COMPOSITION_BLENDED =
-  'Vertical A4 poster composition. Strong focal illustration in the upper two thirds, generous clean white space in the lower third for the typeset text.';
+  'Vertical A4 poster composition. Illustration and typography are designed together across the whole sheet — the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands. No leftover blank text zone.';
 
 
 export const GAONHAE_BRAND_PROMPT = [
