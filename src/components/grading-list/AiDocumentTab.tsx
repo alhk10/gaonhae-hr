@@ -744,23 +744,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Copy</CardTitle>
+            <CardTitle className="text-base">Social Media Captions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs">Headline</Label>
-              <Input className="h-8 text-xs" value={copyData.headline} onChange={(e) => setCopyData({ ...copyData, headline: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Subheadline</Label>
-              <Input className="h-8 text-xs" value={copyData.subheadline} onChange={(e) => setCopyData({ ...copyData, subheadline: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Body</Label>
-              <Textarea className="text-xs min-h-[70px]" value={copyData.body} onChange={(e) => setCopyData({ ...copyData, body: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Instagram caption</Label>
+              <Label className="text-xs">Caption</Label>
               <Textarea className="text-xs min-h-[80px]" value={copyData.caption} onChange={(e) => setCopyData({ ...copyData, caption: e.target.value })} />
             </div>
             <div className="space-y-1">
