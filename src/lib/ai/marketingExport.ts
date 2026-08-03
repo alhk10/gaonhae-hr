@@ -1,11 +1,13 @@
 import jsPDF from 'jspdf';
 import type { AssetFormat } from '@/lib/ai/gaonhaeBrandPrompt';
 import logoUrl from '@/assets/gaonhae-logo.png';
+import calligraphyLogoUrl from '@/assets/logo/gaonhae-calligraphy-logo.jpg';
 import seminarsQr from '@/assets/qr/seminars-qr-code.png';
 import compsQr from '@/assets/qr/gaonhae_comps_qr.png';
 import payQr from '@/assets/qr/gaonhae-pay-qr.png';
 
 export type QrChoice = 'none' | 'seminars' | 'competitions' | 'payment';
+export type LogoChoice = 'none' | 'mark' | 'calligraphy';
 
 export const QR_OPTIONS: { value: QrChoice; label: string; src: string | null }[] = [
   { value: 'none', label: 'No QR', src: null },
@@ -14,8 +16,17 @@ export const QR_OPTIONS: { value: QrChoice; label: string; src: string | null }[
   { value: 'payment', label: 'Payment', src: payQr },
 ];
 
+export const LOGO_OPTIONS: { value: LogoChoice; label: string; src: string | null }[] = [
+  { value: 'none', label: 'No logo', src: null },
+  { value: 'mark', label: 'Mark', src: logoUrl },
+  { value: 'calligraphy', label: 'Calligraphy', src: calligraphyLogoUrl },
+];
+
 export const qrSrc = (choice: QrChoice): string | null =>
   QR_OPTIONS.find((o) => o.value === choice)?.src ?? null;
+
+export const logoSrc = (choice: LogoChoice): string | null =>
+  LOGO_OPTIONS.find((o) => o.value === choice)?.src ?? null;
 
 const loadImage = (src: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -27,7 +38,11 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
   });
 
 /** Composites artwork + QR + logo onto a canvas and returns a PNG data URL. */
-export async function composeArtwork(imageDataUrl: string, choice: QrChoice): Promise<string> {
+export async function composeArtwork(
+  imageDataUrl: string,
+  choice: QrChoice,
+  logoChoice: LogoChoice = 'mark',
+): Promise<string> {
   const art = await loadImage(imageDataUrl);
   const canvas = document.createElement('canvas');
   canvas.width = art.naturalWidth;
@@ -38,16 +53,19 @@ export async function composeArtwork(imageDataUrl: string, choice: QrChoice): Pr
 
   const pad = Math.round(canvas.width * 0.035);
 
-  // Logo — top left, on a white rounded pad.
-  try {
-    const logo = await loadImage(logoUrl);
-    const w = Math.round(canvas.width * 0.16);
-    const h = Math.round((logo.naturalHeight / logo.naturalWidth) * w);
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillRect(pad - 8, pad - 8, w + 16, h + 16);
-    ctx.drawImage(logo, pad, pad, w, h);
-  } catch {
-    /* logo optional */
+  // Logo — top left, on a white pad.
+  const logoImg = logoSrc(logoChoice);
+  if (logoImg) {
+    try {
+      const logo = await loadImage(logoImg);
+      const w = Math.round(canvas.width * 0.16);
+      const h = Math.round((logo.naturalHeight / logo.naturalWidth) * w);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(pad - 8, pad - 8, w + 16, h + 16);
+      ctx.drawImage(logo, pad, pad, w, h);
+    } catch {
+      /* logo optional */
+    }
   }
 
   // QR — bottom right on a white pad.
