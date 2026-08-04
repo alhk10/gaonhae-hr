@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Download, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Download, Upload, X, Copy } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -91,6 +91,34 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       multi_package_discount: e.multi_package_discount === true,
     });
     requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const duplicateEvent = (e: SeminarEvent) => {
+    setForm({
+      id: null,
+      name: `${e.name} (Copy)`,
+      is_active: false,
+      display_order: e.display_order,
+      packages: (e.packages || []).map(p => ({
+        code: p.code,
+        label: p.label,
+        description: p.description ?? '',
+        amount: Number(p.amount || 0),
+        session_dates: Array.isArray(p.session_dates) ? [...p.session_dates] : [],
+      })),
+      indemnity_clause: e.indemnity_clause || '',
+      indemnity_template_url: e.indemnity_template_url ?? null,
+      indemnity_template_name: e.indemnity_template_name ?? null,
+      require_passport: e.require_passport === true,
+      require_photo: e.require_photo === true,
+      require_grading_card: e.require_grading_card === true,
+      multi_package_discount: e.multi_package_discount === true,
+    });
+    requestAnimationFrame(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nameInputRef.current?.focus();
+    });
+    toast.success('Event copied — review and press Create event to save');
   };
 
   const handleNewClick = () => {
@@ -276,6 +304,14 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                       title="Edit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => duplicateEvent(e)}
+                      title="Duplicate"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
