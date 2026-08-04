@@ -330,14 +330,27 @@ const PublicSeminarPayment: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="seminar-event">Seminar *</Label>
+              <div
+                className={
+                  eventTouched
+                    ? 'space-y-2'
+                    : 'space-y-2 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 ring-2 ring-amber-200'
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="seminar-event">Seminar *</Label>
+                  {!eventTouched && (
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      Select first
+                    </span>
+                  )}
+                </div>
                 <Select
                   value={eventId}
-                  onValueChange={(v) => { setEventId(v); setPackageCodes([]); }}
+                  onValueChange={(v) => { setEventId(v); setEventTouched(true); setPackageCodes([]); }}
                   disabled={eventsLoading || events.length === 0}
                 >
-                  <SelectTrigger id="seminar-event">
+                  <SelectTrigger id="seminar-event" className={eventTouched ? undefined : 'border-amber-400 bg-background'}>
                     <SelectValue placeholder={eventsLoading ? 'Loading…' : (events.length ? 'Select seminar' : 'No open seminars')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -346,10 +359,16 @@ const PublicSeminarPayment: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {!eventsLoading && events.length > 0 && (
+                  <p className={`text-xs ${eventTouched ? 'text-muted-foreground' : 'font-medium text-amber-700'}`}>
+                    Please confirm you have selected the correct seminar before entering details.
+                  </p>
+                )}
                 {!eventsLoading && events.length === 0 && (
                   <p className="text-xs text-muted-foreground">No active seminars. Please contact the academy.</p>
                 )}
               </div>
+
 
               {selectedEvent && (
                 <>
