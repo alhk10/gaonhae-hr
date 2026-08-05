@@ -41,11 +41,18 @@ export async function generateCopy(
   password: string,
   format: AssetFormat,
   details: Record<string, string>,
+  promptOverride?: string | null,
 ): Promise<GeneratedCopy> {
   const res = await fetch(FN_URL, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ password, mode: 'copy', format, details }),
+    body: JSON.stringify({
+      password,
+      mode: 'copy',
+      format,
+      details,
+      promptOverride: promptOverride || undefined,
+    }),
   });
 
   const data = await res.json().catch(() => ({}));
