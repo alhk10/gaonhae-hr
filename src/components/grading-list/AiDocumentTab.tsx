@@ -89,6 +89,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [format, setFormat] = useState<AssetFormat>('poster');
+  const [customWidth, setCustomWidth] = useState<string>(String(CUSTOM_SIZE_DEFAULT.widthCm));
+  const [customHeight, setCustomHeight] = useState<string>(String(CUSTOM_SIZE_DEFAULT.heightCm));
+
   const [branchId, setBranchId] = useState<string>('none');
   const [headline, setHeadline] = useState('');
   const [pricing, setPricing] = useState('');
