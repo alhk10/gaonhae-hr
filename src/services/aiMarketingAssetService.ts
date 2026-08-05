@@ -74,6 +74,8 @@ export interface ImageGenOptions {
   baseImage?: string | null;
   references?: ReferenceImage[];
   brandAssets?: BrandAsset[];
+  widthCm?: number;
+  heightCm?: number;
 }
 
 /** Streams the image; onFrame is called for every partial and the final frame. */
@@ -93,11 +95,14 @@ export async function generateImage(
       format,
       prompt,
       model: options.model,
+      widthCm: options.widthCm,
+      heightCm: options.heightCm,
       baseImage: options.baseImage || undefined,
       references: (options.references || []).slice(0, 3),
       brandAssets: (options.brandAssets || []).slice(0, 2),
     }),
   });
+
 
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '');
