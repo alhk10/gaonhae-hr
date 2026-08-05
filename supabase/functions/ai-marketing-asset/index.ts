@@ -131,7 +131,11 @@ Deno.serve(async (req) => {
 
     // mode === "image" — stream the SSE body straight to the browser.
     if (!body.prompt) return json(400, { error: "prompt is required" });
-    const size = SIZE_BY_FORMAT[body.format ?? "poster"] ?? "1024x1536";
+    const size =
+      body.format === "custom"
+        ? sizeForRatio(body.widthCm, body.heightCm)
+        : SIZE_BY_FORMAT[body.format ?? "poster"] ?? "1024x1536";
+
 
     const references = (body.references ?? []).filter((r) => r?.dataUrl).slice(0, 3);
     const brandAssets = (body.brandAssets ?? []).filter((a) => a?.dataUrl).slice(0, 2);
