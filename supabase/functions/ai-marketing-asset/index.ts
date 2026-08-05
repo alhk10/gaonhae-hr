@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
         .filter(([, v]) => v && String(v).trim())
         .map(([k, v]) => `${k}: ${v}`)
         .join("\n");
+      const userFacts = body.promptOverride?.trim() ? body.promptOverride.trim() : facts;
+
 
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
