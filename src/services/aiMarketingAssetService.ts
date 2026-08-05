@@ -47,6 +47,7 @@ export async function generateCopy(
     headers: headers(),
     body: JSON.stringify({ password, mode: 'copy', format, details }),
   });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Copy generation failed (${res.status})`);
   return {
