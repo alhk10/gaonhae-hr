@@ -484,6 +484,44 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               </div>
             </div>
 
+            {format === 'custom' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Width (cm)</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    type="number"
+                    min={CUSTOM_SIZE_MIN}
+                    max={CUSTOM_SIZE_MAX}
+                    step="0.1"
+                    value={customWidth}
+                    onChange={(e) => setCustomWidth(e.target.value)}
+                    placeholder="21"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Height (cm)</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    type="number"
+                    min={CUSTOM_SIZE_MIN}
+                    max={CUSTOM_SIZE_MAX}
+                    step="0.1"
+                    value={customHeight}
+                    onChange={(e) => setCustomHeight(e.target.value)}
+                    placeholder="29.7"
+                  />
+                </div>
+                <p className="col-span-2 text-[10px] text-muted-foreground">
+                  {customSizeValid
+                    ? `Artwork is generated at the closest supported ratio and exported to a ${customWidth} x ${customHeight} cm PDF page.`
+                    : `Enter a width and height between ${CUSTOM_SIZE_MIN} and ${CUSTOM_SIZE_MAX} cm.`}
+                </p>
+              </div>
+            )}
+
+
+
             <div className="space-y-1">
               <Label className="text-xs">Headline / event name</Label>
               <Input className="h-8 text-xs" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Term 4 Holiday Programme" />
