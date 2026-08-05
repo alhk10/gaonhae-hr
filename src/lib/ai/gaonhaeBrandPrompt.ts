@@ -3,15 +3,52 @@
  * The house style is fixed; only the event details and extra art direction vary.
  */
 
-export type AssetFormat = 'poster' | 'square' | 'reel';
+export type AssetFormat = 'poster' | 'square' | 'reel' | 'custom';
 
 export const FORMAT_LABELS: Record<AssetFormat, string> = {
   poster: 'Poster (A4 portrait)',
   square: 'Instagram square (1:1)',
   reel: 'Instagram reel (9:16)',
+  custom: 'Custom size (cm)',
 };
 
-const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
+export interface CustomSize {
+  widthCm: number;
+  heightCm: number;
+}
+
+export const CUSTOM_SIZE_DEFAULT: CustomSize = { widthCm: 21, heightCm: 29.7 };
+export const CUSTOM_SIZE_MIN = 5;
+export const CUSTOM_SIZE_MAX = 200;
+
+export const isValidCustomSize = (s?: Partial<CustomSize> | null): boolean =>
+  !!s &&
+  Number.isFinite(s.widthCm) &&
+  Number.isFinite(s.heightCm) &&
+  (s.widthCm as number) >= CUSTOM_SIZE_MIN &&
+  (s.widthCm as number) <= CUSTOM_SIZE_MAX &&
+  (s.heightCm as number) >= CUSTOM_SIZE_MIN &&
+  (s.heightCm as number) <= CUSTOM_SIZE_MAX;
+
+const trimNum = (n: number) => String(Math.round(n * 10) / 10);
+
+export const formatLabelFor = (format: AssetFormat, size?: CustomSize | null): string =>
+  format === 'custom' && size
+    ? `Custom ${trimNum(size.widthCm)} x ${trimNum(size.heightCm)} cm`
+    : FORMAT_LABELS[format] || format;
+
+function customComposition(size: CustomSize): string {
+  const ratio = size.widthCm / size.heightCm;
+  const orientation = ratio > 1.05 ? 'landscape' : ratio < 0.95 ? 'portrait' : 'square';
+  return (
+    `Print artwork designed for a ${trimNum(size.widthCm)} cm wide by ${trimNum(size.heightCm)} cm tall ${orientation} sheet ` +
+    `(aspect ratio ${ratio.toFixed(2)}:1). Illustration and typography are designed together across the whole sheet — ` +
+    'the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands, ' +
+    'and generous print-safe margins on all edges so nothing important is trimmed. No leftover blank text zone.'
+  );
+}
+
+const FORMAT_COMPOSITION: Record<Exclude<AssetFormat, 'custom'>, string> = {
   poster:
     'Vertical A4 poster composition. Illustration and typography are designed together across the whole sheet — the headline anchored into the artwork with a ribbon, banner or colour block, supporting details grouped into designed info bands, and a clear empty square in a bottom corner reserved for a QR code. No leftover blank text zone.',
   square:
@@ -19,6 +56,7 @@ const FORMAT_COMPOSITION: Record<AssetFormat, string> = {
   reel:
     'Vertical 9:16 reel cover composition. Bold central subject with the typography integrated into the artwork across the frame, keeping safe margins at the top and bottom so platform UI does not cover the design. No blank caption band.',
 };
+
 
 /** Poster composition when the QR/logo are blended into the design by the model. */
 const POSTER_COMPOSITION_BLENDED =
@@ -73,7 +111,10 @@ export interface ImagePromptOptions {
   blendAssets?: boolean;
   hasQr?: boolean;
   hasLogo?: boolean;
+  /** Target print size when format === 'custom'. */
+  customSize?: CustomSize | null;
 }
+
 
 function blendBlock(opts: ImagePromptOptions): string {
   const lines: string[] = [
@@ -106,8 +147,13 @@ export function buildImagePrompt(
 ): string {
   const blending = Boolean(opts.blendAssets && (opts.hasQr || opts.hasLogo));
   const composition =
-    blending && format === 'poster' ? POSTER_COMPOSITION_BLENDED : FORMAT_COMPOSITION[format];
+    format === 'custom'
+      ? customComposition(opts.customSize ?? CUSTOM_SIZE_DEFAULT)
+      : blending && format === 'poster'
+        ? POSTER_COMPOSITION_BLENDED
+        : FORMAT_COMPOSITION[format];
   const parts: string[] = [GAONHAE_BRAND_PROMPT, composition];
+
 
   if (details.branchName) parts.push(`Branch: ${details.branchName}.`);
 
@@ -152,8 +198,13 @@ export function buildTextEditPrompt(details: AssetDetails): string {
   ].join('\n');
 }
 
-export function buildCopyDetails(format: AssetFormat, details: AssetDetails): Record<string, string> {
-  const out: Record<string, string> = { format };
+export function buildCopyDetails(
+  format: AssetFormat,
+  details: AssetDetails,
+  customSize?: CustomSize | null,
+): Record<string, string> {
+  const out: Record<string, string> = { format: formatLabelFor(format, customSize) };
+
   if (details.headline) out['Event / headline'] = details.headline;
   if (details.branchName) out['Branch'] = details.branchName;
   if (details.pricing) out['Pricing'] = details.pricing;

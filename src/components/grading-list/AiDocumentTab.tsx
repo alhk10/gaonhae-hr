@@ -17,7 +17,14 @@ import {
   buildImagePrompt,
   buildTextEditPrompt,
   buildCopyDetails,
+  formatLabelFor,
+  isValidCustomSize,
+  CUSTOM_SIZE_DEFAULT,
+  CUSTOM_SIZE_MIN,
+  CUSTOM_SIZE_MAX,
+  type CustomSize,
 } from '@/lib/ai/gaonhaeBrandPrompt';
+
 import {
   QR_OPTIONS,
   QrChoice,
@@ -82,6 +89,9 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [format, setFormat] = useState<AssetFormat>('poster');
+  const [customWidth, setCustomWidth] = useState<string>(String(CUSTOM_SIZE_DEFAULT.widthCm));
+  const [customHeight, setCustomHeight] = useState<string>(String(CUSTOM_SIZE_DEFAULT.heightCm));
+
   const [branchId, setBranchId] = useState<string>('none');
   const [headline, setHeadline] = useState('');
   const [pricing, setPricing] = useState('');
@@ -95,6 +105,16 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [artDirection, setArtDirection] = useState('');
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [blendAssets, setBlendAssets] = useState(true);
+
+  const parsedCustomSize: CustomSize = {
+    widthCm: Number.parseFloat(customWidth),
+    heightCm: Number.parseFloat(customHeight),
+  };
+  const customSizeValid = isValidCustomSize(parsedCustomSize);
+  const customSize: CustomSize | null =
+    format === 'custom' && customSizeValid ? parsedCustomSize : null;
+
+
 
   const [image, setImage] = useState<string | null>(null);
   const [imageFinal, setImageFinal] = useState(false);
@@ -192,7 +212,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const runCopyGeneration = async (): Promise<any | null> => {
     setCopyLoading(true);
     try {
-      const c = await generateCopy(password, format, buildCopyDetails(format, details));
+      const c = await generateCopy(password, format, buildCopyDetails(format, details, customSize));
       setCopyData(c);
       return c;
     } catch (e: any) {
@@ -257,13 +277,22 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
             blendAssets: blending,
             hasQr: sentQr,
             hasLogo: sentLogo,
+            customSize,
           });
 
       await generateImage(
         password,
         format,
         prompt,
-        { model, baseImage, references, brandAssets },
+        {
+          model,
+          baseImage,
+          references,
+          brandAssets,
+          widthCm: customSize?.widthCm,
+          heightCm: customSize?.heightCm,
+        },
+
         (dataUrl, isFinal) => {
           last = dataUrl;
           setImage(dataUrl);
@@ -298,8 +327,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               qrChoice,
               logoChoice,
               blendAssets,
+              customWidthCm: customSize?.widthCm,
+              customHeightCm: customSize?.heightCm,
               refNotes: references.map((r) => r.note || ''),
             },
+
             copy: freshCopy ?? copyData,
             qr_choice: qrChoice,
             logo_choice: logoChoice,
@@ -329,7 +361,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       });
       const base = (headline || 'gaonhae-asset').replace(/[^\w\-]+/g, '_').slice(0, 40);
       if (kind === 'png') downloadDataUrl(composed, `${base}.png`);
-      else await downloadPdf(composed, format, `${base}.pdf`);
+      else await downloadPdf(composed, format, `${base}.pdf`, customSize);
     } catch (e: any) {
       toast.error(e?.message || 'Export failed');
     }
@@ -348,9 +380,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       logoChoice?: LogoChoice;
       refNotes?: string[];
       blendAssets?: boolean;
+      customWidthCm?: number;
+      customHeightCm?: number;
     };
     setFormat((row.format as AssetFormat) || 'poster');
+    setCustomWidth(String(i.customWidthCm ?? CUSTOM_SIZE_DEFAULT.widthCm));
+    setCustomHeight(String(i.customHeightCm ?? CUSTOM_SIZE_DEFAULT.heightCm));
     setBranchId(row.branch_id || 'none');
+
     setHeadline(i.headline || '');
     setPricing(i.pricing || '');
     setDateTime(i.dateTime || '');
@@ -446,6 +483,44 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                 </Select>
               </div>
             </div>
+
+            {format === 'custom' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Width (cm)</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    type="number"
+                    min={CUSTOM_SIZE_MIN}
+                    max={CUSTOM_SIZE_MAX}
+                    step="0.1"
+                    value={customWidth}
+                    onChange={(e) => setCustomWidth(e.target.value)}
+                    placeholder="21"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Height (cm)</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    type="number"
+                    min={CUSTOM_SIZE_MIN}
+                    max={CUSTOM_SIZE_MAX}
+                    step="0.1"
+                    value={customHeight}
+                    onChange={(e) => setCustomHeight(e.target.value)}
+                    placeholder="29.7"
+                  />
+                </div>
+                <p className="col-span-2 text-[10px] text-muted-foreground">
+                  {customSizeValid
+                    ? `Artwork is generated at the closest supported ratio and exported to a ${customWidth} x ${customHeight} cm PDF page.`
+                    : `Enter a width and height between ${CUSTOM_SIZE_MIN} and ${CUSTOM_SIZE_MAX} cm.`}
+                </p>
+              </div>
+            )}
+
+
 
             <div className="space-y-1">
               <Label className="text-xs">Headline / event name</Label>
@@ -667,7 +742,13 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{row.inputs?.headline || 'Untitled'}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {FORMAT_LABELS[(row.format as AssetFormat)] || row.format} · {formatDateTime(row.created_at)}
+                          {formatLabelFor(
+                            (row.format as AssetFormat) || 'poster',
+                            row.inputs?.customWidthCm && row.inputs?.customHeightCm
+                              ? { widthCm: row.inputs.customWidthCm, heightCm: row.inputs.customHeightCm }
+                              : null,
+                          )} · {formatDateTime(row.created_at)}
+
                         </p>
                       </div>
                     </button>
@@ -728,7 +809,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               <Button size="sm" variant="outline" onClick={() => handleDownload('png')} disabled={!image}>
                 <Download className="h-3.5 w-3.5 mr-1" /> PNG
               </Button>
-              {format === 'poster' && (
+              {(format === 'poster' || format === 'custom') && (
                 <Button size="sm" variant="outline" onClick={() => handleDownload('pdf')} disabled={!image}>
                   <Download className="h-3.5 w-3.5 mr-1" /> PDF
                 </Button>
