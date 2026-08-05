@@ -28,13 +28,15 @@ interface BrandAsset {
 interface Body {
   password?: string;
   mode?: "copy" | "image";
-  format?: "poster" | "square" | "reel";
+  format?: "poster" | "square" | "reel" | "custom";
   prompt?: string;
   model?: string;
   baseImage?: string;
   references?: RefImage[];
   brandAssets?: BrandAsset[];
   details?: Record<string, string | undefined>;
+  widthCm?: number;
+  heightCm?: number;
 }
 
 const SIZE_BY_FORMAT: Record<string, string> = {
@@ -42,6 +44,18 @@ const SIZE_BY_FORMAT: Record<string, string> = {
   square: "1024x1024",
   reel: "1024x1536",
 };
+
+/** Maps a custom cm ratio onto the nearest supported model output size. */
+function sizeForRatio(widthCm?: number, heightCm?: number): string {
+  const w = Number(widthCm);
+  const h = Number(heightCm);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return "1024x1536";
+  const ratio = w / h;
+  if (ratio > 1.15) return "1536x1024";
+  if (ratio < 0.87) return "1024x1536";
+  return "1024x1024";
+}
+
 
 const ALLOWED_IMAGE_MODELS = [
   "openai/gpt-image-2",
