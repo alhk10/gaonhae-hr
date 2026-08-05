@@ -277,13 +277,22 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
             blendAssets: blending,
             hasQr: sentQr,
             hasLogo: sentLogo,
+            customSize,
           });
 
       await generateImage(
         password,
         format,
         prompt,
-        { model, baseImage, references, brandAssets },
+        {
+          model,
+          baseImage,
+          references,
+          brandAssets,
+          widthCm: customSize?.widthCm,
+          heightCm: customSize?.heightCm,
+        },
+
         (dataUrl, isFinal) => {
           last = dataUrl;
           setImage(dataUrl);
