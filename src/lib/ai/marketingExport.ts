@@ -117,13 +117,21 @@ export function downloadDataUrl(dataUrl: string, filename: string) {
   document.body.removeChild(a);
 }
 
-export async function downloadPdf(dataUrl: string, format: AssetFormat, filename: string) {
+export async function downloadPdf(
+  dataUrl: string,
+  format: AssetFormat,
+  filename: string,
+  customSize?: { widthCm: number; heightCm: number } | null,
+) {
   const img = await loadImage(dataUrl);
-  const portrait = img.naturalHeight >= img.naturalWidth;
+  const custom = format === 'custom' && customSize ? customSize : null;
+  const pageW = custom ? custom.widthCm * 10 : 210;
+  const pageH = custom ? custom.heightCm * 10 : (img.naturalHeight / img.naturalWidth) * 210;
+  const portrait = custom ? pageH >= pageW : img.naturalHeight >= img.naturalWidth;
   const doc = new jsPDF({
     orientation: portrait ? 'portrait' : 'landscape',
     unit: 'mm',
-    format: format === 'poster' ? 'a4' : [210, (img.naturalHeight / img.naturalWidth) * 210],
+    format: custom ? [pageW, pageH] : format === 'poster' ? 'a4' : [210, pageH],
   });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -133,3 +141,4 @@ export async function downloadPdf(dataUrl: string, format: AssetFormat, filename
   doc.addImage(dataUrl, 'PNG', (pw - w) / 2, (ph - h) / 2, w, h);
   doc.save(filename);
 }
+
