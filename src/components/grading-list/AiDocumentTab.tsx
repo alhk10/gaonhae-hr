@@ -361,7 +361,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       });
       const base = (headline || 'gaonhae-asset').replace(/[^\w\-]+/g, '_').slice(0, 40);
       if (kind === 'png') downloadDataUrl(composed, `${base}.png`);
-      else await downloadPdf(composed, format, `${base}.pdf`);
+      else await downloadPdf(composed, format, `${base}.pdf`, customSize);
     } catch (e: any) {
       toast.error(e?.message || 'Export failed');
     }
