@@ -327,8 +327,11 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               qrChoice,
               logoChoice,
               blendAssets,
+              customWidthCm: customSize?.widthCm,
+              customHeightCm: customSize?.heightCm,
               refNotes: references.map((r) => r.note || ''),
             },
+
             copy: freshCopy ?? copyData,
             qr_choice: qrChoice,
             logo_choice: logoChoice,
