@@ -212,7 +212,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const runCopyGeneration = async (): Promise<any | null> => {
     setCopyLoading(true);
     try {
-      const c = await generateCopy(password, format, buildCopyDetails(format, details));
+      const c = await generateCopy(password, format, buildCopyDetails(format, details, customSize));
       setCopyData(c);
       return c;
     } catch (e: any) {
