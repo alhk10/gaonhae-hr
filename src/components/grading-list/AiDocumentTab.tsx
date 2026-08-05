@@ -106,6 +106,16 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [blendAssets, setBlendAssets] = useState(true);
 
+  const parsedCustomSize: CustomSize = {
+    widthCm: Number.parseFloat(customWidth),
+    heightCm: Number.parseFloat(customHeight),
+  };
+  const customSizeValid = isValidCustomSize(parsedCustomSize);
+  const customSize: CustomSize | null =
+    format === 'custom' && customSizeValid ? parsedCustomSize : null;
+
+
+
   const [image, setImage] = useState<string | null>(null);
   const [imageFinal, setImageFinal] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
