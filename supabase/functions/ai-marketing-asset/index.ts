@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
             },
             {
               role: "user",
-              content: `Create copy for this ${body.format ?? "poster"}.\n${facts}`,
+              content: `Create copy for this ${body.format ?? "poster"}.\n${userFacts}`,
             },
           ],
           response_format: { type: "json_object" },
