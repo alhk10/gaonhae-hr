@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText, Upload, X, Type } from 'lucide-react';
+import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText, Upload, X, Type, Code2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { formatDateTime } from '@/utils/dateFormat';
 import {
