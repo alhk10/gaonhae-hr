@@ -809,7 +809,7 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               <Button size="sm" variant="outline" onClick={() => handleDownload('png')} disabled={!image}>
                 <Download className="h-3.5 w-3.5 mr-1" /> PNG
               </Button>
-              {format === 'poster' && (
+              {(format === 'poster' || format === 'custom') && (
                 <Button size="sm" variant="outline" onClick={() => handleDownload('pdf')} disabled={!image}>
                   <Download className="h-3.5 w-3.5 mr-1" /> PDF
                 </Button>
