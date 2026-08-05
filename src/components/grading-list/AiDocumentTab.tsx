@@ -154,6 +154,40 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const textKey = JSON.stringify(TEXT_FIELD_KEYS.map((k) => details[k] || ''));
   const textDirty = Boolean(image && textSnapshot !== null && textSnapshot !== textKey);
 
+  // ---- Prompt preview / manual override -------------------------------
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptTab, setPromptTab] = useState<'image' | 'copy'>('image');
+  const [promptOverride, setPromptOverride] = useState<string | null>(null);
+  const [copyPromptOverride, setCopyPromptOverride] = useState<string | null>(null);
+
+  const autoImagePrompt = useMemo(
+    () =>
+      textDirty
+        ? buildTextEditPrompt(details)
+        : buildImagePrompt(format, details, {
+            blendAssets: blending,
+            hasQr: blending && hasQr,
+            hasLogo: blending && hasLogo,
+            customSize,
+          }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [format, textKey, artDirection, branchName, blending, hasQr, hasLogo, customSize?.widthCm, customSize?.heightCm, textDirty],
+  );
+
+  const autoCopyPrompt = useMemo(
+    () =>
+      Object.entries(buildCopyDetails(format, details, customSize))
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [format, textKey, branchName, customSize?.widthCm, customSize?.heightCm],
+  );
+
+  const imagePromptValue = promptOverride ?? autoImagePrompt;
+  const copyPromptValue = copyPromptOverride ?? autoCopyPrompt;
+
+
+
 
   const refreshHistory = useCallback(async () => {
     try {
