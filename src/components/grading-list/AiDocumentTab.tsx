@@ -310,14 +310,16 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       const sentLogo = brandAssets.some((a) => a.kind === 'logo');
       const sentQr = brandAssets.some((a) => a.kind === 'qr');
 
-      const prompt = textOnly
-        ? buildTextEditPrompt(details)
-        : buildImagePrompt(format, details, {
-            blendAssets: blending,
-            hasQr: sentQr,
-            hasLogo: sentLogo,
-            customSize,
-          });
+      const prompt =
+        promptOverride ??
+        (textOnly
+          ? buildTextEditPrompt(details)
+          : buildImagePrompt(format, details, {
+              blendAssets: blending,
+              hasQr: sentQr,
+              hasLogo: sentLogo,
+              customSize,
+            }));
 
       await generateImage(
         password,
