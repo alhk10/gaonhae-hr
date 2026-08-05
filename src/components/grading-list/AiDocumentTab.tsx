@@ -450,7 +450,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setBlendedIn({ qr: false, logo: false });
     setForceOverlayQr(false);
     if (row.model) setModel(row.model);
+    setPromptOverride(i.prompt ? i.prompt : null);
+    setCopyPromptOverride(i.copyPromptEdited && i.copyPrompt ? i.copyPrompt : null);
     setCopyData({ ...EMPTY_COPY, ...(row.copy || {}) });
+
 
     // Restore reference images
     const paths = row.reference_paths || [];
