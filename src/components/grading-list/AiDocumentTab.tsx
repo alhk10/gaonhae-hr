@@ -427,6 +427,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       blendAssets?: boolean;
       customWidthCm?: number;
       customHeightCm?: number;
+      prompt?: string;
+      promptEdited?: boolean;
+      copyPrompt?: string;
+      copyPromptEdited?: boolean;
     };
     setFormat((row.format as AssetFormat) || 'poster');
     setCustomWidth(String(i.customWidthCm ?? CUSTOM_SIZE_DEFAULT.widthCm));
