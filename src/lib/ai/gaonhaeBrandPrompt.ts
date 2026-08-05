@@ -111,7 +111,10 @@ export interface ImagePromptOptions {
   blendAssets?: boolean;
   hasQr?: boolean;
   hasLogo?: boolean;
+  /** Target print size when format === 'custom'. */
+  customSize?: CustomSize | null;
 }
+
 
 function blendBlock(opts: ImagePromptOptions): string {
   const lines: string[] = [
