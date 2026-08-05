@@ -30,6 +30,7 @@ interface Body {
   mode?: "copy" | "image";
   format?: "poster" | "square" | "reel" | "custom";
   prompt?: string;
+  promptOverride?: string;
   model?: string;
   baseImage?: string;
   references?: RefImage[];
