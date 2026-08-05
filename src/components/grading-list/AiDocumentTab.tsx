@@ -380,9 +380,14 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       logoChoice?: LogoChoice;
       refNotes?: string[];
       blendAssets?: boolean;
+      customWidthCm?: number;
+      customHeightCm?: number;
     };
     setFormat((row.format as AssetFormat) || 'poster');
+    setCustomWidth(String(i.customWidthCm ?? CUSTOM_SIZE_DEFAULT.widthCm));
+    setCustomHeight(String(i.customHeightCm ?? CUSTOM_SIZE_DEFAULT.heightCm));
     setBranchId(row.branch_id || 'none');
+
     setHeadline(i.headline || '');
     setPricing(i.pricing || '');
     setDateTime(i.dateTime || '');
