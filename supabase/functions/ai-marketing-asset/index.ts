@@ -30,6 +30,7 @@ interface Body {
   mode?: "copy" | "image";
   format?: "poster" | "square" | "reel" | "custom";
   prompt?: string;
+  promptOverride?: string;
   model?: string;
   baseImage?: string;
   references?: RefImage[];
@@ -87,6 +88,8 @@ Deno.serve(async (req) => {
         .filter(([, v]) => v && String(v).trim())
         .map(([k, v]) => `${k}: ${v}`)
         .join("\n");
+      const userFacts = body.promptOverride?.trim() ? body.promptOverride.trim() : facts;
+
 
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -107,7 +110,7 @@ Deno.serve(async (req) => {
             },
             {
               role: "user",
-              content: `Create copy for this ${body.format ?? "poster"}.\n${facts}`,
+              content: `Create copy for this ${body.format ?? "poster"}.\n${userFacts}`,
             },
           ],
           response_format: { type: "json_object" },

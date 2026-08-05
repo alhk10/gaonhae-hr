@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText, Upload, X, Type } from 'lucide-react';
+import { Loader2, Sparkles, Download, Copy, Trash2, ImageIcon, FileText, Upload, X, Type, Code2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { formatDateTime } from '@/utils/dateFormat';
 import {
@@ -154,6 +154,40 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const textKey = JSON.stringify(TEXT_FIELD_KEYS.map((k) => details[k] || ''));
   const textDirty = Boolean(image && textSnapshot !== null && textSnapshot !== textKey);
 
+  // ---- Prompt preview / manual override -------------------------------
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptTab, setPromptTab] = useState<'image' | 'copy'>('image');
+  const [promptOverride, setPromptOverride] = useState<string | null>(null);
+  const [copyPromptOverride, setCopyPromptOverride] = useState<string | null>(null);
+
+  const autoImagePrompt = useMemo(
+    () =>
+      textDirty
+        ? buildTextEditPrompt(details)
+        : buildImagePrompt(format, details, {
+            blendAssets: blending,
+            hasQr: blending && hasQr,
+            hasLogo: blending && hasLogo,
+            customSize,
+          }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [format, textKey, artDirection, branchName, blending, hasQr, hasLogo, customSize?.widthCm, customSize?.heightCm, textDirty],
+  );
+
+  const autoCopyPrompt = useMemo(
+    () =>
+      Object.entries(buildCopyDetails(format, details, customSize))
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [format, textKey, branchName, customSize?.widthCm, customSize?.heightCm],
+  );
+
+  const imagePromptValue = promptOverride ?? autoImagePrompt;
+  const copyPromptValue = copyPromptOverride ?? autoCopyPrompt;
+
+
+
 
   const refreshHistory = useCallback(async () => {
     try {
@@ -212,7 +246,12 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
   const runCopyGeneration = async (): Promise<any | null> => {
     setCopyLoading(true);
     try {
-      const c = await generateCopy(password, format, buildCopyDetails(format, details, customSize));
+      const c = await generateCopy(
+        password,
+        format,
+        buildCopyDetails(format, details, customSize),
+        copyPromptOverride,
+      );
       setCopyData(c);
       return c;
     } catch (e: any) {
@@ -271,14 +310,16 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       const sentLogo = brandAssets.some((a) => a.kind === 'logo');
       const sentQr = brandAssets.some((a) => a.kind === 'qr');
 
-      const prompt = textOnly
-        ? buildTextEditPrompt(details)
-        : buildImagePrompt(format, details, {
-            blendAssets: blending,
-            hasQr: sentQr,
-            hasLogo: sentLogo,
-            customSize,
-          });
+      const prompt =
+        promptOverride ??
+        (textOnly
+          ? buildTextEditPrompt(details)
+          : buildImagePrompt(format, details, {
+              blendAssets: blending,
+              hasQr: sentQr,
+              hasLogo: sentLogo,
+              customSize,
+            }));
 
       await generateImage(
         password,
@@ -330,6 +371,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               customWidthCm: customSize?.widthCm,
               customHeightCm: customSize?.heightCm,
               refNotes: references.map((r) => r.note || ''),
+              prompt,
+              promptEdited: promptOverride !== null,
+              copyPrompt: copyPromptValue,
+              copyPromptEdited: copyPromptOverride !== null,
             },
 
             copy: freshCopy ?? copyData,
@@ -382,6 +427,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
       blendAssets?: boolean;
       customWidthCm?: number;
       customHeightCm?: number;
+      prompt?: string;
+      promptEdited?: boolean;
+      copyPrompt?: string;
+      copyPromptEdited?: boolean;
     };
     setFormat((row.format as AssetFormat) || 'poster');
     setCustomWidth(String(i.customWidthCm ?? CUSTOM_SIZE_DEFAULT.widthCm));
@@ -401,7 +450,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
     setBlendedIn({ qr: false, logo: false });
     setForceOverlayQr(false);
     if (row.model) setModel(row.model);
+    setPromptOverride(i.prompt ? i.prompt : null);
+    setCopyPromptOverride(i.copyPromptEdited && i.copyPrompt ? i.copyPrompt : null);
     setCopyData({ ...EMPTY_COPY, ...(row.copy || {}) });
+
 
     // Restore reference images
     const paths = row.reference_paths || [];
@@ -693,6 +745,90 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                 </p>
               )}
             </div>
+
+            {/* Prompt preview / manual edit */}
+            <div className="rounded-md border">
+              <button
+                type="button"
+                onClick={() => setPromptOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-2 py-1.5"
+              >
+                <span className="text-xs font-medium flex items-center gap-1">
+                  <Code2 className="h-3.5 w-3.5" /> Prompt
+                  {(promptOverride !== null || copyPromptOverride !== null) && (
+                    <span className="text-[10px] text-amber-600">(manually edited)</span>
+                  )}
+                </span>
+                {promptOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+
+              {promptOpen && (
+                <div className="p-2 pt-0 space-y-2">
+                  <div className="flex gap-1">
+                    {(['image', 'copy'] as const).map((t) => (
+                      <Button
+                        key={t}
+                        type="button"
+                        size="sm"
+                        variant={promptTab === t ? 'secondary' : 'ghost'}
+                        className="h-6 text-[11px] px-2"
+                        onClick={() => setPromptTab(t)}
+                      >
+                        {t === 'image' ? (textDirty ? 'Text-update prompt' : 'Artwork prompt') : 'Caption prompt'}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {promptTab === 'image' ? (
+                    <Textarea
+                      className="text-[11px] font-mono min-h-[200px]"
+                      value={imagePromptValue}
+                      onChange={(e) => setPromptOverride(e.target.value)}
+                    />
+                  ) : (
+                    <Textarea
+                      className="text-[11px] font-mono min-h-[140px]"
+                      value={copyPromptValue}
+                      onChange={(e) => setCopyPromptOverride(e.target.value)}
+                    />
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] px-2"
+                      disabled={promptTab === 'image' ? promptOverride === null : copyPromptOverride === null}
+                      onClick={() =>
+                        promptTab === 'image' ? setPromptOverride(null) : setCopyPromptOverride(null)
+                      }
+                    >
+                      Reset to auto
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] px-2"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(
+                          promptTab === 'image' ? imagePromptValue : copyPromptValue,
+                        );
+                        toast.success('Prompt copied');
+                      }}
+                    >
+                      <Copy className="h-3 w-3 mr-1" /> Copy
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Edits here are sent to the AI as-is. Reset to auto to follow the form fields again.
+                  </p>
+                </div>
+              )}
+            </div>
+
+
 
 
             <div className="flex gap-2 pt-1 flex-wrap">
