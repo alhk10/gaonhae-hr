@@ -198,8 +198,13 @@ export function buildTextEditPrompt(details: AssetDetails): string {
   ].join('\n');
 }
 
-export function buildCopyDetails(format: AssetFormat, details: AssetDetails): Record<string, string> {
-  const out: Record<string, string> = { format };
+export function buildCopyDetails(
+  format: AssetFormat,
+  details: AssetDetails,
+  customSize?: CustomSize | null,
+): Record<string, string> {
+  const out: Record<string, string> = { format: formatLabelFor(format, customSize) };
+
   if (details.headline) out['Event / headline'] = details.headline;
   if (details.branchName) out['Branch'] = details.branchName;
   if (details.pricing) out['Pricing'] = details.pricing;
