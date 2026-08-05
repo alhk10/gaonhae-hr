@@ -371,6 +371,10 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               customWidthCm: customSize?.widthCm,
               customHeightCm: customSize?.heightCm,
               refNotes: references.map((r) => r.note || ''),
+              prompt,
+              promptEdited: promptOverride !== null,
+              copyPrompt: copyPromptValue,
+              copyPromptEdited: copyPromptOverride !== null,
             },
 
             copy: freshCopy ?? copyData,
