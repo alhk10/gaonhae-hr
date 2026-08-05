@@ -742,7 +742,13 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{row.inputs?.headline || 'Untitled'}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {FORMAT_LABELS[(row.format as AssetFormat)] || row.format} · {formatDateTime(row.created_at)}
+                          {formatLabelFor(
+                            (row.format as AssetFormat) || 'poster',
+                            row.inputs?.customWidthCm && row.inputs?.customHeightCm
+                              ? { widthCm: row.inputs.customWidthCm, heightCm: row.inputs.customHeightCm }
+                              : null,
+                          )} · {formatDateTime(row.created_at)}
+
                         </p>
                       </div>
                     </button>
