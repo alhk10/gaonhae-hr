@@ -147,8 +147,13 @@ export function buildImagePrompt(
 ): string {
   const blending = Boolean(opts.blendAssets && (opts.hasQr || opts.hasLogo));
   const composition =
-    blending && format === 'poster' ? POSTER_COMPOSITION_BLENDED : FORMAT_COMPOSITION[format];
+    format === 'custom'
+      ? customComposition(opts.customSize ?? CUSTOM_SIZE_DEFAULT)
+      : blending && format === 'poster'
+        ? POSTER_COMPOSITION_BLENDED
+        : FORMAT_COMPOSITION[format];
   const parts: string[] = [GAONHAE_BRAND_PROMPT, composition];
+
 
   if (details.branchName) parts.push(`Branch: ${details.branchName}.`);
 
