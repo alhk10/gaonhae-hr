@@ -746,6 +746,90 @@ const AiDocumentTab: React.FC<Props> = ({ password }) => {
               )}
             </div>
 
+            {/* Prompt preview / manual edit */}
+            <div className="rounded-md border">
+              <button
+                type="button"
+                onClick={() => setPromptOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-2 py-1.5"
+              >
+                <span className="text-xs font-medium flex items-center gap-1">
+                  <Code2 className="h-3.5 w-3.5" /> Prompt
+                  {(promptOverride !== null || copyPromptOverride !== null) && (
+                    <span className="text-[10px] text-amber-600">(manually edited)</span>
+                  )}
+                </span>
+                {promptOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+
+              {promptOpen && (
+                <div className="p-2 pt-0 space-y-2">
+                  <div className="flex gap-1">
+                    {(['image', 'copy'] as const).map((t) => (
+                      <Button
+                        key={t}
+                        type="button"
+                        size="sm"
+                        variant={promptTab === t ? 'secondary' : 'ghost'}
+                        className="h-6 text-[11px] px-2"
+                        onClick={() => setPromptTab(t)}
+                      >
+                        {t === 'image' ? (textDirty ? 'Text-update prompt' : 'Artwork prompt') : 'Caption prompt'}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {promptTab === 'image' ? (
+                    <Textarea
+                      className="text-[11px] font-mono min-h-[200px]"
+                      value={imagePromptValue}
+                      onChange={(e) => setPromptOverride(e.target.value)}
+                    />
+                  ) : (
+                    <Textarea
+                      className="text-[11px] font-mono min-h-[140px]"
+                      value={copyPromptValue}
+                      onChange={(e) => setCopyPromptOverride(e.target.value)}
+                    />
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] px-2"
+                      disabled={promptTab === 'image' ? promptOverride === null : copyPromptOverride === null}
+                      onClick={() =>
+                        promptTab === 'image' ? setPromptOverride(null) : setCopyPromptOverride(null)
+                      }
+                    >
+                      Reset to auto
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] px-2"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(
+                          promptTab === 'image' ? imagePromptValue : copyPromptValue,
+                        );
+                        toast.success('Prompt copied');
+                      }}
+                    >
+                      <Copy className="h-3 w-3 mr-1" /> Copy
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Edits here are sent to the AI as-is. Reset to auto to follow the form fields again.
+                  </p>
+                </div>
+              )}
+            </div>
+
+
+
 
             <div className="flex gap-2 pt-1 flex-wrap">
               {textDirty ? (
