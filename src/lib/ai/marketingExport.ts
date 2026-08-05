@@ -5,8 +5,9 @@ import calligraphyLogoUrl from '@/assets/logo/gaonhae-calligraphy-logo.jpg';
 import seminarsQr from '@/assets/qr/seminars-qr-code.png';
 import compsQr from '@/assets/qr/gaonhae_comps_qr.png';
 import payQr from '@/assets/qr/gaonhae-pay-qr.png';
+import websiteQr from '@/assets/qr/gaonhae-website-qr.png';
 
-export type QrChoice = 'none' | 'seminars' | 'competitions' | 'payment';
+export type QrChoice = 'none' | 'seminars' | 'competitions' | 'payment' | 'website';
 export type LogoChoice = 'none' | 'mark' | 'calligraphy';
 
 export const QR_OPTIONS: { value: QrChoice; label: string; src: string | null }[] = [
@@ -14,7 +15,9 @@ export const QR_OPTIONS: { value: QrChoice; label: string; src: string | null }[
   { value: 'seminars', label: 'Seminars', src: seminarsQr },
   { value: 'competitions', label: 'Competitions', src: compsQr },
   { value: 'payment', label: 'Payment', src: payQr },
+  { value: 'website', label: 'Website', src: websiteQr },
 ];
+
 
 export const LOGO_OPTIONS: { value: LogoChoice; label: string; src: string | null }[] = [
   { value: 'none', label: 'No logo', src: null },
