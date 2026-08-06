@@ -605,7 +605,7 @@ export const createInvoiceForPurchase = async (
   }> = [];
   let totalAdjustment = 0;
   for (const ci of cart) {
-    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections);
+    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections, ci);
     allItems.push(...res.items);
     totalAdjustment += res.adjustment;
   }
