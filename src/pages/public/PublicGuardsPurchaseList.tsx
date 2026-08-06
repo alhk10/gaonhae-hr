@@ -193,8 +193,14 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
     <div className="min-h-screen bg-muted/30 p-3">
       <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h1 className="text-lg font-semibold">Guards Purchase List</h1>
+          <h1 className="text-lg font-semibold">Uniforms and Guards Purchase List</h1>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setProductSettingsOpen(true)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Settings
+          </Button>
         </div>
+
+        <GuardsProductSettingsDialog open={productSettingsOpen} onOpenChange={setProductSettingsOpen} />
+
 
         <Card>
           <CardContent className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
