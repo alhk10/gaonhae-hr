@@ -71,6 +71,21 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
     enabled: open,
   });
 
+  const { data: branches = [] } = useQuery({
+    queryKey: ['public-branches'],
+    queryFn: getPublicBranches,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const toggleInList = (key: 'branch_ids' | 'belts', value: string) => {
+    setForm(f => ({
+      ...f,
+      [key]: (f[key] as string[]).includes(value)
+        ? (f[key] as string[]).filter(v => v !== value)
+        : [...(f[key] as string[]), value],
+    }));
+  };
+
   useEffect(() => {
     if (!open) setForm(emptyForm());
   }, [open]);
