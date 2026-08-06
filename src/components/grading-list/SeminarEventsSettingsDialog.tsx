@@ -533,6 +533,73 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
               </div>
             </div>
 
+            {/* Targeting */}
+            <div className="space-y-3 border rounded p-2">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Branches</Label>
+                  {form.branch_ids.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => setForm(f => ({ ...f, branch_ids: [] }))}
+                    >
+                      Clear (all branches)
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Leave all unticked to offer this event to every branch.
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {branches.map(b => (
+                    <div key={b.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`sem-branch-${b.id}`}
+                        checked={form.branch_ids.includes(b.id)}
+                        onCheckedChange={() => toggleInList('branch_ids', b.id)}
+                      />
+                      <Label htmlFor={`sem-branch-${b.id}`} className="text-xs font-normal cursor-pointer">
+                        {b.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Belts</Label>
+                  {form.belts.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => setForm(f => ({ ...f, belts: [] }))}
+                    >
+                      Clear (all belts)
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Leave all unticked to offer this event to every belt level.
+                </p>
+                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto pr-1">
+                  {ALL_BELTS.map(b => (
+                    <div key={b} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`sem-belt-${b}`}
+                        checked={form.belts.includes(b)}
+                        onCheckedChange={() => toggleInList('belts', b)}
+                      />
+                      <Label htmlFor={`sem-belt-${b}`} className="text-xs font-normal cursor-pointer">
+                        {b}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Requirements */}
             <div className="space-y-2 border rounded p-2">
               <Label className="text-xs font-medium">Required uploads</Label>
