@@ -503,12 +503,39 @@ const variantLabel = (sel?: VariantSelection): string | undefined => {
 };
 
 const buildLinesForKey = async (
-  key: GuardsProductKey,
+  key: string,
   qty: number,
   gender: string | null,
   selections: VariantSelectionsMap | null,
+  cartItem?: GuardsCartItem,
 ): Promise<BuildLineItemsResult> => {
+  if (key !== 'gaonhae_set' && key !== 'adidas_set') {
+    // Individual catalogue product ordered directly.
+    const productId = cartItem?.product_id || key;
+    const { data: prod } = await supabase
+      .from('products')
+      .select('id, name, base_price')
+      .eq('id', productId)
+      .maybeSingle();
+    const unitInc = Number(cartItem?.unit_price_inc || 0);
+    const targetInc = unitInc * qty;
+    const targetEx = Number((targetInc / (1 + GST_RATE)).toFixed(2));
+    const unitEx = Number((targetEx / qty).toFixed(2));
+    const sel = selections?.[productId];
+    const items = prod
+      ? [{
+          product_id: prod.id,
+          description: prod.name,
+          quantity: qty,
+          unit_price: unitEx,
+          size_variant: variantLabel(sel),
+          metadata: sel ? { size: sel.size, color: sel.color, gender: sel.gender } : undefined,
+        }]
+      : [];
+    return { items, adjustment: 0, targetInc };
+  }
   if (key === 'gaonhae_set') {
+
     const groinSel = selections?.[GAONHAE_GROIN_KEY];
     const chosenGender = groinSel?.gender || ((gender || '').toLowerCase() === 'female' ? 'female' : 'male');
     const groinId = chosenGender === 'female'
