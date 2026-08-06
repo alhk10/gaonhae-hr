@@ -49,11 +49,83 @@ export const ADIDAS_COMPONENT_IDS = {
 };
 
 export interface GuardsCartItem {
-  key: GuardsProductKey;
+  key: string;
   label: string;
   qty: number;
   unit_price_inc: number;
+  /** Set for individual catalogue products (null for the bundled packages). */
+  product_id?: string | null;
+  /** Variant requirements carried through so staff can pick sizes/colours later. */
+  requires_size?: boolean;
+  sizes?: string[];
+  requires_color?: boolean;
 }
+
+/** An item offered on /guards for a given branch. */
+export interface GuardsBranchItem {
+  item_key: string;
+  product_id: string | null;
+  item_type: 'package' | 'product';
+  name: string;
+  description: string | null;
+  price: number;
+  requires_size: boolean;
+  available_sizes: string[] | null;
+  requires_color: boolean;
+}
+
+/** Admin view of every candidate item for a branch, with its current setting. */
+export interface GuardsBranchAdminItem {
+  item_key: string;
+  product_id: string | null;
+  item_type: 'package' | 'product';
+  name: string;
+  description: string | null;
+  default_price: number;
+  is_available: boolean;
+  price_override: number | null;
+}
+
+/** Items available for purchase on the public page for a branch. */
+export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsBranchItem[]> => {
+  const { data, error } = await supabase.rpc('get_public_guards_products' as any, { p_branch_id: branchId });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    price: Number(r.price),
+    available_sizes: r.available_sizes || null,
+  })) as GuardsBranchItem[];
+};
+
+export const getGuardsProductsForBranchAdmin = async (branchId: string): Promise<GuardsBranchAdminItem[]> => {
+  const { data, error } = await supabase.rpc('get_guards_products_for_branch_admin' as any, { p_branch_id: branchId });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    default_price: Number(r.default_price ?? 0),
+    price_override: r.price_override === null || r.price_override === undefined ? null : Number(r.price_override),
+  })) as GuardsBranchAdminItem[];
+};
+
+export const setGuardsProductBranchSetting = async (
+  branchId: string,
+  itemKey: string,
+  productId: string | null,
+  available: boolean,
+  priceOverride: number | null,
+  actor?: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_guards_product_branch_setting' as any, {
+    p_branch_id: branchId,
+    p_item_key: itemKey,
+    p_product_id: productId,
+    p_available: available,
+    p_price_override: priceOverride,
+    p_actor: actor || null,
+  });
+  if (error) throw error;
+};
+
 
 export interface SubmitGuardsPurchaseInput {
   first_name: string;
