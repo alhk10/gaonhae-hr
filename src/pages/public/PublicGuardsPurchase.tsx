@@ -90,7 +90,7 @@ const PublicGuardsPurchase: React.FC = () => {
   const [currentBelt, setCurrentBelt] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [qty, setQty] = useState<Record<GuardsProductKey, number>>({ gaonhae_set: 0, adidas_set: 0 });
+  const [qty, setQty] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -106,15 +106,25 @@ const PublicGuardsPurchase: React.FC = () => {
     enabled: !!branchId,
   });
 
-  const items = useMemo(() => GUARDS_CATALOG.map(p => ({
+  const { data: catalog = [], isLoading: catalogLoading } = useQuery({
+    queryKey: ['public-guards-products', branchId],
+    queryFn: () => getPublicGuardsProducts(branchId),
+    enabled: !!branchId,
+  });
+
+  // Clear selections whenever the branch (and therefore the catalogue) changes
+  React.useEffect(() => { setQty({}); }, [branchId]);
+
+  const items = useMemo(() => catalog.map(p => ({
     ...p,
-    qty: qty[p.key] || 0,
-  })), [qty]);
+    qty: qty[p.item_key] || 0,
+  })), [catalog, qty]);
 
   const cartItems = items.filter(i => i.qty > 0);
-  const totalInc = cartItems.reduce((s, i) => s + i.priceInc * i.qty, 0);
+  const totalInc = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
   const gstAmount = isSingapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
   const subtotalEx = totalInc - gstAmount;
+
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const detailsFilled = !!firstName.trim() && !!lastName.trim() && !!branchId;
