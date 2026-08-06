@@ -1,0 +1,1 @@
+ALTER TABLE public.seminar_payment_submissions DROP CONSTRAINT IF EXISTS seminar_payment_submissions_package_code_check;
