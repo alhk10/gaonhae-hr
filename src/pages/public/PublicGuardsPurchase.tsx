@@ -286,25 +286,29 @@ const PublicGuardsPurchase: React.FC = () => {
                   <div className="space-y-2">
                     <Label>Items *</Label>
                     <div className="space-y-3 rounded-md border p-3">
-                      {GUARDS_CATALOG.map(p => {
-                        const q = qty[p.key] || 0;
+                      {catalogLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading items…</p>
+                      ) : catalog.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No items are available for this branch yet.</p>
+                      ) : catalog.map(p => {
+                        const q = qty[p.item_key] || 0;
                         return (
-                          <div key={p.key} className="space-y-2">
+                          <div key={p.item_key} className="space-y-2">
                             <div className="flex items-start gap-2">
                               <Checkbox
-                                id={`item-${p.key}`}
+                                id={`item-${p.item_key}`}
                                 checked={q > 0}
-                                onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.key]: c ? 1 : 0 }))}
+                                onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.item_key]: c ? 1 : 0 }))}
                               />
                               <div className="flex-1">
-                                <Label htmlFor={`item-${p.key}`} className="text-sm font-medium cursor-pointer">
-                                  {p.label} — ${p.priceInc.toFixed(2)}
+                                <Label htmlFor={`item-${p.item_key}`} className="text-sm font-medium cursor-pointer">
+                                  {p.name} — ${p.price.toFixed(2)}
                                 </Label>
-                                <p className="text-xs text-muted-foreground">{p.description}</p>
-                                {p.key === 'gaonhae_set' && q > 0 && (
+                                {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                                {p.item_key === 'gaonhae_set' && q > 0 && (
                                   <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
                                 )}
-                                {p.key === 'adidas_set' && q > 0 && (
+                                {p.item_key === 'adidas_set' && q > 0 && (
                                   <p className="text-xs text-amber-700 italic mt-1">Please expect a 3 to 4 week wait time after order has been verified.</p>
                                 )}
                               </div>
@@ -317,7 +321,7 @@ const PublicGuardsPurchase: React.FC = () => {
                                   min={1}
                                   max={10}
                                   value={q}
-                                  onChange={e => setQty(prev => ({ ...prev, [p.key]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                  onChange={e => setQty(prev => ({ ...prev, [p.item_key]: Math.max(1, parseInt(e.target.value) || 1) }))}
                                   className="h-7 w-16"
                                 />
                               </div>
@@ -326,6 +330,7 @@ const PublicGuardsPurchase: React.FC = () => {
                         );
                       })}
                     </div>
+
                   </div>
 
                   {cartItems.length > 0 && (
