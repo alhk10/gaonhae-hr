@@ -518,7 +518,7 @@ const PublicSeminarPayment: React.FC = () => {
 
 
                   <div className="space-y-2">
-                    <Label>Seminar Package{multiSelectAllowed ? 's' : ''} *</Label>
+                    <Label>Event Package{multiSelectAllowed ? 's' : ''} *</Label>
                     {multiSelectAllowed && (
                       <p className="text-xs text-muted-foreground">
                         Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.
