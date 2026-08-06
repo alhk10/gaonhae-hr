@@ -17,11 +17,11 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import { useBranches } from '@/hooks/useBranches';
 import {
-  GUARDS_CATALOG,
   GST_RATE,
   submitGuardsPurchase,
-  type GuardsProductKey,
+  getPublicGuardsProducts,
 } from '@/services/guardsPurchaseService';
+
 import { getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionService';
 import { useQuery } from '@tanstack/react-query';
 
