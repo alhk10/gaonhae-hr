@@ -26,6 +26,10 @@ import {
   type SeminarEvent,
   type SeminarPackageOption,
 } from '@/services/seminarPaymentSubmissionService';
+import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
+import { SG_BELT_LEVELS, AU_BELT_LEVELS } from '@/constants/beltLevels';
+
+const ALL_BELTS: string[] = Array.from(new Set([...SG_BELT_LEVELS, ...AU_BELT_LEVELS]));
 
 interface Props {
   open: boolean;
