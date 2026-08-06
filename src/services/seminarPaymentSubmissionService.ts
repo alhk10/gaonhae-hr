@@ -27,6 +27,10 @@ export interface SeminarEvent {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  /** Empty = available to all branches */
+  branch_ids: string[];
+  /** Empty = available to all belts */
+  belts: string[];
 }
 
 /**
