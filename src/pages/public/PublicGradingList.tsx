@@ -1253,7 +1253,7 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
-            <TabsTrigger value="guards">Guards</TabsTrigger>
+            <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
           <TabsContent value="summary" className="space-y-4 mt-4">

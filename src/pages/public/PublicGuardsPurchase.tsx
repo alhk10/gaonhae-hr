@@ -213,8 +213,8 @@ const PublicGuardsPurchase: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Protection Guards Order</h1>
-          <p className="text-sm text-muted-foreground">Order your Gaonhae or Adidas protection gear</p>
+          <h1 className="text-2xl font-semibold">Uniforms and Guards Purchase</h1>
+          <p className="text-sm text-muted-foreground">Order Gaonhae uniforms, apparel and protection gear</p>
         </div>
 
         <Card>
