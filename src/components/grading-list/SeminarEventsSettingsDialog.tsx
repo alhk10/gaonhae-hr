@@ -48,6 +48,8 @@ const emptyForm = () => ({
   require_photo: false,
   require_grading_card: false,
   multi_package_discount: false,
+  branch_ids: [] as string[],
+  belts: [] as string[],
 });
 
 const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
