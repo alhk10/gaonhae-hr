@@ -332,9 +332,9 @@ const PublicSeminarPayment: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Seminar Registration</h1>
+          <h1 className="text-2xl font-semibold">Event Registration</h1>
           <p className="text-sm text-muted-foreground">
-            {selectedEvent?.name || 'Select a seminar to begin'}
+            {selectedEvent?.name || 'Enter your details, then choose an event'}
           </p>
         </div>
 
