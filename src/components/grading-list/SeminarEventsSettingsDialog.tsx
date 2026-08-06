@@ -91,6 +91,8 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
       multi_package_discount: e.multi_package_discount === true,
+      branch_ids: Array.isArray(e.branch_ids) ? [...e.branch_ids] : [],
+      belts: Array.isArray(e.belts) ? [...e.belts] : [],
     });
     requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
