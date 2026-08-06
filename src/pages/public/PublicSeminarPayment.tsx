@@ -122,7 +122,7 @@ const PublicSeminarPayment: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [branchId, setBranchId] = useState<string>('bukit-merah');
+  const [branchId, setBranchId] = useState<string>('');
   const [dob, setDob] = useState<Date | undefined>();
   const [gender, setGender] = useState<string>('');
   const [currentBelt, setCurrentBelt] = useState<string>('');
