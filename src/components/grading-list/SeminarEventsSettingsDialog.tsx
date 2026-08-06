@@ -234,6 +234,8 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
         multi_package_discount: form.multi_package_discount,
+        branch_ids: form.branch_ids,
+        belts: form.belts,
       });
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['seminar-events-admin'] });
