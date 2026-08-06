@@ -49,11 +49,83 @@ export const ADIDAS_COMPONENT_IDS = {
 };
 
 export interface GuardsCartItem {
-  key: GuardsProductKey;
+  key: string;
   label: string;
   qty: number;
   unit_price_inc: number;
+  /** Set for individual catalogue products (null for the bundled packages). */
+  product_id?: string | null;
+  /** Variant requirements carried through so staff can pick sizes/colours later. */
+  requires_size?: boolean;
+  sizes?: string[];
+  requires_color?: boolean;
 }
+
+/** An item offered on /guards for a given branch. */
+export interface GuardsBranchItem {
+  item_key: string;
+  product_id: string | null;
+  item_type: 'package' | 'product';
+  name: string;
+  description: string | null;
+  price: number;
+  requires_size: boolean;
+  available_sizes: string[] | null;
+  requires_color: boolean;
+}
+
+/** Admin view of every candidate item for a branch, with its current setting. */
+export interface GuardsBranchAdminItem {
+  item_key: string;
+  product_id: string | null;
+  item_type: 'package' | 'product';
+  name: string;
+  description: string | null;
+  default_price: number;
+  is_available: boolean;
+  price_override: number | null;
+}
+
+/** Items available for purchase on the public page for a branch. */
+export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsBranchItem[]> => {
+  const { data, error } = await supabase.rpc('get_public_guards_products' as any, { p_branch_id: branchId });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    price: Number(r.price),
+    available_sizes: r.available_sizes || null,
+  })) as GuardsBranchItem[];
+};
+
+export const getGuardsProductsForBranchAdmin = async (branchId: string): Promise<GuardsBranchAdminItem[]> => {
+  const { data, error } = await supabase.rpc('get_guards_products_for_branch_admin' as any, { p_branch_id: branchId });
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    default_price: Number(r.default_price ?? 0),
+    price_override: r.price_override === null || r.price_override === undefined ? null : Number(r.price_override),
+  })) as GuardsBranchAdminItem[];
+};
+
+export const setGuardsProductBranchSetting = async (
+  branchId: string,
+  itemKey: string,
+  productId: string | null,
+  available: boolean,
+  priceOverride: number | null,
+  actor?: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_guards_product_branch_setting' as any, {
+    p_branch_id: branchId,
+    p_item_key: itemKey,
+    p_product_id: productId,
+    p_available: available,
+    p_price_override: priceOverride,
+    p_actor: actor || null,
+  });
+  if (error) throw error;
+};
+
 
 export interface SubmitGuardsPurchaseInput {
   first_name: string;
@@ -138,7 +210,15 @@ export const getComponentsForCart = (
     } else if (it.key === 'adidas_set') {
       out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
       out.push({ product_id: ADIDAS_COMPONENT_IDS.headgear, name: 'Adidas Headgear', sizes: ['XS','S','M','L','XL'], colors: ['Red','Blue'] });
+    } else if (it.requires_size || it.requires_color) {
+      out.push({
+        product_id: it.product_id || it.key,
+        name: it.label || 'Item',
+        sizes: Array.isArray(it.sizes) && it.sizes.length ? it.sizes : ['XS','S','M','L','XL'],
+        colors: it.requires_color ? ['Red','Blue','Black','White'] : [],
+      });
     }
+
   }
   return out;
 };
@@ -431,12 +511,39 @@ const variantLabel = (sel?: VariantSelection): string | undefined => {
 };
 
 const buildLinesForKey = async (
-  key: GuardsProductKey,
+  key: string,
   qty: number,
   gender: string | null,
   selections: VariantSelectionsMap | null,
+  cartItem?: GuardsCartItem,
 ): Promise<BuildLineItemsResult> => {
+  if (key !== 'gaonhae_set' && key !== 'adidas_set') {
+    // Individual catalogue product ordered directly.
+    const productId = cartItem?.product_id || key;
+    const { data: prod } = await supabase
+      .from('products')
+      .select('id, name, base_price')
+      .eq('id', productId)
+      .maybeSingle();
+    const unitInc = Number(cartItem?.unit_price_inc || 0);
+    const targetInc = unitInc * qty;
+    const targetEx = Number((targetInc / (1 + GST_RATE)).toFixed(2));
+    const unitEx = Number((targetEx / qty).toFixed(2));
+    const sel = selections?.[productId];
+    const items = prod
+      ? [{
+          product_id: prod.id,
+          description: prod.name,
+          quantity: qty,
+          unit_price: unitEx,
+          size_variant: variantLabel(sel),
+          metadata: sel ? { size: sel.size, color: sel.color, gender: sel.gender } : undefined,
+        }]
+      : [];
+    return { items, adjustment: 0, targetInc };
+  }
   if (key === 'gaonhae_set') {
+
     const groinSel = selections?.[GAONHAE_GROIN_KEY];
     const chosenGender = groinSel?.gender || ((gender || '').toLowerCase() === 'female' ? 'female' : 'male');
     const groinId = chosenGender === 'female'
@@ -506,7 +613,7 @@ export const createInvoiceForPurchase = async (
   }> = [];
   let totalAdjustment = 0;
   for (const ci of cart) {
-    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections);
+    const res = await buildLinesForKey(ci.key, ci.qty || 1, purchase.gender, selections, ci);
     allItems.push(...res.items);
     totalAdjustment += res.adjustment;
   }

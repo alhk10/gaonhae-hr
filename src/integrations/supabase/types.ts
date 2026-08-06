@@ -2285,6 +2285,50 @@ export type Database = {
         }
         Relationships: []
       }
+      guards_branch_products: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          is_available: boolean
+          item_key: string
+          price_override: number | null
+          product_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          item_key: string
+          price_override?: number | null
+          product_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          item_key?: string
+          price_override?: number | null
+          product_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guards_branch_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guards_purchases: {
         Row: {
           branch_id: string | null
@@ -7905,6 +7949,17 @@ export type Database = {
         Args: { p_id: string; p_urls: string[] }
         Returns: undefined
       }
+      admin_set_guards_product_branch_setting: {
+        Args: {
+          p_actor?: string
+          p_available: boolean
+          p_branch_id: string
+          p_item_key: string
+          p_price_override: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
       admin_set_seminar_event_active: {
         Args: { p_active: boolean; p_id: string }
         Returns: undefined
@@ -8232,6 +8287,19 @@ export type Database = {
           resign_date: string
           security_pin: string
           type: string
+        }[]
+      }
+      get_guards_products_for_branch_admin: {
+        Args: { p_branch_id: string }
+        Returns: {
+          default_price: number
+          description: string
+          is_available: boolean
+          item_key: string
+          item_type: string
+          name: string
+          price_override: number
+          product_id: string
         }[]
       }
       get_linked_students_for_auth: {
@@ -8566,6 +8634,20 @@ export type Database = {
           id: string
           start_time: string
           title: string
+        }[]
+      }
+      get_public_guards_products: {
+        Args: { p_branch_id: string }
+        Returns: {
+          available_sizes: string[]
+          description: string
+          item_key: string
+          item_type: string
+          name: string
+          price: number
+          product_id: string
+          requires_color: boolean
+          requires_size: boolean
         }[]
       }
       get_public_guards_purchase_list: {

@@ -17,11 +17,11 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import { useBranches } from '@/hooks/useBranches';
 import {
-  GUARDS_CATALOG,
   GST_RATE,
   submitGuardsPurchase,
-  type GuardsProductKey,
+  getPublicGuardsProducts,
 } from '@/services/guardsPurchaseService';
+
 import { getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionService';
 import { useQuery } from '@tanstack/react-query';
 
@@ -90,7 +90,7 @@ const PublicGuardsPurchase: React.FC = () => {
   const [currentBelt, setCurrentBelt] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [qty, setQty] = useState<Record<GuardsProductKey, number>>({ gaonhae_set: 0, adidas_set: 0 });
+  const [qty, setQty] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -106,15 +106,25 @@ const PublicGuardsPurchase: React.FC = () => {
     enabled: !!branchId,
   });
 
-  const items = useMemo(() => GUARDS_CATALOG.map(p => ({
+  const { data: catalog = [], isLoading: catalogLoading } = useQuery({
+    queryKey: ['public-guards-products', branchId],
+    queryFn: () => getPublicGuardsProducts(branchId),
+    enabled: !!branchId,
+  });
+
+  // Clear selections whenever the branch (and therefore the catalogue) changes
+  React.useEffect(() => { setQty({}); }, [branchId]);
+
+  const items = useMemo(() => catalog.map(p => ({
     ...p,
-    qty: qty[p.key] || 0,
-  })), [qty]);
+    qty: qty[p.item_key] || 0,
+  })), [catalog, qty]);
 
   const cartItems = items.filter(i => i.qty > 0);
-  const totalInc = cartItems.reduce((s, i) => s + i.priceInc * i.qty, 0);
+  const totalInc = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
   const gstAmount = isSingapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
   const subtotalEx = totalInc - gstAmount;
+
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const detailsFilled = !!firstName.trim() && !!lastName.trim() && !!branchId;
@@ -137,11 +147,16 @@ const PublicGuardsPurchase: React.FC = () => {
         email,
         phone,
         items: cartItems.map(i => ({
-          key: i.key,
-          label: i.label,
+          key: i.item_key,
+          label: i.name,
           qty: i.qty,
-          unit_price_inc: i.priceInc,
+          unit_price_inc: i.price,
+          product_id: i.product_id,
+          requires_size: i.requires_size,
+          sizes: i.available_sizes || undefined,
+          requires_color: i.requires_color,
         })),
+
         payment_method: paymentMethod,
         proof_file: proofFile,
         is_singapore: isSingapore,
@@ -198,8 +213,8 @@ const PublicGuardsPurchase: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Protection Guards Order</h1>
-          <p className="text-sm text-muted-foreground">Order your Gaonhae or Adidas protection gear</p>
+          <h1 className="text-2xl font-semibold">Uniforms and Guards Purchase</h1>
+          <p className="text-sm text-muted-foreground">Order Gaonhae uniforms, apparel and protection gear</p>
         </div>
 
         <Card>
@@ -271,25 +286,29 @@ const PublicGuardsPurchase: React.FC = () => {
                   <div className="space-y-2">
                     <Label>Items *</Label>
                     <div className="space-y-3 rounded-md border p-3">
-                      {GUARDS_CATALOG.map(p => {
-                        const q = qty[p.key] || 0;
+                      {catalogLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading items…</p>
+                      ) : catalog.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No items are available for this branch yet.</p>
+                      ) : catalog.map(p => {
+                        const q = qty[p.item_key] || 0;
                         return (
-                          <div key={p.key} className="space-y-2">
+                          <div key={p.item_key} className="space-y-2">
                             <div className="flex items-start gap-2">
                               <Checkbox
-                                id={`item-${p.key}`}
+                                id={`item-${p.item_key}`}
                                 checked={q > 0}
-                                onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.key]: c ? 1 : 0 }))}
+                                onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.item_key]: c ? 1 : 0 }))}
                               />
                               <div className="flex-1">
-                                <Label htmlFor={`item-${p.key}`} className="text-sm font-medium cursor-pointer">
-                                  {p.label} — ${p.priceInc.toFixed(2)}
+                                <Label htmlFor={`item-${p.item_key}`} className="text-sm font-medium cursor-pointer">
+                                  {p.name} — ${p.price.toFixed(2)}
                                 </Label>
-                                <p className="text-xs text-muted-foreground">{p.description}</p>
-                                {p.key === 'gaonhae_set' && q > 0 && (
+                                {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                                {p.item_key === 'gaonhae_set' && q > 0 && (
                                   <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
                                 )}
-                                {p.key === 'adidas_set' && q > 0 && (
+                                {p.item_key === 'adidas_set' && q > 0 && (
                                   <p className="text-xs text-amber-700 italic mt-1">Please expect a 3 to 4 week wait time after order has been verified.</p>
                                 )}
                               </div>
@@ -302,7 +321,7 @@ const PublicGuardsPurchase: React.FC = () => {
                                   min={1}
                                   max={10}
                                   value={q}
-                                  onChange={e => setQty(prev => ({ ...prev, [p.key]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                  onChange={e => setQty(prev => ({ ...prev, [p.item_key]: Math.max(1, parseInt(e.target.value) || 1) }))}
                                   className="h-7 w-16"
                                 />
                               </div>
@@ -311,6 +330,7 @@ const PublicGuardsPurchase: React.FC = () => {
                         );
                       })}
                     </div>
+
                   </div>
 
                   {cartItems.length > 0 && (
