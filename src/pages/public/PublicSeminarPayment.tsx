@@ -153,11 +153,25 @@ const PublicSeminarPayment: React.FC = () => {
     staleTime: 60 * 1000,
   });
 
-  const events = useMemo(() => allEvents.filter(e => e.is_active), [allEvents]);
+  const events = useMemo(() => {
+    return allEvents.filter((e) => {
+      if (!e.is_active) return false;
+      const branchOk = !e.branch_ids?.length || (!!branchId && e.branch_ids.includes(branchId));
+      const beltOk = !e.belts?.length || (!!currentBelt && e.belts.includes(currentBelt));
+      return branchOk && beltOk;
+    });
+  }, [allEvents, branchId, currentBelt]);
 
+  // Keep the selection valid as branch / belt change; auto-pick when only one fits.
   useEffect(() => {
-    if (!eventId && events.length > 0) setEventId(events[0].id);
+    if (eventId && !events.some(e => e.id === eventId)) {
+      setEventId('');
+      setPackageCodes([]);
+      return;
+    }
+    if (!eventId && events.length === 1) setEventId(events[0].id);
   }, [events, eventId]);
+
 
   const selectedEvent = useMemo(
     () => events.find(e => e.id === eventId) || null,
