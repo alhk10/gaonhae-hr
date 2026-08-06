@@ -153,11 +153,25 @@ const PublicSeminarPayment: React.FC = () => {
     staleTime: 60 * 1000,
   });
 
-  const events = useMemo(() => allEvents.filter(e => e.is_active), [allEvents]);
+  const events = useMemo(() => {
+    return allEvents.filter((e) => {
+      if (!e.is_active) return false;
+      const branchOk = !e.branch_ids?.length || (!!branchId && e.branch_ids.includes(branchId));
+      const beltOk = !e.belts?.length || (!!currentBelt && e.belts.includes(currentBelt));
+      return branchOk && beltOk;
+    });
+  }, [allEvents, branchId, currentBelt]);
 
+  // Keep the selection valid as branch / belt change; auto-pick when only one fits.
   useEffect(() => {
-    if (!eventId && events.length > 0) setEventId(events[0].id);
+    if (eventId && !events.some(e => e.id === eventId)) {
+      setEventId('');
+      setPackageCodes([]);
+      return;
+    }
+    if (!eventId && events.length === 1) setEventId(events[0].id);
   }, [events, eventId]);
+
 
   const selectedEvent = useMemo(
     () => events.find(e => e.id === eventId) || null,
@@ -318,9 +332,9 @@ const PublicSeminarPayment: React.FC = () => {
             alt="Gaonhae Taekwondo"
             className="h-[67px] w-auto mx-auto mb-3"
           />
-          <h1 className="text-2xl font-semibold">Seminar Registration</h1>
+          <h1 className="text-2xl font-semibold">Event Registration</h1>
           <p className="text-sm text-muted-foreground">
-            {selectedEvent?.name || 'Select a seminar to begin'}
+            {selectedEvent?.name || 'Enter your details, then choose an event'}
           </p>
         </div>
 
@@ -330,6 +344,91 @@ const PublicSeminarPayment: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value.toUpperCase())}
+                    placeholder="First name"
+                    maxLength={60}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value.toUpperCase())}
+                    placeholder="Last name"
+                    maxLength={60}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  maxLength={255}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch">Branch *</Label>
+                <Select value={branchId} onValueChange={setBranchId}>
+                  <SelectTrigger id="branch">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date of Birth *</Label>
+                <DobPicker value={dob} onChange={setDob} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender *</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger id="gender">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="belt">Current Belt *</Label>
+                <Select value={currentBelt} onValueChange={setCurrentBelt} disabled={!branchId}>
+                  <SelectTrigger id="belt">
+                    <SelectValue placeholder="Select current belt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {beltOptions.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div
                 className={
                   eventTouched
@@ -338,10 +437,10 @@ const PublicSeminarPayment: React.FC = () => {
                 }
               >
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="seminar-event">Seminar *</Label>
+                  <Label htmlFor="seminar-event">Event *</Label>
                   {!eventTouched && (
                     <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Select first
+                      Select
                     </span>
                   )}
                 </div>
@@ -351,7 +450,7 @@ const PublicSeminarPayment: React.FC = () => {
                   disabled={eventsLoading || events.length === 0}
                 >
                   <SelectTrigger id="seminar-event" className={eventTouched ? undefined : 'border-amber-400 bg-background'}>
-                    <SelectValue placeholder={eventsLoading ? 'Loading…' : (events.length ? 'Select seminar' : 'No open seminars')} />
+                    <SelectValue placeholder={eventsLoading ? 'Loading…' : (events.length ? 'Select event' : 'No open events')} />
                   </SelectTrigger>
                   <SelectContent>
                     {events.map((ev) => (
@@ -361,14 +460,15 @@ const PublicSeminarPayment: React.FC = () => {
                 </Select>
                 {!eventsLoading && events.length > 0 && (
                   <p className={`text-xs ${eventTouched ? 'text-muted-foreground' : 'font-medium text-amber-700'}`}>
-                    Please confirm you have selected the correct seminar before entering details.
+                    Events shown match your branch and belt. Please confirm you have selected the correct event.
                   </p>
                 )}
                 {!eventsLoading && events.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No active seminars. Please contact the academy.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No open events for the selected branch and belt. Please contact the academy.
+                  </p>
                 )}
               </div>
-
 
               {selectedEvent && (
                 <>
@@ -416,93 +516,9 @@ const PublicSeminarPayment: React.FC = () => {
                     </Alert>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name">First Name *</Label>
-                      <Input
-                        id="first_name"
-                        required
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value.toUpperCase())}
-                        placeholder="First name"
-                        maxLength={60}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name">Last Name *</Label>
-                      <Input
-                        id="last_name"
-                        required
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value.toUpperCase())}
-                        placeholder="Last name"
-                        maxLength={60}
-                      />
-                    </div>
-                  </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      maxLength={255}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="branch">Branch *</Label>
-                    <Select value={branchId} onValueChange={setBranchId}>
-                      <SelectTrigger id="branch">
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {branches.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Date of Birth *</Label>
-                    <DobPicker value={dob} onChange={setDob} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender *</Label>
-                    <Select value={gender} onValueChange={setGender}>
-                      <SelectTrigger id="gender">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="belt">Current Belt *</Label>
-                    <Select value={currentBelt} onValueChange={setCurrentBelt} disabled={!branchId}>
-                      <SelectTrigger id="belt">
-                        <SelectValue placeholder="Select current belt" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {beltOptions.map((b) => (
-                          <SelectItem key={b} value={b}>{b}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Seminar Package{multiSelectAllowed ? 's' : ''} *</Label>
+                    <Label>Event Package{multiSelectAllowed ? 's' : ''} *</Label>
                     {multiSelectAllowed && (
                       <p className="text-xs text-muted-foreground">
                         Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.

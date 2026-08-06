@@ -4895,6 +4895,8 @@ export type Database = {
       }
       seminar_events: {
         Row: {
+          belts: string[]
+          branch_ids: string[]
           created_at: string
           display_order: number
           id: string
@@ -4911,6 +4913,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          belts?: string[]
+          branch_ids?: string[]
           created_at?: string
           display_order?: number
           id?: string
@@ -4927,6 +4931,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          belts?: string[]
+          branch_ids?: string[]
           created_at?: string
           display_order?: number
           id?: string
@@ -8006,40 +8012,25 @@ export type Database = {
         }
         Returns: string
       }
-      admin_upsert_seminar_event:
-        | {
-            Args: {
-              p_display_order: number
-              p_id: string
-              p_indemnity_clause?: string
-              p_indemnity_template_name?: string
-              p_indemnity_template_url?: string
-              p_is_active: boolean
-              p_name: string
-              p_packages: Json
-              p_require_grading_card?: boolean
-              p_require_passport?: boolean
-              p_require_photo?: boolean
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_display_order: number
-              p_id: string
-              p_indemnity_clause?: string
-              p_indemnity_template_name?: string
-              p_indemnity_template_url?: string
-              p_is_active: boolean
-              p_multi_package_discount?: boolean
-              p_name: string
-              p_packages: Json
-              p_require_grading_card?: boolean
-              p_require_passport?: boolean
-              p_require_photo?: boolean
-            }
-            Returns: string
-          }
+      admin_upsert_seminar_event: {
+        Args: {
+          p_belts?: string[]
+          p_branch_ids?: string[]
+          p_display_order: number
+          p_id: string
+          p_indemnity_clause?: string
+          p_indemnity_template_name?: string
+          p_indemnity_template_url?: string
+          p_is_active: boolean
+          p_multi_package_discount?: boolean
+          p_name: string
+          p_packages: Json
+          p_require_grading_card?: boolean
+          p_require_passport?: boolean
+          p_require_photo?: boolean
+        }
+        Returns: string
+      }
       admin_verify_accessory_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: Json
@@ -8659,6 +8650,8 @@ export type Database = {
       get_public_seminar_events: {
         Args: never
         Returns: {
+          belts: string[]
+          branch_ids: string[]
           display_order: number
           id: string
           indemnity_clause: string

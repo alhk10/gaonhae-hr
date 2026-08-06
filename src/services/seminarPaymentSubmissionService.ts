@@ -27,6 +27,10 @@ export interface SeminarEvent {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  /** Empty = available to all branches */
+  branch_ids: string[];
+  /** Empty = available to all belts */
+  belts: string[];
 }
 
 /**
@@ -59,6 +63,8 @@ export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
   if (error) throw error;
   return ((data || []) as any[]).map((e) => ({
     ...e,
+    branch_ids: Array.isArray(e.branch_ids) ? e.branch_ids : [],
+    belts: Array.isArray(e.belts) ? e.belts : [],
     packages: (Array.isArray(e.packages) ? e.packages : []).map((p: any) => ({
       ...p,
       description: p?.description ?? null,
@@ -79,6 +85,8 @@ export const adminUpsertSeminarEvent = async (input: {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  branch_ids?: string[];
+  belts?: string[];
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_seminar_event' as any, {
     p_id: input.id,
@@ -93,6 +101,8 @@ export const adminUpsertSeminarEvent = async (input: {
     p_require_photo: input.require_photo,
     p_require_grading_card: input.require_grading_card,
     p_multi_package_discount: input.multi_package_discount,
+    p_branch_ids: input.branch_ids ?? [],
+    p_belts: input.belts ?? [],
   });
   if (error) throw error;
   return data as string;
