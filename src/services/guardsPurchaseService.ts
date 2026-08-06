@@ -210,7 +210,15 @@ export const getComponentsForCart = (
     } else if (it.key === 'adidas_set') {
       out.push({ product_id: ADIDAS_COMPONENT_IDS.chestguard, name: 'Adidas Chestguard', sizes: ['Size 1','Size 2','Size 3','Size 4','Size 5'], colors: [] });
       out.push({ product_id: ADIDAS_COMPONENT_IDS.headgear, name: 'Adidas Headgear', sizes: ['XS','S','M','L','XL'], colors: ['Red','Blue'] });
+    } else if (it.requires_size || it.requires_color) {
+      out.push({
+        product_id: it.product_id || it.key,
+        name: it.label || 'Item',
+        sizes: Array.isArray(it.sizes) && it.sizes.length ? it.sizes : ['XS','S','M','L','XL'],
+        colors: it.requires_color ? ['Red','Blue','Black','White'] : [],
+      });
     }
+
   }
   return out;
 };
