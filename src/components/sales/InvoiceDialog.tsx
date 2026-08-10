@@ -1753,7 +1753,51 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 </div>
               </div>
             )}
+
+            {items.length > 0 && (
+              <div className="border rounded-md p-2 md:p-3 space-y-2 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="record-payment-toggle" className="text-xs md:text-sm font-medium">Record payment now</Label>
+                  <Switch id="record-payment-toggle" checked={recordPayment} onCheckedChange={setRecordPayment} />
+                </div>
+                {recordPayment && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                        <Input type="number" step="0.01" min="0" value={payAmount} onChange={(e) => { setPayAmountTouched(true); setPayAmount(e.target.value); }} className="h-7 text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Payment Date</Label>
+                        <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className="h-7 text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Method</Label>
+                        <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {payMethods.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Reference (optional)</Label>
+                        <Input value={payReference} onChange={(e) => setPayReference(e.target.value)} className="h-7 text-xs" />
+                      </div>
+                    </div>
+                    <ProofOfPaymentUpload
+                      value={payProofFile}
+                      onChange={setPayProofFile}
+                      required={!isSuperadmin && payMethod !== 'cash'}
+                      label={`Proof of Payment${(!isSuperadmin && payMethod !== 'cash') ? '' : ' (optional)'}`}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={loading} className="text-xs md:text-sm h-8 md:h-10">Cancel</Button>
