@@ -620,8 +620,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             <ProofOfPaymentUpload
               value={proofFile}
               onChange={setProofFile}
-              required={formData.payment_method !== 'cash'}
-              label={`Proof of Payment${formData.payment_method !== 'cash' ? '' : ' (optional for cash)'}`}
+              required={!isSuperadmin && formData.payment_method !== 'cash'}
+              label={`Proof of Payment${(!isSuperadmin && formData.payment_method !== 'cash') ? '' : ' (optional)'}`}
               compact
             />
 
