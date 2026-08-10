@@ -409,6 +409,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
   const prerequisiteOverriddenRef = useRef(false);
 
+  // Record-payment-with-invoice (create mode)
+  const [recordPayment, setRecordPayment] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payAmountTouched, setPayAmountTouched] = useState(false);
+  const [payDate, setPayDate] = useState(todayISO());
+  const [payMethod, setPayMethod] = useState<'paynow' | 'cash' | 'bank_transfer'>('paynow');
+  const [payReference, setPayReference] = useState('');
+  const [payProofFile, setPayProofFile] = useState<File | null>(null);
+
   const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
 
