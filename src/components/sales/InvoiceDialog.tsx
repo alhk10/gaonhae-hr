@@ -1015,6 +1015,28 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
   const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
 
+  // ─── Payment-with-invoice helpers (create mode) ───────────────
+  const payBranchCountry = branches.find(b => b.id === formData.branch_id)?.country || 'Singapore';
+  const payMethods = useMemo(() => {
+    const methods = [
+      { value: 'paynow', label: 'PayNow', hideFor: ['Australia'] },
+      { value: 'cash', label: 'Cash', hideFor: ['Singapore'] },
+      { value: 'bank_transfer', label: 'Bank Transfer', hideFor: [] as string[] },
+    ];
+    return methods.filter(m => !m.hideFor.includes(payBranchCountry));
+  }, [payBranchCountry]);
+
+  useEffect(() => {
+    if (!payMethods.some(m => m.value === payMethod)) {
+      setPayMethod((payBranchCountry === 'Singapore' ? 'paynow' : 'bank_transfer') as any);
+    }
+  }, [payMethods, payBranchCountry]);
+
+  useEffect(() => {
+    if (recordPayment && !payAmountTouched) setPayAmount(total > 0 ? total.toFixed(2) : '');
+  }, [recordPayment, total, payAmountTouched]);
+
+
   // Create submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
