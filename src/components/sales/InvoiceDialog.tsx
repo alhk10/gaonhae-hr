@@ -1202,6 +1202,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
     prerequisiteOverriddenRef.current = false;
+    setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO());
+    setPayReference(''); setPayProofFile(null);
   };
 
   // ─── Edit Mode Logic ───────────────────────────────────────────
