@@ -1043,6 +1043,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (!formData.student_id) { toast.error('Please select a student'); return; }
     if (!formData.branch_id) { toast.error('Please select a branch'); return; }
     if (items.length === 0) { toast.error('Please add at least one item'); return; }
+    if (recordPayment) {
+      const amt = parseFloat(payAmount);
+      if (!amt || amt <= 0) { toast.error('Please enter a valid payment amount'); return; }
+      if (!payProofFile && payMethod !== 'cash' && !isSuperadmin) { toast.error('Please upload proof of payment'); return; }
+      if (amt > total && !window.confirm(`Payment exceeds the invoice total by $${(amt - total).toFixed(2)}. The excess will be stored as student credit. Continue?`)) return;
+    }
     setLoading(true);
     try {
       // Grading validation
