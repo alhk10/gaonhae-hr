@@ -1145,6 +1145,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       const createdInvoice = await createInvoice(invoiceData);
       // Auto-apply credits
+      let creditApplied = 0;
       try {
         const creditBalance = await getStudentCreditBalance(formData.student_id);
         if (creditBalance > 0 && createdInvoice?.id) {
@@ -1153,10 +1154,42 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           if (creditToApply > 0) {
             await applyCredit(formData.student_id, createdInvoice.id, createdInvoice.invoice_number || '', creditToApply, user?.email || undefined);
             await createPayment({ invoice_id: createdInvoice.id, amount: creditToApply, payment_date: new Date().toISOString().split('T')[0], payment_method: 'bank_transfer', notes: 'Auto-applied from student credit balance' });
+            creditApplied = creditToApply;
             toast.success(`Student credit of $${creditToApply.toFixed(2)} automatically applied`);
           }
         }
       } catch { /* non-fatal */ }
+
+      // Record payment in the same step (optional)
+      if (recordPayment && createdInvoice?.id) {
+        const requested = parseFloat(payAmount) || 0;
+        const amountToPay = Math.max(0, requested - creditApplied);
+        if (amountToPay > 0) {
+          try {
+            let proofUrl: string | undefined;
+            if (payProofFile) {
+              const fileExt = payProofFile.name.split('.').pop();
+              const fileName = `${createdInvoice.id}/${Date.now()}.${fileExt}`;
+              const { error: uploadError } = await supabase.storage.from('payment-proofs').upload(fileName, payProofFile);
+              if (uploadError) throw new Error(`Failed to upload proof: ${uploadError.message}`);
+              proofUrl = supabase.storage.from('payment-proofs').getPublicUrl(fileName).data.publicUrl;
+            }
+            await createPayment({
+              invoice_id: createdInvoice.id,
+              amount: amountToPay,
+              payment_date: payDate,
+              payment_method: payMethod,
+              reference_number: payReference || undefined,
+              proof_of_payment_url: proofUrl,
+            });
+            toast.success(`Invoice created and payment of $${amountToPay.toFixed(2)} recorded`);
+            setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+          } catch (payErr) {
+            toast.error(`Invoice created, but recording the payment failed: ${payErr instanceof Error ? payErr.message : 'Unknown error'}`);
+            setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+          }
+        }
+      }
 
       toast.success('Invoice created successfully');
       setDialogOpen(false); resetForm(); onInvoiceCreated?.();
