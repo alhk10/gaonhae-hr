@@ -21,6 +21,7 @@ import { getStudentCreditBalance } from '@/services/studentCreditService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
