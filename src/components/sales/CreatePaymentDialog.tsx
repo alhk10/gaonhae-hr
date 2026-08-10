@@ -203,8 +203,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       return;
     }
 
-    // Proof of payment is required unless payment method is cash
-    if (!proofFile && formData.payment_method !== 'cash') {
+    // Proof of payment is required unless payment method is cash (superadmins exempt)
+    if (!proofFile && formData.payment_method !== 'cash' && !isSuperadmin) {
       toast.error('Please upload proof of payment');
       return;
     }
