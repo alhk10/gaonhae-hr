@@ -48,6 +48,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   preSelectedInvoiceId,
   isStudentPortal = false
 }) => {
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
