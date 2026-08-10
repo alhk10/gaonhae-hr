@@ -9,6 +9,8 @@ import { hasClassTypeException } from '@/utils/classTypeEligibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -408,6 +410,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // Grading prerequisite override (superadmin) state
   const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
   const prerequisiteOverriddenRef = useRef(false);
+
+  // Record-payment-with-invoice (create mode)
+  const [recordPayment, setRecordPayment] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payAmountTouched, setPayAmountTouched] = useState(false);
+  const [payDate, setPayDate] = useState(todayISO());
+  const [payMethod, setPayMethod] = useState<'paynow' | 'cash' | 'bank_transfer'>('paynow');
+  const [payReference, setPayReference] = useState('');
+  const [payProofFile, setPayProofFile] = useState<File | null>(null);
 
   const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
@@ -1006,12 +1017,40 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
   const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
 
+  // ─── Payment-with-invoice helpers (create mode) ───────────────
+  const payBranchCountry = branches.find(b => b.id === formData.branch_id)?.country || 'Singapore';
+  const payMethods = useMemo(() => {
+    const methods = [
+      { value: 'paynow', label: 'PayNow', hideFor: ['Australia'] },
+      { value: 'cash', label: 'Cash', hideFor: ['Singapore'] },
+      { value: 'bank_transfer', label: 'Bank Transfer', hideFor: [] as string[] },
+    ];
+    return methods.filter(m => !m.hideFor.includes(payBranchCountry));
+  }, [payBranchCountry]);
+
+  useEffect(() => {
+    if (!payMethods.some(m => m.value === payMethod)) {
+      setPayMethod((payBranchCountry === 'Singapore' ? 'paynow' : 'bank_transfer') as any);
+    }
+  }, [payMethods, payBranchCountry]);
+
+  useEffect(() => {
+    if (recordPayment && !payAmountTouched) setPayAmount(total > 0 ? total.toFixed(2) : '');
+  }, [recordPayment, total, payAmountTouched]);
+
+
   // Create submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.student_id) { toast.error('Please select a student'); return; }
     if (!formData.branch_id) { toast.error('Please select a branch'); return; }
     if (items.length === 0) { toast.error('Please add at least one item'); return; }
+    if (recordPayment) {
+      const amt = parseFloat(payAmount);
+      if (!amt || amt <= 0) { toast.error('Please enter a valid payment amount'); return; }
+      if (!payProofFile && payMethod !== 'cash' && !isSuperadmin) { toast.error('Please upload proof of payment'); return; }
+      if (amt > total && !window.confirm(`Payment exceeds the invoice total by $${(amt - total).toFixed(2)}. The excess will be stored as student credit. Continue?`)) return;
+    }
     setLoading(true);
     try {
       // Grading validation
@@ -1108,6 +1147,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       const createdInvoice = await createInvoice(invoiceData);
       // Auto-apply credits
+      let creditApplied = 0;
       try {
         const creditBalance = await getStudentCreditBalance(formData.student_id);
         if (creditBalance > 0 && createdInvoice?.id) {
@@ -1116,10 +1156,42 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           if (creditToApply > 0) {
             await applyCredit(formData.student_id, createdInvoice.id, createdInvoice.invoice_number || '', creditToApply, user?.email || undefined);
             await createPayment({ invoice_id: createdInvoice.id, amount: creditToApply, payment_date: new Date().toISOString().split('T')[0], payment_method: 'bank_transfer', notes: 'Auto-applied from student credit balance' });
+            creditApplied = creditToApply;
             toast.success(`Student credit of $${creditToApply.toFixed(2)} automatically applied`);
           }
         }
       } catch { /* non-fatal */ }
+
+      // Record payment in the same step (optional)
+      if (recordPayment && createdInvoice?.id) {
+        const requested = parseFloat(payAmount) || 0;
+        const amountToPay = Math.max(0, requested - creditApplied);
+        if (amountToPay > 0) {
+          try {
+            let proofUrl: string | undefined;
+            if (payProofFile) {
+              const fileExt = payProofFile.name.split('.').pop();
+              const fileName = `${createdInvoice.id}/${Date.now()}.${fileExt}`;
+              const { error: uploadError } = await supabase.storage.from('payment-proofs').upload(fileName, payProofFile);
+              if (uploadError) throw new Error(`Failed to upload proof: ${uploadError.message}`);
+              proofUrl = supabase.storage.from('payment-proofs').getPublicUrl(fileName).data.publicUrl;
+            }
+            await createPayment({
+              invoice_id: createdInvoice.id,
+              amount: amountToPay,
+              payment_date: payDate,
+              payment_method: payMethod,
+              reference_number: payReference || undefined,
+              proof_of_payment_url: proofUrl,
+            });
+            toast.success(`Invoice created and payment of $${amountToPay.toFixed(2)} recorded`);
+            setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+          } catch (payErr) {
+            toast.error(`Invoice created, but recording the payment failed: ${payErr instanceof Error ? payErr.message : 'Unknown error'}`);
+            setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+          }
+        }
+      }
 
       toast.success('Invoice created successfully');
       setDialogOpen(false); resetForm(); onInvoiceCreated?.();
@@ -1132,6 +1204,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
     prerequisiteOverriddenRef.current = false;
+    setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO());
+    setPayReference(''); setPayProofFile(null);
   };
 
   // ─── Edit Mode Logic ───────────────────────────────────────────
@@ -1681,7 +1755,51 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 </div>
               </div>
             )}
+
+            {items.length > 0 && (
+              <div className="border rounded-md p-2 md:p-3 space-y-2 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="record-payment-toggle" className="text-xs md:text-sm font-medium">Record payment now</Label>
+                  <Switch id="record-payment-toggle" checked={recordPayment} onCheckedChange={setRecordPayment} />
+                </div>
+                {recordPayment && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                        <Input type="number" step="0.01" min="0" value={payAmount} onChange={(e) => { setPayAmountTouched(true); setPayAmount(e.target.value); }} className="h-7 text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Payment Date</Label>
+                        <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className="h-7 text-xs" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Method</Label>
+                        <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {payMethods.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Reference (optional)</Label>
+                        <Input value={payReference} onChange={(e) => setPayReference(e.target.value)} className="h-7 text-xs" />
+                      </div>
+                    </div>
+                    <ProofOfPaymentUpload
+                      value={payProofFile}
+                      onChange={setPayProofFile}
+                      required={!isSuperadmin && payMethod !== 'cash'}
+                      label={`Proof of Payment${(!isSuperadmin && payMethod !== 'cash') ? '' : ' (optional)'}`}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={loading} className="text-xs md:text-sm h-8 md:h-10">Cancel</Button>

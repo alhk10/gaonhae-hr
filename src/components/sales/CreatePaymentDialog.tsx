@@ -21,6 +21,7 @@ import { getStudentCreditBalance } from '@/services/studentCreditService';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
@@ -47,6 +48,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   preSelectedInvoiceId,
   isStudentPortal = false
 }) => {
+  const { userrole } = useAuth();
+  const isSuperadmin = userrole === 'superadmin';
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
@@ -200,8 +203,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       return;
     }
 
-    // Proof of payment is required unless payment method is cash
-    if (!proofFile && formData.payment_method !== 'cash') {
+    // Proof of payment is required unless payment method is cash (superadmins exempt)
+    if (!proofFile && formData.payment_method !== 'cash' && !isSuperadmin) {
       toast.error('Please upload proof of payment');
       return;
     }
@@ -617,8 +620,8 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
             <ProofOfPaymentUpload
               value={proofFile}
               onChange={setProofFile}
-              required={formData.payment_method !== 'cash'}
-              label={`Proof of Payment${formData.payment_method !== 'cash' ? '' : ' (optional for cash)'}`}
+              required={!isSuperadmin && formData.payment_method !== 'cash'}
+              label={`Proof of Payment${(!isSuperadmin && formData.payment_method !== 'cash') ? '' : ' (optional)'}`}
               compact
             />
 
