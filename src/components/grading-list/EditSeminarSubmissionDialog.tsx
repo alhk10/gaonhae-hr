@@ -77,7 +77,9 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     [seminarEvents, form.event_id],
   );
   const packageOptions = selectedEvent?.packages ?? [];
-  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+  const discountEnabled = selectedEvent?.multi_package_discount === true;
+  const multiSelectAllowed = discountEnabled || Number((selectedEvent as any)?.min_packages ?? 0) >= 2;
+
 
   const selectedCodes: string[] = React.useMemo(
     () => String(form.package_code || '').split(',').map((c: string) => c.trim()).filter(Boolean),
