@@ -222,6 +222,8 @@ const PublicSeminarPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
+  const minPackages = Math.max(1, Number(selectedEvent?.min_packages ?? 0) || 1);
+
   const canSubmit =
     !!firstName.trim() &&
     !!lastName.trim() &&
@@ -231,7 +233,7 @@ const PublicSeminarPayment: React.FC = () => {
     !!gender &&
     !!currentBelt &&
     !!selectedEvent &&
-    selectedPackages.length > 0 &&
+    selectedPackages.length >= minPackages &&
     !!proofFile &&
     (!selectedEvent?.require_passport || !!passportFile) &&
     (!selectedEvent?.require_photo || !!photoFile) &&
