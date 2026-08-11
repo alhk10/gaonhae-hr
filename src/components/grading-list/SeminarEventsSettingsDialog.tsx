@@ -406,7 +406,11 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
               <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
                 <Switch
                   checked={form.multi_package_discount}
-                  onCheckedChange={(v) => setForm(f => ({ ...f, multi_package_discount: v }))}
+                  onCheckedChange={(v) => setForm(f => ({
+                    ...f,
+                    multi_package_discount: v,
+                    min_packages: v ? f.min_packages : 0,
+                  }))}
                 />
                 <div className="text-[11px] leading-snug">
                   <div className="font-medium">Multi-package discount</div>
@@ -415,6 +419,30 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                   </div>
                 </div>
               </div>
+              {form.multi_package_discount && (
+                <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
+                  <Switch
+                    checked={Number(form.min_packages) >= 2}
+                    onCheckedChange={(v) => setForm(f => ({ ...f, min_packages: v ? 2 : 0 }))}
+                  />
+                  <div className="text-[11px] leading-snug flex-1">
+                    <div className="font-medium">Minimum number of packages</div>
+                    <div className="text-muted-foreground">
+                      Participants must select at least this many packages to submit the form.
+                    </div>
+                    {Number(form.min_packages) >= 2 && (
+                      <Input
+                        type="number"
+                        min={2}
+                        className="h-7 text-xs w-24 mt-1"
+                        value={form.min_packages}
+                        onChange={(e) => setForm(f => ({ ...f, min_packages: Math.max(2, Number(e.target.value) || 2) }))}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {form.packages.length === 0 && (
                 <div className="text-[11px] text-muted-foreground">No packages yet.</div>
               )}
