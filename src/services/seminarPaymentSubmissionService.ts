@@ -27,6 +27,8 @@ export interface SeminarEvent {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  /** Minimum packages required before the discount applies (default 2) */
+  min_packages: number;
   /** Empty = available to all branches */
   branch_ids: string[];
   /** Empty = available to all belts */
@@ -34,19 +36,26 @@ export interface SeminarEvent {
 }
 
 /**
- * Multi-package discount ladder: 1 → $0, 2 → $10, 3 → $20, 4 → $30, +$10 per extra.
+ * Multi-package discount ladder, relative to the event's minimum package count
+ * (default 2): at the minimum → $10 off, +$10 for each extra package.
  * Shared by /seminars and the admin edit dialog so the two never drift.
  */
-export const seminarMultiPackageDiscount = (count: number): number =>
-  Math.max(0, (Math.max(0, count) - 1) * 10);
+export const seminarMultiPackageDiscount = (count: number, minPackages = 2): number => {
+  const min = Math.max(2, Number(minPackages) || 2);
+  if (count < min) return 0;
+  return (count - min + 1) * 10;
+};
 
 /** Combines several selected packages into the single stored submission shape. */
 export const combineSeminarPackages = (
   packages: SeminarPackageOption[],
   applyDiscount: boolean,
+  minPackages = 2,
 ) => {
   const gross = packages.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const discount = applyDiscount ? Math.min(gross, seminarMultiPackageDiscount(packages.length)) : 0;
+  const discount = applyDiscount
+    ? Math.min(gross, seminarMultiPackageDiscount(packages.length, minPackages))
+    : 0;
   const dates = Array.from(new Set(packages.flatMap(p => p.session_dates || []))).sort();
   return {
     package_code: packages.map(p => p.code).join(','),
@@ -64,6 +73,7 @@ export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
   return ((data || []) as any[]).map((e) => ({
     ...e,
     branch_ids: Array.isArray(e.branch_ids) ? e.branch_ids : [],
+    min_packages: Math.max(2, Number(e.min_packages) || 2),
     belts: Array.isArray(e.belts) ? e.belts : [],
     packages: (Array.isArray(e.packages) ? e.packages : []).map((p: any) => ({
       ...p,
@@ -85,6 +95,7 @@ export const adminUpsertSeminarEvent = async (input: {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  min_packages?: number;
   branch_ids?: string[];
   belts?: string[];
 }): Promise<string> => {
@@ -103,6 +114,7 @@ export const adminUpsertSeminarEvent = async (input: {
     p_multi_package_discount: input.multi_package_discount,
     p_branch_ids: input.branch_ids ?? [],
     p_belts: input.belts ?? [],
+    p_min_packages: Math.max(2, Number(input.min_packages) || 2),
   });
   if (error) throw error;
   return data as string;
