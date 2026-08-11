@@ -87,6 +87,8 @@ export const adminUpsertSeminarEvent = async (input: {
   multi_package_discount: boolean;
   branch_ids?: string[];
   belts?: string[];
+  /** 0 = no minimum */
+  min_packages?: number;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_seminar_event' as any, {
     p_id: input.id,
@@ -103,6 +105,7 @@ export const adminUpsertSeminarEvent = async (input: {
     p_multi_package_discount: input.multi_package_discount,
     p_branch_ids: input.branch_ids ?? [],
     p_belts: input.belts ?? [],
+    p_min_packages: input.min_packages ?? 0,
   });
   if (error) throw error;
   return data as string;
