@@ -244,7 +244,7 @@ const PublicSeminarPayment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || selectedPackages.length === 0 || !selectedEvent) return;
+    if (!canSubmit || !dob || !proofFile || selectedPackages.length < minPackages || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
