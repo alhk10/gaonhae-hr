@@ -252,7 +252,8 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
         multi_package_discount: form.multi_package_discount,
-        min_packages: form.multi_package_discount ? (Number(form.min_packages) || 0) : 0,
+        min_packages: form.multi_package_discount ? 0 : (Number(form.min_packages) || 0),
+
         branch_ids: form.branch_ids,
         belts: form.belts,
       });

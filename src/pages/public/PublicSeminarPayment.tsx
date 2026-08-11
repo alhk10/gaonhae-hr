@@ -189,7 +189,9 @@ const PublicSeminarPayment: React.FC = () => {
     [selectedBranch?.country, age],
   );
 
-  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+  const discountEnabled = selectedEvent?.multi_package_discount === true;
+  const multiSelectAllowed = discountEnabled || Number(selectedEvent?.min_packages ?? 0) >= 2;
+
 
   const selectedPackages = useMemo(
     () => (selectedEvent?.packages || []).filter(o => packageCodes.includes(o.code)),
