@@ -94,7 +94,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
 
   const applyCodes = (codes: string[]) => {
     const pkgs = packageOptions.filter((o) => codes.includes(o.code));
-    const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+    const combined = combineSeminarPackages(pkgs, discountEnabled);
     setForm((f: any) => ({
       ...f,
       package_code: combined.package_code,
@@ -116,7 +116,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     setSaving(true);
     try {
       const pkgs = packageOptions.filter((o) => selectedCodes.includes(o.code));
-      const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+      const combined = combineSeminarPackages(pkgs, discountEnabled);
       await adminPatchSeminarSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -231,7 +231,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
               </div>
               <div className="sm:col-span-2">
                 <Label className="text-xs">
-                  Package{multiSelectAllowed ? 's (multi-package discount applies)' : ''}
+                  Package{multiSelectAllowed ? (discountEnabled ? 's (multi-package discount applies)' : 's') : ''}
                 </Label>
                 <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
                   {packageOptions.length === 0 && (
