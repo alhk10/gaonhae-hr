@@ -27,6 +27,8 @@ export interface SeminarEvent {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  /** Minimum number of packages a participant must select. 0 = no minimum. */
+  min_packages: number;
   /** Empty = available to all branches */
   branch_ids: string[];
   /** Empty = available to all belts */
