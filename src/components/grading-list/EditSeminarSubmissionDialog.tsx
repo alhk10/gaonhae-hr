@@ -77,7 +77,9 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     [seminarEvents, form.event_id],
   );
   const packageOptions = selectedEvent?.packages ?? [];
-  const multiSelectAllowed = selectedEvent?.multi_package_discount === true;
+  const discountEnabled = selectedEvent?.multi_package_discount === true;
+  const multiSelectAllowed = discountEnabled || Number((selectedEvent as any)?.min_packages ?? 0) >= 2;
+
 
   const selectedCodes: string[] = React.useMemo(
     () => String(form.package_code || '').split(',').map((c: string) => c.trim()).filter(Boolean),
@@ -92,7 +94,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
 
   const applyCodes = (codes: string[]) => {
     const pkgs = packageOptions.filter((o) => codes.includes(o.code));
-    const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+    const combined = combineSeminarPackages(pkgs, discountEnabled);
     setForm((f: any) => ({
       ...f,
       package_code: combined.package_code,
@@ -114,7 +116,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     setSaving(true);
     try {
       const pkgs = packageOptions.filter((o) => selectedCodes.includes(o.code));
-      const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+      const combined = combineSeminarPackages(pkgs, discountEnabled);
       await adminPatchSeminarSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -229,7 +231,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
               </div>
               <div className="sm:col-span-2">
                 <Label className="text-xs">
-                  Package{multiSelectAllowed ? 's (multi-package discount applies)' : ''}
+                  Package{multiSelectAllowed ? (discountEnabled ? 's (multi-package discount applies)' : 's') : ''}
                 </Label>
                 <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
                   {packageOptions.length === 0 && (
