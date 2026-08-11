@@ -526,6 +526,13 @@ const PublicSeminarPayment: React.FC = () => {
                         Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.
                       </p>
                     )}
+                    {minPackages > 1 && (
+                      <p className={`text-xs ${selectedPackages.length >= minPackages ? 'text-muted-foreground' : 'text-destructive'}`}>
+                        Please select at least {minPackages} packages
+                        {selectedPackages.length > 0 ? ` (${selectedPackages.length} selected)` : ''}.
+                      </p>
+                    )}
+
                     <div className="space-y-2 rounded-md border p-3">
                       {(selectedEvent.packages || []).length === 0 && (
                         <div className="text-sm text-muted-foreground">
