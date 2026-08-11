@@ -204,8 +204,8 @@ const PublicSeminarPayment: React.FC = () => {
   };
 
   const combined = useMemo(
-    () => combineSeminarPackages(selectedPackages, multiSelectAllowed),
-    [selectedPackages, multiSelectAllowed],
+    () => combineSeminarPackages(selectedPackages, multiSelectAllowed, selectedEvent?.min_packages ?? 2),
+    [selectedPackages, multiSelectAllowed, selectedEvent?.min_packages],
   );
 
   const discountAmount = combined.discount_amount;

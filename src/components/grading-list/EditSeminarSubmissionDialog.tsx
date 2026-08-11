@@ -92,7 +92,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
 
   const applyCodes = (codes: string[]) => {
     const pkgs = packageOptions.filter((o) => codes.includes(o.code));
-    const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+    const combined = combineSeminarPackages(pkgs, multiSelectAllowed, selectedEvent?.min_packages ?? 2);
     setForm((f: any) => ({
       ...f,
       package_code: combined.package_code,
@@ -114,7 +114,7 @@ const EditSeminarSubmissionDialog: React.FC<Props> = ({ submissionId, onClose, o
     setSaving(true);
     try {
       const pkgs = packageOptions.filter((o) => selectedCodes.includes(o.code));
-      const combined = combineSeminarPackages(pkgs, multiSelectAllowed);
+      const combined = combineSeminarPackages(pkgs, multiSelectAllowed, selectedEvent?.min_packages ?? 2);
       await adminPatchSeminarSubmission(submissionId, {
         first_name: form.first_name,
         last_name: form.last_name,
