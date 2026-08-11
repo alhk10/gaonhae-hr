@@ -27,6 +27,8 @@ export interface SeminarEvent {
   require_photo: boolean;
   require_grading_card: boolean;
   multi_package_discount: boolean;
+  /** Minimum number of packages a participant must select. 0 = no minimum. */
+  min_packages: number;
   /** Empty = available to all branches */
   branch_ids: string[];
   /** Empty = available to all belts */
@@ -65,6 +67,7 @@ export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
     ...e,
     branch_ids: Array.isArray(e.branch_ids) ? e.branch_ids : [],
     belts: Array.isArray(e.belts) ? e.belts : [],
+    min_packages: Number(e.min_packages ?? 0) || 0,
     packages: (Array.isArray(e.packages) ? e.packages : []).map((p: any) => ({
       ...p,
       description: p?.description ?? null,
@@ -87,6 +90,8 @@ export const adminUpsertSeminarEvent = async (input: {
   multi_package_discount: boolean;
   branch_ids?: string[];
   belts?: string[];
+  /** 0 = no minimum */
+  min_packages?: number;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_seminar_event' as any, {
     p_id: input.id,
@@ -103,6 +108,7 @@ export const adminUpsertSeminarEvent = async (input: {
     p_multi_package_discount: input.multi_package_discount,
     p_branch_ids: input.branch_ids ?? [],
     p_belts: input.belts ?? [],
+    p_min_packages: input.min_packages ?? 0,
   });
   if (error) throw error;
   return data as string;

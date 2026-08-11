@@ -222,6 +222,8 @@ const PublicSeminarPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
+  const minPackages = Math.max(1, Number(selectedEvent?.min_packages ?? 0) || 1);
+
   const canSubmit =
     !!firstName.trim() &&
     !!lastName.trim() &&
@@ -231,7 +233,7 @@ const PublicSeminarPayment: React.FC = () => {
     !!gender &&
     !!currentBelt &&
     !!selectedEvent &&
-    selectedPackages.length > 0 &&
+    selectedPackages.length >= minPackages &&
     !!proofFile &&
     (!selectedEvent?.require_passport || !!passportFile) &&
     (!selectedEvent?.require_photo || !!photoFile) &&
@@ -242,7 +244,7 @@ const PublicSeminarPayment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !dob || !proofFile || selectedPackages.length === 0 || !selectedEvent) return;
+    if (!canSubmit || !dob || !proofFile || selectedPackages.length < minPackages || !selectedEvent) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -524,6 +526,13 @@ const PublicSeminarPayment: React.FC = () => {
                         Pick as many as you like — $10 off for 2, $20 for 3, $30 for 4, and $10 more for each extra.
                       </p>
                     )}
+                    {minPackages > 1 && (
+                      <p className={`text-xs ${selectedPackages.length >= minPackages ? 'text-muted-foreground' : 'text-destructive'}`}>
+                        Please select at least {minPackages} packages
+                        {selectedPackages.length > 0 ? ` (${selectedPackages.length} selected)` : ''}.
+                      </p>
+                    )}
+
                     <div className="space-y-2 rounded-md border p-3">
                       {(selectedEvent.packages || []).length === 0 && (
                         <div className="text-sm text-muted-foreground">

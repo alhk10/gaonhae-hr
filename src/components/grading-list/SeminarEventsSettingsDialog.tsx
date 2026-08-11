@@ -52,6 +52,7 @@ const emptyForm = () => ({
   require_photo: false,
   require_grading_card: false,
   multi_package_discount: false,
+  min_packages: 0,
   branch_ids: [] as string[],
   belts: [] as string[],
 });
@@ -110,6 +111,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
       multi_package_discount: e.multi_package_discount === true,
+      min_packages: Number(e.min_packages ?? 0) || 0,
       branch_ids: Array.isArray(e.branch_ids) ? [...e.branch_ids] : [],
       belts: Array.isArray(e.belts) ? [...e.belts] : [],
     });
@@ -136,6 +138,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
       multi_package_discount: e.multi_package_discount === true,
+      min_packages: Number(e.min_packages ?? 0) || 0,
       branch_ids: Array.isArray(e.branch_ids) ? [...e.branch_ids] : [],
       belts: Array.isArray(e.belts) ? [...e.belts] : [],
     });
@@ -249,6 +252,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
         multi_package_discount: form.multi_package_discount,
+        min_packages: form.multi_package_discount ? (Number(form.min_packages) || 0) : 0,
         branch_ids: form.branch_ids,
         belts: form.belts,
       });
@@ -402,7 +406,11 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
               <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
                 <Switch
                   checked={form.multi_package_discount}
-                  onCheckedChange={(v) => setForm(f => ({ ...f, multi_package_discount: v }))}
+                  onCheckedChange={(v) => setForm(f => ({
+                    ...f,
+                    multi_package_discount: v,
+                    min_packages: v ? f.min_packages : 0,
+                  }))}
                 />
                 <div className="text-[11px] leading-snug">
                   <div className="font-medium">Multi-package discount</div>
@@ -411,6 +419,30 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
                   </div>
                 </div>
               </div>
+              {form.multi_package_discount && (
+                <div className="flex items-start gap-2 rounded bg-muted/40 p-2">
+                  <Switch
+                    checked={Number(form.min_packages) >= 2}
+                    onCheckedChange={(v) => setForm(f => ({ ...f, min_packages: v ? 2 : 0 }))}
+                  />
+                  <div className="text-[11px] leading-snug flex-1">
+                    <div className="font-medium">Minimum number of packages</div>
+                    <div className="text-muted-foreground">
+                      Participants must select at least this many packages to submit the form.
+                    </div>
+                    {Number(form.min_packages) >= 2 && (
+                      <Input
+                        type="number"
+                        min={2}
+                        className="h-7 text-xs w-24 mt-1"
+                        value={form.min_packages}
+                        onChange={(e) => setForm(f => ({ ...f, min_packages: Math.max(2, Number(e.target.value) || 2) }))}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {form.packages.length === 0 && (
                 <div className="text-[11px] text-muted-foreground">No packages yet.</div>
               )}
