@@ -52,6 +52,7 @@ const emptyForm = () => ({
   require_photo: false,
   require_grading_card: false,
   multi_package_discount: false,
+  min_packages: 0,
   branch_ids: [] as string[],
   belts: [] as string[],
 });
@@ -110,6 +111,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
       multi_package_discount: e.multi_package_discount === true,
+      min_packages: Number(e.min_packages ?? 0) || 0,
       branch_ids: Array.isArray(e.branch_ids) ? [...e.branch_ids] : [],
       belts: Array.isArray(e.belts) ? [...e.belts] : [],
     });
@@ -136,6 +138,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       require_photo: e.require_photo === true,
       require_grading_card: e.require_grading_card === true,
       multi_package_discount: e.multi_package_discount === true,
+      min_packages: Number(e.min_packages ?? 0) || 0,
       branch_ids: Array.isArray(e.branch_ids) ? [...e.branch_ids] : [],
       belts: Array.isArray(e.belts) ? [...e.belts] : [],
     });
@@ -249,6 +252,7 @@ const SeminarEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
         require_photo: form.require_photo,
         require_grading_card: form.require_grading_card,
         multi_package_discount: form.multi_package_discount,
+        min_packages: form.multi_package_discount ? (Number(form.min_packages) || 0) : 0,
         branch_ids: form.branch_ids,
         belts: form.belts,
       });
