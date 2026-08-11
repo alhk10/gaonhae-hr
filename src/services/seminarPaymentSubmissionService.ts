@@ -67,6 +67,7 @@ export const getPublicSeminarEvents = async (): Promise<SeminarEvent[]> => {
     ...e,
     branch_ids: Array.isArray(e.branch_ids) ? e.branch_ids : [],
     belts: Array.isArray(e.belts) ? e.belts : [],
+    min_packages: Number(e.min_packages ?? 0) || 0,
     packages: (Array.isArray(e.packages) ? e.packages : []).map((p: any) => ({
       ...p,
       description: p?.description ?? null,
