@@ -77,8 +77,8 @@ const monthsSinceBirth = (dob: Date, ref: Date = new Date()): number => {
 
 const filterBeltsByAge = (belts: string[], age: number | null, dob?: Date | null): string[] => {
   if (age === null) return belts;
-  // Foundation buffer: allow up to 6 years + 3 months (75 months) so children who just turned 6 can still grade.
-  const foundationOk = dob ? monthsSinceBirth(dob) <= 75 : age <= 5;
+  // Foundation buffer: allow up to 7 years (84 months).
+  const foundationOk = dob ? monthsSinceBirth(dob) <= 84 : age <= 6;
   return belts.filter((b) => {
     if (FOUNDATION_ALL.has(b)) return foundationOk;
     if (POOM_BELTS.has(b)) return age < 15;
