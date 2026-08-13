@@ -1318,6 +1318,10 @@ const PublicGradingList: React.FC = () => {
                 <Settings className="h-3.5 w-3.5 mr-1" /> Events
               </Button>
             )}
+            <GradingEventsSettingsDialog
+              open={gradingEventsOpen}
+              onOpenChange={setGradingEventsOpen}
+            />
             <Button
               type="button"
               variant="outline"
