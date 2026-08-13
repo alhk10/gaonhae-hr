@@ -105,6 +105,12 @@ const retitleWithDate = (title: string, isoDate: string): string => {
     .replace(/\b\d{4}-\d{2}-\d{2}\b/g, `${y}-${m}-${d}`);
 };
 
+/** Replace any HH:mm occurrence in a title with the new start time. */
+const retitleWithTime = (title: string, time: string): string => {
+  if (!title || !time) return title;
+  return title.replace(/\b\d{2}:\d{2}\b/g, time.slice(0, 5));
+};
+
 const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onChanged }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState<EventForm>(emptyEvent());
@@ -493,7 +499,13 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                               type="time"
                               className="h-8 text-sm"
                               value={s.start_time}
-                              onChange={(e) => updateSlot(idx, { start_time: e.target.value })}
+                              onChange={(e) => {
+                                const newTime = e.target.value;
+                                updateSlot(idx, {
+                                  start_time: newTime,
+                                  title: retitleWithTime(s.title, newTime),
+                                });
+                              }}
                             />
                           </div>
                           <div className="space-y-1">
