@@ -427,7 +427,20 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Branch *</Label>
-                <Select value={form.branch_id} onValueChange={(v) => setForm(f => ({ ...f, branch_id: v }))}>
+                <Select
+                  value={form.branch_id}
+                  onValueChange={(v) => {
+                    const branchName = branches.find(b => b.id === v)?.name || '';
+                    setForm(f => ({
+                      ...f,
+                      branch_id: v,
+                      slots: f.slots.map(s => ({
+                        ...s,
+                        title: retitleWithBranch(s.title, branchName, branches),
+                      })),
+                    }));
+                  }}
+                >
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
