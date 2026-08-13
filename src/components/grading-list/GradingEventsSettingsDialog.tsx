@@ -95,6 +95,16 @@ const emptyEvent = (): EventForm => ({
 
 const timeStr = (t: string | null | undefined) => (t ? String(t).slice(0, 5) : '');
 
+/** Replace any DD/MM/YYYY or YYYY-MM-DD occurrence in a title with the new event date. */
+const retitleWithDate = (title: string, isoDate: string): string => {
+  if (!title || !isoDate) return title;
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return title;
+  return title
+    .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, `${d}/${m}/${y}`)
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, `${y}-${m}-${d}`);
+};
+
 const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onChanged }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState<EventForm>(emptyEvent());
@@ -306,6 +316,15 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
     }
   };
 
+  /** Event date drives every slot: rewrite dates embedded in slot titles. */
+  const setEventDate = (isoDate: string) => {
+    setForm(f => ({
+      ...f,
+      grading_date: isoDate,
+      slots: f.slots.map(s => ({ ...s, title: retitleWithDate(s.title, isoDate) })),
+    }));
+  };
+
   const slotLabel = (s: SlotForm) => {
     const t = [s.start_time, s.end_time].filter(Boolean).join('–');
     return `${t || 'No time'}${s.title ? ' · ' + s.title : ''}`;
@@ -406,7 +425,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                   type="date"
                   className="h-8 text-sm"
                   value={form.grading_date}
-                  onChange={(e) => setForm(f => ({ ...f, grading_date: e.target.value }))}
+                  onChange={(e) => setEventDate(e.target.value)}
                 />
               </div>
             </div>
