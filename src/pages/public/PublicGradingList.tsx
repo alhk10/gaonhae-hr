@@ -1306,6 +1306,17 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+            {editMode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setGradingEventsOpen(true)}
+                title="Manage grading events"
+              >
+                <Settings className="h-3.5 w-3.5 mr-1" /> Events
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
