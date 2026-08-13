@@ -7867,6 +7867,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      admin_list_grading_products: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       admin_list_grading_slots: {
         Args: never
         Returns: {
