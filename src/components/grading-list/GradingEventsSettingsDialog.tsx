@@ -111,6 +111,19 @@ const retitleWithTime = (title: string, time: string): string => {
   return title.replace(/\b\d{2}:\d{2}\b/g, time.slice(0, 5));
 };
 
+/** Replace the leading branch name in a title when the event branch changes. */
+const retitleWithBranch = (title: string, newBranchName: string, branchList: { name: string }[]): string => {
+  if (!title || !newBranchName) return title;
+  const parts = title.split(' - ');
+  if (parts.length < 2) return title;
+  const branchNames = new Set(branchList.map(b => b.name));
+  if (branchNames.has(parts[0])) {
+    parts[0] = newBranchName;
+    return parts.join(' - ');
+  }
+  return title;
+};
+
 const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onChanged }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState<EventForm>(emptyEvent());
