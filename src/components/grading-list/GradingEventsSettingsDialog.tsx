@@ -499,7 +499,13 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                               type="time"
                               className="h-8 text-sm"
                               value={s.start_time}
-                              onChange={(e) => updateSlot(idx, { start_time: e.target.value })}
+                              onChange={(e) => {
+                                const newTime = e.target.value;
+                                updateSlot(idx, {
+                                  start_time: newTime,
+                                  title: retitleWithTime(s.title, newTime),
+                                });
+                              }}
                             />
                           </div>
                           <div className="space-y-1">
