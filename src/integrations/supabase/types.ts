@@ -7802,6 +7802,7 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      admin_delete_grading_slot: { Args: { p_id: string }; Returns: undefined }
       admin_delete_grading_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -7865,6 +7866,32 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      admin_list_grading_products: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      admin_list_grading_slots: {
+        Args: never
+        Returns: {
+          available_branch_ids: string[]
+          belt_levels: string[]
+          branch_id: string
+          branch_name: string
+          end_time: string
+          grading_date: string
+          grading_product_ids: string[]
+          id: string
+          location: string
+          max_age: number
+          min_age: number
+          registration_count: number
+          start_time: string
+          title: string
+        }[]
       }
       admin_mark_seminar_collected: {
         Args: { p_by: string; p_collected: boolean; p_id: string }
@@ -8067,6 +8094,23 @@ export type Database = {
           p_is_active: boolean
           p_name: string
           p_requires_weight: boolean
+        }
+        Returns: string
+      }
+      admin_upsert_grading_slot: {
+        Args: {
+          p_available_branch_ids?: string[]
+          p_belt_levels?: string[]
+          p_branch_id: string
+          p_end_time?: string
+          p_grading_date: string
+          p_grading_product_ids?: string[]
+          p_id: string
+          p_location?: string
+          p_max_age?: number
+          p_min_age?: number
+          p_start_time?: string
+          p_title?: string
         }
         Returns: string
       }

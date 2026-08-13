@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
+import GradingEventsSettingsDialog from '@/components/grading-list/GradingEventsSettingsDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PublicGuardsPurchaseList from './PublicGuardsPurchaseList';
@@ -126,6 +127,7 @@ const PublicGradingList: React.FC = () => {
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [activeTab, setActiveTab] = useState<string>('summary');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [gradingEventsOpen, setGradingEventsOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
@@ -1306,6 +1308,21 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+            {editMode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setGradingEventsOpen(true)}
+                title="Manage grading events"
+              >
+                <Settings className="h-3.5 w-3.5 mr-1" /> Events
+              </Button>
+            )}
+            <GradingEventsSettingsDialog
+              open={gradingEventsOpen}
+              onOpenChange={setGradingEventsOpen}
+            />
             <Button
               type="button"
               variant="outline"

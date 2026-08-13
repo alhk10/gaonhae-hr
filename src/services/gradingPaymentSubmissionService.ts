@@ -587,3 +587,86 @@ export const adminReplaceGradingSubmissionProof = async (
   if (updErr) throw updErr;
   return url;
 };
+
+/* ---------------------------------------------------------------------------
+ * Grading events (grading_slots) admin management from /access
+ * ------------------------------------------------------------------------- */
+
+export interface AdminGradingSlot {
+  id: string;
+  branch_id: string | null;
+  branch_name: string | null;
+  grading_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  title: string | null;
+  location: string | null;
+  belt_levels: string[] | null;
+  grading_product_ids: string[] | null;
+  min_age: number | null;
+  max_age: number | null;
+  available_branch_ids: string[] | null;
+  registration_count: number;
+}
+
+export const adminListGradingSlots = async (): Promise<AdminGradingSlot[]> => {
+  const { data, error } = await (supabase as any).rpc('admin_list_grading_slots');
+  if (error) throw error;
+  return ((data || []) as any[]).map((r) => ({
+    ...r,
+    registration_count: Number(r.registration_count ?? 0),
+  })) as AdminGradingSlot[];
+};
+
+export interface AdminGradingProduct {
+  id: string;
+  name: string;
+}
+
+export const adminListGradingProducts = async (): Promise<AdminGradingProduct[]> => {
+  const { data, error } = await (supabase as any).rpc('admin_list_grading_products');
+  if (error) throw error;
+  return (data || []) as AdminGradingProduct[];
+};
+
+export interface AdminUpsertGradingSlotInput {
+  id?: string | null;
+  branch_id: string;
+  grading_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  title?: string | null;
+  location?: string | null;
+  belt_levels?: string[] | null;
+  grading_product_ids?: string[] | null;
+  min_age?: number | null;
+  max_age?: number | null;
+  available_branch_ids?: string[] | null;
+}
+
+export const adminUpsertGradingSlot = async (
+  input: AdminUpsertGradingSlotInput,
+): Promise<string> => {
+  const { data, error } = await (supabase as any).rpc('admin_upsert_grading_slot', {
+    p_id: input.id ?? null,
+    p_branch_id: input.branch_id,
+    p_grading_date: input.grading_date,
+    p_start_time: input.start_time || null,
+    p_end_time: input.end_time || null,
+    p_title: input.title || null,
+    p_location: input.location || null,
+    p_belt_levels: input.belt_levels?.length ? input.belt_levels : null,
+    p_grading_product_ids: input.grading_product_ids?.length ? input.grading_product_ids : null,
+    p_min_age: input.min_age ?? null,
+    p_max_age: input.max_age ?? null,
+    p_available_branch_ids: input.available_branch_ids?.length ? input.available_branch_ids : null,
+  });
+  if (error) throw error;
+  return data as string;
+};
+
+export const adminDeleteGradingSlot = async (id: string): Promise<void> => {
+  const { error } = await (supabase as any).rpc('admin_delete_grading_slot', { p_id: id });
+  if (error) throw error;
+};
+
