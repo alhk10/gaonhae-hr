@@ -425,7 +425,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                   type="date"
                   className="h-8 text-sm"
                   value={form.grading_date}
-                  onChange={(e) => setForm(f => ({ ...f, grading_date: e.target.value }))}
+                  onChange={(e) => setEventDate(e.target.value)}
                 />
               </div>
             </div>
