@@ -95,6 +95,16 @@ const emptyEvent = (): EventForm => ({
 
 const timeStr = (t: string | null | undefined) => (t ? String(t).slice(0, 5) : '');
 
+/** Replace any DD/MM/YYYY or YYYY-MM-DD occurrence in a title with the new event date. */
+const retitleWithDate = (title: string, isoDate: string): string => {
+  if (!title || !isoDate) return title;
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return title;
+  return title
+    .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, `${d}/${m}/${y}`)
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, `${y}-${m}-${d}`);
+};
+
 const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onChanged }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState<EventForm>(emptyEvent());
