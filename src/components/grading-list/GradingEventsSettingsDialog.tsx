@@ -316,6 +316,15 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
     }
   };
 
+  /** Event date drives every slot: rewrite dates embedded in slot titles. */
+  const setEventDate = (isoDate: string) => {
+    setForm(f => ({
+      ...f,
+      grading_date: isoDate,
+      slots: f.slots.map(s => ({ ...s, title: retitleWithDate(s.title, isoDate) })),
+    }));
+  };
+
   const slotLabel = (s: SlotForm) => {
     const t = [s.start_time, s.end_time].filter(Boolean).join('–');
     return `${t || 'No time'}${s.title ? ' · ' + s.title : ''}`;
