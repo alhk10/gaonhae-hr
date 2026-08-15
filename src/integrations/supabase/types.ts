@@ -8688,6 +8688,7 @@ export type Database = {
         Args: { p_branch_id: string }
         Returns: {
           available_sizes: string[]
+          category_name: string
           description: string
           item_key: string
           item_type: string

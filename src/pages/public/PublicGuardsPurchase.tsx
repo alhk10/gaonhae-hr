@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
@@ -124,6 +126,40 @@ const PublicGuardsPurchase: React.FC = () => {
   const totalInc = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
   const gstAmount = isSingapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
   const subtotalEx = totalInc - gstAmount;
+
+  // Group items into category tabs (Packages first, then alphabetical)
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof items>();
+    items.forEach((it) => {
+      const key = it.category_name || 'Packages';
+      if (!map.has(key)) map.set(key, [] as typeof items);
+      map.get(key)!.push(it);
+    });
+    return Array.from(map.entries())
+      .map(([category, list]) => ({
+        category,
+        label: category === 'Uniforms & Apparels'
+          ? 'Uniforms'
+          : category === 'Protection Guards & Accessories'
+            ? 'Guards'
+            : category,
+        list,
+        selected: list.filter(i => i.qty > 0).length,
+      }))
+      .sort((a, b) => {
+        if (a.category === 'Packages') return -1;
+        if (b.category === 'Packages') return 1;
+        return a.label.localeCompare(b.label);
+      });
+  }, [items]);
+
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  React.useEffect(() => {
+    if (groups.length && !groups.some(g => g.category === activeCategory)) {
+      setActiveCategory(groups[0].category);
+    }
+  }, [groups, activeCategory]);
+
 
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -288,48 +324,71 @@ const PublicGuardsPurchase: React.FC = () => {
                     <div className="space-y-3 rounded-md border p-3">
                       {catalogLoading ? (
                         <p className="text-xs text-muted-foreground">Loading items…</p>
-                      ) : catalog.length === 0 ? (
+                      ) : groups.length === 0 ? (
                         <p className="text-xs text-muted-foreground">No items are available for this branch yet.</p>
-                      ) : catalog.map(p => {
-                        const q = qty[p.item_key] || 0;
-                        return (
-                          <div key={p.item_key} className="space-y-2">
-                            <div className="flex items-start gap-2">
-                              <Checkbox
-                                id={`item-${p.item_key}`}
-                                checked={q > 0}
-                                onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.item_key]: c ? 1 : 0 }))}
-                              />
-                              <div className="flex-1">
-                                <Label htmlFor={`item-${p.item_key}`} className="text-sm font-medium cursor-pointer">
-                                  {p.name} — ${p.price.toFixed(2)}
-                                </Label>
-                                {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
-                                {p.item_key === 'gaonhae_set' && q > 0 && (
-                                  <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
-                                )}
-                                {p.item_key === 'adidas_set' && q > 0 && (
-                                  <p className="text-xs text-amber-700 italic mt-1">Please expect a 3 to 4 week wait time after order has been verified.</p>
-                                )}
-                              </div>
-                            </div>
-                            {q > 0 && (
-                              <div className="flex items-center gap-2 pl-6">
-                                <Label className="text-xs">Qty</Label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={10}
-                                  value={q}
-                                  onChange={e => setQty(prev => ({ ...prev, [p.item_key]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                                  className="h-7 w-16"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      ) : (
+                        <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+                          {groups.length > 1 && (
+                            <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+                              {groups.map(g => (
+                                <TabsTrigger key={g.category} value={g.category} className="whitespace-nowrap text-xs">
+                                  {g.label}
+                                  {g.selected > 0 && (
+                                    <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                                      {g.selected}
+                                    </span>
+                                  )}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+                          )}
+                          {groups.map(g => (
+                            <TabsContent key={g.category} value={g.category} className="space-y-3 mt-3">
+                              {g.list.map(p => {
+                                const q = qty[p.item_key] || 0;
+                                return (
+                                  <div key={p.item_key} className="space-y-2">
+                                    <div className="flex items-start gap-2">
+                                      <Checkbox
+                                        id={`item-${p.item_key}`}
+                                        checked={q > 0}
+                                        onCheckedChange={(c) => setQty(prev => ({ ...prev, [p.item_key]: c ? 1 : 0 }))}
+                                      />
+                                      <div className="flex-1">
+                                        <Label htmlFor={`item-${p.item_key}`} className="text-sm font-medium cursor-pointer">
+                                          {p.name} — ${p.price.toFixed(2)}
+                                        </Label>
+                                        {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                                        {p.item_key === 'gaonhae_set' && q > 0 && (
+                                          <p className="text-xs text-muted-foreground italic mt-1">We will ensure student get the right sizes</p>
+                                        )}
+                                        {p.item_key === 'adidas_set' && q > 0 && (
+                                          <p className="text-xs text-amber-700 italic mt-1">Please expect a 3 to 4 week wait time after order has been verified.</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {q > 0 && (
+                                      <div className="flex items-center gap-2 pl-6">
+                                        <Label className="text-xs">Qty</Label>
+                                        <Input
+                                          type="number"
+                                          min={1}
+                                          max={10}
+                                          value={q}
+                                          onChange={e => setQty(prev => ({ ...prev, [p.item_key]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                          className="h-7 w-16"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </TabsContent>
+                          ))}
+                        </Tabs>
+                      )}
                     </div>
+
 
                   </div>
 

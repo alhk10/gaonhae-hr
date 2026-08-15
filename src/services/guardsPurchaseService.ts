@@ -72,7 +72,10 @@ export interface GuardsBranchItem {
   requires_size: boolean;
   available_sizes: string[] | null;
   requires_color: boolean;
+  /** 'Packages' for bundles, otherwise the product's category name. */
+  category_name: string;
 }
+
 
 /** Admin view of every candidate item for a branch, with its current setting. */
 export interface GuardsBranchAdminItem {
@@ -94,6 +97,8 @@ export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsB
     ...r,
     price: Number(r.price),
     available_sizes: r.available_sizes || null,
+    category_name: r.category_name || 'Packages',
+
   })) as GuardsBranchItem[];
 };
 
