@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
