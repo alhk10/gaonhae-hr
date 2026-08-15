@@ -97,6 +97,8 @@ export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsB
     ...r,
     price: Number(r.price),
     available_sizes: r.available_sizes || null,
+    category_name: r.category_name || 'Packages',
+
   })) as GuardsBranchItem[];
 };
 
