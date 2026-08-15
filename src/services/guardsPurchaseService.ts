@@ -72,7 +72,10 @@ export interface GuardsBranchItem {
   requires_size: boolean;
   available_sizes: string[] | null;
   requires_color: boolean;
+  /** 'Packages' for bundles, otherwise the product's category name. */
+  category_name: string;
 }
+
 
 /** Admin view of every candidate item for a branch, with its current setting. */
 export interface GuardsBranchAdminItem {
