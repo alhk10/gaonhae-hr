@@ -125,6 +125,40 @@ const PublicGuardsPurchase: React.FC = () => {
   const gstAmount = isSingapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
   const subtotalEx = totalInc - gstAmount;
 
+  // Group items into category tabs (Packages first, then alphabetical)
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof items>();
+    items.forEach((it) => {
+      const key = it.category_name || 'Packages';
+      if (!map.has(key)) map.set(key, [] as typeof items);
+      map.get(key)!.push(it);
+    });
+    return Array.from(map.entries())
+      .map(([category, list]) => ({
+        category,
+        label: category === 'Uniforms & Apparels'
+          ? 'Uniforms'
+          : category === 'Protection Guards & Accessories'
+            ? 'Guards'
+            : category,
+        list,
+        selected: list.filter(i => i.qty > 0).length,
+      }))
+      .sort((a, b) => {
+        if (a.category === 'Packages') return -1;
+        if (b.category === 'Packages') return 1;
+        return a.label.localeCompare(b.label);
+      });
+  }, [items]);
+
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  React.useEffect(() => {
+    if (groups.length && !groups.some(g => g.category === activeCategory)) {
+      setActiveCategory(groups[0].category);
+    }
+  }, [groups, activeCategory]);
+
+
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const detailsFilled = !!firstName.trim() && !!lastName.trim() && !!branchId;
