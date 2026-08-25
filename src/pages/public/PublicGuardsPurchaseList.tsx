@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   listGuardsPurchases,
   updateGuardsPurchase,
+  setGuardsVariantSelections,
   setGuardsCollected,
   getComponentsForCart,
   isVariantSelectionComplete,
