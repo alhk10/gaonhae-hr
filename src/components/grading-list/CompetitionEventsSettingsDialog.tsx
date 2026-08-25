@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Copy } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -138,6 +138,32 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     });
   };
 
+  const duplicateEvent = (e: CompetitionEvent) => {
+    setForm({
+      id: null,
+      name: `${e.name} (Copy)`,
+      is_active: false,
+      display_order: e.display_order,
+      indemnity_clause: e.indemnity_clause || '',
+      require_indemnity_form: e.require_indemnity_form,
+      require_passport: e.require_passport,
+      require_photo: e.require_photo,
+      coaching_label: e.coaching_label || '',
+      coaching_amount: Number(e.coaching_amount || 0),
+      coaching_required: e.coaching_required !== false,
+      extra_lines: (e.extra_lines || []).map(l => ({
+        label: l.label,
+        amount: Number(l.amount || 0),
+        required: l.required === true,
+        kind: (l as any).kind === 'other' ? 'other' : 'category',
+      })),
+      indemnity_template_url: e.indemnity_template_url ?? null,
+      indemnity_template_name: e.indemnity_template_name ?? null,
+      require_grading_card: e.require_grading_card === true,
+    } as any);
+    requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Event name is required'); return; }
     if (!form.coaching_label.trim()) { toast.error('Coaching item name is required'); return; }
@@ -254,8 +280,11 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                       </div>
                     </div>
                     <Switch checked={e.is_active} onCheckedChange={(v) => handleToggleActive(e, v)} />
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)} title="Edit">
                       <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => duplicateEvent(e)} title="Duplicate">
+                      <Copy className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(e)}>
                       <Trash2 className="h-3.5 w-3.5" />
