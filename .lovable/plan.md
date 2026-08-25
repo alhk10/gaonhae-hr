@@ -9,7 +9,10 @@
 ## What will change
 
 - Saving a variant size/colour/gender and toggling Collected will work on the `/access` list (and keep working for signed-in staff).
-- Uniform items show sizes 120–170 both on the public `/guards` purchase page and in the staff list dropdowns.
+- Uniform items show the correct numeric sizes on both the public `/guards` page and the staff list dropdowns:
+  - Adidas White Uniform, Gaonhae White Uniform: 100, 110, 120, 130, 140, 150, 160, 170, 180, 190
+  - Adidas Poom Uniform: 120, 130, 140, 150, 160, 170
+  - Adidas Poomsae uniforms (Male/Female, Junior/Senior), Adidas Dan Uniform, Adidas Dan Champ II Uniform: 150, 160, 170, 180, 190
 - When the Collected checkbox is disabled, the row shows the exact reason:
   - "Verify first" — payment not yet verified
   - "Select variants first" — verified but sizes/colours missing
