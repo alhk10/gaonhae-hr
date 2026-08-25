@@ -399,25 +399,33 @@ export const updateGuardsPurchase = async (
   if (error) throw error;
 };
 
+/**
+ * Persist staff variant (size/colour/gender) choices.
+ * Goes through a SECURITY DEFINER RPC so the password-gated /access list
+ * (which runs as anon) can save, not just signed-in branch staff.
+ */
+export const setGuardsVariantSelections = async (
+  id: string,
+  selections: VariantSelectionsMap,
+): Promise<void> => {
+  const { error } = await supabase.rpc('public_set_guards_variant_selections' as any, {
+    p_id: id,
+    p_selections: selections as any,
+  });
+  if (error) throw error;
+};
+
 export const setGuardsCollected = async (id: string, collected: boolean, by: string | null): Promise<void> => {
-  const { error } = await supabase
-    .from('guards_purchases')
-    .update({
-      collected,
-      collected_at: collected ? new Date().toISOString() : null,
-      collected_by: collected ? by : null,
-    } as any)
-    .eq('id', id);
+  const { data, error } = await supabase.rpc('public_set_guards_collected' as any, {
+    p_id: id,
+    p_collected: collected,
+    p_by: by,
+  });
   if (error) throw error;
 
   if (collected) {
-    // Look up buyer email + name + ref to send the collection email
-    const { data: row } = await supabase
-      .from('guards_purchases')
-      .select('email, first_name, reference_number')
-      .eq('id', id)
-      .maybeSingle();
-    const email = (row as any)?.email as string | null;
+    const row = (data || {}) as any;
+    const email = row.email as string | null;
     if (email) {
       void supabase.functions.invoke('send-transactional-email', {
         body: {
@@ -425,8 +433,8 @@ export const setGuardsCollected = async (id: string, collected: boolean, by: str
           recipientEmail: email,
           idempotencyKey: `guards-collected-${id}`,
           templateData: {
-            firstName: (row as any)?.first_name || '',
-            referenceNumber: (row as any)?.reference_number || '',
+            firstName: row.first_name || '',
+            referenceNumber: row.reference_number || '',
           },
         },
       }).catch(() => { /* non-blocking */ });
