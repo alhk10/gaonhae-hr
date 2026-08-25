@@ -22,7 +22,9 @@ import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   listGuardsPurchases,
-  updateGuardsPurchase,
+  
+  setGuardsStatus,
+  setGuardsVariantSelections,
   setGuardsCollected,
   getComponentsForCart,
   isVariantSelectionComplete,
@@ -142,7 +144,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const handleVerify = async (r: GuardsPurchaseRow) => {
     setBusyId(r.id);
     try {
-      await updateGuardsPurchase(r.id, { sale_status: 'verified' } as any);
+      await setGuardsStatus(r.id, 'verified');
       refresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -155,7 +157,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
     if (!confirm('Reject this order?')) return;
     setBusyId(r.id);
     try {
-      await updateGuardsPurchase(r.id, { sale_status: 'rejected' } as any);
+      await setGuardsStatus(r.id, 'rejected');
       refresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -272,10 +274,10 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                       };
                       setBusyId(r.id);
                       try {
-                        await updateGuardsPurchase(r.id, { variant_selections: next } as any);
+                        await setGuardsVariantSelections(r.id, next);
                         refresh();
                       } catch (e: any) {
-                        toast.error(e.message);
+                        toast.error(e.message || 'Failed to save selection');
                       } finally {
                         setBusyId(null);
                       }
@@ -378,8 +380,14 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             />
                             {r.collected_at && <span className="text-[10px] text-muted-foreground">{formatDate(r.collected_at)}</span>}
                           </div>
-                          {r.sale_status === 'verified' && !variantsComplete && (
-                            <div className="text-[9px] text-muted-foreground mt-0.5">Select all variants</div>
+                          {collectedBlocked && (
+                            <div className="text-[9px] text-muted-foreground mt-0.5">
+                              {r.sale_status !== 'verified' && !variantsComplete
+                                ? 'Verify and select variants first'
+                                : r.sale_status !== 'verified'
+                                  ? 'Verify first'
+                                  : 'Select variants first'}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
