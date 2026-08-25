@@ -23,6 +23,6 @@
 - **Migration**: two `SECURITY DEFINER` functions, granted to `anon` and `authenticated`, mirroring the existing public guards RPC pattern:
   - `public_set_guards_variant_selections(p_id uuid, p_selections jsonb)`
   - `public_set_guards_collected(p_id uuid, p_collected boolean, p_by text)` — also sets `collected_at` / `collected_by`.
-- **Migration**: set `available_sizes = ARRAY['120','130','140','150','160','170']` on the uniform products (Adidas Poom Uniform, Adidas White Uniform, Adidas Dan Uniform, Adidas Dan Champ II Uniform, Adidas Male/Female Junior & Senior Poomsae, Gaonhae White Uniform).
-- `src/services/guardsPurchaseService.ts`: route variant-selection updates and `setGuardsCollected` through the new RPCs (keep the existing collection-email side effect); in `getComponentsForCart`, use the item's stored `sizes` when present and fall back to the uniform size list for uniform-named items instead of XS–XL.
+- **Data update**: set `available_sizes` on each uniform product per the lists above (white uniforms 100–190, Poom uniform 120–170, Poomsae/Dan uniforms 150–190).
+- `src/services/guardsPurchaseService.ts`: route variant-selection updates and `setGuardsCollected` through the new RPCs (keep the existing collection-email side effect); in `getComponentsForCart`, use the item's stored `sizes` when present instead of defaulting to XS–XL.
 - `src/pages/public/PublicGuardsPurchaseList.tsx`: use the new save path, surface a toast on failure, and replace the single "Select all variants" hint with the three-state reason text.
