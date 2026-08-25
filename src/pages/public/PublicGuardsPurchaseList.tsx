@@ -378,8 +378,14 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             />
                             {r.collected_at && <span className="text-[10px] text-muted-foreground">{formatDate(r.collected_at)}</span>}
                           </div>
-                          {r.sale_status === 'verified' && !variantsComplete && (
-                            <div className="text-[9px] text-muted-foreground mt-0.5">Select all variants</div>
+                          {collectedBlocked && (
+                            <div className="text-[9px] text-muted-foreground mt-0.5">
+                              {r.sale_status !== 'verified' && !variantsComplete
+                                ? 'Verify and select variants first'
+                                : r.sale_status !== 'verified'
+                                  ? 'Verify first'
+                                  : 'Select variants first'}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
