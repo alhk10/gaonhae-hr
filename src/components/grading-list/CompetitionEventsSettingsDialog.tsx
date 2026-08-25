@@ -280,8 +280,11 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                       </div>
                     </div>
                     <Switch checked={e.is_active} onCheckedChange={(v) => handleToggleActive(e, v)} />
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)} title="Edit">
                       <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => duplicateEvent(e)} title="Duplicate">
+                      <Copy className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleDelete(e)}>
                       <Trash2 className="h-3.5 w-3.5" />
