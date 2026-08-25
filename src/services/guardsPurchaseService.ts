@@ -399,7 +399,13 @@ export const updateGuardsPurchase = async (
   if (error) throw error;
 };
 
-/**
+/** Update the sale status (verify/reject) through the public RPC. */
+export const setGuardsStatus = async (id: string, status: string): Promise<void> => {
+  const { error } = await supabase.rpc('public_set_guards_status' as any, { p_id: id, p_status: status });
+  if (error) throw error;
+};
+
+
  * Persist staff variant (size/colour/gender) choices.
  * Goes through a SECURITY DEFINER RPC so the password-gated /access list
  * (which runs as anon) can save, not just signed-in branch staff.
