@@ -195,6 +195,19 @@ export interface PurchaseComponentSpec {
   genderChoice?: boolean; // when true, staff must pick male/female
 }
 
+/** Numeric size ranges for uniform products (used for legacy rows without stored sizes). */
+const UNIFORM_SIZE_FALLBACKS: { match: RegExp; sizes: string[] }[] = [
+  { match: /white uniform/i, sizes: ['100','110','120','130','140','150','160','170','180','190'] },
+  { match: /poom uniform/i, sizes: ['120','130','140','150','160','170'] },
+  { match: /(poomsae|dan uniform|dan champ)/i, sizes: ['150','160','170','180','190'] },
+];
+
+const sizesForItem = (name: string, stored?: unknown): string[] => {
+  if (Array.isArray(stored) && stored.length) return stored as string[];
+  const hit = UNIFORM_SIZE_FALLBACKS.find(f => f.match.test(name || ''));
+  return hit ? hit.sizes : ['XS','S','M','L','XL'];
+};
+
 /** Build the list of components that need a size/color choice for a purchase. */
 export const getComponentsForCart = (
   items: GuardsCartItem[] | any[],
@@ -219,7 +232,7 @@ export const getComponentsForCart = (
       out.push({
         product_id: it.product_id || it.key,
         name: it.label || 'Item',
-        sizes: Array.isArray(it.sizes) && it.sizes.length ? it.sizes : ['XS','S','M','L','XL'],
+        sizes: sizesForItem(it.label || '', it.sizes),
         colors: it.requires_color ? ['Red','Blue','Black','White'] : [],
       });
     }
@@ -227,6 +240,7 @@ export const getComponentsForCart = (
   }
   return out;
 };
+
 
 export const isVariantSelectionComplete = (
   items: GuardsCartItem[] | any[],
