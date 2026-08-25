@@ -9072,7 +9072,7 @@ export type Database = {
       }
       public_set_guards_collected: {
         Args: { p_by: string; p_collected: boolean; p_id: string }
-        Returns: undefined
+        Returns: Json
       }
       public_set_guards_variant_selections: {
         Args: { p_id: string; p_selections: Json }
