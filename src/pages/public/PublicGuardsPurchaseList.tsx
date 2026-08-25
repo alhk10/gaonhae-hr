@@ -22,7 +22,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   listGuardsPurchases,
-  updateGuardsPurchase,
+  
   setGuardsStatus,
   setGuardsVariantSelections,
   setGuardsCollected,
