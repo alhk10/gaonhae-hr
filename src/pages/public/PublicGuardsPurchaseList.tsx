@@ -272,10 +272,10 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                       };
                       setBusyId(r.id);
                       try {
-                        await updateGuardsPurchase(r.id, { variant_selections: next } as any);
+                        await setGuardsVariantSelections(r.id, next);
                         refresh();
                       } catch (e: any) {
-                        toast.error(e.message);
+                        toast.error(e.message || 'Failed to save selection');
                       } finally {
                         setBusyId(null);
                       }
