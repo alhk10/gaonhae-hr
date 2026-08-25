@@ -3,7 +3,7 @@
 ## What's wrong
 
 1. **Variant dropdowns don't save (so Collect stays greyed out).** The list reads rows through a public database function, but writing a size/colour choice and ticking "Collected" write straight to the `guards_purchases` table. Those writes are only allowed for signed-in staff with branch access, so on the password-gated `/access` page the update silently affects zero rows: the dropdown appears set, refetch wipes it, and the Collected checkbox never unlocks.
-2. **Uniform sizes are wrong.** Uniform products (Adidas Poom Uniform, Adidas White Uniform, Gaonhae White Uniform, Dan/Poomsae uniforms) have no size list stored, so the app falls back to XS–XL. They should offer 120, 130, 140, 150, 160, 170.
+2. **Uniform sizes are wrong.** Uniform products have no size list stored, so the app falls back to XS–XL. They should use numeric sizes per product (see below).
 3. **No explanation when Collect is greyed out** beyond a small "Select all variants" note.
 
 ## What will change
