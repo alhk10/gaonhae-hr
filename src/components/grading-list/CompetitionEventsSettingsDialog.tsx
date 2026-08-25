@@ -138,6 +138,32 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
     });
   };
 
+  const duplicateEvent = (e: CompetitionEvent) => {
+    setForm({
+      id: null,
+      name: `${e.name} (Copy)`,
+      is_active: false,
+      display_order: e.display_order,
+      indemnity_clause: e.indemnity_clause || '',
+      require_indemnity_form: e.require_indemnity_form,
+      require_passport: e.require_passport,
+      require_photo: e.require_photo,
+      coaching_label: e.coaching_label || '',
+      coaching_amount: Number(e.coaching_amount || 0),
+      coaching_required: e.coaching_required !== false,
+      extra_lines: (e.extra_lines || []).map(l => ({
+        label: l.label,
+        amount: Number(l.amount || 0),
+        required: l.required === true,
+        kind: (l as any).kind === 'other' ? 'other' : 'category',
+      })),
+      indemnity_template_url: e.indemnity_template_url ?? null,
+      indemnity_template_name: e.indemnity_template_name ?? null,
+      require_grading_card: e.require_grading_card === true,
+    } as any);
+    requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Event name is required'); return; }
     if (!form.coaching_label.trim()) { toast.error('Coaching item name is required'); return; }
