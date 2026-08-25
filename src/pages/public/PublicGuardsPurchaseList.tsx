@@ -143,7 +143,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const handleVerify = async (r: GuardsPurchaseRow) => {
     setBusyId(r.id);
     try {
-      await updateGuardsPurchase(r.id, { sale_status: 'verified' } as any);
+      await setGuardsStatus(r.id, 'verified');
       refresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -156,7 +156,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
     if (!confirm('Reject this order?')) return;
     setBusyId(r.id);
     try {
-      await updateGuardsPurchase(r.id, { sale_status: 'rejected' } as any);
+      await setGuardsStatus(r.id, 'rejected');
       refresh();
     } catch (e: any) {
       toast.error(e.message);
