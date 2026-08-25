@@ -405,7 +405,7 @@ export const setGuardsStatus = async (id: string, status: string): Promise<void>
   if (error) throw error;
 };
 
-
+/**
  * Persist staff variant (size/colour/gender) choices.
  * Goes through a SECURITY DEFINER RPC so the password-gated /access list
  * (which runs as anon) can save, not just signed-in branch staff.
