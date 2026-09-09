@@ -373,6 +373,34 @@ const PublicHelloChat: React.FC = () => {
     ),
     [cart, branch?.country],
   );
+
+  // Sibling discount for the matched student (term payments only)
+  useEffect(() => {
+    let cancelled = false;
+    if (!matched?.id) { setSiblingDiscount(0); return; }
+    getPublicSiblingDiscount(matched.id).then(v => { if (!cancelled) setSiblingDiscount(v); });
+    return () => { cancelled = true; };
+  }, [matched?.id]);
+
+  // 4-week plan locks for terms the student is choosing
+  useEffect(() => {
+    if (!matched?.id) return;
+    const termIds = Object.values(rowDrafts)
+      .map(d => d?.termId)
+      .filter((t): t is string => !!t && !(t in lockedPlans));
+    if (termIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(termIds.map(async t => [t, await getLockedPlanForTerm(matched.id, t)] as const))
+      .then(pairs => {
+        if (cancelled) return;
+        setLockedPlans(prev => {
+          const next = { ...prev };
+          pairs.forEach(([t, p]) => { next[t] = p; });
+          return next;
+        });
+      });
+    return () => { cancelled = true; };
+  }, [matched?.id, rowDrafts, lockedPlans]);
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
