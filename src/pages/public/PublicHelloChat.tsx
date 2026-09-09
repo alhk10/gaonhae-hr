@@ -660,17 +660,35 @@ const PublicHelloChat: React.FC = () => {
         proof_file: proofFile,
         contact_first_name: firstName,
         contact_last_name: lastName,
+        planned_schedule: (feeCartItem?.termId && Object.keys(plannedSlots).length > 0)
+          ? {
+              term_id: feeCartItem.termId,
+              product_id: feeCartItem.product.product_id,
+              slots: Object.values(plannedSlots).map(s => ({
+                date: s.date,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                timetable_id: s.timetable_id,
+              })),
+            }
+          : null,
       });
       if (payCategory.id === GRADING_CATEGORY_ID) {
         navigate('/access');
         return;
       }
       if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {
+        if (Object.keys(plannedSlots).length > 0) {
+          toast.success('Payment received. Your lessons are booked, pending verification.');
+          goTo('payment_done');
+          return;
+        }
         toast.success('Payment received. Schedule your lessons below.');
         goTo('lesson_request');
         return;
       }
       goTo('payment_done');
+
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
