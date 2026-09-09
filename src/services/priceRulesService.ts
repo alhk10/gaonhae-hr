@@ -100,7 +100,7 @@ export async function getProductBranchPrices(productId: string): Promise<BranchP
   const { data: branches, error: branchError } = await supabase
     .from('branches')
     .select('id, name, currency, country')
-    .not('name', 'in', '("Competition","Headquarters")')
+    .not('name', 'in', '("Competition","Headquarters","Centralised Grading")')
     .order('name');
 
   if (branchError) {

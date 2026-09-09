@@ -114,7 +114,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
     // Fetch categories and branches for validation
     const [categories, branchesRes] = await Promise.all([
       getProductCategories(),
-      supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")'),
+      supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters","Centralised Grading")'),
     ]);
     const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
     const branchMap = new Map((branchesRes.data || []).map(b => [b.name.toLowerCase(), b.id]));
@@ -186,7 +186,7 @@ const ImportProductsDialog: React.FC<ImportProductsDialogProps> = ({ open, onOpe
     try {
       const [categories, branchesRes] = await Promise.all([
         getProductCategories(),
-        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")'),
+        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters","Centralised Grading")'),
       ]);
       const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
       const branchMap = new Map((branchesRes.data || []).map(b => [b.name.toLowerCase(), b.id]));

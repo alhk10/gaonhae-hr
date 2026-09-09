@@ -23,7 +23,7 @@ export function useBranches() {
         const { data, error } = await supabase
           .from('branches')
           .select('id, name, country')
-          .not('name', 'in', '("Competition","Headquarters")')
+          .not('name', 'in', '("Competition","Headquarters","Centralised Grading")')
           .order('name');
 
         if (error) throw error;

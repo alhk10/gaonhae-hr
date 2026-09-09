@@ -23,7 +23,7 @@ import { formatDate } from '@/utils/dateFormat';
 import { SG_BELT_LEVELS, AU_BELT_LEVELS } from '@/constants/beltLevels';
 import { deriveBeltLevels } from '@/utils/gradingProductBelts';
 import {
-  getPublicBranches,
+  getPublicGradingVenues,
   adminListGradingSlots,
   adminListGradingProducts,
   adminUpsertGradingSlot,
@@ -138,8 +138,8 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
   });
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['public-branches'],
-    queryFn: getPublicBranches,
+    queryKey: ['public-grading-venues'],
+    queryFn: getPublicGradingVenues,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -426,7 +426,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Branch *</Label>
+                <Label className="text-xs">Grading Venue *</Label>
                 <Select
                   value={form.branch_id}
                   onValueChange={(v) => {
@@ -442,7 +442,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                   }}
                 >
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue placeholder="Select grading venue" />
                   </SelectTrigger>
                   <SelectContent>
                     {branches.map(b => (
@@ -598,7 +598,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
-                            {branches.map(b => (
+                            {branches.filter(b => b.name !== 'Centralised Grading').map(b => (
                               <label key={b.id} className="flex items-center gap-2 text-xs cursor-pointer">
                                 <Checkbox
                                   checked={s.available_branch_ids.includes(b.id)}

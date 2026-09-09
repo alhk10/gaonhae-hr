@@ -58,7 +58,7 @@ const InvoiceAccessManager: React.FC<InvoiceAccessManagerProps> = ({
 
       // Filter out non-operational branches
       const operationalBranches = (branchData || []).filter(
-        b => !['Competition', 'Headquarters'].includes(b.name)
+        b => !['Competition', 'Headquarters', 'Centralised Grading'].includes(b.name)
       );
       setBranches(operationalBranches);
 
