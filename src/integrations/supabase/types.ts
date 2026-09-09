@@ -8866,6 +8866,10 @@ export type Database = {
           submission_id: string
         }[]
       }
+      get_public_sibling_discount: {
+        Args: { p_student_id: string }
+        Returns: number
+      }
       get_public_student_counts_by_month: {
         Args: { p_year: number }
         Returns: {
