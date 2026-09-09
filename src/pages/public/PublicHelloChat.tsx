@@ -382,12 +382,14 @@ const PublicHelloChat: React.FC = () => {
     return () => { cancelled = true; };
   }, [matched?.id]);
 
-  // 4-week plan locks for terms the student is choosing
+  // 4-week plan locks for terms the student is choosing (plus all offered terms,
+  // so the default term choice knows about an existing 4-week lock)
   useEffect(() => {
     if (!matched?.id) return;
-    const termIds = Object.values(rowDrafts)
-      .map(d => d?.termId)
-      .filter((t): t is string => !!t && !(t in lockedPlans));
+    const termIds = [
+      ...Object.values(rowDrafts).map(d => d?.termId),
+      ...(chatTerms || []).map(t => t.term_id),
+    ].filter((t): t is string => !!t && !(t in lockedPlans));
     if (termIds.length === 0) return;
     let cancelled = false;
     Promise.all(termIds.map(async t => [t, await getLockedPlanForTerm(matched.id, t)] as const))
