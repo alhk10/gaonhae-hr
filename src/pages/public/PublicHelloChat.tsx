@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,10 @@ import {
   type ChatProduct,
   type ChatTerm,
   type MatchedStudent,
+  getChatInvoices,
+  type ChatInvoice,
 } from '@/services/publicChatService';
+import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 import {
   FOUR_WEEK_NOTE,
@@ -112,6 +115,7 @@ type Stage =
   | 'fees_schedule'
   | 'payment_pay'
   | 'payment_done'
+  | 'past_invoices'
   | 'lesson_action'
   | 'lesson_request'
   | 'lesson_request_done';
