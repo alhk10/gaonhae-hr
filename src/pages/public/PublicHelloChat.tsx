@@ -1281,8 +1281,22 @@ const PublicHelloChat: React.FC = () => {
                         terms={p.is_term_based ? chatTerms : undefined}
                         defaultGender={matched?.gender || gender || ''}
                         isLessonCategory={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
+                        isSchoolFees={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
+                        siblingDiscount={siblingDiscount}
+                        lockedPlans={lockedPlans}
                         draft={rowDrafts[p.product_id]}
-                        onDraftChange={(d) => setRowDrafts(prev => ({ ...prev, [p.product_id]: d }))}
+                        onDraftChange={(d) => setRowDrafts(prev => {
+                          // School fees: only one class may be selected at a time
+                          if (payCategory?.id === SCHOOL_FEES_CATEGORY_ID && d.picked) {
+                            const next: Record<string, RowDraft> = {};
+                            Object.entries(prev).forEach(([k, v]) => {
+                              next[k] = k === p.product_id ? v : { ...v, picked: false };
+                            });
+                            next[p.product_id] = d;
+                            return next;
+                          }
+                          return { ...prev, [p.product_id]: d };
+                        })}
                       />
                     ))
                   )}
