@@ -58,21 +58,17 @@ export const getChatTermsForStudent = async (
 };
 
 export const createChatSession = async (input: ChatSessionInput): Promise<string> => {
-  const { data, error } = await supabase
-    .from('public_chat_sessions')
-    .insert({
-      first_name: input.first_name.trim().toUpperCase(),
-      last_name: input.last_name.trim().toUpperCase(),
-      date_of_birth: input.date_of_birth || null,
-      branch_id: input.branch_id,
-      gender: input.gender ?? null,
-      email: input.email?.trim().toLowerCase() || null,
-      phone: input.phone?.trim() || null,
-    })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_session' as any, {
+    p_first_name: input.first_name.trim().toUpperCase(),
+    p_last_name: input.last_name.trim().toUpperCase(),
+    p_date_of_birth: input.date_of_birth || null,
+    p_branch_id: input.branch_id,
+    p_gender: input.gender ?? null,
+    p_email: input.email?.trim().toLowerCase() || null,
+    p_phone: input.phone?.trim() || null,
+  });
   if (error) throw error;
-  return data!.id as string;
+  return data as unknown as string;
 };
 
 export const updateSessionMatchAndOutcome = async (
@@ -177,6 +173,7 @@ export interface SubmitCallbackInput {
   message: string;
   type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request' | 'no_match_request';
   preferred_time?: string | null;
+  matched_student_id?: string | null;
 }
 
 export interface LessonChangeItem {
@@ -244,12 +241,9 @@ export const submitLessonRequest = async (input: SubmitLessonRequestInput): Prom
     message: lines.filter(Boolean).join('\n'),
     type: 'lesson_schedule_request',
     preferred_time: null,
+    // Link the request to the known student so branch approvers can act on it.
+    matched_student_id: input.student_id,
   });
-  // Link the request to the known student so branch approvers can act on it.
-  await supabase
-    .from('public_chat_callback_requests')
-    .update({ matched_student_id: input.student_id } as any)
-    .eq('id', id);
   return id;
 };
 
@@ -366,29 +360,25 @@ export const getBranchHolidays = async (sessionId: string, studentId: string, fr
 
 export const submitCallback = async (input: SubmitCallbackInput): Promise<string> => {
   const name = `${input.first_name} ${input.last_name}`.trim();
-  const { data, error } = await supabase
-    .from('public_chat_callback_requests')
-    .insert({
-      session_id: input.session_id,
-      branch_id: input.branch_id,
-      name,
-      contact_phone: input.contact_phone,
-      contact_email: input.contact_email,
-      type: input.type ?? 'general_callback',
-      message: input.message,
-      preferred_time: input.preferred_time ?? null,
-    })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_callback' as any, {
+    p_session_id: input.session_id,
+    p_branch_id: input.branch_id,
+    p_name: name,
+    p_type: input.type ?? 'general_callback',
+    p_message: input.message,
+    p_contact_phone: input.contact_phone,
+    p_contact_email: input.contact_email,
+    p_preferred_time: input.preferred_time ?? null,
+    p_first_name: input.first_name || null,
+    p_last_name: input.last_name || null,
+    p_date_of_birth: input.date_of_birth || null,
+    p_gender: null,
+    p_matched_student_id: input.matched_student_id ?? null,
+    p_outcome: input.type === 'trial_lead' ? 'trial_lead' : 'callback',
+  });
   if (error) throw error;
-  const callbackId = data!.id as string;
+  const callbackId = data as unknown as string;
 
-  // Update session outcome
-  await updateSessionMatchAndOutcome(
-    input.session_id,
-    undefined as any,
-    input.type === 'trial_lead' ? 'trial_lead' : 'callback',
-  );
 
   await logChatEvent(input.session_id, 'callback_submitted', { callback_id: callbackId, type: input.type });
 
@@ -415,10 +405,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
         },
       },
     });
-    await supabase
-      .from('public_chat_callback_requests')
-      .update({ email_sent_at: new Date().toISOString() })
-      .eq('id', callbackId);
+    await supabase.rpc('mark_public_chat_callback_email_sent' as any, { p_id: callbackId });
     await logChatEvent(input.session_id, 'callback_email_sent', { callback_id: callbackId });
   } catch (err) {
     console.warn('Callback email send failed (non-blocking)', err);
@@ -515,25 +502,24 @@ export const submitInlineRegistration = async (input: SubmitInlineRegistrationIn
     input.notes ? `Notes: ${input.notes}` : null,
   ].filter(Boolean).join('\n');
 
-  const { data, error } = await supabase
-    .from('public_chat_callback_requests')
-    .insert({
-      session_id: input.session_id,
-      branch_id: input.branch_id,
-      name: `${input.first_name} ${input.last_name}`.trim(),
-      first_name: (input.first_name || '').trim().toUpperCase() || null,
-      last_name: (input.last_name || '').trim().toUpperCase() || null,
-      date_of_birth: input.date_of_birth || null,
-      gender: (input.gender || '').toLowerCase() || null,
-      contact_phone: input.phone,
-      contact_email: input.email ? input.email.trim().toLowerCase() : null,
-      type: 'registration_request',
-      message: msg,
-    } as any)
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_callback' as any, {
+    p_session_id: input.session_id,
+    p_branch_id: input.branch_id,
+    p_name: `${input.first_name} ${input.last_name}`.trim(),
+    p_type: 'registration_request',
+    p_message: msg,
+    p_contact_phone: input.phone,
+    p_contact_email: input.email,
+    p_preferred_time: null,
+    p_first_name: input.first_name || null,
+    p_last_name: input.last_name || null,
+    p_date_of_birth: input.date_of_birth || null,
+    p_gender: input.gender || null,
+    p_matched_student_id: null,
+    p_outcome: 'register',
+  });
   if (error) throw error;
-  await updateSessionMatchAndOutcome(input.session_id, undefined as any, 'register');
-  await logChatEvent(input.session_id, 'registration_submitted', { id: data!.id });
-  return data!.id as string;
+  const newId = data as unknown as string;
+  await logChatEvent(input.session_id, 'registration_submitted', { id: newId });
+  return newId;
 };
