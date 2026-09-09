@@ -22,6 +22,12 @@ import {
   getPublicTermsForBranch,
   submitSchoolFeesPayment,
 } from '@/services/schoolFeesSubmissionService';
+import {
+  FOUR_WEEK_NOTE,
+  FOUR_WEEK_WEEKS,
+  earlyPaymentDiscountFor,
+  type FeePaymentPlan,
+} from '@/utils/schoolFeePlan';
 
 const GST_RATE = 0.09;
 
@@ -98,6 +104,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
   const [dob, setDob] = useState<Date | undefined>();
   const [termId, setTermId] = useState('');
   const [productId, setProductId] = useState('');
+  const [plan, setPlan] = useState<FeePaymentPlan>('term');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -152,7 +159,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
   );
   const selectedTerm = useMemo(() => terms.find(t => t.term_id === termId) || null, [terms, termId]);
 
-  const termWeeks = useMemo(() => {
+  const fullTermWeeks = useMemo(() => {
     if (!selectedTerm) return 12;
     const start = new Date(selectedTerm.start_date).getTime();
     const end = new Date(selectedTerm.end_date).getTime();
@@ -161,8 +168,13 @@ const PublicSchoolFeesPayment: React.FC = () => {
     return Math.max(1, Math.round(days / 7));
   }, [selectedTerm]);
 
+  const termWeeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : fullTermWeeks;
+
   const weeklyPrice = Number(selectedProduct?.branch_price ?? 0);
-  const subtotal = weeklyPrice * termWeeks;
+  const grossSubtotal = weeklyPrice * termWeeks;
+  // Early-payment discount applies to full-term payments only.
+  const earlyDiscount = plan === 'term' ? earlyPaymentDiscountFor(selectedTerm?.start_date) : 0;
+  const subtotal = Math.max(0, grossSubtotal - earlyDiscount);
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
