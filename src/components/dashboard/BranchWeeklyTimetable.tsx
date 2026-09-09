@@ -403,13 +403,17 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
                                             : getStatusColor(student.status || 'scheduled')
                                         }`}
-                                        title={student.currentBelt ? `${student.name} (${student.currentBelt})` : student.name}
+                                        title={`${student.name}${student.currentBelt ? ` (${student.currentBelt})` : ''}${student.unpaid ? ' — payment pending verification' : ''}`}
                                       >
                                         {student.name}
                                         {student.currentBelt && (
                                           <span className="ml-1 opacity-75">({student.currentBelt})</span>
                                         )}
+                                        {student.unpaid && (
+                                          <span className="ml-1 font-medium text-amber-700 dark:text-amber-300">· Unpaid</span>
+                                        )}
                                       </div>
+
                                     ))}
                                   </div>
                                 )}
