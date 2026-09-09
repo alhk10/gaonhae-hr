@@ -1536,6 +1536,99 @@ const PublicHelloChat: React.FC = () => {
             </>
           )}
 
+          {stage === 'fees_schedule' && (
+            <>
+              <Bubble who="bot">
+                Pick the lesson days you'd like for {planTerm?.term_name || 'this term'}. You can choose up to {planAllowance} lesson{planAllowance === 1 ? '' : 's'}.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Lessons planned</span>
+                    <Badge variant={plannedList.length ? 'default' : 'secondary'}>
+                      {plannedList.length} / {planAllowance}
+                    </Badge>
+                  </div>
+
+                  <Calendar
+                    mode="single"
+                    selected={planPickedDate}
+                    month={planCalMonth}
+                    onMonthChange={setPlanCalMonth}
+                    onSelect={(d) => setPlanPickedDate(d ?? undefined)}
+                    disabled={isPlanDateDisabled}
+                    className="rounded-md border p-2 pointer-events-auto"
+                  />
+
+                  {planPickedDate && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium">{formatDate(isoOf(planPickedDate))}</p>
+                      {planSlotsForDate(planPickedDate).length === 0 && (
+                        <p className="text-[11px] text-muted-foreground">No classes on this day.</p>
+                      )}
+                      {planSlotsForDate(planPickedDate).map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => togglePlannedSlot(planPickedDate, s)}
+                          disabled={!s.picked && (s.isFull || s.isTooLate)}
+                          className={cn(
+                            'w-full flex items-center justify-between rounded-md border px-2.5 py-2 text-xs',
+                            s.picked ? 'border-primary bg-primary/10' : 'bg-background',
+                            (!s.picked && (s.isFull || s.isTooLate)) && 'opacity-50',
+                          )}
+                        >
+                          <span className="text-left">
+                            {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                            <span className="text-muted-foreground"> · {s.class_type}</span>
+                          </span>
+                          <span className="text-[11px]">
+                            {s.picked ? 'Remove' : s.isFull ? 'Full' : s.isTooLate ? 'Closed' : 'Add'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {plannedList.length > 0 && (
+                    <div className="space-y-1 border-t pt-2">
+                      <p className="text-xs font-medium">Your planned lessons</p>
+                      {plannedList.map(l => (
+                        <div key={l.key} className="flex items-center justify-between text-[11px]">
+                          <span>{formatDate(l.date)} · {l.start_time.slice(0, 5)}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => setPlannedSlots(prev => {
+                              const next = { ...prev };
+                              delete next[l.key];
+                              return next;
+                            })}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-muted-foreground pt-1">
+                        These lessons show as unpaid until your payment is verified.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
+                    <Button onClick={() => goTo('payment_pay')} className="flex-1 h-10">
+                      Continue to payment
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+
           {stage === 'payment_pay' && (
             <>
               <Bubble who="bot">Choose payment method and upload your proof.</Bubble>
