@@ -1055,14 +1055,15 @@ export const getInvoiceStats = async (): Promise<{
 /**
  * Get sibling discount amount for a student.
  * Siblings are identified by sharing the same email address.
- * If 2+ active students share the same email, each gets $20 off term invoices.
+ * If 2+ active students share the same email, each gets $20 off term invoices
+ * ($10 for Yishun students).
  */
 export const getSiblingDiscount = async (studentId: string): Promise<number> => {
   try {
-    // Get the student's email
+    // Get the student's email and branch
     const { data: student, error: studentError } = await supabase
       .from('students')
-      .select('email')
+      .select('email, branch_id')
       .eq('id', studentId)
       .single();
 
@@ -1080,8 +1081,8 @@ export const getSiblingDiscount = async (studentId: string): Promise<number> => 
       return 0;
     }
 
-    // If 2 or more students share the email, apply $20 discount
-    return (count && count >= 2) ? 20 : 0;
+    if (!count || count < 2) return 0;
+    return siblingDiscountForBranch(student.branch_id);
   } catch (error) {
     logger.error('Error in getSiblingDiscount', error);
     return 0;
