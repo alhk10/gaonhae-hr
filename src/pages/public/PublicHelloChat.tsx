@@ -642,6 +642,8 @@ const PublicHelloChat: React.FC = () => {
           term_name: c.termName ?? null,
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
+          payment_plan: c.plan ?? null,
+          discount: c.discount || 0,
         })),
         amount: totalWithTax,
         payment_method: payMethod,
