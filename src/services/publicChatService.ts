@@ -173,6 +173,7 @@ export interface SubmitCallbackInput {
   message: string;
   type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request' | 'no_match_request';
   preferred_time?: string | null;
+  matched_student_id?: string | null;
 }
 
 export interface LessonChangeItem {
@@ -240,12 +241,9 @@ export const submitLessonRequest = async (input: SubmitLessonRequestInput): Prom
     message: lines.filter(Boolean).join('\n'),
     type: 'lesson_schedule_request',
     preferred_time: null,
+    // Link the request to the known student so branch approvers can act on it.
+    matched_student_id: input.student_id,
   });
-  // Link the request to the known student so branch approvers can act on it.
-  await supabase
-    .from('public_chat_callback_requests')
-    .update({ matched_student_id: input.student_id } as any)
-    .eq('id', id);
   return id;
 };
 
