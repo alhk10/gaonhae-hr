@@ -109,6 +109,7 @@ type Stage =
   | 'trial_done'
   | 'payment_category'
   | 'payment_products'
+  | 'fees_schedule'
   | 'payment_pay'
   | 'payment_done'
   | 'lesson_action'
@@ -222,6 +223,12 @@ const PublicHelloChat: React.FC = () => {
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [calMonth, setCalMonth] = useState<Date | undefined>(undefined);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+
+  // School fees: plan lessons before paying
+  type PlannedLesson = { date: string; start_time: string; end_time: string; timetable_id: string | null; class_type: string | null };
+  const [plannedSlots, setPlannedSlots] = useState<Record<string, PlannedLesson>>({});
+  const [planPickedDate, setPlanPickedDate] = useState<Date | undefined>(undefined);
+  const [planCalMonth, setPlanCalMonth] = useState<Date | undefined>(undefined);
 
 
 
