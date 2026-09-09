@@ -360,29 +360,25 @@ export const getBranchHolidays = async (sessionId: string, studentId: string, fr
 
 export const submitCallback = async (input: SubmitCallbackInput): Promise<string> => {
   const name = `${input.first_name} ${input.last_name}`.trim();
-  const { data, error } = await supabase
-    .from('public_chat_callback_requests')
-    .insert({
-      session_id: input.session_id,
-      branch_id: input.branch_id,
-      name,
-      contact_phone: input.contact_phone,
-      contact_email: input.contact_email,
-      type: input.type ?? 'general_callback',
-      message: input.message,
-      preferred_time: input.preferred_time ?? null,
-    })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_callback' as any, {
+    p_session_id: input.session_id,
+    p_branch_id: input.branch_id,
+    p_name: name,
+    p_type: input.type ?? 'general_callback',
+    p_message: input.message,
+    p_contact_phone: input.contact_phone,
+    p_contact_email: input.contact_email,
+    p_preferred_time: input.preferred_time ?? null,
+    p_first_name: input.first_name || null,
+    p_last_name: input.last_name || null,
+    p_date_of_birth: input.date_of_birth || null,
+    p_gender: null,
+    p_matched_student_id: input.matched_student_id ?? null,
+    p_outcome: input.type === 'trial_lead' ? 'trial_lead' : 'callback',
+  });
   if (error) throw error;
-  const callbackId = data!.id as string;
+  const callbackId = data as unknown as string;
 
-  // Update session outcome
-  await updateSessionMatchAndOutcome(
-    input.session_id,
-    undefined as any,
-    input.type === 'trial_lead' ? 'trial_lead' : 'callback',
-  );
 
   await logChatEvent(input.session_id, 'callback_submitted', { callback_id: callbackId, type: input.type });
 
