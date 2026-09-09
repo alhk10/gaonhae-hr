@@ -22,7 +22,12 @@ interface UpcomingClass {
   status: string;
   class_type: string;
   branch_name: string;
+  notes?: string | null;
 }
+
+const isAwaitingPayment = (notes?: string | null) =>
+  !!notes && notes.startsWith('pending_payment_verification');
+
 
 const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, branchId }) => {
   // Fetch student's branch if not provided
