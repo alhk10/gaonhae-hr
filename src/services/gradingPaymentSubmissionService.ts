@@ -425,7 +425,17 @@ export const getPublicGradingSlotsByDate = async (
   return (data || []) as PublicGradingSlotByDate[];
 };
 
+// 'Centralised Grading' is a grading venue, not a real school branch — keep it
+// out of student-facing branch pickers. Use getPublicGradingVenues where it
+// should be selectable (grading event settings).
 export const getPublicBranches = async (): Promise<PublicBranch[]> => {
+  const { data, error } = await supabase.rpc('get_public_branches');
+  if (error) throw error;
+  return ((data || []) as PublicBranch[]).filter(b => b.name !== 'Centralised Grading');
+};
+
+/** Branches plus pseudo-venues such as 'Centralised Grading' — for grading event/slot pickers. */
+export const getPublicGradingVenues = async (): Promise<PublicBranch[]> => {
   const { data, error } = await supabase.rpc('get_public_branches');
   if (error) throw error;
   return (data || []) as PublicBranch[];
