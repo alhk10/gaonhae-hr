@@ -137,7 +137,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
-  // Default the term to the current one, else the next upcoming one.
+  // Default the term to the next upcoming one, else the current one.
   useEffect(() => {
     if (!terms.length) {
       setTermId('');
@@ -146,7 +146,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const current = terms.find(t => t.start_date <= today && t.end_date >= today);
     const upcoming = terms.find(t => t.start_date > today);
-    setTermId((current || upcoming || terms[terms.length - 1]).term_id);
+    setTermId((upcoming || current || terms[terms.length - 1]).term_id);
   }, [terms]);
 
   useEffect(() => {
