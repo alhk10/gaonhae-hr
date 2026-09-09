@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,10 @@ import {
   type ChatProduct,
   type ChatTerm,
   type MatchedStudent,
+  getChatInvoices,
+  type ChatInvoice,
 } from '@/services/publicChatService';
+import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 import {
   FOUR_WEEK_NOTE,
@@ -112,6 +115,7 @@ type Stage =
   | 'fees_schedule'
   | 'payment_pay'
   | 'payment_done'
+  | 'past_invoices'
   | 'lesson_action'
   | 'lesson_request'
   | 'lesson_request_done';
@@ -265,6 +269,61 @@ const PublicHelloChat: React.FC = () => {
     queryFn: () => getChatTermsForStudent(sessionId!, matched!.id, branchId),
     enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
   });
+
+  const { data: pastInvoices, isLoading: pastInvoicesLoading } = useQuery({
+    queryKey: ['hello-past-invoices', sessionId, matched?.id],
+    queryFn: () => getChatInvoices(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
+  });
+
+  const handleDownloadInvoice = async (inv: ChatInvoice) => {
+    try {
+      const pdfData: InvoiceData = {
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        issue_date: inv.issue_date,
+        due_date: inv.due_date,
+        subtotal: inv.subtotal || 0,
+        tax_amount: inv.tax_amount || 0,
+        discount_amount: inv.discount_amount || 0,
+        total_amount: inv.total_amount || 0,
+        amount_paid: inv.amount_paid || 0,
+        balance_due: inv.balance_due || 0,
+        notes: inv.notes,
+        status: inv.status,
+        student: pastInvoices?.student ? {
+          name: pastInvoices.student.name,
+          address: pastInvoices.student.address,
+          phone: pastInvoices.student.phone,
+          email: pastInvoices.student.email,
+        } : undefined,
+        items: (inv.items || []).map((item): InvoiceItem => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate || 0,
+          tax_amount: item.tax_amount || 0,
+          metadata: item.metadata,
+          term_info: item.term_info || undefined,
+          grading_info: item.grading_info || undefined,
+        })),
+        template: pastInvoices?.template ? {
+          letterhead_url: pastInvoices.template.letterhead_url || undefined,
+          paynow_qr_url: pastInvoices.template.paynow_qr_url || undefined,
+          country: pastInvoices.template.country || undefined,
+          default_notes: pastInvoices.template.default_notes || undefined,
+          footer_text: pastInvoices.template.footer_text || undefined,
+        } : undefined,
+      };
+      await downloadInvoicePDF(pdfData);
+      toast.success('Invoice PDF downloaded');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate PDF');
+    }
+  };
 
   const isGradingMatched =
     !!matched && payCategory?.id === GRADING_CATEGORY_ID && stage === 'payment_products';
@@ -1196,25 +1255,19 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  {[
-                    { id: SCHOOL_FEES_CATEGORY_ID, label: 'Pay Term Fees', primary: true },
-                    { id: GRADING_CATEGORY_ID, label: 'Register for grading', primary: false },
-                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel', primary: false },
-                    { id: '117cdc13-1296-4651-bc4b-f0449873cbf1', label: 'Order Protection Guards and Accessories', primary: false },
-                  ].map(btn => {
-                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                  {(() => {
+                    const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
                     if (!cat) return null;
                     return (
                       <Button
-                        key={btn.id}
                         onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
-                        variant={btn.primary ? 'default' : 'outline'}
+                        variant="default"
                         className="w-full h-11 justify-between"
                       >
-                        {btn.label} <ArrowRight className="h-4 w-4" />
+                        Pay Term Fees <ArrowRight className="h-4 w-4" />
                       </Button>
                     );
-                  })}
+                  })()}
                   <Button
                     onClick={() => {
                       if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
@@ -1229,8 +1282,90 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  {[
+                    { id: GRADING_CATEGORY_ID, label: 'Register for grading' },
+                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
+                    { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
+                  ].map(btn => {
+                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        key={btn.id}
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="outline"
+                        className="w-full h-11 justify-between"
+                      >
+                        {btn.label} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    onClick={() => {
+                      if (sessionId) logChatEvent(sessionId, 'past_invoices_viewed').catch(() => {});
+                      goTo('past_invoices');
+                    }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Receipt className="h-4 w-4" />
+                      View Past Invoices
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                 </CardContent>
 
+              </Card>
+            </>
+          )}
+
+          {stage === 'past_invoices' && (
+            <>
+              <Bubble who="bot">
+                Here are your past invoices. Tap one to download the PDF.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  {pastInvoicesLoading && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading invoices…</p>
+                  )}
+                  {!pastInvoicesLoading && (pastInvoices?.invoices?.length ?? 0) === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No invoices found.</p>
+                  )}
+                  {(pastInvoices?.invoices || []).map(inv => (
+                    <button
+                      key={inv.id}
+                      onClick={() => handleDownloadInvoice(inv)}
+                      className="w-full text-left rounded-md border px-3 py-2 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">{inv.invoice_number}</span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'capitalize text-[10px]',
+                            (inv.status === 'paid' || inv.status === 'verified') && 'bg-green-100 text-green-800 border-green-200',
+                            (inv.status === 'partial' || inv.status === 'partially_paid') && 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                            (inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'sent') && 'bg-red-100 text-red-800 border-red-200',
+                          )}
+                        >
+                          {inv.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                        <span>{formatDate(inv.issue_date)}</span>
+                        <span className="font-medium text-foreground">${Number(inv.total_amount || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[11px] text-primary mt-1">
+                        <Download className="h-3 w-3" /> Download PDF
+                      </div>
+                    </button>
+                  ))}
+                  <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </Button>
+                </CardContent>
               </Card>
             </>
           )}
