@@ -850,6 +850,47 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                   )}
                 </div>
 
+                {/* Payment plan */}
+                {selectedTerm && selectedProduct && (
+                  <div className="space-y-2">
+                    <Label>Payment Option *</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFeePlan('four_weeks')}
+                        className={`rounded-lg border p-3 text-left transition-colors ${feePlan === 'four_weeks' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                      >
+                        <p className="text-sm font-medium">4 Weeks</p>
+                        <p className="text-xs text-muted-foreground">
+                          {FOUR_WEEK_WEEKS} weeks × ${selectedProduct.effective_price.toFixed(2)}
+                        </p>
+                        <p className="text-sm font-semibold mt-1">${fourWeekPrice.toFixed(2)}</p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={lockedPlan === 'four_weeks'}
+                        onClick={() => setFeePlan('term')}
+                        className={`rounded-lg border p-3 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${feePlan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                      >
+                        <p className="text-sm font-medium">Full Term</p>
+                        <p className="text-xs text-muted-foreground">
+                          {fullTermWeeks} weeks × ${selectedProduct.effective_price.toFixed(2)}
+                        </p>
+                        <p className="text-sm font-semibold mt-1">
+                          ${Math.max(0, fullTermPrice - (siblingDiscountBase || 0) - (earlyPaymentDiscount || (feePlan === 'four_weeks' ? 0 : 0))).toFixed(2)}
+                        </p>
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {lockedPlan === 'four_weeks'
+                        ? 'You are on the 4-week plan for this term, so only that option is available.'
+                        : FOUR_WEEK_NOTE}
+                    </p>
+                  </div>
+                )}
+
+
+
                 {/* Class Schedule Selection */}
                 {selectedTerm && selectedProductId && student.branch_id && student.date_of_birth && (
                   <div className="space-y-2">
