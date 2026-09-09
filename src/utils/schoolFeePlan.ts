@@ -89,3 +89,18 @@ export const getLockedPlanForTerm = async (
     return null;
   }
 };
+
+/** Sibling discount for a student, readable from public (anonymous) pages. */
+export const getPublicSiblingDiscount = async (studentId?: string | null): Promise<number> => {
+  if (!studentId) return 0;
+  try {
+    const { data, error } = await supabase.rpc('get_public_sibling_discount' as any, {
+      p_student_id: studentId,
+    });
+    if (error) throw error;
+    return Number(data || 0);
+  } catch (e) {
+    console.warn('getPublicSiblingDiscount failed', e);
+    return 0;
+  }
+};
