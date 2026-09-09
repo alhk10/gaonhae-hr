@@ -696,6 +696,181 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
+  // ---- School fees: plan lessons before paying ----
+  const feeCartItem = useMemo(() => cart.find(c => !!c.termId) || null, [cart]);
+  const planTerm = useMemo(
+    () => (feeCartItem?.termId ? chatTerms.find(t => t.term_id === feeCartItem.termId) || null : null),
+    [chatTerms, feeCartItem],
+  );
+  const planEnabled = !!sessionId && !!matched && stage === 'fees_schedule' && !!planTerm;
+
+  const planWeeks = useMemo(() => {
+    if (!planTerm) return 0;
+    return feeCartItem?.plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, planTerm.total_weeks || 1);
+  }, [planTerm, feeCartItem]);
+
+  const planLessonsPerWeek = useMemo(() => {
+    const raw = (feeCartItem?.product?.metadata as any)?.lessons_per_week;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }, [feeCartItem]);
+
+  const planAllowance = planWeeks * planLessonsPerWeek;
+
+  const { data: planSlots = [] } = useQuery({
+    queryKey: ['hello-plan-timetable', sessionId, matched?.id],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getBranchTimetableSlots(sessionId!, matched!.id)),
+    enabled: planEnabled,
+  });
+
+  const planSlotIds = useMemo(() => planSlots.map(s => s.id), [planSlots]);
+
+  const { data: planCapRows = [] } = useQuery({
+    queryKey: ['hello-plan-caps', sessionId, matched?.id, planTerm?.term_id, planSlotIds.join(',')],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getTermSlotCapacities(sessionId!, matched!.id, planSlotIds, planTerm!.term_id)),
+    enabled: planEnabled && planSlotIds.length > 0,
+  });
+
+  const { data: planHolidays = [] } = useQuery({
+    queryKey: ['hello-plan-holidays', sessionId, matched?.id, planTerm?.start_date, planTerm?.end_date],
+    queryFn: () => import('@/services/publicChatService').then(m => m.getBranchHolidays(sessionId!, matched!.id, planTerm!.start_date, planTerm!.end_date)),
+    enabled: planEnabled,
+  });
+
+  const planHolidaySet = useMemo(() => new Set(planHolidays), [planHolidays]);
+
+  const planCapByDateSlot = useMemo(() => {
+    const m: Record<string, number> = {};
+    planCapRows.forEach(r => { m[`${r.scheduled_date}_${r.timetable_id}`] = r.booked_count; });
+    return m;
+  }, [planCapRows]);
+
+  const planSlotsByWeekday = useMemo(() => {
+    const m: Record<number, typeof planSlots> = {};
+    planSlots.forEach(s => { (m[s.weekday] ||= [] as any).push(s); });
+    return m;
+  }, [planSlots]);
+
+  const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const planSlotsForDate = (date: Date) => {
+    const iso = isoOf(date);
+    const all = planSlotsByWeekday[date.getDay()] || [];
+    const now = new Date();
+    return all.map(s => {
+      const booked = (planCapByDateSlot[`${iso}_${s.id}`] || 0) + (plannedSlots[`${iso}_${s.id}`] ? 1 : 0);
+      const isFull = booked >= s.max_capacity;
+      const isTooLate = now.getTime() >= new Date(`${iso}T${s.start_time}`).getTime() - 60 * 60 * 1000;
+      return { ...s, isFull, isTooLate, picked: !!plannedSlots[`${iso}_${s.id}`] };
+    });
+  };
+
+  const isPlanDateDisabled = (date: Date) => {
+    if (!planTerm) return true;
+    const iso = isoOf(date);
+    if (iso < planTerm.start_date || iso > planTerm.end_date) return true;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (date < today) return true;
+    if (planHolidaySet.has(iso)) return true;
+    return !planSlotsForDate(date).some(s => (!s.isFull && !s.isTooLate) || s.picked);
+  };
+
+  const togglePlannedSlot = (date: Date, slot: { id: string; start_time: string; end_time: string; class_type: string }) => {
+    const iso = isoOf(date);
+    const key = `${iso}_${slot.id}`;
+    setPlannedSlots(prev => {
+      const next = { ...prev };
+      if (next[key]) { delete next[key]; return next; }
+      if (Object.keys(next).length >= planAllowance) {
+        toast.error(`You can plan up to ${planAllowance} lesson${planAllowance === 1 ? '' : 's'} for this payment`);
+        return prev;
+      }
+      next[key] = {
+        date: iso,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        timetable_id: slot.id,
+        class_type: slot.class_type,
+      };
+      return next;
+    });
+  };
+
+  const plannedList = useMemo(
+    () => Object.entries(plannedSlots)
+      .map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time)),
+    [plannedSlots],
+  );
+
+  /** Validate the picked fee/product rows and build the cart. Returns null when invalid. */
+  const buildProductCart = (): CartItem[] | null => {
+    const pickedEntries = products
+      .map(p => ({ p, d: rowDrafts[p.product_id] }))
+      .filter(x => x.d?.picked);
+    if (pickedEntries.length === 0) {
+      toast.error('Please select at least one item');
+      return null;
+    }
+    const newCart: CartItem[] = [];
+    for (const { p, d } of pickedEntries) {
+      const sizes = p.requires_size ? (p.available_sizes || getVariantArray(p, 'sizes')) : [];
+      const colors = getVariantArray(p, 'colors');
+      const genders = getVariantArray(p, 'genders');
+      const showTerms = p.is_term_based && (chatTerms || []).some(t => !t.is_paid);
+      if (p.requires_size && sizes.length > 0 && !d.size) { toast.error(`Pick size for ${p.product_name}`); return null; }
+      if (colors.length > 0 && !d.color) { toast.error(`Pick colour for ${p.product_name}`); return null; }
+      if (genders.length > 0 && !d.gender) { toast.error(`Pick gender for ${p.product_name}`); return null; }
+      if (showTerms && !d.termId) { toast.error(`Pick term for ${p.product_name}`); return null; }
+      const selectedOptions = { size: d.size || null, color: d.color || null, gender: d.gender || null };
+      const sizeVariant = [d.size, d.color, d.gender].filter(Boolean).join(' / ') || null;
+      const term = showTerms ? (chatTerms.find(t => t.term_id === d.termId) || null) : null;
+      const termName = term?.term_name ?? null;
+      const locked = d.termId ? lockedPlans[d.termId] : null;
+      const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
+      const weeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, term?.total_weeks || 1);
+      const planDiscount = showTerms && plan === 'term'
+        ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
+        : 0;
+      newCart.push({
+        product: p,
+        size: sizeVariant,
+        selectedOptions,
+        gradingSlotId: null,
+        termId: showTerms ? d.termId : null,
+        termName,
+        plan: showTerms ? plan : undefined,
+        discount: planDiscount,
+        qty: showTerms ? weeks : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
+      });
+    }
+    return newCart;
+  };
+
+  const handleFeesContinue = (withSchedule: boolean) => {
+    if (isGradingMatched) {
+      if (selectedGradingProducts.length === 0) { toast.error('Please select at least one grading level'); return; }
+      if (!selectedGradingSlotId) { toast.error('Please pick a grading slot'); return; }
+      setCart(selectedGradingProducts.map(p => ({ product: p, size: null, qty: 1, gradingSlotId: selectedGradingSlotId })));
+      goTo('payment_pay');
+      return;
+    }
+    const newCart = buildProductCart();
+    if (!newCart) return;
+    setCart(newCart);
+    const feeItem = newCart.find(c => !!c.termId);
+    if (withSchedule && feeItem) {
+      const t = chatTerms.find(x => x.term_id === feeItem.termId);
+      setPlanCalMonth(t?.start_date ? new Date(t.start_date) : undefined);
+      setPlanPickedDate(undefined);
+      goTo('fees_schedule');
+      return;
+    }
+    if (!withSchedule) setPlannedSlots({});
+    goTo('payment_pay');
+  };
+
+
   // ---- Lesson calendar data ----
   const lessonEnabled = !!sessionId && !!matched && (stage === 'matched' || stage === 'lesson_action' || stage === 'lesson_request');
 
