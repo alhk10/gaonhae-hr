@@ -8476,6 +8476,10 @@ export type Database = {
           name: string
         }[]
       }
+      get_public_chat_invoices: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: Json
+      }
       get_public_chat_products: {
         Args: { p_branch_id: string; p_category_id: string }
         Returns: {
