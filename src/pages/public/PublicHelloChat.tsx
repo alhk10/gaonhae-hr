@@ -804,13 +804,52 @@ const PublicHelloChat: React.FC = () => {
     return m;
   }, [planCapRows]);
 
+  const normalise = (v: string) => v.trim().toLowerCase();
+
+  // Class types / days this package actually pays for
+  const planClassTypes = useMemo(() => {
+    const raw = (feeCartItem?.product?.metadata as any)?.allowed_class_types;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return new Set(raw.map((v: string) => normalise(String(v))));
+  }, [feeCartItem]);
+
+  const planLessonDays = useMemo(() => {
+    const raw = (feeCartItem?.product?.metadata as any)?.lesson_days;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return new Set(raw.map((v: string) => normalise(String(v))));
+  }, [feeCartItem]);
+
+  const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  const relevantPlanSlots = useMemo(
+    () => planSlots.filter(s => !planClassTypes || planClassTypes.has(normalise(s.class_type || ''))),
+    [planSlots, planClassTypes],
+  );
+
   const planSlotsByWeekday = useMemo(() => {
     const m: Record<number, typeof planSlots> = {};
-    planSlots.forEach(s => { (m[s.weekday] ||= [] as any).push(s); });
+    relevantPlanSlots.forEach(s => {
+      if (planLessonDays && !planLessonDays.has(WEEKDAY_NAMES[s.weekday])) return;
+      (m[s.weekday] ||= [] as any).push(s);
+    });
     return m;
-  }, [planSlots]);
+  }, [relevantPlanSlots, planLessonDays]);
 
   const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  // Date range this payment covers
+  const planPaidRange = useMemo(() => {
+    if (!planTerm) return null;
+    const start = new Date(`${planTerm.start_date}T00:00:00`);
+    const end = new Date(`${planTerm.end_date}T00:00:00`);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (feeCartItem?.plan === 'four_weeks') {
+      const from = start > today ? start : today;
+      const to = new Date(from); to.setDate(to.getDate() + 27);
+      return { from, to: to > end ? end : to };
+    }
+    return { from: start > today ? start : today, to: end };
+  }, [planTerm, feeCartItem]);
 
   const planSlotsForDate = (date: Date) => {
     const iso = isoOf(date);
@@ -825,14 +864,29 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const isPlanDateDisabled = (date: Date) => {
-    if (!planTerm) return true;
+    if (!planTerm || !planPaidRange) return true;
     const iso = isoOf(date);
     if (iso < planTerm.start_date || iso > planTerm.end_date) return true;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    if (date < today) return true;
+    if (date < planPaidRange.from || date > planPaidRange.to) return true;
     if (planHolidaySet.has(iso)) return true;
     return !planSlotsForDate(date).some(s => (!s.isFull && !s.isTooLate) || s.picked);
   };
+
+  const isPlanDatePaid = (date: Date) => {
+    if (!planPaidRange) return false;
+    const iso = isoOf(date);
+    if (date < planPaidRange.from || date > planPaidRange.to) return false;
+    if (planHolidaySet.has(iso)) return false;
+    return (planSlotsByWeekday[date.getDay()] || []).length > 0;
+  };
+
+  const plannedDateCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    Object.values(plannedSlots).forEach(v => { m[v.date] = (m[v.date] || 0) + 1; });
+    return m;
+  }, [plannedSlots]);
+
+  const isPlanDatePicked = (date: Date) => !!plannedDateCounts[isoOf(date)];
 
   const togglePlannedSlot = (date: Date, slot: { id: string; start_time: string; end_time: string; class_type: string }) => {
     const iso = isoOf(date);
