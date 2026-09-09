@@ -2391,9 +2391,6 @@ const ProductRow: React.FC<{
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{product.product_name}</p>
-          <p className="text-xs text-muted-foreground">
-            ${getDisplayPrice(product, branchCountry).toFixed(2)}{showTerms ? ' / week' : ''}
-          </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           {product.requires_size && <Badge variant="secondary" className="text-[10px]">Size required</Badge>}
