@@ -403,9 +403,16 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     >
                       <p className="text-sm font-medium">Full Term</p>
                       <p className="text-xs text-muted-foreground">{fullTermWeeks} × ${weeklyPrice.toFixed(2)}</p>
-                      <p className="text-sm font-semibold mt-1">
-                        ${Math.max(0, weeklyPrice * fullTermWeeks - earlyPaymentDiscountFor(selectedTerm?.start_date)).toFixed(2)}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <p className="text-sm font-semibold">
+                          ${Math.max(0, weeklyPrice * fullTermWeeks - earlyPaymentDiscountFor(selectedTerm?.start_date)).toFixed(2)}
+                        </p>
+                        {earlyPaymentDiscountFor(selectedTerm?.start_date) > 0 && (
+                          <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                            Save ${earlyPaymentDiscountFor(selectedTerm?.start_date).toFixed(0)}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   </div>
                   <p className="text-xs text-muted-foreground">{FOUR_WEEK_NOTE}</p>
