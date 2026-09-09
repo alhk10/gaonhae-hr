@@ -730,6 +730,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setSelectedProductId('');
     setSelectedClassSlots([]);
     setIsRemainingWeeks(false);
+    setFeePlan('term');
     setProofFile(null);
     setReferenceNumber('');
     setIncludeGrading(false);
