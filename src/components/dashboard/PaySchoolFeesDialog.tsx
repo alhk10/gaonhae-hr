@@ -586,7 +586,20 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   // Sibling discount applies to term payments only.
   const siblingDiscount = feePlan === 'term' ? siblingDiscountBase : 0;
 
-  const fullTermPrice = selectedProduct ? fullTermWeeks * selectedProduct.effective_price : 0;
+  // Savings shown on the full-term option (regardless of the plan selected)
+  const earlyDiscountBase = useMemo(() => {
+    if (!selectedTerm) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const termStart = new Date(selectedTerm.start_date);
+    termStart.setHours(0, 0, 0, 0);
+    return today <= termStart ? 10 : 0;
+  }, [selectedTerm]);
+  const termSavings = earlyDiscountBase + siblingDiscountBase;
+
+  const fullTermPrice = selectedProduct
+    ? Math.max(0, fullTermWeeks * selectedProduct.effective_price - termSavings)
+    : 0;
   const fourWeekPrice = selectedProduct ? FOUR_WEEK_WEEKS * selectedProduct.effective_price : 0;
 
   const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
