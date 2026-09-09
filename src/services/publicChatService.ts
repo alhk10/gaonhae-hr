@@ -429,6 +429,10 @@ export interface SubmitChatPaymentInput {
     term_name?: string | null;
     qty: number;
     unit_price: number;
+    /** 'four_weeks' | 'term' for school fee items */
+    payment_plan?: string | null;
+    /** Term-plan discounts (early payment + sibling) applied to this line */
+    discount?: number;
   }[];
   amount: number;
   payment_method: 'paynow' | 'bank_transfer';
