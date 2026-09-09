@@ -2018,7 +2018,14 @@ const ProductRow: React.FC<{
                       >
                         <p className="text-xs font-medium">Full term</p>
                         <p className="text-[11px] text-muted-foreground">{termWeeks} × ${weekly.toFixed(2)}</p>
-                        <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                          {(early + (siblingDiscount || 0)) > 0 && (
+                            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                              Save ${(early + (siblingDiscount || 0)).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
                         {(early > 0 || siblingDiscount > 0) && (
                           <p className="text-[10px] text-green-700">
                             {[early > 0 ? 'early payment' : null, siblingDiscount > 0 ? 'sibling' : null]
