@@ -210,9 +210,15 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
                         </p>
                       </div>
                     </div>
-                    <Badge variant={isToday ? 'default' : 'secondary'}>
-                      {isToday ? 'Today' : cls.status}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      {isAwaitingPayment(cls.notes) && (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unpaid</Badge>
+                      )}
+                      <Badge variant={isToday ? 'default' : 'secondary'}>
+                        {isToday ? 'Today' : cls.status}
+                      </Badge>
+                    </div>
+
                   </div>
                 );
               })}
