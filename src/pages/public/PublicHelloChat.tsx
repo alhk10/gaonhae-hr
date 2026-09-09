@@ -199,8 +199,11 @@ const PublicHelloChat: React.FC = () => {
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
   const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
   // Per-product draft state for non-grading flow (picked + variant + term selections)
-  type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
+  type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number; plan?: FeePaymentPlan };
   const [rowDrafts, setRowDrafts] = useState<Record<string, RowDraft>>({});
+  // School fees: sibling discount and 4-week plan locks per term
+  const [siblingDiscount, setSiblingDiscount] = useState(0);
+  const [lockedPlans, setLockedPlans] = useState<Record<string, FeePaymentPlan | null>>({});
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
     size: string | null;
@@ -364,7 +367,10 @@ const PublicHelloChat: React.FC = () => {
   }, [dobMonth, dobYear]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
+    () => cart.reduce(
+      (s, c) => s + Math.max(0, getDisplayPrice(c.product, branch?.country) * c.qty - (c.discount || 0)),
+      0,
+    ),
     [cart, branch?.country],
   );
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
