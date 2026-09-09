@@ -1355,9 +1355,18 @@ const PublicHelloChat: React.FC = () => {
                             gender: d.gender || null,
                           };
                           const sizeVariant = [d.size, d.color, d.gender].filter(Boolean).join(' / ') || null;
-                          const termName = showTerms
-                            ? (chatTerms.find(t => t.term_id === d.termId)?.term_name ?? null)
-                            : null;
+                          const term = showTerms ? (chatTerms.find(t => t.term_id === d.termId) || null) : null;
+                          const termName = term?.term_name ?? null;
+                          const locked = d.termId ? lockedPlans[d.termId] : null;
+                          const plan: FeePaymentPlan = locked === 'four_weeks'
+                            ? 'four_weeks'
+                            : (d.plan || 'term');
+                          const planWeeks = plan === 'four_weeks'
+                            ? FOUR_WEEK_WEEKS
+                            : Math.max(1, term?.total_weeks || 1);
+                          const planDiscount = showTerms && plan === 'term'
+                            ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
+                            : 0;
                           newCart.push({
                             product: p,
                             size: sizeVariant,
@@ -1365,7 +1374,9 @@ const PublicHelloChat: React.FC = () => {
                             gradingSlotId: null,
                             termId: showTerms ? d.termId : null,
                             termName,
-                            qty: showTerms ? Math.max(1, d.qty || 1) : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
+                            plan: showTerms ? plan : undefined,
+                            discount: planDiscount,
+                            qty: showTerms ? planWeeks : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
                           });
                         }
                         setCart(newCart);
