@@ -1320,6 +1320,56 @@ const PublicHelloChat: React.FC = () => {
             </>
           )}
 
+          {stage === 'past_invoices' && (
+            <>
+              <Bubble who="bot">
+                Here are your past invoices. Tap one to download the PDF.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  {pastInvoicesLoading && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading invoices…</p>
+                  )}
+                  {!pastInvoicesLoading && (pastInvoices?.invoices?.length ?? 0) === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No invoices found.</p>
+                  )}
+                  {(pastInvoices?.invoices || []).map(inv => (
+                    <button
+                      key={inv.id}
+                      onClick={() => handleDownloadInvoice(inv)}
+                      className="w-full text-left rounded-md border px-3 py-2 hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">{inv.invoice_number}</span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'capitalize text-[10px]',
+                            (inv.status === 'paid' || inv.status === 'verified') && 'bg-green-100 text-green-800 border-green-200',
+                            (inv.status === 'partial' || inv.status === 'partially_paid') && 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                            (inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'sent') && 'bg-red-100 text-red-800 border-red-200',
+                          )}
+                        >
+                          {inv.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                        <span>{formatDate(inv.issue_date)}</span>
+                        <span className="font-medium text-foreground">${Number(inv.total_amount || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[11px] text-primary mt-1">
+                        <Download className="h-3 w-3" /> Download PDF
+                      </div>
+                    </button>
+                  ))}
+                  <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
           {stage === 'choice' && (
             <>
               <Bubble who="bot">
