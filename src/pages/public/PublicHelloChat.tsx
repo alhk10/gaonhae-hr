@@ -1746,14 +1746,28 @@ const PublicHelloChat: React.FC = () => {
                     onMonthChange={setPlanCalMonth}
                     onSelect={(d) => setPlanPickedDate(d ?? undefined)}
                     disabled={isPlanDateDisabled}
+                    modifiers={{ paid: isPlanDatePaid, picked: isPlanDatePicked }}
+                    modifiersClassNames={{
+                      paid: 'bg-primary/10 text-foreground rounded-md',
+                      picked: 'ring-2 ring-primary font-semibold rounded-md',
+                    }}
                     className="rounded-md border p-2 pointer-events-auto"
                   />
+
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-primary/20 inline-block" /> Paid period
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded-sm ring-2 ring-primary inline-block" /> Lesson picked
+                    </span>
+                  </div>
 
                   {planPickedDate && (
                     <div className="space-y-1.5">
                       <p className="text-xs font-medium">{formatDate(isoOf(planPickedDate))}</p>
                       {planSlotsForDate(planPickedDate).length === 0 && (
-                        <p className="text-[11px] text-muted-foreground">No classes on this day.</p>
+                        <p className="text-[11px] text-muted-foreground">No classes covered by this package on this day.</p>
                       )}
                       {planSlotsForDate(planPickedDate).map(s => (
                         <button
