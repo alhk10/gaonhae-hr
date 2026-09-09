@@ -1889,7 +1889,15 @@ const ProductRow: React.FC<{
   // Hide already-paid terms entirely
   const selectableTerms = useMemo(() => (terms || []).filter(t => !t.is_paid), [terms]);
   const showTerms = selectableTerms.length > 0;
-  const defaultTerm = selectableTerms[0] || null;
+  // Default to the next upcoming term, unless the student is locked into the
+  // 4-week plan for the term currently running.
+  const defaultTerm = useMemo(() => {
+    if (selectableTerms.length === 0) return null;
+    const today = new Date().toISOString().split('T')[0];
+    const current = selectableTerms.find(t => t.start_date <= today && t.end_date >= today);
+    if (current && lockedPlans[current.term_id] === 'four_weeks') return current;
+    return selectableTerms.find(t => t.start_date > today) || selectableTerms[0];
+  }, [selectableTerms, lockedPlans]);
 
   // Normalize defaultGender against allowed variant genders (case-insensitive)
   const normalizedDefaultGender = useMemo(() => {
