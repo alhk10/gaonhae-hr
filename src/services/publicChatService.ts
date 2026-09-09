@@ -58,21 +58,17 @@ export const getChatTermsForStudent = async (
 };
 
 export const createChatSession = async (input: ChatSessionInput): Promise<string> => {
-  const { data, error } = await supabase
-    .from('public_chat_sessions')
-    .insert({
-      first_name: input.first_name.trim().toUpperCase(),
-      last_name: input.last_name.trim().toUpperCase(),
-      date_of_birth: input.date_of_birth || null,
-      branch_id: input.branch_id,
-      gender: input.gender ?? null,
-      email: input.email?.trim().toLowerCase() || null,
-      phone: input.phone?.trim() || null,
-    })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_session' as any, {
+    p_first_name: input.first_name.trim().toUpperCase(),
+    p_last_name: input.last_name.trim().toUpperCase(),
+    p_date_of_birth: input.date_of_birth || null,
+    p_branch_id: input.branch_id,
+    p_gender: input.gender ?? null,
+    p_email: input.email?.trim().toLowerCase() || null,
+    p_phone: input.phone?.trim() || null,
+  });
   if (error) throw error;
-  return data!.id as string;
+  return data as unknown as string;
 };
 
 export const updateSessionMatchAndOutcome = async (
