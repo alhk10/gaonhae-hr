@@ -598,7 +598,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
-                            {branches.map(b => (
+                            {branches.filter(b => b.name !== 'Centralised Grading').map(b => (
                               <label key={b.id} className="flex items-center gap-2 text-xs cursor-pointer">
                                 <Checkbox
                                   checked={s.available_branch_ids.includes(b.id)}
