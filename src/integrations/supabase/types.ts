@@ -9117,6 +9117,14 @@ export type Database = {
         Args: { p_id: string; p_selections: Json }
         Returns: undefined
       }
+      set_public_chat_session_match: {
+        Args: {
+          p_matched_student_id: string
+          p_outcome?: string
+          p_session_id: string
+        }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sms_current_email: { Args: never; Returns: string }
