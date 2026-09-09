@@ -402,7 +402,7 @@ const PublicHelloChat: React.FC = () => {
         });
       });
     return () => { cancelled = true; };
-  }, [matched?.id, rowDrafts, lockedPlans]);
+  }, [matched?.id, rowDrafts, lockedPlans, chatTerms]);
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
