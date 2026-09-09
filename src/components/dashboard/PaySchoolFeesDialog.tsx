@@ -641,6 +641,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               term_name: selectedTerm.name,
               product_name: selectedProduct.name,
               weeks: termWeeks,
+              payment_plan: feePlan,
               is_remaining_weeks: isRemainingWeeks,
               selected_class_slots: selectedClassSlots,
               early_payment_discount: earlyPaymentDiscount > 0,
