@@ -1962,7 +1962,7 @@ const ProductRow: React.FC<{
       {d.picked && !allTermsPaid && (
         <div className="space-y-2" data-row-control onClick={(e) => e.stopPropagation()}>
           {showTerms && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               <Select value={d.termId} onValueChange={(v) => {
                 const t = selectableTerms.find(x => x.term_id === v);
                 update({ termId: v, qty: Math.max(1, t?.total_weeks || 1) });
@@ -1974,15 +1974,57 @@ const ProductRow: React.FC<{
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="number"
-                min={1}
-                max={selectedTerm?.total_weeks ?? undefined}
-                value={d.qty}
-                onChange={(e) => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="h-9 text-xs"
-                placeholder="Weeks"
-              />
+
+              {(() => {
+                const weekly = getDisplayPrice(product, branchCountry);
+                const termWeeks = Math.max(1, selectedTerm?.total_weeks || 1);
+                const locked = d.termId ? lockedPlans[d.termId] : null;
+                const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
+                const early = earlyPaymentDiscountFor(selectedTerm?.start_date);
+                const termTotal = Math.max(0, weekly * termWeeks - early - (siblingDiscount || 0));
+                return (
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => update({ plan: 'four_weeks' })}
+                        className={cn(
+                          'rounded-md border p-2 text-left',
+                          plan === 'four_weeks' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40',
+                        )}
+                      >
+                        <p className="text-xs font-medium">4 weeks</p>
+                        <p className="text-[11px] text-muted-foreground">4 × ${weekly.toFixed(2)}</p>
+                        <p className="text-xs font-semibold">${(weekly * FOUR_WEEK_WEEKS).toFixed(2)}</p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={locked === 'four_weeks'}
+                        onClick={() => update({ plan: 'term' })}
+                        className={cn(
+                          'rounded-md border p-2 text-left disabled:opacity-50',
+                          plan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40',
+                        )}
+                      >
+                        <p className="text-xs font-medium">Full term</p>
+                        <p className="text-[11px] text-muted-foreground">{termWeeks} × ${weekly.toFixed(2)}</p>
+                        <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                        {(early > 0 || siblingDiscount > 0) && (
+                          <p className="text-[10px] text-green-700">
+                            {[early > 0 ? 'early payment' : null, siblingDiscount > 0 ? 'sibling' : null]
+                              .filter(Boolean).join(' + ')} discount
+                          </p>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {locked === 'four_weeks'
+                        ? 'You are on the 4-week plan for this term, so only that option is available.'
+                        : FOUR_WEEK_NOTE}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
           {!showTerms && isLessonCategory && (
