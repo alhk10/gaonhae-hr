@@ -76,13 +76,12 @@ export const updateSessionMatchAndOutcome = async (
   matchedStudentId: string | null,
   outcome: string | null,
 ) => {
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (matchedStudentId !== undefined) patch.matched_student_id = matchedStudentId;
-  if (outcome !== undefined) patch.outcome = outcome;
-  const { error } = await supabase
-    .from('public_chat_sessions')
-    .update(patch)
-    .eq('id', sessionId);
+  // Visitors are anonymous, so the write goes through a SECURITY DEFINER RPC.
+  const { error } = await supabase.rpc('set_public_chat_session_match' as any, {
+    p_session_id: sessionId,
+    p_matched_student_id: matchedStudentId,
+    p_outcome: outcome,
+  });
   if (error) throw error;
 };
 
