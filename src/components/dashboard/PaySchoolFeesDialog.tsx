@@ -406,6 +406,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     if (lockedPlan === 'four_weeks') setFeePlan('four_weeks');
   }, [lockedPlan]);
 
+  // Lock state of the term currently running (drives the default term choice)
+  const { data: currentTermLock = null } = useQuery({
+    queryKey: ['fee-plan-lock-current', studentId, currentTermForRemaining?.id],
+    queryFn: () => getLockedPlanForTerm(studentId, currentTermForRemaining!.id),
+    enabled: !!studentId && !!currentTermForRemaining?.id,
+  });
+
   // Is grading opt-in eligible?
   const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 
@@ -513,12 +520,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setSelectedClassSlots([]);
   }, [selectedProductId]);
 
-  // Auto-select first unpaid term
+  // Auto-select the next upcoming term, unless the student is locked into the
+  // 4-week plan for the term that is currently running.
   useEffect(() => {
-    if (unpaidTerms.length > 0 && !selectedTermId) {
-      setSelectedTermId(unpaidTerms[0].id);
+    if (unpaidTerms.length === 0 || selectedTermId) return;
+    if (currentTermLock === 'four_weeks' && currentTermForRemaining) {
+      setSelectedTermId(currentTermForRemaining.id);
+      return;
     }
-  }, [unpaidTerms, selectedTermId]);
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = unpaidTerms.find(t => t.start_date > today);
+    setSelectedTermId((upcoming || unpaidTerms[0]).id);
+  }, [unpaidTerms, selectedTermId, currentTermLock, currentTermForRemaining]);
 
   // Auto-reset grading opt-in when not eligible
   useEffect(() => {
@@ -573,7 +586,20 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   // Sibling discount applies to term payments only.
   const siblingDiscount = feePlan === 'term' ? siblingDiscountBase : 0;
 
-  const fullTermPrice = selectedProduct ? fullTermWeeks * selectedProduct.effective_price : 0;
+  // Savings shown on the full-term option (regardless of the plan selected)
+  const earlyDiscountBase = useMemo(() => {
+    if (!selectedTerm) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const termStart = new Date(selectedTerm.start_date);
+    termStart.setHours(0, 0, 0, 0);
+    return today <= termStart ? 10 : 0;
+  }, [selectedTerm]);
+  const termSavings = earlyDiscountBase + siblingDiscountBase;
+
+  const fullTermPrice = selectedProduct
+    ? Math.max(0, fullTermWeeks * selectedProduct.effective_price - termSavings)
+    : 0;
   const fourWeekPrice = selectedProduct ? FOUR_WEEK_WEEKS * selectedProduct.effective_price : 0;
 
   const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
@@ -877,9 +903,19 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <p className="text-xs text-muted-foreground">
                           {fullTermWeeks} weeks × ${selectedProduct.effective_price.toFixed(2)}
                         </p>
-                        <p className="text-sm font-semibold mt-1">${fullTermPrice.toFixed(2)}</p>
-                        {siblingDiscountBase > 0 && (
-                          <p className="text-[11px] text-green-700">Sibling discount applies</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <p className="text-sm font-semibold">${fullTermPrice.toFixed(2)}</p>
+                          {termSavings > 0 && (
+                            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                              Save ${termSavings.toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                        {termSavings > 0 && (
+                          <p className="text-[11px] text-green-700">
+                            {[earlyDiscountBase > 0 ? 'early payment' : null, siblingDiscountBase > 0 ? 'sibling' : null]
+                              .filter(Boolean).join(' + ')} discount
+                          </p>
                         )}
                       </button>
                     </div>

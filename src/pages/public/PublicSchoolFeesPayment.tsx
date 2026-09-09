@@ -137,7 +137,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
-  // Default the term to the current one, else the next upcoming one.
+  // Default the term to the next upcoming one, else the current one.
   useEffect(() => {
     if (!terms.length) {
       setTermId('');
@@ -146,7 +146,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const current = terms.find(t => t.start_date <= today && t.end_date >= today);
     const upcoming = terms.find(t => t.start_date > today);
-    setTermId((current || upcoming || terms[terms.length - 1]).term_id);
+    setTermId((upcoming || current || terms[terms.length - 1]).term_id);
   }, [terms]);
 
   useEffect(() => {
@@ -403,9 +403,16 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     >
                       <p className="text-sm font-medium">Full Term</p>
                       <p className="text-xs text-muted-foreground">{fullTermWeeks} × ${weeklyPrice.toFixed(2)}</p>
-                      <p className="text-sm font-semibold mt-1">
-                        ${Math.max(0, weeklyPrice * fullTermWeeks - earlyPaymentDiscountFor(selectedTerm?.start_date)).toFixed(2)}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <p className="text-sm font-semibold">
+                          ${Math.max(0, weeklyPrice * fullTermWeeks - earlyPaymentDiscountFor(selectedTerm?.start_date)).toFixed(2)}
+                        </p>
+                        {earlyPaymentDiscountFor(selectedTerm?.start_date) > 0 && (
+                          <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                            Save ${earlyPaymentDiscountFor(selectedTerm?.start_date).toFixed(0)}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   </div>
                   <p className="text-xs text-muted-foreground">{FOUR_WEEK_NOTE}</p>

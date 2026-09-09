@@ -382,12 +382,14 @@ const PublicHelloChat: React.FC = () => {
     return () => { cancelled = true; };
   }, [matched?.id]);
 
-  // 4-week plan locks for terms the student is choosing
+  // 4-week plan locks for terms the student is choosing (plus all offered terms,
+  // so the default term choice knows about an existing 4-week lock)
   useEffect(() => {
     if (!matched?.id) return;
-    const termIds = Object.values(rowDrafts)
-      .map(d => d?.termId)
-      .filter((t): t is string => !!t && !(t in lockedPlans));
+    const termIds = [
+      ...Object.values(rowDrafts).map(d => d?.termId),
+      ...(chatTerms || []).map(t => t.term_id),
+    ].filter((t): t is string => !!t && !(t in lockedPlans));
     if (termIds.length === 0) return;
     let cancelled = false;
     Promise.all(termIds.map(async t => [t, await getLockedPlanForTerm(matched.id, t)] as const))
@@ -400,7 +402,7 @@ const PublicHelloChat: React.FC = () => {
         });
       });
     return () => { cancelled = true; };
-  }, [matched?.id, rowDrafts, lockedPlans]);
+  }, [matched?.id, rowDrafts, lockedPlans, chatTerms]);
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
@@ -1887,7 +1889,15 @@ const ProductRow: React.FC<{
   // Hide already-paid terms entirely
   const selectableTerms = useMemo(() => (terms || []).filter(t => !t.is_paid), [terms]);
   const showTerms = selectableTerms.length > 0;
-  const defaultTerm = selectableTerms[0] || null;
+  // Default to the next upcoming term, unless the student is locked into the
+  // 4-week plan for the term currently running.
+  const defaultTerm = useMemo(() => {
+    if (selectableTerms.length === 0) return null;
+    const today = new Date().toISOString().split('T')[0];
+    const current = selectableTerms.find(t => t.start_date <= today && t.end_date >= today);
+    if (current && lockedPlans[current.term_id] === 'four_weeks') return current;
+    return selectableTerms.find(t => t.start_date > today) || selectableTerms[0];
+  }, [selectableTerms, lockedPlans]);
 
   // Normalize defaultGender against allowed variant genders (case-insensitive)
   const normalizedDefaultGender = useMemo(() => {
@@ -2008,7 +2018,14 @@ const ProductRow: React.FC<{
                       >
                         <p className="text-xs font-medium">Full term</p>
                         <p className="text-[11px] text-muted-foreground">{termWeeks} × ${weekly.toFixed(2)}</p>
-                        <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                          {(early + (siblingDiscount || 0)) > 0 && (
+                            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                              Save ${(early + (siblingDiscount || 0)).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
                         {(early > 0 || siblingDiscount > 0) && (
                           <p className="text-[10px] text-green-700">
                             {[early > 0 ? 'early payment' : null, siblingDiscount > 0 ? 'sibling' : null]
