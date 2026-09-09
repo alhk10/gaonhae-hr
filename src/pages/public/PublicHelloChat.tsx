@@ -1867,15 +1867,20 @@ const PublicHelloChat: React.FC = () => {
   );
 };
 
+type RowDraftShape = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number; plan?: FeePaymentPlan };
+
 const ProductRow: React.FC<{
   product: ChatProduct;
   branchCountry?: string | null;
   terms?: ChatTerm[];
   defaultGender?: string;
   isLessonCategory?: boolean;
-  draft?: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
-  onDraftChange: (d: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number }) => void;
-}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, draft, onDraftChange }) => {
+  isSchoolFees?: boolean;
+  siblingDiscount?: number;
+  lockedPlans?: Record<string, FeePaymentPlan | null>;
+  draft?: RowDraftShape;
+  onDraftChange: (d: RowDraftShape) => void;
+}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, isSchoolFees, siblingDiscount = 0, lockedPlans = {}, draft, onDraftChange }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
