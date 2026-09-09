@@ -524,7 +524,11 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                               {student.currentBelt && (
                                 <span className="ml-0.5 opacity-75">({student.currentBelt})</span>
                               )}
+                              {student.unpaid && (
+                                <span className="ml-0.5 font-medium text-amber-700 dark:text-amber-300">· Unpaid</span>
+                              )}
                             </span>
+
                           ))}
                         </div>
                       )}
