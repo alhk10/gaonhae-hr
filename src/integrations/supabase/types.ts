@@ -9018,6 +9018,10 @@ export type Database = {
           stage_number: number
         }[]
       }
+      get_student_fee_plan_for_term: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: string
+      }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
       has_sales_access: { Args: never; Returns: boolean }
