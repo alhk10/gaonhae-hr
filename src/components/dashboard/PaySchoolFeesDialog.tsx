@@ -520,12 +520,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setSelectedClassSlots([]);
   }, [selectedProductId]);
 
-  // Auto-select first unpaid term
+  // Auto-select the next upcoming term, unless the student is locked into the
+  // 4-week plan for the term that is currently running.
   useEffect(() => {
-    if (unpaidTerms.length > 0 && !selectedTermId) {
-      setSelectedTermId(unpaidTerms[0].id);
+    if (unpaidTerms.length === 0 || selectedTermId) return;
+    if (currentTermLock === 'four_weeks' && currentTermForRemaining) {
+      setSelectedTermId(currentTermForRemaining.id);
+      return;
     }
-  }, [unpaidTerms, selectedTermId]);
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = unpaidTerms.find(t => t.start_date > today);
+    setSelectedTermId((upcoming || unpaidTerms[0]).id);
+  }, [unpaidTerms, selectedTermId, currentTermLock, currentTermForRemaining]);
 
   // Auto-reset grading opt-in when not eligible
   useEffect(() => {
