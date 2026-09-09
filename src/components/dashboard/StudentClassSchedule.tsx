@@ -22,7 +22,12 @@ interface UpcomingClass {
   status: string;
   class_type: string;
   branch_name: string;
+  notes?: string | null;
 }
+
+const isAwaitingPayment = (notes?: string | null) =>
+  !!notes && notes.startsWith('pending_payment_verification');
+
 
 const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, branchId }) => {
   // Fetch student's branch if not provided
@@ -205,9 +210,15 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
                         </p>
                       </div>
                     </div>
-                    <Badge variant={isToday ? 'default' : 'secondary'}>
-                      {isToday ? 'Today' : cls.status}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      {isAwaitingPayment(cls.notes) && (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unpaid</Badge>
+                      )}
+                      <Badge variant={isToday ? 'default' : 'secondary'}>
+                        {isToday ? 'Today' : cls.status}
+                      </Badge>
+                    </div>
+
                   </div>
                 );
               })}

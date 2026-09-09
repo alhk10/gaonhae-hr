@@ -440,7 +440,21 @@ export interface SubmitChatPaymentInput {
   proof_file: File;
   contact_first_name: string;
   contact_last_name: string;
+  /** Lessons the student planned before paying (school fees only) */
+  planned_schedule?: {
+    term_id: string;
+    product_id: string;
+    slots: PlannedSlot[];
+  } | null;
 }
+
+export interface PlannedSlot {
+  date: string;
+  start_time: string;
+  end_time: string;
+  timetable_id: string | null;
+}
+
 
 export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<string> => {
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
@@ -475,7 +489,30 @@ export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<
   const row = Array.isArray(data) ? data[0] : data;
   await logChatEvent(input.session_id, 'payment_submitted', { invoice_id: row?.invoice_id });
 
+  const planned = input.planned_schedule;
+  if (planned && planned.slots.length > 0 && (row as any)?.invoice_id) {
+    try {
+      const { error: schedErr } = await supabase.rpc('attach_public_chat_planned_schedule' as any, {
+        p_session_id: input.session_id,
+        p_student_id: input.matched_student_id,
+        p_branch_id: input.branch_id,
+        p_invoice_id: (row as any).invoice_id,
+        p_term_id: planned.term_id,
+        p_product_id: planned.product_id,
+        p_slots: planned.slots as any,
+      });
+      if (schedErr) throw schedErr;
+      await logChatEvent(input.session_id, 'planned_schedule_saved', {
+        invoice_id: (row as any).invoice_id,
+        count: planned.slots.length,
+      });
+    } catch (err) {
+      console.warn('Planned schedule could not be saved', err);
+    }
+  }
+
   return (row as any)?.invoice_number as string;
+
 };
 
 export interface SubmitInlineRegistrationInput {

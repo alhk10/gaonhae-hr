@@ -8154,6 +8154,18 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: undefined
       }
+      attach_public_chat_planned_schedule: {
+        Args: {
+          p_branch_id: string
+          p_invoice_id: string
+          p_product_id: string
+          p_session_id: string
+          p_slots: Json
+          p_student_id: string
+          p_term_id: string
+        }
+        Returns: number
+      }
       calculate_annual_leave_entitlement: {
         Args: { employee_id: string; reference_year?: number }
         Returns: {

@@ -26,7 +26,7 @@ interface GroupedClass {
   startTime: string;
   endTime: string;
   classType: string;
-  students: { id: string; name: string; status?: string; currentBelt?: string }[];
+  students: { id: string; name: string; status?: string; currentBelt?: string; unpaid?: boolean }[];
   beltLevels?: string[];
   ageFrom?: number;
   ageTo?: number;
@@ -162,6 +162,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
               id: sc.id,
               name: sc.student_name || 'Unknown',
               status: sc.status,
+              unpaid: !!sc.notes && sc.notes.startsWith('pending_payment_verification'),
             }));
 
             // Deduplicate enrolled students by name (same student can appear multiple times)
@@ -402,13 +403,17 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
                                             : getStatusColor(student.status || 'scheduled')
                                         }`}
-                                        title={student.currentBelt ? `${student.name} (${student.currentBelt})` : student.name}
+                                        title={`${student.name}${student.currentBelt ? ` (${student.currentBelt})` : ''}${student.unpaid ? ' — payment pending verification' : ''}`}
                                       >
                                         {student.name}
                                         {student.currentBelt && (
                                           <span className="ml-1 opacity-75">({student.currentBelt})</span>
                                         )}
+                                        {student.unpaid && (
+                                          <span className="ml-1 font-medium text-amber-700 dark:text-amber-300">· Unpaid</span>
+                                        )}
                                       </div>
+
                                     ))}
                                   </div>
                                 )}
@@ -519,7 +524,11 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
                               {student.currentBelt && (
                                 <span className="ml-0.5 opacity-75">({student.currentBelt})</span>
                               )}
+                              {student.unpaid && (
+                                <span className="ml-0.5 font-medium text-amber-700 dark:text-amber-300">· Unpaid</span>
+                              )}
                             </span>
+
                           ))}
                         </div>
                       )}
