@@ -364,7 +364,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.product_id} value={p.product_id}>
-                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk × {termWeeks} = ${(Number(p.branch_price) * termWeeks).toFixed(2)}
+                        {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk
                       </SelectItem>
 
                     ))}
@@ -384,6 +384,38 @@ const PublicSchoolFeesPayment: React.FC = () => {
               )}
 
               {selectedProduct && (
+                <div className="space-y-2">
+                  <Label>Payment Option *</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPlan('four_weeks')}
+                      className={`rounded-lg border p-3 text-left transition-colors ${plan === 'four_weeks' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                    >
+                      <p className="text-sm font-medium">4 Weeks</p>
+                      <p className="text-xs text-muted-foreground">4 × ${weeklyPrice.toFixed(2)}</p>
+                      <p className="text-sm font-semibold mt-1">${(weeklyPrice * FOUR_WEEK_WEEKS).toFixed(2)}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPlan('term')}
+                      className={`rounded-lg border p-3 text-left transition-colors ${plan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                    >
+                      <p className="text-sm font-medium">Full Term</p>
+                      <p className="text-xs text-muted-foreground">{fullTermWeeks} × ${weeklyPrice.toFixed(2)}</p>
+                      <p className="text-sm font-semibold mt-1">
+                        ${Math.max(0, weeklyPrice * fullTermWeeks - earlyPaymentDiscountFor(selectedTerm?.start_date)).toFixed(2)}
+                      </p>
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{FOUR_WEEK_NOTE}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sibling discounts apply to full-term payments and are applied by our staff when your payment is verified.
+                  </p>
+                </div>
+              )}
+
+              {selectedProduct && (
                 <div className="rounded-md border p-3 bg-background text-sm space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">
@@ -392,8 +424,14 @@ const PublicSchoolFeesPayment: React.FC = () => {
                       {` (${termWeeks} weeks × $${weeklyPrice.toFixed(2)})`}
                     </span>
 
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>${grossSubtotal.toFixed(2)}</span>
                   </div>
+                  {earlyDiscount > 0 && (
+                    <div className="flex items-center justify-between text-green-700">
+                      <span>Early payment discount</span>
+                      <span>-${earlyDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
                   {isSingapore && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">GST (9%)</span>
