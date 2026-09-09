@@ -8184,6 +8184,37 @@ export type Database = {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
       }
+      create_public_chat_callback: {
+        Args: {
+          p_branch_id: string
+          p_contact_email?: string
+          p_contact_phone?: string
+          p_date_of_birth?: string
+          p_first_name?: string
+          p_gender?: string
+          p_last_name?: string
+          p_matched_student_id?: string
+          p_message?: string
+          p_name: string
+          p_outcome?: string
+          p_preferred_time?: string
+          p_session_id: string
+          p_type: string
+        }
+        Returns: string
+      }
+      create_public_chat_session: {
+        Args: {
+          p_branch_id: string
+          p_date_of_birth: string
+          p_email?: string
+          p_first_name: string
+          p_gender?: string
+          p_last_name: string
+          p_phone?: string
+        }
+        Returns: string
+      }
       email_portal_record: {
         Args: { p_email: string }
         Returns: {
@@ -9032,6 +9063,10 @@ export type Database = {
         Returns: undefined
       }
       login_email_exists: { Args: { p_email: string }; Returns: boolean }
+      mark_public_chat_callback_email_sent: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       match_student_by_identity: {
         Args: {
           p_branch_id: string
