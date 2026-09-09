@@ -426,7 +426,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Branch *</Label>
+                <Label className="text-xs">Grading Venue *</Label>
                 <Select
                   value={form.branch_id}
                   onValueChange={(v) => {
@@ -442,7 +442,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                   }}
                 >
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue placeholder="Select grading venue" />
                   </SelectTrigger>
                   <SelectContent>
                     {branches.map(b => (

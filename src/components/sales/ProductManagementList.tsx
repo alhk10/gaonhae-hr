@@ -236,7 +236,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
       const { data: branchData } = await supabase
         .from('branches')
         .select('id, name')
-        .not('name', 'in', '("Competition","Headquarters")')
+        .not('name', 'in', '("Competition","Headquarters","Centralised Grading")')
         .order('name');
       const branchNames = (branchData || []).map(b => b.name);
       const branchHeaders = branchNames.map(n => `price_${n}`);
@@ -264,7 +264,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
       // Fetch products, branches, and price rules in parallel
       const [productsRes, branchesRes, priceRulesRes] = await Promise.all([
         supabase.from('products').select('*, product_categories(name)').order('name'),
-        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters")').order('name'),
+        supabase.from('branches').select('id, name').not('name', 'in', '("Competition","Headquarters","Centralised Grading")').order('name'),
         supabase.from('price_rules').select('product_id, branch_id, price_override').not('price_override', 'is', null),
       ]);
 

@@ -459,7 +459,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   // Auto-select branch
   const availableBranches = branches
-    .filter(b => !['Competition', 'Headquarters'].includes(b.name))
+    .filter(b => !['Competition', 'Headquarters', 'Centralised Grading'].includes(b.name))
     .filter(b => isSuperadminAccess || canCreate(b.id));
 
   useEffect(() => {
