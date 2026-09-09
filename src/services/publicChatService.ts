@@ -405,10 +405,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
         },
       },
     });
-    await supabase
-      .from('public_chat_callback_requests')
-      .update({ email_sent_at: new Date().toISOString() })
-      .eq('id', callbackId);
+    await supabase.rpc('mark_public_chat_callback_email_sent' as any, { p_id: callbackId });
     await logChatEvent(input.session_id, 'callback_email_sent', { callback_id: callbackId });
   } catch (err) {
     console.warn('Callback email send failed (non-blocking)', err);
@@ -505,25 +502,24 @@ export const submitInlineRegistration = async (input: SubmitInlineRegistrationIn
     input.notes ? `Notes: ${input.notes}` : null,
   ].filter(Boolean).join('\n');
 
-  const { data, error } = await supabase
-    .from('public_chat_callback_requests')
-    .insert({
-      session_id: input.session_id,
-      branch_id: input.branch_id,
-      name: `${input.first_name} ${input.last_name}`.trim(),
-      first_name: (input.first_name || '').trim().toUpperCase() || null,
-      last_name: (input.last_name || '').trim().toUpperCase() || null,
-      date_of_birth: input.date_of_birth || null,
-      gender: (input.gender || '').toLowerCase() || null,
-      contact_phone: input.phone,
-      contact_email: input.email ? input.email.trim().toLowerCase() : null,
-      type: 'registration_request',
-      message: msg,
-    } as any)
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_public_chat_callback' as any, {
+    p_session_id: input.session_id,
+    p_branch_id: input.branch_id,
+    p_name: `${input.first_name} ${input.last_name}`.trim(),
+    p_type: 'registration_request',
+    p_message: msg,
+    p_contact_phone: input.phone,
+    p_contact_email: input.email,
+    p_preferred_time: null,
+    p_first_name: input.first_name || null,
+    p_last_name: input.last_name || null,
+    p_date_of_birth: input.date_of_birth || null,
+    p_gender: input.gender || null,
+    p_matched_student_id: null,
+    p_outcome: 'register',
+  });
   if (error) throw error;
-  await updateSessionMatchAndOutcome(input.session_id, undefined as any, 'register');
-  await logChatEvent(input.session_id, 'registration_submitted', { id: data!.id });
-  return data!.id as string;
+  const newId = data as unknown as string;
+  await logChatEvent(input.session_id, 'registration_submitted', { id: newId });
+  return newId;
 };
