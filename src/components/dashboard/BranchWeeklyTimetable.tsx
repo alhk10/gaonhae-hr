@@ -26,7 +26,7 @@ interface GroupedClass {
   startTime: string;
   endTime: string;
   classType: string;
-  students: { id: string; name: string; status?: string; currentBelt?: string }[];
+  students: { id: string; name: string; status?: string; currentBelt?: string; unpaid?: boolean }[];
   beltLevels?: string[];
   ageFrom?: number;
   ageTo?: number;
@@ -162,6 +162,7 @@ const BranchWeeklyTimetable: React.FC<BranchWeeklyTimetableProps> = ({ branchId 
               id: sc.id,
               name: sc.student_name || 'Unknown',
               status: sc.status,
+              unpaid: !!sc.notes && sc.notes.startsWith('pending_payment_verification'),
             }));
 
             // Deduplicate enrolled students by name (same student can appear multiple times)
