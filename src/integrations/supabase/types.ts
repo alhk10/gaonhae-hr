@@ -8866,6 +8866,10 @@ export type Database = {
           submission_id: string
         }[]
       }
+      get_public_sibling_discount: {
+        Args: { p_student_id: string }
+        Returns: number
+      }
       get_public_student_counts_by_month: {
         Args: { p_year: number }
         Returns: {
@@ -9017,6 +9021,10 @@ export type Database = {
         Returns: {
           stage_number: number
         }[]
+      }
+      get_student_fee_plan_for_term: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: string
       }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }

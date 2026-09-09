@@ -48,6 +48,15 @@ import {
   type MatchedStudent,
 } from '@/services/publicChatService';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+import {
+  FOUR_WEEK_NOTE,
+  FOUR_WEEK_WEEKS,
+  earlyPaymentDiscountFor,
+  getLockedPlanForTerm,
+  getPublicSiblingDiscount,
+  type FeePaymentPlan,
+} from '@/utils/schoolFeePlan';
+
 
 
 const GRADING_CATEGORY_ID = '31514844-78dc-43f2-bf07-41d124d175e2';
@@ -63,6 +72,8 @@ type CartItem = {
   gradingSlotId?: string | null;
   termId?: string | null;
   termName?: string | null;
+  plan?: FeePaymentPlan;
+  discount?: number;
 };
 
 const getVariantArray = (product: ChatProduct, key: string): string[] => {
@@ -188,8 +199,11 @@ const PublicHelloChat: React.FC = () => {
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
   const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
   // Per-product draft state for non-grading flow (picked + variant + term selections)
-  type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
+  type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number; plan?: FeePaymentPlan };
   const [rowDrafts, setRowDrafts] = useState<Record<string, RowDraft>>({});
+  // School fees: sibling discount and 4-week plan locks per term
+  const [siblingDiscount, setSiblingDiscount] = useState(0);
+  const [lockedPlans, setLockedPlans] = useState<Record<string, FeePaymentPlan | null>>({});
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
     size: string | null;
@@ -353,9 +367,40 @@ const PublicHelloChat: React.FC = () => {
   }, [dobMonth, dobYear]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((s, c) => s + (getDisplayPrice(c.product, branch?.country) * c.qty), 0),
+    () => cart.reduce(
+      (s, c) => s + Math.max(0, getDisplayPrice(c.product, branch?.country) * c.qty - (c.discount || 0)),
+      0,
+    ),
     [cart, branch?.country],
   );
+
+  // Sibling discount for the matched student (term payments only)
+  useEffect(() => {
+    let cancelled = false;
+    if (!matched?.id) { setSiblingDiscount(0); return; }
+    getPublicSiblingDiscount(matched.id).then(v => { if (!cancelled) setSiblingDiscount(v); });
+    return () => { cancelled = true; };
+  }, [matched?.id]);
+
+  // 4-week plan locks for terms the student is choosing
+  useEffect(() => {
+    if (!matched?.id) return;
+    const termIds = Object.values(rowDrafts)
+      .map(d => d?.termId)
+      .filter((t): t is string => !!t && !(t in lockedPlans));
+    if (termIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(termIds.map(async t => [t, await getLockedPlanForTerm(matched.id, t)] as const))
+      .then(pairs => {
+        if (cancelled) return;
+        setLockedPlans(prev => {
+          const next = { ...prev };
+          pairs.forEach(([t, p]) => { next[t] = p; });
+          return next;
+        });
+      });
+    return () => { cancelled = true; };
+  }, [matched?.id, rowDrafts, lockedPlans]);
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
@@ -597,6 +642,8 @@ const PublicHelloChat: React.FC = () => {
           term_name: c.termName ?? null,
           qty: c.qty,
           unit_price: getDisplayPrice(c.product, branch?.country),
+          payment_plan: c.plan ?? null,
+          discount: c.discount || 0,
         })),
         amount: totalWithTax,
         payment_method: payMethod,
@@ -1236,8 +1283,22 @@ const PublicHelloChat: React.FC = () => {
                         terms={p.is_term_based ? chatTerms : undefined}
                         defaultGender={matched?.gender || gender || ''}
                         isLessonCategory={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
+                        isSchoolFees={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
+                        siblingDiscount={siblingDiscount}
+                        lockedPlans={lockedPlans}
                         draft={rowDrafts[p.product_id]}
-                        onDraftChange={(d) => setRowDrafts(prev => ({ ...prev, [p.product_id]: d }))}
+                        onDraftChange={(d) => setRowDrafts(prev => {
+                          // School fees: only one class may be selected at a time
+                          if (payCategory?.id === SCHOOL_FEES_CATEGORY_ID && d.picked) {
+                            const next: Record<string, RowDraft> = {};
+                            Object.entries(prev).forEach(([k, v]) => {
+                              next[k] = k === p.product_id ? v : { ...v, picked: false };
+                            });
+                            next[p.product_id] = d;
+                            return next;
+                          }
+                          return { ...prev, [p.product_id]: d };
+                        })}
                       />
                     ))
                   )}
@@ -1296,9 +1357,18 @@ const PublicHelloChat: React.FC = () => {
                             gender: d.gender || null,
                           };
                           const sizeVariant = [d.size, d.color, d.gender].filter(Boolean).join(' / ') || null;
-                          const termName = showTerms
-                            ? (chatTerms.find(t => t.term_id === d.termId)?.term_name ?? null)
-                            : null;
+                          const term = showTerms ? (chatTerms.find(t => t.term_id === d.termId) || null) : null;
+                          const termName = term?.term_name ?? null;
+                          const locked = d.termId ? lockedPlans[d.termId] : null;
+                          const plan: FeePaymentPlan = locked === 'four_weeks'
+                            ? 'four_weeks'
+                            : (d.plan || 'term');
+                          const planWeeks = plan === 'four_weeks'
+                            ? FOUR_WEEK_WEEKS
+                            : Math.max(1, term?.total_weeks || 1);
+                          const planDiscount = showTerms && plan === 'term'
+                            ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
+                            : 0;
                           newCart.push({
                             product: p,
                             size: sizeVariant,
@@ -1306,7 +1376,9 @@ const PublicHelloChat: React.FC = () => {
                             gradingSlotId: null,
                             termId: showTerms ? d.termId : null,
                             termName,
-                            qty: showTerms ? Math.max(1, d.qty || 1) : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
+                            plan: showTerms ? plan : undefined,
+                            discount: planDiscount,
+                            qty: showTerms ? planWeeks : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
                           });
                         }
                         setCart(newCart);
@@ -1795,15 +1867,20 @@ const PublicHelloChat: React.FC = () => {
   );
 };
 
+type RowDraftShape = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number; plan?: FeePaymentPlan };
+
 const ProductRow: React.FC<{
   product: ChatProduct;
   branchCountry?: string | null;
   terms?: ChatTerm[];
   defaultGender?: string;
   isLessonCategory?: boolean;
-  draft?: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number };
-  onDraftChange: (d: { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number }) => void;
-}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, draft, onDraftChange }) => {
+  isSchoolFees?: boolean;
+  siblingDiscount?: number;
+  lockedPlans?: Record<string, FeePaymentPlan | null>;
+  draft?: RowDraftShape;
+  onDraftChange: (d: RowDraftShape) => void;
+}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, isSchoolFees, siblingDiscount = 0, lockedPlans = {}, draft, onDraftChange }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
@@ -1885,7 +1962,7 @@ const ProductRow: React.FC<{
       {d.picked && !allTermsPaid && (
         <div className="space-y-2" data-row-control onClick={(e) => e.stopPropagation()}>
           {showTerms && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               <Select value={d.termId} onValueChange={(v) => {
                 const t = selectableTerms.find(x => x.term_id === v);
                 update({ termId: v, qty: Math.max(1, t?.total_weeks || 1) });
@@ -1897,15 +1974,57 @@ const ProductRow: React.FC<{
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="number"
-                min={1}
-                max={selectedTerm?.total_weeks ?? undefined}
-                value={d.qty}
-                onChange={(e) => update({ qty: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="h-9 text-xs"
-                placeholder="Weeks"
-              />
+
+              {(() => {
+                const weekly = getDisplayPrice(product, branchCountry);
+                const termWeeks = Math.max(1, selectedTerm?.total_weeks || 1);
+                const locked = d.termId ? lockedPlans[d.termId] : null;
+                const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
+                const early = earlyPaymentDiscountFor(selectedTerm?.start_date);
+                const termTotal = Math.max(0, weekly * termWeeks - early - (siblingDiscount || 0));
+                return (
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => update({ plan: 'four_weeks' })}
+                        className={cn(
+                          'rounded-md border p-2 text-left',
+                          plan === 'four_weeks' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40',
+                        )}
+                      >
+                        <p className="text-xs font-medium">4 weeks</p>
+                        <p className="text-[11px] text-muted-foreground">4 × ${weekly.toFixed(2)}</p>
+                        <p className="text-xs font-semibold">${(weekly * FOUR_WEEK_WEEKS).toFixed(2)}</p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={locked === 'four_weeks'}
+                        onClick={() => update({ plan: 'term' })}
+                        className={cn(
+                          'rounded-md border p-2 text-left disabled:opacity-50',
+                          plan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40',
+                        )}
+                      >
+                        <p className="text-xs font-medium">Full term</p>
+                        <p className="text-[11px] text-muted-foreground">{termWeeks} × ${weekly.toFixed(2)}</p>
+                        <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>
+                        {(early > 0 || siblingDiscount > 0) && (
+                          <p className="text-[10px] text-green-700">
+                            {[early > 0 ? 'early payment' : null, siblingDiscount > 0 ? 'sibling' : null]
+                              .filter(Boolean).join(' + ')} discount
+                          </p>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {locked === 'four_weeks'
+                        ? 'You are on the 4-week plan for this term, so only that option is available.'
+                        : FOUR_WEEK_NOTE}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
           {!showTerms && isLessonCategory && (

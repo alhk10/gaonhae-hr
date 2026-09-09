@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
+import { FOUR_WEEK_NOTE, FOUR_WEEK_WEEKS, getLockedPlanForTerm, type FeePaymentPlan } from '@/utils/schoolFeePlan';
 import { createPayment } from '@/services/paymentService';
 
 import ClassScheduleSelector from './ClassScheduleSelector';
@@ -387,11 +388,23 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   });
 
   // Check for sibling discount
-  const { data: siblingDiscount = 0 } = useQuery({
+  const { data: siblingDiscountBase = 0 } = useQuery({
     queryKey: ['sibling-discount', studentId],
     queryFn: () => getSiblingDiscount(studentId),
     enabled: !!studentId,
   });
+
+  // Payment plan: 4 weeks or full term. Once a 4-week plan is paid inside a
+  // term, that plan is locked for the rest of the term.
+  const [feePlan, setFeePlan] = useState<FeePaymentPlan>('term');
+  const { data: lockedPlan = null } = useQuery({
+    queryKey: ['fee-plan-lock', studentId, selectedTermId],
+    queryFn: () => getLockedPlanForTerm(studentId, selectedTermId),
+    enabled: !!studentId && !!selectedTermId,
+  });
+  useEffect(() => {
+    if (lockedPlan === 'four_weeks') setFeePlan('four_weeks');
+  }, [lockedPlan]);
 
   // Is grading opt-in eligible?
   const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
@@ -529,13 +542,16 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   }, [branch?.country]);
 
   // Calculate price based on selected product and term weeks
-  const termWeeks = useMemo(() => {
+  const fullTermWeeks = useMemo(() => {
     if (!selectedTerm) return 0;
     if (isRemainingWeeks && currentTermForRemaining && selectedTerm.id === currentTermForRemaining.id) {
       return remainingWeeksForCurrentTerm;
     }
     return calculateTeachingWeeks(selectedTerm.start_date, selectedTerm.end_date, selectedTerm.breaks || []);
   }, [selectedTerm, isRemainingWeeks, currentTermForRemaining, remainingWeeksForCurrentTerm]);
+
+  // Billed weeks depend on the chosen plan.
+  const termWeeks = feePlan === 'four_weeks' ? FOUR_WEEK_WEEKS : fullTermWeeks;
 
   const calculatedPrice = selectedProduct 
     ? termWeeks * selectedProduct.effective_price
@@ -544,14 +560,21 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
   const gradingFee = gradingProduct?.effective_price ?? 0;
   
   // Early payment discount: $10 off if paying on or before term start date
+  // (full-term plan only)
   const earlyPaymentDiscount = useMemo(() => {
-    if (!selectedTerm) return 0;
+    if (!selectedTerm || feePlan !== 'term') return 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const termStart = new Date(selectedTerm.start_date);
     termStart.setHours(0, 0, 0, 0);
     return today <= termStart ? 10 : 0;
-  }, [selectedTerm]);
+  }, [selectedTerm, feePlan]);
+
+  // Sibling discount applies to term payments only.
+  const siblingDiscount = feePlan === 'term' ? siblingDiscountBase : 0;
+
+  const fullTermPrice = selectedProduct ? fullTermWeeks * selectedProduct.effective_price : 0;
+  const fourWeekPrice = selectedProduct ? FOUR_WEEK_WEEKS * selectedProduct.effective_price : 0;
 
   const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
 
@@ -618,6 +641,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               term_name: selectedTerm.name,
               product_name: selectedProduct.name,
               weeks: termWeeks,
+              payment_plan: feePlan,
               is_remaining_weeks: isRemainingWeeks,
               selected_class_slots: selectedClassSlots,
               early_payment_discount: earlyPaymentDiscount > 0,
@@ -706,6 +730,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     setSelectedProductId('');
     setSelectedClassSlots([]);
     setIsRemainingWeeks(false);
+    setFeePlan('term');
     setProofFile(null);
     setReferenceNumber('');
     setIncludeGrading(false);
@@ -825,6 +850,48 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                     </Select>
                   )}
                 </div>
+
+                {/* Payment plan */}
+                {selectedTerm && selectedProduct && (
+                  <div className="space-y-2">
+                    <Label>Payment Option *</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFeePlan('four_weeks')}
+                        className={`rounded-lg border p-3 text-left transition-colors ${feePlan === 'four_weeks' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                      >
+                        <p className="text-sm font-medium">4 Weeks</p>
+                        <p className="text-xs text-muted-foreground">
+                          {FOUR_WEEK_WEEKS} weeks × ${selectedProduct.effective_price.toFixed(2)}
+                        </p>
+                        <p className="text-sm font-semibold mt-1">${fourWeekPrice.toFixed(2)}</p>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={lockedPlan === 'four_weeks'}
+                        onClick={() => setFeePlan('term')}
+                        className={`rounded-lg border p-3 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${feePlan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40'}`}
+                      >
+                        <p className="text-sm font-medium">Full Term</p>
+                        <p className="text-xs text-muted-foreground">
+                          {fullTermWeeks} weeks × ${selectedProduct.effective_price.toFixed(2)}
+                        </p>
+                        <p className="text-sm font-semibold mt-1">${fullTermPrice.toFixed(2)}</p>
+                        {siblingDiscountBase > 0 && (
+                          <p className="text-[11px] text-green-700">Sibling discount applies</p>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {lockedPlan === 'four_weeks'
+                        ? 'You are on the 4-week plan for this term, so only that option is available.'
+                        : FOUR_WEEK_NOTE}
+                    </p>
+                  </div>
+                )}
+
+
 
                 {/* Class Schedule Selection */}
                 {selectedTerm && selectedProductId && student.branch_id && student.date_of_birth && (
