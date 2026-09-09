@@ -903,9 +903,19 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <p className="text-xs text-muted-foreground">
                           {fullTermWeeks} weeks × ${selectedProduct.effective_price.toFixed(2)}
                         </p>
-                        <p className="text-sm font-semibold mt-1">${fullTermPrice.toFixed(2)}</p>
-                        {siblingDiscountBase > 0 && (
-                          <p className="text-[11px] text-green-700">Sibling discount applies</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <p className="text-sm font-semibold">${fullTermPrice.toFixed(2)}</p>
+                          {termSavings > 0 && (
+                            <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                              Save ${termSavings.toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                        {termSavings > 0 && (
+                          <p className="text-[11px] text-green-700">
+                            {[earlyDiscountBase > 0 ? 'early payment' : null, siblingDiscountBase > 0 ? 'sibling' : null]
+                              .filter(Boolean).join(' + ')} discount
+                          </p>
                         )}
                       </button>
                     </div>
