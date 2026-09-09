@@ -297,6 +297,50 @@ export const getStudentInvoicedTerms = async (sessionId: string, studentId: stri
   return (data || []) as InvoicedTerm[];
 };
 
+export interface ChatInvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  metadata: { term_id?: string; grading_slot_id?: string } | null;
+  term_info?: string | null;
+  grading_info?: string | null;
+}
+
+export interface ChatInvoice {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string | null;
+  status: string;
+  subtotal: number;
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  amount_paid: number;
+  balance_due: number;
+  notes: string | null;
+  items: ChatInvoiceItem[];
+}
+
+export interface ChatInvoicesResult {
+  student: { name: string; address: string | null; phone: string | null; email: string | null } | null;
+  template: { letterhead_url?: string; paynow_qr_url?: string; country?: string; default_notes?: string; footer_text?: string } | null;
+  invoices: ChatInvoice[];
+}
+
+export const getChatInvoices = async (sessionId: string, studentId: string): Promise<ChatInvoicesResult> => {
+  const { data, error } = await supabase.rpc('get_public_chat_invoices' as any, {
+    p_session_id: sessionId, p_student_id: studentId,
+  });
+  if (error) throw error;
+  const row = (data || {}) as Partial<ChatInvoicesResult>;
+  return { student: row.student ?? null, template: row.template ?? null, invoices: row.invoices ?? [] };
+};
+
 export interface TimetableSlot {
   id: string;
   weekday: number;
