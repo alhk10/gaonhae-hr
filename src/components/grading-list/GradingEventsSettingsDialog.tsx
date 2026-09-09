@@ -23,7 +23,7 @@ import { formatDate } from '@/utils/dateFormat';
 import { SG_BELT_LEVELS, AU_BELT_LEVELS } from '@/constants/beltLevels';
 import { deriveBeltLevels } from '@/utils/gradingProductBelts';
 import {
-  getPublicBranches,
+  getPublicGradingVenues,
   adminListGradingSlots,
   adminListGradingProducts,
   adminUpsertGradingSlot,
@@ -138,8 +138,8 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
   });
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['public-branches'],
-    queryFn: getPublicBranches,
+    queryKey: ['public-grading-venues'],
+    queryFn: getPublicGradingVenues,
     staleTime: 5 * 60 * 1000,
   });
 
