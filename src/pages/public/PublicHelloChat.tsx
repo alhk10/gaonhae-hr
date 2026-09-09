@@ -270,6 +270,61 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
   });
 
+  const { data: pastInvoices, isLoading: pastInvoicesLoading } = useQuery({
+    queryKey: ['hello-past-invoices', sessionId, matched?.id],
+    queryFn: () => getChatInvoices(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
+  });
+
+  const handleDownloadInvoice = async (inv: ChatInvoice) => {
+    try {
+      const pdfData: InvoiceData = {
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        issue_date: inv.issue_date,
+        due_date: inv.due_date,
+        subtotal: inv.subtotal || 0,
+        tax_amount: inv.tax_amount || 0,
+        discount_amount: inv.discount_amount || 0,
+        total_amount: inv.total_amount || 0,
+        amount_paid: inv.amount_paid || 0,
+        balance_due: inv.balance_due || 0,
+        notes: inv.notes,
+        status: inv.status,
+        student: pastInvoices?.student ? {
+          name: pastInvoices.student.name,
+          address: pastInvoices.student.address,
+          phone: pastInvoices.student.phone,
+          email: pastInvoices.student.email,
+        } : undefined,
+        items: (inv.items || []).map((item): InvoiceItem => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          tax_rate: item.tax_rate || 0,
+          tax_amount: item.tax_amount || 0,
+          metadata: item.metadata,
+          term_info: item.term_info || undefined,
+          grading_info: item.grading_info || undefined,
+        })),
+        template: pastInvoices?.template ? {
+          letterhead_url: pastInvoices.template.letterhead_url || undefined,
+          paynow_qr_url: pastInvoices.template.paynow_qr_url || undefined,
+          country: pastInvoices.template.country || undefined,
+          default_notes: pastInvoices.template.default_notes || undefined,
+          footer_text: pastInvoices.template.footer_text || undefined,
+        } : undefined,
+      };
+      await downloadInvoicePDF(pdfData);
+      toast.success('Invoice PDF downloaded');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
   const isGradingMatched =
     !!matched && payCategory?.id === GRADING_CATEGORY_ID && stage === 'payment_products';
 
@@ -1200,25 +1255,19 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
-                  {[
-                    { id: SCHOOL_FEES_CATEGORY_ID, label: 'Pay Term Fees', primary: true },
-                    { id: GRADING_CATEGORY_ID, label: 'Register for grading', primary: false },
-                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel', primary: false },
-                    { id: '117cdc13-1296-4651-bc4b-f0449873cbf1', label: 'Order Protection Guards and Accessories', primary: false },
-                  ].map(btn => {
-                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                  {(() => {
+                    const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
                     if (!cat) return null;
                     return (
                       <Button
-                        key={btn.id}
                         onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
-                        variant={btn.primary ? 'default' : 'outline'}
+                        variant="default"
                         className="w-full h-11 justify-between"
                       >
-                        {btn.label} <ArrowRight className="h-4 w-4" />
+                        Pay Term Fees <ArrowRight className="h-4 w-4" />
                       </Button>
                     );
-                  })}
+                  })()}
                   <Button
                     onClick={() => {
                       if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
@@ -1230,6 +1279,38 @@ const PublicHelloChat: React.FC = () => {
                     <span className="flex items-center gap-1.5">
                       <CalendarClock className="h-4 w-4" />
                       Schedule / Reschedule a lesson
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  {[
+                    { id: GRADING_CATEGORY_ID, label: 'Register for grading' },
+                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
+                    { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
+                  ].map(btn => {
+                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        key={btn.id}
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="outline"
+                        className="w-full h-11 justify-between"
+                      >
+                        {btn.label} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    onClick={() => {
+                      if (sessionId) logChatEvent(sessionId, 'past_invoices_viewed').catch(() => {});
+                      goTo('past_invoices');
+                    }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Receipt className="h-4 w-4" />
+                      View Past Invoices
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
