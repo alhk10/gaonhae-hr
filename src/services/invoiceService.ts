@@ -10,6 +10,7 @@ import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { createEnrollment, createScheduledClass } from './classEnrollmentService';
 import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
+import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
