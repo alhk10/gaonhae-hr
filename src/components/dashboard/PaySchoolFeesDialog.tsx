@@ -406,6 +406,13 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     if (lockedPlan === 'four_weeks') setFeePlan('four_weeks');
   }, [lockedPlan]);
 
+  // Lock state of the term currently running (drives the default term choice)
+  const { data: currentTermLock = null } = useQuery({
+    queryKey: ['fee-plan-lock-current', studentId, currentTermForRemaining?.id],
+    queryFn: () => getLockedPlanForTerm(studentId, currentTermForRemaining!.id),
+    enabled: !!studentId && !!currentTermForRemaining?.id,
+  });
+
   // Is grading opt-in eligible?
   const gradingEligible = gradingSlots.length > 0 && !!gradingProduct && !existingGradingInvoice && !!isReadyForGrading;
 
