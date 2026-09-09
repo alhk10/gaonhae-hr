@@ -440,7 +440,21 @@ export interface SubmitChatPaymentInput {
   proof_file: File;
   contact_first_name: string;
   contact_last_name: string;
+  /** Lessons the student planned before paying (school fees only) */
+  planned_schedule?: {
+    term_id: string;
+    product_id: string;
+    slots: PlannedSlot[];
+  } | null;
 }
+
+export interface PlannedSlot {
+  date: string;
+  start_time: string;
+  end_time: string;
+  timetable_id: string | null;
+}
+
 
 export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<string> => {
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
