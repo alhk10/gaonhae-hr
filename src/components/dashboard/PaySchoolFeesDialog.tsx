@@ -876,9 +876,10 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
                         <p className="text-xs text-muted-foreground">
                           {fullTermWeeks} weeks × ${selectedProduct.effective_price.toFixed(2)}
                         </p>
-                        <p className="text-sm font-semibold mt-1">
-                          ${Math.max(0, fullTermPrice - (siblingDiscountBase || 0) - (earlyPaymentDiscount || (feePlan === 'four_weeks' ? 0 : 0))).toFixed(2)}
-                        </p>
+                        <p className="text-sm font-semibold mt-1">${fullTermPrice.toFixed(2)}</p>
+                        {siblingDiscountBase > 0 && (
+                          <p className="text-[11px] text-green-700">Sibling discount applies</p>
+                        )}
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground">
