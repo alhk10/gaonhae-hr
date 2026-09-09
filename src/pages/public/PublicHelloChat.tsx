@@ -1505,95 +1505,32 @@ const PublicHelloChat: React.FC = () => {
                     ))
                   )}
 
-                  <div className="flex gap-2 pt-2">
-                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
-                    <Button
-                      onClick={() => {
-                        if (isGradingMatched) {
-                          if (selectedGradingProducts.length === 0) {
-                            toast.error('Please select at least one grading level');
-                            return;
-                          }
-                          if (!selectedGradingSlotId) {
-                            toast.error('Please pick a grading slot');
-                            return;
-                          }
-                          setCart(selectedGradingProducts.map(p => ({
-                            product: p,
-                            size: null,
-                            qty: 1,
-                            gradingSlotId: selectedGradingSlotId,
-                          })));
-                          goTo('payment_pay');
-                          return;
-                        }
-                        // Non-grading: build cart from picked rows
-                        const pickedEntries = products
-                          .map(p => ({ p, d: rowDrafts[p.product_id] }))
-                          .filter(x => x.d?.picked);
-                        if (pickedEntries.length === 0) {
-                          toast.error('Please select at least one item');
-                          return;
-                        }
-                        const newCart: CartItem[] = [];
-                        for (const { p, d } of pickedEntries) {
-                          const sizes = p.requires_size ? (p.available_sizes || getVariantArray(p, 'sizes')) : [];
-                          const colors = getVariantArray(p, 'colors');
-                          const genders = getVariantArray(p, 'genders');
-                          const showTerms = p.is_term_based && (chatTerms || []).some(t => !t.is_paid);
-                          if (p.requires_size && sizes.length > 0 && !d.size) {
-                            toast.error(`Pick size for ${p.product_name}`); return;
-                          }
-                          if (colors.length > 0 && !d.color) {
-                            toast.error(`Pick colour for ${p.product_name}`); return;
-                          }
-                          if (genders.length > 0 && !d.gender) {
-                            toast.error(`Pick gender for ${p.product_name}`); return;
-                          }
-                          if (showTerms && !d.termId) {
-                            toast.error(`Pick term for ${p.product_name}`); return;
-                          }
-                          const selectedOptions = {
-                            size: d.size || null,
-                            color: d.color || null,
-                            gender: d.gender || null,
-                          };
-                          const sizeVariant = [d.size, d.color, d.gender].filter(Boolean).join(' / ') || null;
-                          const term = showTerms ? (chatTerms.find(t => t.term_id === d.termId) || null) : null;
-                          const termName = term?.term_name ?? null;
-                          const locked = d.termId ? lockedPlans[d.termId] : null;
-                          const plan: FeePaymentPlan = locked === 'four_weeks'
-                            ? 'four_weeks'
-                            : (d.plan || 'term');
-                          const planWeeks = plan === 'four_weeks'
-                            ? FOUR_WEEK_WEEKS
-                            : Math.max(1, term?.total_weeks || 1);
-                          const planDiscount = showTerms && plan === 'term'
-                            ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
-                            : 0;
-                          newCart.push({
-                            product: p,
-                            size: sizeVariant,
-                            selectedOptions,
-                            gradingSlotId: null,
-                            termId: showTerms ? d.termId : null,
-                            termName,
-                            plan: showTerms ? plan : undefined,
-                            discount: planDiscount,
-                            qty: showTerms ? planWeeks : (payCategory?.id === SCHOOL_FEES_CATEGORY_ID ? Math.max(1, d.qty || 1) : 1),
-                          });
-                        }
-                        setCart(newCart);
-                        goTo('payment_pay');
-                      }}
-                      disabled={isGradingMatched
-                        ? (selectedGradingProducts.length === 0 || !selectedGradingSlotId)
-                        : !Object.values(rowDrafts).some(d => d?.picked)}
-                      className="flex-1 h-10"
-                    >
-                      Continue
-                    </Button>
+                  <div className="space-y-2 pt-2">
+                    {payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched && (
+                      <Button
+                        onClick={() => handleFeesContinue(true)}
+                        disabled={!Object.values(rowDrafts).some(d => d?.picked)}
+                        className="w-full h-10 gap-2"
+                      >
+                        <CalendarClock className="h-4 w-4" />
+                        Add / confirm schedule
+                      </Button>
+                    )}
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
+                      <Button
+                        onClick={() => handleFeesContinue(false)}
+                        disabled={isGradingMatched
+                          ? (selectedGradingProducts.length === 0 || !selectedGradingSlotId)
+                          : !Object.values(rowDrafts).some(d => d?.picked)}
+                        variant={payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched ? 'outline' : 'default'}
+                        className="flex-1 h-10"
+                      >
+                        {payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched ? 'Skip to payment' : 'Continue'}
+                      </Button>
+                    </div>
                   </div>
+
                 </CardContent>
               </Card>
             </>
