@@ -27,6 +27,7 @@ import {
   getPublicSeminarEvents,
   rejectSeminarSubmission,
   verifySeminarSubmission,
+  createSeminarInvoice,
   adminReplaceSeminarSubmissionProof,
   type PublicSeminarListRow,
 } from '@/services/seminarPaymentSubmissionService';
