@@ -30,6 +30,7 @@ import {
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
+import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
 interface Props {
   branchId?: string;
