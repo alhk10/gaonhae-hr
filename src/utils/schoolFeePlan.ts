@@ -69,6 +69,24 @@ export const quotePlan = (plan: FeePaymentPlan, input: PlanQuoteInput): PlanQuot
 };
 
 /**
+ * Order school-fee products so students see the progression clearly:
+ * 1. Little Gaonhae, 2. Foundation to Red, 3. Black Tip & Above, 4. everything else.
+ */
+export const getSchoolFeeProductSortGroup = (productName: string): number => {
+  const name = productName.trim();
+  if (name.startsWith('Little Gaonhae')) return 1;
+  if (name.startsWith('Foundation to Red')) return 2;
+  if (name.startsWith('Black Tip & Above')) return 3;
+  return 4;
+};
+
+export const compareSchoolFeeProducts = (a: { product_name: string }, b: { product_name: string }): number => {
+  const groupDiff = getSchoolFeeProductSortGroup(a.product_name) - getSchoolFeeProductSortGroup(b.product_name);
+  if (groupDiff !== 0) return groupDiff;
+  return a.product_name.localeCompare(b.product_name);
+};
+
+/**
  * Returns 'four_weeks' when the student already paid a 4-week plan for this
  * term (so only that plan may be offered), otherwise null.
  */
