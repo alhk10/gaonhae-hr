@@ -330,7 +330,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.map((row) => {
+        {sortedRows.map((row) => {
           const branchName = branches.find((b: any) => b.id === row.branch_id)?.name || row.branch_id || '—';
           const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toUpperCase();
           return (
