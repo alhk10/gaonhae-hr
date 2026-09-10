@@ -24,6 +24,19 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[property.name=/^(slice|split|substring)$/] > CallExpression.object > MemberExpression[property.name='toISOString']",
+          message:
+            "Do not derive a yyyy-MM-dd string from toISOString() — it shifts by a day in non-UTC timezones. Use toISODate() from @/utils/dateFormat.",
+        },
+      ],
     },
+  },
+  {
+    files: ["src/utils/dateFormat.ts"],
+    rules: { "no-restricted-syntax": "off" },
   }
 );
