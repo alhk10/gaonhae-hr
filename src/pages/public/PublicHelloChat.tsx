@@ -1349,18 +1349,15 @@ const PublicHelloChat: React.FC = () => {
                     );
                   })()}
                   <Button
-                    onClick={() => {
-                      if (sessionId) logChatEvent(sessionId, 'lesson_action_opened').catch(() => {});
-                      goTo('lesson_action');
-                    }}
+                    disabled
                     variant="outline"
-                    className="w-full h-11 justify-between"
+                    className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
                   >
                     <span className="flex items-center gap-1.5">
                       <CalendarClock className="h-4 w-4" />
                       Schedule / Reschedule a lesson
                     </span>
-                    <ArrowRight className="h-4 w-4" />
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
                   </Button>
                   {[
                     { id: GRADING_CATEGORY_ID, label: 'Register for grading' },
@@ -1372,11 +1369,12 @@ const PublicHelloChat: React.FC = () => {
                     return (
                       <Button
                         key={btn.id}
-                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        disabled
                         variant="outline"
-                        className="w-full h-11 justify-between"
+                        className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
                       >
-                        {btn.label} <ArrowRight className="h-4 w-4" />
+                        {btn.label}
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
                       </Button>
                     );
                   })}
@@ -1724,12 +1722,13 @@ const PublicHelloChat: React.FC = () => {
                   <div className="space-y-2 pt-2">
                     {payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched && (
                       <Button
-                        onClick={() => handleFeesContinue(true)}
-                        disabled={!Object.values(rowDrafts).some(d => d?.picked)}
-                        className="w-full h-10 gap-2"
+                        disabled
+                        variant="outline"
+                        className="w-full h-10 gap-2 opacity-60 cursor-not-allowed"
                       >
                         <CalendarClock className="h-4 w-4" />
                         Add / confirm schedule
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground ml-auto">Coming soon</Badge>
                       </Button>
                     )}
                     <div className="flex gap-2">
