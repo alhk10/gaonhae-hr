@@ -266,6 +266,13 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
+  // School-fee products are shown in belt-progression order: Little Gaonhae → Foundation to Red → Black Tip & Above.
+  const sortedProducts = useMemo(() => {
+    if (payCategory?.id !== SCHOOL_FEES_CATEGORY_ID) return products;
+    return [...products].sort(compareSchoolFeeProducts);
+  }, [products, payCategory?.id]);
+
+
   const { data: chatTerms = [] } = useQuery({
     queryKey: ['hello-chat-terms', branchId, sessionId, matched?.id],
     queryFn: () => getChatTermsForStudent(sessionId!, matched!.id, branchId),
