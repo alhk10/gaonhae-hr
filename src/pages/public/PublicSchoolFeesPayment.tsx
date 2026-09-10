@@ -139,6 +139,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
     enabled: !!branchId,
   });
 
+  const sortedProducts = useMemo(() => [...products].sort(compareSchoolFeeProducts), [products]);
+
+
   // Default the term to the next upcoming one, else the current one.
   useEffect(() => {
     if (!terms.length) {
