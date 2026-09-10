@@ -226,27 +226,55 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
-  // Auto-import any submission that is both verified and matched.
+  // Scan: auto-link confident matches, then import anything verified + matched.
   const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
-  React.useEffect(() => {
-    if (!submissions.length) return;
-    let cancelled = false;
-    (async () => {
-      const res = await runAutoImportSweep('grading-submissions', submissions, {
+  const [scanning, setScanning] = useState(false);
+
+  const runScan = React.useCallback(async (rows: PendingGradingSubmission[]) => {
+    if (!rows.length) return;
+    setScanning(true);
+    try {
+      const matchRes = await runAutoMatchSweep('grading-submissions', rows, {
+        getId: (s) => s.id,
+        needsMatch: (s) => !s.matched_student_id,
+        fetchMatches: (s) => findStudentMatches(s.id),
+        match: (s, c) => matchGradingSubmission(s.id, c.student_id),
+      });
+
+      const importRows = rows.map((s) =>
+        matchRes.matchedIds.includes(s.id) ? { ...s, matched_student_id: 'matched' } : s,
+      ) as PendingGradingSubmission[];
+
+      const importRes = await runAutoImportSweep('grading-submissions', importRows, {
         getId: (s) => s.id,
         isReady: (s) => s.status === 'verified' && !!s.matched_student_id,
         run: (s) => importGradingSubmission(s.id, verifiedBy),
       });
-      if (cancelled) return;
-      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
-      if (res.importedIds.length) {
-        toast.success(`${res.importedIds.length} verified submission(s) imported as invoices`);
+
+      const errors = { ...matchRes.errors, ...importRes.errors };
+      if (Object.keys(errors).length) setAutoErrors((p) => ({ ...p, ...errors }));
+      if (matchRes.matchedIds.length || importRes.importedIds.length) {
+        toast.success(`Matched ${matchRes.matchedIds.length}, imported ${importRes.importedIds.length}`);
         invalidate();
       }
-    })();
-    return () => { cancelled = true; };
+    } finally {
+      setScanning(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifiedBy]);
+
+  React.useEffect(() => {
+    void runScan(submissions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissions]);
+
+  const handleRescan = () => {
+    clearAutoMatchAttempts('grading-submissions');
+    clearAutoImportAttempts('grading-submissions');
+    setAutoErrors({});
+    void runScan(submissions);
+  };
+
 
   const handleReject = async () => {
     if (!rejectingSub) return;
