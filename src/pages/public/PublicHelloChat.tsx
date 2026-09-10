@@ -847,7 +847,8 @@ const PublicHelloChat: React.FC = () => {
   const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   const relevantPlanSlots = useMemo(
-    () => planSlots.filter(s => !planClassTypes || planClassTypes.has(normalise(s.class_type || ''))),
+    () => planSlots.filter(isSlotAllowedForPackage),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [planSlots, planClassTypes],
   );
 
