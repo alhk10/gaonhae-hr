@@ -367,12 +367,12 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     <SelectValue placeholder={!branchId ? 'Select branch first' : 'Select class'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p) => (
+                    {sortedProducts.map((p) => (
                       <SelectItem key={p.product_id} value={p.product_id}>
                         {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk
                       </SelectItem>
-
                     ))}
+
                   </SelectContent>
                 </Select>
                 {selectedProduct?.description && (
