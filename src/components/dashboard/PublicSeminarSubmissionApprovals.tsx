@@ -116,6 +116,11 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     try {
       await matchSeminarSubmission(matchingSub.id, studentId);
       toast.success(autoLabel || 'Student matched');
+      if (matchingSub.status === 'verified') {
+        const res = await tryAutoImport(() => createSeminarInvoice(matchingSub.id, verifiedBy));
+        if (res.imported) toast.success('Verified submission imported as invoice');
+        else if (res.error) toast.error(`Matched, but import failed: ${res.error}`);
+      }
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
