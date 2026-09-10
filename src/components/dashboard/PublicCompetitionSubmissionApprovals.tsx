@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
@@ -28,7 +28,8 @@ import {
   type CompetitionStudentMatch,
 } from '@/services/competitionPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
-import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
+import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
+import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 
 interface Props {
   branchId?: string;
@@ -204,27 +205,55 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
     }
   };
 
-  // Auto-import any submission that is both verified and matched.
+  // Scan: auto-link confident matches, then import anything verified + matched.
   const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
-  React.useEffect(() => {
-    if (!submissions.length) return;
-    let cancelled = false;
-    (async () => {
-      const res = await runAutoImportSweep('competition-submissions', submissions, {
+  const [scanning, setScanning] = useState(false);
+
+  const runScan = React.useCallback(async (rows: PendingCompetitionSubmission[]) => {
+    if (!rows.length) return;
+    setScanning(true);
+    try {
+      const matchRes = await runAutoMatchSweep('competition-submissions', rows, {
+        getId: (s) => s.id,
+        needsMatch: (s) => !s.matched_student_id,
+        fetchMatches: (s) => findCompetitionSubmissionStudentMatches(s.id),
+        match: (s, c) => matchCompetitionSubmission(s.id, c.student_id),
+      });
+
+      const importRows = rows.map((s) =>
+        matchRes.matchedIds.includes(s.id) ? { ...s, matched_student_id: 'matched' } : s,
+      ) as PendingCompetitionSubmission[];
+
+      const importRes = await runAutoImportSweep('competition-submissions', importRows, {
         getId: (s) => s.id,
         isReady: (s) => s.status === 'verified' && !!s.matched_student_id,
         run: (s) => importCompetitionSubmission(s.id, verifiedBy),
       });
-      if (cancelled) return;
-      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
-      if (res.importedIds.length) {
-        toast.success(`${res.importedIds.length} verified submission(s) imported as invoices`);
+
+      const errors = { ...matchRes.errors, ...importRes.errors };
+      if (Object.keys(errors).length) setAutoErrors((p) => ({ ...p, ...errors }));
+      if (matchRes.matchedIds.length || importRes.importedIds.length) {
+        toast.success(`Matched ${matchRes.matchedIds.length}, imported ${importRes.importedIds.length}`);
         invalidate();
       }
-    })();
-    return () => { cancelled = true; };
+    } finally {
+      setScanning(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifiedBy]);
+
+  React.useEffect(() => {
+    void runScan(submissions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissions]);
+
+  const handleRescan = () => {
+    clearAutoMatchAttempts('competition-submissions');
+    clearAutoImportAttempts('competition-submissions');
+    setAutoErrors({});
+    void runScan(submissions);
+  };
+
 
   const handleSaveEdit = async () => {
     if (!editingSub) return;
@@ -274,6 +303,16 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
           <Trophy className="h-4 w-4" />
           Competition Registrations
           <Badge variant="secondary">{submissions.length}</Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 gap-1.5"
+            onClick={handleRescan}
+            disabled={scanning}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            {scanning ? 'Scanning…' : 'Scan & match'}
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

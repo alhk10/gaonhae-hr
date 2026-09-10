@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +32,7 @@ import {
   type StudentMatchCandidate,
 } from '@/services/guardsPurchaseService';
 import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/submissionMatchConfidence';
+import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 
 interface Props {
   branchId?: string;
@@ -160,6 +161,43 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   }, [matchingRow?.id, matches, matchesLoading]);
 
 
+  // Scan: auto-link confident matches (invoice is created on match).
+  const [scanning, setScanning] = useState(false);
+  const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
+
+  const runScan = React.useCallback(async (list: GuardsPurchaseRow[]) => {
+    if (!list.length) return;
+    setScanning(true);
+    try {
+      const res = await runAutoMatchSweep('guards-purchases', list, {
+        getId: (r) => r.id,
+        needsMatch: (r) => !r.matched_student_id,
+        fetchMatches: (r) => findStudentMatches(r),
+        match: (r, c) => finalize(r, c.id),
+        maxScore: MAX_GUARDS_MATCH_SCORE,
+      });
+      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
+      if (res.matchedIds.length) {
+        toast.success(`Matched ${res.matchedIds.length} purchase(s) and created invoices`);
+        invalidate();
+      }
+    } finally {
+      setScanning(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    void runScan(rows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows]);
+
+  const handleRescan = () => {
+    clearAutoMatchAttempts('guards-purchases');
+    setAutoErrors({});
+    void runScan(rows);
+  };
+
   const handleCreateAndMatch = async () => {
     if (!matchingRow) return;
     const { first_name, last_name, date_of_birth, email, branch_id } = newStudent;
@@ -247,6 +285,16 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
           <ShieldCheck className="w-4 h-4" />
           Public Guards Purchases — Unmatched
           <Badge variant="secondary">{rows.length}</Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 gap-1.5"
+            onClick={handleRescan}
+            disabled={scanning}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            {scanning ? 'Scanning…' : 'Scan & match'}
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -255,6 +303,9 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
           const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toUpperCase();
           return (
             <div key={row.id} className="border rounded-md p-3 space-y-2">
+              {autoErrors[row.id] && (
+                <div className="text-xs text-destructive">Automatic match failed: {autoErrors[row.id]}</div>
+              )}
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-0.5 text-sm">
                   <div className="font-semibold">
