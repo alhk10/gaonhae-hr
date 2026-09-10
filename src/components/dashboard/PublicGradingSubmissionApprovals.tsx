@@ -304,6 +304,17 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
           <ShieldCheck className="w-4 h-4" />
           Public Grading Submissions
           <Badge variant="secondary">{submissions.length}</Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 gap-1.5"
+            onClick={handleRescan}
+            disabled={scanning}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            {scanning ? 'Scanning…' : 'Scan & match'}
+          </Button>
+
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
