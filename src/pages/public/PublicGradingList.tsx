@@ -395,6 +395,10 @@ const PublicGradingList: React.FC = () => {
     try {
       await verifyGradingSubmission(row.submission_id, verifiedBy);
       toast.success('Marked as verified');
+      // Matched already? Turn it into an invoice straight away.
+      const auto = await tryAutoImport(() => importGradingSubmission(row.submission_id!, verifiedBy));
+      if (auto.imported) toast.success('Imported as invoice');
+      else if (auto.error) toast.error(`Verified, but import failed: ${auto.error}`);
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
       qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
       qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
