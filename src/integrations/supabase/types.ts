@@ -7003,6 +7003,7 @@ export type Database = {
         Row: {
           address: string | null
           allowed_class_types: string[] | null
+          alt_emails: string[]
           branch_id: string | null
           certificate_name: string | null
           created_at: string
@@ -7048,6 +7049,7 @@ export type Database = {
         Insert: {
           address?: string | null
           allowed_class_types?: string[] | null
+          alt_emails?: string[]
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string
@@ -7093,6 +7095,7 @@ export type Database = {
         Update: {
           address?: string | null
           allowed_class_types?: string[] | null
+          alt_emails?: string[]
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string
@@ -7741,6 +7744,10 @@ export type Database = {
     }
     Functions: {
       _next_invoice_number: { Args: never; Returns: string }
+      _remember_student_email: {
+        Args: { p_email: string; p_student_id: string }
+        Returns: undefined
+      }
       _resolve_chat_submission_invoice: {
         Args: {
           p_sub: Database["public"]["Tables"]["public_chat_payment_submissions"]["Row"]
