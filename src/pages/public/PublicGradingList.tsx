@@ -2150,6 +2150,9 @@ const CompetitionsTab: React.FC<{
     try {
       await verifyCompetitionSubmission(submissionId, verifiedBy);
       toast.success('Marked as verified');
+      const auto = await tryAutoImport(() => importCompetitionSubmission(submissionId, verifiedBy));
+      if (auto.imported) toast.success('Imported as invoice');
+      else if (auto.error) toast.error(`Verified, but import failed: ${auto.error}`);
       qc.invalidateQueries({ queryKey: ['public-competition-list'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });
