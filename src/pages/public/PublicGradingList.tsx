@@ -83,6 +83,7 @@ import {
   adminUpdateGradingRegistrationDisplayName,
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
+  importGradingSubmission,
   rejectGradingSubmission,
   adminReplaceGradingSubmissionProof,
   type PublicGradingListRow,
