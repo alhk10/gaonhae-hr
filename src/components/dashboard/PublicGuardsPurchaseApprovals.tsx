@@ -31,6 +31,7 @@ import {
   type GuardsPurchaseRow,
   type StudentMatchCandidate,
 } from '@/services/guardsPurchaseService';
+import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/submissionMatchConfidence';
 
 interface Props {
   branchId?: string;
