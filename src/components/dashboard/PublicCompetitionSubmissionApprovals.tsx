@@ -131,7 +131,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
     }
   };
 
-  // Auto-link the top suggestion when it is 90%+ confident and clearly ahead.
+  // Auto-link the top suggestion when it is 85%+ confident and clearly ahead.
   const autoMatchedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!matchingSub || matchesLoading) return;
