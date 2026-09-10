@@ -40,6 +40,7 @@ import {
   updateCompetitionPoomsae,
   updateCompetitionSchedule,
   verifyCompetitionSubmission,
+  importCompetitionSubmission,
   rejectCompetitionSubmission,
   adminReplaceCompetitionSubmissionFile,
   setCompetitionRegistered,
