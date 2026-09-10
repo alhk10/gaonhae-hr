@@ -6,7 +6,7 @@
  * On match or create-student we also generate the paid invoice via
  * createInvoiceForPurchase to mirror the existing inline list behaviour.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw, ListFilter, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +33,7 @@ import {
 } from '@/services/guardsPurchaseService';
 import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/submissionMatchConfidence';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
+import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
 interface Props {
   branchId?: string;
@@ -68,6 +69,18 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (branchId && r.branch_id !== branchId) return false;
     return true;
   });
+
+  const [actionFirst, setActionFirst] = useState(true);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const sortedRows = useMemo(
+    () =>
+      sortSubmissionsByAction(rows, {
+        actionFirst,
+        newestFirst,
+        needsAction: (r: any) => r.sale_status !== 'verified' && r.sale_status !== 'paid',
+      }),
+    [rows, actionFirst, newestFirst],
+  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['guards-purchase-approvals'] });
@@ -287,8 +300,27 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
           <Badge variant="secondary">{rows.length}</Badge>
           <Button
             size="sm"
-            variant="outline"
+            variant={actionFirst ? 'secondary' : 'outline'}
             className="ml-auto h-7 gap-1.5"
+            onClick={() => setActionFirst((v) => !v)}
+            title="Show unverified purchases first"
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Action first
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
+            onClick={() => setNewestFirst((v) => !v)}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {newestFirst ? 'Newest first' : 'Oldest first'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
             onClick={handleRescan}
             disabled={scanning}
           >
@@ -298,7 +330,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.map((row) => {
+        {sortedRows.map((row) => {
           const branchName = branches.find((b: any) => b.id === row.branch_id)?.name || row.branch_id || '—';
           const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toUpperCase();
           return (

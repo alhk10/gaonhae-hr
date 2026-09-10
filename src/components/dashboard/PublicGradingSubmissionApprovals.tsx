@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw, ListFilter, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
@@ -30,6 +30,7 @@ import {
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
+import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
 
 interface Props {
@@ -64,6 +65,18 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     queryFn: () => getPendingGradingSubmissions(branchId),
     refetchInterval: 60_000,
   });
+
+  const [actionFirst, setActionFirst] = useState(true);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const sortedSubmissions = useMemo(
+    () =>
+      sortSubmissionsByAction(submissions, {
+        actionFirst,
+        newestFirst,
+        needsAction: (s: any) => !s.matched_student_id || s.status !== 'verified',
+      }),
+    [submissions, actionFirst, newestFirst],
+  );
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
@@ -306,8 +319,27 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
           <Badge variant="secondary">{submissions.length}</Badge>
           <Button
             size="sm"
-            variant="outline"
+            variant={actionFirst ? 'secondary' : 'outline'}
             className="ml-auto h-7 gap-1.5"
+            onClick={() => setActionFirst((v) => !v)}
+            title="Show unmatched / unverified submissions first"
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Action first
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
+            onClick={() => setNewestFirst((v) => !v)}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {newestFirst ? 'Newest first' : 'Oldest first'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
             onClick={handleRescan}
             disabled={scanning}
           >
@@ -318,7 +350,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {submissions.map((sub) => (
+        {sortedSubmissions.map((sub) => (
           <div key={sub.id} className="border rounded-md p-3 space-y-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="space-y-0.5 text-sm">
