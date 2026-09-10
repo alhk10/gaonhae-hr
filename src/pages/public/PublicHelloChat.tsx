@@ -818,9 +818,25 @@ const PublicHelloChat: React.FC = () => {
   // Class types / days this package actually pays for
   const planClassTypes = useMemo(() => {
     const raw = (feeCartItem?.product?.metadata as any)?.allowed_class_types;
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    return new Set(raw.map((v: string) => normalise(String(v))));
+    if (Array.isArray(raw) && raw.length > 0) {
+      return new Set(raw.map((v: string) => normalise(String(v))));
+    }
+    // Fallback: derive from the package name when metadata is missing
+    const name = normalise(feeCartItem?.product?.product_name || '');
+    if (name.startsWith('little gaonhae')) return new Set(['little gaonhae']);
+    return null;
   }, [feeCartItem]);
+
+  // Team Gaonhae / Private Lesson slots are only bookable when the package
+  // explicitly allows that class type (e.g. Little Gaonhae packages must not
+  // expose Team Gaonhae classes; Private Lessons only for Private Lesson packages).
+  const isSlotAllowedForPackage = (slot: { class_type?: string | null }) => {
+    const ct = normalise(slot.class_type || '');
+    if (!ct) return false;
+    if (ct.startsWith('private lesson')) return !!planClassTypes?.has('private lesson');
+    if (ct.startsWith('team gaonhae')) return !!planClassTypes?.has(ct);
+    return !planClassTypes || planClassTypes.has(ct);
+  };
 
   const planLessonDays = useMemo(() => {
     const raw = (feeCartItem?.product?.metadata as any)?.lesson_days;
@@ -831,7 +847,8 @@ const PublicHelloChat: React.FC = () => {
   const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   const relevantPlanSlots = useMemo(
-    () => planSlots.filter(s => !planClassTypes || planClassTypes.has(normalise(s.class_type || ''))),
+    () => planSlots.filter(isSlotAllowedForPackage),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [planSlots, planClassTypes],
   );
 
