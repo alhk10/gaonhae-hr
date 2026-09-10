@@ -29,6 +29,7 @@ import {
   type SeminarStudentMatch,
 } from '@/services/seminarPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
+import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
 
 interface Props {
   branchId?: string;
