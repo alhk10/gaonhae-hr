@@ -331,7 +331,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                         <div className="text-xs text-muted-foreground truncate">
                           {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.current_belt || '—'}
                         </div>
-                        {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                        <div className="text-[11px] text-muted-foreground">{m.reason ? `${m.reason} · ` : ''}{toConfidence(m.score)}% match</div>
                       </div>
                       <Button size="sm" onClick={() => handleMatch(m.student_id)}>Use</Button>
                     </div>
