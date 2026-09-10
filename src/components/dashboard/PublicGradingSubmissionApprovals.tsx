@@ -27,6 +27,7 @@ import {
   type PendingGradingSubmission,
   type SubmissionStudentMatch,
 } from '@/services/gradingPaymentSubmissionService';
+import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 
 interface Props {
   branchId?: string;
