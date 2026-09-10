@@ -57,8 +57,10 @@ import {
   earlyPaymentDiscountFor,
   getLockedPlanForTerm,
   getPublicSiblingDiscount,
+  compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+
 
 
 
