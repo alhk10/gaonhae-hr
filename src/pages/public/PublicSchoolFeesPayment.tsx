@@ -26,8 +26,10 @@ import {
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
   earlyPaymentDiscountFor,
+  compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+
 
 const GST_RATE = 0.09;
 
