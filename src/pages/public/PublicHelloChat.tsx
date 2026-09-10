@@ -1430,7 +1430,7 @@ const PublicHelloChat: React.FC = () => {
                             (inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'sent') && 'bg-red-100 text-red-800 border-red-200',
                           )}
                         >
-                          {inv.status}
+                          {inv.status === 'verified' ? 'Paid & Verified' : inv.status}
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
