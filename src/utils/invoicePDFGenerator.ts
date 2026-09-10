@@ -227,7 +227,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     'unpaid': 'Unpaid',
     'partially_paid': 'Partially Paid',
     'overdue': 'Overdue',
-    'verified': 'Verified',
+    'verified': 'Paid & Verified',
     'cancelled': 'Cancelled',
     'refunded': 'Refunded',
   };
