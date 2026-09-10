@@ -707,6 +707,11 @@ export const createInvoiceForPurchase = async (
     } as any)
     .eq('id', purchase.id);
 
+  // Remember the purchase email on the student so future submissions match.
+  await supabase
+    .rpc('remember_guards_purchase_email' as any, { p_purchase_id: purchase.id })
+    .then(() => undefined, () => undefined);
+
   return invoice.id;
 };
 
