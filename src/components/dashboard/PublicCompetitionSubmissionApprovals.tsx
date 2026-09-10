@@ -328,6 +328,10 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
               )}
             </div>
 
+            {autoErrors[sub.id] && (
+              <div className="text-xs text-destructive">Automatic import failed: {autoErrors[sub.id]}</div>
+            )}
+
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={() => setMatchingSub(sub)} disabled={busyId === sub.id}>
                 <UserSearch className="w-3.5 h-3.5 mr-1" />
@@ -335,7 +339,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
               </Button>
               <Button size="sm" onClick={() => handleImport(sub)} disabled={busyId === sub.id || !sub.matched_student_id}>
                 <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                Verify &amp; Import
+                {sub.status === 'verified' ? 'Import as Invoice' : 'Verify & Import'}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setEditingSub(sub)} disabled={busyId === sub.id}>
                 <Pencil className="w-3.5 h-3.5 mr-1" />
