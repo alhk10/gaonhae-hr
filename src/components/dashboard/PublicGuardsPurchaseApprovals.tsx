@@ -324,7 +324,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
                       <div className="text-xs text-muted-foreground truncate">
                         {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.branch_id} · {m.current_belt || '—'}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">score {m.score}</div>
+                      <div className="text-[11px] text-muted-foreground">{toConfidence(m.score, MAX_GUARDS_MATCH_SCORE)}% match</div>
                     </div>
                     <Button size="sm" onClick={() => handleMatch(m.id)} disabled={busyId === matchingRow?.id}>Use</Button>
                   </div>
