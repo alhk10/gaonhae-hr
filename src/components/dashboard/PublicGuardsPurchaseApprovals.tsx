@@ -303,6 +303,9 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
           const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toUpperCase();
           return (
             <div key={row.id} className="border rounded-md p-3 space-y-2">
+              {autoErrors[row.id] && (
+                <div className="text-xs text-destructive">Automatic match failed: {autoErrors[row.id]}</div>
+              )}
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-0.5 text-sm">
                   <div className="font-semibold">
