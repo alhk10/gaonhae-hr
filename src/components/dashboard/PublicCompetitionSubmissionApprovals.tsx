@@ -28,6 +28,7 @@ import {
   type CompetitionStudentMatch,
 } from '@/services/competitionPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
+import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
 
 interface Props {
   branchId?: string;
