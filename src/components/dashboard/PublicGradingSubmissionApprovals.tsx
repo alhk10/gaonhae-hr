@@ -28,7 +28,9 @@ import {
   type SubmissionStudentMatch,
 } from '@/services/gradingPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
-import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
+import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
+import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
+
 
 interface Props {
   branchId?: string;
