@@ -130,12 +130,12 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   };
 
 
-  const handleMatch = async (studentId: string) => {
+  const handleMatch = async (studentId: string, autoLabel?: string) => {
     if (!matchingSub) return;
     setBusyId(matchingSub.id);
     try {
       await matchGradingSubmission(matchingSub.id, studentId);
-      toast.success('Student matched');
+      toast.success(autoLabel || 'Student matched');
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
@@ -145,6 +145,19 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       setBusyId(null);
     }
   };
+
+  // Auto-link the top suggestion when it is 90%+ confident and clearly ahead.
+  const autoMatchedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!matchingSub || matchesLoading) return;
+    if (autoMatchedRef.current === matchingSub.id) return;
+    const auto = pickAutoMatch(matches as SubmissionStudentMatch[]);
+    if (!auto) return;
+    autoMatchedRef.current = matchingSub.id;
+    handleMatch(auto.match.student_id, `Auto-matched to ${auto.match.full_name} (${auto.confidence}%)`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchingSub?.id, matches, matchesLoading]);
+
 
   const handleCreateAndMatch = async () => {
     if (!matchingSub) return;
