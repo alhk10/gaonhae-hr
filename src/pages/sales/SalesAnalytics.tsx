@@ -47,7 +47,7 @@ const SalesAnalytics: React.FC = () => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1).toISOString().split('T')[0],
+    startDate: toISODate(new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1)),
     endDate: toISODate(new Date())
   });
 

@@ -298,7 +298,7 @@ export const getCasualEmployees = async (): Promise<EmployeeProfile[]> => {
       phone: emp.phone || '',
       address: emp.address || '',
       email: emp.email || null, // Handle nullable email
-      joinDate: emp.join_date || (emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : undefined),
+      joinDate: emp.join_date || (emp.created_at ? toISODate(new Date(emp.created_at)) : undefined),
       resignDate: emp.resign_date || undefined,
       allowances: emp.allowances?.map(a => ({
         id: String(a.id),
@@ -419,7 +419,7 @@ export const getEmployeeById = async (id: string): Promise<EmployeeProfile | nul
     phone: employee.phone || '',
     address: employee.address || '',
     email: employee.email || null, // Handle nullable email
-    joinDate: employee.join_date || (employee.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : undefined),
+    joinDate: employee.join_date || (employee.created_at ? toISODate(new Date(employee.created_at)) : undefined),
     resignDate: employee.resign_date || undefined,
     allowances: employee.allowances?.map(a => ({
       id: String(a.id),

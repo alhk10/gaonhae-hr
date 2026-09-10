@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 type LineWithEntry = JournalLine & { entry: JournalEntry };
 
 const today = () => toISODate(new Date());
-const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
+const monthStart = () => { const d = new Date(); return toISODate(new Date(d.getFullYear(), d.getMonth(), 1)); };
 
 const GeneralLedger: React.FC = () => {
   const [country, setCountry] = useState<Country>('Singapore');

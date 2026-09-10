@@ -176,7 +176,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     queryFn: async () => {
       if (!gradingProduct?.id) return null;
       
-      const sixtyDaysAgo = subDays(new Date(), 60).toISOString().split('T')[0];
+      const sixtyDaysAgo = toISODate(subDays(new Date(), 60));
       
       const { data } = await supabase
         .from('invoice_items')

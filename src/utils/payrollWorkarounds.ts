@@ -45,7 +45,7 @@ export async function getAttendanceDataForMissingEmployees(period: string, emplo
 export function getPeriodDates(period: string): [string, string] {
   const [year, month] = period.split('-');
   const startDate = `${year}-${month}-01`;
-  const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+  const endDate = toISODate(new Date(parseInt(year), parseInt(month), 0));
   return [startDate, endDate];
 }
 

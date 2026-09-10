@@ -59,7 +59,7 @@ const ClaimsManagementContent = () => {
       type: claim.type,
       amount: String(claim.amount),
       description: claim.description || '',
-      date: claim.date ? new toISODate(Date(claim.date)) : '',
+      date: claim.date ? toISODate(new Date(claim.date)) : '',
     });
   };
 

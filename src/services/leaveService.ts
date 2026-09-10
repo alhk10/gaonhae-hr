@@ -45,9 +45,9 @@ export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
       days: item.days_requested,
       status: item.status,
       reason: item.reason || '',
-      appliedOn: item.applied_date ? new toISODate(Date(item.applied_date)) : toISODate(new Date()),
+      appliedOn: item.applied_date ? toISODate(new Date(item.applied_date)) : toISODate(new Date()),
       approvedBy: item.reviewed_by,
-      approvedOn: item.reviewed_date ? new toISODate(Date(item.reviewed_date)) : undefined,
+      approvedOn: item.reviewed_date ? toISODate(new Date(item.reviewed_date)) : undefined,
       medicalCertificate: item.medical_certificate
     }));
 

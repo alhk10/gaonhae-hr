@@ -90,7 +90,7 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
     queryKey: ['student-scheduled-classes', studentId],
     queryFn: async () => {
       const today = toISODate(new Date());
-      const twoWeeksLater = addDays(new Date(), 14).toISOString().split('T')[0];
+      const twoWeeksLater = toISODate(addDays(new Date(), 14));
       
       // Get enrollment IDs first
       const enrollmentIds = enrollments.map(e => e.id);
