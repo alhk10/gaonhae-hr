@@ -469,7 +469,7 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
   // Fetch students by name match (broad), then score in JS.
   const { data, error } = await supabase
     .from('students')
-    .select('id, student_number, first_name, last_name, date_of_birth, branch_id, current_belt, email, phone')
+    .select('id, student_number, first_name, last_name, date_of_birth, branch_id, current_belt, email, alt_emails, phone')
     .or(`first_name.ilike.%${fn}%,last_name.ilike.%${ln}%`)
     .limit(50);
   if (error) throw error;
@@ -485,7 +485,10 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
     else if (sln.includes(ln) || ln.includes(sln)) score += 1;
     if (dob && s.date_of_birth === dob) score += 4;
     if (branchId && s.branch_id === branchId) score += 1;
-    if (purchase.email && s.email && norm(s.email) === norm(purchase.email)) score += 2;
+    const knownEmails = [s.email, ...((s.alt_emails as string[] | null) || [])]
+      .filter(Boolean)
+      .map((e: string) => norm(e));
+    if (purchase.email && knownEmails.includes(norm(purchase.email))) score += 2;
     if (purchase.phone && s.phone && (s.phone || '').replace(/\D/g, '').includes(purchase.phone.replace(/\D/g, ''))) score += 1;
     return { ...s, score };
   });
