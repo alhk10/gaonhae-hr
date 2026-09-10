@@ -1675,7 +1675,7 @@ const PublicHelloChat: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    products.map(p => (
+                    sortedProducts.map(p => (
                       <ProductRow
                         key={p.product_id}
                         product={p}
@@ -1702,6 +1702,7 @@ const PublicHelloChat: React.FC = () => {
                       />
                     ))
                   )}
+
 
                   <div className="space-y-2 pt-2">
                     {payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched && (
