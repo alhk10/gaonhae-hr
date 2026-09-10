@@ -32,6 +32,7 @@ import {
   type PublicSeminarListRow,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
+import { tryAutoImport } from '@/utils/submissionAutoImport';
 
 
 const statusVariant = (s: string) => {
