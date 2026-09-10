@@ -11,13 +11,13 @@ import {
   listAccounts, listJournalLines,
   type ChartAccount, type Country, type JournalEntry, type JournalLine,
 } from '@/services/accountingService';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { toast } from 'sonner';
 
 type LineWithEntry = JournalLine & { entry: JournalEntry };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
+const today = () => toISODate(new Date());
+const monthStart = () => { const d = new Date(); return toISODate(new Date(d.getFullYear(), d.getMonth(), 1)); };
 
 const GeneralLedger: React.FC = () => {
   const [country, setCountry] = useState<Country>('Singapore');

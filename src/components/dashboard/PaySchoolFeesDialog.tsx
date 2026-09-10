@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { formatDate, formatMonthShort } from '@/utils/dateFormat';
+import { formatDate, formatMonthShort, toISODate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -208,7 +208,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
 
   // Filter available terms to show only unpaid ones
   const unpaidTerms = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     return availableTerms
       .filter(term => !paidTermIds.includes(term.id))
       .filter(term => term.end_date >= today)
@@ -350,7 +350,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     queryFn: async () => {
       if (!gradingProduct?.id) return null;
       
-      const sixtyDaysAgo = subDays(new Date(), 60).toISOString().split('T')[0];
+      const sixtyDaysAgo = toISODate(subDays(new Date(), 60));
       
       const { data } = await supabase
         .from('invoice_items')
@@ -488,14 +488,14 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
           const bStart = new Date(brk.start_date);
           const bEnd = new Date(brk.end_date);
           for (let d = new Date(bStart); d <= bEnd; d.setDate(d.getDate() + 1)) {
-            breakDates.add(d.toISOString().split('T')[0]);
+            breakDates.add(toISODate(d));
           }
         }
       }
 
       const newSlots: string[] = [];
       for (let d = new Date(termStart); d <= termEnd; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = toISODate(d);
         if (breakDates.has(dateStr)) continue;
         
         const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon, ...
@@ -528,7 +528,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       setSelectedTermId(currentTermForRemaining.id);
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const upcoming = unpaidTerms.find(t => t.start_date > today);
     setSelectedTermId((upcoming || unpaidTerms[0]).id);
   }, [unpaidTerms, selectedTermId, currentTermLock, currentTermForRemaining]);
@@ -686,7 +686,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
       await createPayment({
         invoice_id: invoice.id,
         amount: invoice.total_amount,
-        payment_date: new Date().toISOString().split('T')[0],
+        payment_date: toISODate(new Date()),
         payment_method: paymentMethod as any,
         reference_number: referenceNumber || undefined,
         proof_of_payment_url: proofUrl,
@@ -718,7 +718,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
         await createPayment({
           invoice_id: gradingInvoice.id,
           amount: gradingInvoice.total_amount,
-          payment_date: new Date().toISOString().split('T')[0],
+          payment_date: toISODate(new Date()),
           payment_method: paymentMethod as any,
           reference_number: referenceNumber || undefined,
           proof_of_payment_url: proofUrl,

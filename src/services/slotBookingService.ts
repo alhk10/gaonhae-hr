@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 import { logger } from '@/utils/logger';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 export type SlotBooking = {
   id: string;
@@ -286,7 +286,7 @@ export const addAdminSlotBooking = async (booking: {
       status: 'approved',
       notes: booking.notes || 'Admin booking - auto-approved',
       approved_by: 'System Admin',
-      approved_on: new Date().toISOString().split('T')[0]
+      approved_on: toISODate(new Date())
     };
 
     const { data, error } = await supabase

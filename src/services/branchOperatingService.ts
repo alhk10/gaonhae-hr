@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface BranchOperatingDay {
   id?: string;
@@ -162,7 +163,7 @@ export async function calculateTeachingWeeksWithSchedule(
       // Check if this day is an operating day
       if (operatingDays.includes(dayOfWeek)) {
         // Check if this day falls within a break period
-        const currentStr = current.toISOString().split('T')[0];
+        const currentStr = toISODate(current);
         const isInBreak = breaks.some(brk => {
           return currentStr >= brk.start_date && currentStr <= brk.end_date;
         });

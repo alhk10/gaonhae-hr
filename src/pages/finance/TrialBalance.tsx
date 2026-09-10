@@ -14,11 +14,11 @@ import FinanceBasisToggle from '@/components/finance/FinanceBasisToggle';
 import { getTrialBalance, type TrialBalanceResult } from '@/services/trialBalanceService';
 import { exportTrialBalanceCsv, exportTrialBalancePdf } from '@/utils/financeReportExport';
 import type { Country } from '@/services/accountingService';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { basisLabel } from '@/services/reportingBasisService';
 
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
+const today = () => toISODate(new Date());
+const monthStart = () => { const d = new Date(); return toISODate(new Date(d.getFullYear(), d.getMonth(), 1)); };
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const TrialBalance: React.FC = () => {

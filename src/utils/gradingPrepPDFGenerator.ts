@@ -4,7 +4,7 @@
  * Ready / Paid / Slot / School Fees columns for manual marking.
  */
 import jsPDF from 'jspdf';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 export interface GradingPrepStudent {
   student_name: string;
@@ -47,7 +47,7 @@ export function generateGradingPrepPDF({ students, branchName, termName }: Gradi
     doc.setFontSize(10);
     doc.text(`Branch: ${branchName}`, marginL, 22);
     doc.text(`Term: ${termName}`, marginL, 27);
-    doc.text(`Generated: ${formatDate(new Date().toISOString().slice(0, 10))}`, pageWidth - marginR, 22, { align: 'right' });
+    doc.text(`Generated: ${formatDate(toISODate(new Date()))}`, pageWidth - marginR, 22, { align: 'right' });
     doc.text(`Total: ${students.length}`, pageWidth - marginR, 27, { align: 'right' });
   };
 

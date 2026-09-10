@@ -17,6 +17,7 @@ import { createScheduledClass } from '@/services/classEnrollmentService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import RescheduleClassDialog from './RescheduleClassDialog';
+import { toISODate } from '@/utils/dateFormat';
 
 interface Entitlement {
   id: string;
@@ -290,7 +291,7 @@ const StudentMyClassSchedule: React.FC<StudentMyClassScheduleProps> = ({
   });
 
   // Apply filter
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODate(new Date());
   const filteredClasses = displayClasses.filter(c => {
     if (filter === 'upcoming') return c.scheduled_date >= today && c.status !== 'cancelled' && c.status !== 'swapped';
     if (filter === 'past') return c.scheduled_date < today || c.status === 'attended' || c.status === 'absent';

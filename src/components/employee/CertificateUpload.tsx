@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, X, FileText, Download } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { CertificateUpload } from '@/types/employee';
+import { toISODate } from '@/utils/dateFormat';
 
 interface CertificateUploadProps {
   certificates: CertificateUpload[];
@@ -45,7 +46,7 @@ const CertificateUploadComponent: React.FC<CertificateUploadProps> = ({
       file: file,
       name: file.name.split('.')[0],
       fileName: file.name,
-      uploadDate: new Date().toISOString().split('T')[0],
+      uploadDate: toISODate(new Date()),
       fileSize: file.size,
       fileType: file.type || 'application/octet-stream'
     };

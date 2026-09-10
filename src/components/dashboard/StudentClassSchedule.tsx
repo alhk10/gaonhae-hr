@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getClassSchedules, WEEKDAYS, formatTime, ClassSchedule } from '@/services/branchTimetableService';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { getClassTypeColors, getClassTypeCardClasses } from '@/utils/classTypeColors';
+import { toISODate } from '@/utils/dateFormat';
 
 interface StudentClassScheduleProps {
   studentId: string;
@@ -88,8 +89,8 @@ const StudentClassSchedule: React.FC<StudentClassScheduleProps> = ({ studentId, 
   const { data: upcomingClasses = [], isLoading: scheduledLoading } = useQuery({
     queryKey: ['student-scheduled-classes', studentId],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const twoWeeksLater = addDays(new Date(), 14).toISOString().split('T')[0];
+      const today = toISODate(new Date());
+      const twoWeeksLater = toISODate(addDays(new Date(), 14));
       
       // Get enrollment IDs first
       const enrollmentIds = enrollments.map(e => e.id);

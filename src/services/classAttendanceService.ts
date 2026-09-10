@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { getCurrentTerm, Term } from './termCalendarService';
 import { isStudentEligibleForClass, isBeltEligible, checkFullEligibility } from '@/utils/classTypeEligibility';
 import { createInvoice } from './invoiceService';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface ClassAttendanceRecord {
   id: string;
@@ -110,7 +111,7 @@ export async function getBranchStudentsForClass(
     // (students who have valid lesson entitlements but may not have scheduled classes yet)
     let entitlementStudentIds = new Set<string>();
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const { data: entitlements } = await supabase
         .from('entitlements')
         .select('student_id')
@@ -412,7 +413,7 @@ async function getAdHocLessonPrice(branchId: string): Promise<number> {
  */
 async function tryConsumeEntitlement(studentId: string): Promise<boolean> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
 
     // Find earliest active entitlement with remaining sessions
     const { data: entitlement, error } = await supabase

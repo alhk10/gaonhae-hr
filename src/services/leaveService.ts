@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface LeaveRequest {
   id: number;
@@ -44,9 +45,9 @@ export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
       days: item.days_requested,
       status: item.status,
       reason: item.reason || '',
-      appliedOn: item.applied_date ? new Date(item.applied_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      appliedOn: item.applied_date ? toISODate(new Date(item.applied_date)) : toISODate(new Date()),
       approvedBy: item.reviewed_by,
-      approvedOn: item.reviewed_date ? new Date(item.reviewed_date).toISOString().split('T')[0] : undefined,
+      approvedOn: item.reviewed_date ? toISODate(new Date(item.reviewed_date)) : undefined,
       medicalCertificate: item.medical_certificate
     }));
 

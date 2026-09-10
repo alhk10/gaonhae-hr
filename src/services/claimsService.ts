@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { postClaimJournal } from './accountingPostings';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface Claim {
   id: number;
@@ -50,7 +51,7 @@ export const getClaims = async (): Promise<Claim[]> => {
       employee: item.employees?.name || 'Unknown Employee',
       type: item.type,
       amount: parseFloat(item.amount),
-      date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      date: item.submitted_date ? toISODate(new Date(item.submitted_date)) : toISODate(new Date()),
       status: item.status,
       description: item.description,
       receipt_url: item.receipt_url,
@@ -89,7 +90,7 @@ export const getEmployeeClaims = async (employeeId: string): Promise<Claim[]> =>
       employee: item.employees?.name || 'Unknown Employee',
       type: item.type,
       amount: parseFloat(item.amount),
-      date: item.submitted_date ? new Date(item.submitted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      date: item.submitted_date ? toISODate(new Date(item.submitted_date)) : toISODate(new Date()),
       status: item.status,
       description: item.description,
       receipt_url: item.receipt_url,

@@ -14,6 +14,7 @@ import {
 } from '@/services/accountingService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { toISODate } from '@/utils/dateFormat';
 
 interface BranchOption { id: string; name: string; country: string | null; }
 
@@ -28,7 +29,7 @@ const NewJournal: React.FC = () => {
   const [country, setCountry] = useState<Country>('Singapore');
   const [accounts, setAccounts] = useState<ChartAccount[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [entryDate, setEntryDate] = useState(() => toISODate(new Date()));
   const [branchId, setBranchId] = useState<string>('');
   const [reference, setReference] = useState('');
   const [narration, setNarration] = useState('');

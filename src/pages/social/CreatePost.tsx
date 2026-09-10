@@ -29,6 +29,7 @@ import {
 } from '@/lib/social/platforms';
 import { downloadMediaBundle, formatCaptionForCopy, formatHashtagsForCopy } from '@/lib/social/exportHelpers';
 import AiImageGenerator from '@/components/social/AiImageGenerator';
+import { toISODate } from '@/utils/dateFormat';
 
 const CONTENT_TYPES = [
   'Achievement', 'Grading', 'Kids Class', 'Sparring', 'Poomsae',
@@ -230,7 +231,7 @@ const CreatePost = () => {
       return;
     }
     const files = media.map((m) => ({ name: m.file.name, blob: m.file }));
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = toISODate(new Date());
     await downloadMediaBundle(files, `social-${branch}-${stamp}`);
     toast.success('Media downloaded');
   };

@@ -12,7 +12,7 @@ import { getGradingSlots } from '@/services/gradingService';
 import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
 
 import { useIsMobile } from '@/hooks/use-mobile';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 interface QuickActionsSectionProps {
   studentId: string;
@@ -92,7 +92,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     queryKey: ['grading-slots-for-belt', student.branch_id, student.current_belt],
     queryFn: async () => {
       if (!student.branch_id || !student.current_belt) return [];
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
 
       // Fetch all active future slots (no branch filter - we'll filter client-side)
       const slots = await getGradingSlots({
@@ -145,7 +145,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
     queryKey: ['current-term-for-grading', student.branch_id],
     queryFn: async () => {
       if (!student.branch_id) return null;
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const { data } = await supabase
         .from('term_calendars')
         .select('id')

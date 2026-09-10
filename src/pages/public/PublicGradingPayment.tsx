@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
@@ -279,7 +279,7 @@ const PublicGradingPayment: React.FC = () => {
     [productList, selectedProductIds],
   );
 
-  const dobIso = useMemo(() => (dob ? dob.toISOString().split('T')[0] : null), [dob]);
+  const dobIso = useMemo(() => (dob ? toISODate(dob) : null), [dob]);
 
   // Reset slot when product selection, DOB, or current belt changes
   useEffect(() => {
@@ -372,7 +372,7 @@ const PublicGradingPayment: React.FC = () => {
         last_name: lastName,
         email: email.trim(),
         branch_id: branchId,
-        date_of_birth: dob.toISOString().split('T')[0],
+        date_of_birth: toISODate(dob),
         current_belt: currentBelt,
         items: effectiveItems.map(p => ({
           product_id: p.product_id,

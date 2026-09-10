@@ -3,6 +3,7 @@
  * Reads from v_pnl_lines (posted journal lines for income/expense accounts).
  */
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface PnlRow {
   account_id: string;
@@ -148,7 +149,7 @@ export function periodFromPreset(preset: PnlPeriodPreset, fyStartMonth = 1): { f
 export function shiftPriorPeriod(from: string, to: string, mode: 'prior_period' | 'prior_year'): { from: string; to: string } {
   const f = new Date(from);
   const t = new Date(to);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => toISODate(d);
   if (mode === 'prior_year') {
     f.setFullYear(f.getFullYear() - 1);
     t.setFullYear(t.getFullYear() - 1);

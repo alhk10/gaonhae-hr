@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeStoredPhone } from '@/constants/formOptions';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface StudentRegistrationData {
   referral_source?: string;
@@ -132,7 +133,7 @@ export async function approveRegistration(registrationId: string, reviewerEmail:
     branch_id: merged.branch_id || '',
     notes: merged.notes || '',
     referral_source: merged.referral_source || '',
-    registered_date: new Date().toISOString().split('T')[0],
+    registered_date: toISODate(new Date()),
     status: 'active',
   });
 

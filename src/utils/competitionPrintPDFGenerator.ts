@@ -3,7 +3,7 @@
  * Columns: # | Branch | Name | Belt | Category | Poomsae 1 | P1 Score | Poomsae 2 | P2 Score | Remarks
  */
 import jsPDF from 'jspdf';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 export interface CompetitionPrintRow {
   branch_name: string | null;
@@ -57,7 +57,7 @@ export function generateCompetitionPrintPDF({ rows, eventName, branchName }: Com
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text(`Branch: ${branchName}`, marginL, 19);
-    doc.text(`Generated: ${formatDate(new Date().toISOString().slice(0, 10))}`, pageWidth - marginR, 14, { align: 'right' });
+    doc.text(`Generated: ${formatDate(toISODate(new Date()))}`, pageWidth - marginR, 14, { align: 'right' });
     doc.text(`Total: ${rows.length}`, pageWidth - marginR, 19, { align: 'right' });
   };
 
@@ -226,7 +226,7 @@ export function generateCompetitionPaymentReportPDF({
   doc.text(`Competition Payment Report — ${eventName}`, marginL, 14);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(`Generated: ${formatDate(new Date().toISOString().slice(0, 10))}`, pageWidth - marginR, 14, { align: 'right' });
+  doc.text(`Generated: ${formatDate(toISODate(new Date()))}`, pageWidth - marginR, 14, { align: 'right' });
 
   let y = 22;
   const rowH = 6;
@@ -332,6 +332,6 @@ export function generateCompetitionPaymentReportPDF({
   }
 
   const safe = (s: string) => s.replace(/[^a-z0-9]+/gi, '_');
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const stamp = toISODate(new Date()).replace(/-/g, '');
   doc.save(`Competition_Payment_Report_${safe(eventName)}_${stamp}.pdf`);
 }

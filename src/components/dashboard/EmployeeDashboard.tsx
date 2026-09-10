@@ -31,6 +31,7 @@ import BranchDashboard from './BranchDashboard';
 import StudentDashboard from './StudentDashboard';
 import SlotBookingBranchChangeDialog from './SlotBookingBranchChangeDialog';
 import ViewPricingRatesDialog from './ViewPricingRatesDialog';
+import { toISODate } from '@/utils/dateFormat';
 
 interface ClockInOutRecord {
   status: 'clocked-in' | 'clocked-out';
@@ -157,7 +158,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const checkClockStatus = async () => {
     if (!effectiveEmployeeId) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     
     try {
       const supabaseStatus = await getClockInOutStatus(effectiveEmployeeId);
@@ -216,7 +217,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
     if (!effectiveEmployeeId) return;
     
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const allSlotBookings = await getEmployeeSlotBookings(effectiveEmployeeId);
       
       const approvedSlot = allSlotBookings.some((booking: SlotBooking) => 

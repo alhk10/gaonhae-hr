@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { formatDate, formatMonthShort } from '@/utils/dateFormat';
+import { formatDate, formatMonthShort, toISODate } from '@/utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -176,7 +176,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
     queryFn: async () => {
       if (!gradingProduct?.id) return null;
       
-      const sixtyDaysAgo = subDays(new Date(), 60).toISOString().split('T')[0];
+      const sixtyDaysAgo = toISODate(subDays(new Date(), 60));
       
       const { data } = await supabase
         .from('invoice_items')
@@ -280,7 +280,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
 
   // Computed unpaid terms
   const unpaidTerms = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     return availableTerms
       .filter(term => !paidTermIds.includes(term.id))
       .filter(term => term.end_date >= today)
@@ -455,7 +455,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
       await createPayment({
         invoice_id: gradingInvoice.id,
         amount: gradingInvoice.total_amount,
-        payment_date: new Date().toISOString().split('T')[0],
+        payment_date: toISODate(new Date()),
         payment_method: paymentMethod as any,
         reference_number: referenceNumber || undefined,
         proof_of_payment_url: proofUrl,
@@ -489,7 +489,7 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
         await createPayment({
           invoice_id: termInvoice.id,
           amount: termInvoice.total_amount,
-          payment_date: new Date().toISOString().split('T')[0],
+          payment_date: toISODate(new Date()),
           payment_method: paymentMethod as any,
           reference_number: referenceNumber || undefined,
           proof_of_payment_url: proofUrl,

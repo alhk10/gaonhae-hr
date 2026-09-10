@@ -25,6 +25,7 @@ import {
 } from '@/services/guardsPurchaseService';
 
 import { getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionService';
+import { toISODate } from '@/utils/dateFormat';
 import { useQuery } from '@tanstack/react-query';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -176,7 +177,7 @@ const PublicGuardsPurchase: React.FC = () => {
       const result = await submitGuardsPurchase({
         first_name: firstName,
         last_name: lastName,
-        date_of_birth: dob.toISOString().split('T')[0],
+        date_of_birth: toISODate(dob),
         branch_id: branchId,
         gender,
         current_belt: currentBelt === 'No belt' ? null : currentBelt,

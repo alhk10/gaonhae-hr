@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { 
   GraduationCap, 
   DollarSign, 
@@ -135,7 +135,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
   const { data: entitlements = [] } = useQuery({
     queryKey: ['student-entitlements', studentId],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const { data, error } = await supabase
         .from('entitlements')
         .select('*')
@@ -190,7 +190,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     queryKey: ['grading-slots-for-belt', student?.branch_id, student?.current_belt],
     queryFn: async () => {
       if (!student?.branch_id || !student?.current_belt) return [];
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const slots = await getGradingSlots({
         branch_id: student.branch_id,
         status: 'active',

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDateTime } from '@/utils/dateFormat';
+import { formatDateTime, toISODate } from '@/utils/dateFormat';
 import { postInvoiceIssuedJournal, postPaymentJournal } from '@/services/accountingPostings';
 
 const MODULES = ['invoices', 'payments', 'claims', 'branch_expenses', 'inventory', 'payroll'] as const;
@@ -28,7 +28,7 @@ async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
 }
 
 export default function BackfillRunner() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toISODate(new Date());
   const yearStart = `${new Date().getFullYear()}-01-01`;
   const [from, setFrom] = useState(yearStart);
   const [to, setTo] = useState(today);

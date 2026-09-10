@@ -44,6 +44,7 @@ import ProductCategoriesDialog from './ProductCategoriesDialog';
 import ImportProductsDialog from './ImportProductsDialog';
 import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 interface ProductManagementListProps {
   onDataChange?: () => void;
@@ -321,7 +322,7 @@ const ProductManagementList: React.FC<ProductManagementListProps> = ({ onDataCha
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `products_export_${toISODate(new Date())}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`Exported ${data.length} products`);

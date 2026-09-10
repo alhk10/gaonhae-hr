@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { getPublicBranches, getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionService';
@@ -148,7 +148,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
       setTermId('');
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const current = terms.find(t => t.start_date <= today && t.end_date >= today);
     const upcoming = terms.find(t => t.start_date > today);
     setTermId((upcoming || current || terms[terms.length - 1]).term_id);
@@ -201,7 +201,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim().toLowerCase(),
-        date_of_birth: dob.toISOString().split('T')[0],
+        date_of_birth: toISODate(dob),
         branch_id: branchId,
         product_id: selectedProduct.product_id,
         term_id: termId || null,
