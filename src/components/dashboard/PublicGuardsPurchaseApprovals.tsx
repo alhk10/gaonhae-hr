@@ -31,6 +31,7 @@ import {
   type GuardsPurchaseRow,
   type StudentMatchCandidate,
 } from '@/services/guardsPurchaseService';
+import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/submissionMatchConfidence';
 
 interface Props {
   branchId?: string;
@@ -129,12 +130,12 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
-  const handleMatch = async (studentId: string) => {
+  const handleMatch = async (studentId: string, autoLabel?: string) => {
     if (!matchingRow) return;
     setBusyId(matchingRow.id);
     try {
       await finalize(matchingRow, studentId);
-      toast.success('Student matched and invoice created');
+      toast.success(autoLabel || 'Student matched and invoice created');
       setMatchingRow(null);
       setSearchTerm('');
       invalidate();
@@ -144,6 +145,20 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
       setBusyId(null);
     }
   };
+
+  // Auto-link the top suggestion when it is 90%+ confident and clearly ahead.
+  const autoMatchedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!matchingRow || matchesLoading) return;
+    if (autoMatchedRef.current === matchingRow.id) return;
+    const auto = pickAutoMatch(matches as StudentMatchCandidate[], MAX_GUARDS_MATCH_SCORE);
+    if (!auto) return;
+    autoMatchedRef.current = matchingRow.id;
+    const name = `${auto.match.first_name || ''} ${auto.match.last_name || ''}`.trim().toUpperCase();
+    handleMatch(auto.match.id, `Auto-matched to ${name} (${auto.confidence}%)`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchingRow?.id, matches, matchesLoading]);
+
 
   const handleCreateAndMatch = async () => {
     if (!matchingRow) return;
@@ -309,7 +324,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
                       <div className="text-xs text-muted-foreground truncate">
                         {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.branch_id} · {m.current_belt || '—'}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">score {m.score}</div>
+                      <div className="text-[11px] text-muted-foreground">{toConfidence(m.score, MAX_GUARDS_MATCH_SCORE)}% match</div>
                     </div>
                     <Button size="sm" onClick={() => handleMatch(m.id)} disabled={busyId === matchingRow?.id}>Use</Button>
                   </div>

@@ -27,6 +27,7 @@ import {
   type PendingGradingSubmission,
   type SubmissionStudentMatch,
 } from '@/services/gradingPaymentSubmissionService';
+import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 
 interface Props {
   branchId?: string;
@@ -129,12 +130,12 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   };
 
 
-  const handleMatch = async (studentId: string) => {
+  const handleMatch = async (studentId: string, autoLabel?: string) => {
     if (!matchingSub) return;
     setBusyId(matchingSub.id);
     try {
       await matchGradingSubmission(matchingSub.id, studentId);
-      toast.success('Student matched');
+      toast.success(autoLabel || 'Student matched');
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
@@ -144,6 +145,19 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       setBusyId(null);
     }
   };
+
+  // Auto-link the top suggestion when it is 90%+ confident and clearly ahead.
+  const autoMatchedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!matchingSub || matchesLoading) return;
+    if (autoMatchedRef.current === matchingSub.id) return;
+    const auto = pickAutoMatch(matches as SubmissionStudentMatch[]);
+    if (!auto) return;
+    autoMatchedRef.current = matchingSub.id;
+    handleMatch(auto.match.student_id, `Auto-matched to ${auto.match.full_name} (${auto.confidence}%)`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchingSub?.id, matches, matchesLoading]);
+
 
   const handleCreateAndMatch = async () => {
     if (!matchingSub) return;
@@ -346,7 +360,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                       <div className="text-xs text-muted-foreground truncate">
                         {m.email || '—'} · DOB {m.date_of_birth ? formatDate(m.date_of_birth) : '—'} · {m.branch_id} · {m.current_belt || '—'}
                       </div>
-                      {m.reason && <div className="text-[11px] text-muted-foreground">{m.reason} · score {Number(m.score).toFixed(2)}</div>}
+                      <div className="text-[11px] text-muted-foreground">{m.reason ? `${m.reason} · ` : ''}{toConfidence(m.score)}% match</div>
                     </div>
                     <Button size="sm" onClick={() => handleMatch(m.student_id)}>Use</Button>
                   </div>
