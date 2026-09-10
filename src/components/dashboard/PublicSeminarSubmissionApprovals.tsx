@@ -28,6 +28,7 @@ import {
   type PendingSeminarSubmission,
   type SeminarStudentMatch,
 } from '@/services/seminarPaymentSubmissionService';
+import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 
 interface Props {
   branchId?: string;
