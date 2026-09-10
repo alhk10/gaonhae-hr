@@ -204,6 +204,28 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
+  // Auto-import any submission that is both verified and matched.
+  const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
+  React.useEffect(() => {
+    if (!submissions.length) return;
+    let cancelled = false;
+    (async () => {
+      const res = await runAutoImportSweep('seminar-submissions', submissions, {
+        getId: (s) => s.id,
+        isReady: (s) => s.status === 'verified' && !!s.matched_student_id,
+        run: (s) => createSeminarInvoice(s.id, verifiedBy),
+      });
+      if (cancelled) return;
+      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
+      if (res.importedIds.length) {
+        toast.success(`${res.importedIds.length} verified submission(s) imported as invoices`);
+        invalidate();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissions]);
+
   const handleSaveEdit = async () => {
     if (!editingSub) return;
     setBusyId(editingSub.id);
