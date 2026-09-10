@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { createStudentAuth } from './studentAuthService';
 import { normalizePartyData } from '@/utils/partyUtils';
 import { normalizeStoredPhone } from '@/constants/formOptions';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface Student {
   id: string;
@@ -233,7 +234,7 @@ export async function getStudentAttendance(
  */
 export async function getStudentEntitlements(studentId: string): Promise<StudentEntitlement[]> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const { data, error } = await supabase
       .from('entitlements')
       .select('*')
@@ -388,7 +389,7 @@ export async function createStudent(studentData: CreateStudentData): Promise<Stu
       trial_date: studentData.trial_date || null,
       trial_time: studentData.trial_time || null,
       referral_source: studentData.referral_source || null,
-      enrollment_date: new Date().toISOString().split('T')[0]
+      enrollment_date: toISODate(new Date())
     };
     
     // Normalize all text fields to uppercase
@@ -600,7 +601,7 @@ export async function getStudentStats(studentId: string): Promise<{
     const attendanceRate = attendanceData?.length ? (totalAttendance / attendanceData.length) * 100 : 0;
 
     // Get entitlement stats (exclude expired)
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const { data: entitlementData } = await supabase
       .from('entitlements')
       .select('sessions_total, sessions_used, sessions_remaining')
@@ -874,7 +875,7 @@ export async function getTrials(
  */
 export async function convertTrialToStudent(studentId: string): Promise<Student> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const { data, error } = await supabase
       .from('students')
       .update({ 

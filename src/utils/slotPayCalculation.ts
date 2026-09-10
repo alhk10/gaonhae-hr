@@ -1,5 +1,6 @@
 import { EmployeeQualifications } from '@/types/employee';
 import { getActivePricingConfig } from '@/services/slotPricingService';
+import { toISODate } from '@/utils/dateFormat';
 
 // Default slot duration constants (in hours) - used as fallback
 export const SLOT_DURATIONS = {
@@ -695,7 +696,7 @@ export const getEmployeeDayRates = async (
   });
 
   // Calculate years of service bonus
-  const bookingDate = referenceDate || new Date().toISOString().split('T')[0];
+  const bookingDate = referenceDate || toISODate(new Date());
   const yearsOfService = joinDate ? calculateYearsOfServiceForRates(joinDate, bookingDate) : 0;
   
   if (yearsOfService > 0 && config.yearsOfServiceBonusPerYear > 0) {

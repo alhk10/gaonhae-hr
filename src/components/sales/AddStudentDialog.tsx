@@ -18,6 +18,7 @@ import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
 import { getBeltLevelsForCountry, getDefaultBeltForNewStudent } from '@/constants/beltLevels';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
+import { toISODate } from '@/utils/dateFormat';
 
 interface AddStudentDialogProps {
   trigger?: React.ReactNode;
@@ -59,7 +60,7 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
-    return new Date().toISOString().split('T')[0];
+    return toISODate(new Date());
   };
 
   const [formData, setFormData] = useState({

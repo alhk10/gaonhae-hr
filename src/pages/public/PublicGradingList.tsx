@@ -56,7 +56,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
-import { formatDate, formatDateTime } from '@/utils/dateFormat';
+import { formatDate, formatDateTime, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { resolveStorageUrl } from '@/utils/storageUrl';
@@ -211,7 +211,7 @@ const PublicGradingList: React.FC = () => {
   // Default to the nearest upcoming grading date (else the most recent past one)
   useEffect(() => {
     if (dateFilter !== 'all' || dateOptions.length === 0) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toISODate(new Date());
     const upcoming = [...dateOptions].filter((d) => d >= today).sort();
     setDateFilter(upcoming[0] || dateOptions[0]);
   }, [dateOptions, dateFilter]);
@@ -1209,7 +1209,7 @@ const PublicGradingList: React.FC = () => {
         const pct = Math.round((done / total) * 100);
         toast.loading(`Generating certificates… ${done} / ${total} (${pct}%)`, { id: toastId });
       });
-      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const stamp = toISODate(new Date()).replace(/-/g, '');
       doc.save(`Certificates_Bulk_${stamp}.pdf`);
       toast.success(`Generated ${inputs.length} certificate${inputs.length > 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, { id: toastId });
     } catch (e: any) {

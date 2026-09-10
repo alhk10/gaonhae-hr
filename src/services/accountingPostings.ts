@@ -21,6 +21,7 @@ import {
   resolveBankAccount,
   standardOutputTaxCode,
 } from './accountingMappings';
+import { toISODate } from '@/utils/dateFormat';
 
 type Money = number;
 
@@ -168,7 +169,7 @@ export async function postInvoiceIssuedJournal(invoiceId: string): Promise<void>
       sourceType: 'invoice',
       sourceId: inv.id,
       subEvent: 'issued',
-      entry_date: inv.issue_date || new Date().toISOString().slice(0, 10),
+      entry_date: inv.issue_date || toISODate(new Date()),
       country,
       branch_id: inv.branch_id,
       narration: `Invoice ${inv.invoice_number}`,
@@ -243,7 +244,7 @@ export async function postPaymentJournal(paymentId: string): Promise<void> {
       sourceType: 'payment',
       sourceId: pay.id,
       subEvent: 'received',
-      entry_date: pay.payment_date || new Date().toISOString().slice(0, 10),
+      entry_date: pay.payment_date || toISODate(new Date()),
       country,
       branch_id: branchId,
       narration: `Payment ${pay.payment_number || pay.id}`,
@@ -330,7 +331,7 @@ export async function postClaimJournal(claimId: string | number): Promise<void> 
         sourceType: 'claim',
         sourceId: clIdStr,
         subEvent: 'paid',
-        entry_date: new Date().toISOString().slice(0, 10),
+        entry_date: toISODate(new Date()),
         country,
         branch_id: cl.branch_id,
         narration: `Claim paid ${clIdStr}`,

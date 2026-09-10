@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface SalesMetrics {
   totalRevenue: number;
@@ -108,8 +109,8 @@ export const getSalesAnalytics = async (
  */
 const getSalesMetrics = async (startDate: Date, endDate: Date): Promise<SalesMetrics> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     // Get invoice data
@@ -201,8 +202,8 @@ const getSalesMetrics = async (startDate: Date, endDate: Date): Promise<SalesMet
  */
 const getRevenueChartData = async (startDate: Date, endDate: Date): Promise<RevenueData[]> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
 
     // Get payments by month
     const { data: payments, error: paymentError } = await supabase
@@ -257,8 +258,8 @@ const getRevenueChartData = async (startDate: Date, endDate: Date): Promise<Reve
  */
 const getStudentEnrollmentData = async (startDate: Date, endDate: Date): Promise<StudentEnrollmentData[]> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
 
     const { data: students, error } = await supabase
       .from('students')
@@ -301,8 +302,8 @@ const getStudentEnrollmentData = async (startDate: Date, endDate: Date): Promise
  */
 const getProductPerformanceData = async (startDate: Date, endDate: Date): Promise<ProductPerformanceData[]> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
 
     const { data: invoiceItems, error } = await supabase
       .from('invoice_items')
@@ -352,8 +353,8 @@ const getProductPerformanceData = async (startDate: Date, endDate: Date): Promis
  */
 const getPaymentMethodsData = async (startDate: Date, endDate: Date): Promise<PaymentMethodData[]> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
 
     const { data: payments, error } = await supabase
       .from('payments')
@@ -395,8 +396,8 @@ const getPaymentMethodsData = async (startDate: Date, endDate: Date): Promise<Pa
  */
 const getTopStudentsData = async (startDate: Date, endDate: Date): Promise<TopStudentsData[]> => {
   try {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = toISODate(startDate);
+    const endStr = toISODate(endDate);
 
     const { data: payments, error } = await supabase
       .from('payments')

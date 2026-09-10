@@ -4,6 +4,7 @@ import { createSingleSupabaseAuthUser } from './bulkUserCreationService';
 import { logger } from '@/utils/logger';
 import { withSessionRefresh, forceRefreshSession } from './sessionRefreshService';
 import { normalizePartyData } from '@/utils/partyUtils';
+import { toISODate } from '@/utils/dateFormat';
 
 export const getEmployees = async (): Promise<EmployeeProfile[]> => {
   logger.debug('Fetching employees list');
@@ -688,7 +689,7 @@ export const deleteEmployee = async (id: string) => {
   
   const { error } = await supabase
     .from('employees')
-    .update({ resign_date: new Date().toISOString().split('T')[0] })
+    .update({ resign_date: toISODate(new Date()) })
     .eq('id', id);
 
   if (error) {

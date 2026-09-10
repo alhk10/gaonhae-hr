@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface TermBreak {
   id: string;
@@ -109,7 +110,7 @@ export function calculateRemainingTeachingWeeks(
 
 // Check if we are currently inside a term
 export function isInsideTerm(term: Term): boolean {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODate(new Date());
   return term.start_date <= today && term.end_date >= today;
 }
 
@@ -355,7 +356,7 @@ export async function deleteTermBreak(breakId: string): Promise<void> {
 // Get current term for a branch
 export async function getCurrentTerm(branchId: string): Promise<Term | null> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     
     const { data, error } = await supabase
       .from('term_calendars')
@@ -399,7 +400,7 @@ export async function getCurrentTerm(branchId: string): Promise<Term | null> {
 // Get upcoming/current terms for product selection
 export async function getActiveTermsForSelection(): Promise<Term[]> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     
     const { data, error } = await supabase
       .from('term_calendars')
@@ -509,7 +510,7 @@ export async function getAllTermsForBranch(branchId: string): Promise<Term[]> {
 // Get the next upcoming active term for a branch (start_date strictly in the future)
 export async function getUpcomingTerm(branchId: string): Promise<Term | null> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
 
     const { data, error } = await supabase
       .from('term_calendars')

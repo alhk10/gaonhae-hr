@@ -44,7 +44,7 @@ import { listColumns } from '@/services/gradingScorecardColumnService';
 import { downloadGradingCertificatePDF, generateBulkGradingCertificatesPDFAsync, type GradingCertificateInput } from '@/utils/gradingCertificatePDFGenerator';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 /** Phase 1 — only Morley (AU) gets the AU certificate template. */
 const MORLEY_BRANCH_ID = 'BR1768967806476';
@@ -206,7 +206,7 @@ const GradingListTab: React.FC = () => {
 
   const branchTerms = useMemo(() => {
     if (!selectedBranch) return [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const invoicedSet = new Set(invoicedTermIds);
     const filtered = terms
       .filter(t => t.branch_id === selectedBranch)
@@ -216,7 +216,7 @@ const GradingListTab: React.FC = () => {
 
   React.useEffect(() => {
     if (selectedBranch && branchTerms.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const currentTerm = branchTerms.find(t => t.start_date <= today && t.end_date >= today);
       if (currentTerm) {
         setSelectedTerm(currentTerm.id);
@@ -232,7 +232,7 @@ const GradingListTab: React.FC = () => {
   }, [selectedBranch, branchTerms, invoicedTermIds]);
 
   const selectedTermData = terms.find(t => t.id === selectedTerm);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toISODate(new Date());
   const termStarted = !!(selectedTermData?.start_date && selectedTermData.start_date <= todayStr);
 
   // Fire-and-forget self-heal: backfill orphan grading registrations in the background.

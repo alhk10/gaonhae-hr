@@ -148,7 +148,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
       setTermId('');
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const current = terms.find(t => t.start_date <= today && t.end_date >= today);
     const upcoming = terms.find(t => t.start_date > today);
     setTermId((upcoming || current || terms[terms.length - 1]).term_id);

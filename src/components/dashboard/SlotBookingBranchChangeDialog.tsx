@@ -14,6 +14,7 @@ import { getEmployeeSlotBookings, type SlotBooking } from '@/services/slotBookin
 import { format, parseISO, isSameDay } from 'date-fns';
 import { MapPin, ArrowRight } from 'lucide-react';
 import { convertTailwindColorToHex, getLighterColor } from '@/utils/colorUtils';
+import { toISODate } from '@/utils/dateFormat';
 
 interface SlotBookingBranchChangeDialogProps {
   open: boolean;
@@ -35,7 +36,7 @@ const SlotBookingBranchChangeDialog: React.FC<SlotBookingBranchChangeDialogProps
     queryKey: ['employee-upcoming-bookings', employeeId],
     queryFn: async () => {
       const allBookings = await getEmployeeSlotBookings(employeeId);
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       return allBookings.filter(
         (b: SlotBooking) => b.date >= today && (b.status === 'approved' || b.status === 'pending')
       );

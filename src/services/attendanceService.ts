@@ -3,7 +3,7 @@ import { getAttendanceSettingByBranch, isLateArrival, calculateExpectedHours } f
 import { getAllSlotBookings } from './slotBookingService';
 import { getEmployeeById } from './employeeService';
 import { logger } from '@/utils/logger';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 export interface AttendanceRecord {
   id: number;
@@ -156,7 +156,7 @@ export const getClockInOutStatus = async (employeeId: string): Promise<ClockInOu
       .from('clock_status')
       .select('*')
       .eq('employee_id', employeeId)
-      .eq('date', new Date().toISOString().split('T')[0])
+      .eq('date', toISODate(new Date()))
       .single();
 
     if (error || !data) {
@@ -177,7 +177,7 @@ export const getClockInOutStatus = async (employeeId: string): Promise<ClockInOu
 };
 
 export const updateClockInOut = async (employeeId: string, action: 'in' | 'out', location?: string) => {
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = toISODate(new Date());
   const currentTime = new Date().toLocaleTimeString('en-SG', { 
     hour12: false,
     hour: '2-digit',

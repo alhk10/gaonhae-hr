@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface Notice {
   id: string;
@@ -24,7 +25,7 @@ export interface Notice {
 }
 
 export const getNotices = async (includeInactive: boolean = false): Promise<Notice[]> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODate(new Date());
   
   // First delete notices past their delete_on date
   await supabase

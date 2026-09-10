@@ -18,7 +18,7 @@ import { isWithinBranchRange } from '@/services/geolocationService';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationOptIn } from '@/components/notifications/NotificationOptIn';
 import AttendanceManagementContent from '@/components/attendance/AttendanceManagementContent';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 interface AttendanceRecord {
   id: number;
@@ -119,7 +119,7 @@ const MyAttendance = () => {
     if (!user?.employeeId) return;
     
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const allSlotBookings = await getAllSlotBookings();
       
       const approvedSlot = allSlotBookings.some(booking => 
@@ -172,7 +172,7 @@ const MyAttendance = () => {
   const checkClockStatus = async () => {
     if (!user?.employeeId) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     
     try {
       const supabaseStatus = await getClockInOutStatus(user.employeeId);

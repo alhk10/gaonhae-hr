@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isEligibleForMondayHolidayBonus } from '@/utils/employeeEligibility';
 import { logger } from '@/utils/logger';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface PublicHoliday {
   id: string;
@@ -330,7 +331,7 @@ export const copyHolidaysToYear = async (sourceYear: number, targetYear: number)
       .map(h => {
         const oldDate = new Date(h.date);
         oldDate.setFullYear(targetYear);
-        const newDateStr = oldDate.toISOString().split('T')[0];
+        const newDateStr = toISODate(oldDate);
         return {
           name: h.name,
           date: newDateStr,

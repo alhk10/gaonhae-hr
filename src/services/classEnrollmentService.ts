@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { toISODate } from '@/utils/dateFormat';
 
 export interface ClassEnrollment {
   id: string;
@@ -448,7 +449,7 @@ export async function generateScheduledClasses(
           scheduledClasses.push({
             enrollment_id: enrollmentId,
             timetable_id: timetable.id,
-            scheduled_date: date.toISOString().split('T')[0],
+            scheduled_date: toISODate(date),
             start_time: timetable.start_time,
             end_time: timetable.end_time,
           });

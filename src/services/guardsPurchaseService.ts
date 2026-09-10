@@ -3,6 +3,7 @@
  * No-auth public submission; superadmin-only reads via RLS.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 export type GuardsProductKey = 'gaonhae_set' | 'adidas_set';
 
@@ -515,7 +516,7 @@ export const createStudentFromPurchase = async (purchase: GuardsPurchaseRow): Pr
       current_belt: purchase.current_belt || null,
       branch_id: purchase.branch_id,
       status: 'trial',
-      registered_date: new Date().toISOString().split('T')[0],
+      registered_date: toISODate(new Date()),
     } as any)
     .select('id')
     .single();

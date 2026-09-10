@@ -19,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
@@ -2352,7 +2352,7 @@ const ProductRow: React.FC<{
   // 4-week plan for the term currently running.
   const defaultTerm = useMemo(() => {
     if (selectableTerms.length === 0) return null;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODate(new Date());
     const current = selectableTerms.find(t => t.start_date <= today && t.end_date >= today);
     if (current && lockedPlans[current.term_id] === 'four_weeks') return current;
     return selectableTerms.find(t => t.start_date > today) || selectableTerms[0];

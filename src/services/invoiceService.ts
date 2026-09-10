@@ -11,6 +11,7 @@ import { logInvoiceChange } from './invoiceChangeLogService';
 import { createEnrollment, createScheduledClass } from './classEnrollmentService';
 import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
 import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
+import { toISODate } from '@/utils/dateFormat';
 
 // Get tax rate as decimal (e.g., 0.09 for 9%)
 const getTaxRateForCountry = (country: string | null): number => {
@@ -453,7 +454,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           // A grading registration is auto-marked Ready only when the term has started.
           // Future-term grading (e.g. invoiced today for next term) defaults to Not Ready
           // until the term's start_date is reached.
-          const todayStr = new Date().toISOString().split('T')[0];
+          const todayStr = toISODate(new Date());
           const termStartedCache = new Map<string, boolean>();
           const isTermStarted = async (termId: string): Promise<boolean> => {
             if (termStartedCache.has(termId)) return termStartedCache.get(termId)!;
@@ -573,7 +574,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             : quantity;
 
           // Calculate validity dates
-          let validFrom: string | null = new Date().toISOString().split('T')[0];
+          let validFrom: string | null = toISODate(new Date());
           let validTo: string | null = null;
 
           // Try to get term end date from item metadata
@@ -592,7 +593,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
           } else if (product.validity_type === 'months' && product.validity_months) {
             const end = new Date();
             end.setMonth(end.getMonth() + product.validity_months);
-            validTo = end.toISOString().split('T')[0];
+            validTo = toISODate(end);
           }
 
           entitlementsToCreate.push({
@@ -1032,7 +1033,7 @@ export const getInvoiceStats = async (): Promise<{
       overdueInvoices: 0
     };
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = toISODate(new Date());
 
     data?.forEach(invoice => {
       stats.totalRevenue += invoice.total_amount || 0;
@@ -1286,7 +1287,7 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
       return { from: parts[0].trim() || null, to: parts[parts.length - 1].trim() || null };
     };
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = toISODate(new Date());
     const termStartedCache = new Map<string, boolean>();
     const isTermStarted = async (termId: string): Promise<boolean> => {
       if (termStartedCache.has(termId)) return termStartedCache.get(termId)!;

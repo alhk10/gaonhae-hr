@@ -13,10 +13,10 @@ import FinanceBasisToggle from '@/components/finance/FinanceBasisToggle';
 import { getBalanceSheet, type BalanceSheetResult, type BalanceSheetSection } from '@/services/balanceSheetService';
 import { exportBalanceSheetCsv, exportBalanceSheetPdf } from '@/utils/financeReportExport';
 import type { Country } from '@/services/accountingService';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { basisLabel } from '@/services/reportingBasisService';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => toISODate(new Date());
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const SectionTable: React.FC<{ section: BalanceSheetSection }> = ({ section }) => (

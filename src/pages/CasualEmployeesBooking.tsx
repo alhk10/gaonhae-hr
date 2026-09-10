@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Plus, Settings, Users, ArrowLeftRight, X } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 const CasualEmployeesBooking = () => {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -47,7 +47,7 @@ const CasualEmployeesBooking = () => {
       date.setDate(monday.getDate() + i);
       weekDates.push({
         dayName: days[i],
-        date: date.toISOString().split('T')[0],
+        date: toISODate(date),
         displayDate:formatDate( date)
       });
     }

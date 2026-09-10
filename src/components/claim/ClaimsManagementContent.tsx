@@ -11,7 +11,7 @@ import { getClaimTypes, ClaimType } from '@/services/claimTypesService';
 import { getEmployeeById } from '@/services/employeeService';
 import AddClaimDialog from '@/components/claim/AddClaimDialog';
 import ClaimSettingsDialog from '@/components/claim/ClaimSettingsDialog';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedLink } from '@/components/common/SignedMedia';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,7 +59,7 @@ const ClaimsManagementContent = () => {
       type: claim.type,
       amount: String(claim.amount),
       description: claim.description || '',
-      date: claim.date ? new Date(claim.date).toISOString().split('T')[0] : '',
+      date: claim.date ? new toISODate(Date(claim.date)) : '',
     });
   };
 

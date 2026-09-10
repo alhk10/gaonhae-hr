@@ -3,7 +3,7 @@
  */
 import jsPDF from 'jspdf';
 import type { TaxReturnComputed } from '@/services/taxService';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 
 const fmt = (n: number) =>
   n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,7 +52,7 @@ export function exportTaxPdf(opts: { ret: TaxReturnComputed; branchName: string 
   }
 
   doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
-  doc.text(`Generated ${formatDate(new Date().toISOString().slice(0, 10))} — sourced from posted journal entries.`, 15, 290);
+  doc.text(`Generated ${formatDate(toISODate(new Date()))} — sourced from posted journal entries.`, 15, 290);
 
   const country = opts.ret.country === 'Singapore' ? 'GST-F5' : 'BAS';
   doc.save(`${country}_${opts.branchName}_${opts.ret.from}_${opts.ret.to}.pdf`);

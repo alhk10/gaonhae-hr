@@ -9,6 +9,7 @@
  * - AU input codes  (INP/CAP)     -> G10/G11 + 1B.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 
 export type TaxCountry = 'Singapore' | 'Australia';
 
@@ -218,7 +219,7 @@ export function taxPeriodFromPreset(preset: TaxPeriodPreset, fyStartMonth = 1): 
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => toISODate(d);
   switch (preset) {
     case 'last_month': {
       return { from: fmt(new Date(y, m - 1, 1)), to: fmt(new Date(y, m, 0)) };

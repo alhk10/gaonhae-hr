@@ -22,6 +22,7 @@ import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toISODate } from '@/utils/dateFormat';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
@@ -63,7 +64,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
   const [formData, setFormData] = useState({
     invoice_id: preSelectedInvoiceId || '',
     amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
+    payment_date: toISODate(new Date()),
     payment_method: 'paynow' as CreatePaymentData['payment_method'],
     reference_number: '',
     proof_of_payment_url: '',
@@ -274,7 +275,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     setFormData({
       invoice_id: preSelectedInvoiceId || '',
       amount: '',
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: toISODate(new Date()),
       payment_method: 'paynow',
       reference_number: '',
       proof_of_payment_url: '',

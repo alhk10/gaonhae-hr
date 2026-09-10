@@ -48,7 +48,7 @@ import { differenceInYears, differenceInMonths, format, parseISO } from 'date-fn
 import { formatCurrency } from '@/utils/currencyUtils';
 import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
 
 // ─── Props ──────────────────────────────────────────────────────────
@@ -671,7 +671,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       // to a recent grading event when payment lags the actual grading day.
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - GRADING_DUPLICATE_CHECK_DAYS);
-      const fromDateStr = fromDate.toISOString().split('T')[0];
+      const fromDateStr = toISODate(fromDate);
       setGradingSlots(await getGradingSlots({ status: 'active', from_date: fromDateStr }));
     } catch { console.error('Error loading grading slots'); }
     finally { setGradingSlotsLoading(false); }
@@ -680,7 +680,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const loadBranchTerms = async (branchId: string) => {
     if (!branchId) { setBranchTerms([]); return; }
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const { data, error } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).gte('end_date', today).order('start_date', { ascending: true });
       if (error) throw error;
       setBranchTerms((data || []) as Term[]);
@@ -876,7 +876,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setTermLoading(true);
     setTermError(null);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODate(new Date());
       const { data: availableTerms, error: termsError } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).gte('end_date', today).order('start_date', { ascending: true });
       if (termsError) throw termsError;
       if (!availableTerms || availableTerms.length === 0) return '';
@@ -1062,7 +1062,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         const paidIds = (studentInvoices || []).map(i => i.id);
         let hasTermPaid = false;
         if (paidIds.length > 0) {
-          const today = new Date().toISOString().split('T')[0];
+          const today = toISODate(new Date());
           const { data: activeTerms } = await supabase.from('term_calendars').select('id').eq('branch_id', formData.branch_id).eq('is_active', true).gte('end_date', today);
           if (activeTerms && activeTerms.length > 0) {
             const termIds = activeTerms.map(t => t.id);
@@ -1155,7 +1155,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           const creditToApply = Math.min(creditBalance, invTotal);
           if (creditToApply > 0) {
             await applyCredit(formData.student_id, createdInvoice.id, createdInvoice.invoice_number || '', creditToApply, user?.email || undefined);
-            await createPayment({ invoice_id: createdInvoice.id, amount: creditToApply, payment_date: new Date().toISOString().split('T')[0], payment_method: 'bank_transfer', notes: 'Auto-applied from student credit balance' });
+            await createPayment({ invoice_id: createdInvoice.id, amount: creditToApply, payment_date: toISODate(new Date()), payment_method: 'bank_transfer', notes: 'Auto-applied from student credit balance' });
             creditApplied = creditToApply;
             toast.success(`Student credit of $${creditToApply.toFixed(2)} automatically applied`);
           }

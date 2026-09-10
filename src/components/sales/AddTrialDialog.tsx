@@ -16,6 +16,7 @@ import { UserPlus, Calendar, Phone, User, Clock, AlertCircle } from 'lucide-reac
 import { useBranches } from '@/hooks/useBranches';
 import { getBeltLevelsForCountry, getDefaultBeltForNewStudent } from '@/constants/beltLevels';
 import { relationshipOptions } from '@/constants/formOptions';
+import { toISODate } from '@/utils/dateFormat';
 
 interface AddTrialDialogProps {
   open?: boolean;
@@ -472,7 +473,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     type="date"
                     value={formData.trial_date}
                     onChange={(e) => handleInputChange('trial_date', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={toISODate(new Date())}
                     required
                   />
                 </div>
