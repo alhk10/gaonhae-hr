@@ -28,6 +28,7 @@ import {
   type SubmissionStudentMatch,
 } from '@/services/gradingPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
+import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
 
 interface Props {
   branchId?: string;
@@ -136,6 +137,11 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     try {
       await matchGradingSubmission(matchingSub.id, studentId);
       toast.success(autoLabel || 'Student matched');
+      if (matchingSub.status === 'verified') {
+        const res = await tryAutoImport(() => importGradingSubmission(matchingSub.id, verifiedBy));
+        if (res.imported) toast.success('Verified submission imported as invoice');
+        else if (res.error) toast.error(`Matched, but import failed: ${res.error}`);
+      }
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
@@ -220,6 +226,28 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
+  // Auto-import any submission that is both verified and matched.
+  const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
+  React.useEffect(() => {
+    if (!submissions.length) return;
+    let cancelled = false;
+    (async () => {
+      const res = await runAutoImportSweep('grading-submissions', submissions, {
+        getId: (s) => s.id,
+        isReady: (s) => s.status === 'verified' && !!s.matched_student_id,
+        run: (s) => importGradingSubmission(s.id, verifiedBy),
+      });
+      if (cancelled) return;
+      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
+      if (res.importedIds.length) {
+        toast.success(`${res.importedIds.length} verified submission(s) imported as invoices`);
+        invalidate();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissions]);
+
   const handleReject = async () => {
     if (!rejectingSub) return;
     setBusyId(rejectingSub.id);
@@ -292,6 +320,10 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                 alt="Proof of payment"
                 thumbClassName="max-h-48 rounded border hover:opacity-80 transition"
               />
+            )}
+
+            {autoErrors[sub.id] && (
+              <div className="text-xs text-destructive">Automatic import failed: {autoErrors[sub.id]}</div>
             )}
 
             <div className="flex flex-wrap gap-2 pt-1">

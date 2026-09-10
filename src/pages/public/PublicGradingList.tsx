@@ -40,6 +40,7 @@ import {
   updateCompetitionPoomsae,
   updateCompetitionSchedule,
   verifyCompetitionSubmission,
+  importCompetitionSubmission,
   rejectCompetitionSubmission,
   adminReplaceCompetitionSubmissionFile,
   setCompetitionRegistered,
@@ -83,6 +84,7 @@ import {
   adminUpdateGradingRegistrationDisplayName,
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
+  importGradingSubmission,
   rejectGradingSubmission,
   adminReplaceGradingSubmissionProof,
   type PublicGradingListRow,
@@ -90,6 +92,7 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
 import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
+import { tryAutoImport } from '@/utils/submissionAutoImport';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
@@ -392,6 +395,10 @@ const PublicGradingList: React.FC = () => {
     try {
       await verifyGradingSubmission(row.submission_id, verifiedBy);
       toast.success('Marked as verified');
+      // Matched already? Turn it into an invoice straight away.
+      const auto = await tryAutoImport(() => importGradingSubmission(row.submission_id!, verifiedBy));
+      if (auto.imported) toast.success('Imported as invoice');
+      else if (auto.error) toast.error(`Verified, but import failed: ${auto.error}`);
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
       qc.invalidateQueries({ queryKey: ['pending-grading-submissions'] });
       qc.invalidateQueries({ queryKey: ['pending-grading-submissions-count'] });
@@ -2143,6 +2150,9 @@ const CompetitionsTab: React.FC<{
     try {
       await verifyCompetitionSubmission(submissionId, verifiedBy);
       toast.success('Marked as verified');
+      const auto = await tryAutoImport(() => importCompetitionSubmission(submissionId, verifiedBy));
+      if (auto.imported) toast.success('Imported as invoice');
+      else if (auto.error) toast.error(`Verified, but import failed: ${auto.error}`);
       qc.invalidateQueries({ queryKey: ['public-competition-list'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions'] });
       qc.invalidateQueries({ queryKey: ['pending-competition-submissions-count'] });

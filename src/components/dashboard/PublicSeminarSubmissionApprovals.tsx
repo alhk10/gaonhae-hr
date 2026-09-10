@@ -29,6 +29,7 @@ import {
   type SeminarStudentMatch,
 } from '@/services/seminarPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
+import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
 
 interface Props {
   branchId?: string;
@@ -115,6 +116,11 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     try {
       await matchSeminarSubmission(matchingSub.id, studentId);
       toast.success(autoLabel || 'Student matched');
+      if (matchingSub.status === 'verified') {
+        const res = await tryAutoImport(() => createSeminarInvoice(matchingSub.id, verifiedBy));
+        if (res.imported) toast.success('Verified submission imported as invoice');
+        else if (res.error) toast.error(`Matched, but import failed: ${res.error}`);
+      }
       setMatchingSub(null);
       setSearchTerm('');
       invalidate();
@@ -197,6 +203,28 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
       setBusyId(null);
     }
   };
+
+  // Auto-import any submission that is both verified and matched.
+  const [autoErrors, setAutoErrors] = useState<Record<string, string>>({});
+  React.useEffect(() => {
+    if (!submissions.length) return;
+    let cancelled = false;
+    (async () => {
+      const res = await runAutoImportSweep('seminar-submissions', submissions, {
+        getId: (s) => s.id,
+        isReady: (s) => s.status === 'verified' && !!s.matched_student_id,
+        run: (s) => createSeminarInvoice(s.id, verifiedBy),
+      });
+      if (cancelled) return;
+      if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
+      if (res.importedIds.length) {
+        toast.success(`${res.importedIds.length} verified submission(s) imported as invoices`);
+        invalidate();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissions]);
 
   const handleSaveEdit = async () => {
     if (!editingSub) return;
@@ -295,6 +323,10 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               )}
             </div>
 
+            {autoErrors[sub.id] && (
+              <div className="text-xs text-destructive">Automatic import failed: {autoErrors[sub.id]}</div>
+            )}
+
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={() => setMatchingSub(sub)} disabled={busyId === sub.id}>
                 <UserSearch className="w-3.5 h-3.5 mr-1" />
@@ -302,7 +334,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               </Button>
               <Button size="sm" onClick={() => handleImport(sub)} disabled={busyId === sub.id || !sub.matched_student_id}>
                 <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                Verify &amp; Import
+                {sub.status === 'verified' ? 'Import as Invoice' : 'Verify & Import'}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setEditingSub(sub)} disabled={busyId === sub.id}>
                 <Pencil className="w-3.5 h-3.5 mr-1" />

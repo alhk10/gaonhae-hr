@@ -27,10 +27,12 @@ import {
   getPublicSeminarEvents,
   rejectSeminarSubmission,
   verifySeminarSubmission,
+  createSeminarInvoice,
   adminReplaceSeminarSubmissionProof,
   type PublicSeminarListRow,
 } from '@/services/seminarPaymentSubmissionService';
 import { useAuth } from '@/contexts/AuthContext';
+import { tryAutoImport } from '@/utils/submissionAutoImport';
 
 
 const statusVariant = (s: string) => {
@@ -123,6 +125,9 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
     try {
       await verifySeminarSubmission(row.submission_id, verifiedBy);
       toast.success('Marked as verified');
+      const auto = await tryAutoImport(() => createSeminarInvoice(row.submission_id, verifiedBy));
+      if (auto.imported) toast.success('Imported as invoice');
+      else if (auto.error) toast.error(`Verified, but import failed: ${auto.error}`);
       invalidate();
     } catch (e: any) {
       toast.error(e?.message || 'Failed to verify');
