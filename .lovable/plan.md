@@ -11,10 +11,12 @@ Confirmed data:
 
 1. **Name-based fallback filter** — if the selected package has no `allowed_class_types` metadata and its name starts with "Little Gaonhae", restrict the planner to `Little Gaonhae` class slots only.
 2. **Strict exclusion rule** — in the planner's slot filter:
-   - `Private Lesson` slots are never bookable through school-fee planning.
+   - `Private Lesson` slots appear **only** when the selected package is a Private Lesson package (i.e. its `allowed_class_types` explicitly includes `Private Lesson`). They are hidden for all other packages.
    - `Team Gaonhae ...` slots appear only when the package's `allowed_class_types` explicitly includes that class type.
    - All other slots still require a match against the package's allowed class types (unchanged behavior when metadata is present).
 3. Empty-day messaging already exists ("No classes available..."), so days with no eligible slot stay disabled automatically.
+
+The same rules apply anywhere else this planner-style slot list is reused in the chat flow.
 
 ## Verification
 - Type-check and build.
