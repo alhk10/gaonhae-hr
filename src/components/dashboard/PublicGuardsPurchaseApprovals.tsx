@@ -300,8 +300,27 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
           <Badge variant="secondary">{rows.length}</Badge>
           <Button
             size="sm"
-            variant="outline"
+            variant={actionFirst ? 'secondary' : 'outline'}
             className="ml-auto h-7 gap-1.5"
+            onClick={() => setActionFirst((v) => !v)}
+            title="Show unverified purchases first"
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Action first
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
+            onClick={() => setNewestFirst((v) => !v)}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {newestFirst ? 'Newest first' : 'Oldest first'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5"
             onClick={handleRescan}
             disabled={scanning}
           >
