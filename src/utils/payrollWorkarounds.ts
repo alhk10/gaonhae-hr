@@ -1,5 +1,6 @@
 // Utility functions for payroll period calculations
 import { supabase } from '@/integrations/supabase/client';
+import { toISODate } from '@/utils/dateFormat';
 import { logger } from '@/utils/logger';
 
 export interface MissingEmployeeData {
