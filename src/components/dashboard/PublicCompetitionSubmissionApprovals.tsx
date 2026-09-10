@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, UserSearch, Trophy, Pencil, UserPlus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
@@ -28,7 +28,8 @@ import {
   type CompetitionStudentMatch,
 } from '@/services/competitionPaymentSubmissionService';
 import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
-import { runAutoImportSweep, tryAutoImport } from '@/utils/submissionAutoImport';
+import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
+import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 
 interface Props {
   branchId?: string;
@@ -302,6 +303,16 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
           <Trophy className="h-4 w-4" />
           Competition Registrations
           <Badge variant="secondary">{submissions.length}</Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 gap-1.5"
+            onClick={handleRescan}
+            disabled={scanning}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            {scanning ? 'Scanning…' : 'Scan & match'}
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
