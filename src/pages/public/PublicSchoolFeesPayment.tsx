@@ -26,8 +26,10 @@ import {
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
   earlyPaymentDiscountFor,
+  compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+
 
 const GST_RATE = 0.09;
 
@@ -136,6 +138,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
     queryFn: () => getPublicClassProducts(branchId),
     enabled: !!branchId,
   });
+
+  const sortedProducts = useMemo(() => [...products].sort(compareSchoolFeeProducts), [products]);
+
 
   // Default the term to the next upcoming one, else the current one.
   useEffect(() => {
@@ -362,12 +367,12 @@ const PublicSchoolFeesPayment: React.FC = () => {
                     <SelectValue placeholder={!branchId ? 'Select branch first' : 'Select class'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p) => (
+                    {sortedProducts.map((p) => (
                       <SelectItem key={p.product_id} value={p.product_id}>
                         {p.product_name} — ${Number(p.branch_price).toFixed(2)}/wk
                       </SelectItem>
-
                     ))}
+
                   </SelectContent>
                 </Select>
                 {selectedProduct?.description && (

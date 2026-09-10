@@ -57,8 +57,10 @@ import {
   earlyPaymentDiscountFor,
   getLockedPlanForTerm,
   getPublicSiblingDiscount,
+  compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+
 
 
 
@@ -263,6 +265,13 @@ const PublicHelloChat: React.FC = () => {
     queryFn: () => getChatProducts(branchId, payCategory!.id, sessionId, matched?.id),
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
+
+  // School-fee products are shown in belt-progression order: Little Gaonhae → Foundation to Red → Black Tip & Above.
+  const sortedProducts = useMemo(() => {
+    if (payCategory?.id !== SCHOOL_FEES_CATEGORY_ID) return products;
+    return [...products].sort(compareSchoolFeeProducts);
+  }, [products, payCategory?.id]);
+
 
   const { data: chatTerms = [] } = useQuery({
     queryKey: ['hello-chat-terms', branchId, sessionId, matched?.id],
@@ -1666,7 +1675,7 @@ const PublicHelloChat: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    products.map(p => (
+                    sortedProducts.map(p => (
                       <ProductRow
                         key={p.product_id}
                         product={p}
@@ -1693,6 +1702,7 @@ const PublicHelloChat: React.FC = () => {
                       />
                     ))
                   )}
+
 
                   <div className="space-y-2 pt-2">
                     {payCategory?.id === SCHOOL_FEES_CATEGORY_ID && !isGradingMatched && (
