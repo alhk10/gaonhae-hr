@@ -322,6 +322,10 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
               />
             )}
 
+            {autoErrors[sub.id] && (
+              <div className="text-xs text-destructive">Automatic import failed: {autoErrors[sub.id]}</div>
+            )}
+
             <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 size="sm"
