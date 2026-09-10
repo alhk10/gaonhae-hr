@@ -9149,6 +9149,10 @@ export type Database = {
         Args: { p_id: string; p_selections: Json }
         Returns: undefined
       }
+      remember_guards_purchase_email: {
+        Args: { p_purchase_id: string }
+        Returns: undefined
+      }
       set_public_chat_session_match: {
         Args: {
           p_matched_student_id: string
