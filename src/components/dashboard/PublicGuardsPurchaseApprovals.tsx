@@ -201,7 +201,9 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
       if (res.matchedIds.length) {
-        toast.success(`Matched ${res.matchedIds.length} purchase(s) and created invoices`);
+        toast.success(
+          `Matched ${res.matchedIds.length} purchase(s); invoices created only for verified payments`,
+        );
         invalidate();
       }
     } finally {
