@@ -132,9 +132,19 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (editingRow) setEditDraft({ ...editingRow });
   }, [editingRow]);
 
-  const finalize = async (row: GuardsPurchaseRow, studentId: string) => {
+  /** A purchase may only become a paid invoice once its payment is verified. */
+  const isPaymentVerified = (row: GuardsPurchaseRow) =>
+    row.sale_status === 'verified' || row.sale_status === 'paid';
+
+  const finalize = async (
+    row: GuardsPurchaseRow,
+    studentId: string,
+    opts?: { invoiceOnlyWhenVerified?: boolean },
+  ) => {
     // Link student first so the invoice creation sees the relationship.
     await updateGuardsPurchase(row.id, { matched_student_id: studentId });
+    // Never turn an unverified payment into a paid invoice automatically.
+    if (opts?.invoiceOnlyWhenVerified && !isPaymentVerified(row)) return;
     try {
       await createInvoiceForPurchase({ ...row, matched_student_id: studentId }, studentId);
     } catch (e: any) {
@@ -144,12 +154,17 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
-  const handleMatch = async (studentId: string, autoLabel?: string) => {
+  const handleMatch = async (studentId: string, autoLabel?: string, auto = false) => {
     if (!matchingRow) return;
     setBusyId(matchingRow.id);
     try {
-      await finalize(matchingRow, studentId);
-      toast.success(autoLabel || 'Student matched and invoice created');
+      await finalize(matchingRow, studentId, { invoiceOnlyWhenVerified: auto });
+      const invoiced = !auto || isPaymentVerified(matchingRow);
+      toast.success(
+        autoLabel
+          ? `${autoLabel}${invoiced ? '' : ' — invoice pending payment verification'}`
+          : 'Student matched and invoice created',
+      );
       setMatchingRow(null);
       setSearchTerm('');
       invalidate();
@@ -169,7 +184,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (!auto) return;
     autoMatchedRef.current = matchingRow.id;
     const name = `${auto.match.first_name || ''} ${auto.match.last_name || ''}`.trim().toUpperCase();
-    handleMatch(auto.match.id, `Auto-matched to ${name} (${auto.confidence}%)`);
+    handleMatch(auto.match.id, `Auto-matched to ${name} (${auto.confidence}%)`, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchingRow?.id, matches, matchesLoading]);
 
@@ -186,12 +201,14 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         getId: (r) => r.id,
         needsMatch: (r) => !r.matched_student_id,
         fetchMatches: (r) => findStudentMatches(r),
-        match: (r, c) => finalize(r, c.id),
+        match: (r, c) => finalize(r, c.id, { invoiceOnlyWhenVerified: true }),
         maxScore: MAX_GUARDS_MATCH_SCORE,
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
       if (res.matchedIds.length) {
-        toast.success(`Matched ${res.matchedIds.length} purchase(s) and created invoices`);
+        toast.success(
+          `Matched ${res.matchedIds.length} purchase(s); invoices created only for verified payments`,
+        );
         invalidate();
       }
     } finally {
