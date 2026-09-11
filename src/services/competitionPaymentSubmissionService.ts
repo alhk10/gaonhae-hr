@@ -542,7 +542,7 @@ export const getPendingCompetitionSubmissions = async (
   let q = supabase
     .from('competition_payment_submissions' as any)
     .select('*')
-    .in('status', ['pending_verification'])
+    .in('status', ['pending_verification', 'verified'])
     .is('matched_invoice_id', null)
     .order('created_at', { ascending: false });
   if (branchId) q = q.eq('branch_id', branchId);
@@ -586,7 +586,7 @@ export const getPendingCompetitionSubmissionsCount = async (
   let q = supabase
     .from('competition_payment_submissions' as any)
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending_verification')
+    .in('status', ['pending_verification', 'verified'])
     .is('matched_invoice_id', null);
   if (branchId) q = q.eq('branch_id', branchId);
   const { count, error } = await q;

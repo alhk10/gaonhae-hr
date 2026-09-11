@@ -67,16 +67,17 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     refetchInterval: 60_000,
   });
 
-  const [actionFirst, setActionFirst] = useState(true);
+  const [sortPriority, setSortPriority] = useState<'unmatched' | 'unverified'>('unmatched');
   const [newestFirst, setNewestFirst] = useState(true);
   const sortedSubmissions = useMemo(
     () =>
       sortSubmissionsByAction(submissions, {
-        actionFirst,
+        priority: sortPriority,
         newestFirst,
-        needsAction: (s: any) => !s.matched_student_id || s.status !== 'verified',
+        isUnmatched: (s) => !s.matched_student_id,
+        isUnverified: (s) => s.status !== 'verified',
       }),
-    [submissions, actionFirst, newestFirst],
+    [submissions, sortPriority, newestFirst],
   );
 
   const invalidate = () => {
@@ -320,13 +321,13 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
           <Badge variant="secondary">{submissions.length}</Badge>
           <Button
             size="sm"
-            variant={actionFirst ? 'secondary' : 'outline'}
+            variant="outline"
             className="ml-auto h-7 gap-1.5"
-            onClick={() => setActionFirst((v) => !v)}
-            title="Show unmatched / unverified submissions first"
+            onClick={() => setSortPriority((value) => value === 'unmatched' ? 'unverified' : 'unmatched')}
+            title={`Switch to ${sortPriority === 'unmatched' ? 'unverified' : 'unmatched'} first`}
           >
             <ListFilter className="h-3.5 w-3.5" />
-            Action first
+            {sortPriority === 'unmatched' ? 'Unmatched first' : 'Unverified first'}
           </Button>
           <Button
             size="sm"
