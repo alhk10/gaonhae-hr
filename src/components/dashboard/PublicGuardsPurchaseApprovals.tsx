@@ -184,7 +184,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (!auto) return;
     autoMatchedRef.current = matchingRow.id;
     const name = `${auto.match.first_name || ''} ${auto.match.last_name || ''}`.trim().toUpperCase();
-    handleMatch(auto.match.id, `Auto-matched to ${name} (${auto.confidence}%)`);
+    handleMatch(auto.match.id, `Auto-matched to ${name} (${auto.confidence}%)`, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchingRow?.id, matches, matchesLoading]);
 
