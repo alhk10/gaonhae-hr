@@ -38,6 +38,7 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { GradingSlot } from '@/services/gradingService';
 import { formatBeltLevel } from '@/constants/beltLevels';
 import { getNextBelt } from './QuickActionsSection';
+import { calculateAgeDecimal } from '@/utils/birthDate';
 
 interface PaySchoolFeesDialogProps {
   open: boolean;
@@ -59,11 +60,7 @@ interface PaySchoolFeesDialogProps {
 
 // Calculate age in decimal years (e.g., 4.5 for 4 years 6 months)
 function calculateAge(dateOfBirth: string): number {
-  const dob = new Date(dateOfBirth);
-  const today = new Date();
-  const years = differenceInYears(today, dob);
-  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
-  return years + (monthsAfterBirthday / 12);
+  return calculateAgeDecimal(dateOfBirth);
 }
 
 const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({

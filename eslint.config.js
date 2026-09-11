@@ -32,11 +32,17 @@ export default tseslint.config(
           message:
             "Do not derive a yyyy-MM-dd string from toISOString() — it shifts by a day in non-UTC timezones. Use toISODate() from @/utils/dateFormat.",
         },
+        {
+          selector:
+            "NewExpression[callee.name='Date'] > Identifier[name=/^(dob|dateOfBirth|date_of_birth|studentDob|birthDate)$/]",
+          message:
+            "Do not parse a date-of-birth string with new Date() — it shifts by a day outside UTC. Use parseDateOnly()/calculateAgeYears() from @/utils/birthDate.",
+        },
       ],
     },
   },
   {
-    files: ["src/utils/dateFormat.ts"],
+    files: ["src/utils/dateFormat.ts", "src/utils/birthDate.ts"],
     rules: { "no-restricted-syntax": "off" },
   }
 );

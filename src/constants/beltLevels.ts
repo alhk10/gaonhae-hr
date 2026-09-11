@@ -1,3 +1,4 @@
+import { parseDateOnly } from '@/utils/birthDate';
 /**
  * Belt Level Constants
  * Central source of truth for belt level options across the application.
@@ -93,8 +94,8 @@ export const getBeltLevelsForCountry = (country?: string | null): string[] => {
  */
 const calculateAge = (dob: string | Date | null | undefined): number | null => {
   if (!dob) return null;
-  const birth = dob instanceof Date ? dob : new Date(dob);
-  if (Number.isNaN(birth.getTime())) return null;
+  const birth = parseDateOnly(dob);
+  if (!birth) return null;
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();

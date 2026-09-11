@@ -31,6 +31,7 @@ import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
+import { isFutureDateOnly } from '@/utils/birthDate';
 
 interface Props {
   branchId?: string;
@@ -168,7 +169,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
       toast.error('Invalid email');
       return;
     }
-    if (new Date(date_of_birth) > new Date()) {
+    if (isFutureDateOnly(date_of_birth)) {
       toast.error('DOB cannot be in the future');
       return;
     }

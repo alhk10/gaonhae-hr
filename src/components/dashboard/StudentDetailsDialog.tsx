@@ -33,6 +33,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { calculateAgeYears } from '@/utils/birthDate';
 
 interface StudentDetailsDialogProps {
   open: boolean;
@@ -93,17 +94,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
   if (!student) return null;
 
 
-  const calculateAge = (dob?: string) => {
-    if (!dob) return null;
-    const today = new Date();
-    const birthDate = new Date(dob);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
+  const calculateAge = (dob?: string) => calculateAgeYears(dob);
 
   const age = calculateAge(student.date_of_birth);
 
