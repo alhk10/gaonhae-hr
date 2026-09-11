@@ -196,7 +196,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         getId: (r) => r.id,
         needsMatch: (r) => !r.matched_student_id,
         fetchMatches: (r) => findStudentMatches(r),
-        match: (r, c) => finalize(r, c.id),
+        match: (r, c) => finalize(r, c.id, { invoiceOnlyWhenVerified: true }),
         maxScore: MAX_GUARDS_MATCH_SCORE,
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
