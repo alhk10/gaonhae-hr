@@ -140,7 +140,6 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   const finalize = async (
     row: GuardsPurchaseRow,
     studentId: string,
-    opts?: { invoiceOnlyWhenVerified?: boolean },
   ) => {
     // Link student first so the invoice creation sees the relationship.
     await updateGuardsPurchase(row.id, { matched_student_id: studentId });
@@ -159,7 +158,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (!matchingRow) return;
     setBusyId(matchingRow.id);
     try {
-      await finalize(matchingRow, studentId, { invoiceOnlyWhenVerified: auto });
+       await finalize(matchingRow, studentId);
       const invoiced = isPaymentVerified(matchingRow);
       toast.success(
         autoLabel
@@ -202,7 +201,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         getId: (r) => r.id,
         needsMatch: (r) => !r.matched_student_id,
         fetchMatches: (r) => findStudentMatches(r),
-        match: (r, c) => finalize(r, c.id, { invoiceOnlyWhenVerified: true }),
+        match: (r, c) => finalize(r, c.id),
         maxScore: MAX_GUARDS_MATCH_SCORE,
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
