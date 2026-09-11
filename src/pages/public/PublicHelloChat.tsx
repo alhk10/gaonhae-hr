@@ -192,6 +192,8 @@ const PublicHelloChat: React.FC = () => {
 
   // Callback step
   const [cbMessage, setCbMessage] = useState('');
+  const [helpEmail, setHelpEmail] = useState('');
+  const [helpPhone, setHelpPhone] = useState('');
 
   // Register step
   const [regNotes, setRegNotes] = useState('');
