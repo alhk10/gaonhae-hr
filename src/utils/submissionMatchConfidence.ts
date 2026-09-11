@@ -13,7 +13,7 @@ export const MAX_MATCH_SCORE = 1.4;
 export const MAX_GUARDS_MATCH_SCORE = 14;
 
 /** Auto-link when the best match is at least this confident. */
-export const AUTO_MATCH_THRESHOLD = 85;
+export const AUTO_MATCH_THRESHOLD = 77;
 
 /** ...and the runner-up is at least this many points behind. */
 export const AUTO_MATCH_GAP = 10;

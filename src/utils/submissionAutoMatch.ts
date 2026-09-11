@@ -4,7 +4,7 @@
  *
  * For every outstanding row that is not yet linked to a student we fetch the
  * suggestion list and link the top suggestion when it clears the shared
- * confidence rule (>= 90% and clearly ahead of the runner-up).
+ * confidence rule (>= AUTO_MATCH_THRESHOLD and clearly ahead of the runner-up).
  */
 
 import { pickAutoMatch, MAX_MATCH_SCORE } from './submissionMatchConfidence';
