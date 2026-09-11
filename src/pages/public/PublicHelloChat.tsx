@@ -1271,7 +1271,7 @@ const PublicHelloChat: React.FC = () => {
         className="flex-1 overflow-y-auto"
       >
         <div className="max-w-md mx-auto px-3 py-4 space-y-3 pb-6">
-          <Bubble who="bot">Hi! Let's get you to the right place. Please share a few details.</Bubble>
+          <Bubble who="bot">Welcome to Gaonhae Taekwondo. Please share with me a few details for me to serve you better.</Bubble>
 
           {/* ---------- Identify ---------- */}
           {stage === 'identify' && (
