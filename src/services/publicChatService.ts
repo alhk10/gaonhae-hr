@@ -43,6 +43,28 @@ export interface ChatTerm {
   is_paid: boolean;
 }
 
+export interface ChatFeePreference {
+  product_id: string;
+  product_name: string;
+  payment_plan: 'four_weeks' | 'term';
+}
+
+export const getChatLatestFeePreference = async (
+  session_id: string,
+  student_id: string,
+  branch_id: string,
+): Promise<ChatFeePreference | null> => {
+  const { data, error } = await supabase.rpc('get_public_chat_latest_fee_preference' as any, {
+    p_session_id: session_id,
+    p_student_id: student_id,
+    p_branch_id: branch_id,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || !['four_weeks', 'term'].includes(row.payment_plan)) return null;
+  return row as ChatFeePreference;
+};
+
 export const getChatTermsForStudent = async (
   session_id: string,
   student_id: string,

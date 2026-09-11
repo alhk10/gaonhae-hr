@@ -42,6 +42,7 @@ import {
   submitLessonRequest,
   getChatProducts,
   getChatTermsForStudent,
+  getChatLatestFeePreference,
   getStudentCompletedGradingStages,
   type ChatProduct,
   type ChatTerm,
@@ -208,6 +209,7 @@ const PublicHelloChat: React.FC = () => {
   // Per-product draft state for non-grading flow (picked + variant + term selections)
   type RowDraft = { picked: boolean; size: string; color: string; gender: string; termId: string; qty: number; plan?: FeePaymentPlan };
   const [rowDrafts, setRowDrafts] = useState<Record<string, RowDraft>>({});
+  const feePreferenceAppliedRef = useRef(false);
   // School fees: sibling discount and 4-week plan locks per term
   const [siblingDiscount, setSiblingDiscount] = useState(0);
   const [lockedPlans, setLockedPlans] = useState<Record<string, FeePaymentPlan | null>>({});
@@ -276,6 +278,12 @@ const PublicHelloChat: React.FC = () => {
   const { data: chatTerms = [] } = useQuery({
     queryKey: ['hello-chat-terms', branchId, sessionId, matched?.id],
     queryFn: () => getChatTermsForStudent(sessionId!, matched!.id, branchId),
+    enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
+  });
+
+  const { data: latestFeePreference } = useQuery({
+    queryKey: ['hello-latest-fee-preference', branchId, sessionId, matched?.id],
+    queryFn: () => getChatLatestFeePreference(sessionId!, matched!.id, branchId),
     enabled: !!branchId && !!sessionId && !!matched?.id && stage === 'payment_products' && payCategory?.id === SCHOOL_FEES_CATEGORY_ID,
   });
 
@@ -416,8 +424,51 @@ const PublicHelloChat: React.FC = () => {
     }
     if (stage !== 'payment_products') {
       setRowDrafts({});
+      feePreferenceAppliedRef.current = false;
     }
   }, [stage, payCategory]);
+
+  useEffect(() => {
+    if (
+      feePreferenceAppliedRef.current ||
+      !latestFeePreference ||
+      products.length === 0 ||
+      chatTerms.length === 0 ||
+      Object.values(rowDrafts).some(draft => draft?.picked)
+    ) return;
+
+    const matchingProduct = products.find(product =>
+      product.product_id === latestFeePreference.product_id ||
+      product.product_name.trim().toLowerCase() === latestFeePreference.product_name.trim().toLowerCase()
+    );
+    if (!matchingProduct) {
+      feePreferenceAppliedRef.current = true;
+      return;
+    }
+
+    const today = toISODate(new Date());
+    const currentTerm = chatTerms.find(term => !term.is_paid && term.start_date <= today && term.end_date >= today);
+    const defaultTerm = currentTerm && lockedPlans[currentTerm.term_id] === 'four_weeks'
+      ? currentTerm
+      : chatTerms.find(term => !term.is_paid && term.start_date > today) || chatTerms.find(term => !term.is_paid);
+    if (!defaultTerm) return;
+
+    const existingDraft = rowDrafts[matchingProduct.product_id];
+    const lockedPlan = lockedPlans[defaultTerm.term_id];
+    setRowDrafts(previous => ({
+      ...previous,
+      [matchingProduct.product_id]: {
+        picked: true,
+        size: existingDraft?.size || '',
+        color: existingDraft?.color || '',
+        gender: existingDraft?.gender || matched?.gender || gender || '',
+        termId: defaultTerm.term_id,
+        qty: Math.max(1, defaultTerm.total_weeks || 1),
+        plan: lockedPlan === 'four_weeks' ? 'four_weeks' : latestFeePreference.payment_plan,
+      },
+    }));
+    feePreferenceAppliedRef.current = true;
+  }, [latestFeePreference, products, chatTerms, rowDrafts, lockedPlans, matched?.gender, gender]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
