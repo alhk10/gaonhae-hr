@@ -1506,7 +1506,97 @@ const PublicHelloChat: React.FC = () => {
           {stage === 'choice' && (
             <>
               <Bubble who="bot">
-                We couldn't find your record with the details provided. Leave any remarks below and our team will reach out to help.
+                We couldn't find your record with the details provided.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <Button
+                    className="w-full h-11"
+                    onClick={() => { setHelpEmail(email); setHelpPhone(phone); goTo('help_find_account'); }}
+                  >
+                    Help find my account
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full h-11"
+                    onClick={() => goTo('others')}
+                  >
+                    Others
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'help_find_account' && (
+            <>
+              <Bubble who="bot">
+                Please share your email and/or contact number so our team can help find your account.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  <Input
+                    type="email"
+                    value={helpEmail}
+                    onChange={(e) => setHelpEmail(e.target.value)}
+                    placeholder="Email"
+                  />
+                  <Input
+                    type="tel"
+                    value={helpPhone}
+                    onChange={(e) => setHelpPhone(e.target.value)}
+                    placeholder="Contact number"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Please provide at least one.</p>
+                  <Button
+                    onClick={async () => {
+                      if (!sessionId) return;
+                      const em = helpEmail.trim();
+                      const ph = helpPhone.trim();
+                      if (!em && !ph) {
+                        toast.error('Please provide your email or contact number');
+                        return;
+                      }
+                      setSubmitting(true);
+                      try {
+                        await submitCallback({
+                          session_id: sessionId,
+                          branch_id: branchId || null,
+                          branch_name: branch?.name || null,
+                          first_name: firstName,
+                          last_name: lastName,
+                          date_of_birth: dob,
+                          contact_phone: ph || phone || null,
+                          contact_email: em || email || null,
+                          message: `Help find my account. No student match. Gender: ${gender || '-'}. Email: ${em || '-'}. Contact number: ${ph || '-'}.`,
+                          type: 'no_match_request',
+                          notify_email: 'management@gaonhaetaekwondo.com',
+                          email_subject_prefix: 'Help find my account',
+                        });
+                        goTo('callback_done');
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Could not send your details');
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    disabled={submitting}
+                    className="w-full h-11"
+                  >
+                    {submitting ? 'Sending…' : 'Send my details'}
+                  </Button>
+                  <Button variant="outline" className="w-full" onClick={() => goTo('choice')}>
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {stage === 'others' && (
+            <>
+              <Bubble who="bot">
+                Leave any remarks below and our team will reach out to help.
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-3">
@@ -1534,6 +1624,8 @@ const PublicHelloChat: React.FC = () => {
                           contact_email: email || null,
                           message: `No student match. Gender: ${gender || '-'}. Remarks: ${cbMessage.trim() || '(none)'}`,
                           type: 'no_match_request',
+                          notify_email: 'management@gaonhaetaekwondo.com',
+                          email_subject_prefix: 'Others',
                         });
                         goTo('callback_done');
                       } catch (e: any) {
@@ -1547,9 +1639,9 @@ const PublicHelloChat: React.FC = () => {
                   >
                     {submitting ? 'Sending…' : 'Send my details'}
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">
-                    We'll email your details to our team and someone will contact you shortly.
-                  </p>
+                  <Button variant="outline" className="w-full" onClick={() => goTo('choice')}>
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </Button>
                 </CardContent>
               </Card>
             </>
@@ -1582,7 +1674,7 @@ const PublicHelloChat: React.FC = () => {
             <Bubble who="bot">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-                <span>Thank you for your message. We will get back to you shortly.</span>
+                <span>Thank you for submitting your query. We strive to get back to you within 2 business days.</span>
               </div>
             </Bubble>
           )}
