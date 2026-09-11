@@ -154,12 +154,17 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     }
   };
 
-  const handleMatch = async (studentId: string, autoLabel?: string) => {
+  const handleMatch = async (studentId: string, autoLabel?: string, auto = false) => {
     if (!matchingRow) return;
     setBusyId(matchingRow.id);
     try {
-      await finalize(matchingRow, studentId);
-      toast.success(autoLabel || 'Student matched and invoice created');
+      await finalize(matchingRow, studentId, { invoiceOnlyWhenVerified: auto });
+      const invoiced = !auto || isPaymentVerified(matchingRow);
+      toast.success(
+        autoLabel
+          ? `${autoLabel}${invoiced ? '' : ' — invoice pending payment verification'}`
+          : 'Student matched and invoice created',
+      );
       setMatchingRow(null);
       setSearchTerm('');
       invalidate();
