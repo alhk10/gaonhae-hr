@@ -195,6 +195,10 @@ export interface SubmitCallbackInput {
   type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request' | 'no_match_request';
   preferred_time?: string | null;
   matched_student_id?: string | null;
+  /** Override the notification recipient (defaults to hello@gaonhaetaekwondo.com) */
+  notify_email?: string;
+  /** When set, the email subject becomes "<prefix> - <Name>" */
+  email_subject_prefix?: string;
 }
 
 export interface LessonChangeItem {
@@ -456,7 +460,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
     await supabase.functions.invoke('send-transactional-email', {
       body: {
         templateName: 'hello-callback-request',
-        recipientEmail: 'hello@gaonhaetaekwondo.com',
+        recipientEmail: input.notify_email || 'hello@gaonhaetaekwondo.com',
         idempotencyKey: `hello-callback-${callbackId}`,
         templateData: {
           firstName: input.first_name,
@@ -467,6 +471,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
           email: input.contact_email ?? '',
           message: input.message,
           submittedAt,
+          subjectPrefix: input.email_subject_prefix ?? '',
         },
       },
     });

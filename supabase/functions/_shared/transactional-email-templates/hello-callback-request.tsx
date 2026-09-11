@@ -59,8 +59,11 @@ const HelloCallbackEmail = ({
 
 export const template = {
   component: HelloCallbackEmail,
-  subject: (d: Record<string, any>) =>
-    `New callback request from ${[d.firstName, d.lastName].filter(Boolean).join(' ') || 'a visitor'}`,
+  subject: (d: Record<string, any>) => {
+    const name = [d.firstName, d.lastName].filter(Boolean).join(' ') || 'a visitor'
+    if (d.subjectPrefix) return `${d.subjectPrefix} - ${name}`
+    return `New callback request from ${name}`
+  },
   displayName: 'Hello chat callback request',
   to: 'hello@gaonhaetaekwondo.com',
   previewData: {
