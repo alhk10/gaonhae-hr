@@ -132,9 +132,19 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (editingRow) setEditDraft({ ...editingRow });
   }, [editingRow]);
 
-  const finalize = async (row: GuardsPurchaseRow, studentId: string) => {
+/** A purchase may only become a paid invoice once its payment is verified. */
+const isPaymentVerified = (row: GuardsPurchaseRow) =>
+  row.sale_status === 'verified' || row.sale_status === 'paid';
+
+  const finalize = async (
+    row: GuardsPurchaseRow,
+    studentId: string,
+    opts?: { invoiceOnlyWhenVerified?: boolean },
+  ) => {
     // Link student first so the invoice creation sees the relationship.
     await updateGuardsPurchase(row.id, { matched_student_id: studentId });
+    // Never turn an unverified payment into a paid invoice automatically.
+    if (opts?.invoiceOnlyWhenVerified && !isPaymentVerified(row)) return;
     try {
       await createInvoiceForPurchase({ ...row, matched_student_id: studentId }, studentId);
     } catch (e: any) {
