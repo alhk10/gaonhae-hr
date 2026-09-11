@@ -19,9 +19,12 @@
    - Keep stored DOB values as `YYYY-MM-DD` strings and display them as `DD/MM/YYYY`.
    - Extend the existing lint safeguard to reject timezone-sensitive parsing of date-only strings.
 
-3. **Correct the confirmed Qiyu record**
-   - Change only the new unmatched QIYU YE grading submission from **22/06/2020** to **21/06/2020**, matching both her established student account and prior grading record.
-   - Do not change her student account DOB.
+3. **Audit every record and transaction**
+   - Check birth dates across grading, competitions, events, school fees, uniforms and guards purchases, enquiries, registrations and student accounts.
+   - Compare each entry against the linked student account and against that person's other entries, flagging one-day differences and any other mismatch.
+   - Produce a downloadable list grouped by person, showing each date, when it was saved (GMT+8) and the recommended correct date.
+   - Correct only entries where the person's other records clearly agree on one date, including the new QIYU YE grading submission (**22/06/2020** to **21/06/2020**).
+   - Leave established student account dates unchanged and list anything ambiguous for staff to decide.
 
 4. **Protect matching and future submissions**
    - Ensure grading, competition, event, school-fee, uniform, and guard matching compares normalized date-only values.
