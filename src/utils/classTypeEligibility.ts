@@ -1,3 +1,4 @@
+import { calculateAgeDecimal } from '@/utils/birthDate';
 /**
  * Shared utility for class type age eligibility checks.
  * Centralizes normalized comparison and age exception logic
@@ -94,9 +95,7 @@ export function isStudentEligibleForClass(options: {
   let age = providedAge;
   if (age === undefined || age === null) {
     if (!studentDob) return true; // No DOB, can't filter by age
-    const dob = new Date(studentDob);
-    const today = new Date();
-    age = Math.floor((today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    age = Math.floor(calculateAgeDecimal(studentDob));
   }
 
   // Check timetable-level age range

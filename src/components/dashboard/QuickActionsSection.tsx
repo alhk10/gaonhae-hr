@@ -13,6 +13,7 @@ import { formatBeltLevel, BELT_LEVELS } from '@/constants/beltLevels';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDate, toISODate } from '@/utils/dateFormat';
+import { calculateAgeDecimal } from '@/utils/birthDate';
 
 interface QuickActionsSectionProps {
   studentId: string;
@@ -124,9 +125,7 @@ const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
       // Filter by student age
       const studentDob = student.date_of_birth;
       if (studentDob) {
-        const today = new Date();
-        const dob = new Date(studentDob);
-        const ageInYears = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const ageInYears = calculateAgeDecimal(studentDob);
         return beltFiltered.filter(slot => {
           const s = slot as any;
           if (s.min_age != null && ageInYears < s.min_age) return false;

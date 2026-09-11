@@ -37,6 +37,7 @@ import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import ClassScheduleSelector from './ClassScheduleSelector';
+import { calculateAgeDecimal } from '@/utils/birthDate';
 
 interface PayGradingDialogProps {
   open: boolean;
@@ -57,11 +58,7 @@ interface PayGradingDialogProps {
 }
 
 function calculateAge(dateOfBirth: string): number {
-  const dob = new Date(dateOfBirth);
-  const today = new Date();
-  const years = differenceInYears(today, dob);
-  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
-  return years + (monthsAfterBirthday / 12);
+  return calculateAgeDecimal(dateOfBirth);
 }
 
 const PayGradingDialog: React.FC<PayGradingDialogProps> = ({

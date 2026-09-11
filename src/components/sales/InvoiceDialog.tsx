@@ -50,6 +50,7 @@ import { createEnrollment, createScheduledClass } from '@/services/classEnrollme
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
+import { calculateAgeDecimal } from '@/utils/birthDate';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
@@ -128,11 +129,7 @@ const UNIFORMS_CATEGORY_ID = 'cb4591b5-71fc-49cd-85ba-fce2f7d5a90c';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function calculateAge(dateOfBirth: string): number {
-  const dob = new Date(dateOfBirth);
-  const today = new Date();
-  const years = differenceInYears(today, dob);
-  const monthsAfterBirthday = differenceInMonths(today, dob) % 12;
-  return years + (monthsAfterBirthday / 12);
+  return calculateAgeDecimal(dateOfBirth);
 }
 
 const normalizeBelt = (belt: string): string => {

@@ -47,6 +47,7 @@ import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
 import StudentProfileCompletionDialog from './StudentProfileCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SignedImage } from '@/components/common/SignedMedia';
+import { calculateAgeDecimal } from '@/utils/birthDate';
 
 interface StudentDashboardProps {
   studentId?: string;
@@ -204,9 +205,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       });
       // Filter by student age
       if (student.date_of_birth) {
-        const now = new Date();
-        const dob = new Date(student.date_of_birth);
-        const ageInYears = (now.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const ageInYears = calculateAgeDecimal(student.date_of_birth);
         return beltFiltered.filter(slot => {
           if (slot.min_age != null && ageInYears < slot.min_age) return false;
           if (slot.max_age != null && ageInYears > slot.max_age) return false;
