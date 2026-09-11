@@ -1,6 +1,6 @@
 /**
  * Superadmin approval surface for guards purchases (/guards) that arrived
- * without a matched student. Allows matching, creating a student from the
+ * that still need matching, payment verification, or invoicing. Allows matching, creating a student from the
  * captured details, editing the captured details, or rejecting the purchase.
  *
  * On match or create-student we also generate the paid invoice via
@@ -64,22 +64,23 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   });
 
   const rows = allRows.filter((r) => {
-    if (r.matched_student_id) return false;
+    if (r.invoice_id) return false;
     if (r.sale_status === 'rejected' || r.sale_status === 'cancelled') return false;
     if (branchId && r.branch_id !== branchId) return false;
     return true;
   });
 
-  const [actionFirst, setActionFirst] = useState(true);
+  const [sortPriority, setSortPriority] = useState<'unmatched' | 'unverified'>('unmatched');
   const [newestFirst, setNewestFirst] = useState(true);
   const sortedRows = useMemo(
     () =>
       sortSubmissionsByAction(rows, {
-        actionFirst,
+        priority: sortPriority,
         newestFirst,
-        needsAction: (r: any) => r.sale_status !== 'verified' && r.sale_status !== 'paid',
+        isUnmatched: (r) => !r.matched_student_id,
+        isUnverified: (r) => r.sale_status !== 'verified' && r.sale_status !== 'paid',
       }),
-    [rows, actionFirst, newestFirst],
+    [rows, sortPriority, newestFirst],
   );
 
   const invalidate = () => {
@@ -139,12 +140,11 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   const finalize = async (
     row: GuardsPurchaseRow,
     studentId: string,
-    opts?: { invoiceOnlyWhenVerified?: boolean },
   ) => {
     // Link student first so the invoice creation sees the relationship.
     await updateGuardsPurchase(row.id, { matched_student_id: studentId });
-    // Never turn an unverified payment into a paid invoice automatically.
-    if (opts?.invoiceOnlyWhenVerified && !isPaymentVerified(row)) return;
+    // Never turn an unverified payment into a paid invoice.
+    if (!isPaymentVerified(row)) return;
     try {
       await createInvoiceForPurchase({ ...row, matched_student_id: studentId }, studentId);
     } catch (e: any) {
@@ -158,12 +158,12 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (!matchingRow) return;
     setBusyId(matchingRow.id);
     try {
-      await finalize(matchingRow, studentId, { invoiceOnlyWhenVerified: auto });
-      const invoiced = !auto || isPaymentVerified(matchingRow);
+       await finalize(matchingRow, studentId);
+      const invoiced = isPaymentVerified(matchingRow);
       toast.success(
         autoLabel
           ? `${autoLabel}${invoiced ? '' : ' — invoice pending payment verification'}`
-          : 'Student matched and invoice created',
+          : `Student matched${invoiced ? ' and invoice created' : ' — invoice pending payment verification'}`,
       );
       setMatchingRow(null);
       setSearchTerm('');
@@ -201,7 +201,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         getId: (r) => r.id,
         needsMatch: (r) => !r.matched_student_id,
         fetchMatches: (r) => findStudentMatches(r),
-        match: (r, c) => finalize(r, c.id, { invoiceOnlyWhenVerified: true }),
+        match: (r, c) => finalize(r, c.id),
         maxScore: MAX_GUARDS_MATCH_SCORE,
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
@@ -313,17 +313,17 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
       <CardHeader className="pb-3">
         <CardTitle className="text-base sm:text-lg flex items-center gap-2">
           <ShieldCheck className="w-4 h-4" />
-          Public Guards Purchases — Unmatched
+           Public Guards Purchases — Outstanding
           <Badge variant="secondary">{rows.length}</Badge>
           <Button
             size="sm"
-            variant={actionFirst ? 'secondary' : 'outline'}
+            variant="outline"
             className="ml-auto h-7 gap-1.5"
-            onClick={() => setActionFirst((v) => !v)}
-            title="Show unverified purchases first"
+            onClick={() => setSortPriority((value) => value === 'unmatched' ? 'unverified' : 'unmatched')}
+            title={`Switch to ${sortPriority === 'unmatched' ? 'unverified' : 'unmatched'} first`}
           >
             <ListFilter className="h-3.5 w-3.5" />
-            Action first
+            {sortPriority === 'unmatched' ? 'Unmatched first' : 'Unverified first'}
           </Button>
           <Button
             size="sm"
@@ -378,14 +378,18 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
                   ) : (
                     <Badge variant="secondary">Pending</Badge>
                   )}
-                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unmatched</Badge>
+                  {row.matched_student_id ? (
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Matched</Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unmatched</Badge>
+                  )}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button size="sm" variant="outline" onClick={() => setMatchingRow(row)} disabled={busyId === row.id}>
                   <UserSearch className="w-3.5 h-3.5 mr-1" />
-                  Match Student
+                   {row.matched_student_id ? 'Re-match' : 'Match Student'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setEditingRow(row)} disabled={busyId === row.id}>
                   <Pencil className="w-3.5 h-3.5 mr-1" />
