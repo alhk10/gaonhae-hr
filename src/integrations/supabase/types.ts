@@ -8487,6 +8487,18 @@ export type Database = {
         Args: { p_session_id: string; p_student_id: string }
         Returns: Json
       }
+      get_public_chat_latest_fee_preference: {
+        Args: {
+          p_branch_id: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: {
+          payment_plan: string
+          product_id: string
+          product_name: string
+        }[]
+      }
       get_public_chat_products: {
         Args: { p_branch_id: string; p_category_id: string }
         Returns: {
