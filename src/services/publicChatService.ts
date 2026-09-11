@@ -460,7 +460,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
     await supabase.functions.invoke('send-transactional-email', {
       body: {
         templateName: 'hello-callback-request',
-        recipientEmail: 'hello@gaonhaetaekwondo.com',
+        recipientEmail: input.notify_email || 'hello@gaonhaetaekwondo.com',
         idempotencyKey: `hello-callback-${callbackId}`,
         templateData: {
           firstName: input.first_name,
@@ -471,6 +471,7 @@ export const submitCallback = async (input: SubmitCallbackInput): Promise<string
           email: input.contact_email ?? '',
           message: input.message,
           submittedAt,
+          subjectPrefix: input.email_subject_prefix ?? '',
         },
       },
     });
