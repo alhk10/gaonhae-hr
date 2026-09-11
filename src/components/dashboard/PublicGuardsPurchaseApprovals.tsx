@@ -132,9 +132,9 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     if (editingRow) setEditDraft({ ...editingRow });
   }, [editingRow]);
 
-/** A purchase may only become a paid invoice once its payment is verified. */
-const isPaymentVerified = (row: GuardsPurchaseRow) =>
-  row.sale_status === 'verified' || row.sale_status === 'paid';
+  /** A purchase may only become a paid invoice once its payment is verified. */
+  const isPaymentVerified = (row: GuardsPurchaseRow) =>
+    row.sale_status === 'verified' || row.sale_status === 'paid';
 
   const finalize = async (
     row: GuardsPurchaseRow,
