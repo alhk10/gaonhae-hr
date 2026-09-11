@@ -107,6 +107,8 @@ type Stage =
   | 'identify'
   | 'matched'
   | 'choice'
+  | 'help_find_account'
+  | 'others'
   | 'callback'
   | 'callback_done'
   | 'register'

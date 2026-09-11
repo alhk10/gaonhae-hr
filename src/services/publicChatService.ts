@@ -195,6 +195,10 @@ export interface SubmitCallbackInput {
   type?: 'general_callback' | 'trial_lead' | 'lesson_schedule_request' | 'no_match_request';
   preferred_time?: string | null;
   matched_student_id?: string | null;
+  /** Override the notification recipient (defaults to hello@gaonhaetaekwondo.com) */
+  notify_email?: string;
+  /** When set, the email subject becomes "<prefix> - <Name>" */
+  email_subject_prefix?: string;
 }
 
 export interface LessonChangeItem {
