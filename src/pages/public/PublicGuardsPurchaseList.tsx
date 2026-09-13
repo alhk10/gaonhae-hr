@@ -392,6 +392,21 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
+                          {r.invoice_id ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[10px] text-orange-600"
+                              onClick={() => setRefundInvoiceId(r.invoice_id)}
+                              title="Refund as credit"
+                            >
+                              <Undo2 className="h-3 w-3 mr-1" />Refund
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {r.sale_status === 'pending_verification' && (
                             <div className="flex gap-1">
                               <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
