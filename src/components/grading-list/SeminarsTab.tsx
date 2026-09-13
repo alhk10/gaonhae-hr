@@ -5,7 +5,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import { Button } from '@/components/ui/button';
