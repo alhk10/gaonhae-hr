@@ -93,6 +93,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [invoiceRow, setInvoiceRow] = useState<SchoolFeesRow | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
