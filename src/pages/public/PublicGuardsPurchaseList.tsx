@@ -79,6 +79,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
   const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
 
