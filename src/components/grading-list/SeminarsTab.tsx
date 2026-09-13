@@ -336,6 +336,13 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
 
 
 
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-seminar-list'] })}
+      />
+
       {/* Reject dialog */}
       <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>
         <DialogContent className="max-w-sm">
