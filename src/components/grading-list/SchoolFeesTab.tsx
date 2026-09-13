@@ -356,14 +356,25 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   <TableCell className="text-xs font-mono whitespace-nowrap">
                     {row.invoice_id ? (
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceRow(row)}
-                        className="text-primary underline underline-offset-2 hover:opacity-80"
-                        title="View invoice"
-                      >
-                        {row.invoice_number || 'View'}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setInvoiceRow(row)}
+                          className="text-primary underline underline-offset-2 hover:opacity-80"
+                          title="View invoice"
+                        >
+                          {row.invoice_number || 'View'}
+                        </button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[10px] text-orange-600"
+                          onClick={() => setRefundInvoiceId(row.invoice_id)}
+                          title="Refund as credit"
+                        >
+                          <Undo2 className="h-3 w-3 mr-1" />Refund
+                        </Button>
+                      </div>
                     ) : (
                       '—'
                     )}
