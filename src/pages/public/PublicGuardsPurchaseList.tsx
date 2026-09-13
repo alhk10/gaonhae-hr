@@ -254,6 +254,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Proof</TableHead>
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
+                    <TableHead>Refund</TableHead>
                     <TableHead></TableHead>
                     {canDelete && onRequestDelete && <TableHead></TableHead>}
                   </TableRow>
