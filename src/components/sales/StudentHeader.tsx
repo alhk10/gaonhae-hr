@@ -79,6 +79,12 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
                     {student.current_belt}
                   </Badge>
                 )}
+
+                {(stats?.creditBalance ?? 0) > 0 && (
+                  <Badge className="bg-green-100 text-green-800">
+                    Credit ${(stats?.creditBalance ?? 0).toFixed(2)}
+                  </Badge>
+                )}
               </div>
             </div>
 
