@@ -51,6 +51,7 @@ import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
 import { calculateAgeDecimal } from '@/utils/birthDate';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
