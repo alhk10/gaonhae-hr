@@ -55,8 +55,11 @@ const InvoiceActionApprovals: React.FC = () => {
         await cancelInvoice(request.invoice_id);
       } else if (request.action_type === 'item_refund') {
         const requestData = request.request_data as any;
-        if (requestData?.item_id) {
-          await refundLineItem(requestData.item_id, requestData.reason || 'Approved refund');
+        const ids: string[] = Array.isArray(requestData?.item_ids) && requestData.item_ids.length > 0
+          ? requestData.item_ids
+          : requestData?.item_id ? [requestData.item_id] : [];
+        if (ids.length > 0) {
+          await refundLineItems(ids, requestData?.reason || 'Approved refund');
         }
       }
       await approveActionRequest(request.id);
