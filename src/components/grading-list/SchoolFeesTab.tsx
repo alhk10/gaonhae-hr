@@ -451,7 +451,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
-        onRefunded={() => qc.invalidateQueries({ queryKey: ['school-fees-submissions'] })}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['school-fees-list'] })}
       />
 
       {/* Paid invoice preview */}
