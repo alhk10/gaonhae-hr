@@ -8607,6 +8607,7 @@ export type Database = {
           gender: string
           grading_card_urls: string[]
           indemnity_form_url: string
+          matched_invoice_id: string
           paid_status: string
           passport_url: string
           photo_url: string
