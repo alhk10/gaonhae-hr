@@ -209,13 +209,26 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         toast.success(
           `Matched ${res.matchedIds.length} purchase(s); invoices created only for verified payments`,
         );
-        invalidate();
       }
+
+      // Second pass: invoice rows that are matched and verified but never invoiced
+      // (e.g. matched first, payment verified later).
+      const imp = await runAutoImportSweep('guards-purchases', list, {
+        getId: (r) => r.id,
+        isReady: (r) => !!r.matched_student_id && !r.invoice_id && isPaymentVerified(r),
+        run: (r) => createInvoiceForPurchase(r, r.matched_student_id as string),
+      });
+      if (Object.keys(imp.errors).length) setAutoErrors((p) => ({ ...p, ...imp.errors }));
+      if (imp.importedIds.length) {
+        toast.success(`Created ${imp.importedIds.length} invoice(s) for verified purchase(s)`);
+      }
+      if (res.matchedIds.length || imp.importedIds.length) invalidate();
     } finally {
       setScanning(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   React.useEffect(() => {
     void runScan(rows);
