@@ -403,6 +403,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [refundItemId, setRefundItemId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
+  const [refundCreditOpen, setRefundCreditOpen] = useState(false);
+  const [refundCreditItemId, setRefundCreditItemId] = useState<string | null>(null);
 
   // Grading prerequisite override (superadmin) state
   const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
