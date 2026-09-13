@@ -144,6 +144,15 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
                 <div className="text-xs text-muted-foreground">Sessions Left</div>
               </div>
               
+              {(stats.creditBalance ?? 0) > 0 && (
+                <div className="text-center p-3 bg-green-100 rounded-lg">
+                  <div className="text-2xl font-bold text-green-700">
+                    ${(stats.creditBalance ?? 0).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Credit Balance</div>
+                </div>
+              )}
+
               {stats.outstandingBalance > 0 && (
                 <div className="text-center p-3 bg-destructive/10 rounded-lg">
                   <div className="text-2xl font-bold text-destructive">
