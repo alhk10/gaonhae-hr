@@ -33,6 +33,8 @@ import {
 } from '@/services/guardsPurchaseService';
 import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/submissionMatchConfidence';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
+import { runAutoImportSweep, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
+
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
 interface Props {
