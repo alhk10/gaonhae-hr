@@ -168,6 +168,7 @@ const InvoicesCreatedSection = () => {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </CardContent>
       <RefundAsCreditDialog
