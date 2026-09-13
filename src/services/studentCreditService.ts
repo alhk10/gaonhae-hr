@@ -10,7 +10,7 @@ export interface StudentCredit {
   id: string;
   student_id: string;
   amount: number;
-  type: 'overpayment' | 'refund' | 'manual_adjustment' | 'credit_applied';
+  type: 'overpayment' | 'refund' | 'item_refund' | 'manual_adjustment' | 'credit_applied';
   reference_id: string | null;
   description: string;
   created_by: string | null;
