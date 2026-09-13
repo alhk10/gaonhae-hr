@@ -5,7 +5,8 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -93,6 +94,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proofRow, setProofRow] = useState<SchoolFeesRow | null>(null);
   const [invoiceRow, setInvoiceRow] = useState<SchoolFeesRow | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -356,14 +358,25 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   <TableCell className="text-xs font-mono whitespace-nowrap">
                     {row.invoice_id ? (
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceRow(row)}
-                        className="text-primary underline underline-offset-2 hover:opacity-80"
-                        title="View invoice"
-                      >
-                        {row.invoice_number || 'View'}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setInvoiceRow(row)}
+                          className="text-primary underline underline-offset-2 hover:opacity-80"
+                          title="View invoice"
+                        >
+                          {row.invoice_number || 'View'}
+                        </button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[10px] text-orange-600"
+                          onClick={() => setRefundInvoiceId(row.invoice_id)}
+                          title="Refund as credit"
+                        >
+                          <Undo2 className="h-3 w-3 mr-1" />Refund
+                        </Button>
+                      </div>
                     ) : (
                       '—'
                     )}
@@ -433,6 +446,13 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           </Table>
         </div>
       )}
+
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['school-fees-list'] })}
+      />
 
       {/* Paid invoice preview */}
       <Dialog open={!!invoiceRow} onOpenChange={(o) => !o && setInvoiceRow(null)}>

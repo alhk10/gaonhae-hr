@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Lock, CheckCircle, XCircle, Trash2, Settings } from 'lucide-react';
+import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2 } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
@@ -79,6 +80,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
   const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
 
@@ -254,6 +256,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Proof</TableHead>
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
+                    <TableHead>Refund</TableHead>
                     <TableHead></TableHead>
                     {canDelete && onRequestDelete && <TableHead></TableHead>}
                   </TableRow>
@@ -391,6 +394,21 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
+                          {r.invoice_id ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[10px] text-orange-600"
+                              onClick={() => setRefundInvoiceId(r.invoice_id)}
+                              title="Refund as credit"
+                            >
+                              <Undo2 className="h-3 w-3 mr-1" />Refund
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {r.sale_status === 'pending_verification' && (
                             <div className="flex gap-1">
                               <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
@@ -428,6 +446,13 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
           </CardContent>
         </Card>
       </div>
+
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => refresh()}
+      />
 
       {/* Details dialog */}
       <Dialog open={!!detailsRow} onOpenChange={(o) => !o && setDetailsRow(null)}>

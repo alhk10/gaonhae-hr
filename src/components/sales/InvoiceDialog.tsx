@@ -51,6 +51,7 @@ import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
 import { calculateAgeDecimal } from '@/utils/birthDate';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 
 // ─── Props ──────────────────────────────────────────────────────────
 interface InvoiceDialogProps {
@@ -403,6 +404,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [refundItemId, setRefundItemId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
+  const [refundCreditOpen, setRefundCreditOpen] = useState(false);
+  const [refundCreditItemId, setRefundCreditItemId] = useState<string | null>(null);
 
   // Grading prerequisite override (superadmin) state
   const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
@@ -2026,7 +2029,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                             {isRefunded && <Badge variant="secondary" className="text-[10px]">Refunded</Badge>}
                             <div className={cn("text-xs font-semibold whitespace-nowrap", isRefunded && "line-through")}>{formatCurrency(item.total_amount)}</div>
                             {canRefund && (
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-orange-600 hover:text-orange-700" title="Refund this item" onClick={() => { setRefundItemId(item.id); setRefundReason(''); }}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-orange-600 hover:text-orange-700" title="Refund as credit" onClick={() => { setRefundCreditItemId(item.id); setRefundCreditOpen(true); }}>
                                 <Undo2 className="h-3 w-3" />
                               </Button>
                             )}
@@ -2125,6 +2128,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         {isCreateMode && trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
         {dialogContent}
       </Dialog>
+
+      {/* Refund as credit (multi-line) dialog */}
+      <RefundAsCreditDialog
+        invoiceId={invoice?.id || null}
+        open={refundCreditOpen}
+        onOpenChange={(o) => { setRefundCreditOpen(o); if (!o) setRefundCreditItemId(null); }}
+        initialItemId={refundCreditItemId}
+        onRefunded={() => onInvoiceUpdated?.()}
+      />
 
       {/* Refund confirmation dialog */}
       <Dialog open={!!refundItemId} onOpenChange={(open) => { if (!open) setRefundItemId(null); }}>

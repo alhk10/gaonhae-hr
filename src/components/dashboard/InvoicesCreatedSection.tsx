@@ -8,11 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useBranches } from '@/hooks/useBranches';
 import { startOfWeek, startOfMonth, format } from 'date-fns';
-import { FileText } from 'lucide-react';
+import { FileText, Undo2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 
 const InvoicesCreatedSection = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [branchId, setBranchId] = useState<string>('all');
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const { branches } = useBranches();
 
   const getDateRange = () => {
@@ -21,7 +24,7 @@ const InvoicesCreatedSection = () => {
     return { start: start.toISOString(), end: now.toISOString() };
   };
 
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ['invoices-created', period, branchId],
     queryFn: async () => {
       const { start, end } = getDateRange();
@@ -104,6 +107,7 @@ const InvoicesCreatedSection = () => {
                   <TableHead className="text-xs py-2 text-right">Amount</TableHead>
                   <TableHead className="text-xs py-2 text-right">Due</TableHead>
                   <TableHead className="text-xs py-2">Status</TableHead>
+                  <TableHead className="text-xs py-2 text-right">Refund</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,6 +121,18 @@ const InvoicesCreatedSection = () => {
                         {formatStatus(inv.status)}
                       </Badge>
                     </TableCell>
+                    <TableCell className="py-1.5 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px] text-orange-600"
+                        disabled={!['paid', 'verified', 'partially_paid'].includes(String(inv.status))}
+                        onClick={() => setRefundInvoiceId(inv.id)}
+                        title="Refund as credit"
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />Refund
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -124,6 +140,12 @@ const InvoicesCreatedSection = () => {
           </div>
         )}
       </CardContent>
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => refetch()}
+      />
     </Card>
   );
 };

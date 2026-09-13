@@ -132,6 +132,7 @@ const CreditManagement: React.FC = () => {
     switch (type) {
       case 'overpayment': return <Badge variant="default">Overpayment</Badge>;
       case 'refund': return <Badge variant="destructive">Refund</Badge>;
+      case 'item_refund': return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Item refund</Badge>;
       case 'manual_adjustment': return <Badge variant="secondary">Adjustment</Badge>;
       case 'credit_applied': return <Badge variant="outline">Applied</Badge>;
       default: return <Badge>{type}</Badge>;
