@@ -2128,6 +2128,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         {dialogContent}
       </Dialog>
 
+      {/* Refund as credit (multi-line) dialog */}
+      <RefundAsCreditDialog
+        invoiceId={invoice?.id || null}
+        open={refundCreditOpen}
+        onOpenChange={(o) => { setRefundCreditOpen(o); if (!o) setRefundCreditItemId(null); }}
+        initialItemId={refundCreditItemId}
+        onRefunded={() => onInvoiceUpdated?.()}
+      />
+
       {/* Refund confirmation dialog */}
       <Dialog open={!!refundItemId} onOpenChange={(open) => { if (!open) setRefundItemId(null); }}>
         <DialogContent className="max-w-[95vw] md:max-w-md p-3 sm:p-6">
