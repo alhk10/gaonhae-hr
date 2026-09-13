@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Lock, CheckCircle, XCircle, Trash2, Settings } from 'lucide-react';
+import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2 } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
