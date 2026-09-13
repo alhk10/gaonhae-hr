@@ -445,6 +445,13 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
         </div>
       )}
 
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['school-fees-submissions'] })}
+      />
+
       {/* Paid invoice preview */}
       <Dialog open={!!invoiceRow} onOpenChange={(o) => !o && setInvoiceRow(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl">
