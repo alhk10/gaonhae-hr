@@ -19,7 +19,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import GradingEventsSettingsDialog from '@/components/grading-list/GradingEventsSettingsDialog';
