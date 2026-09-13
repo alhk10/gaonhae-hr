@@ -68,6 +68,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; title: string; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
