@@ -15,6 +15,7 @@ import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 const InvoicesCreatedSection = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [branchId, setBranchId] = useState<string>('all');
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const { branches } = useBranches();
 
   const getDateRange = () => {
