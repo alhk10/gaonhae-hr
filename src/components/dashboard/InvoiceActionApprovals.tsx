@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Check, X, Loader2, FileText } from 'lucide-react';
 import { getPendingActionRequests, approveActionRequest, rejectActionRequest, type InvoiceActionRequest } from '@/services/invoiceActionRequestService';
 import { cancelInvoice } from '@/services/invoiceService';
-import { refundLineItem } from '@/services/invoiceRefundService';
+import { refundLineItems } from '@/services/invoiceRefundService';
 
 import { formatDate } from '@/utils/dateFormat';
 
