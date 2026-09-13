@@ -229,22 +229,38 @@ export const refundLineItem = async (
 };
 
 /**
+ * Refund several line items on the same invoice in one pass.
+ * Each item goes through the full single-item refund logic so credits,
+ * entitlements, enrolments, grading cleanup and invoice totals stay consistent.
+ */
+export const refundLineItems = async (
+  invoiceItemIds: string[],
+  reason: string
+): Promise<void> => {
+  for (const itemId of invoiceItemIds) {
+    await refundLineItem(itemId, reason);
+  }
+};
+
+/**
  * Submit a line-item refund request for superadmin approval
  */
 export const submitRefundRequest = async (
   invoiceId: string,
-  invoiceItemId: string,
+  invoiceItemIds: string | string[],
   reason: string,
   invoiceNumber: string,
   studentName: string,
   requestedByEmail: string
 ): Promise<void> => {
+  const ids = Array.isArray(invoiceItemIds) ? invoiceItemIds : [invoiceItemIds];
   await submitActionRequest(
     invoiceId,
     'item_refund' as any,
-    { item_id: invoiceItemId, reason },
+    { item_id: ids[0], item_ids: ids, reason },
     invoiceNumber,
     studentName,
     requestedByEmail
   );
 };
+
