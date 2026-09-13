@@ -445,6 +445,13 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
         </Card>
       </div>
 
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => refresh()}
+      />
+
       {/* Details dialog */}
       <Dialog open={!!detailsRow} onOpenChange={(o) => !o && setDetailsRow(null)}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
