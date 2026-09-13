@@ -139,6 +139,12 @@ const InvoicesCreatedSection = () => {
           </div>
         )}
       </CardContent>
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => refetch()}
+      />
     </Card>
   );
 };
