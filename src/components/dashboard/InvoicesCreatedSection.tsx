@@ -24,7 +24,7 @@ const InvoicesCreatedSection = () => {
     return { start: start.toISOString(), end: now.toISOString() };
   };
 
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ['invoices-created', period, branchId],
     queryFn: async () => {
       const { start, end } = getDateRange();
