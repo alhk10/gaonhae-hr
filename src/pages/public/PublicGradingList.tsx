@@ -1567,14 +1567,26 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              <button
-                                type="button"
-                                onClick={() => openRowEdit(r)}
-                                className="text-muted-foreground hover:text-foreground"
-                                title="Edit row"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openRowEdit(r)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Edit row"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                {r.invoice_id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRefundInvoiceId(r.invoice_id)}
+                                    className="text-orange-600 hover:text-orange-800"
+                                    title="Refund as credit"
+                                  >
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </TableCell>
 
                             <TableCell className="px-2 py-0.5">
