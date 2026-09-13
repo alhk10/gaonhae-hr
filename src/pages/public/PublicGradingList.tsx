@@ -1688,6 +1688,13 @@ const PublicGradingList: React.FC = () => {
       </div>
 
 
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
+      />
+
       {/* Slot edit dialog */}
       <Dialog open={!!slotEditRow} onOpenChange={(o) => !o && setSlotEditRow(null)}>
         <DialogContent className="max-w-sm">
