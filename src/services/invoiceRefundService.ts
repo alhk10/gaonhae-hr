@@ -51,10 +51,11 @@ export const refundLineItem = async (
     .insert({
       student_id: invoice.student_id,
       amount: refundAmount,
-      type: 'refund',
+      type: 'item_refund',
       reference_id: invoiceItemId,
       description: `Refund for ${productName} from Invoice #${invoice.invoice_number}`,
     });
+
 
   if (creditError) {
     logger.error('Error creating refund credit', creditError);
