@@ -99,7 +99,37 @@ const InvoicesCreatedSection = () => {
         ) : invoices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">No invoices found for this period.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: stacked cards so the Refund button is always visible */}
+          <div className="sm:hidden space-y-2">
+            {invoices.map((inv: any) => (
+              <div key={inv.id} className="rounded-md border p-2 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}
+                  </span>
+                  <Badge variant={getStatusVariant(inv.status)} className="text-[10px] px-1.5 py-0">
+                    {formatStatus(inv.status)}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    ${inv.total_amount?.toFixed(2)} · Due ${inv.balance_due?.toFixed(2)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px] text-orange-600"
+                    disabled={!['paid', 'verified', 'partially_paid'].includes(String(inv.status))}
+                    onClick={() => setRefundInvoiceId(inv.id)}
+                  >
+                    <Undo2 className="h-3 w-3 mr-1" />Refund
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden sm:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
