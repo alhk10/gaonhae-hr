@@ -34,6 +34,7 @@ import {
   StudentAttendance as StudentAttendanceType,
   StudentEntitlement
 } from '@/services/studentService';
+import { getStudentCreditBalance } from '@/services/studentCreditService';
 
 const StudentProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
