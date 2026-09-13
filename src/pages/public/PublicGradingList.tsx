@@ -2742,6 +2742,13 @@ const CompetitionsTab: React.FC<{
 
 
 
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+      />
+
       {/* Reject dialog */}
       <Dialog open={!!rejectingId} onOpenChange={(o) => { if (!o) { setRejectingId(null); setRejectReason(''); } }}>
         <DialogContent className="max-w-md">
