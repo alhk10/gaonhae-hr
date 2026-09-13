@@ -50,6 +50,7 @@ export interface PublicGradingListRow {
   first_name: string | null;
   last_name: string | null;
   student_current_belt: string | null;
+  invoice_id: string | null;
 }
 
 export const adminUpdateGradingResult = async (
