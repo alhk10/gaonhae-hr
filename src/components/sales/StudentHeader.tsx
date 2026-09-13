@@ -19,6 +19,7 @@ interface StudentHeaderProps {
     attendanceRate: number;
     activeSessions: number;
     outstandingBalance: number;
+    creditBalance?: number;
   };
 }
 
@@ -76,6 +77,12 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
                   <Badge className={getBeltColor(student.current_belt)}>
                     <Award className="w-3 h-3 mr-1" />
                     {student.current_belt}
+                  </Badge>
+                )}
+
+                {(stats?.creditBalance ?? 0) > 0 && (
+                  <Badge className="bg-green-100 text-green-800">
+                    Credit ${(stats?.creditBalance ?? 0).toFixed(2)}
                   </Badge>
                 )}
               </div>
@@ -143,6 +150,15 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({ student, stats }) 
                 <div className="text-xs text-muted-foreground">Sessions Left</div>
               </div>
               
+              {(stats.creditBalance ?? 0) > 0 && (
+                <div className="text-center p-3 bg-green-100 rounded-lg">
+                  <div className="text-2xl font-bold text-green-700">
+                    ${(stats.creditBalance ?? 0).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Credit Balance</div>
+                </div>
+              )}
+
               {stats.outstandingBalance > 0 && (
                 <div className="text-center p-3 bg-destructive/10 rounded-lg">
                   <div className="text-2xl font-bold text-destructive">

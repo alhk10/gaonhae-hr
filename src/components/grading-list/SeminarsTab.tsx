@@ -5,7 +5,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings } from 'lucide-react';
+import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
   const [rejectReason, setRejectReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; title: string; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
@@ -294,7 +296,17 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                           </button>
                         </>
                       )}
-                      {!canEdit && r.paid_status !== 'pending' && (
+                      {r.matched_invoice_id && (
+                        <button
+                          type="button"
+                          onClick={() => setRefundInvoiceId(r.matched_invoice_id)}
+                          className="text-orange-600 hover:text-orange-800"
+                          title="Refund as credit"
+                        >
+                          <Undo2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {!canEdit && r.paid_status !== 'pending' && !r.matched_invoice_id && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
@@ -323,6 +335,13 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
 
 
 
+
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-seminar-list'] })}
+      />
 
       {/* Reject dialog */}
       <Dialog open={!!rejectRow} onOpenChange={(o) => { if (!o) { setRejectRow(null); setRejectReason(''); } }}>

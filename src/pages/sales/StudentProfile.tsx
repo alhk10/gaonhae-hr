@@ -34,6 +34,7 @@ import {
   StudentAttendance as StudentAttendanceType,
   StudentEntitlement
 } from '@/services/studentService';
+import { getStudentCreditBalance } from '@/services/studentCreditService';
 
 const StudentProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -84,9 +85,12 @@ const StudentProfile: React.FC = () => {
 
       setStudent(studentData);
 
-      // Load student stats
-      const statsData = await getStudentStats(studentId);
-      setStats(statsData);
+      // Load student stats + credit balance
+      const [statsData, credit] = await Promise.all([
+        getStudentStats(studentId),
+        getStudentCreditBalance(studentId).catch(() => 0),
+      ]);
+      setStats({ ...(statsData || {}), creditBalance: credit });
 
       // Load emergency contacts
       setContactsLoading(true);

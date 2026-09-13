@@ -19,7 +19,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import GradingEventsSettingsDialog from '@/components/grading-list/GradingEventsSettingsDialog';
@@ -133,6 +134,7 @@ const PublicGradingList: React.FC = () => {
   const [gradingEventsOpen, setGradingEventsOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
     try {
@@ -1567,14 +1569,26 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
-                              <button
-                                type="button"
-                                onClick={() => openRowEdit(r)}
-                                className="text-muted-foreground hover:text-foreground"
-                                title="Edit row"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openRowEdit(r)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Edit row"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                {r.invoice_id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRefundInvoiceId(r.invoice_id)}
+                                    className="text-orange-600 hover:text-orange-800"
+                                    title="Refund as credit"
+                                  >
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </TableCell>
 
                             <TableCell className="px-2 py-0.5">
@@ -1673,6 +1687,13 @@ const PublicGradingList: React.FC = () => {
 
       </div>
 
+
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
+      />
 
       {/* Slot edit dialog */}
       <Dialog open={!!slotEditRow} onOpenChange={(o) => !o && setSlotEditRow(null)}>
@@ -2053,6 +2074,7 @@ const CompetitionsTab: React.FC<{
 }> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const qc = useQueryClient();
   // NOTE: the RPC filters on branch **id** while we hold branch **names**, so
   // fetch every branch and filter client-side.
@@ -2702,9 +2724,20 @@ const CompetitionsTab: React.FC<{
                           <XCircle className="h-4 w-4" />
                         </button>
                       </>
-                    ) : !canEdit ? (
-                      <span className="text-xs text-muted-foreground">—</span>
                     ) : null}
+                    {r.matched_invoice_id && (
+                      <button
+                        type="button"
+                        onClick={() => setRefundInvoiceId(r.matched_invoice_id)}
+                        className="text-orange-600 hover:text-orange-800"
+                        title="Refund as credit"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {!canEdit && r.paid_status !== 'pending verification' && !r.matched_invoice_id && (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </div>
                 </TableCell>
 
@@ -2730,6 +2763,13 @@ const CompetitionsTab: React.FC<{
 
 
 
+
+      <RefundAsCreditDialog
+        invoiceId={refundInvoiceId}
+        open={!!refundInvoiceId}
+        onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
+        onRefunded={() => qc.invalidateQueries({ queryKey: ['public-competition-list'] })}
+      />
 
       {/* Reject dialog */}
       <Dialog open={!!rejectingId} onOpenChange={(o) => { if (!o) { setRejectingId(null); setRejectReason(''); } }}>

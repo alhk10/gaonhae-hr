@@ -45,6 +45,7 @@ export interface PublicCompetitionListRow {
   grading_card_urls: string[];
   date_of_birth: string | null;
   registered: boolean;
+  matched_invoice_id: string | null;
 }
 
 export const setCompetitionRegistered = async (id: string, registered: boolean) => {
