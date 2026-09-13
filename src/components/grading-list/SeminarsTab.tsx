@@ -294,7 +294,17 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                           </button>
                         </>
                       )}
-                      {!canEdit && r.paid_status !== 'pending' && (
+                      {r.matched_invoice_id && (
+                        <button
+                          type="button"
+                          onClick={() => setRefundInvoiceId(r.matched_invoice_id)}
+                          className="text-orange-600 hover:text-orange-800"
+                          title="Refund as credit"
+                        >
+                          <Undo2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {!canEdit && r.paid_status !== 'pending' && !r.matched_invoice_id && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
