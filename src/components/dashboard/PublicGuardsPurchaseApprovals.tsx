@@ -239,6 +239,8 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
 
   const handleRescan = () => {
     clearAutoMatchAttempts('guards-purchases');
+    clearAutoImportAttempts('guards-purchases');
+
     setAutoErrors({});
     void runScan(rows);
   };
