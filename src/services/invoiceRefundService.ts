@@ -42,6 +42,12 @@ export const refundLineItem = async (
     throw new Error('Parent invoice not found');
   }
 
+  // Guard: never refund an item twice — a second refund would issue a
+  // duplicate credit and reduce the invoice totals again.
+  if ((item.metadata as any)?.refunded === true) {
+    throw new Error('This item has already been refunded');
+  }
+
   const productName = (item.products as any)?.name || item.description;
   const refundAmount = item.total_amount + item.tax_amount;
 

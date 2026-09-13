@@ -48,10 +48,16 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
     enabled: open && !!invoiceId,
   });
 
-  // Reset state whenever a different invoice is opened
-  if (open && invoiceId !== lastInvoiceId) {
+  // Reset state whenever the dialog is opened (including reopening the same
+  // invoice after a successful refund, so stale selections cannot resubmit)
+  if (open && lastInvoiceId === null && invoiceId) {
     setLastInvoiceId(invoiceId);
     setSelected(initialItemId ? [initialItemId] : []);
+    setReason('');
+  }
+  if (!open && lastInvoiceId !== null) {
+    setLastInvoiceId(null);
+    setSelected([]);
     setReason('');
   }
 
