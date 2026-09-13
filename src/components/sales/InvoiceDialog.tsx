@@ -2026,7 +2026,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                             {isRefunded && <Badge variant="secondary" className="text-[10px]">Refunded</Badge>}
                             <div className={cn("text-xs font-semibold whitespace-nowrap", isRefunded && "line-through")}>{formatCurrency(item.total_amount)}</div>
                             {canRefund && (
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-orange-600 hover:text-orange-700" title="Refund this item" onClick={() => { setRefundItemId(item.id); setRefundReason(''); }}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-orange-600 hover:text-orange-700" title="Refund as credit" onClick={() => { setRefundCreditItemId(item.id); setRefundCreditOpen(true); }}>
                                 <Undo2 className="h-3 w-3" />
                               </Button>
                             )}
