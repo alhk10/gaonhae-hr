@@ -25,6 +25,15 @@ Rules stay exactly as today: only paid/verified invoices can be refunded, non-su
 
 The existing per-line refund icon inside the invoice dialog stays, and now opens the same dialog.
 
+## Credits management
+
+Every line refunded appears straight away in Credit Management and on the student's record:
+
+- One credit entry per refunded line, naming the item and its invoice, so the amounts can be traced back.
+- Credit Management currently labels both incoming item refunds and cash paid back to a family as "Refund", which reads as money out. Incoming refund credits will be labelled **Item refund** (green) and money paid back stays **Refund** (red), so balances and history are unambiguous.
+- The student's credit balance and the Credit Management totals refresh after a refund, and the new credit is available to offset the next invoice as usual.
+
+
 ## Technical notes
 
 - New `src/components/sales/RefundAsCreditDialog.tsx`: takes an `invoiceId`, loads the invoice plus items (reusing the invoice service), renders selectable lines, and handles both direct refund and approval-request paths via `useInvoiceAccess`/`isSuperadmin`.
