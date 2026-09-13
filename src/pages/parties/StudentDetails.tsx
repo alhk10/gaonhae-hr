@@ -397,9 +397,13 @@ const StudentDetails: React.FC = () => {
                           {formatDate(new Date(c.created_at))}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={c.type === 'overpayment' ? 'default' : c.type === 'credit_applied' ? 'outline' : c.type === 'refund' ? 'destructive' : 'secondary'}>
-                            {c.type.replace('_', ' ')}
-                          </Badge>
+                          {c.type === 'item_refund' ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Item refund</Badge>
+                          ) : (
+                            <Badge variant={c.type === 'overpayment' ? 'default' : c.type === 'credit_applied' ? 'outline' : c.type === 'refund' ? 'destructive' : 'secondary'}>
+                              {c.type.replace('_', ' ')}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className={`text-right font-medium ${c.amount >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                           {c.amount >= 0 ? '+' : ''}${c.amount.toFixed(2)}
