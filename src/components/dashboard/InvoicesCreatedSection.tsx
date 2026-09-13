@@ -104,6 +104,7 @@ const InvoicesCreatedSection = () => {
                   <TableHead className="text-xs py-2 text-right">Amount</TableHead>
                   <TableHead className="text-xs py-2 text-right">Due</TableHead>
                   <TableHead className="text-xs py-2">Status</TableHead>
+                  <TableHead className="text-xs py-2 text-right">Refund</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -116,6 +117,18 @@ const InvoicesCreatedSection = () => {
                       <Badge variant={getStatusVariant(inv.status)} className="text-[10px] px-1.5 py-0">
                         {formatStatus(inv.status)}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px] text-orange-600"
+                        disabled={!['paid', 'verified', 'partially_paid'].includes(String(inv.status))}
+                        onClick={() => setRefundInvoiceId(inv.id)}
+                        title="Refund as credit"
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />Refund
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
