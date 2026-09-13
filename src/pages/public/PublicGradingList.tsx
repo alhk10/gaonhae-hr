@@ -2053,6 +2053,7 @@ const CompetitionsTab: React.FC<{
 }> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const qc = useQueryClient();
   // NOTE: the RPC filters on branch **id** while we hold branch **names**, so
   // fetch every branch and filter client-side.
