@@ -8652,6 +8652,7 @@ export type Database = {
           end_time: string
           first_name: string
           grading_date: string
+          invoice_id: string
           last_name: string
           location: string
           paid_status: string
