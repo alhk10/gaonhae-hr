@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useBranches } from '@/hooks/useBranches';
 import { startOfWeek, startOfMonth, format } from 'date-fns';
-import { FileText } from 'lucide-react';
+import { FileText, Undo2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 
 const InvoicesCreatedSection = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
