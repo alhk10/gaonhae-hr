@@ -19,6 +19,7 @@ interface StudentHeaderProps {
     attendanceRate: number;
     activeSessions: number;
     outstandingBalance: number;
+    creditBalance?: number;
   };
 }
 
