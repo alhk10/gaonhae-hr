@@ -1,0 +1,2 @@
+ALTER TABLE public.student_credits DROP CONSTRAINT IF EXISTS student_credits_type_check;
+ALTER TABLE public.student_credits ADD CONSTRAINT student_credits_type_check CHECK (type = ANY (ARRAY['overpayment'::text, 'refund'::text, 'item_refund'::text, 'manual_adjustment'::text, 'credit_applied'::text]));
