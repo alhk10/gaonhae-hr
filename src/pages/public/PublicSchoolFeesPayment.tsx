@@ -23,13 +23,13 @@ import {
   submitSchoolFeesPayment,
 } from '@/services/schoolFeesSubmissionService';
 import {
-import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
   earlyPaymentDiscountFor,
   compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 
 const GST_RATE = 0.09;

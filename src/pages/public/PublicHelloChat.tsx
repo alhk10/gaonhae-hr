@@ -53,7 +53,6 @@ import {
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 import {
-import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
   earlyPaymentDiscountFor,
@@ -62,6 +61,7 @@ import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
   compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 
 
