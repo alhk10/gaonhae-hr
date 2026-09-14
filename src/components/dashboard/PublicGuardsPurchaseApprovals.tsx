@@ -35,11 +35,17 @@ import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/sub
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { runAutoImportSweep, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 
+import { recordMatchEvent, rememberMatchCorrection } from '@/services/submissionMatchHistoryService';
+import type { MatchSubject } from '@/utils/submissionMatchConfidence';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
 interface Props {
   branchId?: string;
 }
+
+/** Submitted identity used for the contradiction guard and match history. */
+const guardsSubject = (r: { first_name?: string | null; last_name?: string | null; date_of_birth?: string | null; email?: string | null } | null | undefined): MatchSubject | null =>
+  r ? { name: `${r.first_name || ''} ${r.last_name || ''}`.trim(), dateOfBirth: r.date_of_birth || null, email: r.email || null } : null;
 
 const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   const qc = useQueryClient();
@@ -161,6 +167,21 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
     setBusyId(matchingRow.id);
     try {
        await finalize(matchingRow, studentId);
+      await recordMatchEvent({
+        scope: 'guards',
+        submissionId: matchingRow.id,
+        studentId,
+        previousStudentId: matchingRow.matched_student_id || null,
+        method: autoLabel ? 'auto' : 'manual',
+        actor: 'staff',
+      });
+      if (!autoLabel) {
+        const suggested = (matches as Array<{ id: string }>)[0]?.id;
+        const subject = guardsSubject(matchingRow);
+        if (subject && suggested && suggested !== studentId) {
+          await rememberMatchCorrection({ subject, blockedStudentId: suggested, preferredStudentId: studentId, actor: 'staff' });
+        }
+      }
       const invoiced = isPaymentVerified(matchingRow);
       toast.success(
         autoLabel
@@ -182,7 +203,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   React.useEffect(() => {
     if (!matchingRow || matchesLoading) return;
     if (autoMatchedRef.current === matchingRow.id) return;
-    const auto = pickAutoMatch(matches as StudentMatchCandidate[], MAX_GUARDS_MATCH_SCORE);
+    const auto = pickAutoMatch(matches as StudentMatchCandidate[], { maxScore: MAX_GUARDS_MATCH_SCORE, subject: guardsSubject(matchingRow) });
     if (!auto) return;
     autoMatchedRef.current = matchingRow.id;
     const name = `${auto.match.first_name || ''} ${auto.match.last_name || ''}`.trim().toUpperCase();
@@ -205,6 +226,9 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         fetchMatches: (r) => findStudentMatches(r),
         match: (r, c) => finalize(r, c.id),
         maxScore: MAX_GUARDS_MATCH_SCORE,
+        getSubject: (r) => guardsSubject(r)!,
+        historyScope: 'guards',
+        actor: 'system',
       });
       if (Object.keys(res.errors).length) setAutoErrors((p) => ({ ...p, ...res.errors }));
       if (res.matchedIds.length) {

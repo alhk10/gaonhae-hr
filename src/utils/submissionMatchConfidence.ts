@@ -4,6 +4,11 @@
  * Scores come from different scorers (SQL fuzzy match for grading/competition/
  * seminar, client-side scoring for guards purchases), so each caller passes the
  * maximum possible score for its scorer and we normalise to a 0-100 confidence.
+ *
+ * On top of the score there is a hard contradiction guard: even a high score is
+ * never auto-linked when the submission and the student clearly describe two
+ * different people (different date of birth, or names that are not the same
+ * person). Those rows are left for staff instead.
  */
 
 /** Max score of the SQL scorer: email .5 + DOB .3 + branch .1 + name .5 */
@@ -18,25 +23,130 @@ export const AUTO_MATCH_THRESHOLD = 77;
 /** ...and the runner-up is at least this many points behind. */
 export const AUTO_MATCH_GAP = 10;
 
+/** Names below this similarity are never the same person automatically. */
+export const NAME_SIMILARITY_FLOOR = 0.6;
+
 export const toConfidence = (score: number | string | null | undefined, maxScore = MAX_MATCH_SCORE): number => {
   const n = typeof score === 'string' ? parseFloat(score) : Number(score ?? 0);
   if (!Number.isFinite(n) || maxScore <= 0) return 0;
   return Math.max(0, Math.min(100, Math.round((n / maxScore) * 100)));
 };
 
+const normaliseName = (value?: string | null): string[] =>
+  (value || '')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+/** 0-1 token overlap, tolerant of extra middle names and swapped order. */
+export const nameSimilarity = (a?: string | null, b?: string | null): number => {
+  const left = normaliseName(a);
+  const right = normaliseName(b);
+  if (!left.length || !right.length) return 0;
+  const shared = left.filter((t) => right.includes(t)).length;
+  return shared / Math.min(left.length, right.length);
+};
+
+const normaliseDate = (value?: string | null): string | null => {
+  const v = (value || '').trim();
+  return v ? v.slice(0, 10) : null;
+};
+
+export interface MatchSubject {
+  name?: string | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
+}
+
+export interface MatchCandidateIdentity {
+  student_id?: string | null;
+  id?: string | null;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  date_of_birth?: string | null;
+  email?: string | null;
+}
+
+export const candidateStudentId = (candidate: MatchCandidateIdentity): string =>
+  String(candidate.student_id || candidate.id || '');
+
+/**
+ * Returns a plain-English reason when the pairing must not be auto-linked,
+ * or null when nothing contradicts.
+ */
+export const matchContradiction = (
+  subject: MatchSubject | null | undefined,
+  candidate: MatchCandidateIdentity,
+): string | null => {
+  if (!subject) return null;
+
+  const subDob = normaliseDate(subject.dateOfBirth);
+  const candDob = normaliseDate(candidate.date_of_birth);
+  if (subDob && candDob && subDob !== candDob) return 'date of birth differs';
+
+  const candidateName =
+    candidate.full_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
+  if (subject.name && candidateName) {
+    if (nameSimilarity(subject.name, candidateName) < NAME_SIMILARITY_FLOOR) return 'name differs';
+  }
+
+  return null;
+};
+
+/** Normalised key identifying the person behind a submission. */
+export const buildIdentityKey = (subject: MatchSubject): string =>
+  [
+    normaliseName(subject.name).join(' '),
+    normaliseDate(subject.dateOfBirth) || '',
+    (subject.email || '').trim().toLowerCase(),
+  ].join('|');
+
+export interface AutoMatchGuardOptions {
+  maxScore?: number;
+  /** Details of the person who submitted, used for the contradiction guard. */
+  subject?: MatchSubject | null;
+  /** Students staff have already rejected for this person. */
+  blockedStudentIds?: string[];
+  /** Student staff previously chose for this person — always wins. */
+  preferredStudentId?: string | null;
+}
+
 /**
  * Pick the single match that is safe to auto-link, or null when the top match
- * isn't confident enough or a runner-up is too close to call.
+ * isn't confident enough, a runner-up is too close to call, or the top match
+ * contradicts the submitted details.
  */
 export const pickAutoMatch = <T extends { score: number | string | null }>(
   matches: T[] | null | undefined,
-  maxScore = MAX_MATCH_SCORE,
+  maxScoreOrOptions?: number | AutoMatchGuardOptions,
+  maybeOptions?: AutoMatchGuardOptions,
 ): { match: T; confidence: number } | null => {
+  const options: AutoMatchGuardOptions =
+    typeof maxScoreOrOptions === 'object' && maxScoreOrOptions !== null
+      ? maxScoreOrOptions
+      : { ...(maybeOptions || {}), maxScore: (maxScoreOrOptions as number) ?? maybeOptions?.maxScore };
+  const maxScore = options.maxScore ?? MAX_MATCH_SCORE;
+
   if (!matches || matches.length === 0) return null;
-  const sorted = [...matches].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));
+
+  const blocked = new Set((options.blockedStudentIds || []).filter(Boolean));
+  const usable = matches.filter((m) => !blocked.has(candidateStudentId(m as MatchCandidateIdentity)));
+  if (!usable.length) return null;
+
+  if (options.preferredStudentId) {
+    const preferred = usable.find(
+      (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
+    );
+    if (preferred) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+  }
+
+  const sorted = [...usable].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));
   const top = toConfidence(sorted[0].score, maxScore);
   if (top < AUTO_MATCH_THRESHOLD) return null;
   const second = sorted[1] ? toConfidence(sorted[1].score, maxScore) : 0;
   if (top - second < AUTO_MATCH_GAP) return null;
+  if (matchContradiction(options.subject, sorted[0] as MatchCandidateIdentity)) return null;
   return { match: sorted[0], confidence: top };
 };

@@ -7,7 +7,8 @@
  * confidence rule (>= AUTO_MATCH_THRESHOLD and clearly ahead of the runner-up).
  */
 
-import { pickAutoMatch, MAX_MATCH_SCORE } from './submissionMatchConfidence';
+import { pickAutoMatch, MAX_MATCH_SCORE, type MatchSubject, candidateStudentId } from './submissionMatchConfidence';
+import { getOverrideGuards, recordMatchEvent, type MatchScope } from '@/services/submissionMatchHistoryService';
 
 /** Rows already attempted this session, keyed by surface, so we never loop. */
 const attempted = new Map<string, Set<string>>();
@@ -36,6 +37,12 @@ export interface AutoMatchSweepOptions<T, M extends { score: number | string | n
   match: (row: T, candidate: M) => Promise<unknown>;
   /** Maximum score of the scorer behind `fetchMatches`. */
   maxScore?: number;
+  /** Submitted details, used for the contradiction guard and remembered rules. */
+  getSubject?: (row: T) => MatchSubject;
+  /** Scope recorded in the match history. */
+  historyScope?: MatchScope;
+  /** Who is running the sweep. */
+  actor?: string | null;
 }
 
 export interface AutoMatchSweepResult {
@@ -44,9 +51,10 @@ export interface AutoMatchSweepResult {
 }
 
 /**
- * Link every outstanding row whose best suggestion is confident enough.
- * Rows are processed sequentially and each is attempted at most once per
- * session (per scope) so re-renders never re-fire the same work.
+ * Link every outstanding row whose best suggestion is confident enough and
+ * does not contradict the submitted details. Rows are processed sequentially
+ * and each is attempted at most once per session (per scope) so re-renders
+ * never re-fire the same work.
  */
 export const runAutoMatchSweep = async <T, M extends { score: number | string | null }>(
   scope: string,
@@ -62,10 +70,27 @@ export const runAutoMatchSweep = async <T, M extends { score: number | string | 
     seen.add(id);
     try {
       const matches = await opts.fetchMatches(row);
-      const auto = pickAutoMatch(matches, opts.maxScore ?? MAX_MATCH_SCORE);
+      const subject = opts.getSubject?.(row) ?? null;
+      const guards = subject ? await getOverrideGuards(subject) : { blockedStudentIds: [], preferredStudentId: null };
+      const auto = pickAutoMatch(matches, {
+        maxScore: opts.maxScore ?? MAX_MATCH_SCORE,
+        subject,
+        blockedStudentIds: guards.blockedStudentIds,
+        preferredStudentId: guards.preferredStudentId,
+      });
       if (!auto) continue;
       await opts.match(row, auto.match);
       result.matchedIds.push(id);
+      if (opts.historyScope) {
+        await recordMatchEvent({
+          scope: opts.historyScope,
+          submissionId: id,
+          studentId: candidateStudentId(auto.match as any) || null,
+          method: 'auto',
+          confidence: auto.confidence,
+          actor: opts.actor ?? 'system',
+        });
+      }
     } catch (e: any) {
       result.errors[id] = e?.message || String(e);
     }

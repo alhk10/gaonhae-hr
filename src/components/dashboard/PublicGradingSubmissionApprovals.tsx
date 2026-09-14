@@ -31,8 +31,14 @@ import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
+import { recordMatchEvent, rememberMatchCorrection } from '@/services/submissionMatchHistoryService';
+import type { MatchSubject } from '@/utils/submissionMatchConfidence';
 import { isFutureDateOnly } from '@/utils/birthDate';
 
+
+/** Submitted identity used for the contradiction guard and match history. */
+const subjectOf = (s: { first_name?: string | null; last_name?: string | null; date_of_birth?: string | null; email?: string | null } | null | undefined): MatchSubject | null =>
+  s ? { name: `${s.first_name || ''} ${s.last_name || ''}`.trim(), dateOfBirth: s.date_of_birth || null, email: s.email || null } : null;
 
 interface Props {
   branchId?: string;
@@ -153,6 +159,22 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     setBusyId(matchingSub.id);
     try {
       await matchGradingSubmission(matchingSub.id, studentId);
+      await recordMatchEvent({
+        scope: 'grading',
+        submissionId: matchingSub.id,
+        studentId,
+        previousStudentId: matchingSub.matched_student_id || null,
+        method: autoLabel ? 'auto' : 'manual',
+        actor: verifiedBy,
+      });
+      if (!autoLabel) {
+        // Staff overruled the suggestions — remember it for next time.
+        const suggested = (matches as Array<{ student_id: string }>)[0]?.student_id;
+        const subject = subjectOf(matchingSub);
+        if (subject && suggested && suggested !== studentId) {
+          await rememberMatchCorrection({ subject, blockedStudentId: suggested, preferredStudentId: studentId, actor: verifiedBy });
+        }
+      }
       toast.success(autoLabel || 'Student matched');
       if (matchingSub.status === 'verified') {
         const res = await tryAutoImport(() => importGradingSubmission(matchingSub.id, verifiedBy));
@@ -174,7 +196,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   React.useEffect(() => {
     if (!matchingSub || matchesLoading) return;
     if (autoMatchedRef.current === matchingSub.id) return;
-    const auto = pickAutoMatch(matches as SubmissionStudentMatch[]);
+    const auto = pickAutoMatch(matches as SubmissionStudentMatch[], { subject: subjectOf(matchingSub) });
     if (!auto) return;
     autoMatchedRef.current = matchingSub.id;
     handleMatch(auto.match.student_id, `Auto-matched to ${auto.match.full_name} (${auto.confidence}%)`);
@@ -256,6 +278,9 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         needsMatch: (s) => !s.matched_student_id,
         fetchMatches: (s) => findStudentMatches(s.id),
         match: (s, c) => matchGradingSubmission(s.id, c.student_id),
+        getSubject: (s) => subjectOf(s)!,
+        historyScope: 'grading',
+        actor: verifiedBy,
       });
 
       const importRows = rows.map((s) =>

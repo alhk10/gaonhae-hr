@@ -2088,12 +2088,15 @@ export type Database = {
       }
       grading_registrations: {
         Row: {
+          branch_id: string | null
           certificate_ii_issued: boolean | null
           certificate_issued: boolean | null
           created_at: string | null
           created_by: string | null
           current_belt: string
           display_name: string | null
+          duplicate_override_by: string | null
+          duplicate_override_reason: string | null
           grading_slot_id: string | null
           id: string
           invoice_item_id: string | null
@@ -2108,12 +2111,15 @@ export type Database = {
           term_id: string | null
         }
         Insert: {
+          branch_id?: string | null
           certificate_ii_issued?: boolean | null
           certificate_issued?: boolean | null
           created_at?: string | null
           created_by?: string | null
           current_belt: string
           display_name?: string | null
+          duplicate_override_by?: string | null
+          duplicate_override_reason?: string | null
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -2128,12 +2134,15 @@ export type Database = {
           term_id?: string | null
         }
         Update: {
+          branch_id?: string | null
           certificate_ii_issued?: boolean | null
           certificate_issued?: boolean | null
           created_at?: string | null
           created_by?: string | null
           current_belt?: string
           display_name?: string | null
+          duplicate_override_by?: string | null
+          duplicate_override_reason?: string | null
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -2148,6 +2157,13 @@ export type Database = {
           term_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "grading_registrations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "grading_registrations_grading_slot_id_fkey"
             columns: ["grading_slot_id"]
@@ -7140,6 +7156,75 @@ export type Database = {
         }
         Relationships: []
       }
+      submission_match_events: {
+        Row: {
+          actor: string | null
+          confidence: number | null
+          created_at: string
+          id: string
+          method: string
+          note: string | null
+          previous_student_id: string | null
+          scope: string
+          student_id: string | null
+          submission_id: string
+        }
+        Insert: {
+          actor?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          method?: string
+          note?: string | null
+          previous_student_id?: string | null
+          scope: string
+          student_id?: string | null
+          submission_id: string
+        }
+        Update: {
+          actor?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          method?: string
+          note?: string | null
+          previous_student_id?: string | null
+          scope?: string
+          student_id?: string | null
+          submission_id?: string
+        }
+        Relationships: []
+      }
+      submission_match_overrides: {
+        Row: {
+          actor: string | null
+          blocked_student_id: string | null
+          created_at: string
+          id: string
+          identity_key: string
+          preferred_student_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          actor?: string | null
+          blocked_student_id?: string | null
+          created_at?: string
+          id?: string
+          identity_key: string
+          preferred_student_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actor?: string | null
+          blocked_student_id?: string | null
+          created_at?: string
+          id?: string
+          identity_key?: string
+          preferred_student_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       superadmin_users: {
         Row: {
           created_at: string | null
@@ -8011,7 +8096,7 @@ export type Database = {
       }
       admin_update_grading_registration_branch: {
         Args: { p_branch_id: string; p_registration_id: string }
-        Returns: undefined
+        Returns: boolean
       }
       admin_update_grading_registration_display_name: {
         Args: { p_display_name: string; p_registration_id: string }
@@ -8019,6 +8104,10 @@ export type Database = {
       }
       admin_update_grading_registration_slot: {
         Args: { p_registration_id: string; p_slot_id: string }
+        Returns: undefined
+      }
+      admin_update_grading_registration_student: {
+        Args: { p_registration_id: string; p_student_id: string }
         Returns: undefined
       }
       admin_update_grading_remark: {

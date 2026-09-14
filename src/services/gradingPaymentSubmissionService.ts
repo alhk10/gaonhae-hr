@@ -75,13 +75,31 @@ export const adminUpdateGradingRegistrationSlot = async (
   if (error) throw error;
 };
 
+/**
+ * Saves the branch on the registration and moves it to a slot at that branch on
+ * the same grading date when one exists. Resolves to true when the slot moved,
+ * false when the branch was saved but no matching slot was found.
+ */
 export const adminUpdateGradingRegistrationBranch = async (
   registrationId: string,
   branchId: string | null,
-): Promise<void> => {
-  const { error } = await supabase.rpc('admin_update_grading_registration_branch' as any, {
+): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('admin_update_grading_registration_branch' as any, {
     p_registration_id: registrationId,
     p_branch_id: branchId,
+  });
+  if (error) throw error;
+  return data === true;
+};
+
+/** Moves a grading registration (and its invoice) onto a different student. */
+export const adminUpdateGradingRegistrationStudent = async (
+  registrationId: string,
+  studentId: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_registration_student' as any, {
+    p_registration_id: registrationId,
+    p_student_id: studentId,
   });
   if (error) throw error;
 };
