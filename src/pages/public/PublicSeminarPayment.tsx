@@ -26,6 +26,7 @@ import {
   getPublicPaymentOptions,
 } from '@/services/gradingPaymentSubmissionService';
 import {
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
   submitSeminarPayment,
   getPublicSeminarEvents,
   combineSeminarPackages,
@@ -230,7 +231,7 @@ const PublicSeminarPayment: React.FC = () => {
   const canSubmit =
     !!firstName.trim() &&
     !!lastName.trim() &&
-    !!email.trim() &&
+    !!email.trim() && !isBlockedEmail(email) &&
     !!branchId &&
     !!dob &&
     !!gender &&
@@ -385,6 +386,9 @@ const PublicSeminarPayment: React.FC = () => {
                   placeholder="you@example.com"
                   maxLength={255}
                 />
+                {isBlockedEmail(email) && (
+                  <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                )}
               </div>
 
               <div className="space-y-2">
