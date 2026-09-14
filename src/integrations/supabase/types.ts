@@ -7878,6 +7878,17 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: string
       }
+      admin_create_student_for_grading: {
+        Args: {
+          p_branch_id: string
+          p_current_belt?: string
+          p_date_of_birth?: string
+          p_email?: string
+          p_first_name: string
+          p_last_name: string
+        }
+        Returns: string
+      }
       admin_delete_competition_event: {
         Args: { p_id: string }
         Returns: undefined
@@ -8044,6 +8055,18 @@ export type Database = {
       admin_school_fees_delete_context: {
         Args: { p_id: string }
         Returns: Json
+      }
+      admin_search_students_for_grading: {
+        Args: { p_query: string }
+        Returns: {
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          full_name: string
+          id: string
+          student_number: string
+        }[]
       }
       admin_seminar_submission_delete_context: {
         Args: { p_id: string }
