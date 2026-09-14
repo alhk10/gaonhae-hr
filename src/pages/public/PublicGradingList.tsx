@@ -179,6 +179,19 @@ const PublicGradingList: React.FC = () => {
   }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '', remark: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Move a registration onto a different student
+  const [studentSearch, setStudentSearch] = useState('');
+  const [pickedStudent, setPickedStudent] = useState<{ id: string; label: string } | null>(null);
+  const [showCreateStudent, setShowCreateStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({ first_name: '', last_name: '', branch_id: '', date_of_birth: '', email: '', current_belt: '' });
+  const [creatingStudent, setCreatingStudent] = useState(false);
+
+  const { data: studentResults = [] } = useQuery({
+    queryKey: ['grading-list-student-search', studentSearch],
+    queryFn: () => adminSearchStudentsForGrading(studentSearch),
+    enabled: !!editRow && studentSearch.trim().length >= 2,
+  });
+
   // Mass edit dialog
   const [massEditOpen, setMassEditOpen] = useState(false);
   const [massForm, setMassForm] = useState<{
