@@ -34,7 +34,7 @@ Payment form  ->  Identify person  ->  Verify payment  ->  Invoice
 - an email or mobile already belonging to a different account.
 Family accounts sharing one email no longer auto-match on email alone; the date of birth or name must agree too.
 
-**Stage 3 — invoices only after verification.** Invoice creation stays gated on payment status verified/paid plus a confirmed student, as it already is for guards purchases; the same gate is applied everywhere.
+**Stage 3 — an invoice needs both conditions.** An invoice is only created when the payment is verified **and** the submission is matched to a student — both, in either order, across grading, competitions, events, school fees and uniforms & guards. Matching alone never invoices; verifying alone never invoices.
 
 **Learning from past and present data.** Confirmed corrections feed back in: when staff re-match a row, the rejected pairing is remembered and never auto-suggested for that person again, and the corrected person's alternate email/phone/spelling is remembered for next time (extending the existing alternate-email memory). A one-off pass over existing data flags submissions whose matched student disagrees on date of birth or name so the same errors already in the system can be cleaned up.
 
