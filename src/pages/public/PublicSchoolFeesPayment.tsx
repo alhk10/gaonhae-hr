@@ -29,6 +29,7 @@ import {
   compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 
 const GST_RATE = 0.09;
@@ -38,7 +39,8 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const feesSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(60),
   lastName: z.string().trim().min(1, 'Last name is required').max(60),
-  email: z.string().trim().email('Please enter a valid email').max(255),
+  email: z.string().trim().email('Please enter a valid email').max(255)
+    .refine((v) => !isBlockedEmail(v), BLOCKED_EMAIL_MESSAGE),
 });
 
 const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefined) => void }> = ({ value, onChange }) => {
@@ -320,6 +322,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   placeholder="you@example.com"
                   maxLength={255}
                 />
+                {isBlockedEmail(email) && (
+                  <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Please ensure email is correct, confirmation will be sent to this email.
                 </p>

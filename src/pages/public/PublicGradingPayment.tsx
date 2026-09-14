@@ -25,6 +25,7 @@ import {
   submitGradingPayment,
 } from '@/services/gradingPaymentSubmissionService';
 import { supabase } from '@/integrations/supabase/client';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 const GST_RATE = 0.09;
@@ -347,7 +348,7 @@ const PublicGradingPayment: React.FC = () => {
   const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
   const totalAmount = subtotal + gstAmount;
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && !isBlockedEmail(email);
 
   const canSubmit =
     !!firstName.trim() &&
@@ -530,6 +531,9 @@ const PublicGradingPayment: React.FC = () => {
                   maxLength={255}
                 />
                 <p className="text-xs text-muted-foreground">Please ensure email is correct, confirmation will be sent to this email.</p>
+                {isBlockedEmail(email) && (
+                  <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                )}
               </div>
 
               <div className="space-y-2">

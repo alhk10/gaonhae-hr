@@ -27,6 +27,7 @@ import {
 import { getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionService';
 import { toISODate } from '@/utils/dateFormat';
 import { useQuery } from '@tanstack/react-query';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -163,7 +164,7 @@ const PublicGuardsPurchase: React.FC = () => {
 
 
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && !isBlockedEmail(email);
   const detailsFilled = !!firstName.trim() && !!lastName.trim() && !!branchId;
   const canSubmit = !!firstName.trim() && !!lastName.trim() && !!dob && !!branchId
     && emailValid
@@ -311,6 +312,9 @@ const PublicGuardsPurchase: React.FC = () => {
               <div className="space-y-2">
                 <Label>Email *</Label>
                 <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} maxLength={255} />
+                {isBlockedEmail(email) && (
+                  <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                )}
               </div>
 
               <div className="space-y-2">

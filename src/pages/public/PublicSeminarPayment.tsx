@@ -31,6 +31,7 @@ import {
   combineSeminarPackages,
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
@@ -230,7 +231,7 @@ const PublicSeminarPayment: React.FC = () => {
   const canSubmit =
     !!firstName.trim() &&
     !!lastName.trim() &&
-    !!email.trim() &&
+    !!email.trim() && !isBlockedEmail(email) &&
     !!branchId &&
     !!dob &&
     !!gender &&
@@ -385,6 +386,9 @@ const PublicSeminarPayment: React.FC = () => {
                   placeholder="you@example.com"
                   maxLength={255}
                 />
+                {isBlockedEmail(email) && (
+                  <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                )}
               </div>
 
               <div className="space-y-2">

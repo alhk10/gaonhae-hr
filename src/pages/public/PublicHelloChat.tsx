@@ -61,6 +61,7 @@ import {
   compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 
 
 
@@ -568,6 +569,10 @@ const PublicHelloChat: React.FC = () => {
   const handleIdentify = async () => {
     if (!firstName.trim() || !branchId) {
       toast.error('Please fill first name and branch');
+      return;
+    }
+    if (isBlockedEmail(email)) {
+      toast.error(BLOCKED_EMAIL_MESSAGE);
       return;
     }
     const hasAltIdentity = !!gender && (!!email.trim() || !!phone.trim());
@@ -1343,6 +1348,9 @@ const PublicHelloChat: React.FC = () => {
                 <div className="space-y-1">
                   <Label className="text-xs">Email (optional)</Label>
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
+                  {isBlockedEmail(email) && (
+                    <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Contact number (optional)</Label>
