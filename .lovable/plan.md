@@ -61,3 +61,5 @@ Family accounts sharing one email no longer auto-match on email alone; the date 
 - Contradiction guard added to `submissionMatchConfidence.ts`: veto when DOB differs, or name similarity is below a floor, regardless of total score.
 - Unique index on the matched-invoice column per submission table; import RPCs already refuse to re-run, the constraint makes it structural.
 - Audit query over existing matched submissions for DOB/name disagreement, exported for staff review.
+- One-grading-per-term: unique partial index on `grading_registrations (student_id, term_id)` for non-cancelled rows, plus a check in the grading import and invoice creation paths; a `duplicate_override_by` / `duplicate_override_reason` pair on the registration records a staff override.
+- Invoice gate: a shared readiness check (payment status verified/paid AND matched student id present) used by every import path and by `submissionAutoImport.ts`.
