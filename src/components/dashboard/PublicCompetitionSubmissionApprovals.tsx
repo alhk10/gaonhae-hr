@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 import { useAuth } from '@/contexts/AuthContext';
+import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { getBranches } from '@/services/settingsService';
@@ -376,6 +377,7 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
             <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Scan & match'}
           </Button>
+          <MatchHistoryDialog scope='competition' />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

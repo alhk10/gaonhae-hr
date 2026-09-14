@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, RefreshCw, ListFilter, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { getBranches } from '@/services/settingsService';
@@ -385,6 +386,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
             <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Scan & match'}
           </Button>
+          <MatchHistoryDialog scope='guards' />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

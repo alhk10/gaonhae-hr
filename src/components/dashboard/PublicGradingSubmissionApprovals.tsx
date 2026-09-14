@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 import { useAuth } from '@/contexts/AuthContext';
+import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -377,6 +378,7 @@ const PublicGradingSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
             <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Scan & match'}
           </Button>
+          <MatchHistoryDialog scope='grading' />
 
         </CardTitle>
       </CardHeader>
