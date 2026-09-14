@@ -230,6 +230,10 @@ const PublicCompetitionSubmissionApprovals: React.FC<Props> = ({ branchId }) => 
       toast.error('Match a student before importing');
       return;
     }
+    if (sub.status !== 'verified' && sub.status !== 'paid') {
+      toast.error('Verify the payment before creating an invoice');
+      return;
+    }
     setBusyId(sub.id);
     try {
       await importCompetitionSubmission(sub.id, verifiedBy);
