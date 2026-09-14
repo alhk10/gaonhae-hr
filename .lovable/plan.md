@@ -26,7 +26,7 @@ Payment form  ->  Identify person  ->  Verify payment  ->  Invoice
 (public)          (match / create)     (staff decision)   (created once)
 ```
 
-**Stage 1 — the form collects enough to identify someone.** Full name, date of birth and at least one of email or mobile become required on every public payment form, with a live "is this you?" lookup: as details are typed, the form offers the matching account so the person confirms rather than the system guessing later. Someone with no account is marked "new student" at source instead of being matched afterwards.
+**Stage 1 — the form collects enough to identify someone.** Full name, date of birth and at least one of email or mobile become required on every public payment form, so every submission carries the details matching depends on. No account lookup is shown to the person filling the form.
 
 **Stage 2 — matching is a suggestion, never a silent fact.** Automatic matching only links when the score clears the threshold *and* nothing contradicts it. A contradiction blocks the automatic link and sends the row to staff:
 - different date of birth,
