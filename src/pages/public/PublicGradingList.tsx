@@ -481,6 +481,17 @@ const PublicGradingList: React.FC = () => {
 
   const openRowEdit = (r: PublicGradingListRow) => {
     setEditRow(r);
+    setStudentSearch('');
+    setPickedStudent(null);
+    setShowCreateStudent(false);
+    setNewStudent({
+      first_name: (r.first_name || r.student_name || '').toUpperCase(),
+      last_name: (r.last_name || '').toUpperCase(),
+      branch_id: r.branch_id || '',
+      date_of_birth: '',
+      email: '',
+      current_belt: r.current_belt || '',
+    });
     setEditForm({
       display_name: r.student_name || '',
       certificate_name: r.certificate_name || '',
@@ -491,22 +502,54 @@ const PublicGradingList: React.FC = () => {
     });
   };
 
+  const handleCreateStudentForRow = async () => {
+    if (!newStudent.first_name.trim() || !newStudent.branch_id) {
+      toast.error('Name and branch are required');
+      return;
+    }
+    setCreatingStudent(true);
+    try {
+      const id = await adminCreateStudentForGrading({
+        first_name: newStudent.first_name,
+        last_name: newStudent.last_name,
+        branch_id: newStudent.branch_id,
+        date_of_birth: newStudent.date_of_birth || null,
+        email: newStudent.email || null,
+        current_belt: newStudent.current_belt || null,
+      });
+      const label = `${newStudent.first_name} ${newStudent.last_name}`.trim().toUpperCase();
+      setPickedStudent({ id, label });
+      setShowCreateStudent(false);
+      toast.success('Student ready — save to move this entry');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create student');
+    } finally {
+      setCreatingStudent(false);
+    }
+  };
+
   const handleRowEditSave = async () => {
     if (!editRow) return;
     setSavingEdit(true);
     try {
       const ops: Promise<unknown>[] = [];
+      const notes: string[] = [];
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
       const currentRemark = editRow.remark || '';
       const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
+        if (pickedStudent && pickedStudent.id !== editRow.student_id) {
+          await adminUpdateGradingRegistrationStudent(editRow.registration_id, pickedStudent.id);
+          notes.push(`Moved to ${pickedStudent.label}`);
+        }
         if (currentName !== editForm.display_name) {
           ops.push(adminUpdateGradingRegistrationDisplayName(editRow.registration_id, editForm.display_name));
         }
         if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
-          ops.push(adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id));
+          const moved = await adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id);
+          notes.push(moved ? 'Branch saved and slot moved' : 'Branch saved — no slot at that branch on this date, slot kept');
         }
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
@@ -539,11 +582,11 @@ const PublicGradingList: React.FC = () => {
         ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
       }
 
-      if (ops.length === 0) {
+      if (ops.length === 0 && notes.length === 0) {
         toast.info('Nothing to update');
       } else {
-        await Promise.all(ops);
-        toast.success('Updated');
+        if (ops.length) await Promise.all(ops);
+        toast.success(notes.length ? notes.join(' · ') : 'Updated');
         qc.invalidateQueries({ queryKey: ['public-grading-list'] });
       }
       setEditRow(null);
