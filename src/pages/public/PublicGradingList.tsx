@@ -502,6 +502,16 @@ const PublicGradingList: React.FC = () => {
     });
   };
 
+  /** Accepts DD/MM/YYYY (preferred) or YYYY-MM-DD and returns an ISO date. */
+  const parseDobInput = (value: string): string | null => {
+    const v = value.trim();
+    if (!v) return null;
+    const dmy = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    return null;
+  };
+
   const handleCreateStudentForRow = async () => {
     if (!newStudent.first_name.trim() || !newStudent.branch_id) {
       toast.error('Name and branch are required');
@@ -513,7 +523,7 @@ const PublicGradingList: React.FC = () => {
         first_name: newStudent.first_name,
         last_name: newStudent.last_name,
         branch_id: newStudent.branch_id,
-        date_of_birth: newStudent.date_of_birth || null,
+        date_of_birth: parseDobInput(newStudent.date_of_birth),
         email: newStudent.email || null,
         current_belt: newStudent.current_belt || null,
       });
