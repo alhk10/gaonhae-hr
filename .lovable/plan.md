@@ -26,7 +26,7 @@ Payment form  ->  Identify person  ->  Verify payment  ->  Invoice
 (public)          (match / create)     (staff decision)   (created once)
 ```
 
-**Stage 1 — the form collects enough to identify someone.** Full name, date of birth and at least one of email or mobile become required on every public payment form, with a live "is this you?" lookup: as details are typed, the form offers the matching account so the person confirms rather than the system guessing later. Someone with no account is marked "new student" at source instead of being matched afterwards.
+**Stage 1 — the form collects enough to identify someone.** Full name, date of birth and at least one of email or mobile become required on every public payment form, so every submission carries the details matching depends on. No account lookup is shown to the person filling the form.
 
 **Stage 2 — matching is a suggestion, never a silent fact.** Automatic matching only links when the score clears the threshold *and* nothing contradicts it. A contradiction blocks the automatic link and sends the row to staff:
 - different date of birth,
@@ -34,7 +34,7 @@ Payment form  ->  Identify person  ->  Verify payment  ->  Invoice
 - an email or mobile already belonging to a different account.
 Family accounts sharing one email no longer auto-match on email alone; the date of birth or name must agree too.
 
-**Stage 3 — invoices only after verification.** Invoice creation stays gated on payment status verified/paid plus a confirmed student, as it already is for guards purchases; the same gate is applied everywhere.
+**Stage 3 — an invoice needs both conditions.** An invoice is only created when the payment is verified **and** the submission is matched to a student — both, in either order, across grading, competitions, events, school fees and uniforms & guards. Matching alone never invoices; verifying alone never invoices.
 
 **Learning from past and present data.** Confirmed corrections feed back in: when staff re-match a row, the rejected pairing is remembered and never auto-suggested for that person again, and the corrected person's alternate email/phone/spelling is remembered for next time (extending the existing alternate-email memory). A one-off pass over existing data flags submissions whose matched student disagrees on date of birth or name so the same errors already in the system can be cleaned up.
 
@@ -43,6 +43,7 @@ Family accounts sharing one email no longer auto-match on email alone; the date 
 - One invoice per submission, enforced in the database (a unique constraint on the matched invoice per submission row), so a repeated import cannot create a second invoice.
 - Before creating a student, check for an existing account with the same name + date of birth, or same email/mobile, and show it rather than creating a near-duplicate.
 - Duplicate submissions (same person, same event, same amount, within a short window) are flagged in the approvals list so staff can reject the copy.
+- **One grading per student per term.** A second grading registration or grading invoice for the same student in the same term is blocked, with a clear message naming the existing one. Staff raising an invoice manually can override it with a confirmation, and the override is recorded against the registration.
 
 ## Part 5 — Match history with overrides the system remembers
 
@@ -60,3 +61,5 @@ Family accounts sharing one email no longer auto-match on email alone; the date 
 - Contradiction guard added to `submissionMatchConfidence.ts`: veto when DOB differs, or name similarity is below a floor, regardless of total score.
 - Unique index on the matched-invoice column per submission table; import RPCs already refuse to re-run, the constraint makes it structural.
 - Audit query over existing matched submissions for DOB/name disagreement, exported for staff review.
+- One-grading-per-term: unique partial index on `grading_registrations (student_id, term_id)` for non-cancelled rows, plus a check in the grading import and invoice creation paths; a `duplicate_override_by` / `duplicate_override_reason` pair on the registration records a staff override.
+- Invoice gate: a shared readiness check (payment status verified/paid AND matched student id present) used by every import path and by `submissionAutoImport.ts`.
