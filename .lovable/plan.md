@@ -43,6 +43,7 @@ Family accounts sharing one email no longer auto-match on email alone; the date 
 - One invoice per submission, enforced in the database (a unique constraint on the matched invoice per submission row), so a repeated import cannot create a second invoice.
 - Before creating a student, check for an existing account with the same name + date of birth, or same email/mobile, and show it rather than creating a near-duplicate.
 - Duplicate submissions (same person, same event, same amount, within a short window) are flagged in the approvals list so staff can reject the copy.
+- **One grading per student per term.** A second grading registration or grading invoice for the same student in the same term is blocked, with a clear message naming the existing one. Staff raising an invoice manually can override it with a confirmation, and the override is recorded against the registration.
 
 ## Part 5 — Match history with overrides the system remembers
 
