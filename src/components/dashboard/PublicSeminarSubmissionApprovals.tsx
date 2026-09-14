@@ -227,6 +227,10 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   };
 
   const handleImport = async (sub: PendingSeminarSubmission) => {
+    if (sub.status !== 'verified' && sub.status !== 'paid') {
+      toast.error('Verify the payment before creating an invoice');
+      return;
+    }
     setBusyId(sub.id);
     try {
       if (!sub.matched_student_id) {
