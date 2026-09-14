@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 import { useAuth } from '@/contexts/AuthContext';
+import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { getBranches } from '@/services/settingsService';
@@ -32,7 +33,13 @@ import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
+import { recordMatchEvent, rememberMatchCorrection } from '@/services/submissionMatchHistoryService';
+import type { MatchSubject } from '@/utils/submissionMatchConfidence';
 import { isFutureDateOnly } from '@/utils/birthDate';
+
+/** Submitted identity used for the contradiction guard and match history. */
+const subjectOf = (s: { first_name?: string | null; last_name?: string | null; date_of_birth?: string | null; email?: string | null } | null | undefined): MatchSubject | null =>
+  s ? { name: `${s.first_name || ''} ${s.last_name || ''}`.trim(), dateOfBirth: s.date_of_birth || null, email: s.email || null } : null;
 
 interface Props {
   branchId?: string;
@@ -131,6 +138,22 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
     setBusyId(matchingSub.id);
     try {
       await matchSeminarSubmission(matchingSub.id, studentId);
+      await recordMatchEvent({
+        scope: 'seminar',
+        submissionId: matchingSub.id,
+        studentId,
+        previousStudentId: matchingSub.matched_student_id || null,
+        method: autoLabel ? 'auto' : 'manual',
+        actor: verifiedBy,
+      });
+      if (!autoLabel) {
+        // Staff overruled the suggestions — remember it for next time.
+        const suggested = (matches as Array<{ student_id: string }>)[0]?.student_id;
+        const subject = subjectOf(matchingSub);
+        if (subject && suggested && suggested !== studentId) {
+          await rememberMatchCorrection({ subject, blockedStudentId: suggested, preferredStudentId: studentId, actor: verifiedBy });
+        }
+      }
       toast.success(autoLabel || 'Student matched');
       if (matchingSub.status === 'verified') {
         const res = await tryAutoImport(() => createSeminarInvoice(matchingSub.id, verifiedBy));
@@ -152,7 +175,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   React.useEffect(() => {
     if (!matchingSub || matchesLoading) return;
     if (autoMatchedRef.current === matchingSub.id) return;
-    const auto = pickAutoMatch(matches as SeminarStudentMatch[]);
+    const auto = pickAutoMatch(matches as SeminarStudentMatch[], { subject: subjectOf(matchingSub) });
     if (!auto) return;
     autoMatchedRef.current = matchingSub.id;
     handleMatch(auto.match.student_id, `Auto-matched to ${auto.match.full_name} (${auto.confidence}%)`);
@@ -205,6 +228,10 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   };
 
   const handleImport = async (sub: PendingSeminarSubmission) => {
+    if (sub.status !== 'verified' && sub.status !== 'paid') {
+      toast.error('Verify the payment before creating an invoice');
+      return;
+    }
     setBusyId(sub.id);
     try {
       if (!sub.matched_student_id) {
@@ -233,6 +260,9 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         needsMatch: (s) => !s.matched_student_id,
         fetchMatches: (s) => findSeminarSubmissionStudentMatches(s.id),
         match: (s, c) => matchSeminarSubmission(s.id, c.student_id),
+        getSubject: (s) => subjectOf(s)!,
+        historyScope: 'seminar',
+        actor: verifiedBy,
       });
 
       const importRows = rows.map((s) =>
@@ -346,6 +376,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
             <RefreshCw className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Scan & match'}
           </Button>
+          <MatchHistoryDialog scope='seminar' />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -82,6 +82,9 @@ import {
   adminUpdateGradingSubmissionRemark,
   adminUpdateGradingRegistrationSlot,
   adminUpdateGradingRegistrationBranch,
+  adminUpdateGradingRegistrationStudent,
+  adminSearchStudentsForGrading,
+  adminCreateStudentForGrading,
   adminUpdateGradingRegistrationDisplayName,
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
@@ -175,6 +178,19 @@ const PublicGradingList: React.FC = () => {
     remark: string;
   }>({ display_name: '', certificate_name: '', branch_id: '', slot_id: '', result: '', remark: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Move a registration onto a different student
+  const [studentSearch, setStudentSearch] = useState('');
+  const [pickedStudent, setPickedStudent] = useState<{ id: string; label: string } | null>(null);
+  const [showCreateStudent, setShowCreateStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({ first_name: '', last_name: '', branch_id: '', date_of_birth: '', email: '', current_belt: '' });
+  const [creatingStudent, setCreatingStudent] = useState(false);
+
+  const { data: studentResults = [] } = useQuery({
+    queryKey: ['grading-list-student-search', studentSearch],
+    queryFn: () => adminSearchStudentsForGrading(studentSearch),
+    enabled: !!editRow && studentSearch.trim().length >= 2,
+  });
 
   // Mass edit dialog
   const [massEditOpen, setMassEditOpen] = useState(false);
@@ -465,6 +481,17 @@ const PublicGradingList: React.FC = () => {
 
   const openRowEdit = (r: PublicGradingListRow) => {
     setEditRow(r);
+    setStudentSearch('');
+    setPickedStudent(null);
+    setShowCreateStudent(false);
+    setNewStudent({
+      first_name: (r.first_name || r.student_name || '').toUpperCase(),
+      last_name: (r.last_name || '').toUpperCase(),
+      branch_id: r.branch_id || '',
+      date_of_birth: '',
+      email: '',
+      current_belt: r.current_belt || '',
+    });
     setEditForm({
       display_name: r.student_name || '',
       certificate_name: r.certificate_name || '',
@@ -475,22 +502,64 @@ const PublicGradingList: React.FC = () => {
     });
   };
 
+  /** Accepts DD/MM/YYYY (preferred) or YYYY-MM-DD and returns an ISO date. */
+  const parseDobInput = (value: string): string | null => {
+    const v = value.trim();
+    if (!v) return null;
+    const dmy = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    return null;
+  };
+
+  const handleCreateStudentForRow = async () => {
+    if (!newStudent.first_name.trim() || !newStudent.branch_id) {
+      toast.error('Name and branch are required');
+      return;
+    }
+    setCreatingStudent(true);
+    try {
+      const id = await adminCreateStudentForGrading({
+        first_name: newStudent.first_name,
+        last_name: newStudent.last_name,
+        branch_id: newStudent.branch_id,
+        date_of_birth: parseDobInput(newStudent.date_of_birth),
+        email: newStudent.email || null,
+        current_belt: newStudent.current_belt || null,
+      });
+      const label = `${newStudent.first_name} ${newStudent.last_name}`.trim().toUpperCase();
+      setPickedStudent({ id, label });
+      setShowCreateStudent(false);
+      toast.success('Student ready — save to move this entry');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create student');
+    } finally {
+      setCreatingStudent(false);
+    }
+  };
+
   const handleRowEditSave = async () => {
     if (!editRow) return;
     setSavingEdit(true);
     try {
       const ops: Promise<unknown>[] = [];
+      const notes: string[] = [];
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
       const currentRemark = editRow.remark || '';
       const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
+        if (pickedStudent && pickedStudent.id !== editRow.student_id) {
+          await adminUpdateGradingRegistrationStudent(editRow.registration_id, pickedStudent.id);
+          notes.push(`Moved to ${pickedStudent.label}`);
+        }
         if (currentName !== editForm.display_name) {
           ops.push(adminUpdateGradingRegistrationDisplayName(editRow.registration_id, editForm.display_name));
         }
         if (editForm.branch_id && editForm.branch_id !== editRow.branch_id) {
-          ops.push(adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id));
+          const moved = await adminUpdateGradingRegistrationBranch(editRow.registration_id, editForm.branch_id);
+          notes.push(moved ? 'Branch saved and slot moved' : 'Branch saved — no slot at that branch on this date, slot kept');
         }
         if (editForm.slot_id && editForm.slot_id !== editRow.slot_id) {
           ops.push(adminUpdateGradingRegistrationSlot(editRow.registration_id, editForm.slot_id));
@@ -523,11 +592,11 @@ const PublicGradingList: React.FC = () => {
         ops.push(adminUpdateStudentCertificateName(editRow.student_id, editForm.certificate_name));
       }
 
-      if (ops.length === 0) {
+      if (ops.length === 0 && notes.length === 0) {
         toast.info('Nothing to update');
       } else {
-        await Promise.all(ops);
-        toast.success('Updated');
+        if (ops.length) await Promise.all(ops);
+        toast.success(notes.length ? notes.join(' · ') : 'Updated');
         qc.invalidateQueries({ queryKey: ['public-grading-list'] });
       }
       setEditRow(null);
@@ -1860,6 +1929,98 @@ const PublicGradingList: React.FC = () => {
                     <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
                   )}
                 </div>
+                {editRow.source === 'registration' && (
+                  <div className="rounded-md border p-2 space-y-2">
+                    <label className="text-xs text-muted-foreground">Student on this entry</label>
+                    <p className="text-xs font-medium">
+                      {pickedStudent ? `${pickedStudent.label} (will be moved on save)` : (editRow.student_name || 'Not matched')}
+                    </p>
+                    <Input
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      placeholder="Search name, student number or email"
+                      className="h-8 text-xs"
+                    />
+                    {studentResults.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {studentResults.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="w-full text-left text-xs rounded px-2 py-1 hover:bg-muted"
+                            onClick={() => {
+                              setPickedStudent({ id: s.id, label: s.full_name });
+                              setStudentSearch('');
+                            }}
+                          >
+                            {s.full_name}
+                            <span className="text-muted-foreground">
+                              {' '}· {s.student_number || '—'} · {s.date_of_birth ? formatDate(s.date_of_birth) : 'no DOB'} · {s.branch_id || '—'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setShowCreateStudent((v) => !v)}
+                    >
+                      {showCreateStudent ? 'Cancel new student' : 'Create new student'}
+                    </Button>
+                    {showCreateStudent && (
+                      <div className="space-y-1.5">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <Input
+                            className="h-8 text-xs"
+                            placeholder="First name"
+                            value={newStudent.first_name}
+                            onChange={(e) => setNewStudent((f) => ({ ...f, first_name: e.target.value.toUpperCase() }))}
+                          />
+                          <Input
+                            className="h-8 text-xs"
+                            placeholder="Last name"
+                            value={newStudent.last_name}
+                            onChange={(e) => setNewStudent((f) => ({ ...f, last_name: e.target.value.toUpperCase() }))}
+                          />
+                        </div>
+                        <Select value={newStudent.branch_id} onValueChange={(v) => setNewStudent((f) => ({ ...f, branch_id: v }))}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
+                          <SelectContent>
+                            {publicBranches.map((b) => (
+                              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <Input
+                            className="h-8 text-xs"
+                            placeholder="Belt"
+                            value={newStudent.current_belt}
+                            onChange={(e) => setNewStudent((f) => ({ ...f, current_belt: e.target.value }))}
+                          />
+                          <Input
+                            className="h-8 text-xs"
+                            placeholder="Date of birth (DD/MM/YYYY)"
+                            value={newStudent.date_of_birth}
+                            onChange={(e) => setNewStudent((f) => ({ ...f, date_of_birth: e.target.value }))}
+                          />
+                        </div>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="Email"
+                          value={newStudent.email}
+                          onChange={(e) => setNewStudent((f) => ({ ...f, email: e.target.value }))}
+                        />
+                        <Button size="sm" className="h-7 text-xs" onClick={handleCreateStudentForRow} disabled={creatingStudent}>
+                          {creatingStudent ? 'Creating…' : 'Create and use'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="text-xs text-muted-foreground">Branch</label>
                   <Select value={editForm.branch_id} onValueChange={(v) => setEditForm((f) => ({ ...f, branch_id: v }))}>

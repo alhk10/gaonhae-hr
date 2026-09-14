@@ -75,13 +75,31 @@ export const adminUpdateGradingRegistrationSlot = async (
   if (error) throw error;
 };
 
+/**
+ * Saves the branch on the registration and moves it to a slot at that branch on
+ * the same grading date when one exists. Resolves to true when the slot moved,
+ * false when the branch was saved but no matching slot was found.
+ */
 export const adminUpdateGradingRegistrationBranch = async (
   registrationId: string,
   branchId: string | null,
-): Promise<void> => {
-  const { error } = await supabase.rpc('admin_update_grading_registration_branch' as any, {
+): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('admin_update_grading_registration_branch' as any, {
     p_registration_id: registrationId,
     p_branch_id: branchId,
+  });
+  if (error) throw error;
+  return data === true;
+};
+
+/** Moves a grading registration (and its invoice) onto a different student. */
+export const adminUpdateGradingRegistrationStudent = async (
+  registrationId: string,
+  studentId: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_update_grading_registration_student' as any, {
+    p_registration_id: registrationId,
+    p_student_id: studentId,
   });
   if (error) throw error;
 };
@@ -681,3 +699,42 @@ export const adminDeleteGradingSlot = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+
+export interface GradingStudentSearchResult {
+  id: string;
+  student_number: string | null;
+  full_name: string;
+  email: string | null;
+  date_of_birth: string | null;
+  branch_id: string | null;
+  current_belt: string | null;
+}
+
+/** Staff-only student lookup used by the grading list edit dialog. */
+export const adminSearchStudentsForGrading = async (query: string): Promise<GradingStudentSearchResult[]> => {
+  if (query.trim().length < 2) return [];
+  const { data, error } = await supabase.rpc('admin_search_students_for_grading' as any, { p_query: query.trim() });
+  if (error) throw error;
+  return (data || []) as unknown as GradingStudentSearchResult[];
+};
+
+/** Creates (or reuses) a student from the grading list edit dialog. */
+export const adminCreateStudentForGrading = async (input: {
+  first_name: string;
+  last_name: string;
+  branch_id: string;
+  date_of_birth?: string | null;
+  email?: string | null;
+  current_belt?: string | null;
+}): Promise<string> => {
+  const { data, error } = await supabase.rpc('admin_create_student_for_grading' as any, {
+    p_first_name: input.first_name,
+    p_last_name: input.last_name,
+    p_branch_id: input.branch_id,
+    p_date_of_birth: input.date_of_birth || null,
+    p_email: input.email || null,
+    p_current_belt: input.current_belt || null,
+  });
+  if (error) throw error;
+  return data as unknown as string;
+};
