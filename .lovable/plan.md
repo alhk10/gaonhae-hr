@@ -1,12 +1,12 @@
 # Student credits: manual top-up, visible in Hello, used first
 
-Three linked changes: superadmins can add credit to any student, students see their credit in the Hello chat, and credit is automatically used to reduce what they pay.
+Four linked changes: superadmins can add credit to any student, students see their credit in the Hello chat, credit is automatically used to reduce what they pay, and branch staff can request credit refunds for superadmin approval.
 
 ## 1. Credit Management — superadmin can add credit to any student
 
 - A new **Add credit** button at the top opens a student search (by name or student number) covering every student, not just those who already hold credit.
 - Amount and reason are required; the entry appears immediately in the student's history and in the balance list.
-- Adding credit and issuing refunds become **superadmin only**. Other staff keep read-only access to balances and history — the add/refund buttons are hidden for them.
+- Adding credit becomes **superadmin only**. Other staff keep read-only access to balances and history and can request refunds (see section 4), but cannot add credit.
 
 ## 2. Hello chat — show available credit
 
@@ -23,6 +23,14 @@ Three linked changes: superadmins can add credit to any student, students see th
 - The credit used is put **on hold** at that moment, so it cannot be spent twice. It is only consumed once staff verify the submission; if the submission is rejected or deleted, the hold is released and the credit returns.
 - The invoice shows the credit as a settling amount: the full items and total stay as-is, with a credit entry reducing the balance due, and the remaining balance covered by the student's payment.
 
+## 4. Staff-requested credit refunds, approved by superadmin
+
+- Staff can start a **Refund as credit** on an invoice from the Branch Dashboard and from /access, and in Credit Management can request a cash refund of a credit balance.
+- Instead of taking effect straight away, the request goes to the superadmin approvals list with student, invoice, amount and the staff reason.
+- Until it is approved the amount is held, so it cannot be refunded or spent twice; the request shows as pending on the invoice and in the student's credit history.
+- On approval the refund is issued and the credit balance updates; on rejection the hold is released and the staff member sees the reason.
+- A superadmin doing the same action still acts immediately, with no approval step.
+
 ## Technical notes
 
 - `student_credits.type` check constraint extended with `credit_hold` and `credit_hold_released`; holds are negative rows carrying the invoice id in `reference_id`.
@@ -31,4 +39,6 @@ Three linked changes: superadmins can add credit to any student, students see th
 - Verification path (`_resolve_chat_submission_invoice` callers / chat submission verify RPCs): on verify, convert the hold to `credit_applied`; on reject, insert a `credit_hold_released` positive reversal.
 - Public read of the balance goes through a session-validated RPC (`get_public_chat_student_credit(p_session_id, p_student_id)`) — no direct table access from the browser.
 - `PublicHelloChat.tsx`: fetch available credit alongside the student summary; render the credit line under the recognition message and the credit/remaining breakdown plus the no-payment-needed variant on the payment step.
-- `CreditManagement.tsx`: `userrole === 'superadmin'` from `AuthContext` gates add/refund; new student-search dialog backed by a name/number search on `students`.
+- `CreditManagement.tsx`: `userrole === 'superadmin'` from `AuthContext` gates add credit and direct refunds; new student-search dialog backed by a name/number search on `students`.
+- Staff refund requests reuse the existing approval pattern: a new request kind (`credit_refund`) in `invoice_action_requests` with student id, invoice id, amount and reason, surfaced in the superadmin approvals section alongside the other 13 types. Approval calls the existing `issueRefund` / `refundLineItem` path server-side; rejection releases the `credit_hold` row created when the request was raised.
+- `RefundAsCreditDialog.tsx` and its Branch Dashboard / `/access` entry points branch on role: superadmin executes, others submit a request.
