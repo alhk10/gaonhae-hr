@@ -62,7 +62,7 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
       const [productsRes, categoriesRes] = await Promise.all([
         supabase
           .from('products')
-          .select('id, name, sku, base_price, category_id, product_categories(name)')
+          .select('id, name, sku, base_price, category_id, is_lesson, min_age, max_age, allowed_belt_levels, product_categories(name)')
           .eq('is_active', true)
           .order('name'),
         supabase
@@ -105,9 +105,17 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
           is_visible: visible,
           price_override: priceOverride,
           rule_id: rule?.id,
+          is_lesson: !!p.is_lesson,
+          min_age: p.min_age ?? null,
+          max_age: p.max_age ?? null,
+          allowed_belt_levels: p.allowed_belt_levels || [],
           editVisible: visible,
           editPrice: priceOverride !== null ? String(priceOverride) : '',
+          editMinAge: p.min_age !== null && p.min_age !== undefined ? String(p.min_age) : '',
+          editMaxAge: p.max_age !== null && p.max_age !== undefined ? String(p.max_age) : '',
+          editBelts: p.allowed_belt_levels || [],
           dirty: false,
+          restrictionsDirty: false,
         };
       });
       setRows(built);
