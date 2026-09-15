@@ -1407,6 +1407,12 @@ const PublicHelloChat: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {Number(availableCredit) > 0.01 && (
+                  <div className="mt-2 rounded bg-green-50 px-2 py-1.5 text-[12px] text-green-800">
+                    You have <strong>${Number(availableCredit).toFixed(2)}</strong> in credit available. It will be used
+                    automatically on your next payment.
+                  </div>
+                )}
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
