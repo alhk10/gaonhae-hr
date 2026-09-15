@@ -35,6 +35,8 @@ export interface AutoMatchSweepOptions<T, M extends { score: number | string | n
   fetchMatches: (row: T) => Promise<M[]>;
   /** Links the row to the chosen student. */
   match: (row: T, candidate: M) => Promise<unknown>;
+  /** Links the row to a remembered student that the search did not surface. */
+  matchStudent?: (row: T, studentId: string) => Promise<unknown>;
   /** Maximum score of the scorer behind `fetchMatches`. */
   maxScore?: number;
   /** Submitted details, used for the contradiction guard and remembered rules. */
