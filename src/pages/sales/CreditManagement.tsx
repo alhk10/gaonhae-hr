@@ -24,9 +24,13 @@ import {
   getStudentCreditHistory,
   addManualCredit,
   issueRefund,
+  requestCreditRefund,
+  searchStudentsForCredit,
+  type CreditStudentOption,
   type StudentCreditSummary,
   type StudentCredit
 } from '@/services/studentCreditService';
+import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 const CreditManagement: React.FC = () => {
   const navigate = useNavigate();
