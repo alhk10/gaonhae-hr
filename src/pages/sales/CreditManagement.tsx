@@ -179,6 +179,9 @@ const CreditManagement: React.FC = () => {
       case 'item_refund': return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Item refund</Badge>;
       case 'manual_adjustment': return <Badge variant="secondary">Adjustment</Badge>;
       case 'credit_applied': return <Badge variant="outline">Applied</Badge>;
+      case 'credit_hold': return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">On hold</Badge>;
+      case 'credit_hold_released': return <Badge variant="outline">Hold released</Badge>;
+      case 'refund_pending': return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Refund pending</Badge>;
       default: return <Badge>{type}</Badge>;
     }
   };
