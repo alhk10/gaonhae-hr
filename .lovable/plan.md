@@ -1,12 +1,12 @@
 # Student credits: manual top-up, visible in Hello, used first
 
-Three linked changes: superadmins can add credit to any student, students see their credit in the Hello chat, and credit is automatically used to reduce what they pay.
+Four linked changes: superadmins can add credit to any student, students see their credit in the Hello chat, credit is automatically used to reduce what they pay, and branch staff can request credit refunds for superadmin approval.
 
 ## 1. Credit Management — superadmin can add credit to any student
 
 - A new **Add credit** button at the top opens a student search (by name or student number) covering every student, not just those who already hold credit.
 - Amount and reason are required; the entry appears immediately in the student's history and in the balance list.
-- Adding credit and issuing refunds become **superadmin only**. Other staff keep read-only access to balances and history — the add/refund buttons are hidden for them.
+- Adding credit becomes **superadmin only**. Other staff keep read-only access to balances and history and can request refunds (see section 4), but cannot add credit.
 
 ## 2. Hello chat — show available credit
 
