@@ -78,7 +78,10 @@ export const getMatchOverrides = async (subject: MatchSubject): Promise<MatchOve
 export interface OverrideGuards {
   blockedStudentIds: string[];
   preferredStudentId: string | null;
+  /** True only when recalled by full details / name + birth date, not a shared email or mobile. */
+  preferredIsStrong: boolean;
 }
+
 
 export const getOverrideGuards = async (subject: MatchSubject): Promise<OverrideGuards> => {
   const keys = buildIdentityKeys(subject);
