@@ -552,6 +552,11 @@ const PublicHelloChat: React.FC = () => {
       : 0;
   const totalWithTax = cartTotal + (isSGBranch ? gstAmount : 0);
   const gstLabel = isSGBranch ? 'GST (9%)' : 'GST included amount (10%)';
+  const payableTotal = isSGBranch ? totalWithTax : cartTotal;
+  const creditToUse = Math.max(0, Math.min(Number(availableCredit) || 0, payableTotal));
+  const creditRemaining = Math.max(0, (Number(availableCredit) || 0) - creditToUse);
+  const amountDue = Math.max(0, Number((payableTotal - creditToUse).toFixed(2)));
+  const fullyCoveredByCredit = creditToUse > 0 && amountDue < 0.01;
 
 
   // PayNow is Singapore-only. Force bank transfer for any non-SG branch, even if
