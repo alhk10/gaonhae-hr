@@ -12,6 +12,7 @@ import { Check, X, Loader2, FileText } from 'lucide-react';
 import { getPendingActionRequests, approveActionRequest, rejectActionRequest, type InvoiceActionRequest } from '@/services/invoiceActionRequestService';
 import { cancelInvoice } from '@/services/invoiceService';
 import { refundLineItems } from '@/services/invoiceRefundService';
+import { completeCreditRefundRequest, releaseCreditRefundHold } from '@/services/studentCreditService';
 
 import { formatDate } from '@/utils/dateFormat';
 
@@ -35,6 +36,7 @@ const InvoiceActionApprovals: React.FC = () => {
     switch (actionType) {
       case 'cancellation': return 'Cancel';
       case 'item_refund': return 'Item Refund';
+      case 'credit_refund': return 'Credit Refund';
       case 'adjustment': return 'Adjust';
       default: return actionType;
     }
