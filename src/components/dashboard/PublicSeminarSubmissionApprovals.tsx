@@ -33,7 +33,7 @@ import { pickAutoMatch, toConfidence } from '@/utils/submissionMatchConfidence';
 import { runAutoImportSweep, tryAutoImport, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
-import { recordMatchEvent, rememberMatchCorrection } from '@/services/submissionMatchHistoryService';
+import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 import type { MatchSubject } from '@/utils/submissionMatchConfidence';
 import { isFutureDateOnly } from '@/utils/birthDate';
 
@@ -147,11 +147,16 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         actor: verifiedBy,
       });
       if (!autoLabel) {
-        // Staff overruled the suggestions — remember it for next time.
+        // Remember every manual pick so the same person matches automatically next time.
         const suggested = (matches as Array<{ student_id: string }>)[0]?.student_id;
         const subject = subjectOf(matchingSub);
-        if (subject && suggested && suggested !== studentId) {
-          await rememberMatchCorrection({ subject, blockedStudentId: suggested, preferredStudentId: studentId, actor: verifiedBy });
+        if (subject) {
+          await rememberMatch({
+            subject,
+            preferredStudentId: studentId,
+            blockedStudentId: suggested && suggested !== studentId ? suggested : null,
+            actor: verifiedBy,
+          });
         }
       }
       toast.success(autoLabel || 'Student matched');
@@ -260,6 +265,7 @@ const PublicSeminarSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         needsMatch: (s) => !s.matched_student_id,
         fetchMatches: (s) => findSeminarSubmissionStudentMatches(s.id),
         match: (s, c) => matchSeminarSubmission(s.id, c.student_id),
+        matchStudent: (s, sid) => matchSeminarSubmission(s.id, sid),
         getSubject: (s) => subjectOf(s)!,
         historyScope: 'seminar',
         actor: verifiedBy,

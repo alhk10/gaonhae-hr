@@ -57,7 +57,14 @@ export interface MatchSubject {
   name?: string | null;
   dateOfBirth?: string | null;
   email?: string | null;
+  phone?: string | null;
 }
+
+/** Digits only, last 8, so +65 / spaces / dashes all compare equal. */
+export const normalisePhone = (value?: string | null): string => {
+  const digits = (value || '').replace(/\D/g, '');
+  return digits.length >= 8 ? digits.slice(-8) : '';
+};
 
 export interface MatchCandidateIdentity {
   student_id?: string | null;
@@ -95,13 +102,31 @@ export const matchContradiction = (
   return null;
 };
 
-/** Normalised key identifying the person behind a submission. */
+/** Normalised key identifying the person behind a submission (name|dob|email). */
 export const buildIdentityKey = (subject: MatchSubject): string =>
   [
     normaliseName(subject.name).join(' '),
     normaliseDate(subject.dateOfBirth) || '',
     (subject.email || '').trim().toLowerCase(),
   ].join('|');
+
+/**
+ * Keys the submission can be recognised by later, strongest first:
+ * full details, name + birth date, email alone, mobile alone.
+ */
+export const buildIdentityKeys = (subject: MatchSubject): string[] => {
+  const name = normaliseName(subject.name).join(' ');
+  const dob = normaliseDate(subject.dateOfBirth) || '';
+  const email = (subject.email || '').trim().toLowerCase();
+  const phone = normalisePhone(subject.phone);
+
+  const keys: string[] = [];
+  if (name && dob && email) keys.push(`full:${name}|${dob}|${email}`);
+  if (name && dob) keys.push(`nd:${name}|${dob}`);
+  if (email) keys.push(`em:${email}`);
+  if (phone) keys.push(`ph:${phone}`);
+  return keys;
+};
 
 export interface AutoMatchGuardOptions {
   maxScore?: number;

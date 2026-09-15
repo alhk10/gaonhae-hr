@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { buildIdentityKey, type MatchSubject } from '@/utils/submissionMatchConfidence';
+import { buildIdentityKeys, type MatchSubject } from '@/utils/submissionMatchConfidence';
 
 export type MatchScope = 'grading' | 'competition' | 'seminar' | 'guards' | 'school-fees';
 
@@ -60,14 +60,14 @@ export interface MatchOverride {
   preferred_student_id: string | null;
 }
 
-/** Remembered rules for one person (by name + DOB + contact). */
+/** Remembered rules for one person, looked up by every key they can be known by. */
 export const getMatchOverrides = async (subject: MatchSubject): Promise<MatchOverride[]> => {
-  const key = buildIdentityKey(subject);
-  if (!key.replace(/\|/g, '').trim()) return [];
+  const keys = buildIdentityKeys(subject);
+  if (!keys.length) return [];
   const { data, error } = await supabase
     .from('submission_match_overrides' as any)
     .select('identity_key, blocked_student_id, preferred_student_id')
-    .eq('identity_key', key);
+    .in('identity_key', keys);
   if (error) {
     console.warn('Failed to load match overrides', error);
     return [];
@@ -81,33 +81,76 @@ export interface OverrideGuards {
 }
 
 export const getOverrideGuards = async (subject: MatchSubject): Promise<OverrideGuards> => {
+  const keys = buildIdentityKeys(subject);
   const rows = await getMatchOverrides(subject);
+  const blockedStudentIds = Array.from(
+    new Set(rows.map((r) => r.blocked_student_id).filter(Boolean) as string[]),
+  );
+  // Strongest key wins: full details, then name + birth date, then email, then mobile.
+  let preferredStudentId: string | null = null;
+  for (const key of keys) {
+    const hit = rows.find((r) => r.identity_key === key && r.preferred_student_id);
+    if (hit) {
+      preferredStudentId = hit.preferred_student_id;
+      break;
+    }
+  }
   return {
-    blockedStudentIds: rows.map((r) => r.blocked_student_id).filter(Boolean) as string[],
-    preferredStudentId: rows.find((r) => r.preferred_student_id)?.preferred_student_id ?? null,
+    blockedStudentIds: blockedStudentIds.filter((id) => id !== preferredStudentId),
+    preferredStudentId,
   };
 };
 
-/** Remember that this person is not that account (and optionally who they are). */
-export const rememberMatchCorrection = async (params: {
+/**
+ * Remember a staff decision: who this person is, and (when they overruled a
+ * suggestion) which account they are not. Stored against every key the person
+ * can be recognised by, so a later submission with only one detail in common
+ * still resolves.
+ */
+export const rememberMatch = async (params: {
   subject: MatchSubject;
-  blockedStudentId?: string | null;
   preferredStudentId?: string | null;
+  blockedStudentId?: string | null;
   actor?: string | null;
 }): Promise<void> => {
-  const identity_key = buildIdentityKey(params.subject);
-  if (!identity_key.replace(/\|/g, '').trim()) return;
-  try {
-    await supabase.from('submission_match_overrides' as any).insert({
-      identity_key,
-      blocked_student_id: params.blockedStudentId ?? null,
-      preferred_student_id: params.preferredStudentId ?? null,
-      actor: params.actor ?? null,
-    } as any);
-  } catch (e) {
-    console.warn('Failed to remember match correction', e);
+  const keys = buildIdentityKeys(params.subject);
+  if (!keys.length) return;
+
+  for (const identity_key of keys) {
+    const rows: Array<{ blocked: string | null; preferred: string | null }> = [];
+    if (params.preferredStudentId) rows.push({ blocked: null, preferred: params.preferredStudentId });
+    if (params.blockedStudentId && params.blockedStudentId !== params.preferredStudentId) {
+      rows.push({ blocked: params.blockedStudentId, preferred: params.preferredStudentId ?? null });
+    }
+
+    for (const row of rows) {
+      try {
+        const { error } = await supabase.from('submission_match_overrides' as any).insert({
+          identity_key,
+          blocked_student_id: row.blocked,
+          preferred_student_id: row.preferred,
+          actor: params.actor ?? null,
+        } as any);
+        if (error) {
+          // Already remembered under this key — refresh the preferred account.
+          let update = supabase
+            .from('submission_match_overrides' as any)
+            .update({ preferred_student_id: row.preferred, actor: params.actor ?? null, updated_at: new Date().toISOString() } as any)
+            .eq('identity_key', identity_key);
+          update = row.blocked
+            ? update.eq('blocked_student_id', row.blocked)
+            : update.is('blocked_student_id', null);
+          await update;
+        }
+      } catch (e) {
+        console.warn('Failed to remember match', e);
+      }
+    }
   }
 };
+
+/** Back-compat wrapper for the correction-only call sites. */
+export const rememberMatchCorrection = rememberMatch;
 
 export const listMatchEvents = async (params: {
   scope?: string;

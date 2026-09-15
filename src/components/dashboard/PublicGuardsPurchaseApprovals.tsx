@@ -36,7 +36,7 @@ import { pickAutoMatch, toConfidence, MAX_GUARDS_MATCH_SCORE } from '@/utils/sub
 import { runAutoMatchSweep, clearAutoMatchAttempts } from '@/utils/submissionAutoMatch';
 import { runAutoImportSweep, clearAutoImportAttempts } from '@/utils/submissionAutoImport';
 
-import { recordMatchEvent, rememberMatchCorrection } from '@/services/submissionMatchHistoryService';
+import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 import type { MatchSubject } from '@/utils/submissionMatchConfidence';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
 
@@ -45,8 +45,15 @@ interface Props {
 }
 
 /** Submitted identity used for the contradiction guard and match history. */
-const guardsSubject = (r: { first_name?: string | null; last_name?: string | null; date_of_birth?: string | null; email?: string | null } | null | undefined): MatchSubject | null =>
-  r ? { name: `${r.first_name || ''} ${r.last_name || ''}`.trim(), dateOfBirth: r.date_of_birth || null, email: r.email || null } : null;
+const guardsSubject = (r: { first_name?: string | null; last_name?: string | null; date_of_birth?: string | null; email?: string | null; phone?: string | null } | null | undefined): MatchSubject | null =>
+  r
+    ? {
+        name: `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        dateOfBirth: r.date_of_birth || null,
+        email: r.email || null,
+        phone: r.phone || null,
+      }
+    : null;
 
 const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   const qc = useQueryClient();
@@ -177,10 +184,16 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         actor: 'staff',
       });
       if (!autoLabel) {
+        // Remember every manual pick so the same person matches automatically next time.
         const suggested = (matches as Array<{ id: string }>)[0]?.id;
         const subject = guardsSubject(matchingRow);
-        if (subject && suggested && suggested !== studentId) {
-          await rememberMatchCorrection({ subject, blockedStudentId: suggested, preferredStudentId: studentId, actor: 'staff' });
+        if (subject) {
+          await rememberMatch({
+            subject,
+            preferredStudentId: studentId,
+            blockedStudentId: suggested && suggested !== studentId ? suggested : null,
+            actor: 'staff',
+          });
         }
       }
       const invoiced = isPaymentVerified(matchingRow);
@@ -226,6 +239,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
         needsMatch: (r) => !r.matched_student_id,
         fetchMatches: (r) => findStudentMatches(r),
         match: (r, c) => finalize(r, c.id),
+        matchStudent: (r, sid) => finalize(r, sid),
         maxScore: MAX_GUARDS_MATCH_SCORE,
         getSubject: (r) => guardsSubject(r)!,
         historyScope: 'guards',
