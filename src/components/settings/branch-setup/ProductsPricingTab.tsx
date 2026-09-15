@@ -251,13 +251,15 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
               <TableHead>SKU</TableHead>
               <TableHead className="text-right">Base Price</TableHead>
               <TableHead className="w-[180px]">Branch Price ({branchCurrency})</TableHead>
+              <TableHead className="w-[150px]">Age (class products)</TableHead>
+              <TableHead className="w-[220px]">Belts (class products)</TableHead>
               <TableHead className="w-[120px] text-center">Visible</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No products match your search.
                 </TableCell>
               </TableRow>
@@ -285,6 +287,45 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
                         disabled={!r.editVisible}
                       />
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {r.is_lesson ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="From"
+                          value={r.editMinAge}
+                          onChange={(e) => updateRow(r.id, { editMinAge: e.target.value, restrictionsDirty: true })}
+                          className="h-8 text-sm"
+                        />
+                        <span className="text-xs text-muted-foreground">–</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="To"
+                          value={r.editMaxAge}
+                          onChange={(e) => updateRow(r.id, { editMaxAge: e.target.value, restrictionsDirty: true })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {r.is_lesson ? (
+                      <MultiSelect
+                        values={r.editBelts}
+                        onValuesChange={(values) => updateRow(r.id, { editBelts: values, restrictionsDirty: true })}
+                        options={BELT_LEVELS_ARRAY}
+                        placeholder="All belts"
+                        searchPlaceholder="Search belts..."
+                        maxDisplayed={2}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <Switch
