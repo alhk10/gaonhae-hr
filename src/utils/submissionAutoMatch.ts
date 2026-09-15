@@ -80,7 +80,29 @@ export const runAutoMatchSweep = async <T, M extends { score: number | string | 
         blockedStudentIds: guards.blockedStudentIds,
         preferredStudentId: guards.preferredStudentId,
       });
-      if (!auto) continue;
+      if (!auto) {
+        // Staff already told us who this is — link straight to that account
+        // even when the search did not surface it.
+        const remembered = guards.preferredStudentId;
+        const inList = remembered
+          ? matches.some((m) => candidateStudentId(m as any) === remembered)
+          : false;
+        if (remembered && !inList && opts.matchStudent) {
+          await opts.matchStudent(row, remembered);
+          result.matchedIds.push(id);
+          if (opts.historyScope) {
+            await recordMatchEvent({
+              scope: opts.historyScope,
+              submissionId: id,
+              studentId: remembered,
+              method: 'auto',
+              actor: opts.actor ?? 'system',
+              note: 'remembered from a previous manual match',
+            });
+          }
+        }
+        continue;
+      }
       await opts.match(row, auto.match);
       result.matchedIds.push(id);
       if (opts.historyScope) {
