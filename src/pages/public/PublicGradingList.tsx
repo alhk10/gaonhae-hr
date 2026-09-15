@@ -2705,7 +2705,7 @@ const CompetitionsTab: React.FC<{
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="hidden lg:block overflow-x-auto">
         <Table>
-<TableHeader>
+          <TableHeader>
             <TableRow>
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
               <TableHead className="h-7 px-2 text-[11px]">Reporting</TableHead>
@@ -2731,7 +2731,7 @@ const CompetitionsTab: React.FC<{
           </TableHeader>
           <TableBody>
             {displayRows.map(({ r, cat, idx, branchColor }) => (
-<TableRow
+              <TableRow
                 key={`${r.submission_id}__${idx}`}
                 style={{ borderLeft: `4px solid ${branchColor}` }}
               >
