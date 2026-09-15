@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { upsertBranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 interface Props {
   branchId: string;
@@ -27,10 +29,18 @@ interface ProductRow {
   is_visible: boolean;
   price_override: number | null;
   rule_id?: string;
+  is_lesson: boolean;
+  min_age: number | null;
+  max_age: number | null;
+  allowed_belt_levels: string[];
   // edit state
   editVisible: boolean;
   editPrice: string;
+  editMinAge: string;
+  editMaxAge: string;
+  editBelts: string[];
   dirty: boolean;
+  restrictionsDirty: boolean;
 }
 
 interface CategoryOption {
@@ -52,7 +62,7 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
       const [productsRes, categoriesRes] = await Promise.all([
         supabase
           .from('products')
-          .select('id, name, sku, base_price, category_id, product_categories(name)')
+          .select('id, name, sku, base_price, category_id, is_lesson, min_age, max_age, allowed_belt_levels, product_categories(name)')
           .eq('is_active', true)
           .order('name'),
         supabase
@@ -95,9 +105,17 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
           is_visible: visible,
           price_override: priceOverride,
           rule_id: rule?.id,
+          is_lesson: !!p.is_lesson,
+          min_age: p.min_age ?? null,
+          max_age: p.max_age ?? null,
+          allowed_belt_levels: p.allowed_belt_levels || [],
           editVisible: visible,
           editPrice: priceOverride !== null ? String(priceOverride) : '',
+          editMinAge: p.min_age !== null && p.min_age !== undefined ? String(p.min_age) : '',
+          editMaxAge: p.max_age !== null && p.max_age !== undefined ? String(p.max_age) : '',
+          editBelts: p.allowed_belt_levels || [],
           dirty: false,
+          restrictionsDirty: false,
         };
       });
       setRows(built);
@@ -140,6 +158,19 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
     setSaving(true);
     try {
       for (const r of dirty) {
+        if (r.restrictionsDirty) {
+          const minAge = r.editMinAge.trim() === '' ? null : parseInt(r.editMinAge, 10);
+          const maxAge = r.editMaxAge.trim() === '' ? null : parseInt(r.editMaxAge, 10);
+          const { error: pe } = await supabase
+            .from('products')
+            .update({
+              min_age: minAge !== null && Number.isNaN(minAge) ? null : minAge,
+              max_age: maxAge !== null && Number.isNaN(maxAge) ? null : maxAge,
+              allowed_belt_levels: r.editBelts.length > 0 ? r.editBelts : null,
+            })
+            .eq('id', r.id);
+          if (pe) throw pe;
+        }
         const newPrice = r.editPrice.trim() === '' ? null : parseFloat(r.editPrice);
         if (newPrice !== null && Number.isNaN(newPrice)) continue;
         const isHidden = !r.editVisible;
@@ -220,13 +251,15 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
               <TableHead>SKU</TableHead>
               <TableHead className="text-right">Base Price</TableHead>
               <TableHead className="w-[180px]">Branch Price ({branchCurrency})</TableHead>
+              <TableHead className="w-[150px]">Age (class products)</TableHead>
+              <TableHead className="w-[220px]">Belts (class products)</TableHead>
               <TableHead className="w-[120px] text-center">Visible</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No products match your search.
                 </TableCell>
               </TableRow>
@@ -254,6 +287,45 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
                         disabled={!r.editVisible}
                       />
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {r.is_lesson ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="From"
+                          value={r.editMinAge}
+                          onChange={(e) => updateRow(r.id, { editMinAge: e.target.value, restrictionsDirty: true })}
+                          className="h-8 text-sm"
+                        />
+                        <span className="text-xs text-muted-foreground">–</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="To"
+                          value={r.editMaxAge}
+                          onChange={(e) => updateRow(r.id, { editMaxAge: e.target.value, restrictionsDirty: true })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {r.is_lesson ? (
+                      <MultiSelect
+                        values={r.editBelts}
+                        onValuesChange={(values) => updateRow(r.id, { editBelts: values, restrictionsDirty: true })}
+                        options={BELT_LEVELS_ARRAY}
+                        placeholder="All belts"
+                        searchPlaceholder="Search belts..."
+                        maxDisplayed={2}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <Switch

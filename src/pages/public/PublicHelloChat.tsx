@@ -2657,7 +2657,9 @@ const ProductRow: React.FC<{
           )}
           {!showTerms && isLessonCategory && (
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+              <Label className="text-[11px] text-muted-foreground">
+                {isSchoolFees ? 'Number of lessons' : 'Quantity'}
+              </Label>
               <Input
                 type="number"
                 min={1}
@@ -2666,6 +2668,14 @@ const ProductRow: React.FC<{
                 className="h-9 text-xs"
                 placeholder="Quantity"
               />
+              {isSchoolFees && (
+                <p className="text-xs font-semibold">
+                  ${(getDisplayPrice(product, branchCountry) * Math.max(1, d.qty || 1)).toFixed(2)}
+                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                    ({Math.max(1, d.qty || 1)} × ${getDisplayPrice(product, branchCountry).toFixed(2)})
+                  </span>
+                </p>
+              )}
             </div>
           )}
           {product.requires_size && sizes.length > 0 && (
