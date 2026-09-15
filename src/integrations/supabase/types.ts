@@ -8315,6 +8315,10 @@ export type Database = {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
       }
+      consume_credit_hold: {
+        Args: { p_actor?: string; p_invoice_id: string }
+        Returns: undefined
+      }
       create_public_chat_callback: {
         Args: {
           p_branch_id: string
@@ -8641,6 +8645,10 @@ export type Database = {
           product_name: string
           requires_size: boolean
         }[]
+      }
+      get_public_chat_student_credit: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: number
       }
       get_public_chat_terms_for_student: {
         Args: {
@@ -9157,6 +9165,10 @@ export type Database = {
           term_name: string
         }[]
       }
+      get_student_available_credit: {
+        Args: { p_student_id: string }
+        Returns: number
+      }
       get_student_by_auth_id_for_auth: {
         Args: { p_auth_user_id: string; p_email?: string }
         Returns: {
@@ -9274,6 +9286,10 @@ export type Database = {
       }
       public_set_guards_variant_selections: {
         Args: { p_id: string; p_selections: Json }
+        Returns: undefined
+      }
+      release_credit_hold: {
+        Args: { p_actor?: string; p_invoice_id: string }
         Returns: undefined
       }
       remember_guards_purchase_email: {
