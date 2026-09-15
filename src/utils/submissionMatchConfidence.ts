@@ -114,6 +114,13 @@ export const buildIdentityKey = (subject: MatchSubject): string =>
  * Keys the submission can be recognised by later, strongest first:
  * full details, name + birth date, email alone, mobile alone.
  */
+/**
+ * Only the keys that identify a person, not a household: email and mobile are
+ * routinely shared between siblings, so they can never be trusted on their own.
+ */
+export const isStrongIdentityKey = (key: string): boolean =>
+  key.startsWith('full:') || key.startsWith('nd:');
+
 export const buildIdentityKeys = (subject: MatchSubject): string[] => {
   const name = normaliseName(subject.name).join(' ');
   const dob = normaliseDate(subject.dateOfBirth) || '';
@@ -136,6 +143,12 @@ export interface AutoMatchGuardOptions {
   blockedStudentIds?: string[];
   /** Student staff previously chose for this person — always wins. */
   preferredStudentId?: string | null;
+  /**
+   * True when the remembered account was only recalled through a shared detail
+   * (email or mobile). Siblings share those, so the name/birth date guard still
+   * applies before the remembered account is used.
+   */
+  preferredIsWeak?: boolean;
 }
 
 /**
@@ -164,7 +177,11 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    if (preferred) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    const contradicts =
+      preferred && options.preferredIsWeak
+        ? matchContradiction(options.subject, preferred as MatchCandidateIdentity)
+        : null;
+    if (preferred && !contradicts) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
   }
 
   const sorted = [...usable].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));

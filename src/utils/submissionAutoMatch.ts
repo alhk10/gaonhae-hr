@@ -73,17 +73,22 @@ export const runAutoMatchSweep = async <T, M extends { score: number | string | 
     try {
       const matches = await opts.fetchMatches(row);
       const subject = opts.getSubject?.(row) ?? null;
-      const guards = subject ? await getOverrideGuards(subject) : { blockedStudentIds: [], preferredStudentId: null };
+      const guards = subject
+        ? await getOverrideGuards(subject)
+        : { blockedStudentIds: [], preferredStudentId: null, preferredIsStrong: false };
       const auto = pickAutoMatch(matches, {
         maxScore: opts.maxScore ?? MAX_MATCH_SCORE,
         subject,
         blockedStudentIds: guards.blockedStudentIds,
         preferredStudentId: guards.preferredStudentId,
+        preferredIsWeak: !guards.preferredIsStrong,
       });
       if (!auto) {
         // Staff already told us who this is — link straight to that account
-        // even when the search did not surface it.
-        const remembered = guards.preferredStudentId;
+        // even when the search did not surface it. Only when the person was
+        // recognised by their own name and birth date: a shared family email or
+        // mobile could belong to a sibling, so those are left for staff.
+        const remembered = guards.preferredIsStrong ? guards.preferredStudentId : null;
         const inList = remembered
           ? matches.some((m) => candidateStudentId(m as any) === remembered)
           : false;

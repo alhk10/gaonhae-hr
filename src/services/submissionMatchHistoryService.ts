@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { buildIdentityKeys, type MatchSubject } from '@/utils/submissionMatchConfidence';
+import { buildIdentityKeys, isStrongIdentityKey, type MatchSubject } from '@/utils/submissionMatchConfidence';
 
 export type MatchScope = 'grading' | 'competition' | 'seminar' | 'guards' | 'school-fees';
 
@@ -78,7 +78,10 @@ export const getMatchOverrides = async (subject: MatchSubject): Promise<MatchOve
 export interface OverrideGuards {
   blockedStudentIds: string[];
   preferredStudentId: string | null;
+  /** True only when recalled by full details / name + birth date, not a shared email or mobile. */
+  preferredIsStrong: boolean;
 }
+
 
 export const getOverrideGuards = async (subject: MatchSubject): Promise<OverrideGuards> => {
   const keys = buildIdentityKeys(subject);
@@ -88,16 +91,19 @@ export const getOverrideGuards = async (subject: MatchSubject): Promise<Override
   );
   // Strongest key wins: full details, then name + birth date, then email, then mobile.
   let preferredStudentId: string | null = null;
+  let preferredIsStrong = false;
   for (const key of keys) {
     const hit = rows.find((r) => r.identity_key === key && r.preferred_student_id);
     if (hit) {
       preferredStudentId = hit.preferred_student_id;
+      preferredIsStrong = isStrongIdentityKey(key);
       break;
     }
   }
   return {
     blockedStudentIds: blockedStudentIds.filter((id) => id !== preferredStudentId),
     preferredStudentId,
+    preferredIsStrong,
   };
 };
 
