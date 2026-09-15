@@ -85,8 +85,10 @@ export const runAutoMatchSweep = async <T, M extends { score: number | string | 
       });
       if (!auto) {
         // Staff already told us who this is — link straight to that account
-        // even when the search did not surface it.
-        const remembered = guards.preferredStudentId;
+        // even when the search did not surface it. Only when the person was
+        // recognised by their own name and birth date: a shared family email or
+        // mobile could belong to a sibling, so those are left for staff.
+        const remembered = guards.preferredIsStrong ? guards.preferredStudentId : null;
         const inList = remembered
           ? matches.some((m) => candidateStudentId(m as any) === remembered)
           : false;
