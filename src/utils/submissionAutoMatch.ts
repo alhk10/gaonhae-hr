@@ -73,12 +73,15 @@ export const runAutoMatchSweep = async <T, M extends { score: number | string | 
     try {
       const matches = await opts.fetchMatches(row);
       const subject = opts.getSubject?.(row) ?? null;
-      const guards = subject ? await getOverrideGuards(subject) : { blockedStudentIds: [], preferredStudentId: null };
+      const guards = subject
+        ? await getOverrideGuards(subject)
+        : { blockedStudentIds: [], preferredStudentId: null, preferredIsStrong: false };
       const auto = pickAutoMatch(matches, {
         maxScore: opts.maxScore ?? MAX_MATCH_SCORE,
         subject,
         blockedStudentIds: guards.blockedStudentIds,
         preferredStudentId: guards.preferredStudentId,
+        preferredIsWeak: !guards.preferredIsStrong,
       });
       if (!auto) {
         // Staff already told us who this is — link straight to that account
