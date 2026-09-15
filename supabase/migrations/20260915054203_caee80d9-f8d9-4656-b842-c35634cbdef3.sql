@@ -1,0 +1,1 @@
+ALTER TABLE public.invoice_action_requests ALTER COLUMN invoice_id DROP NOT NULL;

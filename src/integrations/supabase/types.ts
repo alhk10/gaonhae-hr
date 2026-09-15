@@ -2758,7 +2758,7 @@ export type Database = {
           action_type: string
           created_at: string
           id: string
-          invoice_id: string
+          invoice_id: string | null
           invoice_number: string | null
           rejection_reason: string | null
           request_data: Json
@@ -2773,7 +2773,7 @@ export type Database = {
           action_type: string
           created_at?: string
           id?: string
-          invoice_id: string
+          invoice_id?: string | null
           invoice_number?: string | null
           rejection_reason?: string | null
           request_data?: Json
@@ -2788,7 +2788,7 @@ export type Database = {
           action_type?: string
           created_at?: string
           id?: string
-          invoice_id?: string
+          invoice_id?: string | null
           invoice_number?: string | null
           rejection_reason?: string | null
           request_data?: Json
