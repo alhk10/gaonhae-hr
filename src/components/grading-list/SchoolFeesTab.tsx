@@ -38,6 +38,7 @@ import {
 } from '@/services/schoolFeesSubmissionService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
+import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 
 
 interface Props {
@@ -225,6 +226,23 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     setBusy(true);
     try {
       await matchSchoolFeesSubmission(matchRow.id, studentId, actor);
+      await recordMatchEvent({
+        scope: 'school-fees',
+        submissionId: matchRow.id,
+        studentId,
+        method: 'manual',
+        actor,
+      });
+      // Remember the pick so the same person matches automatically next time.
+      await rememberMatch({
+        subject: {
+          name: matchRow.contact_name || null,
+          dateOfBirth: matchRow.contact_dob || null,
+          email: matchRow.contact_email || null,
+        },
+        preferredStudentId: studentId,
+        actor,
+      });
       toast.success('Student linked and invoice created');
       setMatchRow(null);
       refresh();
