@@ -180,6 +180,115 @@ export const issueRefund = async (
   return data as StudentCredit;
 };
 
+export interface CreditStudentOption {
+  id: string;
+  name: string;
+  student_number: string | null;
+}
+
+/**
+ * Search students by name or student number (for the manual credit dialog)
+ */
+export const searchStudentsForCredit = async (query: string): Promise<CreditStudentOption[]> => {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number')
+    .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,student_number.ilike.%${q}%`)
+    .order('first_name')
+    .limit(20);
+
+  if (error) {
+    logger.error('Error searching students for credit', error);
+    return [];
+  }
+
+  return (data || []).map(s => ({
+    id: s.id,
+    name: `${s.first_name || ''} ${s.last_name || ''}`.trim(),
+    student_number: s.student_number ?? null,
+  }));
+};
+
+/**
+ * Staff request for a cash refund of a student's credit balance.
+ * The amount is held immediately so it cannot be spent or refunded twice.
+ */
+export const requestCreditRefund = async (
+  studentId: string,
+  studentName: string,
+  amount: number,
+  reason: string,
+  requestedByEmail: string
+): Promise<void> => {
+  const { data: hold, error: holdError } = await supabase
+    .from('student_credits')
+    .insert({
+      student_id: studentId,
+      amount: -Math.abs(amount),
+      type: 'refund_pending' as any,
+      description: `Cash refund pending superadmin approval — ${reason}`,
+      created_by: requestedByEmail || null,
+    })
+    .select()
+    .single();
+
+  if (holdError) {
+    logger.error('Error holding credit for refund request', holdError);
+    throw new Error(`Failed to submit refund request: ${holdError.message}`);
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from('invoice_action_requests')
+    .insert({
+      invoice_id: null as any,
+      action_type: 'credit_refund',
+      request_data: { student_id: studentId, amount, reason, hold_id: hold?.id },
+      requested_by: user?.id || null,
+      requested_by_email: requestedByEmail || null,
+      invoice_number: null,
+      student_name: studentName,
+      status: 'pending',
+    });
+
+  if (error) {
+    // Roll back the hold so the balance is not stuck
+    if (hold?.id) await supabase.from('student_credits').delete().eq('id', hold.id);
+    logger.error('Error submitting credit refund request', error);
+    throw new Error(`Failed to submit refund request: ${error.message}`);
+  }
+};
+
+/**
+ * Turn an approved credit refund request into an actual refund
+ */
+export const completeCreditRefundRequest = async (
+  requestData: any,
+  approvedByEmail?: string
+): Promise<void> => {
+  if (requestData?.hold_id) {
+    await supabase.from('student_credits').delete().eq('id', requestData.hold_id);
+  }
+  await issueRefund(
+    requestData?.student_id,
+    Number(requestData?.amount || 0),
+    requestData?.reason || 'Credit refund approved',
+    approvedByEmail
+  );
+};
+
+/**
+ * Release the hold placed by a rejected credit refund request
+ */
+export const releaseCreditRefundHold = async (requestData: any): Promise<void> => {
+  if (requestData?.hold_id) {
+    await supabase.from('student_credits').delete().eq('id', requestData.hold_id);
+  }
+};
+
 /**
  * Get all students with credit balances (for admin view)
  */
