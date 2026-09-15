@@ -2302,6 +2302,37 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
+  const displayRows = React.useMemo(() => {
+    return [...(rows as PublicCompetitionListRow[])]
+      .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+      .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
+      .filter((r) => {
+        if (paidFilter === 'all') return true;
+        if (paidFilter === 'paid') return r.paid_status === 'paid';
+        if (paidFilter === 'rejected') return r.paid_status === 'rejected';
+        return r.paid_status !== 'paid' && r.paid_status !== 'rejected';
+      })
+      .sort((a, b) => {
+        const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
+        const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
+        if (ta !== tb) return ta - tb;
+        return (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' });
+      })
+      .flatMap((r) => {
+        const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
+        const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
+        const merged = productCats.length > 0 ? productCats : extraCats;
+        const cats = merged.length > 0 ? merged : [''];
+        return cats.map((cat, idx) => ({
+          r,
+          cat,
+          idx,
+          branchColor: branchColorMap.get(r.branch_id) || '#6b7280',
+        }));
+      });
+  }, [rows, eventFilter, localBranchFilter, registeredFilter, paidFilter, branchColorMap]);
+
   const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof' | 'photo'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
