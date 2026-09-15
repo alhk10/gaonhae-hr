@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { buildIdentityKeys, type MatchSubject } from '@/utils/submissionMatchConfidence';
+import { buildIdentityKeys, isStrongIdentityKey, type MatchSubject } from '@/utils/submissionMatchConfidence';
 
 export type MatchScope = 'grading' | 'competition' | 'seminar' | 'guards' | 'school-fees';
 
