@@ -52,6 +52,14 @@ const CreditManagement: React.FC = () => {
   const [adjustDescription, setAdjustDescription] = useState('');
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustType, setAdjustType] = useState<'credit' | 'refund'>('credit');
+  const [adjustStudentName, setAdjustStudentName] = useState('');
+
+  const { isSuperadmin } = useInvoiceAccess();
+
+  // Add-credit student picker
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [pickerResults, setPickerResults] = useState<CreditStudentOption[]>([]);
+  const [pickerSearching, setPickerSearching] = useState(false);
 
   useEffect(() => {
     loadCredits();
