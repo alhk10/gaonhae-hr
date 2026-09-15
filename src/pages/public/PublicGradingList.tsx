@@ -3093,7 +3093,6 @@ const CompetitionsTab: React.FC<{
           );
         })}
       </div>
-      </div>
 
 
 
