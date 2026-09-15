@@ -92,16 +92,37 @@ const CreditManagement: React.FC = () => {
     }
   };
 
-  const openAdjustDialog = (studentId: string, type: 'credit' | 'refund') => {
+  const openAdjustDialog = (studentId: string, type: 'credit' | 'refund', studentName = '') => {
     setAdjustStudentId(studentId);
+    setAdjustStudentName(studentName);
     setAdjustType(type);
     setAdjustAmount('');
     setAdjustDescription('');
+    setPickerQuery('');
+    setPickerResults([]);
     setAdjustOpen(true);
+  };
+
+  const runStudentSearch = async (q: string) => {
+    setPickerQuery(q);
+    if (q.trim().length < 2) {
+      setPickerResults([]);
+      return;
+    }
+    setPickerSearching(true);
+    try {
+      setPickerResults(await searchStudentsForCredit(q));
+    } finally {
+      setPickerSearching(false);
+    }
   };
 
   const handleAdjust = async () => {
     const amount = parseFloat(adjustAmount);
+    if (!adjustStudentId) {
+      toast.error('Select a student');
+      return;
+    }
     if (!amount || amount <= 0) {
       toast.error('Enter a valid amount');
       return;
@@ -114,8 +135,19 @@ const CreditManagement: React.FC = () => {
     setAdjustLoading(true);
     try {
       if (adjustType === 'refund') {
-        await issueRefund(adjustStudentId, amount, adjustDescription, user?.email || undefined);
-        toast.success(`Refund of $${amount.toFixed(2)} issued`);
+        if (isSuperadmin) {
+          await issueRefund(adjustStudentId, amount, adjustDescription, user?.email || undefined);
+          toast.success(`Refund of $${amount.toFixed(2)} issued`);
+        } else {
+          await requestCreditRefund(
+            adjustStudentId,
+            adjustStudentName,
+            amount,
+            adjustDescription,
+            user?.email || ''
+          );
+          toast.success('Refund request submitted for superadmin approval');
+        }
       } else {
         await addManualCredit(adjustStudentId, amount, adjustDescription, user?.email || undefined);
         toast.success(`Credit of $${amount.toFixed(2)} added`);
