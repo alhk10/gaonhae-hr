@@ -48,6 +48,7 @@ import {
   type ChatTerm,
   type MatchedStudent,
   getChatInvoices,
+  getChatStudentCredit,
   type ChatInvoice,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
@@ -265,6 +266,12 @@ const PublicHelloChat: React.FC = () => {
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
     enabled: !!branchId && (stage === 'payment_pay'),
+  });
+
+  const { data: availableCredit = 0 } = useQuery({
+    queryKey: ['hello-student-credit', sessionId, matched?.id],
+    queryFn: () => getChatStudentCredit(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id,
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -545,6 +552,11 @@ const PublicHelloChat: React.FC = () => {
       : 0;
   const totalWithTax = cartTotal + (isSGBranch ? gstAmount : 0);
   const gstLabel = isSGBranch ? 'GST (9%)' : 'GST included amount (10%)';
+  const payableTotal = isSGBranch ? totalWithTax : cartTotal;
+  const creditToUse = Math.max(0, Math.min(Number(availableCredit) || 0, payableTotal));
+  const creditRemaining = Math.max(0, (Number(availableCredit) || 0) - creditToUse);
+  const amountDue = Math.max(0, Number((payableTotal - creditToUse).toFixed(2)));
+  const fullyCoveredByCredit = creditToUse > 0 && amountDue < 0.01;
 
 
   // PayNow is Singapore-only. Force bank transfer for any non-SG branch, even if
@@ -758,7 +770,7 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const handleSubmitPayment = async () => {
-    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile || !matched?.id) {
+    if (!sessionId || !branchId || !payCategory || cart.length === 0 || (!proofFile && !fullyCoveredByCredit) || !matched?.id) {
       toast.error('Missing required information');
       return;
     }
@@ -1395,6 +1407,12 @@ const PublicHelloChat: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {Number(availableCredit) > 0.01 && (
+                  <div className="mt-2 rounded bg-green-50 px-2 py-1.5 text-[12px] text-green-800">
+                    You have <strong>${Number(availableCredit).toFixed(2)}</strong> in credit available. It will be used
+                    automatically on your next payment.
+                  </div>
+                )}
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
@@ -2015,15 +2033,17 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'payment_pay' && (
             <>
-              <Bubble who="bot">Choose payment method and upload your proof.</Bubble>
+              <Bubble who="bot">
+                {fullyCoveredByCredit
+                  ? 'Your credit covers this in full — no payment needed.'
+                  : 'Choose payment method and upload your proof.'}
+              </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-3">
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">Amount to pay</span>
-                      <span className="text-base font-bold tabular-nums">
-                        ${(isSGBranch ? totalWithTax : cartTotal).toFixed(2)}
-                      </span>
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="tabular-nums">${payableTotal.toFixed(2)}</span>
                     </div>
                     {(isSGBranch || gstIncluded) && (
                       <div className="flex items-center justify-between">
@@ -2031,29 +2051,53 @@ const PublicHelloChat: React.FC = () => {
                         <span className="tabular-nums">${gstAmount.toFixed(2)}</span>
                       </div>
                     )}
+                    {creditToUse > 0 && (
+                      <>
+                        <div className="flex items-center justify-between text-green-700">
+                          <span>Credit used</span>
+                          <span className="tabular-nums">−${creditToUse.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Credit remaining after this</span>
+                          <span className="tabular-nums">${creditRemaining.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-semibold">Amount to pay</span>
+                      <span className="text-base font-bold tabular-nums">${amountDue.toFixed(2)}</span>
+                    </div>
                   </div>
 
-                  <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
-                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {allowedPayMethods.map(m => (
-                        <SelectItem key={m} value={m}>
-                          {m === 'paynow' ? 'PayNow' : 'Bank Transfer'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <PaymentInfoDisplay
-                    paymentMethod={payMethod}
-                    bankTransferInfo={paymentOptions?.bank_transfer_info}
-                    paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
-                  />
+                  {!fullyCoveredByCredit && (
+                    <>
+                      <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {allowedPayMethods.map(m => (
+                            <SelectItem key={m} value={m}>
+                              {m === 'paynow' ? 'PayNow' : 'Bank Transfer'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <PaymentInfoDisplay
+                        paymentMethod={payMethod}
+                        bankTransferInfo={paymentOptions?.bank_transfer_info}
+                        paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
+                      />
 
-                  <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
+                      <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
+                    </>
+                  )}
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
-                    <Button onClick={handleSubmitPayment} disabled={submitting || !proofFile} className="flex-1 h-10">
-                      {submitting ? 'Submitting…' : 'Submit payment'}
+                    <Button
+                      onClick={handleSubmitPayment}
+                      disabled={submitting || (!proofFile && !fullyCoveredByCredit)}
+                      className="flex-1 h-10"
+                    >
+                      {submitting ? 'Submitting…' : fullyCoveredByCredit ? 'Confirm using credit' : 'Submit payment'}
                     </Button>
                   </div>
                 </CardContent>
