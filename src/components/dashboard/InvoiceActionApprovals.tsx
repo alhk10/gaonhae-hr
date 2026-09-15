@@ -63,12 +63,16 @@ const InvoiceActionApprovals: React.FC = () => {
         if (ids.length > 0) {
           await refundLineItems(ids, requestData?.reason || 'Approved refund');
         }
+      } else if (request.action_type === 'credit_refund') {
+        await completeCreditRefundRequest(request.request_data as any, request.requested_by_email || undefined);
       }
       await approveActionRequest(request.id);
       const successMsg = request.action_type === 'cancellation' 
         ? 'Invoice cancelled & refunded' 
         : request.action_type === 'item_refund'
         ? 'Line item refunded'
+        : request.action_type === 'credit_refund'
+        ? 'Credit refund issued'
         : 'Adjustment approved';
       toast.success(`${successMsg} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
@@ -90,6 +94,9 @@ const InvoiceActionApprovals: React.FC = () => {
     if (!selectedRequest) return;
     try {
       setProcessingId(selectedRequest.id);
+      if (selectedRequest.action_type === 'credit_refund') {
+        await releaseCreditRefundHold(selectedRequest.request_data as any);
+      }
       await rejectActionRequest(selectedRequest.id, rejectionReason);
       toast.success('Request rejected');
       setRejectDialogOpen(false);
