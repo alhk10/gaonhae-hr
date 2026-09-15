@@ -23,6 +23,14 @@ Four linked changes: superadmins can add credit to any student, students see the
 - The credit used is put **on hold** at that moment, so it cannot be spent twice. It is only consumed once staff verify the submission; if the submission is rejected or deleted, the hold is released and the credit returns.
 - The invoice shows the credit as a settling amount: the full items and total stay as-is, with a credit entry reducing the balance due, and the remaining balance covered by the student's payment.
 
+## 4. Staff-requested credit refunds, approved by superadmin
+
+- Staff can start a **Refund as credit** on an invoice from the Branch Dashboard and from /access, and in Credit Management can request a cash refund of a credit balance.
+- Instead of taking effect straight away, the request goes to the superadmin approvals list with student, invoice, amount and the staff reason.
+- Until it is approved the amount is held, so it cannot be refunded or spent twice; the request shows as pending on the invoice and in the student's credit history.
+- On approval the refund is issued and the credit balance updates; on rejection the hold is released and the staff member sees the reason.
+- A superadmin doing the same action still acts immediately, with no approval step.
+
 ## Technical notes
 
 - `student_credits.type` check constraint extended with `credit_hold` and `credit_hold_released`; holds are negative rows carrying the invoice id in `reference_id`.
