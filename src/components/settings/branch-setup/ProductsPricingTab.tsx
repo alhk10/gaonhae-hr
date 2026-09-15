@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { upsertBranchPrice } from '@/services/priceRulesService';
 import { formatCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 interface Props {
   branchId: string;
@@ -27,10 +29,18 @@ interface ProductRow {
   is_visible: boolean;
   price_override: number | null;
   rule_id?: string;
+  is_lesson: boolean;
+  min_age: number | null;
+  max_age: number | null;
+  allowed_belt_levels: string[];
   // edit state
   editVisible: boolean;
   editPrice: string;
+  editMinAge: string;
+  editMaxAge: string;
+  editBelts: string[];
   dirty: boolean;
+  restrictionsDirty: boolean;
 }
 
 interface CategoryOption {
