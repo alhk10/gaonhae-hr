@@ -91,16 +91,19 @@ export const getOverrideGuards = async (subject: MatchSubject): Promise<Override
   );
   // Strongest key wins: full details, then name + birth date, then email, then mobile.
   let preferredStudentId: string | null = null;
+  let preferredIsStrong = false;
   for (const key of keys) {
     const hit = rows.find((r) => r.identity_key === key && r.preferred_student_id);
     if (hit) {
       preferredStudentId = hit.preferred_student_id;
+      preferredIsStrong = isStrongIdentityKey(key);
       break;
     }
   }
   return {
     blockedStudentIds: blockedStudentIds.filter((id) => id !== preferredStudentId),
     preferredStudentId,
+    preferredIsStrong,
   };
 };
 
