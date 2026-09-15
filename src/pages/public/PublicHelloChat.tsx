@@ -48,6 +48,7 @@ import {
   type ChatTerm,
   type MatchedStudent,
   getChatInvoices,
+  getChatStudentCredit,
   type ChatInvoice,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
@@ -265,6 +266,12 @@ const PublicHelloChat: React.FC = () => {
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
     enabled: !!branchId && (stage === 'payment_pay'),
+  });
+
+  const { data: availableCredit = 0 } = useQuery({
+    queryKey: ['hello-student-credit', sessionId, matched?.id],
+    queryFn: () => getChatStudentCredit(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id,
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
