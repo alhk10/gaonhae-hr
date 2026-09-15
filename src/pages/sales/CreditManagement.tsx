@@ -24,9 +24,13 @@ import {
   getStudentCreditHistory,
   addManualCredit,
   issueRefund,
+  requestCreditRefund,
+  searchStudentsForCredit,
+  type CreditStudentOption,
   type StudentCreditSummary,
   type StudentCredit
 } from '@/services/studentCreditService';
+import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 const CreditManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -48,6 +52,14 @@ const CreditManagement: React.FC = () => {
   const [adjustDescription, setAdjustDescription] = useState('');
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustType, setAdjustType] = useState<'credit' | 'refund'>('credit');
+  const [adjustStudentName, setAdjustStudentName] = useState('');
+
+  const { isSuperadmin } = useInvoiceAccess();
+
+  // Add-credit student picker
+  const [pickerQuery, setPickerQuery] = useState('');
+  const [pickerResults, setPickerResults] = useState<CreditStudentOption[]>([]);
+  const [pickerSearching, setPickerSearching] = useState(false);
 
   useEffect(() => {
     loadCredits();
@@ -80,16 +92,37 @@ const CreditManagement: React.FC = () => {
     }
   };
 
-  const openAdjustDialog = (studentId: string, type: 'credit' | 'refund') => {
+  const openAdjustDialog = (studentId: string, type: 'credit' | 'refund', studentName = '') => {
     setAdjustStudentId(studentId);
+    setAdjustStudentName(studentName);
     setAdjustType(type);
     setAdjustAmount('');
     setAdjustDescription('');
+    setPickerQuery('');
+    setPickerResults([]);
     setAdjustOpen(true);
+  };
+
+  const runStudentSearch = async (q: string) => {
+    setPickerQuery(q);
+    if (q.trim().length < 2) {
+      setPickerResults([]);
+      return;
+    }
+    setPickerSearching(true);
+    try {
+      setPickerResults(await searchStudentsForCredit(q));
+    } finally {
+      setPickerSearching(false);
+    }
   };
 
   const handleAdjust = async () => {
     const amount = parseFloat(adjustAmount);
+    if (!adjustStudentId) {
+      toast.error('Select a student');
+      return;
+    }
     if (!amount || amount <= 0) {
       toast.error('Enter a valid amount');
       return;
@@ -102,8 +135,19 @@ const CreditManagement: React.FC = () => {
     setAdjustLoading(true);
     try {
       if (adjustType === 'refund') {
-        await issueRefund(adjustStudentId, amount, adjustDescription, user?.email || undefined);
-        toast.success(`Refund of $${amount.toFixed(2)} issued`);
+        if (isSuperadmin) {
+          await issueRefund(adjustStudentId, amount, adjustDescription, user?.email || undefined);
+          toast.success(`Refund of $${amount.toFixed(2)} issued`);
+        } else {
+          await requestCreditRefund(
+            adjustStudentId,
+            adjustStudentName,
+            amount,
+            adjustDescription,
+            user?.email || ''
+          );
+          toast.success('Refund request submitted for superadmin approval');
+        }
       } else {
         await addManualCredit(adjustStudentId, amount, adjustDescription, user?.email || undefined);
         toast.success(`Credit of $${amount.toFixed(2)} added`);
@@ -135,6 +179,9 @@ const CreditManagement: React.FC = () => {
       case 'item_refund': return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Item refund</Badge>;
       case 'manual_adjustment': return <Badge variant="secondary">Adjustment</Badge>;
       case 'credit_applied': return <Badge variant="outline">Applied</Badge>;
+      case 'credit_hold': return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">On hold</Badge>;
+      case 'credit_hold_released': return <Badge variant="outline">Hold released</Badge>;
+      case 'refund_pending': return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Refund pending</Badge>;
       default: return <Badge>{type}</Badge>;
     }
   };
@@ -152,6 +199,12 @@ const CreditManagement: React.FC = () => {
               <h1 className="text-2xl font-bold text-foreground">Credit Management</h1>
               <p className="text-sm text-muted-foreground">Manage student credit balances and refunds</p>
             </div>
+            {isSuperadmin && (
+              <Button className="ml-auto" onClick={() => openAdjustDialog('', 'credit')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add credit
+              </Button>
+            )}
           </div>
 
           {/* Summary Card */}
@@ -226,11 +279,13 @@ const CreditManagement: React.FC = () => {
                             <Button variant="ghost" size="sm" onClick={() => viewHistory(summary)}>
                               <History className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'credit')}>
-                              <Plus className="w-4 h-4" />
-                            </Button>
+                            {isSuperadmin && (
+                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'credit', summary.student_name)}>
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            )}
                             {summary.credit_balance > 0 && (
-                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'refund')}>
+                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'refund', summary.student_name)}>
                                 <Minus className="w-4 h-4" />
                               </Button>
                             )}
@@ -294,14 +349,60 @@ const CreditManagement: React.FC = () => {
           <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{adjustType === 'refund' ? 'Issue Refund' : 'Add Credit'}</DialogTitle>
+                <DialogTitle>
+                  {adjustType === 'refund'
+                    ? (isSuperadmin ? 'Issue Refund' : 'Request Refund')
+                    : 'Add Credit'}
+                </DialogTitle>
                 <DialogDescription>
-                  {adjustType === 'refund' 
-                    ? 'Issue a refund to deduct from the student\'s credit balance.' 
+                  {adjustType === 'refund'
+                    ? (isSuperadmin
+                        ? 'Issue a refund to deduct from the student\'s credit balance.'
+                        : 'The amount is held and sent to a superadmin for approval.')
                     : 'Add a manual credit adjustment for this student.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                <div>
+                  <Label>Student</Label>
+                  {adjustStudentId ? (
+                    <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                      <span>{adjustStudentName || 'Selected student'}</span>
+                      {adjustType === 'credit' && (
+                        <Button variant="ghost" size="sm" onClick={() => { setAdjustStudentId(''); setAdjustStudentName(''); }}>
+                          Change
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        value={pickerQuery}
+                        onChange={(e) => runStudentSearch(e.target.value)}
+                        placeholder="Search by name or student number..."
+                      />
+                      <div className="max-h-40 overflow-y-auto rounded-md border divide-y">
+                        {pickerSearching && <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>}
+                        {!pickerSearching && pickerQuery.trim().length >= 2 && pickerResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No students found</div>
+                        )}
+                        {pickerResults.map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                            onClick={() => { setAdjustStudentId(s.id); setAdjustStudentName(s.name); }}
+                          >
+                            {s.name}
+                            {s.student_number && (
+                              <span className="text-muted-foreground"> · {s.student_number}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div>
                   <Label>Amount ($)</Label>
                   <Input
@@ -325,8 +426,12 @@ const CreditManagement: React.FC = () => {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancel</Button>
-                <Button onClick={handleAdjust} disabled={adjustLoading}>
-                  {adjustLoading ? 'Processing...' : adjustType === 'refund' ? 'Issue Refund' : 'Add Credit'}
+                <Button onClick={handleAdjust} disabled={adjustLoading || !adjustStudentId}>
+                  {adjustLoading
+                    ? 'Processing...'
+                    : adjustType === 'refund'
+                      ? (isSuperadmin ? 'Issue Refund' : 'Submit Request')
+                      : 'Add Credit'}
                 </Button>
               </DialogFooter>
             </DialogContent>

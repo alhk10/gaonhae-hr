@@ -12,6 +12,7 @@ import { Check, X, Loader2, FileText } from 'lucide-react';
 import { getPendingActionRequests, approveActionRequest, rejectActionRequest, type InvoiceActionRequest } from '@/services/invoiceActionRequestService';
 import { cancelInvoice } from '@/services/invoiceService';
 import { refundLineItems } from '@/services/invoiceRefundService';
+import { completeCreditRefundRequest, releaseCreditRefundHold } from '@/services/studentCreditService';
 
 import { formatDate } from '@/utils/dateFormat';
 
@@ -35,6 +36,7 @@ const InvoiceActionApprovals: React.FC = () => {
     switch (actionType) {
       case 'cancellation': return 'Cancel';
       case 'item_refund': return 'Item Refund';
+      case 'credit_refund': return 'Credit Refund';
       case 'adjustment': return 'Adjust';
       default: return actionType;
     }
@@ -61,12 +63,16 @@ const InvoiceActionApprovals: React.FC = () => {
         if (ids.length > 0) {
           await refundLineItems(ids, requestData?.reason || 'Approved refund');
         }
+      } else if (request.action_type === 'credit_refund') {
+        await completeCreditRefundRequest(request.request_data as any, request.requested_by_email || undefined);
       }
       await approveActionRequest(request.id);
       const successMsg = request.action_type === 'cancellation' 
         ? 'Invoice cancelled & refunded' 
         : request.action_type === 'item_refund'
         ? 'Line item refunded'
+        : request.action_type === 'credit_refund'
+        ? 'Credit refund issued'
         : 'Adjustment approved';
       toast.success(`${successMsg} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
@@ -88,6 +94,9 @@ const InvoiceActionApprovals: React.FC = () => {
     if (!selectedRequest) return;
     try {
       setProcessingId(selectedRequest.id);
+      if (selectedRequest.action_type === 'credit_refund') {
+        await releaseCreditRefundHold(selectedRequest.request_data as any);
+      }
       await rejectActionRequest(selectedRequest.id, rejectionReason);
       toast.success('Request rejected');
       setRejectDialogOpen(false);
