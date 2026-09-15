@@ -2657,7 +2657,9 @@ const ProductRow: React.FC<{
           )}
           {!showTerms && isLessonCategory && (
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+              <Label className="text-[11px] text-muted-foreground">
+                {isSchoolFees ? 'Number of lessons' : 'Quantity'}
+              </Label>
               <Input
                 type="number"
                 min={1}

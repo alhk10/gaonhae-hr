@@ -77,7 +77,9 @@ export const getSchoolFeeProductSortGroup = (productName: string): number => {
   if (name.startsWith('Little Gaonhae')) return 1;
   if (name.startsWith('Foundation to Red')) return 2;
   if (name.startsWith('Black Tip & Above')) return 3;
-  return 4;
+  if (name.startsWith('Kang Klass') || name.startsWith("Kang's")) return 4;
+  if (name.startsWith('Ad-Hoc Lesson') || name.startsWith('Per Lesson')) return 5;
+  return 6;
 };
 
 export const compareSchoolFeeProducts = (a: { product_name: string }, b: { product_name: string }): number => {
