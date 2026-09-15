@@ -2302,6 +2302,7 @@ const CompetitionsTab: React.FC<{
     return m;
   }, [branchesForColor]);
 
+
   const [preview, setPreview] = useState<{ url: string | null; title: string; kind?: 'certificate' | 'proof' | 'photo'; submissionId?: string; branchId?: string } | null>(null);
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
@@ -2312,6 +2313,37 @@ const CompetitionsTab: React.FC<{
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
   const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
+
+  const displayRows = React.useMemo(() => {
+    return [...(rows as PublicCompetitionListRow[])]
+      .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
+      .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
+      .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
+      .filter((r) => {
+        if (paidFilter === 'all') return true;
+        if (paidFilter === 'paid') return r.paid_status === 'paid';
+        if (paidFilter === 'rejected') return r.paid_status === 'rejected';
+        return r.paid_status !== 'paid' && r.paid_status !== 'rejected';
+      })
+      .sort((a, b) => {
+        const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
+        const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
+        if (ta !== tb) return ta - tb;
+        return (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' });
+      })
+      .flatMap((r) => {
+        const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
+        const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
+        const merged = productCats.length > 0 ? productCats : extraCats;
+        const cats = merged.length > 0 ? merged : [''];
+        return cats.map((cat, idx) => ({
+          r,
+          cat,
+          idx,
+          branchColor: branchColorMap.get(r.branch_id) || '#6b7280',
+        }));
+      });
+  }, [rows, eventFilter, localBranchFilter, registeredFilter, paidFilter, branchColorMap]);
 
   const registeredMutation = useMutation({
     mutationFn: ({ id, registered }: { id: string; registered: boolean }) =>
@@ -2671,7 +2703,7 @@ const CompetitionsTab: React.FC<{
 
 
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <div className="overflow-x-auto">
+      <div className="hidden lg:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -2698,30 +2730,7 @@ const CompetitionsTab: React.FC<{
             </TableRow>
           </TableHeader>
           <TableBody>
-            {[...(rows as PublicCompetitionListRow[])]
-              .filter((r) => eventFilter === 'all' || !eventFilter || r.event_id === eventFilter)
-              .filter((r) => localBranchFilter === 'all' || (r.branch_name || '') === localBranchFilter)
-              .filter((r) => registeredFilter === 'all' || (registeredFilter === 'yes' ? r.registered : !r.registered))
-              .filter((r) => {
-                if (paidFilter === 'all') return true;
-                if (paidFilter === 'paid') return r.paid_status === 'paid';
-                if (paidFilter === 'rejected') return r.paid_status === 'rejected';
-                return r.paid_status !== 'paid' && r.paid_status !== 'rejected';
-              })
-              .sort((a, b) => {
-                const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
-                const tb = b.competition_at ? new Date(b.competition_at).getTime() : Number.POSITIVE_INFINITY;
-                if (ta !== tb) return ta - tb;
-                return (a.student_name || '').localeCompare(b.student_name || '', undefined, { sensitivity: 'base' });
-              })
-              .flatMap((r) => {
-                const productCats = r.category_names && r.category_names.length > 0 ? r.category_names : [];
-                const extraCats = (r as any).extra_categories && (r as any).extra_categories.length > 0 ? (r as any).extra_categories as string[] : [];
-                const merged = productCats.length > 0 ? productCats : extraCats;
-                const cats = merged.length > 0 ? merged : [''];
-                return cats.map((cat, idx) => {
-                  const branchColor = branchColorMap.get(r.branch_id) || '#6b7280';
-                  return (
+            {displayRows.map(({ r, cat, idx, branchColor }) => (
               <TableRow
                 key={`${r.submission_id}__${idx}`}
                 style={{ borderLeft: `4px solid ${branchColor}` }}
@@ -2915,11 +2924,175 @@ const CompetitionsTab: React.FC<{
                   </TableCell>
                 )}
               </TableRow>
-                );
-                });
-              })}
+            ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="lg:hidden space-y-2">
+        {displayRows.map(({ r, cat, idx, branchColor }) => {
+          const age = (() => {
+            const dob = r.date_of_birth;
+            if (!dob) return '—';
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob));
+            if (!m) return '—';
+            const y = parseInt(m[1], 10);
+            if (!y) return '—';
+            return new Date().getFullYear() - y;
+          })();
+          return (
+            <div
+              key={`mobile-${r.submission_id}__${idx}`}
+              className="rounded-md border bg-card p-2 space-y-2"
+              style={{ borderLeft: `4px solid ${branchColor}` }}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
+                <DateTimeCell id={r.submission_id} field="reporting_at" value={r.reporting_at} />
+                <CourtCell id={r.submission_id} value={r.court} />
+                <span className="text-xs font-medium px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: `${branchColor}22` }}>
+                  {r.branch_name || '—'}
+                </span>
+                <div className="text-xs">
+                  <span className="font-medium">{r.student_name}</span>
+                  {r.gender && <span className="text-[10px] uppercase text-muted-foreground ml-1">{r.gender}</span>}
+                </div>
+                <span className="text-xs tabular-nums">{age}</span>
+                <span className="text-xs">{r.current_belt || '—'}</span>
+                <span className="text-[11px] leading-tight whitespace-nowrap">
+                  {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
+                </span>
+                <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {renderPoomsae(r.poomsae_1, (v) =>
+                  poomsaeMutation.mutate({ id: r.submission_id, p1: v, p2: r.poomsae_2 }),
+                )}
+                {renderPoomsae(r.poomsae_2, (v) =>
+                  poomsaeMutation.mutate({ id: r.submission_id, p1: r.poomsae_1, p2: v }),
+                )}
+                <Thumb url={r.certificate_url} title={`${r.student_name} — Certificate`} kind="certificate" submissionId={r.submission_id} branchId={r.branch_id} />
+                {r.grading_card_urls && r.grading_card_urls.length > 0 ? (
+                  <button
+                    type="button"
+                    title={`Grading card file 1${r.grading_card_urls.length > 1 ? ` of ${r.grading_card_urls.length}` : ''} — click to manage`}
+                    onClick={() => setGradingCardDialog({ row: r, pendingVerify: false })}
+                    className="relative block h-10 w-10 overflow-hidden rounded border bg-muted/30 hover:opacity-80"
+                  >
+                    {isPdfUrl(r.grading_card_urls[0]) ? (
+                      <span className="flex h-full w-full items-center justify-center text-green-700">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <SignedImage
+                        src={r.grading_card_urls[0]}
+                        className="h-full w-full object-cover"
+                        alt={`${r.student_name} — Grading card file 1`}
+                        fallback={<span className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">…</span>}
+                      />
+                    )}
+                    {r.grading_card_urls.length > 1 && (
+                      <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1 text-[8px] leading-3 text-primary-foreground">
+                        {r.grading_card_urls.length}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <Thumb url={null} title={`${r.student_name} — Grading Card`} kind="grading-card" submissionId={r.submission_id} row={r} />
+                )}
+                <Thumb url={r.photo_url} title={`${r.student_name} — Photo`} kind="photo" submissionId={r.submission_id} branchId={r.branch_id} />
+                <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} kind="proof" submissionId={r.submission_id} branchId={r.branch_id} />
+                <div className="flex items-center gap-1">
+                  {r.signature_url ? (
+                    <button type="button" title="Signature" onClick={() => setPreview({ url: r.signature_url!, title: `${r.student_name} — Signature` })} className="text-green-700">
+                      <PenLine className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                  {r.indemnity_form_url ? (
+                    <button type="button" title="Indemnity form" onClick={() => setPreview({ url: r.indemnity_form_url!, title: `${r.student_name} — Indemnity` })} className="text-green-700">
+                      <FileText className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                  {r.passport_url ? (
+                    <button type="button" title="Passport" onClick={() => setPreview({ url: r.passport_url!, title: `${r.student_name} — Passport` })} className="text-green-700">
+                      <IdCard className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                  {!r.signature_url && !r.indemnity_form_url && !r.passport_url && (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
+                {canDelete && idx === 0 && (
+                  <Checkbox
+                    checked={!!r.registered}
+                    onCheckedChange={(v) =>
+                      registeredMutation.mutate({ id: r.submission_id, registered: !!v })
+                    }
+                  />
+                )}
+                {canDelete && idx !== 0 && <span className="text-xs text-muted-foreground">—</span>}
+                <div className="flex items-center gap-1">
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(r.submission_id)}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Edit submission"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {r.paid_status === 'pending verification' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleVerify(r.submission_id)}
+                        disabled={verifyingId === r.submission_id}
+                        className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                        title="Verify"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRejectingId(r.submission_id); setRejectReason(''); }}
+                        className="text-red-600 hover:text-red-800"
+                        title="Reject"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : null}
+                  {r.matched_invoice_id && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundInvoiceId(r.matched_invoice_id)}
+                      className="text-orange-600 hover:text-orange-800"
+                      title="Refund as credit"
+                    >
+                      <Undo2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {!canEdit && r.paid_status !== 'pending verification' && !r.matched_invoice_id && (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onRequestDelete?.(r.submission_id, r.student_name)}
+                    className="text-red-600 hover:text-red-800"
+                    title="Delete row"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
 
