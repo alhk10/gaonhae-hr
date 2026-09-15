@@ -143,6 +143,12 @@ export interface AutoMatchGuardOptions {
   blockedStudentIds?: string[];
   /** Student staff previously chose for this person — always wins. */
   preferredStudentId?: string | null;
+  /**
+   * True when the remembered account was only recalled through a shared detail
+   * (email or mobile). Siblings share those, so the name/birth date guard still
+   * applies before the remembered account is used.
+   */
+  preferredIsWeak?: boolean;
 }
 
 /**
