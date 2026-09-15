@@ -114,6 +114,13 @@ export const buildIdentityKey = (subject: MatchSubject): string =>
  * Keys the submission can be recognised by later, strongest first:
  * full details, name + birth date, email alone, mobile alone.
  */
+/**
+ * Only the keys that identify a person, not a household: email and mobile are
+ * routinely shared between siblings, so they can never be trusted on their own.
+ */
+export const isStrongIdentityKey = (key: string): boolean =>
+  key.startsWith('full:') || key.startsWith('nd:');
+
 export const buildIdentityKeys = (subject: MatchSubject): string[] => {
   const name = normaliseName(subject.name).join(' ');
   const dob = normaliseDate(subject.dateOfBirth) || '';
