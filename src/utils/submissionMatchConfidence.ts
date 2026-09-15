@@ -57,7 +57,14 @@ export interface MatchSubject {
   name?: string | null;
   dateOfBirth?: string | null;
   email?: string | null;
+  phone?: string | null;
 }
+
+/** Digits only, last 8, so +65 / spaces / dashes all compare equal. */
+export const normalisePhone = (value?: string | null): string => {
+  const digits = (value || '').replace(/\D/g, '');
+  return digits.length >= 8 ? digits.slice(-8) : '';
+};
 
 export interface MatchCandidateIdentity {
   student_id?: string | null;
