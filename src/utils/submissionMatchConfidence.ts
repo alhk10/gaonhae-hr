@@ -177,7 +177,11 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    if (preferred) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    const contradicts =
+      preferred && options.preferredIsWeak
+        ? matchContradiction(options.subject, preferred as MatchCandidateIdentity)
+        : null;
+    if (preferred && !contradicts) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
   }
 
   const sorted = [...usable].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));
