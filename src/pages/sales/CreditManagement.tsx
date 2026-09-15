@@ -276,11 +276,13 @@ const CreditManagement: React.FC = () => {
                             <Button variant="ghost" size="sm" onClick={() => viewHistory(summary)}>
                               <History className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'credit')}>
-                              <Plus className="w-4 h-4" />
-                            </Button>
+                            {isSuperadmin && (
+                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'credit', summary.student_name)}>
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            )}
                             {summary.credit_balance > 0 && (
-                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'refund')}>
+                              <Button variant="ghost" size="sm" onClick={() => openAdjustDialog(summary.student_id, 'refund', summary.student_name)}>
                                 <Minus className="w-4 h-4" />
                               </Button>
                             )}
