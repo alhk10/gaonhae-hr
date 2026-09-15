@@ -508,7 +508,8 @@ export interface SubmitChatPaymentInput {
   amount: number;
   payment_method: 'paynow' | 'bank_transfer';
   matched_student_id: string;
-  proof_file: File;
+  /** Not required when student credit covers the whole amount */
+  proof_file: File | null;
   contact_first_name: string;
   contact_last_name: string;
   /** Lessons the student planned before paying (school fees only) */
@@ -527,23 +528,39 @@ export interface PlannedSlot {
 }
 
 
+export const getChatStudentCredit = async (sessionId: string, studentId: string): Promise<number> => {
+  const { data, error } = await supabase.rpc('get_public_chat_student_credit' as any, {
+    p_session_id: sessionId,
+    p_student_id: studentId,
+  });
+  if (error) {
+    console.warn('Could not read student credit', error);
+    return 0;
+  }
+  return Number(data ?? 0);
+};
+
 export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<string> => {
-  const ext = input.proof_file.name.split('.').pop() || 'jpg';
-  const ts = Date.now();
-  const fn = (input.contact_first_name || '').trim().toUpperCase();
-  const ln = (input.contact_last_name || '').trim().toUpperCase();
-  const safeName = `${fn}_${ln}`.replace(/[^A-Z0-9_]/gi, '_');
-  const path = `public-hello/${input.branch_id}/${ts}_${safeName}.${ext}`;
+  let proofUrl: string | null = null;
 
-  const { error: uploadError } = await supabase.storage
-    .from('payment-proofs')
-    .upload(path, input.proof_file, { upsert: false, contentType: input.proof_file.type });
-  if (uploadError) throw uploadError;
+  if (input.proof_file) {
+    const ext = input.proof_file.name.split('.').pop() || 'jpg';
+    const ts = Date.now();
+    const fn = (input.contact_first_name || '').trim().toUpperCase();
+    const ln = (input.contact_last_name || '').trim().toUpperCase();
+    const safeName = `${fn}_${ln}`.replace(/[^A-Z0-9_]/gi, '_');
+    const path = `public-hello/${input.branch_id}/${ts}_${safeName}.${ext}`;
 
-  const { data: signed } = await supabase.storage
-    .from('payment-proofs')
-    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
-  const proofUrl = signed?.signedUrl ?? path;
+    const { error: uploadError } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, input.proof_file, { upsert: false, contentType: input.proof_file.type });
+    if (uploadError) throw uploadError;
+
+    const { data: signed } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    proofUrl = signed?.signedUrl ?? path;
+  }
 
   const { data, error } = await supabase.rpc('submit_public_chat_invoice' as any, {
     p_session_id: input.session_id,
