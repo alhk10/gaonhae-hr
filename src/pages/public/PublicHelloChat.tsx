@@ -770,7 +770,7 @@ const PublicHelloChat: React.FC = () => {
   };
 
   const handleSubmitPayment = async () => {
-    if (!sessionId || !branchId || !payCategory || cart.length === 0 || !proofFile || !matched?.id) {
+    if (!sessionId || !branchId || !payCategory || cart.length === 0 || (!proofFile && !fullyCoveredByCredit) || !matched?.id) {
       toast.error('Missing required information');
       return;
     }
