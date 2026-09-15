@@ -158,6 +158,19 @@ export const ProductsPricingTab: React.FC<Props> = ({ branchId, branchName, bran
     setSaving(true);
     try {
       for (const r of dirty) {
+        if (r.restrictionsDirty) {
+          const minAge = r.editMinAge.trim() === '' ? null : parseInt(r.editMinAge, 10);
+          const maxAge = r.editMaxAge.trim() === '' ? null : parseInt(r.editMaxAge, 10);
+          const { error: pe } = await supabase
+            .from('products')
+            .update({
+              min_age: minAge !== null && Number.isNaN(minAge) ? null : minAge,
+              max_age: maxAge !== null && Number.isNaN(maxAge) ? null : maxAge,
+              allowed_belt_levels: r.editBelts.length > 0 ? r.editBelts : null,
+            })
+            .eq('id', r.id);
+          if (pe) throw pe;
+        }
         const newPrice = r.editPrice.trim() === '' ? null : parseFloat(r.editPrice);
         if (newPrice !== null && Number.isNaN(newPrice)) continue;
         const isHidden = !r.editVisible;
