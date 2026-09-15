@@ -196,6 +196,12 @@ const CreditManagement: React.FC = () => {
               <h1 className="text-2xl font-bold text-foreground">Credit Management</h1>
               <p className="text-sm text-muted-foreground">Manage student credit balances and refunds</p>
             </div>
+            {isSuperadmin && (
+              <Button className="ml-auto" onClick={() => openAdjustDialog('', 'credit')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add credit
+              </Button>
+            )}
           </div>
 
           {/* Summary Card */}
