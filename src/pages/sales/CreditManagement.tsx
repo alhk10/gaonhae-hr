@@ -346,14 +346,60 @@ const CreditManagement: React.FC = () => {
           <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{adjustType === 'refund' ? 'Issue Refund' : 'Add Credit'}</DialogTitle>
+                <DialogTitle>
+                  {adjustType === 'refund'
+                    ? (isSuperadmin ? 'Issue Refund' : 'Request Refund')
+                    : 'Add Credit'}
+                </DialogTitle>
                 <DialogDescription>
-                  {adjustType === 'refund' 
-                    ? 'Issue a refund to deduct from the student\'s credit balance.' 
+                  {adjustType === 'refund'
+                    ? (isSuperadmin
+                        ? 'Issue a refund to deduct from the student\'s credit balance.'
+                        : 'The amount is held and sent to a superadmin for approval.')
                     : 'Add a manual credit adjustment for this student.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                <div>
+                  <Label>Student</Label>
+                  {adjustStudentId ? (
+                    <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                      <span>{adjustStudentName || 'Selected student'}</span>
+                      {adjustType === 'credit' && (
+                        <Button variant="ghost" size="sm" onClick={() => { setAdjustStudentId(''); setAdjustStudentName(''); }}>
+                          Change
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        value={pickerQuery}
+                        onChange={(e) => runStudentSearch(e.target.value)}
+                        placeholder="Search by name or student number..."
+                      />
+                      <div className="max-h-40 overflow-y-auto rounded-md border divide-y">
+                        {pickerSearching && <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>}
+                        {!pickerSearching && pickerQuery.trim().length >= 2 && pickerResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No students found</div>
+                        )}
+                        {pickerResults.map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                            onClick={() => { setAdjustStudentId(s.id); setAdjustStudentName(s.name); }}
+                          >
+                            {s.name}
+                            {s.student_number && (
+                              <span className="text-muted-foreground"> · {s.student_number}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div>
                   <Label>Amount ($)</Label>
                   <Input
@@ -377,8 +423,12 @@ const CreditManagement: React.FC = () => {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancel</Button>
-                <Button onClick={handleAdjust} disabled={adjustLoading}>
-                  {adjustLoading ? 'Processing...' : adjustType === 'refund' ? 'Issue Refund' : 'Add Credit'}
+                <Button onClick={handleAdjust} disabled={adjustLoading || !adjustStudentId}>
+                  {adjustLoading
+                    ? 'Processing...'
+                    : adjustType === 'refund'
+                      ? (isSuperadmin ? 'Issue Refund' : 'Submit Request')
+                      : 'Add Credit'}
                 </Button>
               </DialogFooter>
             </DialogContent>
