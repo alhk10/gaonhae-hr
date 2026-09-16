@@ -131,6 +131,23 @@ export const matchContradiction = (
 };
 
 
+/**
+ * True only when the submitted name clearly matches the candidate and nothing
+ * else contradicts. A shared family email or mobile is never enough on its own,
+ * so siblings are always left for staff to confirm.
+ */
+export const personAgrees = (
+  subject: MatchSubject | null | undefined,
+  candidate: MatchCandidateIdentity,
+): boolean => {
+  if (!subject) return false;
+  const candidateName =
+    candidate.full_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
+  if (!subject.name || !candidateName) return false;
+  if (nameSimilarity(subject.name, candidateName) < NAME_SIMILARITY_FLOOR) return false;
+  return matchContradiction(subject, candidate) === null;
+};
+
 /** Normalised key identifying the person behind a submission (name|dob|email). */
 export const buildIdentityKey = (subject: MatchSubject): string =>
   [
