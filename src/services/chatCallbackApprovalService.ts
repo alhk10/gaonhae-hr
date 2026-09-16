@@ -101,6 +101,7 @@ export const findChatCallbackStudentMatches = async (
     : await query;
   if (error) throw error;
   const phoneDigits = (cb.contact_phone || '').replace(/\D/g, '');
+  const sharedEmail = (data || []).filter((s: any) => cb.contact_email && norm(s.email) === norm(cb.contact_email)).length > 1;
   const dob = cb.date_of_birth;
   const branchId = cb.branch_id;
   const scored = (data || []).map((s: any) => {
@@ -113,7 +114,7 @@ export const findChatCallbackStudentMatches = async (
     else if (ln && (sln.includes(ln) || ln.includes(sln))) score += 1;
     if (dob && s.date_of_birth === dob) score += 4;
     if (branchId && s.branch_id === branchId) score += 1;
-    if (cb.contact_email && s.email && norm(s.email) === norm(cb.contact_email)) score += 3;
+    if (cb.contact_email && !sharedEmail && s.email && norm(s.email) === norm(cb.contact_email)) score += 1;
     if (phoneDigits && s.phone && s.phone.replace(/\D/g, '').includes(phoneDigits)) score += 2;
     return { ...s, score };
   });

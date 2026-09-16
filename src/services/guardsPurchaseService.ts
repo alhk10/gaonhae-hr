@@ -464,6 +464,18 @@ export interface StudentMatchCandidate {
 
 const norm = (s?: string | null) => (s || '').trim().toUpperCase();
 
+/** True when more than one student is reachable on this email (a family address). */
+const isSharedStudentEmail = async (email?: string | null): Promise<boolean> => {
+  const e = (email || '').trim().toLowerCase();
+  if (!e) return false;
+  const { count, error } = await supabase
+    .from('students')
+    .select('id', { head: true, count: 'exact' })
+    .or(`email.ilike.${e},alt_emails.cs.{${e}}`);
+  if (error) return true;
+  return (count || 0) > 1;
+};
+
 export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<StudentMatchCandidate[]> => {
   const fn = norm(purchase.first_name);
   const ln = norm(purchase.last_name);
@@ -476,6 +488,8 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
   if (error) throw error;
   const dob = purchase.date_of_birth;
   const branchId = purchase.branch_id;
+  // A family email shared by several students says nothing about which child this is.
+  const emailShared = await isSharedStudentEmail(purchase.email);
   const scored = (data || []).map((s: any) => {
     let score = 0;
     const sfn = norm(s.first_name);
@@ -489,7 +503,7 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
     const knownEmails = [s.email, ...((s.alt_emails as string[] | null) || [])]
       .filter(Boolean)
       .map((e: string) => norm(e));
-    if (purchase.email && knownEmails.includes(norm(purchase.email))) score += 2;
+    if (purchase.email && !emailShared && knownEmails.includes(norm(purchase.email))) score += 1;
     if (purchase.phone && s.phone && (s.phone || '').replace(/\D/g, '').includes(purchase.phone.replace(/\D/g, ''))) score += 1;
     return { ...s, score };
   });

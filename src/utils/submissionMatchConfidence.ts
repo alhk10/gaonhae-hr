@@ -11,11 +11,15 @@
  * person). Those rows are left for staff instead.
  */
 
-/** Max score of the SQL scorer: email .5 + DOB .3 + branch .1 + name .5 */
-export const MAX_MATCH_SCORE = 1.4;
+/**
+ * Max score of the SQL scorer: name .6 + DOB .5 + email .15 + branch .1.
+ * Email is deliberately weak — families share one address between siblings —
+ * and scores nothing at all when several students share it.
+ */
+export const MAX_MATCH_SCORE = 1.35;
 
-/** Max score of the guards purchase client-side scorer. */
-export const MAX_GUARDS_MATCH_SCORE = 14;
+/** Max score of the guards purchase client-side scorer (email worth 1 point). */
+export const MAX_GUARDS_MATCH_SCORE = 13;
 
 /** Auto-link when the best match is at least this confident. */
 export const AUTO_MATCH_THRESHOLD = 77;
@@ -127,6 +131,23 @@ export const matchContradiction = (
 };
 
 
+/**
+ * True only when the submitted name clearly matches the candidate and nothing
+ * else contradicts. A shared family email or mobile is never enough on its own,
+ * so siblings are always left for staff to confirm.
+ */
+export const personAgrees = (
+  subject: MatchSubject | null | undefined,
+  candidate: MatchCandidateIdentity,
+): boolean => {
+  if (!subject) return false;
+  const candidateName =
+    candidate.full_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
+  if (!subject.name || !candidateName) return false;
+  if (nameSimilarity(subject.name, candidateName) < NAME_SIMILARITY_FLOOR) return false;
+  return matchContradiction(subject, candidate) === null;
+};
+
 /** Normalised key identifying the person behind a submission (name|dob|email). */
 export const buildIdentityKey = (subject: MatchSubject): string =>
   [
@@ -155,8 +176,8 @@ export const buildIdentityKeys = (subject: MatchSubject): string[] => {
   const keys: string[] = [];
   if (name && dob && email) keys.push(`full:${name}|${dob}|${email}`);
   if (name && dob) keys.push(`nd:${name}|${dob}`);
-  if (email) keys.push(`em:${email}`);
-  if (phone) keys.push(`ph:${phone}`);
+  // Email and mobile alone identify a household, not a person — never keyed on.
+  void phone;
   return keys;
 };
 
@@ -202,11 +223,9 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    const contradicts =
-      preferred && options.preferredIsWeak
-        ? matchContradiction(options.subject, preferred as MatchCandidateIdentity)
-        : null;
-    if (preferred && !contradicts) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    if (preferred && personAgrees(options.subject, preferred as MatchCandidateIdentity)) {
+      return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    }
   }
 
   const sorted = [...usable].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));
@@ -214,6 +233,6 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
   if (top < AUTO_MATCH_THRESHOLD) return null;
   const second = sorted[1] ? toConfidence(sorted[1].score, maxScore) : 0;
   if (top - second < AUTO_MATCH_GAP) return null;
-  if (matchContradiction(options.subject, sorted[0] as MatchCandidateIdentity)) return null;
+  if (!personAgrees(options.subject, sorted[0] as MatchCandidateIdentity)) return null;
   return { match: sorted[0], confidence: top };
 };
