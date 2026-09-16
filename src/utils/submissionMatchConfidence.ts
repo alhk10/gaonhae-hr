@@ -11,8 +11,12 @@
  * person). Those rows are left for staff instead.
  */
 
-/** Max score of the SQL scorer: email .5 + DOB .3 + branch .1 + name .5 */
-export const MAX_MATCH_SCORE = 1.4;
+/**
+ * Max score of the SQL scorer: name .6 + DOB .5 + email .15 + branch .1.
+ * Email is deliberately weak — families share one address between siblings —
+ * and scores nothing at all when several students share it.
+ */
+export const MAX_MATCH_SCORE = 1.35;
 
 /** Max score of the guards purchase client-side scorer. */
 export const MAX_GUARDS_MATCH_SCORE = 14;
@@ -155,8 +159,8 @@ export const buildIdentityKeys = (subject: MatchSubject): string[] => {
   const keys: string[] = [];
   if (name && dob && email) keys.push(`full:${name}|${dob}|${email}`);
   if (name && dob) keys.push(`nd:${name}|${dob}`);
-  if (email) keys.push(`em:${email}`);
-  if (phone) keys.push(`ph:${phone}`);
+  // Email and mobile alone identify a household, not a person — never keyed on.
+  void phone;
   return keys;
 };
 
