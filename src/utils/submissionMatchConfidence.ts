@@ -18,8 +18,8 @@
  */
 export const MAX_MATCH_SCORE = 1.35;
 
-/** Max score of the guards purchase client-side scorer. */
-export const MAX_GUARDS_MATCH_SCORE = 14;
+/** Max score of the guards purchase client-side scorer (email worth 1 point). */
+export const MAX_GUARDS_MATCH_SCORE = 13;
 
 /** Auto-link when the best match is at least this confident. */
 export const AUTO_MATCH_THRESHOLD = 77;
