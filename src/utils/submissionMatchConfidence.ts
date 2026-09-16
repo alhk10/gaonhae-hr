@@ -206,11 +206,9 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    const contradicts =
-      preferred && options.preferredIsWeak
-        ? matchContradiction(options.subject, preferred as MatchCandidateIdentity)
-        : null;
-    if (preferred && !contradicts) return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    if (preferred && personAgrees(options.subject, preferred as MatchCandidateIdentity)) {
+      return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
+    }
   }
 
   const sorted = [...usable].sort((a, b) => toConfidence(b.score, maxScore) - toConfidence(a.score, maxScore));
@@ -218,6 +216,6 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
   if (top < AUTO_MATCH_THRESHOLD) return null;
   const second = sorted[1] ? toConfidence(sorted[1].score, maxScore) : 0;
   if (top - second < AUTO_MATCH_GAP) return null;
-  if (matchContradiction(options.subject, sorted[0] as MatchCandidateIdentity)) return null;
+  if (!personAgrees(options.subject, sorted[0] as MatchCandidateIdentity)) return null;
   return { match: sorted[0], confidence: top };
 };
