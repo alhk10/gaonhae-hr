@@ -1289,6 +1289,36 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     return matchesSearch && matchesStatus;
   });
 
+  const handleExportStudentsCsv = () => {
+    if (filteredStudents.length === 0) return;
+    const escapeCsv = (value: string | null | undefined) => {
+      const v = value ?? '';
+      return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    };
+    const header = ['Display Name', 'First Name', 'Last Name', 'Belt', 'Status', 'Phone', 'Email', 'Date of Birth'];
+    const rows = filteredStudents.map((s) => [
+      s.display_name || `${s.first_name} ${s.last_name}`,
+      s.first_name,
+      s.last_name,
+      s.current_belt || '',
+      s.status || '',
+      s.phone || '',
+      s.email || '',
+      s.date_of_birth ? formatDate(s.date_of_birth) : '',
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(escapeCsv).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const branchSlug = (branch?.name || 'branch').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const dateSlug = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `students-${branchSlug}-${dateSlug}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredStudents.length} students`);
+  };
+
   const handleApproveRequest = async (requestId: string) => {
     if (!user?.employeeId) return;
     
@@ -1451,6 +1481,17 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
                 </Button>
               </div>
             )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 sm:px-3 text-xs sm:text-sm shrink-0"
+              onClick={handleExportStudentsCsv}
+              disabled={filteredStudents.length === 0}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
