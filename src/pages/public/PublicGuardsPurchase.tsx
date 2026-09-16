@@ -55,31 +55,38 @@ const DobPicker: React.FC<{ value: Date | undefined; onChange: (d: Date | undefi
     }
   };
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <Select value={day} onValueChange={(v) => { setDay(v); commit(v, month, year); }}>
-        <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
-        <SelectContent>
-          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-            <SelectItem key={d} value={String(d)}>{d}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={month} onValueChange={(v) => { setMonth(v); commit(day, v, year); }}>
-        <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
-        <SelectContent>
-          {MONTHS.map((name, i) => (
-            <SelectItem key={i} value={String(i)}>{name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={year} onValueChange={(v) => { setYear(v); commit(day, month, v); }}>
-        <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
-        <SelectContent>
-          {years.map(y => (
-            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="space-y-1">
+      <div className="grid grid-cols-3 gap-2">
+        <Select value={day} onValueChange={(v) => { setDay(v); commit(v, month, year); }}>
+          <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+              <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={month} onValueChange={(v) => { setMonth(v); commit(day, v, year); }}>
+          <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((name, i) => (
+              <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={year} onValueChange={(v) => { setYear(v); commit(day, month, v); }}>
+          <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+          <SelectContent>
+            {years.map(y => (
+              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {value && (
+        <p className="text-[11px] text-muted-foreground">
+          You selected: {String(value.getDate()).padStart(2, '0')}/{String(value.getMonth() + 1).padStart(2, '0')}/{value.getFullYear()}
+        </p>
+      )}
     </div>
   );
 };

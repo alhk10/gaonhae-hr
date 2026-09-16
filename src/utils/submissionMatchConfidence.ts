@@ -83,24 +83,49 @@ export const candidateStudentId = (candidate: MatchCandidateIdentity): string =>
  * Returns a plain-English reason when the pairing must not be auto-linked,
  * or null when nothing contradicts.
  */
+/** Whole-day difference between two date-only strings, or null when not comparable. */
+export const dateOnlyDayDelta = (
+  a?: string | null,
+  b?: string | null,
+): number | null => {
+  const na = normaliseDate(a);
+  const nb = normaliseDate(b);
+  if (!na || !nb) return null;
+  const [ya, ma, da] = na.split('-').map(Number);
+  const [yb, mb, db] = nb.split('-').map(Number);
+  const ta = Date.UTC(ya, ma - 1, da);
+  const tb = Date.UTC(yb, mb - 1, db);
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return null;
+  return Math.round((ta - tb) / 86400000);
+};
+
 export const matchContradiction = (
   subject: MatchSubject | null | undefined,
   candidate: MatchCandidateIdentity,
 ): string | null => {
   if (!subject) return null;
 
-  const subDob = normaliseDate(subject.dateOfBirth);
-  const candDob = normaliseDate(candidate.date_of_birth);
-  if (subDob && candDob && subDob !== candDob) return 'date of birth differs';
-
   const candidateName =
     candidate.full_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
-  if (subject.name && candidateName) {
-    if (nameSimilarity(subject.name, candidateName) < NAME_SIMILARITY_FLOOR) return 'name differs';
+  const nameAgrees =
+    !!subject.name &&
+    !!candidateName &&
+    nameSimilarity(subject.name, candidateName) >= NAME_SIMILARITY_FLOOR;
+
+  const subDob = normaliseDate(subject.dateOfBirth);
+  const candDob = normaliseDate(candidate.date_of_birth);
+  if (subDob && candDob && subDob !== candDob) {
+    const delta = dateOnlyDayDelta(subDob, candDob);
+    // Legacy records saved a day early; tolerate a one-day drift when the name agrees.
+    const oneDayDrift = delta !== null && Math.abs(delta) === 1 && nameAgrees;
+    if (!oneDayDrift) return 'date of birth differs';
   }
+
+  if (subject.name && candidateName && !nameAgrees) return 'name differs';
 
   return null;
 };
+
 
 /** Normalised key identifying the person behind a submission (name|dob|email). */
 export const buildIdentityKey = (subject: MatchSubject): string =>
