@@ -195,6 +195,15 @@ const InvoicesCreatedSection = () => {
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
         onRefunded={() => refetch()}
       />
+      {viewInvoiceId && (
+        <InvoiceDialog
+          mode="view"
+          invoiceId={viewInvoiceId}
+          open={!!viewInvoiceId}
+          onOpenChange={(o) => { if (!o) setViewInvoiceId(null); }}
+          onInvoiceUpdated={() => refetch()}
+        />
+      )}
     </Card>
   );
 };
