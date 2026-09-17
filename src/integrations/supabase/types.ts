@@ -8047,6 +8047,10 @@ export type Database = {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
         Returns: undefined
       }
+      admin_remember_school_fees_contact: {
+        Args: { p_student_id: string; p_submission_id: string }
+        Returns: undefined
+      }
       admin_remember_student_contact: {
         Args: { p_email?: string; p_phone?: string; p_student_id: string }
         Returns: undefined
