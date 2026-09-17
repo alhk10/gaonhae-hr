@@ -136,6 +136,28 @@ export const matchContradiction = (
  * else contradicts. A shared family email or mobile is never enough on its own,
  * so siblings are always left for staff to confirm.
  */
+/**
+ * Guard for an account staff already chose for this exact person. The
+ * remembered rule is keyed on the submitted name plus birth date, so a sibling
+ * can never recall it; the stored name may legitimately differ from the student
+ * record (e.g. "Chan Jia Lok" saved as "Jordan Chan"), so only a conflicting
+ * birth date blocks reuse.
+ */
+export const preferredAgrees = (
+  subject: MatchSubject | null | undefined,
+  candidate: MatchCandidateIdentity,
+): boolean => {
+  if (!subject) return false;
+  const subDob = normaliseDate(subject.dateOfBirth);
+  const candDob = normaliseDate(candidate.date_of_birth);
+  if (subDob && candDob && subDob !== candDob) {
+    const delta = dateOnlyDayDelta(subDob, candDob);
+    // Legacy records saved a day early; tolerate a one-day drift.
+    if (!(delta !== null && Math.abs(delta) === 1)) return false;
+  }
+  return true;
+};
+
 export const personAgrees = (
   subject: MatchSubject | null | undefined,
   candidate: MatchCandidateIdentity,
@@ -223,7 +245,7 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    if (preferred && personAgrees(options.subject, preferred as MatchCandidateIdentity)) {
+    if (preferred && preferredAgrees(options.subject, preferred as MatchCandidateIdentity)) {
       return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
     }
   }
