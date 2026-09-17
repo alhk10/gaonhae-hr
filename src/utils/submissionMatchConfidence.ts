@@ -245,7 +245,7 @@ export const pickAutoMatch = <T extends { score: number | string | null }>(
     const preferred = usable.find(
       (m) => candidateStudentId(m as MatchCandidateIdentity) === options.preferredStudentId,
     );
-    if (preferred && personAgrees(options.subject, preferred as MatchCandidateIdentity)) {
+    if (preferred && preferredAgrees(options.subject, preferred as MatchCandidateIdentity)) {
       return { match: preferred, confidence: toConfidence(preferred.score, maxScore) };
     }
   }
