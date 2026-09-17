@@ -208,7 +208,7 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         });
       }
       toast.success(autoLabel || 'Student matched');
-      if (row.verified && row.supportsImport && adapter.importInvoice) {
+      if (row.verified && row.supportsImport && adapter.importInvoice && !adapter.matchCreatesInvoice) {
         const res = await tryAutoImport(() => adapter.importInvoice!(row.raw, actor));
         if (res.imported) toast.success('Verified submission imported as invoice');
         else if (res.error) toast.error(`Matched, but import failed: ${res.error}`);
