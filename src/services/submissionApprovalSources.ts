@@ -335,6 +335,8 @@ const guardsVerified = (r: GuardsPurchaseRow) => r.sale_status === 'verified' ||
 
 const guardsAdapter: SubmissionSourceAdapter<GuardsPurchaseRow> = {
   key: 'guards',
+  // Matching a verified purchase already creates its invoice.
+  matchCreatesInvoice: true,
   label: 'Uniforms & guards',
   autoScope: 'guards-purchases',
   historyScope: 'guards',
