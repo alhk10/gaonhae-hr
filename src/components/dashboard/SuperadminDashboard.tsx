@@ -29,10 +29,7 @@ import SlotBookingApprovals from './SlotBookingApprovals';
 import GradingDeletionApprovals from './GradingDeletionApprovals';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
-import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
-import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
-import PublicSeminarSubmissionApprovals from './PublicSeminarSubmissionApprovals';
-import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
+import UnifiedSubmissionApprovals from './UnifiedSubmissionApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
@@ -204,10 +201,7 @@ const SuperadminDashboard = () => {
         <InvoiceDiscountApprovals />
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
-        <PublicGradingSubmissionApprovals />
-        <PublicCompetitionSubmissionApprovals />
-        <PublicSeminarSubmissionApprovals />
-        <PublicGuardsPurchaseApprovals />
+        <UnifiedSubmissionApprovals />
         <PublicHelloCallbackApprovals />
         <PublicHelloLessonRequestApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
