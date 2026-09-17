@@ -39,6 +39,7 @@ import {
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
+import { rememberSchoolFeesContact } from '@/services/studentContactService';
 
 
 interface Props {
