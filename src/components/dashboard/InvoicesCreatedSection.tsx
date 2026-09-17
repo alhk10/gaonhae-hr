@@ -143,6 +143,8 @@ const InvoicesCreatedSection = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-xs py-2">Invoice #</TableHead>
+                  <TableHead className="text-xs py-2">Date</TableHead>
                   <TableHead className="text-xs py-2">Student</TableHead>
                   <TableHead className="text-xs py-2 text-right">Amount</TableHead>
                   <TableHead className="text-xs py-2 text-right">Due</TableHead>
@@ -152,7 +154,13 @@ const InvoicesCreatedSection = () => {
               </TableHeader>
               <TableBody>
                 {invoices.map((inv: any) => (
-                  <TableRow key={inv.id} className="text-sm">
+                  <TableRow
+                    key={inv.id}
+                    className="text-sm cursor-pointer hover:bg-muted/50"
+                    onClick={() => setViewInvoiceId(inv.id)}
+                  >
+                    <TableCell className="py-1.5 font-mono text-xs whitespace-nowrap">{inv.invoice_number || '—'}</TableCell>
+                    <TableCell className="py-1.5 text-xs whitespace-nowrap">{formatDate(inv.created_at)}</TableCell>
                     <TableCell className="py-1.5">{`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.total_amount?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.balance_due?.toFixed(2)}</TableCell>
@@ -167,7 +175,7 @@ const InvoicesCreatedSection = () => {
                         variant="outline"
                         className="h-6 px-2 text-[10px] text-orange-600"
                         disabled={!['paid', 'verified', 'partially_paid'].includes(String(inv.status))}
-                        onClick={() => setRefundInvoiceId(inv.id)}
+                        onClick={(e) => { e.stopPropagation(); setRefundInvoiceId(inv.id); }}
                         title="Refund as credit"
                       >
                         <Undo2 className="h-3 w-3 mr-1" />Refund
