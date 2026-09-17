@@ -11,11 +11,14 @@ import { startOfWeek, startOfMonth, format } from 'date-fns';
 import { FileText, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { formatDate } from '@/utils/dateFormat';
 
 const InvoicesCreatedSection = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [branchId, setBranchId] = useState<string>('all');
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
   const { branches } = useBranches();
 
   const getDateRange = () => {
