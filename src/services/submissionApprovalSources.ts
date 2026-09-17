@@ -110,6 +110,8 @@ export interface SubmissionSourceAdapter<T = any> {
   match: (item: T, studentId: string, actor: string) => Promise<void>;
   verify?: (item: T, actor: string) => Promise<void>;
   importInvoice?: (item: T, actor: string) => Promise<unknown>;
+  /** True when matching a verified row already creates the invoice. */
+  matchCreatesInvoice?: boolean;
   reject: (item: T, reason: string, actor: string) => Promise<void>;
   updateDetails?: (
     item: T,
@@ -333,6 +335,8 @@ const guardsVerified = (r: GuardsPurchaseRow) => r.sale_status === 'verified' ||
 
 const guardsAdapter: SubmissionSourceAdapter<GuardsPurchaseRow> = {
   key: 'guards',
+  // Matching a verified purchase already creates its invoice.
+  matchCreatesInvoice: true,
   label: 'Uniforms & guards',
   autoScope: 'guards-purchases',
   historyScope: 'guards',
