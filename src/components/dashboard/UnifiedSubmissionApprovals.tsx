@@ -392,9 +392,12 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         Object.assign(errors, matchRes.errors);
 
         if (source.importInvoice) {
-          const importRows = rows.map((r) =>
-            matchRes.matchedIds.includes(r.id) ? { ...r, matchedStudentId: r.matchedStudentId || 'matched' } : r,
-          );
+          // Sources whose match step already creates the invoice must not be imported again.
+          const importRows = source.matchCreatesInvoice
+            ? rows.filter((r) => !matchRes.matchedIds.includes(r.id))
+            : rows.map((r) =>
+                matchRes.matchedIds.includes(r.id) ? { ...r, matchedStudentId: r.matchedStudentId || 'matched' } : r,
+              );
           const importRes = await runAutoImportSweep(source.autoScope, importRows, {
             getId: (r) => r.id,
             isReady: (r) => r.verified && !!r.matchedStudentId,
