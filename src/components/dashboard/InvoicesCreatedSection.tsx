@@ -106,7 +106,11 @@ const InvoicesCreatedSection = () => {
           {/* Mobile: stacked cards so the Refund button is always visible */}
           <div className="sm:hidden space-y-2">
             {invoices.map((inv: any) => (
-              <div key={inv.id} className="rounded-md border p-2 space-y-1">
+              <div
+                key={inv.id}
+                className="rounded-md border p-2 space-y-1 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setViewInvoiceId(inv.id)}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">
                     {`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}
@@ -114,6 +118,9 @@ const InvoicesCreatedSection = () => {
                   <Badge variant={getStatusVariant(inv.status)} className="text-[10px] px-1.5 py-0">
                     {formatStatus(inv.status)}
                   </Badge>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {inv.invoice_number || '—'} · {formatDate(inv.created_at)}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">
@@ -124,7 +131,7 @@ const InvoicesCreatedSection = () => {
                     variant="outline"
                     className="h-6 px-2 text-[10px] text-orange-600"
                     disabled={!['paid', 'verified', 'partially_paid'].includes(String(inv.status))}
-                    onClick={() => setRefundInvoiceId(inv.id)}
+                    onClick={(e) => { e.stopPropagation(); setRefundInvoiceId(inv.id); }}
                   >
                     <Undo2 className="h-3 w-3 mr-1" />Refund
                   </Button>
