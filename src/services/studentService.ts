@@ -27,6 +27,9 @@ export interface Student {
   phone?: string;
   whatsapp?: string;
   email?: string;
+  /** Extra parent contacts, also used when matching public payments. */
+  alt_emails?: string[];
+  alt_phones?: string[];
   address?: string;
   postal_code?: string;
   branch_id?: string;
@@ -362,6 +365,8 @@ export interface CreateStudentData {
   // Trial-specific fields
   trial_date?: string;
   trial_time?: string;
+  alt_emails?: string[];
+  alt_phones?: string[];
 }
 
 /**

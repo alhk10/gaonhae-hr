@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { ExtraContactsFields, cleanContactList } from '@/components/students/ExtraContactsFields';
 import { toast } from 'sonner';
 import { UserPlus, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { useBranches } from '@/hooks/useBranches';
@@ -80,6 +81,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     phone: '',
     whatsapp: '',
     email: '',
+    alt_emails: [] as string[],
+    alt_phones: [] as string[],
     address: '',
     postal_code: '',
     
@@ -194,7 +197,14 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
       // Import the createStudent function
       const { createStudent } = await import('@/services/studentService');
       
-      await createStudent({ ...formData, training_goals: formData.training_goals.join(', ') });
+      const primaryEmail = (formData.email || '').trim().toLowerCase();
+      const primaryDigits = (formData.phone || '').replace(/\D/g, '');
+      await createStudent({
+        ...formData,
+        training_goals: formData.training_goals.join(', '),
+        alt_emails: cleanContactList(formData.alt_emails, true).filter((e) => e !== primaryEmail),
+        alt_phones: cleanContactList(formData.alt_phones).filter((p) => p.replace(/\D/g, '') !== primaryDigits),
+      });
       
       toast.success('Student added successfully');
       setIsOpen(false);
@@ -212,6 +222,8 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         phone: '',
         whatsapp: '',
         email: '',
+        alt_emails: [],
+        alt_phones: [],
         address: '',
         postal_code: '',
         nationality: [],
@@ -424,6 +436,13 @@ const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
                   />
                 </div>
               </div>
+
+              <ExtraContactsFields
+                emails={formData.alt_emails}
+                phones={formData.alt_phones}
+                onEmailsChange={(next) => setFormData((prev) => ({ ...prev, alt_emails: next }))}
+                onPhonesChange={(next) => setFormData((prev) => ({ ...prev, alt_phones: next }))}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
