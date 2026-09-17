@@ -476,13 +476,30 @@ const isSharedStudentEmail = async (email?: string | null): Promise<boolean> => 
   return (count || 0) > 1;
 };
 
+const digits = (s?: string | null) => (s || '').replace(/\D/g, '');
+
+/** True when more than one student is reachable on this mobile (a family number). */
+const isSharedStudentPhone = async (phone?: string | null): Promise<boolean> => {
+  const d = digits(phone);
+  if (d.length < 7) return false;
+  const { data, error } = await supabase.from('students').select('phone, alt_phones').limit(5000);
+  if (error) return true;
+  const hits = (data || []).filter((s: any) =>
+    [s.phone, ...((s.alt_phones as string[] | null) || [])].some((v) => {
+      const sd = digits(v);
+      return sd.length >= 7 && (sd.endsWith(d) || d.endsWith(sd));
+    }),
+  );
+  return hits.length > 1;
+};
+
 export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<StudentMatchCandidate[]> => {
   const fn = norm(purchase.first_name);
   const ln = norm(purchase.last_name);
   // Fetch students by name match (broad), then score in JS.
   const { data, error } = await supabase
     .from('students')
-    .select('id, student_number, first_name, last_name, date_of_birth, branch_id, current_belt, email, alt_emails, phone')
+    .select('id, student_number, first_name, last_name, date_of_birth, branch_id, current_belt, email, alt_emails, phone, alt_phones')
     .or(`first_name.ilike.%${fn}%,last_name.ilike.%${ln}%`)
     .limit(50);
   if (error) throw error;
@@ -490,6 +507,9 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
   const branchId = purchase.branch_id;
   // A family email shared by several students says nothing about which child this is.
   const emailShared = await isSharedStudentEmail(purchase.email);
+  // Same for a family mobile number: it cannot tell the siblings apart.
+  const phoneShared = await isSharedStudentPhone(purchase.phone);
+  const purchaseDigits = digits(purchase.phone);
   const scored = (data || []).map((s: any) => {
     let score = 0;
     const sfn = norm(s.first_name);
@@ -504,7 +524,13 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
       .filter(Boolean)
       .map((e: string) => norm(e));
     if (purchase.email && !emailShared && knownEmails.includes(norm(purchase.email))) score += 1;
-    if (purchase.phone && s.phone && (s.phone || '').replace(/\D/g, '').includes(purchase.phone.replace(/\D/g, ''))) score += 1;
+    const knownPhones = [s.phone, ...((s.alt_phones as string[] | null) || [])]
+      .map((v: string | null) => digits(v))
+      .filter((d: string) => d.length >= 7);
+    const phoneHit =
+      purchaseDigits.length >= 7 &&
+      knownPhones.some((d: string) => d.endsWith(purchaseDigits) || purchaseDigits.endsWith(d));
+    if (phoneHit && !phoneShared) score += 1;
     return { ...s, score };
   });
   return scored

@@ -183,6 +183,14 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
                 <InfoRow label="Phone" value={student.phone} />
                 <InfoRow label="WhatsApp" value={student.whatsapp} />
                 <InfoRow label="Email" value={student.email} />
+                <InfoRow
+                  label="Other emails"
+                  value={(((student as any).alt_emails as string[] | null) || []).join(', ') || null}
+                />
+                <InfoRow
+                  label="Other phones"
+                  value={(((student as any).alt_phones as string[] | null) || []).join(', ') || null}
+                />
                 <InfoRow label="Address" value={student.address} />
                 <InfoRow label="Postal Code" value={student.postal_code} />
               </div>

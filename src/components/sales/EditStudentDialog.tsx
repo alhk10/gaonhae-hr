@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { ExtraContactsFields, cleanContactList } from '@/components/students/ExtraContactsFields';
 import { toast } from 'sonner';
 import { Edit, User, Mail, GraduationCap, Settings } from 'lucide-react';
 import { Student, updateStudent } from '@/services/studentService';
@@ -67,6 +68,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
     phone: '',
     whatsapp: '',
     email: '',
+    alt_emails: [] as string[],
+    alt_phones: [] as string[],
     address: '',
     postal_code: '',
     
@@ -128,6 +131,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
         phone: student.phone || '',
         whatsapp: student.whatsapp || '',
         email: student.email || '',
+        alt_emails: ((student as any).alt_emails as string[] | null) || [],
+        alt_phones: ((student as any).alt_phones as string[] | null) || [],
         address: student.address || '',
         postal_code: student.postal_code || '',
         nationality: Array.isArray(student.nationality) ? student.nationality : (student.nationality ? [student.nationality] : []),
@@ -217,6 +222,13 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
       const updateData: any = { ...formData, training_goals: formData.training_goals.join(', ') };
       // Send null if empty array so DB treats it as "no exceptions"
       updateData.allowed_class_types = formData.allowed_class_types.length > 0 ? formData.allowed_class_types : null;
+      // Extra parent contacts: trimmed, de-duplicated, never repeating the primary contact.
+      const primaryEmail = (formData.email || '').trim().toLowerCase();
+      const primaryDigits = (formData.phone || '').replace(/\D/g, '');
+      updateData.alt_emails = cleanContactList(formData.alt_emails, true).filter((e) => e !== primaryEmail);
+      updateData.alt_phones = cleanContactList(formData.alt_phones).filter(
+        (p) => p.replace(/\D/g, '') !== primaryDigits,
+      );
       await updateStudent(student.id, updateData);
       
       toast.success('Student updated successfully');
@@ -411,6 +423,13 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({
                   />
                 </div>
               </div>
+
+              <ExtraContactsFields
+                emails={formData.alt_emails}
+                phones={formData.alt_phones}
+                onEmailsChange={(next) => setFormData((prev) => ({ ...prev, alt_emails: next }))}
+                onPhonesChange={(next) => setFormData((prev) => ({ ...prev, alt_phones: next }))}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

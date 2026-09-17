@@ -18,6 +18,12 @@
  */
 export const MAX_MATCH_SCORE = 1.35;
 
+/**
+ * School fees also scores the mobile number from the chat session (worth .15,
+ * and nothing when siblings share the number), so its ceiling is higher.
+ */
+export const MAX_MATCH_SCORE_WITH_PHONE = 1.5;
+
 /** Max score of the guards purchase client-side scorer (email worth 1 point). */
 export const MAX_GUARDS_MATCH_SCORE = 13;
 

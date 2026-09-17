@@ -39,6 +39,7 @@ import {
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
+import { rememberSchoolFeesContact } from '@/services/studentContactService';
 
 
 interface Props {
@@ -226,6 +227,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     setBusy(true);
     try {
       await matchSchoolFeesSubmission(matchRow.id, studentId, actor);
+      await rememberSchoolFeesContact(matchRow.id, studentId);
       await recordMatchEvent({
         scope: 'school-fees',
         submissionId: matchRow.id,

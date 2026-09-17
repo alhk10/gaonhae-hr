@@ -7020,6 +7020,7 @@ export type Database = {
           address: string | null
           allowed_class_types: string[] | null
           alt_emails: string[]
+          alt_phones: string[]
           branch_id: string | null
           certificate_name: string | null
           created_at: string
@@ -7066,6 +7067,7 @@ export type Database = {
           address?: string | null
           allowed_class_types?: string[] | null
           alt_emails?: string[]
+          alt_phones?: string[]
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string
@@ -7112,6 +7114,7 @@ export type Database = {
           address?: string | null
           allowed_class_types?: string[] | null
           alt_emails?: string[]
+          alt_phones?: string[]
           branch_id?: string | null
           certificate_name?: string | null
           created_at?: string
@@ -7833,6 +7836,10 @@ export type Database = {
         Args: { p_email: string; p_student_id: string }
         Returns: undefined
       }
+      _remember_student_phone: {
+        Args: { p_phone: string; p_student_id: string }
+        Returns: undefined
+      }
       _resolve_chat_submission_invoice: {
         Args: {
           p_sub: Database["public"]["Tables"]["public_chat_payment_submissions"]["Row"]
@@ -8038,6 +8045,14 @@ export type Database = {
       }
       admin_reject_seminar_submission: {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
+        Returns: undefined
+      }
+      admin_remember_school_fees_contact: {
+        Args: { p_student_id: string; p_submission_id: string }
+        Returns: undefined
+      }
+      admin_remember_student_contact: {
+        Args: { p_email?: string; p_phone?: string; p_student_id: string }
         Returns: undefined
       }
       admin_replace_competition_grading_card_at: {
