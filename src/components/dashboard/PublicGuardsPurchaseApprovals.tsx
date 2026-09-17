@@ -20,6 +20,7 @@ import { CheckCircle, XCircle, UserSearch, ShieldCheck, UserPlus, Pencil, Refres
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
+import { rememberStudentContact } from '@/services/studentContactService';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { getBranches } from '@/services/settingsService';
@@ -159,6 +160,7 @@ const PublicGuardsPurchaseApprovals: React.FC<Props> = ({ branchId }) => {
   ) => {
     // Link student first so the invoice creation sees the relationship.
     await updateGuardsPurchase(row.id, { matched_student_id: studentId });
+    await rememberStudentContact(studentId, { email: row.email, phone: row.phone });
     // Never turn an unverified payment into a paid invoice.
     if (!isPaymentVerified(row)) return;
     try {

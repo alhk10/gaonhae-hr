@@ -226,6 +226,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     setBusy(true);
     try {
       await matchSchoolFeesSubmission(matchRow.id, studentId, actor);
+      await rememberSchoolFeesContact(matchRow.id, studentId);
       await recordMatchEvent({
         scope: 'school-fees',
         submissionId: matchRow.id,

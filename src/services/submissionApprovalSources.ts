@@ -51,6 +51,7 @@ import {
   type GuardsPurchaseRow,
 } from '@/services/guardsPurchaseService';
 import { MAX_GUARDS_MATCH_SCORE, MAX_MATCH_SCORE, type MatchSubject } from '@/utils/submissionMatchConfidence';
+import { rememberSchoolFeesContact, rememberStudentContact } from '@/services/studentContactService';
 
 export type SubmissionTypeKey = 'grading' | 'competition' | 'seminar' | 'school_fees' | 'guards';
 
@@ -167,7 +168,10 @@ const gradingAdapter: SubmissionSourceAdapter<PendingGradingSubmission> = {
     raw: s,
   }),
   findMatches: (s) => findGradingMatches(s.id) as Promise<UnifiedMatchCandidate[]>,
-  match: (s, studentId) => matchGradingSubmission(s.id, studentId),
+  match: async (s, studentId) => {
+    await matchGradingSubmission(s.id, studentId);
+    await rememberStudentContact(studentId, { email: s.email });
+  },
   verify: (s, actor) => verifyGradingSubmission(s.id, actor),
   importInvoice: (s, actor) => importGradingSubmission(s.id, actor),
   reject: (s, reason, actor) => rejectGradingSubmission(s.id, reason, actor),
@@ -214,7 +218,10 @@ const competitionAdapter: SubmissionSourceAdapter<PendingCompetitionSubmission> 
     raw: s,
   }),
   findMatches: (s) => findCompetitionSubmissionStudentMatches(s.id) as Promise<UnifiedMatchCandidate[]>,
-  match: (s, studentId) => matchCompetitionSubmission(s.id, studentId),
+  match: async (s, studentId) => {
+    await matchCompetitionSubmission(s.id, studentId);
+    await rememberStudentContact(studentId, { email: s.email });
+  },
   verify: (s, actor) => verifyCompetitionSubmission(s.id, actor),
   importInvoice: (s, actor) => importCompetitionSubmission(s.id, actor),
   reject: (s, reason, actor) => rejectCompetitionSubmission(s.id, reason, actor),
@@ -257,7 +264,10 @@ const seminarAdapter: SubmissionSourceAdapter<PendingSeminarSubmission> = {
     raw: s,
   }),
   findMatches: (s) => findSeminarSubmissionStudentMatches(s.id) as Promise<UnifiedMatchCandidate[]>,
-  match: (s, studentId) => matchSeminarSubmission(s.id, studentId),
+  match: async (s, studentId) => {
+    await matchSeminarSubmission(s.id, studentId);
+    await rememberStudentContact(studentId, { email: s.email });
+  },
   verify: (s, actor) => verifySeminarSubmission(s.id, actor),
   importInvoice: (s, actor) => importSeminarSubmissionStudent(s.id, actor),
   reject: (s, reason, actor) => rejectSeminarSubmission(s.id, reason, actor),
@@ -309,7 +319,10 @@ const schoolFeesAdapter: SubmissionSourceAdapter<SchoolFeesRow> = {
     };
   },
   findMatches: (r) => getSchoolFeesStudentMatches(r.id) as Promise<UnifiedMatchCandidate[]>,
-  match: (r, studentId, actor) => matchSchoolFeesSubmission(r.id, studentId, actor).then(() => undefined),
+  match: async (r, studentId, actor) => {
+    await matchSchoolFeesSubmission(r.id, studentId, actor);
+    await rememberSchoolFeesContact(r.id, studentId);
+  },
   verify: (r, actor) => verifySchoolFeesSubmission(r.id, actor),
   reject: (r, reason, actor) => rejectSchoolFeesSubmission(r.id, reason, actor),
 };
@@ -377,6 +390,7 @@ const guardsAdapter: SubmissionSourceAdapter<GuardsPurchaseRow> = {
   },
   match: async (r, studentId) => {
     await updateGuardsPurchase(r.id, { matched_student_id: studentId });
+    await rememberStudentContact(studentId, { email: r.email, phone: r.phone });
     // A purchase only becomes a paid invoice once its payment is verified.
     if (guardsVerified(r)) {
       await createInvoiceForPurchase({ ...r, matched_student_id: studentId }, studentId);
