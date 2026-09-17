@@ -92,8 +92,6 @@ export interface UnifiedSubmissionRow {
   extraImages: { url: string; label: string }[];
   /** True when this type creates the invoice through an explicit import action. */
   supportsImport: boolean;
-  /** True when matching a verified row already creates the invoice (no import needed after). */
-  matchCreatesInvoice?: boolean;
   raw: unknown;
 }
 
