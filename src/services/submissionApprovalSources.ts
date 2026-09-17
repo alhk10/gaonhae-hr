@@ -50,7 +50,7 @@ import {
   setGuardsStatus,
   type GuardsPurchaseRow,
 } from '@/services/guardsPurchaseService';
-import { MAX_GUARDS_MATCH_SCORE, MAX_MATCH_SCORE, type MatchSubject } from '@/utils/submissionMatchConfidence';
+import { MAX_GUARDS_MATCH_SCORE, MAX_MATCH_SCORE, MAX_MATCH_SCORE_WITH_PHONE, type MatchSubject } from '@/utils/submissionMatchConfidence';
 import { rememberSchoolFeesContact, rememberStudentContact } from '@/services/studentContactService';
 
 export type SubmissionTypeKey = 'grading' | 'competition' | 'seminar' | 'school_fees' | 'guards';
@@ -281,7 +281,7 @@ const schoolFeesAdapter: SubmissionSourceAdapter<SchoolFeesRow> = {
   label: 'School fees',
   autoScope: 'school-fees-submissions',
   historyScope: 'school_fees',
-  maxScore: MAX_MATCH_SCORE,
+  maxScore: MAX_MATCH_SCORE_WITH_PHONE,
   queryKey: () => ['school-fees-pending-approvals'],
   invalidateKeys: ['school-fees-pending-approvals', 'school-fees-list'],
   fetch: async () => {
