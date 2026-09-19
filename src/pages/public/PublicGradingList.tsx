@@ -1327,15 +1327,19 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
+          <TabsContent value="students" className="mt-4">
+            <StudentsTab canEdit={editMode} />
+          </TabsContent>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
               onDrill={(tab, branch, intent) => {
