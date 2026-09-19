@@ -6656,6 +6656,51 @@ export type Database = {
           },
         ]
       }
+      student_merge_requests: {
+        Row: {
+          created_at: string
+          drop_ids: string[]
+          id: string
+          keep_id: string
+          merge_result: Json | null
+          rejection_reason: string | null
+          requested_by: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          snapshot: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          drop_ids: string[]
+          id?: string
+          keep_id: string
+          merge_result?: Json | null
+          rejection_reason?: string | null
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          snapshot?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          drop_ids?: string[]
+          id?: string
+          keep_id?: string
+          merge_result?: Json | null
+          rejection_reason?: string | null
+          requested_by?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          snapshot?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       student_notification_subscriptions: {
         Row: {
           auth: string
@@ -7896,6 +7941,22 @@ export type Database = {
         }
         Returns: string
       }
+      admin_create_student_public: {
+        Args: {
+          p_actor?: string
+          p_branch_id?: string
+          p_current_belt?: string
+          p_date_of_birth?: string
+          p_email?: string
+          p_first_name: string
+          p_force?: boolean
+          p_gender?: string
+          p_last_name?: string
+          p_phone?: string
+          p_status?: string
+        }
+        Returns: string
+      }
       admin_delete_competition_event: {
         Args: { p_id: string }
         Returns: undefined
@@ -8297,6 +8358,10 @@ export type Database = {
       admin_verify_seminar_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: undefined
+      }
+      approve_student_merge_request: {
+        Args: { p_actor: string; p_request_id: string }
+        Returns: Json
       }
       attach_public_chat_planned_schedule: {
         Args: {
@@ -9251,6 +9316,29 @@ export type Database = {
         Args: { belt_values: string[] }
         Returns: boolean
       }
+      list_pending_student_merge_requests: {
+        Args: never
+        Returns: {
+          created_at: string
+          drop_ids: string[]
+          id: string
+          keep_id: string
+          merge_result: Json | null
+          rejection_reason: string | null
+          requested_by: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          snapshot: Json
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "student_merge_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       log_booking_attempt: {
         Args: {
           p_attempt_result: string
@@ -9326,6 +9414,37 @@ export type Database = {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
         Returns: string
       }
+      public_find_duplicate_students: {
+        Args: { p_criteria?: Json }
+        Returns: {
+          attendance_count: number
+          branch_id: string
+          current_belt: string
+          date_of_birth: string
+          email: string
+          enrollments_count: number
+          first_name: string
+          grading_count: number
+          group_key: string
+          invoices_count: number
+          last_activity_at: string
+          last_name: string
+          match_reason: string
+          phone: string
+          status: string
+          student_id: string
+          student_number: string
+        }[]
+      }
+      public_request_student_merge: {
+        Args: {
+          p_actor?: string
+          p_drop_ids: string[]
+          p_keep_id: string
+          p_snapshot?: Json
+        }
+        Returns: string
+      }
       public_set_guards_collected: {
         Args: { p_by: string; p_collected: boolean; p_id: string }
         Returns: Json
@@ -9336,6 +9455,10 @@ export type Database = {
       }
       public_set_guards_variant_selections: {
         Args: { p_id: string; p_selections: Json }
+        Returns: undefined
+      }
+      reject_student_merge_request: {
+        Args: { p_actor: string; p_reason?: string; p_request_id: string }
         Returns: undefined
       }
       release_credit_hold: {

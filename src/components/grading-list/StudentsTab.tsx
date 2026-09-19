@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Loader2, Search, Users } from 'lucide-react';
+import { Pencil, Loader2, Search, Users, UserPlus, Merge } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,8 @@ import {
 } from '@/services/studentDirectoryService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import AddStudentDialog from './AddStudentDialog';
+import MergeStudentsDialog from './MergeStudentsDialog';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 
@@ -91,6 +93,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [editBranch, setEditBranch] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   // Debounce search input
   React.useEffect(() => {
@@ -181,7 +185,27 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
             <SelectItem value="withdrawn">withdrawn</SelectItem>
           </SelectContent>
         </Select>
+        {canEdit && (
+          <div className="flex gap-2">
+            <Button size="sm" className="h-9" onClick={() => setAddOpen(true)}>
+              <UserPlus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Add Student</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-9" onClick={() => setMergeOpen(true)}>
+              <Merge className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Merge Students</span>
+            </Button>
+          </div>
+        )}
       </div>
+
+      <AddStudentDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        actor={actor}
+        onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
+      />
+      <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
