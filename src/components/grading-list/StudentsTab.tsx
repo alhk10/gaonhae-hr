@@ -330,7 +330,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No belt</SelectItem>
-                  {BELT_LEVELS_ARRAY.map((b) => (
+                  {BELT_OPTIONS.map((b) => (
                     <SelectItem key={b} value={b}>{b}</SelectItem>
                   ))}
                 </SelectContent>
