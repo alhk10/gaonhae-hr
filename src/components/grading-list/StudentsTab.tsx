@@ -3,7 +3,7 @@
  * Public searchable student directory with enrolment, payment and credit info.
  * Unlocked staff can edit belt, branch and status (withdrawal excluded).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Loader2, Search, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
