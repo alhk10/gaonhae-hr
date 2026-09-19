@@ -31,6 +31,8 @@ import {
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
+const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
+
 interface Props {
   canEdit?: boolean;
 }
