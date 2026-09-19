@@ -32,6 +32,7 @@ import AiDocumentTab from '@/components/grading-list/AiDocumentTab';
 import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import SummaryTab from '@/components/grading-list/SummaryTab';
 import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
+import StudentsTab from '@/components/grading-list/StudentsTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {

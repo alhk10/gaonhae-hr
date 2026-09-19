@@ -113,12 +113,6 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const branchNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const b of branches as any[]) map.set(b.id, b.name);
-    return map;
-  }, [branches]);
-
   const openEdit = (r: PublicStudentDirectoryRow) => {
     setEditRow(r);
     setEditBelt(r.current_belt || '');
