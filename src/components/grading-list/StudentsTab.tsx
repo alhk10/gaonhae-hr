@@ -30,6 +30,8 @@ import {
 } from '@/services/studentDirectoryService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import AddStudentDialog from './AddStudentDialog';
+import MergeStudentsDialog from './MergeStudentsDialog';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 

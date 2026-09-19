@@ -14,6 +14,7 @@ import { getPendingDiscountApprovalsCount } from '@/services/invoiceDiscountAppr
 import { getPendingActionRequestsCount } from '@/services/invoiceActionRequestService';
 import { getPendingRegistrationsCount } from '@/services/studentRegistrationService';
 import { getPendingWithdrawalRequestsCount } from '@/services/studentWithdrawalRequestService';
+import { getPendingStudentMergeRequestsCount } from '@/services/studentMergeRequestService';
 import { getPendingTransferRequestsCount } from '@/services/inventoryTransferService';
 import { getPendingCompetitionSubmissionsCount } from '@/services/competitionPaymentSubmissionService';
 import { getPendingSeminarSubmissionsCount } from '@/services/seminarPaymentSubmissionService';
@@ -38,6 +39,7 @@ import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
 import StockTransferApprovals from './StockTransferApprovals';
 import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import StudentWithdrawalApprovals from './StudentWithdrawalApprovals';
+import StudentMergeApprovals from './StudentMergeApprovals';
 import LowStockWarnings from './LowStockWarnings';
 import InvoiceActionApprovals from './InvoiceActionApprovals';
 
@@ -157,6 +159,12 @@ const SuperadminDashboard = () => {
     ...countQueryOpts,
   });
 
+  const { data: pendingStudentMergeCount = 0 } = useQuery({
+    queryKey: ['pending-student-merge-count'],
+    queryFn: getPendingStudentMergeRequestsCount,
+    ...countQueryOpts,
+  });
+
   const totalPendingCount =
     pendingClaimsCount +
     pendingLeaveCount +
@@ -172,7 +180,8 @@ const SuperadminDashboard = () => {
     pendingEditRequestsCount +
     pendingTransferCount +
     pendingCompetitionCount +
-    pendingSeminarCount;
+    pendingSeminarCount +
+    pendingStudentMergeCount;
 
   return (
     <>
@@ -196,6 +205,7 @@ const SuperadminDashboard = () => {
       <TabsContent value="overview" className="space-y-3 sm:space-y-6 mt-0">
         <StudentRegistrationApprovals showAll />
         <StudentWithdrawalApprovals />
+        <StudentMergeApprovals />
         <ClaimsApprovals />
         <LeaveApprovals />
         <InvoiceDiscountApprovals />
