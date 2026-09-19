@@ -8176,6 +8176,16 @@ export type Database = {
         Args: { p_id: string; p_slot_id: string }
         Returns: undefined
       }
+      admin_update_student_basic: {
+        Args: {
+          p_actor?: string
+          p_belt?: string
+          p_branch_id?: string
+          p_status?: string
+          p_student_id: string
+        }
+        Returns: undefined
+      }
       admin_update_student_certificate_name: {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
@@ -9048,6 +9058,31 @@ export type Database = {
           branch_name: string
           month: number
           student_count: number
+        }[]
+      }
+      get_public_student_directory: {
+        Args: { p_branch_id?: string; p_search?: string; p_status?: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          class_type: string
+          credit_balance: number
+          current_belt: string
+          date_of_birth: string
+          email: string
+          enrolled_weekdays: string[]
+          first_name: string
+          id: string
+          invoice_balance: number
+          invoice_status: string
+          invoice_total: number
+          last_name: string
+          name: string
+          phone: string
+          status: string
+          student_number: string
+          term_name: string
+          tier_name: string
         }[]
       }
       get_public_student_invoiced_terms: {
