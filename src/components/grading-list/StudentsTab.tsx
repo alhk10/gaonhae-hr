@@ -429,14 +429,119 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
 
       {/* Edit dialog */}
       <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>
-              {editRow?.name} — update belt, branch or status. Withdrawal requires superadmin approval and is not available here.
+              {editRow?.name} — update details, belt, branch or status. Withdrawal requires superadmin approval and is not available here.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">First name</label>
+                <Input className="h-9" value={editFirst} onChange={(e) => setEditFirst(e.target.value.toUpperCase())} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Last name</label>
+                <Input className="h-9" value={editLast} onChange={(e) => setEditLast(e.target.value.toUpperCase())} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Date of birth</label>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={editDay} onValueChange={setEditDay}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Day" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
+                      <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={editMonth} onValueChange={setEditMonth}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Month" /></SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={m} value={String(i)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={editYear} onValueChange={setEditYear}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Year" /></SelectTrigger>
+                  <SelectContent>
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {editDobIso && (
+                <p className="text-[11px] text-muted-foreground">You selected: {formatDate(editDobIso)}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Email</label>
+              <Input className="h-9" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Main email" />
+              {editAltEmails.map((em) => (
+                <div key={em} className="flex items-center gap-2 rounded border px-2 py-1 text-xs">
+                  <span className="flex-1 truncate">{em}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${em}`}
+                    onClick={() => setEditAltEmails((prev) => prev.filter((x) => x !== em))}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-8 text-xs"
+                  value={newAltEmail}
+                  onChange={(e) => setNewAltEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAltEmail(); } }}
+                  placeholder="Add another email"
+                />
+                <Button type="button" variant="outline" size="sm" className="h-8" onClick={addAltEmail}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Mobile</label>
+              <Input className="h-9" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Main mobile" />
+              {editAltPhones.map((ph) => (
+                <div key={ph} className="flex items-center gap-2 rounded border px-2 py-1 text-xs">
+                  <span className="flex-1 truncate">{ph}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${ph}`}
+                    onClick={() => setEditAltPhones((prev) => prev.filter((x) => x !== ph))}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-8 text-xs"
+                  value={newAltPhone}
+                  onChange={(e) => setNewAltPhone(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAltPhone(); } }}
+                  placeholder="Add another mobile"
+                />
+                <Button type="button" variant="outline" size="sm" className="h-8" onClick={addAltPhone}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {contactsLoading && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading saved contacts...
+                </p>
+              )}
+            </div>
             <div className="space-y-1">
               <label className="text-xs font-medium">Belt</label>
               <Select value={editBelt || '__none__'} onValueChange={(v) => setEditBelt(v === '__none__' ? '' : v)}>
