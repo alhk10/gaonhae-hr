@@ -156,10 +156,58 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
     setEditBelt(r.current_belt || '');
     setEditBranch(r.branch_id || '');
     setEditStatus(r.status || 'active');
+    setEditFirst(r.first_name || '');
+    setEditLast(r.last_name || '');
+    setEditEmail(r.email || '');
+    setEditPhone(r.phone || '');
+    setEditAltEmails([]);
+    setEditAltPhones([]);
+    setNewAltEmail('');
+    setNewAltPhone('');
+    if (r.date_of_birth) {
+      const d = new Date(r.date_of_birth);
+      setEditDay(String(d.getDate()));
+      setEditMonth(String(d.getMonth()));
+      setEditYear(String(d.getFullYear()));
+    } else {
+      setEditDay(''); setEditMonth(''); setEditYear('');
+    }
+    setContactsLoading(true);
+    getStudentContacts(r.id)
+      .then((c) => {
+        setEditAltEmails(c.alt_emails || []);
+        setEditAltPhones(c.alt_phones || []);
+        if (c.email) setEditEmail(c.email);
+        if (c.phone) setEditPhone(c.phone);
+      })
+      .catch(() => {})
+      .finally(() => setContactsLoading(false));
+  };
+
+  const addAltEmail = () => {
+    const v = newAltEmail.trim().toLowerCase();
+    if (!v) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { toast.error('Enter a valid email'); return; }
+    if (isBlockedEmail(v)) { toast.error(BLOCKED_EMAIL_MESSAGE); return; }
+    if (editAltEmails.includes(v) || v === editEmail.trim().toLowerCase()) { toast.error('Email already added'); return; }
+    setEditAltEmails((prev) => [...prev, v]);
+    setNewAltEmail('');
+  };
+
+  const addAltPhone = () => {
+    const v = newAltPhone.trim();
+    if (!v) return;
+    if (editAltPhones.includes(v) || v === editPhone.trim()) { toast.error('Mobile already added'); return; }
+    setEditAltPhones((prev) => [...prev, v]);
+    setNewAltPhone('');
   };
 
   const handleSave = async () => {
     if (!editRow) return;
+    if (!editFirst.trim()) { toast.error('First name is required'); return; }
+    const mainEmail = editEmail.trim().toLowerCase();
+    if (mainEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mainEmail)) { toast.error('Enter a valid email'); return; }
+    if (mainEmail && isBlockedEmail(mainEmail)) { toast.error(BLOCKED_EMAIL_MESSAGE); return; }
     setSaving(true);
     try {
       const beltChanged = editBelt !== (editRow.current_belt || '');
@@ -170,6 +218,15 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
           clearBelt: beltChanged && !editBelt,
           branchId: editBranch !== (editRow.branch_id || '') ? editBranch : null,
           status: editStatus !== editRow.status ? editStatus : null,
+          firstName: editFirst.trim(),
+          lastName: editLast.trim(),
+          dateOfBirth: editDobIso,
+          email: mainEmail || null,
+          clearEmail: !mainEmail,
+          phone: editPhone.trim() || null,
+          clearPhone: !editPhone.trim(),
+          altEmails: editAltEmails,
+          altPhones: editAltPhones,
         },
         actor,
       );
