@@ -8,6 +8,6 @@
 - [x] PDF + UI labels "Subtotal (before GST)" / "GST (9%)"
 
 ## /access Edit Student
-- [ ] Edit first/last name, DOB, email, phone
-- [ ] Multiple emails/phones with remove (x) and add
-- [ ] RPC + directory support for alt_emails / alt_phones
+- [x] Edit first/last name, DOB, email, phone
+- [x] Multiple emails/phones with remove (x) and add
+- [x] RPC + directory support for alt_emails / alt_phones
