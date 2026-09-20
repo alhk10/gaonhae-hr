@@ -9303,6 +9303,7 @@ export type Database = {
         Args: { p_student_id: string; p_term_id: string }
         Returns: string
       }
+      gst_rate_for_branch: { Args: { p_branch_id: string }; Returns: number }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
       has_branch_access: { Args: { p_branch_id?: string }; Returns: boolean }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
