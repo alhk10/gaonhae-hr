@@ -384,7 +384,7 @@ const PublicGradingPayment: React.FC = () => {
         current_belt: currentBelt,
         items: effectiveItems.map(p => ({
           product_id: p.product_id,
-          amount: Number(p.branch_price ?? 0),
+          amount: Number((Number(p.branch_price ?? 0) * (1 + (isSingapore ? GST_RATE : 0))).toFixed(2)),
           current_belt: p.current_belt,
         })),
         resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
