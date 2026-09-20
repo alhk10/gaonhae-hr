@@ -130,10 +130,12 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
     if (!editRow) return;
     setSaving(true);
     try {
+      const beltChanged = editBelt !== (editRow.current_belt || '');
       await adminUpdateStudentBasic(
         editRow.id,
         {
-          belt: editBelt !== (editRow.current_belt || '') ? (editBelt || null) : null,
+          belt: beltChanged && editBelt ? editBelt : null,
+          clearBelt: beltChanged && !editBelt,
           branchId: editBranch !== (editRow.branch_id || '') ? editBranch : null,
           status: editStatus !== editRow.status ? editStatus : null,
         },
