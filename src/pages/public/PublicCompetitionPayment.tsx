@@ -284,7 +284,7 @@ const PublicCompetitionPayment: React.FC = () => {
           const w = parseFloat(extraWeights[idx] || '');
           return {
             label: line.label,
-            amount: Number(line.amount || 0),
+            amount: withGst(Number(line.amount || 0)),
             kind: ((line as any).kind === 'other' ? 'other' : 'category') as 'category' | 'other',
             ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
           };
@@ -302,7 +302,7 @@ const PublicCompetitionPayment: React.FC = () => {
         proof_file: proofFile,
         certificate_file: certificateFile,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
-        coaching_amount: coachingIncluded ? coachingAmount : 0,
+        coaching_amount: coachingIncluded ? withGst(coachingAmount) : 0,
         extra_lines: extras,
         event_id: selectedEvent.id,
         event_name: selectedEvent.name,
