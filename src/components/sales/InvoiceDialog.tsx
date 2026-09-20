@@ -2048,8 +2048,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 <Separator className="my-3" />
                 <div className="flex justify-end">
                   <div className="w-full md:w-64 space-y-1.5">
-                    <div className="flex justify-between text-xs md:text-sm"><span>Subtotal:</span><span>{formatCurrency(invoice.subtotal)}</span></div>
-                    <div className="flex justify-between text-xs md:text-sm"><span>Tax:</span><span>{formatCurrency(invoice.tax_amount)}</span></div>
+                    <div className="flex justify-between text-xs md:text-sm"><span>{invoice.tax_amount > 0 ? 'Subtotal (before GST):' : 'Subtotal:'}</span><span>{formatCurrency(invoice.subtotal)}</span></div>
+                    <div className="flex justify-between text-xs md:text-sm"><span>{invoice.subtotal > 0 && invoice.tax_amount > 0 ? `GST (${Math.round((invoice.tax_amount / invoice.subtotal) * 100)}%):` : 'GST:'}</span><span>{formatCurrency(invoice.tax_amount)}</span></div>
                     {invoice.discount_amount > 0 && <div className="flex justify-between text-xs md:text-sm text-green-600"><span>Discount:</span><span>-{formatCurrency(invoice.discount_amount)}</span></div>}
                     <Separator />
                     <div className="flex justify-between font-bold text-sm md:text-base"><span>Total:</span><span>{formatCurrency(invoice.total_amount)}</span></div>

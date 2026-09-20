@@ -346,11 +346,14 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('Subtotal:', totalsX, yPos);
+  const gstPct = invoice.subtotal > 0 && invoice.tax_amount > 0
+    ? Math.round((invoice.tax_amount / invoice.subtotal) * 100)
+    : null;
+  doc.text(gstPct ? 'Subtotal (before GST):' : 'Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
-  doc.text('Tax:', totalsX, yPos);
+  doc.text(gstPct ? `GST (${gstPct}%):` : 'GST:', totalsX, yPos);
   doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
