@@ -28,3 +28,20 @@ Total:                  $420.00
 - A one-off data migration backfills `invoices.subtotal` / `invoices.tax_amount` and `invoice_items.tax_rate` / `tax_amount` for existing Singapore and Australia invoices from the stored totals. `total_amount`, `amount_paid` and `balance_due` are left unchanged; refunded/cancelled lines keep their signs.
 - PDF totals in `src/utils/invoicePDFGenerator.ts` and the on-screen totals in `InvoiceDialog.tsx` / invoice lists get the new labels driven by the invoice's branch rate.
 - Accounting postings (`accountingPostings.ts`) already split net and tax from these fields, so GST will start flowing into the GST F5 report correctly once the fields are populated.
+
+# Fuller Edit Student form on /access
+
+The Edit Student box currently only offers belt, branch and status. It will be extended so staff can also correct:
+
+- First name and last name (saved in uppercase, as elsewhere)
+- Date of birth (day/month/year pickers, DD/MM/YYYY)
+- Main email and main contact number
+- Any additional emails and contact numbers already saved for the student (for example a second parent), each listed with a small "x" to remove it, plus an "Add email" / "Add number" option
+
+Withdrawal still stays out of this box and needs superadmin approval. Every change continues to be recorded in the student change log, and edits still require the existing password unlock.
+
+## Technical notes
+
+- Extend `admin_update_student_basic` (SECURITY DEFINER) with optional first/last name, date of birth, email, phone and full replacement arrays for `students.alt_emails` / `students.alt_phones`, keeping the existing explicit-clear pattern so blanking a value is distinguishable from "unchanged". Blocked staff addresses must still be rejected.
+- `get_public_student_directory` returns `alt_emails` and `alt_phones` so the dialog can prefill them.
+- `studentDirectoryService.ts` gains the new parameters; `StudentsTab.tsx` grows the edit form state, chip-style removable contact rows, and a name/DOB section, with validation on email format and required names.
