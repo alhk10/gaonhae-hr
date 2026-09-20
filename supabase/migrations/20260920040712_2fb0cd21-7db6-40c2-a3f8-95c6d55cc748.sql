@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.admin_update_student_basic(uuid, text, text, text, text, boolean);

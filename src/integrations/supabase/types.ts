@@ -8237,38 +8237,26 @@ export type Database = {
         Args: { p_id: string; p_slot_id: string }
         Returns: undefined
       }
-      admin_update_student_basic:
-        | {
-            Args: {
-              p_actor?: string
-              p_belt?: string
-              p_branch_id?: string
-              p_clear_belt?: boolean
-              p_status?: string
-              p_student_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_actor: string
-              p_alt_emails?: string[]
-              p_alt_phones?: string[]
-              p_belt: string
-              p_branch_id: string
-              p_clear_belt?: boolean
-              p_clear_email?: boolean
-              p_clear_phone?: boolean
-              p_date_of_birth?: string
-              p_email?: string
-              p_first_name?: string
-              p_last_name?: string
-              p_phone?: string
-              p_status: string
-              p_student_id: string
-            }
-            Returns: undefined
-          }
+      admin_update_student_basic: {
+        Args: {
+          p_actor: string
+          p_alt_emails?: string[]
+          p_alt_phones?: string[]
+          p_belt: string
+          p_branch_id: string
+          p_clear_belt?: boolean
+          p_clear_email?: boolean
+          p_clear_phone?: boolean
+          p_date_of_birth?: string
+          p_email?: string
+          p_first_name?: string
+          p_last_name?: string
+          p_phone?: string
+          p_status: string
+          p_student_id: string
+        }
+        Returns: undefined
+      }
       admin_update_student_certificate_name: {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
