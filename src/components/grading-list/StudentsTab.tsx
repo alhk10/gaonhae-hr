@@ -36,6 +36,7 @@ import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 interface Props {
   canEdit?: boolean;
