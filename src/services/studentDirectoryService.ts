@@ -145,7 +145,7 @@ export async function requestStudentMerge(
 
 export async function adminUpdateStudentBasic(
   studentId: string,
-  updates: { belt?: string | null; branchId?: string | null; status?: string | null },
+  updates: { belt?: string | null; clearBelt?: boolean; branchId?: string | null; status?: string | null },
   actor: string,
 ): Promise<void> {
   const { error } = await supabase.rpc('admin_update_student_basic', {
@@ -154,6 +154,7 @@ export async function adminUpdateStudentBasic(
     p_branch_id: updates.branchId ?? null,
     p_status: updates.status ?? null,
     p_actor: actor,
+    p_clear_belt: updates.clearBelt === true,
   });
   if (error) throw error;
 }

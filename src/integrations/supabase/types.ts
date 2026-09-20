@@ -8242,6 +8242,7 @@ export type Database = {
           p_actor?: string
           p_belt?: string
           p_branch_id?: string
+          p_clear_belt?: boolean
           p_status?: string
           p_student_id: string
         }
