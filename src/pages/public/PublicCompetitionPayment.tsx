@@ -245,9 +245,11 @@ const PublicCompetitionPayment: React.FC = () => {
     return selectedExtras.reduce((sum, idx) => sum + Number(selectedEvent.extra_lines[idx]?.amount || 0), 0);
   }, [selectedEvent, selectedExtras]);
 
-  const totalAmount = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
+  const netSubtotal = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
   const gstRate = gstRateForCountry(selectedBranch?.country);
-  const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
+  const withGst = (v: number) => Number((v * (1 + gstRate)).toFixed(2));
+  const gstAmount = Number((netSubtotal * gstRate).toFixed(2));
+  const totalAmount = Number((netSubtotal + gstAmount).toFixed(2));
 
   const canSubmit =
     !!selectedEvent &&
