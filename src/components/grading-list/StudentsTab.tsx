@@ -95,9 +95,38 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [editBelt, setEditBelt] = useState('');
   const [editBranch, setEditBranch] = useState('');
   const [editStatus, setEditStatus] = useState('');
+  const [editFirst, setEditFirst] = useState('');
+  const [editLast, setEditLast] = useState('');
+  const [editDay, setEditDay] = useState('');
+  const [editMonth, setEditMonth] = useState('');
+  const [editYear, setEditYear] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAltEmails, setEditAltEmails] = useState<string[]>([]);
+  const [editAltPhones, setEditAltPhones] = useState<string[]>([]);
+  const [newAltEmail, setNewAltEmail] = useState('');
+  const [newAltPhone, setNewAltPhone] = useState('');
+  const [contactsLoading, setContactsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+
+  const years = useMemo(() => {
+    const cy = new Date().getFullYear();
+    const arr: number[] = [];
+    for (let y = cy; y >= 1950; y--) arr.push(y);
+    return arr;
+  }, []);
+  const daysInMonth = useMemo(() => {
+    const m = editMonth === '' ? 0 : parseInt(editMonth);
+    const y = editYear === '' ? 2000 : parseInt(editYear);
+    return new Date(y, m + 1, 0).getDate();
+  }, [editMonth, editYear]);
+  const editDobIso = useMemo(() => {
+    if (!editDay || editMonth === '' || !editYear) return null;
+    const d = Math.min(parseInt(editDay), new Date(parseInt(editYear), parseInt(editMonth) + 1, 0).getDate());
+    return toISODate(new Date(parseInt(editYear), parseInt(editMonth), d));
+  }, [editDay, editMonth, editYear]);
 
   // Debounce search input
   React.useEffect(() => {
