@@ -3,9 +3,9 @@
  * Public searchable student directory with enrolment, payment and credit info.
  * Unlocked staff can edit belt, branch and status (withdrawal excluded).
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Loader2, Search, Users, UserPlus, Merge } from 'lucide-react';
+import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,16 +20,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { formatDate } from '@/utils/dateFormat';
+import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
+  getStudentContacts,
   type PublicStudentDirectoryRow,
 } from '@/services/studentDirectoryService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
 
