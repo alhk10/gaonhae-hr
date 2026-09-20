@@ -143,18 +143,64 @@ export async function requestStudentMerge(
   return data as string;
 }
 
+export interface StudentBasicUpdates {
+  belt?: string | null;
+  clearBelt?: boolean;
+  branchId?: string | null;
+  status?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  clearEmail?: boolean;
+  clearPhone?: boolean;
+  altEmails?: string[] | null;
+  altPhones?: string[] | null;
+}
+
 export async function adminUpdateStudentBasic(
   studentId: string,
-  updates: { belt?: string | null; clearBelt?: boolean; branchId?: string | null; status?: string | null },
+  updates: StudentBasicUpdates,
   actor: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc('admin_update_student_basic', {
+  const { error } = await (supabase as any).rpc('admin_update_student_basic', {
     p_student_id: studentId,
     p_belt: updates.belt ?? null,
     p_branch_id: updates.branchId ?? null,
     p_status: updates.status ?? null,
     p_actor: actor,
     p_clear_belt: updates.clearBelt === true,
+    p_first_name: updates.firstName ?? null,
+    p_last_name: updates.lastName ?? null,
+    p_date_of_birth: updates.dateOfBirth ?? null,
+    p_email: updates.email ?? null,
+    p_phone: updates.phone ?? null,
+    p_alt_emails: updates.altEmails ?? null,
+    p_alt_phones: updates.altPhones ?? null,
+    p_clear_email: updates.clearEmail === true,
+    p_clear_phone: updates.clearPhone === true,
   });
   if (error) throw error;
+}
+
+export interface StudentContacts {
+  email: string | null;
+  phone: string | null;
+  alt_emails: string[];
+  alt_phones: string[];
+}
+
+export async function getStudentContacts(studentId: string): Promise<StudentContacts> {
+  const { data, error } = await (supabase as any).rpc('get_public_student_contacts', {
+    p_student_id: studentId,
+  });
+  if (error) throw error;
+  const row = (data || [])[0];
+  return {
+    email: row?.email ?? null,
+    phone: row?.phone ?? null,
+    alt_emails: row?.alt_emails ?? [],
+    alt_phones: row?.alt_phones ?? [],
+  };
 }

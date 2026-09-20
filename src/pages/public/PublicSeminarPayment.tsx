@@ -220,9 +220,9 @@ const PublicSeminarPayment: React.FC = () => {
   );
 
   const discountAmount = combined.discount_amount;
-  const totalAmount = combined.amount;
   const gstRate = gstRateForCountry(selectedBranch?.country);
-  const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
+  const gstAmount = Number((Number(combined.amount || 0) * gstRate).toFixed(2));
+  const totalAmount = Number((Number(combined.amount || 0) + gstAmount).toFixed(2));
 
   const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);
   const indemnityFormRequired = !!selectedEvent?.indemnity_template_url;
@@ -273,7 +273,7 @@ const PublicSeminarPayment: React.FC = () => {
         package_code: combined.package_code,
         package_label: combined.package_label,
         session_dates: combined.session_dates,
-        amount: combined.amount,
+        amount: totalAmount,
         discount_amount: combined.discount_amount,
         payment_method: paymentMethod,
         proof_file: proofFile,

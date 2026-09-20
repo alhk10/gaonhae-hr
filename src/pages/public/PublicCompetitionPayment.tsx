@@ -245,9 +245,11 @@ const PublicCompetitionPayment: React.FC = () => {
     return selectedExtras.reduce((sum, idx) => sum + Number(selectedEvent.extra_lines[idx]?.amount || 0), 0);
   }, [selectedEvent, selectedExtras]);
 
-  const totalAmount = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
+  const netSubtotal = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
   const gstRate = gstRateForCountry(selectedBranch?.country);
-  const gstAmount = gstRate > 0 ? totalAmount - totalAmount / (1 + gstRate) : 0;
+  const withGst = (v: number) => Number((v * (1 + gstRate)).toFixed(2));
+  const gstAmount = Number((netSubtotal * gstRate).toFixed(2));
+  const totalAmount = Number((netSubtotal + gstAmount).toFixed(2));
 
   const canSubmit =
     !!selectedEvent &&
@@ -282,7 +284,7 @@ const PublicCompetitionPayment: React.FC = () => {
           const w = parseFloat(extraWeights[idx] || '');
           return {
             label: line.label,
-            amount: Number(line.amount || 0),
+            amount: withGst(Number(line.amount || 0)),
             kind: ((line as any).kind === 'other' ? 'other' : 'category') as 'category' | 'other',
             ...(extraRequiresWeight(idx) && Number.isFinite(w) ? { weight_kg: w } : {}),
           };
@@ -300,7 +302,7 @@ const PublicCompetitionPayment: React.FC = () => {
         proof_file: proofFile,
         certificate_file: certificateFile,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
-        coaching_amount: coachingIncluded ? coachingAmount : 0,
+        coaching_amount: coachingIncluded ? withGst(coachingAmount) : 0,
         extra_lines: extras,
         event_id: selectedEvent.id,
         event_name: selectedEvent.name,
