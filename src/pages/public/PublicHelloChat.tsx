@@ -1539,8 +1539,20 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
                   </Button>
+                  {(() => {
+                    const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="outline"
+                        className="w-full h-11 justify-between"
+                      >
+                        Register for grading <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })()}
                   {[
-                    { id: GRADING_CATEGORY_ID, label: 'Register for grading' },
                     { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
                     { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
                   ].map(btn => {
