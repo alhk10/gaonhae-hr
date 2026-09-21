@@ -112,6 +112,26 @@ export const recordProofScan = async (
   }
 };
 
+/** Saves the scan result against the payment created by a /hello chat payment. */
+export const recordProofScanForInvoice = async (
+  sessionId: string | null | undefined,
+  invoiceId: string | null | undefined,
+  result: ProofScanResult | null,
+) => {
+  if (!sessionId || !invoiceId || !result) return;
+  try {
+    await supabase.rpc('record_proof_scan_for_invoice' as any, {
+      p_session_id: sessionId,
+      p_invoice_id: invoiceId,
+      p_status: result.status,
+      p_amount: result.amount,
+      p_details: result.details as any,
+    });
+  } catch (e) {
+    console.warn('Could not save proof scan result', e);
+  }
+};
+
 /** Saves the scan result against the latest /hello submission of a chat session. */
 export const recordProofScanBySession = async (
   sessionId: string | null | undefined,
