@@ -23,14 +23,25 @@ import { toISODate } from '@/utils/dateFormat';
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+export interface AddStudentInitialValues {
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  branchId?: string | null;
+  belt?: string | null;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   actor: string;
-  onCreated: () => void;
+  onCreated: (studentId?: string) => void;
+  initialValues?: AddStudentInitialValues;
 }
 
-const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated }) => {
+const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated, initialValues }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [day, setDay] = useState('');
