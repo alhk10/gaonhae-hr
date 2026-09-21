@@ -1558,9 +1558,6 @@ const PublicHelloChat: React.FC = () => {
                   ].map(btn => {
                     const cat = CATEGORIES.find(c => c.id === btn.id);
                     if (!cat) return null;
-
-                    const cat = CATEGORIES.find(c => c.id === btn.id);
-                    if (!cat) return null;
                     return (
                       <Button
                         key={btn.id}
