@@ -394,7 +394,7 @@ const PublicGradingPayment: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
-      await recordProofScan('grading', result.ids?.[0], proofScan.result);
+      await recordProofScan('grading', result.ids?.[0], await proofScan.waitForResult());
       setSuccess({ refs: result.reference_numbers });
       toast.success('Payment submitted successfully');
 

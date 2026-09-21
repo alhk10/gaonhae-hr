@@ -316,7 +316,7 @@ const PublicCompetitionPayment: React.FC = () => {
         photo_file: selectedEvent.require_photo ? photoFile : null,
         weight_kg: weightKg.trim() === '' ? null : Number(weightKg),
       });
-      await recordProofScan('competition', result.id, proofScan.result);
+      await recordProofScan('competition', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);
