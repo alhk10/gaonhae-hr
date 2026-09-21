@@ -286,6 +286,7 @@ const PublicSeminarPayment: React.FC = () => {
         indemnity_form_file: indemnityFormRequired ? indemnityFormFile : null,
         signature_data_url: signatureRequired ? signatureDataUrl : null,
       });
+      await recordProofScan('seminar', result.id, proofScan.result);
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);

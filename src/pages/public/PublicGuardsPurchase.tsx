@@ -209,6 +209,7 @@ const PublicGuardsPurchase: React.FC = () => {
         proof_file: proofFile,
         is_singapore: isSingapore,
       });
+      await recordProofScan('guards', result.id, proofScan.result);
       setSuccess({ ref: result.reference_number });
       toast.success('Order submitted successfully');
     } catch (err: any) {

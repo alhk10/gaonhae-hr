@@ -221,6 +221,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
+      await recordProofScan('school_fees', result.id, proofScan.result);
       setSuccess({ ref: result.reference_number });
       toast.success('Payment submitted successfully');
     } catch (err: any) {
