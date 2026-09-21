@@ -7926,6 +7926,14 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_correct_submission_match: {
+        Args: {
+          p_actor?: string
+          p_event_id: string
+          p_new_student_id?: string
+        }
+        Returns: Json
+      }
       admin_create_seminar_invoice: {
         Args: { p_id: string; p_verified_by: string }
         Returns: string
@@ -9320,6 +9328,10 @@ export type Database = {
       get_student_fee_plan_for_term: {
         Args: { p_student_id: string; p_term_id: string }
         Returns: string
+      }
+      get_submission_match_event_detail: {
+        Args: { p_event_id: string }
+        Returns: Json
       }
       gst_rate_for_branch: { Args: { p_branch_id: string }; Returns: number }
       has_admin_access: { Args: { permission_type: string }; Returns: boolean }
