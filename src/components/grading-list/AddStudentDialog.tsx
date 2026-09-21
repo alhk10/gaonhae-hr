@@ -130,7 +130,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
       toast.success('Student added');
       reset();
       onOpenChange(false);
-      onCreated();
+      onCreated(newId);
     } catch (e: any) {
       const msg = e?.message || 'Failed to add student';
       if (String(msg).includes('DUPLICATE_STUDENT')) {
