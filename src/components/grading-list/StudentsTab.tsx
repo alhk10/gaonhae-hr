@@ -107,6 +107,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [newAltEmail, setNewAltEmail] = useState('');
   const [newAltPhone, setNewAltPhone] = useState('');
   const [contactsLoading, setContactsLoading] = useState(false);
+  // Only send the extra contacts back once we know what was stored, otherwise
+  // an early save would wipe them.
+  const [contactsLoaded, setContactsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
