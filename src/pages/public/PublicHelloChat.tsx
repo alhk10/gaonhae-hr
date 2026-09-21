@@ -322,6 +322,80 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
   });
 
+  const { data: personalInfo, isLoading: personalInfoLoading } = useQuery({
+    queryKey: ['hello-personal-info', sessionId, matched?.id],
+    queryFn: () => getChatStudentPersonalInfo(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && stage === 'personal_info',
+  });
+
+  useEffect(() => {
+    if (!personalInfo || piLoaded) return;
+    setPiFirstName(personalInfo.first_name || '');
+    setPiLastName(personalInfo.last_name || '');
+    setPiLastNameFirst(personalInfo.last_name_first);
+    const emails = [personalInfo.email || '', ...(personalInfo.alt_emails || [])];
+    const phones = [personalInfo.phone || '', ...(personalInfo.alt_phones || [])];
+    setPiEmails([emails[0] || '', emails[1] || '']);
+    setPiPhones([phones[0] || '', phones[1] || '']);
+    if (personalInfo.date_of_birth) {
+      const [y, m, d] = String(personalInfo.date_of_birth).slice(0, 10).split('-');
+      if (y && m && d) {
+        setPiDobYear(String(parseInt(y)));
+        setPiDobMonth(String(parseInt(m) - 1));
+        setPiDobDay(String(parseInt(d)));
+      }
+    }
+    setPiLoaded(true);
+  }, [personalInfo, piLoaded]);
+
+  const handleSavePersonalInfo = async () => {
+    if (!sessionId || !matched?.id) return;
+    if (!piFirstName.trim()) {
+      toast.error('Please enter a first name');
+      return;
+    }
+    const emails = piEmails.map(e => e.trim()).filter(Boolean);
+    const phones = piPhones.map(p => p.trim()).filter(Boolean);
+    for (const e of emails) {
+      if (isBlockedEmail(e)) {
+        toast.error(BLOCKED_EMAIL_MESSAGE);
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        toast.error(`${e} is not a valid email address`);
+        return;
+      }
+    }
+    let piDob: string | null = null;
+    if (piDobDay && piDobMonth !== '' && piDobYear) {
+      piDob = `${piDobYear}-${String(parseInt(piDobMonth) + 1).padStart(2, '0')}-${String(parseInt(piDobDay)).padStart(2, '0')}`;
+    }
+    setPiSaving(true);
+    try {
+      const res = await updateChatStudentPersonalInfo({
+        session_id: sessionId,
+        student_id: matched.id,
+        first_name: piFirstName.trim().toUpperCase(),
+        last_name: piLastName.trim().toUpperCase(),
+        date_of_birth: piDob,
+        last_name_first: piLastNameFirst,
+        emails,
+        phones,
+      });
+      setPiPending(res.pendingFields);
+      if (res.pendingFields.length > 0) {
+        toast.success('Contact details saved. Name / birth date changes were sent for staff approval.');
+      } else {
+        toast.success('Your details have been updated.');
+      }
+      if (sessionId) logChatEvent(sessionId, 'personal_info_updated').catch(() => {});
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not save your details');
+    } finally {
+      setPiSaving(false);
+    }
+  };
+
   const handleDownloadInvoice = async (inv: ChatInvoice) => {
     try {
       const pdfData: InvoiceData = {
