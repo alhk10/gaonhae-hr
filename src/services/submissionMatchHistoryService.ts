@@ -25,6 +25,24 @@ export interface MatchEvent {
   created_at: string;
 }
 
+export interface MatchEventDetail {
+  reference: string | null;
+  submitted_name: string | null;
+  date_of_birth: string | null;
+  email: string | null;
+  phone: string | null;
+  branch_id: string | null;
+  branch_name: string | null;
+  amount: number | null;
+  payment_method: string | null;
+  status: string | null;
+  current_student_id: string | null;
+  invoice_id: string | null;
+  invoice_number: string | null;
+  submitted_at: string | null;
+  can_correct: boolean;
+}
+
 export interface RecordMatchEventInput {
   scope: MatchScope;
   submissionId: string;
@@ -173,4 +191,25 @@ export const listMatchEvents = async (params: {
   const { data, error } = await query;
   if (error) throw error;
   return (data || []) as unknown as MatchEvent[];
+};
+
+export const getMatchEventDetail = async (eventId: string): Promise<MatchEventDetail> => {
+  const { data, error } = await supabase.rpc('get_submission_match_event_detail' as any, {
+    p_event_id: eventId,
+  });
+  if (error) throw error;
+  return data as unknown as MatchEventDetail;
+};
+
+export const correctSubmissionMatch = async (params: {
+  eventId: string;
+  newStudentId?: string | null;
+  actor?: string | null;
+}): Promise<void> => {
+  const { error } = await supabase.rpc('admin_correct_submission_match' as any, {
+    p_event_id: params.eventId,
+    p_new_student_id: params.newStudentId ?? null,
+    p_actor: params.actor ?? 'superadmin',
+  });
+  if (error) throw error;
 };
