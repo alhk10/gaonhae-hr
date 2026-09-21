@@ -17,14 +17,16 @@ For the 660 affected invoices the total the parent paid stays exactly the same; 
 
 Only Singapore branches are affected (no other country has invoices missing GST).
 
-**All new invoices — GST added on top**
+**All new invoices — GST added on top, and the invoice must equal what was paid**
 
 From the change onward, every new invoice adds 9% on top of the prices, on every route:
 
 - School fees (including /hello), grading, competition, seminar, uniforms and guards
 - Staff-created invoices (already correct, left as is)
 
-On the public payment pages parents will see the GST line and the higher amount to pay before they submit, so the amount they transfer matches the invoice. A $175 competition fee becomes $175.00 + $15.75 GST = $190.75.
+The GST is added **before** the parent pays, not after. Public payment pages will show the breakdown — for example a $175 competition fee displayed as $175.00 + $15.75 GST = **$190.75 to pay** — and the PayNow / transfer amount the parent is asked for is that grossed-up figure. The resulting invoice total therefore always equals the amount received, with no leftover balance.
+
+Where a payment nevertheless arrives for a different amount (e.g. a parent transfers an old price), the invoice still records exactly what was received: the amount is treated as the GST-inclusive total for that submission, so subtotal + GST = amount paid and the balance is zero. Staff can adjust the invoice afterwards if the parent underpaid.
 
 **Cut-off**
 
@@ -32,13 +34,13 @@ Invoices already in the system keep their current totals. Only invoices created 
 
 ## Technical notes
 
-- `tg_invoices_gst` and `tg_invoice_items_gst` currently back-calculate GST out of `total_amount`. They will be rewritten to add tax on top of the line totals when a branch is GST-registered, using `gst_rate_for_branch`, and to leave rows alone when the caller already supplied a tax amount.
-- The public/import RPCs (`admin_verify_*`, `admin_match_*`, `admin_import_*` for grading, competition, seminar, school fees and guards, plus the /hello submission paths) insert `tax_amount = 0` and a total equal to the amount collected. Each will compute the GST-exclusive subtotal, tax and grossed-up total, and set the collected amount as `amount_paid` so any shortfall shows as a balance rather than silently disappearing.
-- Public payment front-ends (`PublicSchoolFeesPayment`, `PublicGradingPayment`, `PublicCompetitionPayment`, `PublicSeminarPayment`, `PublicGuardsPurchase`, `PublicHelloChat`) will display a subtotal / GST / total breakdown and submit the grossed-up amount, using a single shared helper so the rate lives in one place.
+- `tg_invoices_gst` and `tg_invoice_items_gst` currently back-calculate GST out of `total_amount`. They stay as the safety net (total is authoritative, tax split out of it) so an invoice total can never drift from the money received; the GST-on-top decision moves upstream to where prices are quoted.
+- Public payment front-ends (`PublicSchoolFeesPayment`, `PublicGradingPayment`, `PublicCompetitionPayment`, `PublicSeminarPayment`, `PublicGuardsPurchase`, `PublicHelloChat`) will compute price + 9% via one shared helper, show a subtotal / GST / total breakdown, and submit the grossed-up amount as the payable amount.
+- The public/import RPCs (`admin_verify_*`, `admin_match_*`, `admin_import_*` for grading, competition, seminar, school fees and guards) will set `total_amount = amount received`, split GST out of it, and gross up the line items proportionally so the items sum to the total.
 - Backfill migration: for invoices with `tax_amount = 0`, `total_amount > 0`, created before the cut-off, at a Singapore branch — set `tax_amount = round(total/1.09 * 0.09, 2)` and `subtotal = total - tax`, and apply the matching split to their `invoice_items`. Totals, payments and statuses are untouched.
 - Invoice UI and PDF already render a dynamic `GST (x%)` line from the stored values, so no change is needed there.
 
 ## Verification
 
 - Re-query the invoices table to confirm no Singapore invoice is left with zero GST and that every backfilled total is unchanged.
-- Create a test invoice on each public route and confirm the total equals price + 9%.
+- Create a test invoice on each public route and confirm the amount quoted to the parent equals price + 9%, and that the invoice total equals the amount paid with a zero balance.
