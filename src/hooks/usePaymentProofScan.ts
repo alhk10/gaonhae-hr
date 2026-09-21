@@ -73,8 +73,42 @@ export function usePaymentProofScan() {
   return { scanning, result, scan, reset };
 }
 
-export const proofScanFields = (result: ProofScanResult | null) => ({
-  proof_scan_status: result?.status ?? null,
-  proof_scan_amount: result?.amount ?? null,
-  proof_scan_details: result?.details ?? null,
-});
+export type ProofScanSource = 'grading' | 'competition' | 'seminar' | 'school_fees' | 'guards';
+
+/** Saves the scan result against a submission. Never throws. */
+export const recordProofScan = async (
+  source: ProofScanSource,
+  submissionId: string | null | undefined,
+  result: ProofScanResult | null,
+) => {
+  if (!submissionId || !result) return;
+  try {
+    await supabase.rpc('record_proof_scan' as any, {
+      p_source: source,
+      p_id: submissionId,
+      p_status: result.status,
+      p_amount: result.amount,
+      p_details: result.details as any,
+    });
+  } catch (e) {
+    console.warn('Could not save proof scan result', e);
+  }
+};
+
+/** Saves the scan result against the latest /hello submission of a chat session. */
+export const recordProofScanBySession = async (
+  sessionId: string | null | undefined,
+  result: ProofScanResult | null,
+) => {
+  if (!sessionId || !result) return;
+  try {
+    await supabase.rpc('record_proof_scan_by_session' as any, {
+      p_session_id: sessionId,
+      p_status: result.status,
+      p_amount: result.amount,
+      p_details: result.details as any,
+    });
+  } catch (e) {
+    console.warn('Could not save proof scan result', e);
+  }
+};
