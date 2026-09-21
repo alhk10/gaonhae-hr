@@ -144,6 +144,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [indemnityClauseAccepted, setIndemnityClauseAccepted] = useState(false);
@@ -348,7 +349,7 @@ const PublicCompetitionPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setBranchId(''); setDob(undefined); setCurrentBelt(''); setGender('');
-                  setSelectedExtras([]); setProofFile(null); setCertificateFile(null);
+                  setSelectedExtras([]); setProofFile(null); proofScan.reset(); setCertificateFile(null);
                   setSignatureDataUrl(null); setIndemnityClauseAccepted(false);
                   setIndemnityFormFile(null); setPassportFile(null); setPhotoFile(null);
                 }}
@@ -576,6 +577,7 @@ const PublicCompetitionPayment: React.FC = () => {
                       maxSizeMB={5}
                       label="Participant Photo"
                     />
+                    <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
                   )}
 
                   {certificateRequired && (
@@ -806,7 +808,7 @@ const PublicCompetitionPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />

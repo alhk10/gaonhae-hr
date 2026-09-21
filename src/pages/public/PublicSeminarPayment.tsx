@@ -141,6 +141,7 @@ const PublicSeminarPayment: React.FC = () => {
   const [packageCodes, setPackageCodes] = useState<SeminarPackageCode[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [gradingCardFile, setGradingCardFile] = useState<File | null>(null);
@@ -319,7 +320,7 @@ const PublicSeminarPayment: React.FC = () => {
                   setFirstName(''); setLastName(''); setEmail('');
                   setDob(undefined); setGender(''); setCurrentBelt('');
                   setEventId(''); setPackageCodes([]);
-                  setProofFile(null); setPassportFile(null); setPhotoFile(null);
+                  setProofFile(null); proofScan.reset(); setPassportFile(null); setPhotoFile(null);
                   setGradingCardFile(null); setIndemnityFormFile(null);
                   setSignatureDataUrl(null); setIndemnityAccepted(false);
                   setSubmitError(null);
@@ -602,6 +603,7 @@ const PublicSeminarPayment: React.FC = () => {
                       maxSizeMB={5}
                       label="Participant Photo"
                     />
+                    <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
                   )}
 
                   {selectedEvent.require_passport && (
@@ -733,7 +735,7 @@ const PublicSeminarPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                     maxSizeMB={5}

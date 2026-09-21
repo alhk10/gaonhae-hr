@@ -165,6 +165,7 @@ const PublicGradingPayment: React.FC = () => {
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ refs: string[] } | null>(null);
 
@@ -465,7 +466,7 @@ const PublicGradingPayment: React.FC = () => {
                   setCurrentBelt('');
                   setSelectedProductIds([]);
                   setSelectedSlotId('');
-                  setProofFile(null);
+                  setProofFile(null); proofScan.reset();
                 }}
                 className="w-full"
               >
@@ -707,10 +708,11 @@ const PublicGradingPayment: React.FC = () => {
                 <>
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   <Button
                     type="submit"

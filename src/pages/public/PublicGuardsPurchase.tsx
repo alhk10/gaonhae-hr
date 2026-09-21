@@ -106,6 +106,7 @@ const PublicGuardsPurchase: React.FC = () => {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ ref: string | null } | null>(null);
 
@@ -440,7 +441,8 @@ const PublicGuardsPurchase: React.FC = () => {
                     </>
                   )}
 
-                  <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required acceptPdf={false} />
+                  <ProofOfPaymentUpload value={proofFile} onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalInc || 0)); }} required acceptPdf={false} />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalInc || 0)} />
 
                   <Button type="submit" className="w-full" disabled={!canSubmit}>
                     {submitting ? 'Submitting...' : `Submit Order${totalInc > 0 ? ` ($${totalInc.toFixed(2)})` : ''}`}

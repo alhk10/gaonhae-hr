@@ -120,6 +120,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
   const [plan, setPlan] = useState<FeePaymentPlan>('term');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
 
@@ -257,7 +258,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   setDob(undefined);
                   setTermId('');
                   setProductId('');
-                  setProofFile(null);
+                  setProofFile(null); proofScan.reset();
                 }}
                 className="w-full"
               >
@@ -505,10 +506,11 @@ const PublicSchoolFeesPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   <Button type="submit" className="w-full" disabled={!canSubmit}>
                     {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
