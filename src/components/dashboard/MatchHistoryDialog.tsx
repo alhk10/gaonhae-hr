@@ -3,7 +3,7 @@
  * link, with who did it and when. Staff corrections are recorded here too.
  */
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +52,7 @@ const useStudentNames = (events: MatchEvent[]) => {
 
 export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match history' }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = React.useState(false);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [correcting, setCorrecting] = React.useState<MatchEvent | null>(null);
@@ -107,7 +108,12 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
       closeCorrection();
       setExpandedId(null);
       await Promise.all([
-        supabase.from('submission_match_events' as any).select('id').limit(1),
+        queryClient.invalidateQueries({ queryKey: ['match-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['pending-grading-submissions'] }),
+        queryClient.invalidateQueries({ queryKey: ['pending-competition-submissions'] }),
+        queryClient.invalidateQueries({ queryKey: ['pending-seminar-submissions'] }),
+        queryClient.invalidateQueries({ queryKey: ['school-fees-pending-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['guards-purchase-approvals'] }),
       ]);
       window.dispatchEvent(new CustomEvent('submission-match-corrected'));
     } catch (error: any) {
