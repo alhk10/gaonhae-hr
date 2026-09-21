@@ -132,9 +132,9 @@ const PublicGuardsPurchase: React.FC = () => {
   })), [catalog, qty]);
 
   const cartItems = items.filter(i => i.qty > 0);
-  const totalInc = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
-  const gstAmount = isSingapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
-  const subtotalEx = totalInc - gstAmount;
+  const subtotalEx = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  const gstAmount = isSingapore ? Number((subtotalEx * GST_RATE).toFixed(2)) : 0;
+  const totalInc = Number((subtotalEx + gstAmount).toFixed(2));
 
   // Group items into category tabs (Packages first, then alphabetical)
   const groups = useMemo(() => {

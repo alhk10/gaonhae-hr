@@ -316,10 +316,10 @@ export const submitGuardsPurchase = async (
     .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
   const proofUrl = signed?.signedUrl ?? path;
 
-  // Totals
-  const totalInc = input.items.reduce((s, it) => s + it.unit_price_inc * it.qty, 0);
-  const gstAmount = input.is_singapore ? totalInc - totalInc / (1 + GST_RATE) : 0;
-  const subtotal = totalInc - gstAmount;
+  // Totals — GST is added on top of the listed prices
+  const subtotal = input.items.reduce((s, it) => s + it.unit_price_inc * it.qty, 0);
+  const gstAmount = input.is_singapore ? Number((subtotal * GST_RATE).toFixed(2)) : 0;
+  const totalInc = Number((subtotal + gstAmount).toFixed(2));
 
   const row = {
     first_name: fn,
