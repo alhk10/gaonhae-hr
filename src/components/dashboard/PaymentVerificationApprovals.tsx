@@ -255,6 +255,24 @@ const PaymentVerificationApprovals = () => {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {branchMap.get(payment.invoices?.branch_id) || 'Unknown'}
                 </p>
+                {payment.proof_scan_status && (
+                  <Badge
+                    variant="secondary"
+                    className={`mt-1 text-[10px] ${
+                      payment.proof_scan_status === 'match'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                        : payment.proof_scan_status === 'mismatch'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {payment.proof_scan_status === 'match'
+                      ? `Screenshot matches $${Number(payment.proof_scan_amount ?? 0).toFixed(2)}`
+                      : payment.proof_scan_status === 'mismatch'
+                        ? `Screenshot shows $${Number(payment.proof_scan_amount ?? 0).toFixed(2)}`
+                        : 'Screenshot could not be read'}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEditAmount(payment)}>
