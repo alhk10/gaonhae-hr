@@ -1581,6 +1581,139 @@ const PublicHelloChat: React.FC = () => {
             </>
           )}
 
+          {stage === 'personal_info' && (
+            <>
+              <Bubble who="bot">
+                Update your details below. Contact numbers, emails and the certificate name order are saved right away.
+                Changes to the name or birth date are sent to our staff for approval.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  {personalInfoLoading && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading your details…</p>
+                  )}
+                  {!personalInfoLoading && (
+                    <>
+                      {personalInfo?.has_pending_request && (
+                        <div className="rounded bg-amber-50 px-2 py-1.5 text-[12px] text-amber-800">
+                          You have an earlier change waiting for staff approval.
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <Label className="text-xs">First name *</Label>
+                        <Input value={piFirstName} onChange={(e) => setPiFirstName(e.target.value.toUpperCase())} className="h-10" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Last name</Label>
+                        <Input value={piLastName} onChange={(e) => setPiLastName(e.target.value.toUpperCase())} className="h-10" />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <Label className="text-xs">Show last name first on certificate</Label>
+                        <Switch checked={piLastNameFirst} onCheckedChange={setPiLastNameFirst} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground -mt-1">
+                        Certificate name: {(piLastNameFirst
+                          ? `${personalInfo?.last_name || ''} ${personalInfo?.first_name || ''}`
+                          : `${personalInfo?.first_name || ''} ${personalInfo?.last_name || ''}`).trim().toUpperCase()}
+                      </p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Date of birth</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Select value={piDobDay} onValueChange={setPiDobDay}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={piDobMonth} onValueChange={setPiDobMonth}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Month" /></SelectTrigger>
+                            <SelectContent>
+                              {MONTHS.map((m, i) => (
+                                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={piDobYear} onValueChange={setPiDobYear}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Year" /></SelectTrigger>
+                            <SelectContent>
+                              {yearOptions.map(y => (
+                                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Once approved, please use the new birth date next time so we can recognise you.
+                        </p>
+                      </div>
+                      {[0, 1].map(idx => (
+                        <div key={`pi-phone-${idx}`} className="space-y-1">
+                          <Label className="text-xs">Contact {idx + 1}</Label>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <PhoneInput
+                                value={piPhones[idx] || ''}
+                                onChange={(v) => setPiPhones(prev => prev.map((p, i) => (i === idx ? (v || '') : p)))}
+                                branchCountry={(branch as any)?.country}
+                              />
+                            </div>
+                            {!!piPhones[idx] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                onClick={() => setPiPhones(prev => prev.map((p, i) => (i === idx ? '' : p)))}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {[0, 1].map(idx => (
+                        <div key={`pi-email-${idx}`} className="space-y-1">
+                          <Label className="text-xs">Email {idx + 1}</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="email"
+                              className="h-10 flex-1"
+                              value={piEmails[idx] || ''}
+                              onChange={(e) => setPiEmails(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
+                            />
+                            {!!piEmails[idx] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                onClick={() => setPiEmails(prev => prev.map((v, i) => (i === idx ? '' : v)))}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {piPending && (
+                        <div className="rounded bg-muted px-2 py-1.5 text-[12px]">
+                          {piPending.length > 0
+                            ? 'Saved. Your name / birth date change is waiting for staff approval.'
+                            : 'Your details have been updated.'}
+                        </div>
+                      )}
+                      <Button className="w-full h-11" disabled={piSaving || !piLoaded} onClick={handleSavePersonalInfo}>
+                        {piSaving ? 'Saving…' : 'Save changes'}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+
           {stage === 'past_invoices' && (
             <>
               <Bubble who="bot">
