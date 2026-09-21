@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { useAuth } from '@/contexts/AuthContext';
 import { searchStudentsForMatch } from '@/services/submissionApprovalSources';
+import AddStudentDialog from '@/components/grading-list/AddStudentDialog';
 
 interface Props {
   scope?: string;
