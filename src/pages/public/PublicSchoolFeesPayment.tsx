@@ -30,6 +30,8 @@ import {
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 
 const GST_RATE = 0.09;

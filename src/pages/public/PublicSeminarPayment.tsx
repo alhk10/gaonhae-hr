@@ -32,6 +32,8 @@ import {
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);

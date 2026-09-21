@@ -28,6 +28,8 @@ import { getPublicPaymentOptions } from '@/services/gradingPaymentSubmissionServ
 import { toISODate } from '@/utils/dateFormat';
 import { useQuery } from '@tanstack/react-query';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 

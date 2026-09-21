@@ -26,6 +26,8 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { supabase } from '@/integrations/supabase/client';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 const GST_RATE = 0.09;
