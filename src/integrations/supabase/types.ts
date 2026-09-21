@@ -1226,6 +1226,7 @@ export type Database = {
           branch_id: string
           category_product_ids: string[]
           certificate_url: string | null
+          client_ref: string | null
           coaching_amount: number | null
           coaching_label: string | null
           coaching_product_id: string | null
@@ -1271,6 +1272,7 @@ export type Database = {
           branch_id: string
           category_product_ids?: string[]
           certificate_url?: string | null
+          client_ref?: string | null
           coaching_amount?: number | null
           coaching_label?: string | null
           coaching_product_id?: string | null
@@ -1316,6 +1318,7 @@ export type Database = {
           branch_id?: string
           category_product_ids?: string[]
           certificate_url?: string | null
+          client_ref?: string | null
           coaching_amount?: number | null
           coaching_label?: string | null
           coaching_product_id?: string | null
@@ -4153,6 +4156,9 @@ export type Database = {
           payment_number: string
           processed_by: string | null
           proof_of_payment_url: string | null
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           reference_number: string | null
           updated_at: string
           updated_by: string | null
@@ -4174,6 +4180,9 @@ export type Database = {
           payment_number: string
           processed_by?: string | null
           proof_of_payment_url?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -4195,6 +4204,9 @@ export type Database = {
           payment_number?: string
           processed_by?: string | null
           proof_of_payment_url?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           reference_number?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -5053,6 +5065,7 @@ export type Database = {
         Row: {
           amount: number
           branch_id: string
+          client_ref: string | null
           collected: boolean
           collected_at: string | null
           collected_by: string | null
@@ -5091,6 +5104,7 @@ export type Database = {
         Insert: {
           amount: number
           branch_id: string
+          client_ref?: string | null
           collected?: boolean
           collected_at?: string | null
           collected_by?: string | null
@@ -5129,6 +5143,7 @@ export type Database = {
         Update: {
           amount?: number
           branch_id?: string
+          client_ref?: string | null
           collected?: boolean
           collected_at?: string | null
           collected_by?: string | null
@@ -9552,6 +9567,16 @@ export type Database = {
         Args: {
           p_amount?: number
           p_details?: Json
+          p_session_id: string
+          p_status: string
+        }
+        Returns: undefined
+      }
+      record_proof_scan_for_invoice: {
+        Args: {
+          p_amount: number
+          p_details: Json
+          p_invoice_id: string
           p_session_id: string
           p_status: string
         }

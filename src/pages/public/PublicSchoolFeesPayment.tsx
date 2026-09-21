@@ -31,10 +31,11 @@ import {
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import { gstRateForCountry } from '@/utils/publicPaymentValidation';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 
-const GST_RATE = 0.09;
+
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -192,7 +193,8 @@ const PublicSchoolFeesPayment: React.FC = () => {
   // Early-payment discount applies to full-term payments only.
   const earlyDiscount = plan === 'term' ? earlyPaymentDiscountFor(selectedTerm?.start_date) : 0;
   const subtotal = Math.max(0, grossSubtotal - earlyDiscount);
-  const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
+  const gstRate = gstRateForCountry(selectedBranch?.country);
+  const gstAmount = Number((subtotal * gstRate).toFixed(2));
   const totalAmount = subtotal + gstAmount;
 
   const parsed = feesSchema.safeParse({ firstName, lastName, email });
@@ -460,9 +462,9 @@ const PublicSchoolFeesPayment: React.FC = () => {
                       <span>-${earlyDiscount.toFixed(2)}</span>
                     </div>
                   )}
-                  {isSingapore && (
+                  {gstRate > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">GST (9%)</span>
+                      <span className="text-muted-foreground">GST ({(gstRate * 100).toFixed(0)}%)</span>
                       <span>${gstAmount.toFixed(2)}</span>
                     </div>
                   )}

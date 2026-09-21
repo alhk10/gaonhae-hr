@@ -3,6 +3,7 @@
  * Used by the public /pay and /access pages (no auth required).
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
 
 export interface PublicBranch {
   id: string;
@@ -544,6 +545,8 @@ export const submitGradingPayment = async (
   input: SubmitGradingPaymentInput,
 ): Promise<{ reference_numbers: string[]; ids: string[] }> => {
   if (!input.items.length) throw new Error('No items selected');
+  assertValidPaymentProof(input.proof_file);
+  assertValidDateOfBirth(input.date_of_birth);
 
   // Upload proof first
   const ext = input.proof_file.name.split('.').pop() || 'jpg';

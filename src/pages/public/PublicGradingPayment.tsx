@@ -27,10 +27,11 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import { gstRateForCountry } from '@/utils/publicPaymentValidation';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
-const GST_RATE = 0.09;
+
 
 const calcAge = (dob: Date, ref: Date = new Date()): number => {
   let age = ref.getFullYear() - dob.getFullYear();
@@ -355,7 +356,8 @@ const PublicGradingPayment: React.FC = () => {
     () => effectiveItems.reduce((sum, p) => sum + Number(p.branch_price ?? 0), 0),
     [effectiveItems],
   );
-  const gstAmount = isSingapore ? subtotal * GST_RATE : 0;
+  const gstRate = gstRateForCountry(selectedBranch?.country);
+  const gstAmount = Number((subtotal * gstRate).toFixed(2));
   const totalAmount = subtotal + gstAmount;
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && !isBlockedEmail(email);
@@ -387,7 +389,7 @@ const PublicGradingPayment: React.FC = () => {
         current_belt: currentBelt,
         items: effectiveItems.map(p => ({
           product_id: p.product_id,
-          amount: Number((Number(p.branch_price ?? 0) * (1 + (isSingapore ? GST_RATE : 0))).toFixed(2)),
+          amount: Number((Number(p.branch_price ?? 0) * (1 + gstRate)).toFixed(2)),
           current_belt: p.current_belt,
         })),
         resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
@@ -655,9 +657,9 @@ const PublicGradingPayment: React.FC = () => {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
-                  {isSingapore && (
+                  {gstRate > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">GST (9%)</span>
+                      <span className="text-muted-foreground">GST ({(gstRate * 100).toFixed(0)}%)</span>
                       <span>${gstAmount.toFixed(2)}</span>
                     </div>
                   )}

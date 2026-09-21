@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
-import { usePaymentProofScan, recordProofScanBySession } from '@/hooks/usePaymentProofScan';
+import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { PhoneInput } from '@/components/ui/phone-input';
 import gaonhaeLogo from '@/assets/gaonhae-logo.png';
@@ -870,7 +870,7 @@ const PublicHelloChat: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      await submitChatPayment({
+      const submitResult = await submitChatPayment({
         session_id: sessionId,
         branch_id: branchId,
         category: payCategory.label,
@@ -907,14 +907,18 @@ const PublicHelloChat: React.FC = () => {
             }
           : null,
       });
-      await recordProofScanBySession(sessionId, await proofScan.waitForResult());
+      await recordProofScanForInvoice(sessionId, submitResult.invoice_id, await proofScan.waitForResult());
       if (payCategory.id === GRADING_CATEGORY_ID) {
         navigate('/access');
         return;
       }
       if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {
         if (Object.keys(plannedSlots).length > 0) {
-          toast.success('Payment received. Your lessons are booked, pending verification.');
+          if (submitResult.schedule_saved) {
+            toast.success('Payment received. Your lessons are booked, pending verification.');
+          } else {
+            toast.warning('Payment received, but your lesson times could not be saved. Our staff will confirm your schedule with you.');
+          }
           goTo('payment_done');
           return;
         }

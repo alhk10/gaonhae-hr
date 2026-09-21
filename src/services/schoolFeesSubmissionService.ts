@@ -4,6 +4,7 @@
  * and moderate them without an authenticated Supabase session.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
 
 export interface SchoolFeesItem {
   product_id?: string;
@@ -205,6 +206,8 @@ export interface SubmitSchoolFeesInput {
 export const submitSchoolFeesPayment = async (
   input: SubmitSchoolFeesInput,
 ): Promise<{ id: string; reference_number: string }> => {
+  assertValidPaymentProof(input.proof_file);
+  assertValidDateOfBirth(input.date_of_birth);
   const ext = input.proof_file.name.split('.').pop() || 'jpg';
   const ts = Date.now();
   const safeName = `${input.first_name} ${input.last_name}`
