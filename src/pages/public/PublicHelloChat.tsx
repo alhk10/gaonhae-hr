@@ -1656,7 +1656,6 @@ const PublicHelloChat: React.FC = () => {
                               <PhoneInput
                                 value={piPhones[idx] || ''}
                                 onChange={(v) => setPiPhones(prev => prev.map((p, i) => (i === idx ? (v || '') : p)))}
-                                branchCountry={(branch as any)?.country}
                               />
                             </div>
                             {!!piPhones[idx] && (
