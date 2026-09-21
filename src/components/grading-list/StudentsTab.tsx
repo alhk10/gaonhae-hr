@@ -232,8 +232,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
           clearEmail: !mainEmail,
           phone: editPhone.trim() || null,
           clearPhone: !editPhone.trim(),
-          altEmails: editAltEmails,
-          altPhones: editAltPhones,
+          // null = leave stored extra contacts untouched
+          altEmails: contactsLoaded ? editAltEmails : null,
+          altPhones: contactsLoaded ? editAltPhones : null,
         },
         actor,
       );
