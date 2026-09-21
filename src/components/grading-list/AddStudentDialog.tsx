@@ -23,14 +23,25 @@ import { toISODate } from '@/utils/dateFormat';
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+export interface AddStudentInitialValues {
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  branchId?: string | null;
+  belt?: string | null;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   actor: string;
-  onCreated: () => void;
+  onCreated: (studentId?: string) => void;
+  initialValues?: AddStudentInitialValues;
 }
 
-const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated }) => {
+const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated, initialValues }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [day, setDay] = useState('');
@@ -69,6 +80,26 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     return toISODate(new Date(parseInt(year), parseInt(month), d));
   }, [day, month, year]);
 
+  // Prefill from the caller (e.g. a payment submission) each time the dialog opens
+  React.useEffect(() => {
+    if (!open || !initialValues) return;
+    setFirstName((initialValues.firstName || '').toUpperCase());
+    setLastName((initialValues.lastName || '').toUpperCase());
+    setEmail(initialValues.email || '');
+    setPhone(initialValues.phone || '');
+    setBranchId(initialValues.branchId || '');
+    setBelt(initialValues.belt || '');
+    if (initialValues.dateOfBirth) {
+      const [y, m, d] = String(initialValues.dateOfBirth).slice(0, 10).split('-');
+      if (y && m && d) {
+        setYear(String(parseInt(y)));
+        setMonth(String(parseInt(m) - 1));
+        setDay(String(parseInt(d)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const reset = () => {
     setFirstName(''); setLastName(''); setDay(''); setMonth(''); setYear('');
     setGender(''); setEmail(''); setPhone(''); setBranchId(''); setBelt('');
@@ -81,7 +112,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     if (email.trim() && isBlockedEmail(email)) { toast.error(BLOCKED_EMAIL_MESSAGE); return; }
     setSaving(true);
     try {
-      await createStudentPublic(
+      const newId = await createStudentPublic(
         {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -99,7 +130,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
       toast.success('Student added');
       reset();
       onOpenChange(false);
-      onCreated();
+      onCreated(newId);
     } catch (e: any) {
       const msg = e?.message || 'Failed to add student';
       if (String(msg).includes('DUPLICATE_STUDENT')) {

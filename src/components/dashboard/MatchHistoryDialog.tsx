@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ChevronDown, ChevronUp, History, RotateCcw, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, RotateCcw, Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   correctSubmissionMatch, getMatchEventDetail, listMatchEvents, rememberMatch,
@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { useAuth } from '@/contexts/AuthContext';
 import { searchStudentsForMatch } from '@/services/submissionApprovalSources';
+import AddStudentDialog from '@/components/grading-list/AddStudentDialog';
 
 interface Props {
   scope?: string;
@@ -59,6 +60,7 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
   const [replacementId, setReplacementId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [addingStudent, setAddingStudent] = React.useState(false);
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['match-history', scope],
     enabled: open,
@@ -227,10 +229,18 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
 
           {detail?.invoice_id && (
             <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search correct student" className="pl-8" />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search correct student" className="pl-8" />
+                </div>
+                <Button type="button" variant="outline" className="gap-1 shrink-0" onClick={() => setAddingStudent(true)}>
+                  <UserPlus className="h-4 w-4" /> New student
+                </Button>
               </div>
+              {replacementId && !(replacementResults as any[]).some((s) => s.id === replacementId) && (
+                <p className="text-xs text-muted-foreground">New student selected. Press Move invoice to continue.</p>
+              )}
               <div className="max-h-56 overflow-y-auto space-y-1">
                 {(replacementResults as any[]).map((student) => (
                   <Button
@@ -263,6 +273,28 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddStudentDialog
+        open={addingStudent}
+        onOpenChange={setAddingStudent}
+        actor={user?.employeeId || user?.email || 'superadmin'}
+        initialValues={{
+          firstName: (detail?.submitted_name || '').split(' ').slice(0, -1).join(' ') || detail?.submitted_name || '',
+          lastName: (detail?.submitted_name || '').split(' ').length > 1
+            ? (detail?.submitted_name || '').split(' ').slice(-1).join(' ')
+            : '',
+          dateOfBirth: detail?.date_of_birth || null,
+          email: detail?.email || null,
+          phone: detail?.phone || null,
+          branchId: detail?.branch_id || null,
+        }}
+        onCreated={(studentId) => {
+          if (studentId) {
+            setReplacementId(studentId);
+            setSearch(detail?.submitted_name || '');
+          }
+        }}
+      />
     </Dialog>
   );
 };
