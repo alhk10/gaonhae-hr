@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download, UserCog, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -50,6 +51,8 @@ import {
   getChatInvoices,
   getChatStudentCredit,
   type ChatInvoice,
+  getChatStudentPersonalInfo,
+  updateChatStudentPersonalInfo,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
@@ -123,6 +126,7 @@ type Stage =
   | 'payment_pay'
   | 'payment_done'
   | 'past_invoices'
+  | 'personal_info'
   | 'lesson_action'
   | 'lesson_request'
   | 'lesson_request_done';
@@ -244,6 +248,19 @@ const PublicHelloChat: React.FC = () => {
   const [planPickedDate, setPlanPickedDate] = useState<Date | undefined>(undefined);
   const [planCalMonth, setPlanCalMonth] = useState<Date | undefined>(undefined);
 
+  // Update personal information
+  const [piFirstName, setPiFirstName] = useState('');
+  const [piLastName, setPiLastName] = useState('');
+  const [piLastNameFirst, setPiLastNameFirst] = useState(false);
+  const [piDobDay, setPiDobDay] = useState('');
+  const [piDobMonth, setPiDobMonth] = useState('');
+  const [piDobYear, setPiDobYear] = useState('');
+  const [piEmails, setPiEmails] = useState<string[]>(['', '']);
+  const [piPhones, setPiPhones] = useState<string[]>(['', '']);
+  const [piLoaded, setPiLoaded] = useState(false);
+  const [piSaving, setPiSaving] = useState(false);
+  const [piPending, setPiPending] = useState<string[] | null>(null);
+
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -304,6 +321,80 @@ const PublicHelloChat: React.FC = () => {
     queryFn: () => getChatInvoices(sessionId!, matched!.id),
     enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
   });
+
+  const { data: personalInfo, isLoading: personalInfoLoading } = useQuery({
+    queryKey: ['hello-personal-info', sessionId, matched?.id],
+    queryFn: () => getChatStudentPersonalInfo(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && stage === 'personal_info',
+  });
+
+  useEffect(() => {
+    if (!personalInfo || piLoaded) return;
+    setPiFirstName(personalInfo.first_name || '');
+    setPiLastName(personalInfo.last_name || '');
+    setPiLastNameFirst(personalInfo.last_name_first);
+    const emails = [personalInfo.email || '', ...(personalInfo.alt_emails || [])];
+    const phones = [personalInfo.phone || '', ...(personalInfo.alt_phones || [])];
+    setPiEmails([emails[0] || '', emails[1] || '']);
+    setPiPhones([phones[0] || '', phones[1] || '']);
+    if (personalInfo.date_of_birth) {
+      const [y, m, d] = String(personalInfo.date_of_birth).slice(0, 10).split('-');
+      if (y && m && d) {
+        setPiDobYear(String(parseInt(y)));
+        setPiDobMonth(String(parseInt(m) - 1));
+        setPiDobDay(String(parseInt(d)));
+      }
+    }
+    setPiLoaded(true);
+  }, [personalInfo, piLoaded]);
+
+  const handleSavePersonalInfo = async () => {
+    if (!sessionId || !matched?.id) return;
+    if (!piFirstName.trim()) {
+      toast.error('Please enter a first name');
+      return;
+    }
+    const emails = piEmails.map(e => e.trim()).filter(Boolean);
+    const phones = piPhones.map(p => p.trim()).filter(Boolean);
+    for (const e of emails) {
+      if (isBlockedEmail(e)) {
+        toast.error(BLOCKED_EMAIL_MESSAGE);
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        toast.error(`${e} is not a valid email address`);
+        return;
+      }
+    }
+    let piDob: string | null = null;
+    if (piDobDay && piDobMonth !== '' && piDobYear) {
+      piDob = `${piDobYear}-${String(parseInt(piDobMonth) + 1).padStart(2, '0')}-${String(parseInt(piDobDay)).padStart(2, '0')}`;
+    }
+    setPiSaving(true);
+    try {
+      const res = await updateChatStudentPersonalInfo({
+        session_id: sessionId,
+        student_id: matched.id,
+        first_name: piFirstName.trim().toUpperCase(),
+        last_name: piLastName.trim().toUpperCase(),
+        date_of_birth: piDob,
+        last_name_first: piLastNameFirst,
+        emails,
+        phones,
+      });
+      setPiPending(res.pendingFields);
+      if (res.pendingFields.length > 0) {
+        toast.success('Contact details saved. Name / birth date changes were sent for staff approval.');
+      } else {
+        toast.success('Your details have been updated.');
+      }
+      if (sessionId) logChatEvent(sessionId, 'personal_info_updated').catch(() => {});
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not save your details');
+    } finally {
+      setPiSaving(false);
+    }
+  };
 
   const handleDownloadInvoice = async (inv: ChatInvoice) => {
     try {
@@ -1473,8 +1564,151 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  <Button
+                    onClick={() => { setPiLoaded(false); setPiPending(null); goTo('personal_info'); }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <UserCog className="h-4 w-4" />
+                      Update Personal Information
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                 </CardContent>
 
+              </Card>
+            </>
+          )}
+
+          {stage === 'personal_info' && (
+            <>
+              <Bubble who="bot">
+                Update your details below. Contact numbers, emails and the certificate name order are saved right away.
+                Changes to the name or birth date are sent to our staff for approval.
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  {personalInfoLoading && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading your details…</p>
+                  )}
+                  {!personalInfoLoading && (
+                    <>
+                      {personalInfo?.has_pending_request && (
+                        <div className="rounded bg-amber-50 px-2 py-1.5 text-[12px] text-amber-800">
+                          You have an earlier change waiting for staff approval.
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <Label className="text-xs">First name *</Label>
+                        <Input value={piFirstName} onChange={(e) => setPiFirstName(e.target.value.toUpperCase())} className="h-10" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Last name</Label>
+                        <Input value={piLastName} onChange={(e) => setPiLastName(e.target.value.toUpperCase())} className="h-10" />
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <Label className="text-xs">Show last name first on certificate</Label>
+                        <Switch checked={piLastNameFirst} onCheckedChange={setPiLastNameFirst} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground -mt-1">
+                        Certificate name: {(piLastNameFirst
+                          ? `${personalInfo?.last_name || ''} ${personalInfo?.first_name || ''}`
+                          : `${personalInfo?.first_name || ''} ${personalInfo?.last_name || ''}`).trim().toUpperCase()}
+                      </p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Date of birth</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Select value={piDobDay} onValueChange={setPiDobDay}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                <SelectItem key={d} value={String(d)}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={piDobMonth} onValueChange={setPiDobMonth}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Month" /></SelectTrigger>
+                            <SelectContent>
+                              {MONTHS.map((m, i) => (
+                                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={piDobYear} onValueChange={setPiDobYear}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Year" /></SelectTrigger>
+                            <SelectContent>
+                              {yearOptions.map(y => (
+                                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Once approved, please use the new birth date next time so we can recognise you.
+                        </p>
+                      </div>
+                      {[0, 1].map(idx => (
+                        <div key={`pi-phone-${idx}`} className="space-y-1">
+                          <Label className="text-xs">Contact {idx + 1}</Label>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <PhoneInput
+                                value={piPhones[idx] || ''}
+                                onChange={(v) => setPiPhones(prev => prev.map((p, i) => (i === idx ? (v || '') : p)))}
+                              />
+                            </div>
+                            {!!piPhones[idx] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                onClick={() => setPiPhones(prev => prev.map((p, i) => (i === idx ? '' : p)))}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {[0, 1].map(idx => (
+                        <div key={`pi-email-${idx}`} className="space-y-1">
+                          <Label className="text-xs">Email {idx + 1}</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="email"
+                              className="h-10 flex-1"
+                              value={piEmails[idx] || ''}
+                              onChange={(e) => setPiEmails(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
+                            />
+                            {!!piEmails[idx] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                onClick={() => setPiEmails(prev => prev.map((v, i) => (i === idx ? '' : v)))}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {piPending && (
+                        <div className="rounded bg-muted px-2 py-1.5 text-[12px]">
+                          {piPending.length > 0
+                            ? 'Saved. Your name / birth date change is waiting for staff approval.'
+                            : 'Your details have been updated.'}
+                        </div>
+                      )}
+                      <Button className="w-full h-11" disabled={piSaving || !piLoaded} onClick={handleSavePersonalInfo}>
+                        {piSaving ? 'Saving…' : 'Save changes'}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
               </Card>
             </>
           )}

@@ -651,3 +651,69 @@ export const submitInlineRegistration = async (input: SubmitInlineRegistrationIn
   await logChatEvent(input.session_id, 'registration_submitted', { id: newId });
   return newId;
 };
+
+export interface ChatStudentPersonalInfo {
+  first_name: string;
+  last_name: string | null;
+  date_of_birth: string | null;
+  email: string | null;
+  alt_emails: string[];
+  phone: string | null;
+  alt_phones: string[];
+  certificate_name: string | null;
+  last_name_first: boolean;
+  has_pending_request: boolean;
+}
+
+export const getChatStudentPersonalInfo = async (
+  session_id: string,
+  student_id: string,
+): Promise<ChatStudentPersonalInfo> => {
+  const { data, error } = await supabase.rpc('get_public_chat_student_personal_info' as any, {
+    p_session_id: session_id,
+    p_student_id: student_id,
+  });
+  if (error) throw error;
+  const d = (data || {}) as any;
+  return {
+    first_name: d.first_name || '',
+    last_name: d.last_name ?? null,
+    date_of_birth: d.date_of_birth ?? null,
+    email: d.email ?? null,
+    alt_emails: Array.isArray(d.alt_emails) ? d.alt_emails : [],
+    phone: d.phone ?? null,
+    alt_phones: Array.isArray(d.alt_phones) ? d.alt_phones : [],
+    certificate_name: d.certificate_name ?? null,
+    last_name_first: !!d.last_name_first,
+    has_pending_request: !!d.has_pending_request,
+  };
+};
+
+export interface UpdateChatPersonalInfoInput {
+  session_id: string;
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string | null;
+  last_name_first: boolean;
+  emails: string[];
+  phones: string[];
+}
+
+export const updateChatStudentPersonalInfo = async (
+  input: UpdateChatPersonalInfoInput,
+): Promise<{ pendingFields: string[] }> => {
+  const { data, error } = await supabase.rpc('update_chat_student_personal_info' as any, {
+    p_session_id: input.session_id,
+    p_student_id: input.student_id,
+    p_first_name: input.first_name || null,
+    p_last_name: input.last_name ?? null,
+    p_date_of_birth: input.date_of_birth,
+    p_last_name_first: input.last_name_first,
+    p_emails: input.emails,
+    p_phones: input.phones,
+  });
+  if (error) throw error;
+  const pending = ((data as any)?.pending_fields || {}) as Record<string, unknown>;
+  return { pendingFields: Object.keys(pending) };
+};
