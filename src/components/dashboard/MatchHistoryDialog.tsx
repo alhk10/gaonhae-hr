@@ -229,10 +229,18 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
 
           {detail?.invoice_id && (
             <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search correct student" className="pl-8" />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search correct student" className="pl-8" />
+                </div>
+                <Button type="button" variant="outline" className="gap-1 shrink-0" onClick={() => setAddingStudent(true)}>
+                  <UserPlus className="h-4 w-4" /> New student
+                </Button>
               </div>
+              {replacementId && !(replacementResults as any[]).some((s) => s.id === replacementId) && (
+                <p className="text-xs text-muted-foreground">New student selected. Press Move invoice to continue.</p>
+              )}
               <div className="max-h-56 overflow-y-auto space-y-1">
                 {(replacementResults as any[]).map((student) => (
                   <Button
