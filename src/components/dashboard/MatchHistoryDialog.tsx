@@ -60,6 +60,7 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
   const [replacementId, setReplacementId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [addingStudent, setAddingStudent] = React.useState(false);
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['match-history', scope],
     enabled: open,
