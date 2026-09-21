@@ -2,6 +2,7 @@
  * Service for the public /hello chat workflow.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
 
 export interface ChatSessionInput {
   first_name: string;

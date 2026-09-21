@@ -3,6 +3,7 @@
  * Used by /comps and the Competitions tab on /access.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth, newClientRef } from '@/utils/publicPaymentValidation';
 
 export interface CompetitionProduct {
   id: string;
@@ -485,6 +486,7 @@ export const submitCompetitionPayment = async (
     coaching_amount: input.coaching_amount,
     extra_lines: input.extra_lines,
     weight_kg: input.weight_kg ?? null,
+    client_ref: clientRef,
   };
 
   console.info('[/comps] calling submit_competition_payment RPC');

@@ -3,6 +3,7 @@
  * Used by the public /pay and /access pages (no auth required).
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
 
 export interface PublicBranch {
   id: string;

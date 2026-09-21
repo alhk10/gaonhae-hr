@@ -3,6 +3,7 @@
  * Used by /seminars and the Seminars tab on /access.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { assertValidPaymentProof, assertValidDateOfBirth, newClientRef } from '@/utils/publicPaymentValidation';
 
 export type SeminarPackageCode = string;
 
@@ -261,6 +262,9 @@ const retry = async <T,>(fn: () => Promise<T>, attempts = 3, backoffMs = 800): P
 export const submitSeminarPayment = async (
   input: SubmitSeminarPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
+  assertValidPaymentProof(input.proof_file);
+  assertValidDateOfBirth(input.date_of_birth);
+  const clientRef = newClientRef();
   const fn = (input.first_name || '').trim().toUpperCase();
   const ln = (input.last_name || '').trim().toUpperCase();
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
@@ -352,6 +356,7 @@ export const submitSeminarPayment = async (
     grading_card_urls: gradingCardUrls,
     signature_url: signatureUrl,
     indemnity_form_url: indemnityUrl,
+    client_ref: clientRef,
   };
 
   let data: any;
