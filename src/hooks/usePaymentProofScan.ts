@@ -25,14 +25,31 @@ export function usePaymentProofScan() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<ProofScanResult | null>(null);
   const runId = useRef(0);
+  const pending = useRef<Promise<ProofScanResult | null> | null>(null);
 
   const reset = useCallback(() => {
     runId.current += 1;
+    pending.current = null;
     setScanning(false);
     setResult(null);
   }, []);
 
-  const scan = useCallback(async (file: File | null, expectedAmount: number, currency = 'SGD') => {
+  const scan = useCallback((file: File | null, expectedAmount: number, currency = 'SGD') => {
+    const promise = runScan(file, expectedAmount, currency);
+    pending.current = promise;
+    return promise;
+  }, []);
+
+  /** Resolves once any in-flight scan has finished, so results are never lost on submit. */
+  const waitForResult = useCallback(async () => {
+    try {
+      return (await pending.current) ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const runScan = useCallback(async (file: File | null, expectedAmount: number, currency = 'SGD') => {
     runId.current += 1;
     const id = runId.current;
     if (!file || !file.type.startsWith('image/')) {
@@ -70,7 +87,7 @@ export function usePaymentProofScan() {
     }
   }, []);
 
-  return { scanning, result, scan, reset };
+  return { scanning, result, scan, reset, waitForResult };
 }
 
 export type ProofScanSource = 'grading' | 'competition' | 'seminar' | 'school_fees' | 'guards';
