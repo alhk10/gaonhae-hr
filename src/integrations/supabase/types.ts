@@ -9538,6 +9538,16 @@ export type Database = {
         Args: { p_id: string; p_selections: Json }
         Returns: undefined
       }
+      record_proof_scan: {
+        Args: {
+          p_amount?: number
+          p_details?: Json
+          p_id: string
+          p_source: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       reject_student_merge_request: {
         Args: { p_actor: string; p_reason?: string; p_request_id: string }
         Returns: undefined
