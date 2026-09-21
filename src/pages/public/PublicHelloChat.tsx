@@ -907,6 +907,7 @@ const PublicHelloChat: React.FC = () => {
             }
           : null,
       });
+      await recordProofScanBySession(sessionId, proofScan.result);
       if (payCategory.id === GRADING_CATEGORY_ID) {
         navigate('/access');
         return;
