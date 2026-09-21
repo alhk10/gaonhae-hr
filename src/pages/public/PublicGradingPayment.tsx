@@ -659,7 +659,7 @@ const PublicGradingPayment: React.FC = () => {
                   </div>
                   {gstRate > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">GST (9%)</span>
+                      <span className="text-muted-foreground">GST ({(gstRate * 100).toFixed(0)}%)</span>
                       <span>${gstAmount.toFixed(2)}</span>
                     </div>
                   )}
