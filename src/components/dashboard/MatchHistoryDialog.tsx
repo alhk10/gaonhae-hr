@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ChevronDown, ChevronUp, History, RotateCcw, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, RotateCcw, Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   correctSubmissionMatch, getMatchEventDetail, listMatchEvents, rememberMatch,
