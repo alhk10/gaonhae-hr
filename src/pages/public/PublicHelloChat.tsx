@@ -51,6 +51,8 @@ import {
   getChatInvoices,
   getChatStudentCredit,
   type ChatInvoice,
+  getChatStudentPersonalInfo,
+  updateChatStudentPersonalInfo,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
