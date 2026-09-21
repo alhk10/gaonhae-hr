@@ -593,8 +593,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)} disabled={saving}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            <Button onClick={handleSave} disabled={saving || contactsLoading}>
+              {(saving || contactsLoading) && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Save
             </Button>
           </DialogFooter>
