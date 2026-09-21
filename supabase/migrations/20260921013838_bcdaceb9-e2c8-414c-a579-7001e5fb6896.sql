@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.admin_correct_submission_match(uuid, uuid, text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_correct_submission_match(uuid, uuid, text) TO service_role;
