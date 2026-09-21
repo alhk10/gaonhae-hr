@@ -183,7 +183,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
         setContactsLoaded(true);
       })
       .catch(() => {
-        toast.error („Couldn't load the extra emails and mobiles — they will be kept as they are.");
+        toast.error('Could not load the extra emails and mobiles — they will be left unchanged.');
       })
       .finally(() => setContactsLoading(false));
   };
