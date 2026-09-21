@@ -43,4 +43,4 @@ Invoices already in the system keep their current totals. Only invoices created 
 ## Verification
 
 - Re-query the invoices table to confirm no Singapore invoice is left with zero GST and that every backfilled total is unchanged.
-- Create a test invoice on each public route and confirm the total equals price + 9%.
+- Create a test invoice on each public route and confirm the amount quoted to the parent equals price + 9%, and that the invoice total equals the amount paid with a zero balance.
