@@ -411,6 +411,9 @@ const dataUrlToFile = (dataUrl: string, filename: string, fallbackType = 'image/
 export const submitCompetitionPayment = async (
   input: SubmitCompetitionPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
+  assertValidPaymentProof(input.proof_file);
+  assertValidDateOfBirth(input.date_of_birth);
+  const clientRef = newClientRef();
   const fn = (input.first_name || '').trim().toUpperCase();
   const ln = (input.last_name || '').trim().toUpperCase();
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
