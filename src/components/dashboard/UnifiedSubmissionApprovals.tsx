@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MatchHistoryDialog } from '@/components/dashboard/MatchHistoryDialog';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { getBranches } from '@/services/settingsService';
+import { getProofScanMap } from '@/services/proofScanLookupService';
 import { createStudent } from '@/services/studentService';
 import { isFutureDateOnly } from '@/utils/birthDate';
 import { sortSubmissionsByAction } from '@/utils/submissionApprovalSort';
@@ -81,6 +82,12 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
   const { data: branches = [] } = useQuery({
     queryKey: ['branches-for-unified-approvals'],
     queryFn: getBranches,
+  });
+
+  const { data: proofScans = {} } = useQuery({
+    queryKey: ['submission-proof-scans'],
+    queryFn: getProofScanMap,
+    refetchInterval: 60_000,
   });
 
   const sourceQueries = useQueries({
@@ -536,6 +543,21 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                   ) : (
                     <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Unmatched</Badge>
                   )}
+                  {(() => {
+                    const scan = proofScans[`${row.type}-${row.id}`];
+                    if (!scan) return null;
+                    if (scan.status === 'match') {
+                      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Screenshot ${scan.amount?.toFixed(2)} ✓</Badge>;
+                    }
+                    if (scan.status === 'mismatch') {
+                      return (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                          Screenshot {scan.amount !== null ? `$${scan.amount.toFixed(2)}` : 'amount unclear'}
+                        </Badge>
+                      );
+                    }
+                    return <Badge variant="secondary">Screenshot unreadable</Badge>;
+                  })()}
                 </div>
               </div>
 
