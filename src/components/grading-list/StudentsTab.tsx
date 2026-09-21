@@ -172,6 +172,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
     } else {
       setEditDay(''); setEditMonth(''); setEditYear('');
     }
+    setContactsLoaded(false);
     setContactsLoading(true);
     getStudentContacts(r.id)
       .then((c) => {
@@ -179,8 +180,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
         setEditAltPhones(c.alt_phones || []);
         if (c.email) setEditEmail(c.email);
         if (c.phone) setEditPhone(c.phone);
+        setContactsLoaded(true);
       })
-      .catch(() => {})
+      .catch(() => {
+        toast.error („Couldn't load the extra emails and mobiles — they will be kept as they are.");
+      })
       .finally(() => setContactsLoading(false));
   };
 
