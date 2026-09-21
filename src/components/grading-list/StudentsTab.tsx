@@ -107,6 +107,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [newAltEmail, setNewAltEmail] = useState('');
   const [newAltPhone, setNewAltPhone] = useState('');
   const [contactsLoading, setContactsLoading] = useState(false);
+  // Only send the extra contacts back once we know what was stored, otherwise
+  // an early save would wipe them.
+  const [contactsLoaded, setContactsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -172,6 +175,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
     } else {
       setEditDay(''); setEditMonth(''); setEditYear('');
     }
+    setContactsLoaded(false);
     setContactsLoading(true);
     getStudentContacts(r.id)
       .then((c) => {
@@ -179,8 +183,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
         setEditAltPhones(c.alt_phones || []);
         if (c.email) setEditEmail(c.email);
         if (c.phone) setEditPhone(c.phone);
+        setContactsLoaded(true);
       })
-      .catch(() => {})
+      .catch(() => {
+        toast.error('Could not load the extra emails and mobiles — they will be left unchanged.');
+      })
       .finally(() => setContactsLoading(false));
   };
 
@@ -225,8 +232,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
           clearEmail: !mainEmail,
           phone: editPhone.trim() || null,
           clearPhone: !editPhone.trim(),
-          altEmails: editAltEmails,
-          altPhones: editAltPhones,
+          // null = leave stored extra contacts untouched
+          altEmails: contactsLoaded ? editAltEmails : null,
+          altPhones: contactsLoaded ? editAltPhones : null,
         },
         actor,
       );
@@ -585,8 +593,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)} disabled={saving}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            <Button onClick={handleSave} disabled={saving || contactsLoading}>
+              {(saving || contactsLoading) && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Save
             </Button>
           </DialogFooter>
