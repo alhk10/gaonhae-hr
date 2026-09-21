@@ -1252,6 +1252,9 @@ export type Database = {
           photo_url: string | null
           poomsae_1: string | null
           poomsae_2: string | null
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string
           reference_number: string
           registered: boolean
@@ -1294,6 +1297,9 @@ export type Database = {
           photo_url?: string | null
           poomsae_1?: string | null
           poomsae_2?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url: string
           reference_number?: string
           registered?: boolean
@@ -1336,6 +1342,9 @@ export type Database = {
           photo_url?: string | null
           poomsae_1?: string | null
           poomsae_2?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string
           reference_number?: string
           registered?: boolean
@@ -1992,6 +2001,9 @@ export type Database = {
           matched_student_id: string | null
           notes: string | null
           payment_method: string
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string | null
           reference_number: string | null
           remark: string | null
@@ -2018,6 +2030,9 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method?: string
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           remark?: string | null
@@ -2044,6 +2059,9 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method?: string
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           remark?: string | null
@@ -2366,6 +2384,9 @@ export type Database = {
           notes: string | null
           payment_method: string | null
           phone: string | null
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string | null
           reference_number: string | null
           sale_status: string
@@ -2394,6 +2415,9 @@ export type Database = {
           notes?: string | null
           payment_method?: string | null
           phone?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           sale_status?: string
@@ -2422,6 +2446,9 @@ export type Database = {
           notes?: string | null
           payment_method?: string | null
           phone?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           sale_status?: string
@@ -4750,6 +4777,9 @@ export type Database = {
           matched_student_id: string | null
           notes: string | null
           payment_method: string | null
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string | null
           reference_number: string | null
           session_id: string | null
@@ -4766,6 +4796,9 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           session_id?: string | null
@@ -4782,6 +4815,9 @@ export type Database = {
           matched_student_id?: string | null
           notes?: string | null
           payment_method?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           reference_number?: string | null
           session_id?: string | null
@@ -5040,6 +5076,9 @@ export type Database = {
           passport_url: string | null
           payment_method: string
           photo_url: string | null
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string
           reference_number: string
           reviewed_at: string | null
@@ -5075,6 +5114,9 @@ export type Database = {
           passport_url?: string | null
           payment_method: string
           photo_url?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url: string
           reference_number?: string
           reviewed_at?: string | null
@@ -5110,6 +5152,9 @@ export type Database = {
           passport_url?: string | null
           payment_method?: string
           photo_url?: string | null
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string
           reference_number?: string
           reviewed_at?: string | null
@@ -9491,6 +9536,25 @@ export type Database = {
       }
       public_set_guards_variant_selections: {
         Args: { p_id: string; p_selections: Json }
+        Returns: undefined
+      }
+      record_proof_scan: {
+        Args: {
+          p_amount?: number
+          p_details?: Json
+          p_id: string
+          p_source: string
+          p_status: string
+        }
+        Returns: undefined
+      }
+      record_proof_scan_by_session: {
+        Args: {
+          p_amount?: number
+          p_details?: Json
+          p_session_id: string
+          p_status: string
+        }
         Returns: undefined
       }
       reject_student_merge_request: {

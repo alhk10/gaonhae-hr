@@ -25,6 +25,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import { usePaymentProofScan, recordProofScanBySession } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { PhoneInput } from '@/components/ui/phone-input';
 import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
@@ -213,6 +215,7 @@ const PublicHelloChat: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('bank_transfer');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
   const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
@@ -904,6 +907,7 @@ const PublicHelloChat: React.FC = () => {
             }
           : null,
       });
+      await recordProofScanBySession(sessionId, await proofScan.waitForResult());
       if (payCategory.id === GRADING_CATEGORY_ID) {
         navigate('/access');
         return;
@@ -2321,7 +2325,8 @@ const PublicHelloChat: React.FC = () => {
                         paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
                       />
 
-                      <ProofOfPaymentUpload value={proofFile} onChange={setProofFile} required />
+                      <ProofOfPaymentUpload value={proofFile} onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(amountDue || 0)); }} required />
+                      <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(amountDue || 0)} />
                     </>
                   )}
                   <div className="flex gap-2">

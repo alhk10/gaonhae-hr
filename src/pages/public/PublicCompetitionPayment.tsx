@@ -31,6 +31,8 @@ import {
   type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
@@ -142,6 +144,7 @@ const PublicCompetitionPayment: React.FC = () => {
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [indemnityClauseAccepted, setIndemnityClauseAccepted] = useState(false);
@@ -313,6 +316,7 @@ const PublicCompetitionPayment: React.FC = () => {
         photo_file: selectedEvent.require_photo ? photoFile : null,
         weight_kg: weightKg.trim() === '' ? null : Number(weightKg),
       });
+      await recordProofScan('competition', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);
@@ -346,7 +350,7 @@ const PublicCompetitionPayment: React.FC = () => {
                   setSuccess(null);
                   setFirstName(''); setLastName(''); setEmail('');
                   setBranchId(''); setDob(undefined); setCurrentBelt(''); setGender('');
-                  setSelectedExtras([]); setProofFile(null); setCertificateFile(null);
+                  setSelectedExtras([]); setProofFile(null); proofScan.reset(); setCertificateFile(null);
                   setSignatureDataUrl(null); setIndemnityClauseAccepted(false);
                   setIndemnityFormFile(null); setPassportFile(null); setPhotoFile(null);
                 }}
@@ -804,10 +808,11 @@ const PublicCompetitionPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   {submitError && (
                     <Alert variant="destructive">

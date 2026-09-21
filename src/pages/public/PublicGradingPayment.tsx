@@ -26,6 +26,8 @@ import {
 } from '@/services/gradingPaymentSubmissionService';
 import { supabase } from '@/integrations/supabase/client';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const FOUNDATION_BELTS = ['Foundation 1', 'Foundation 2', 'Foundation 3'];
 const GST_RATE = 0.09;
@@ -163,6 +165,7 @@ const PublicGradingPayment: React.FC = () => {
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ refs: string[] } | null>(null);
 
@@ -391,6 +394,7 @@ const PublicGradingPayment: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
+      await recordProofScan('grading', result.ids?.[0], await proofScan.waitForResult());
       setSuccess({ refs: result.reference_numbers });
       toast.success('Payment submitted successfully');
 
@@ -463,7 +467,7 @@ const PublicGradingPayment: React.FC = () => {
                   setCurrentBelt('');
                   setSelectedProductIds([]);
                   setSelectedSlotId('');
-                  setProofFile(null);
+                  setProofFile(null); proofScan.reset();
                 }}
                 className="w-full"
               >
@@ -705,10 +709,11 @@ const PublicGradingPayment: React.FC = () => {
                 <>
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   <Button
                     type="submit"

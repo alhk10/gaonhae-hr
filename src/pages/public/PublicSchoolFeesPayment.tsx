@@ -30,6 +30,8 @@ import {
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 
 const GST_RATE = 0.09;
@@ -118,6 +120,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
   const [plan, setPlan] = useState<FeePaymentPlan>('term');
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
 
@@ -218,6 +221,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
       });
+      await recordProofScan('school_fees', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });
       toast.success('Payment submitted successfully');
     } catch (err: any) {
@@ -255,7 +259,7 @@ const PublicSchoolFeesPayment: React.FC = () => {
                   setDob(undefined);
                   setTermId('');
                   setProductId('');
-                  setProofFile(null);
+                  setProofFile(null); proofScan.reset();
                 }}
                 className="w-full"
               >
@@ -503,10 +507,11 @@ const PublicSchoolFeesPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   <Button type="submit" className="w-full" disabled={!canSubmit}>
                     {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}

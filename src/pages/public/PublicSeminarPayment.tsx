@@ -32,6 +32,8 @@ import {
   type SeminarPackageCode,
 } from '@/services/seminarPaymentSubmissionService';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
@@ -139,6 +141,7 @@ const PublicSeminarPayment: React.FC = () => {
   const [packageCodes, setPackageCodes] = useState<SeminarPackageCode[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofScan = usePaymentProofScan();
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [gradingCardFile, setGradingCardFile] = useState<File | null>(null);
@@ -283,6 +286,7 @@ const PublicSeminarPayment: React.FC = () => {
         indemnity_form_file: indemnityFormRequired ? indemnityFormFile : null,
         signature_data_url: signatureRequired ? signatureDataUrl : null,
       });
+      await recordProofScan('seminar', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });
     } catch (err: any) {
       console.error(err);
@@ -317,7 +321,7 @@ const PublicSeminarPayment: React.FC = () => {
                   setFirstName(''); setLastName(''); setEmail('');
                   setDob(undefined); setGender(''); setCurrentBelt('');
                   setEventId(''); setPackageCodes([]);
-                  setProofFile(null); setPassportFile(null); setPhotoFile(null);
+                  setProofFile(null); proofScan.reset(); setPassportFile(null); setPhotoFile(null);
                   setGradingCardFile(null); setIndemnityFormFile(null);
                   setSignatureDataUrl(null); setIndemnityAccepted(false);
                   setSubmitError(null);
@@ -731,11 +735,12 @@ const PublicSeminarPayment: React.FC = () => {
 
                   <ProofOfPaymentUpload
                     value={proofFile}
-                    onChange={setProofFile}
+                    onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
                     required
                     acceptPdf={false}
                     maxSizeMB={5}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   {submitError && (
                     <Alert variant="destructive">

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.ai-marketing-asset]
 verify_jwt = false
+
+[functions.scan-payment-proof]
+verify_jwt = false
