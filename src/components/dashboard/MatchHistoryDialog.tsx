@@ -273,6 +273,28 @@ export const MatchHistoryDialog: React.FC<Props> = ({ scope, title = 'Match hist
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddStudentDialog
+        open={addingStudent}
+        onOpenChange={setAddingStudent}
+        actor={user?.employeeId || user?.email || 'superadmin'}
+        initialValues={{
+          firstName: (detail?.submitted_name || '').split(' ').slice(0, -1).join(' ') || detail?.submitted_name || '',
+          lastName: (detail?.submitted_name || '').split(' ').length > 1
+            ? (detail?.submitted_name || '').split(' ').slice(-1).join(' ')
+            : '',
+          dateOfBirth: detail?.date_of_birth || null,
+          email: detail?.email || null,
+          phone: detail?.phone || null,
+          branchId: detail?.branch_id || null,
+        }}
+        onCreated={(studentId) => {
+          if (studentId) {
+            setReplacementId(studentId);
+            setSearch(detail?.submitted_name || '');
+          }
+        }}
+      />
     </Dialog>
   );
 };
