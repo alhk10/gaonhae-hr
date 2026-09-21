@@ -604,7 +604,6 @@ const PublicSeminarPayment: React.FC = () => {
                       maxSizeMB={5}
                       label="Participant Photo"
                     />
-                    <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
                   )}
 
                   {selectedEvent.require_passport && (
@@ -741,6 +740,7 @@ const PublicSeminarPayment: React.FC = () => {
                     acceptPdf={false}
                     maxSizeMB={5}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   {submitError && (
                     <Alert variant="destructive">

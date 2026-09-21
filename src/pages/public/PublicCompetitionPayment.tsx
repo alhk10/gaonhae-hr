@@ -578,7 +578,6 @@ const PublicCompetitionPayment: React.FC = () => {
                       maxSizeMB={5}
                       label="Participant Photo"
                     />
-                    <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
                   )}
 
                   {certificateRequired && (
@@ -813,6 +812,7 @@ const PublicCompetitionPayment: React.FC = () => {
                     required
                     acceptPdf={false}
                   />
+                  <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
 
                   {submitError && (
                     <Alert variant="destructive">
