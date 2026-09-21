@@ -126,6 +126,7 @@ type Stage =
   | 'payment_pay'
   | 'payment_done'
   | 'past_invoices'
+  | 'personal_info'
   | 'lesson_action'
   | 'lesson_request'
   | 'lesson_request_done';
