@@ -112,7 +112,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     if (email.trim() && isBlockedEmail(email)) { toast.error(BLOCKED_EMAIL_MESSAGE); return; }
     setSaving(true);
     try {
-      await createStudentPublic(
+      const newId = await createStudentPublic(
         {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
