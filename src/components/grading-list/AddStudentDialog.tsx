@@ -80,6 +80,26 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     return toISODate(new Date(parseInt(year), parseInt(month), d));
   }, [day, month, year]);
 
+  // Prefill from the caller (e.g. a payment submission) each time the dialog opens
+  React.useEffect(() => {
+    if (!open || !initialValues) return;
+    setFirstName((initialValues.firstName || '').toUpperCase());
+    setLastName((initialValues.lastName || '').toUpperCase());
+    setEmail(initialValues.email || '');
+    setPhone(initialValues.phone || '');
+    setBranchId(initialValues.branchId || '');
+    setBelt(initialValues.belt || '');
+    if (initialValues.dateOfBirth) {
+      const [y, m, d] = String(initialValues.dateOfBirth).slice(0, 10).split('-');
+      if (y && m && d) {
+        setYear(String(parseInt(y)));
+        setMonth(String(parseInt(m) - 1));
+        setDay(String(parseInt(d)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const reset = () => {
     setFirstName(''); setLastName(''); setDay(''); setMonth(''); setYear('');
     setGender(''); setEmail(''); setPhone(''); setBranchId(''); setBelt('');
