@@ -541,10 +541,18 @@ export const getChatStudentCredit = async (sessionId: string, studentId: string)
   return Number(data ?? 0);
 };
 
-export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<string> => {
+export interface SubmitChatPaymentResult {
+  invoice_id: string | null;
+  invoice_number: string | null;
+  /** False when the chosen lesson times could not be saved after payment. */
+  schedule_saved: boolean;
+}
+
+export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<SubmitChatPaymentResult> => {
   let proofUrl: string | null = null;
 
   if (input.proof_file) {
+    assertValidPaymentProof(input.proof_file);
     const ext = input.proof_file.name.split('.').pop() || 'jpg';
     const ts = Date.now();
     const fn = (input.contact_first_name || '').trim().toUpperCase();
@@ -578,6 +586,7 @@ export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<
   const row = Array.isArray(data) ? data[0] : data;
   await logChatEvent(input.session_id, 'payment_submitted', { invoice_id: row?.invoice_id });
 
+  let scheduleSaved = true;
   const planned = input.planned_schedule;
   if (planned && planned.slots.length > 0 && (row as any)?.invoice_id) {
     try {
@@ -597,10 +606,23 @@ export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<
       });
     } catch (err) {
       console.warn('Planned schedule could not be saved', err);
+      scheduleSaved = false;
+      try {
+        await logChatEvent(input.session_id, 'planned_schedule_failed', {
+          invoice_id: (row as any).invoice_id,
+          error: (err as any)?.message ?? String(err),
+        });
+      } catch {
+        /* logging must never block the payment result */
+      }
     }
   }
 
-  return (row as any)?.invoice_number as string;
+  return {
+    invoice_id: ((row as any)?.invoice_id as string) ?? null,
+    invoice_number: ((row as any)?.invoice_number as string) ?? null,
+    schedule_saved: scheduleSaved,
+  };
 
 };
 
