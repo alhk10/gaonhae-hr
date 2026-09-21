@@ -248,6 +248,19 @@ const PublicHelloChat: React.FC = () => {
   const [planPickedDate, setPlanPickedDate] = useState<Date | undefined>(undefined);
   const [planCalMonth, setPlanCalMonth] = useState<Date | undefined>(undefined);
 
+  // Update personal information
+  const [piFirstName, setPiFirstName] = useState('');
+  const [piLastName, setPiLastName] = useState('');
+  const [piLastNameFirst, setPiLastNameFirst] = useState(false);
+  const [piDobDay, setPiDobDay] = useState('');
+  const [piDobMonth, setPiDobMonth] = useState('');
+  const [piDobYear, setPiDobYear] = useState('');
+  const [piEmails, setPiEmails] = useState<string[]>(['', '']);
+  const [piPhones, setPiPhones] = useState<string[]>(['', '']);
+  const [piLoaded, setPiLoaded] = useState(false);
+  const [piSaving, setPiSaving] = useState(false);
+  const [piPending, setPiPending] = useState<string[] | null>(null);
+
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
