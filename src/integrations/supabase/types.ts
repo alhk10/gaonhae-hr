@@ -9548,6 +9548,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_proof_scan_by_session: {
+        Args: {
+          p_amount?: number
+          p_details?: Json
+          p_session_id: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       reject_student_merge_request: {
         Args: { p_actor: string; p_reason?: string; p_request_id: string }
         Returns: undefined
