@@ -8758,6 +8758,10 @@ export type Database = {
         Args: { p_session_id: string; p_student_id: string }
         Returns: number
       }
+      get_public_chat_student_personal_info: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: Json
+      }
       get_public_chat_terms_for_student: {
         Args: {
           p_branch_id: string
@@ -9576,6 +9580,19 @@ export type Database = {
           id: string
           reference_number: string
         }[]
+      }
+      update_chat_student_personal_info: {
+        Args: {
+          p_date_of_birth: string
+          p_emails: string[]
+          p_first_name: string
+          p_last_name: string
+          p_last_name_first: boolean
+          p_phones: string[]
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
