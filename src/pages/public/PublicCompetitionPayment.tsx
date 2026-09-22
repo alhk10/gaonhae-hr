@@ -301,6 +301,8 @@ const PublicCompetitionPayment: React.FC = () => {
         date_of_birth: isoDob,
         current_belt: currentBelt,
         amount: totalAmount,
+        amount_net: netSubtotal,
+        gst_amount: gstAmount,
         payment_method: paymentMethod,
         proof_file: proofFile,
         certificate_file: certificateFile,

@@ -299,6 +299,8 @@ export interface SubmitCompetitionPaymentInput {
   date_of_birth: string; // yyyy-MM-dd
   current_belt: string;
   amount: number;
+  amount_net?: number | null;
+  gst_amount?: number | null;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
   certificate_file?: File | null;
@@ -474,6 +476,8 @@ export const submitCompetitionPayment = async (
     date_of_birth: input.date_of_birth,
     current_belt: input.current_belt || null,
     amount: input.amount,
+    amount_net: input.amount_net ?? null,
+    gst_amount: input.gst_amount ?? null,
     payment_method: input.payment_method,
     proof_url: proofUrl,
     certificate_url: certificateUrl,

@@ -210,6 +210,8 @@ export interface SubmitSeminarPaymentInput {
   package_label: string;
   session_dates: string[];
   amount: number;
+  amount_net?: number | null;
+  gst_amount?: number | null;
   discount_amount?: number;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
@@ -348,6 +350,8 @@ export const submitSeminarPayment = async (
     package_label: input.package_label,
     session_dates: input.session_dates,
     amount: input.amount,
+    amount_net: input.amount_net ?? null,
+    gst_amount: input.gst_amount ?? null,
     discount_amount: input.discount_amount ?? 0,
     payment_method: input.payment_method,
     proof_url: proofUrl,

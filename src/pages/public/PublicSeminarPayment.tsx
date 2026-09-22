@@ -277,6 +277,8 @@ const PublicSeminarPayment: React.FC = () => {
         package_label: combined.package_label,
         session_dates: combined.session_dates,
         amount: totalAmount,
+        amount_net: Number((totalAmount - gstAmount).toFixed(2)),
+        gst_amount: gstAmount,
         discount_amount: combined.discount_amount,
         payment_method: paymentMethod,
         proof_file: proofFile,
