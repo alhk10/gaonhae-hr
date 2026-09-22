@@ -11,6 +11,7 @@ import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSu
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
+import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {

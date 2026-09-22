@@ -18,6 +18,7 @@ import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProduct
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';

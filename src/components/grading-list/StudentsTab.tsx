@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAuth } from '@/contexts/AuthContext';
+import StatusBadge from './StatusBadge';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
