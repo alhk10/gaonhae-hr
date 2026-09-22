@@ -34,6 +34,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { calculateAgeYears } from '@/utils/birthDate';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 interface StudentDetailsDialogProps {
   open: boolean;
@@ -257,9 +258,7 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{inv.invoice_number}</span>
-                            <Badge variant={getStatusColor(inv.status || 'unpaid')} className="text-[10px] px-1.5 py-0">
-                              {inv.status}
-                            </Badge>
+                            <StatusBadge status={inv.status || 'unpaid'} className="text-[10px] px-1.5 py-0" />
                           </div>
                           <span className="text-xs text-muted-foreground">
                             {formatDate(inv.issue_date)}

@@ -51,6 +51,7 @@ import { downloadInvoicePDF, shareInvoiceViaWhatsApp, getInvoicePDFBase64, hasUs
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 const InvoiceManagementList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -767,12 +768,7 @@ const InvoiceManagementList: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={getStatusBadgeVariant(invoice.status)}
-                          className={getStatusBadgeClass(invoice.status)}
-                        >
-                          {getDisplayStatus(invoice.status)}
-                        </Badge>
+                        <StatusBadge status={invoice.status} />
                       </TableCell>
                       <TableCell>{formatDate(invoice.issue_date)}</TableCell>
                       <TableCell>{formatDate(invoice.due_date)}</TableCell>

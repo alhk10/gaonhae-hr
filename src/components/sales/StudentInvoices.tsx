@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/utils/dateFormat';
 import { 
+import StatusBadge from '@/components/grading-list/StatusBadge';
   Receipt, 
   DollarSign, 
   Calendar, 
@@ -213,7 +214,7 @@ export const StudentInvoices: React.FC<StudentInvoicesProps> = ({
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    {getStatusBadge(invoice.status)}
+                    <StatusBadge status={invoice.status} />
                     <div className="text-right">
                       <div className="font-semibold text-foreground">
                         ${Number(invoice.total_amount).toFixed(2)}

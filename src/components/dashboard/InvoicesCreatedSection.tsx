@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import { formatDate } from '@/utils/dateFormat';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 const InvoicesCreatedSection = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
@@ -115,9 +116,7 @@ const InvoicesCreatedSection = () => {
                   <span className="text-sm font-medium">
                     {`${(inv.students as any)?.first_name ?? ''} ${(inv.students as any)?.last_name ?? ''}`.trim() || 'Unknown'}
                   </span>
-                  <Badge variant={getStatusVariant(inv.status)} className="text-[10px] px-1.5 py-0">
-                    {formatStatus(inv.status)}
-                  </Badge>
+                  <StatusBadge status={inv.status} className="text-[10px] px-1.5 py-0" />
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {inv.invoice_number || '—'} · {formatDate(inv.created_at)}
@@ -165,9 +164,7 @@ const InvoicesCreatedSection = () => {
                     <TableCell className="py-1.5 text-right">${inv.total_amount?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5 text-right">${inv.balance_due?.toFixed(2)}</TableCell>
                     <TableCell className="py-1.5">
-                      <Badge variant={getStatusVariant(inv.status)} className="text-[10px] px-1.5 py-0">
-                        {formatStatus(inv.status)}
-                      </Badge>
+                      <StatusBadge status={inv.status} className="text-[10px] px-1.5 py-0" />
                     </TableCell>
                     <TableCell className="py-1.5 text-right">
                       <Button
