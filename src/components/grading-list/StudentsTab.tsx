@@ -346,7 +346,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="font-medium">{r.name}</div>
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium" />
                       <div className="text-[11px] text-muted-foreground">
                         {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
                       </div>
