@@ -98,6 +98,8 @@ import {
 import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
 import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
+import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
+import StudentNameButton from '@/components/grading-list/StudentNameButton';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
