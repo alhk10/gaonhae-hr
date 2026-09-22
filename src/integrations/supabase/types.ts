@@ -6363,6 +6363,39 @@ export type Database = {
           },
         ]
       }
+      status_normalisation_log: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          new_status: string | null
+          old_status: string | null
+          reason: string | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          reason?: string | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          reason?: string | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       student_auth: {
         Row: {
           auth_user_id: string | null
