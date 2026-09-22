@@ -34,6 +34,8 @@ import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
