@@ -115,6 +115,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const years = useMemo(() => {
     const cy = new Date().getFullYear();
