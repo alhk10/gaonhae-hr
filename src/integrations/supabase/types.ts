@@ -9254,6 +9254,10 @@ export type Database = {
           term_name: string
         }[]
       }
+      get_public_student_profile: {
+        Args: { p_student_id: string }
+        Returns: Json
+      }
       get_public_student_term_bookings:
         | {
             Args: { p_session_id: string; p_student_id: string }
