@@ -1,13 +1,9 @@
-# Roadmap
+# Roadmap — invoice amounts match what was collected
 
-## GST on invoices (approved 2026-09-20)
-- [x] Line-level tax_rate seeded from branch country (createInvoice, InvoiceDialog)
-- [x] SQL helper + GST in all invoice-creating RPCs
-- [x] Public-facing amounts (fees/hello/chat) include GST
-- [x] Backfill unpaid SG invoices
-- [x] PDF + UI labels "Subtotal (before GST)" / "GST (9%)"
-
-## /access Edit Student
-- [x] Edit first/last name, DOB, email, phone
-- [x] Multiple emails/phones with remove (x) and add
-- [x] RPC + directory support for alt_emails / alt_phones
+- [ ] Store net fee + GST on public submissions (grading, competition, seminar, school fees, guards)
+- [ ] Public submit RPCs write net + GST
+- [ ] Import RPCs build invoices as net + 9% GST (total = collected amount)
+- [ ] Fix grading list double-1.09 display
+- [ ] Backfill: re-scan stored payment slips (bounded batch job)
+- [ ] Correct past invoices where slip amount = fee + 9%
+- [ ] Payment amount review list on /access for unconfirmed cases
