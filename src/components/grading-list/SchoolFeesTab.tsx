@@ -262,8 +262,8 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending_verification">Pending</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="pending_verification">Pending verification</SelectItem>
+            <SelectItem value="verified">Paid &amp; Verified</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>

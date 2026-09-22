@@ -2672,8 +2672,8 @@ const CompetitionsTab: React.FC<{
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs">All statuses</SelectItem>
-              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
-              <SelectItem value="paid" className="text-xs">Paid</SelectItem>
+              <SelectItem value="pending" className="text-xs">Pending verification</SelectItem>
+              <SelectItem value="paid" className="text-xs">Paid &amp; Verified</SelectItem>
               <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
             </SelectContent>
           </Select>
