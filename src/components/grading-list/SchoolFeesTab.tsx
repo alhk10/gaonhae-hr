@@ -105,6 +105,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   // Build the invoice PDF for the selected row and preview it inline
   useEffect(() => {
