@@ -308,6 +308,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
         onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
       />
       <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
