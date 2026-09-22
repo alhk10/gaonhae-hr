@@ -2965,7 +2965,7 @@ const CompetitionsTab: React.FC<{
                   {r.branch_name || '—'}
                 </span>
                 <div className="text-xs">
-                  <span className="font-medium">{r.student_name}</span>
+                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} className="font-medium" />
                   {r.gender && <span className="text-[10px] uppercase text-muted-foreground ml-1">{r.gender}</span>}
                 </div>
                 <span className="text-xs tabular-nums">{age}</span>
