@@ -260,6 +260,9 @@ const PublicHelloChat: React.FC = () => {
   const [piDobYear, setPiDobYear] = useState('');
   const [piEmails, setPiEmails] = useState<string[]>(['', '']);
   const [piPhones, setPiPhones] = useState<string[]>(['', '']);
+  // Contacts already on file beyond the two editable slots — kept so saving never removes them.
+  const [piExtraEmails, setPiExtraEmails] = useState<string[]>([]);
+  const [piExtraPhones, setPiExtraPhones] = useState<string[]>([]);
   const [piLoaded, setPiLoaded] = useState(false);
   const [piSaving, setPiSaving] = useState(false);
   const [piPending, setPiPending] = useState<string[] | null>(null);
@@ -340,6 +343,9 @@ const PublicHelloChat: React.FC = () => {
     const phones = [personalInfo.phone || '', ...(personalInfo.alt_phones || [])];
     setPiEmails([emails[0] || '', emails[1] || '']);
     setPiPhones([phones[0] || '', phones[1] || '']);
+    // Anything already on file beyond the two editable slots stays on the record.
+    setPiExtraEmails(emails.slice(2).map(e => (e || '').trim()).filter(Boolean));
+    setPiExtraPhones(phones.slice(2).map(p => (p || '').trim()).filter(Boolean));
     if (personalInfo.date_of_birth) {
       const [y, m, d] = String(personalInfo.date_of_birth).slice(0, 10).split('-');
       if (y && m && d) {
@@ -357,9 +363,20 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Please enter a first name');
       return;
     }
-    const emails = piEmails.map(e => e.trim()).filter(Boolean);
-    const phones = piPhones.map(p => p.trim()).filter(Boolean);
-    for (const e of emails) {
+    const dedupe = (values: string[]) => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const v of values) {
+        const key = v.replace(/\s+/g, '').toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(v);
+      }
+      return out;
+    };
+    const emails = dedupe([...piEmails.map(e => e.trim()), ...piExtraEmails]).filter(Boolean);
+    const phones = dedupe([...piPhones.map(p => p.trim()), ...piExtraPhones]).filter(Boolean);
+    for (const e of piEmails.map(v => v.trim()).filter(Boolean)) {
       if (isBlockedEmail(e)) {
         toast.error(BLOCKED_EMAIL_MESSAGE);
         return;
