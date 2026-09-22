@@ -260,6 +260,9 @@ const PublicHelloChat: React.FC = () => {
   const [piDobYear, setPiDobYear] = useState('');
   const [piEmails, setPiEmails] = useState<string[]>(['', '']);
   const [piPhones, setPiPhones] = useState<string[]>(['', '']);
+  // Contacts already on file beyond the two editable slots — kept so saving never removes them.
+  const [piExtraEmails, setPiExtraEmails] = useState<string[]>([]);
+  const [piExtraPhones, setPiExtraPhones] = useState<string[]>([]);
   const [piLoaded, setPiLoaded] = useState(false);
   const [piSaving, setPiSaving] = useState(false);
   const [piPending, setPiPending] = useState<string[] | null>(null);
