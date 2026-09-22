@@ -121,16 +121,6 @@ const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
 
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'rejected':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-  }
-};
 
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
@@ -2792,7 +2782,7 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                  <StatusBadge status={r.paid_status} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 text-right">
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
@@ -2980,7 +2970,7 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight whitespace-nowrap">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                <StatusBadge status={r.paid_status} />
                 <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 

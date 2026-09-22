@@ -58,31 +58,6 @@ const statusBadge = (s: string) => {
   }
 };
 
-const invoiceBadge = (s: string | null) => {
-  switch ((s || '').toLowerCase()) {
-    case 'paid':
-    case 'verified':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'partially paid':
-    case 'partially_paid':
-    case 'partial':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'unpaid':
-    case 'overdue':
-    case 'sent':
-    case 'draft':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-};
-
-const invoiceLabel = (s: string | null) => {
-  if (!s) return 'No invoice';
-  const v = s.toLowerCase();
-  if (v === 'verified') return 'Paid & Verified';
-  return v.charAt(0).toUpperCase() + v.slice(1);
-};
 
 const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const qc = useQueryClient();

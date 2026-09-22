@@ -39,16 +39,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
 
 
-const statusVariant = (s: string) => {
-  switch (s) {
-    case 'paid':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'rejected':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-  }
-};
 
 interface Props {
   branchFilter: string;
@@ -256,7 +246,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
                   <TableCell className="px-2 py-1">
-                    <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                    <StatusBadge status={r.paid_status} />
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1 text-right">
                     ${Number(r.amount).toFixed(2)}

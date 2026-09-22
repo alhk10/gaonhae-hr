@@ -314,7 +314,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           ))}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
+                          <StatusBadge status={r.sale_status} className="text-[10px]" label={undefined}>
                             {r.sale_status.replace(/_/g, ' ')}
                           </Badge>
                         </TableCell>
