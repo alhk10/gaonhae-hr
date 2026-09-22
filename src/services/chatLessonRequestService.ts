@@ -229,7 +229,7 @@ const resolveEnrollment = async (
     .select('id, status')
     .eq('student_id', studentId)
     .eq('branch_id', branchId)
-    .in('status', ['paid', 'verified', 'partially_paid', 'sent', 'draft']);
+    .in('status', ['paid', 'verified', 'partially_paid', 'unpaid', 'draft']);
   const invoiceIds = (invs || []).map((i: any) => i.id);
   if (invoiceIds.length === 0) {
     throw new Error('No paid lesson invoice found for this term — cannot create enrollment');
