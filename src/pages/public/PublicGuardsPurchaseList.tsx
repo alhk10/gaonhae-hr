@@ -39,12 +39,6 @@ import {
 const PASSWORDS = ['Hp97533488', 'Hp84311884'];
 const SS_KEY = 'guards_list_unlocked_v1';
 
-const statusVariant = (s: string) => {
-  if (s === 'verified') return 'bg-green-100 text-green-800 border-green-200';
-  if (s === 'rejected' || s === 'cancelled') return 'bg-red-100 text-red-800 border-red-200';
-  return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-};
-
 interface PublicGuardsPurchaseListProps {
   embedded?: boolean;
   canDelete?: boolean;
