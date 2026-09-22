@@ -1223,6 +1223,7 @@ export type Database = {
       competition_payment_submissions: {
         Row: {
           amount: number | null
+          amount_net: number | null
           branch_id: string
           category_product_ids: string[]
           certificate_url: string | null
@@ -1242,6 +1243,7 @@ export type Database = {
           first_name: string
           gender: string | null
           grading_card_urls: string[]
+          gst_amount: number | null
           id: string
           indemnity_form_url: string | null
           last_name: string
@@ -1269,6 +1271,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          amount_net?: number | null
           branch_id: string
           category_product_ids?: string[]
           certificate_url?: string | null
@@ -1288,6 +1291,7 @@ export type Database = {
           first_name: string
           gender?: string | null
           grading_card_urls?: string[]
+          gst_amount?: number | null
           id?: string
           indemnity_form_url?: string | null
           last_name: string
@@ -1315,6 +1319,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          amount_net?: number | null
           branch_id?: string
           category_product_ids?: string[]
           certificate_url?: string | null
@@ -1334,6 +1339,7 @@ export type Database = {
           first_name?: string
           gender?: string | null
           grading_card_urls?: string[]
+          gst_amount?: number | null
           id?: string
           indemnity_form_url?: string | null
           last_name?: string
@@ -1991,6 +1997,7 @@ export type Database = {
       grading_payment_submissions: {
         Row: {
           amount: number | null
+          amount_net: number | null
           branch_id: string
           created_at: string
           current_belt: string | null
@@ -1998,6 +2005,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           first_name: string
+          gst_amount: number | null
           id: string
           last_name: string
           matched_invoice_id: string | null
@@ -2020,6 +2028,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          amount_net?: number | null
           branch_id: string
           created_at?: string
           current_belt?: string | null
@@ -2027,6 +2036,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           first_name: string
+          gst_amount?: number | null
           id?: string
           last_name: string
           matched_invoice_id?: string | null
@@ -2049,6 +2059,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          amount_net?: number | null
           branch_id?: string
           created_at?: string
           current_belt?: string | null
@@ -2056,6 +2067,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           first_name?: string
+          gst_amount?: number | null
           id?: string
           last_name?: string
           matched_invoice_id?: string | null
@@ -4780,9 +4792,11 @@ export type Database = {
       public_chat_payment_submissions: {
         Row: {
           amount: number | null
+          amount_net: number | null
           branch_id: string | null
           category: string | null
           created_at: string
+          gst_amount: number | null
           id: string
           items: Json
           matched_invoice_id: string | null
@@ -4799,9 +4813,11 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          amount_net?: number | null
           branch_id?: string | null
           category?: string | null
           created_at?: string
+          gst_amount?: number | null
           id?: string
           items?: Json
           matched_invoice_id?: string | null
@@ -4818,9 +4834,11 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          amount_net?: number | null
           branch_id?: string | null
           category?: string | null
           created_at?: string
+          gst_amount?: number | null
           id?: string
           items?: Json
           matched_invoice_id?: string | null
@@ -5064,6 +5082,7 @@ export type Database = {
       seminar_payment_submissions: {
         Row: {
           amount: number
+          amount_net: number | null
           branch_id: string
           client_ref: string | null
           collected: boolean
@@ -5078,6 +5097,7 @@ export type Database = {
           first_name: string
           gender: string | null
           grading_card_urls: string[]
+          gst_amount: number | null
           id: string
           indemnity_form_url: string | null
           last_name: string
@@ -5103,6 +5123,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          amount_net?: number | null
           branch_id: string
           client_ref?: string | null
           collected?: boolean
@@ -5117,6 +5138,7 @@ export type Database = {
           first_name: string
           gender?: string | null
           grading_card_urls?: string[]
+          gst_amount?: number | null
           id?: string
           indemnity_form_url?: string | null
           last_name: string
@@ -5142,6 +5164,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_net?: number | null
           branch_id?: string
           client_ref?: string | null
           collected?: boolean
@@ -5156,6 +5179,7 @@ export type Database = {
           first_name?: string
           gender?: string | null
           grading_card_urls?: string[]
+          gst_amount?: number | null
           id?: string
           indemnity_form_url?: string | null
           last_name?: string
@@ -9598,6 +9622,20 @@ export type Database = {
       remember_guards_purchase_email: {
         Args: { p_purchase_id: string }
         Returns: undefined
+      }
+      resolve_public_amount: {
+        Args: {
+          p_amount: number
+          p_amount_net?: number
+          p_branch_id: string
+          p_gst_amount?: number
+          p_price_hint?: number
+        }
+        Returns: {
+          net: number
+          tax: number
+          total: number
+        }[]
       }
       set_public_chat_session_match: {
         Args: {
