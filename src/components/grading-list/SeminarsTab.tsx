@@ -248,7 +248,9 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
               {rows.map((r) => (
                 <TableRow key={r.submission_id}>
                   <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
-                  <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
+                  <TableCell className="text-xs px-2 py-1 font-medium">
+                    <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
+                  </TableCell>
                   <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
