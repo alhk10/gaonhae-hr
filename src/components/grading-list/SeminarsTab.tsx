@@ -449,6 +449,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
       />
 
       <SeminarEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };
