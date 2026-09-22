@@ -204,6 +204,7 @@ const PublicGradingList: React.FC = () => {
     changeRemark: boolean; remark: string;
   }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
   const [savingMass, setSavingMass] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
 
   // All grading dates on record (past + future) — independent of the row query
