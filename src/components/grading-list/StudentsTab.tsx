@@ -401,7 +401,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{r.name}</div>
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm truncate block" />
                       <div className="text-[11px] text-muted-foreground">
                         {r.current_belt || 'No belt'} · {r.branch_name || '—'} · {r.status}
                       </div>
