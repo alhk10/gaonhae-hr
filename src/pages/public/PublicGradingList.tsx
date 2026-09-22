@@ -2207,6 +2207,12 @@ const PublicGradingList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };
