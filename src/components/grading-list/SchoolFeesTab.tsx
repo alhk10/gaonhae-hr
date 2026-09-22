@@ -331,7 +331,11 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                 <TableRow key={row.id}>
                   <TableCell className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
                   <TableCell className="text-xs font-medium">
-                    <div>{row.student_name || row.contact_name || '—'}</div>
+                    <StudentNameButton
+                      name={row.student_name || row.contact_name || '—'}
+                      studentId={row.student_id}
+                      onOpen={setProfileId}
+                    />
                     {!row.student_id && (
                       <div className="space-y-0.5">
                         <Badge variant="outline" className="text-[10px] bg-orange-100 text-orange-800 border-orange-200">
