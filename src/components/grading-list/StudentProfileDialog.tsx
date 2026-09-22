@@ -21,14 +21,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusClass = (status?: string | null) => {
-  const s = (status || '').toLowerCase();
-  if (s === 'paid' || s === 'verified') return 'bg-green-100 text-green-800';
-  if (s === 'partially_paid' || s === 'partially paid') return 'bg-yellow-100 text-yellow-800';
-  if (s === 'cancelled') return 'bg-gray-100 text-gray-700';
-  if (s === 'overdue') return 'bg-red-100 text-red-800';
-  return 'bg-blue-100 text-blue-800';
-};
 
 const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => {
   if (value === null || value === undefined || value === '') return null;
