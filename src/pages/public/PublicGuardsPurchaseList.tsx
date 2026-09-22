@@ -297,7 +297,12 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                       >
                         <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{r.first_name} {r.last_name}</div>
+                          <StudentNameButton
+                            name={`${r.first_name || ''} ${r.last_name || ''}`.trim()}
+                            studentId={r.matched_student_id}
+                            onOpen={setProfileId}
+                            className="font-medium"
+                          />
                         </TableCell>
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}
