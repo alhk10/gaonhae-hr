@@ -246,7 +246,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
                   <TableCell className="px-2 py-1">
-                    <StatusBadge status={r.paid_status} />
+                    <StatusBadge status={r.status || r.paid_status} />
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1 text-right">
                     ${Number(r.amount).toFixed(2)}

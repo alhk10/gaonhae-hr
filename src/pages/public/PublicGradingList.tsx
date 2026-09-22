@@ -1537,7 +1537,7 @@ const PublicGradingList: React.FC = () => {
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
                         <TableCell className="px-2 py-0.5">
-                          <StatusBadge status={r.paid_status} className="text-[10px] px-1.5 py-0" />
+                          <StatusBadge status={r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status} className="text-[10px] px-1.5 py-0" />
                         </TableCell>
                         {editMode && (
                           <>
@@ -2780,7 +2780,7 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <StatusBadge status={r.paid_status} />
+                  <StatusBadge status={r.status || r.paid_status} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 text-right">
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
@@ -2968,7 +2968,7 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight whitespace-nowrap">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <StatusBadge status={r.paid_status} />
+                <StatusBadge status={r.status || r.paid_status} />
                 <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 
