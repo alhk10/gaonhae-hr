@@ -376,7 +376,7 @@ const PublicHelloChat: React.FC = () => {
     };
     const emails = dedupe([...piEmails.map(e => e.trim()), ...piExtraEmails]).filter(Boolean);
     const phones = dedupe([...piPhones.map(p => p.trim()), ...piExtraPhones]).filter(Boolean);
-    for (const e of emails) {
+    for (const e of piEmails.map(v => v.trim()).filter(Boolean)) {
       if (isBlockedEmail(e)) {
         toast.error(BLOCKED_EMAIL_MESSAGE);
         return;
