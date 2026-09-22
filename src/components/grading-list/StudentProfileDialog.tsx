@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { ChevronDown, ChevronRight } from 'lucide-react';
