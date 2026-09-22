@@ -216,7 +216,7 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         });
       }
       toast.success(autoLabel || 'Student matched');
-      if (row.verified && row.supportsImport && adapter.importInvoice && !adapter.matchCreatesInvoice) {
+      if (row.verified && row.supportsImport && adapter.importInvoice && !adapter.matchCreatesInvoice && !adapter.invoiceIsAutomatic) {
         const res = await tryAutoImport(() => adapter.importInvoice!(row.raw, actor));
         if (res.imported) toast.success('Verified submission imported as invoice');
         else if (res.error) toast.error(`Matched, but import failed: ${res.error}`);
@@ -399,7 +399,7 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
         matched += matchRes.matchedIds.length;
         Object.assign(errors, matchRes.errors);
 
-        if (source.importInvoice) {
+        if (source.importInvoice && !source.invoiceIsAutomatic) {
           // Sources whose match step already creates the invoice must not be imported again.
           const importRows = source.matchCreatesInvoice
             ? rows.filter((r) => !matchRes.matchedIds.includes(r.id))

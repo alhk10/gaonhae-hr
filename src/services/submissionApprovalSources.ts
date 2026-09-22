@@ -112,6 +112,8 @@ export interface SubmissionSourceAdapter<T = any> {
   importInvoice?: (item: T, actor: string) => Promise<unknown>;
   /** True when matching a verified row already creates the invoice. */
   matchCreatesInvoice?: boolean;
+  /** The database invoices this source automatically once verified + matched. */
+  invoiceIsAutomatic?: boolean;
   reject: (item: T, reason: string, actor: string) => Promise<void>;
   updateDetails?: (
     item: T,
@@ -138,6 +140,8 @@ const money = (v: unknown) => Number(v || 0);
 
 const gradingAdapter: SubmissionSourceAdapter<PendingGradingSubmission> = {
   key: 'grading',
+  // Invoiced automatically by the database once verified and matched.
+  invoiceIsAutomatic: true,
   label: 'Grading',
   autoScope: 'grading-submissions',
   historyScope: 'grading',
@@ -184,6 +188,8 @@ const gradingAdapter: SubmissionSourceAdapter<PendingGradingSubmission> = {
 
 const competitionAdapter: SubmissionSourceAdapter<PendingCompetitionSubmission> = {
   key: 'competition',
+  // Invoiced automatically by the database once verified and matched.
+  invoiceIsAutomatic: true,
   label: 'Competition',
   autoScope: 'competition-submissions',
   historyScope: 'competition',
@@ -234,6 +240,8 @@ const competitionAdapter: SubmissionSourceAdapter<PendingCompetitionSubmission> 
 
 const seminarAdapter: SubmissionSourceAdapter<PendingSeminarSubmission> = {
   key: 'seminar',
+  // Invoiced automatically by the database once verified and matched.
+  invoiceIsAutomatic: true,
   label: 'Seminar',
   autoScope: 'seminar-submissions',
   historyScope: 'seminar',
@@ -280,6 +288,8 @@ const seminarAdapter: SubmissionSourceAdapter<PendingSeminarSubmission> = {
 
 const schoolFeesAdapter: SubmissionSourceAdapter<SchoolFeesRow> = {
   key: 'school_fees',
+  // Invoiced automatically by the database once verified and matched.
+  invoiceIsAutomatic: true,
   label: 'School fees',
   autoScope: 'school-fees-submissions',
   historyScope: 'school_fees',
