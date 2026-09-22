@@ -8,6 +8,8 @@ export type CanonicalStatus =
   | 'paid_verified'
   | 'partially_paid'
   | 'unpaid'
+  | 'draft'
+  | 'overdue'
   | 'rejected'
   | 'cancelled'
   | 'none';
@@ -23,6 +25,8 @@ const META: Record<CanonicalStatus, { label: string; className: string }> = {
   paid_verified: { label: 'Paid & Verified', className: GREEN },
   partially_paid: { label: 'Partially paid', className: AMBER },
   unpaid: { label: 'Unpaid', className: RED },
+  draft: { label: 'Draft', className: GREY },
+  overdue: { label: 'Overdue', className: RED },
   rejected: { label: 'Rejected', className: RED },
   cancelled: { label: 'Cancelled', className: GREY },
   none: { label: 'No invoice', className: GREY },
@@ -59,9 +63,11 @@ export const normalizeStatus = (raw?: string | null): CanonicalStatus => {
     case 'refunded':
       return 'cancelled';
     case 'draft':
+      return 'draft';
+    case 'overdue':
+      return 'overdue';
     case 'sent':
     case 'unpaid':
-    case 'overdue':
       return 'unpaid';
     default:
       return 'pending_verification';
