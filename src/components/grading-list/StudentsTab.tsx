@@ -350,9 +350,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                       ) : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={invoiceBadge(r.invoice_status)}>
-                        {invoiceLabel(r.invoice_status)}
-                      </Badge>
+                      <StatusBadge status={r.invoice_status} />
                       {r.invoice_balance != null && r.invoice_balance > 0 && (
                         <div className="text-[11px] text-red-600 mt-0.5">
                           {formatCurrency(r.invoice_balance)} due
@@ -388,9 +386,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Badge variant="outline" className={invoiceBadge(r.invoice_status)}>
-                        {invoiceLabel(r.invoice_status)}
-                      </Badge>
+                      <StatusBadge status={r.invoice_status} />
                       {canEdit && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
                           <Pencil className="h-4 w-4" />

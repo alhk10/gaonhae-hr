@@ -314,9 +314,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           ))}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={r.sale_status} className="text-[10px]" label={undefined}>
-                            {r.sale_status.replace(/_/g, ' ')}
-                          </Badge>
+                          <StatusBadge status={r.sale_status} className="text-[10px]" />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
