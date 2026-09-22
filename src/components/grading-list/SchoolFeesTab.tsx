@@ -38,6 +38,8 @@ import {
 } from '@/services/schoolFeesSubmissionService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 import { rememberSchoolFeesContact } from '@/services/studentContactService';
 
