@@ -404,6 +404,20 @@ export const updateGuardsPurchase = async (
 export const setGuardsStatus = async (id: string, status: string): Promise<void> => {
   const { error } = await supabase.rpc('public_set_guards_status' as any, { p_id: id, p_status: status });
   if (error) throw error;
+
+  // A verified purchase that is already matched must be invoiced right away,
+  // whichever screen performed the verification.
+  if (status === 'verified' || status === 'paid') {
+    const { data } = await supabase
+      .from('guards_purchases')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    const row = data as unknown as GuardsPurchaseRow | null;
+    if (row?.matched_student_id && !row.invoice_id) {
+      await createInvoiceForPurchase(row, row.matched_student_id);
+    }
+  }
 };
 
 /**
