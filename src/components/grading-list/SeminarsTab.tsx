@@ -76,6 +76,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   // Apply filters coming from the Summary tab drill-through
   useEffect(() => {
