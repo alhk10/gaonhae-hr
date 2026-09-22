@@ -35,7 +35,7 @@ export interface Invoice {
   total_amount: number;
   amount_paid: number;
   balance_due: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'partial' | 'verified';
+  status: 'draft' | 'unpaid' | 'partially_paid' | 'paid' | 'verified' | 'cancelled';
   issue_date?: string;
   due_date?: string;
   payment_terms_days?: number;
@@ -1438,7 +1438,7 @@ export const backfillOrphanGradingRegistrationsForBranch = async (branchId: stri
       .select('id, invoice_id, invoices!inner(id, branch_id, status)')
       .in('product_id', gradingProductIds)
       .eq('invoices.branch_id', branchId)
-      .in('invoices.status', ['draft', 'sent', 'unpaid', 'partial', 'partially_paid', 'overdue', 'paid', 'verified']);
+      .in('invoices.status', ['draft', 'unpaid', 'partially_paid', 'paid', 'verified']);
     const items = gradingItems || [];
     if (items.length === 0) return 0;
 

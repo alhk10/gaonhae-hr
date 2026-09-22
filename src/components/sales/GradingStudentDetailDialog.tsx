@@ -21,6 +21,7 @@ import { Loader2, FileText, CalendarDays, CheckCircle2, XCircle, ExternalLink } 
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 interface GradingStudentDetailDialogProps {
   open: boolean;
@@ -220,11 +221,7 @@ const GradingStudentDetailDialog: React.FC<GradingStudentDetailDialogProps> = ({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">{invoice.invoice_number}</span>
-                            <Badge
-                              variant={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'destructive' : 'secondary'}
-                            >
-                              {invoice.status || 'draft'}
-                            </Badge>
+                            <StatusBadge status={invoice.status || 'draft'} />
                           </div>
                           <Button
                             variant="ghost"

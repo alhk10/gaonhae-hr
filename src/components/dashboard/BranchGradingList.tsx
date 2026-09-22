@@ -49,6 +49,7 @@ import { useBranches } from '@/hooks/useBranches';
 import type { ScorecardRow } from '@/constants/scorecardLabels';
 import { format } from 'date-fns';
 import { formatDate, toISODate } from '@/utils/dateFormat';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 interface GradingListStudent {
   student_id: string;
@@ -984,9 +985,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                             />
                           </TableCell>
                           <TableCell className={cellCls}>
-                            <Badge variant={getTermPaidBadgeVariant(student.term_paid)} className="text-[10px] px-1 py-0">
-                              {getTermPaidLabel(student.term_paid)}
-                            </Badge>
+                            <StatusBadge status={student.term_paid} className="text-[10px] px-1 py-0" />
                           </TableCell>
                           <TableCell className={cellCls}>
                             <Badge
@@ -1172,9 +1171,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
                       <div className="flex items-center gap-2 mt-0.5 text-[11px]">
                         <span className="text-muted-foreground">{student.lessons_attended} lessons</span>
-                        <Badge variant={getTermPaidBadgeVariant(student.term_paid)} className="text-[10px] px-1.5 py-0">
-                          {getTermPaidLabel(student.term_paid)}
-                        </Badge>
+                        <StatusBadge status={student.term_paid} className="text-[10px] px-1.5 py-0" />
                         <Badge
                           variant={student.grading_paid === 'paid' ? 'success' : student.grading_paid === 'unpaid' ? 'destructive' : 'secondary'}
                           className="text-[10px] px-1.5 py-0"

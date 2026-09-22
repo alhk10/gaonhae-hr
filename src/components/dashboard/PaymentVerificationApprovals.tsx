@@ -183,7 +183,7 @@ const PaymentVerificationApprovals = () => {
         const totalPaid = (allPayments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
         const invoiceTotal = editingPayment.invoices?.total_amount || 0;
         const balanceDue = Math.max(0, invoiceTotal - totalPaid);
-        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partial' : 'unpaid';
+        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
 
         await supabase
           .from('invoices')

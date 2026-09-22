@@ -35,6 +35,7 @@ import {
   rejectLessonRequest,
 } from '@/services/chatLessonRequestService';
 import { CalendarClock } from 'lucide-react';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 
 interface SlotAttendanceDialogProps {
   open: boolean;
@@ -414,12 +415,7 @@ const SlotAttendanceDialog: React.FC<SlotAttendanceDialogProps> = ({
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <span className="font-medium">${Number(inv.total_amount).toFixed(2)}</span>
-                                      <Badge variant={
-                                        inv.status === 'paid' || inv.status === 'verified' ? 'default' :
-                                        inv.status === 'overdue' ? 'destructive' : 'secondary'
-                                      } className="text-[10px] px-1.5 py-0">
-                                        {inv.status}
-                                      </Badge>
+                                      <StatusBadge status={inv.status} className="text-[10px] px-1.5 py-0" />
                                     </div>
                                   </div>
                                 ))
