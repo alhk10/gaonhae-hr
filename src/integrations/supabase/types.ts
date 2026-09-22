@@ -359,6 +359,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_invoice_failures: {
+        Row: {
+          created_at: string
+          error_message: string
+          id: string
+          source: string
+          submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          id?: string
+          source: string
+          submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          id?: string
+          source?: string
+          submission_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       booking_statuses: {
         Row: {
           color: string | null
@@ -8041,6 +8068,7 @@ export type Database = {
       }
     }
     Functions: {
+      _auto_invoice_active: { Args: never; Returns: boolean }
       _next_invoice_number: { Args: never; Returns: string }
       _remember_student_email: {
         Args: { p_email: string; p_student_id: string }
