@@ -1,13 +1,10 @@
 # Roadmap
 
-## GST on invoices (approved 2026-09-20)
-- [x] Line-level tax_rate seeded from branch country (createInvoice, InvoiceDialog)
-- [x] SQL helper + GST in all invoice-creating RPCs
-- [x] Public-facing amounts (fees/hello/chat) include GST
-- [x] Backfill unpaid SG invoices
-- [x] PDF + UI labels "Subtotal (before GST)" / "GST (9%)"
+## Accurate payment amounts from public forms to invoices
 
-## /access Edit Student
-- [x] Edit first/last name, DOB, email, phone
-- [x] Multiple emails/phones with remove (x) and add
-- [x] RPC + directory support for alt_emails / alt_phones
+- [x] Store fee and GST separately on grading, competition, seminar and school-fee submissions
+- [x] Public submit and import functions derive fee + GST consistently
+- [x] Grading list no longer adds GST a second time
+- [x] Correct past grading invoices (591 corrected: fee + 9% GST, payment matches amount received)
+- [x] Fill fee/GST split on remaining grading, competition, seminar and school-fee submissions
+- [x] Verified no public invoices remain with missing GST and no slip/amount mismatches

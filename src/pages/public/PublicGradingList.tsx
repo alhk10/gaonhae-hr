@@ -1039,9 +1039,10 @@ const PublicGradingList: React.FC = () => {
         pendingByBranch[b] = (pendingByBranch[b] || 0) + amt;
       }
     }
-    const subtotals = branches.map((b) => paidByBranch[b] || 0);
-    const gsts = subtotals.map((v) => v * 0.09);
-    const totals = subtotals.map((v) => v * 1.09);
+    // Stored amounts already include GST — split it out instead of adding it again.
+    const totals = branches.map((b) => paidByBranch[b] || 0);
+    const subtotals = totals.map((v) => Number((v / 1.09).toFixed(2)));
+    const gsts = totals.map((v, i) => Number((v - subtotals[i]).toFixed(2)));
     const unverifieds = branches.map((b) => pendingByBranch[b] || 0);
     const sumOf = (arr: number[]) => arr.reduce((s, n) => s + n, 0);
 
@@ -1542,7 +1543,7 @@ const PublicGradingList: React.FC = () => {
                         {editMode && (
                           <>
                             <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
-                              {r.amount != null ? `$${(Number(r.amount) * 1.09).toFixed(2)}` : '—'}
+                              {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
                             </TableCell>
                             <TableCell className="px-2 py-0.5">
                               {r.proof_url ? (

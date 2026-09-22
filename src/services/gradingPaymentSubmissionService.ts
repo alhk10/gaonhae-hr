@@ -375,7 +375,12 @@ export interface PublicGradingProduct {
 
 export interface SubmitGradingPaymentItem {
   product_id: string;
+  /** Total collected for this item, including GST. */
   amount: number | null;
+  /** Fee before GST. */
+  amount_net?: number | null;
+  /** GST charged on top of the fee. */
+  gst_amount?: number | null;
   current_belt: string;
 }
 
@@ -577,6 +582,8 @@ export const submitGradingPayment = async (
     resolved_product_id: item.product_id,
     resolved_grading_slot_id: input.resolved_grading_slot_id,
     amount: item.amount,
+    amount_net: item.amount_net ?? null,
+    gst_amount: item.gst_amount ?? null,
     payment_method: input.payment_method,
     proof_url: proofUrl,
     status: 'pending_verification' as const,
