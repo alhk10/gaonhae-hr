@@ -375,7 +375,12 @@ export interface PublicGradingProduct {
 
 export interface SubmitGradingPaymentItem {
   product_id: string;
+  /** Total collected for this item, including GST. */
   amount: number | null;
+  /** Fee before GST. */
+  amount_net?: number | null;
+  /** GST charged on top of the fee. */
+  gst_amount?: number | null;
   current_belt: string;
 }
 
