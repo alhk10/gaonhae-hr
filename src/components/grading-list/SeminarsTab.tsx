@@ -9,6 +9,8 @@ import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings, Undo2
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
