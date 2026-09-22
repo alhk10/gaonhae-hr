@@ -2320,6 +2320,7 @@ const CompetitionsTab: React.FC<{
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
   const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const displayRows = React.useMemo(() => {
     return [...(rows as PublicCompetitionListRow[])]
