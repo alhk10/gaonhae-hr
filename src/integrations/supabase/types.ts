@@ -4086,6 +4086,54 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_amount_corrections: {
+        Row: {
+          created_at: string
+          created_by: string
+          evidence: string | null
+          id: string
+          invoice_id: string | null
+          new_subtotal: number | null
+          new_tax: number | null
+          new_total: number | null
+          old_subtotal: number | null
+          old_tax: number | null
+          old_total: number | null
+          source: string
+          submission_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          evidence?: string | null
+          id?: string
+          invoice_id?: string | null
+          new_subtotal?: number | null
+          new_tax?: number | null
+          new_total?: number | null
+          old_subtotal?: number | null
+          old_tax?: number | null
+          old_total?: number | null
+          source: string
+          submission_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          evidence?: string | null
+          id?: string
+          invoice_id?: string | null
+          new_subtotal?: number | null
+          new_tax?: number | null
+          new_total?: number | null
+          old_subtotal?: number | null
+          old_tax?: number | null
+          old_total?: number | null
+          source?: string
+          submission_id?: string | null
+        }
+        Relationships: []
+      }
       payment_deletion_requests: {
         Row: {
           created_at: string
