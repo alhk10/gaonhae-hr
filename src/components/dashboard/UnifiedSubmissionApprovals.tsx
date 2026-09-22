@@ -533,11 +533,7 @@ const UnifiedSubmissionApprovals: React.FC<Props> = ({ branchId }) => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  {row.verified ? (
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Verified</Badge>
-                  ) : (
-                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pending</Badge>
-                  )}
+                  <StatusBadge status={row.verified ? 'verified' : 'pending_verification'} />
                   {row.matchedStudentId ? (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Matched</Badge>
                   ) : (
