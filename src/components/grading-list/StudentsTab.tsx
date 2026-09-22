@@ -34,6 +34,8 @@ import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -113,6 +115,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const years = useMemo(() => {
     const cy = new Date().getFullYear();
@@ -305,6 +308,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
         onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
       />
       <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
@@ -343,7 +351,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="font-medium">{r.name}</div>
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium" />
                       <div className="text-[11px] text-muted-foreground">
                         {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
                       </div>
@@ -398,7 +406,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{r.name}</div>
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm truncate block" />
                       <div className="text-[11px] text-muted-foreground">
                         {r.current_belt || 'No belt'} · {r.branch_name || '—'} · {r.status}
                       </div>

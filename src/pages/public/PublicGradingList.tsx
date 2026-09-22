@@ -98,6 +98,8 @@ import {
 import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
 import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
+import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
+import StudentNameButton from '@/components/grading-list/StudentNameButton';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
@@ -202,6 +204,7 @@ const PublicGradingList: React.FC = () => {
     changeRemark: boolean; remark: string;
   }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
   const [savingMass, setSavingMass] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
 
   // All grading dates on record (past + future) — independent of the row query
@@ -1536,7 +1539,9 @@ const PublicGradingList: React.FC = () => {
 
                         <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
-                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
+                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">
+                          <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
+                        </TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
@@ -2202,6 +2207,12 @@ const PublicGradingList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };
@@ -2318,6 +2329,7 @@ const CompetitionsTab: React.FC<{
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
   const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const displayRows = React.useMemo(() => {
     return [...(rows as PublicCompetitionListRow[])]
@@ -2756,7 +2768,7 @@ const CompetitionsTab: React.FC<{
                   {r.branch_name || '—'}
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">
-                  <div>{r.student_name}</div>
+                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                   {r.gender && (
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
@@ -2959,7 +2971,7 @@ const CompetitionsTab: React.FC<{
                   {r.branch_name || '—'}
                 </span>
                 <div className="text-xs">
-                  <span className="font-medium">{r.student_name}</span>
+                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} className="font-medium" />
                   {r.gender && <span className="text-[10px] uppercase text-muted-foreground ml-1">{r.gender}</span>}
                 </div>
                 <span className="text-xs tabular-nums">{age}</span>
@@ -3311,6 +3323,12 @@ const CompetitionsTab: React.FC<{
         onVerifyAfter={async () => {
           if (gradingCardDialog) await doVerify(gradingCardDialog.row.submission_id);
         }}
+      />
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
       />
     </div>
   );

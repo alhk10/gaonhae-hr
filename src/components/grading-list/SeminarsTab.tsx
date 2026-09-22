@@ -9,6 +9,8 @@ import { XCircle, CheckCircle, Trash2, RotateCw, Pencil, Upload, Settings, Undo2
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSubmissionDialog';
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -74,6 +76,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
   const [previewRotation, setPreviewRotation] = useState(0);
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   // Apply filters coming from the Summary tab drill-through
   useEffect(() => {
@@ -245,7 +248,9 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
               {rows.map((r) => (
                 <TableRow key={r.submission_id}>
                   <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
-                  <TableCell className="text-xs px-2 py-1 font-medium">{r.student_name}</TableCell>
+                  <TableCell className="text-xs px-2 py-1 font-medium">
+                    <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
+                  </TableCell>
                   <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
@@ -444,6 +449,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
       />
 
       <SeminarEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };

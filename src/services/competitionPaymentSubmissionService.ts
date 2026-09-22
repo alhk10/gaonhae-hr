@@ -47,6 +47,7 @@ export interface PublicCompetitionListRow {
   date_of_birth: string | null;
   registered: boolean;
   matched_invoice_id: string | null;
+  matched_student_id: string | null;
 }
 
 export const setCompetitionRegistered = async (id: string, registered: boolean) => {

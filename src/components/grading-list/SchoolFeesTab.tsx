@@ -38,6 +38,8 @@ import {
 } from '@/services/schoolFeesSubmissionService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
+import StudentProfileDialog from './StudentProfileDialog';
+import StudentNameButton from './StudentNameButton';
 import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 import { rememberSchoolFeesContact } from '@/services/studentContactService';
 
@@ -105,6 +107,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   // Build the invoice PDF for the selected row and preview it inline
   useEffect(() => {
@@ -330,7 +333,11 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                 <TableRow key={row.id}>
                   <TableCell className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
                   <TableCell className="text-xs font-medium">
-                    <div>{row.student_name || row.contact_name || '—'}</div>
+                    <StudentNameButton
+                      name={row.student_name || row.contact_name || '—'}
+                      studentId={row.student_id}
+                      onOpen={setProfileId}
+                    />
                     {!row.student_id && (
                       <div className="space-y-0.5">
                         <Badge variant="outline" className="text-[10px] bg-orange-100 text-orange-800 border-orange-200">
@@ -670,6 +677,12 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           )}
         </DialogContent>
       </Dialog>
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
 
   );

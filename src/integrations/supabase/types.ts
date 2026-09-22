@@ -8900,6 +8900,7 @@ export type Database = {
           grading_card_urls: string[]
           indemnity_form_url: string
           matched_invoice_id: string
+          matched_student_id: string
           paid_status: string
           passport_url: string
           photo_url: string
@@ -9253,6 +9254,10 @@ export type Database = {
           term_id: string
           term_name: string
         }[]
+      }
+      get_public_student_profile: {
+        Args: { p_student_id: string }
+        Returns: Json
       }
       get_public_student_term_bookings:
         | {

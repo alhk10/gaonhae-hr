@@ -184,6 +184,82 @@ export async function adminUpdateStudentBasic(
   if (error) throw error;
 }
 
+export interface PublicStudentProfileInvoiceItem {
+  id: string;
+  description: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  total_amount: number | null;
+}
+
+export interface PublicStudentProfileInvoicePayment {
+  id: string;
+  payment_number: string | null;
+  payment_date: string | null;
+  amount: number | null;
+  payment_method: string | null;
+  verification_status: string | null;
+}
+
+export interface PublicStudentProfileInvoice {
+  id: string;
+  invoice_number: string | null;
+  issue_date: string | null;
+  due_date: string | null;
+  status: string | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  total_amount: number | null;
+  amount_paid: number | null;
+  balance_due: number | null;
+  branch_name: string | null;
+  items: PublicStudentProfileInvoiceItem[];
+  payments: PublicStudentProfileInvoicePayment[];
+}
+
+export interface PublicStudentProfile {
+  student: {
+    id: string;
+    student_number: string | null;
+    name: string;
+    first_name: string | null;
+    last_name: string | null;
+    certificate_name: string | null;
+    current_belt: string | null;
+    status: string | null;
+    gender: string | null;
+    date_of_birth: string | null;
+    branch_id: string | null;
+    branch_name: string | null;
+    email: string | null;
+    phone: string | null;
+    alt_emails: string[];
+    alt_phones: string[];
+    credit_balance: number;
+  } | null;
+  enrolment: {
+    term_name: string | null;
+    class_type: string | null;
+    tier_name: string | null;
+    enrolled_weekdays: string[] | null;
+  } | null;
+  invoices: PublicStudentProfileInvoice[];
+}
+
+/** Read-only profile + invoices for the student card shown across /access. */
+export async function getPublicStudentProfile(studentId: string): Promise<PublicStudentProfile> {
+  const { data, error } = await (supabase as any).rpc('get_public_student_profile', {
+    p_student_id: studentId,
+  });
+  if (error) throw error;
+  const row = (data || {}) as Partial<PublicStudentProfile>;
+  return {
+    student: row.student ?? null,
+    enrolment: row.enrolment ?? null,
+    invoices: row.invoices ?? [],
+  };
+}
+
 export interface StudentContacts {
   email: string | null;
   phone: string | null;

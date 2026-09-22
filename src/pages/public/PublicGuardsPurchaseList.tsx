@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2 } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
+import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
+import StudentNameButton from '@/components/grading-list/StudentNameButton';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
@@ -82,6 +84,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
 
   // Auto-lock after 15 minutes of inactivity (standalone only)
@@ -294,7 +297,12 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                       >
                         <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{r.first_name} {r.last_name}</div>
+                          <StudentNameButton
+                            name={`${r.first_name || ''} ${r.last_name || ''}`.trim()}
+                            studentId={r.matched_student_id}
+                            onOpen={setProfileId}
+                            className="font-medium"
+                          />
                         </TableCell>
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}
@@ -525,6 +533,12 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
           {lightboxUrl && <SignedImage src={lightboxUrl} alt="Proof" className="w-full h-auto" />}
         </DialogContent>
       </Dialog>
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };
