@@ -3318,6 +3318,12 @@ const CompetitionsTab: React.FC<{
           if (gradingCardDialog) await doVerify(gradingCardDialog.row.submission_id);
         }}
       />
+
+      <StudentProfileDialog
+        studentId={profileId}
+        open={!!profileId}
+        onOpenChange={(o) => !o && setProfileId(null)}
+      />
     </div>
   );
 };
