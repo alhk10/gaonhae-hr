@@ -340,6 +340,9 @@ const PublicHelloChat: React.FC = () => {
     const phones = [personalInfo.phone || '', ...(personalInfo.alt_phones || [])];
     setPiEmails([emails[0] || '', emails[1] || '']);
     setPiPhones([phones[0] || '', phones[1] || '']);
+    // Anything already on file beyond the two editable slots stays on the record.
+    setPiExtraEmails(emails.slice(2).map(e => (e || '').trim()).filter(Boolean));
+    setPiExtraPhones(phones.slice(2).map(p => (p || '').trim()).filter(Boolean));
     if (personalInfo.date_of_birth) {
       const [y, m, d] = String(personalInfo.date_of_birth).slice(0, 10).split('-');
       if (y && m && d) {
