@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -21,14 +22,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusClass = (status?: string | null) => {
-  const s = (status || '').toLowerCase();
-  if (s === 'paid' || s === 'verified') return 'bg-green-100 text-green-800';
-  if (s === 'partially_paid' || s === 'partially paid') return 'bg-yellow-100 text-yellow-800';
-  if (s === 'cancelled') return 'bg-gray-100 text-gray-700';
-  if (s === 'overdue') return 'bg-red-100 text-red-800';
-  return 'bg-blue-100 text-blue-800';
-};
 
 const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => {
   if (value === null || value === undefined || value === '') return null;
@@ -141,9 +134,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-medium">{inv.invoice_number}</span>
-                            <Badge className={`text-[10px] ${statusClass(inv.status)}`} variant="secondary">
-                              {inv.status}
-                            </Badge>
+                            <StatusBadge status={inv.status} className="text-[10px]" />
                             <span className="text-[11px] text-muted-foreground">
                               {inv.issue_date ? formatDate(inv.issue_date) : ''}
                             </span>

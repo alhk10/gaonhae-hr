@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2 } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
+import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -53,23 +54,6 @@ interface Props {
   drillPendingOnly?: boolean;
 }
 
-const statusClass = (s: string) => {
-  switch ((s || '').toLowerCase()) {
-    case 'verified':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'rejected':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-  }
-};
-
-const statusLabel = (s: string) => {
-  const v = (s || '').toLowerCase();
-  if (v === 'verified') return 'Verified';
-  if (v === 'rejected') return 'Rejected';
-  return 'Pending';
-};
 
 const itemsSummary = (row: SchoolFeesRow) =>
   (row.items || [])
@@ -278,8 +262,8 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending_verification">Pending</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="pending_verification">Pending verification</SelectItem>
+            <SelectItem value="verified">Paid &amp; Verified</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
@@ -410,9 +394,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
 
                   <TableCell>
-                    <Badge variant="outline" className={`text-[10px] ${statusClass(row.status)}`}>
-                      {statusLabel(row.status)}
-                    </Badge>
+                    <StatusBadge status={row.status} className="text-[10px]" />
                   </TableCell>
                   {(canEdit || canDelete) && (
                     <TableCell className="text-right whitespace-nowrap">

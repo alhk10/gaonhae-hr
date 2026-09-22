@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAuth } from '@/contexts/AuthContext';
+import StatusBadge from './StatusBadge';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
@@ -57,31 +58,6 @@ const statusBadge = (s: string) => {
   }
 };
 
-const invoiceBadge = (s: string | null) => {
-  switch ((s || '').toLowerCase()) {
-    case 'paid':
-    case 'verified':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'partially paid':
-    case 'partially_paid':
-    case 'partial':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'unpaid':
-    case 'overdue':
-    case 'sent':
-    case 'draft':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-};
-
-const invoiceLabel = (s: string | null) => {
-  if (!s) return 'No invoice';
-  const v = s.toLowerCase();
-  if (v === 'verified') return 'Paid & Verified';
-  return v.charAt(0).toUpperCase() + v.slice(1);
-};
 
 const StudentsTab: React.FC<Props> = ({ canEdit }) => {
   const qc = useQueryClient();
@@ -374,9 +350,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                       ) : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={invoiceBadge(r.invoice_status)}>
-                        {invoiceLabel(r.invoice_status)}
-                      </Badge>
+                      <StatusBadge status={r.invoice_status} />
                       {r.invoice_balance != null && r.invoice_balance > 0 && (
                         <div className="text-[11px] text-red-600 mt-0.5">
                           {formatCurrency(r.invoice_balance)} due
@@ -412,9 +386,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Badge variant="outline" className={invoiceBadge(r.invoice_status)}>
-                        {invoiceLabel(r.invoice_status)}
-                      </Badge>
+                      <StatusBadge status={r.invoice_status} />
                       {canEdit && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
                           <Pencil className="h-4 w-4" />

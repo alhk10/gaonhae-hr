@@ -21,6 +21,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2 } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import GradingEventsSettingsDialog from '@/components/grading-list/GradingEventsSettingsDialog';
@@ -120,16 +121,6 @@ const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
 
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'rejected':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-  }
-};
 
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
@@ -1546,9 +1537,7 @@ const PublicGradingList: React.FC = () => {
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
                         <TableCell className="px-2 py-0.5">
-                          <Badge variant="outline" className={`${statusVariant(r.paid_status)} text-[10px] px-1.5 py-0 whitespace-nowrap`}>
-                            {r.paid_status}
-                          </Badge>
+                          <StatusBadge status={r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status} className="text-[10px] px-1.5 py-0" />
                         </TableCell>
                         {editMode && (
                           <>
@@ -2683,8 +2672,8 @@ const CompetitionsTab: React.FC<{
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs">All statuses</SelectItem>
-              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
-              <SelectItem value="paid" className="text-xs">Paid</SelectItem>
+              <SelectItem value="pending" className="text-xs">Pending verification</SelectItem>
+              <SelectItem value="paid" className="text-xs">Paid &amp; Verified</SelectItem>
               <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
             </SelectContent>
           </Select>
@@ -2791,7 +2780,7 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                  <StatusBadge status={r.status || r.paid_status} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 text-right">
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
@@ -2979,7 +2968,7 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight whitespace-nowrap">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <Badge className={statusVariant(r.paid_status)}>{r.paid_status}</Badge>
+                <StatusBadge status={r.status || r.paid_status} />
                 <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 

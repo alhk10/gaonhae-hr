@@ -18,6 +18,7 @@ import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProduct
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import StatusBadge from '@/components/grading-list/StatusBadge';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
@@ -37,12 +38,6 @@ import {
 
 const PASSWORDS = ['Hp97533488', 'Hp84311884'];
 const SS_KEY = 'guards_list_unlocked_v1';
-
-const statusVariant = (s: string) => {
-  if (s === 'verified') return 'bg-green-100 text-green-800 border-green-200';
-  if (s === 'rejected' || s === 'cancelled') return 'bg-red-100 text-red-800 border-red-200';
-  return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-};
 
 interface PublicGuardsPurchaseListProps {
   embedded?: boolean;
@@ -224,8 +219,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending_verification">Pending Verification</SelectItem>
-                <SelectItem value="verified">Verified</SelectItem>
+                <SelectItem value="pending_verification">Pending verification</SelectItem>
+                <SelectItem value="verified">Paid &amp; Verified</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
@@ -313,9 +308,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           ))}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`${statusVariant(r.sale_status)} text-[10px]`}>
-                            {r.sale_status.replace(/_/g, ' ')}
-                          </Badge>
+                          <StatusBadge status={r.sale_status} className="text-[10px]" />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
