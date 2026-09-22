@@ -1,9 +1,10 @@
-# Roadmap — invoice amounts match what was collected
+# Roadmap
 
-- [ ] Store net fee + GST on public submissions (grading, competition, seminar, school fees, guards)
-- [ ] Public submit RPCs write net + GST
-- [ ] Import RPCs build invoices as net + 9% GST (total = collected amount)
-- [ ] Fix grading list double-1.09 display
-- [ ] Backfill: re-scan stored payment slips (bounded batch job)
-- [ ] Correct past invoices where slip amount = fee + 9%
-- [ ] Payment amount review list on /access for unconfirmed cases
+## Accurate payment amounts from public forms to invoices
+
+- [x] Store fee and GST separately on grading, competition, seminar and school-fee submissions
+- [x] Public submit and import functions derive fee + GST consistently
+- [x] Grading list no longer adds GST a second time
+- [x] Correct past grading invoices (591 corrected: fee + 9% GST, payment matches amount received)
+- [x] Fill fee/GST split on remaining grading, competition, seminar and school-fee submissions
+- [x] Verified no public invoices remain with missing GST and no slip/amount mismatches
