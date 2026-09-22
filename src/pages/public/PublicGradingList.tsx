@@ -2762,7 +2762,7 @@ const CompetitionsTab: React.FC<{
                   {r.branch_name || '—'}
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">
-                  <div>{r.student_name}</div>
+                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                   {r.gender && (
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
