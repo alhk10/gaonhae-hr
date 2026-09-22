@@ -363,8 +363,19 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Please enter a first name');
       return;
     }
-    const emails = piEmails.map(e => e.trim()).filter(Boolean);
-    const phones = piPhones.map(p => p.trim()).filter(Boolean);
+    const dedupe = (values: string[]) => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const v of values) {
+        const key = v.replace(/\s+/g, '').toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(v);
+      }
+      return out;
+    };
+    const emails = dedupe([...piEmails.map(e => e.trim()), ...piExtraEmails]).filter(Boolean);
+    const phones = dedupe([...piPhones.map(p => p.trim()), ...piExtraPhones]).filter(Boolean);
     for (const e of emails) {
       if (isBlockedEmail(e)) {
         toast.error(BLOCKED_EMAIL_MESSAGE);
