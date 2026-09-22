@@ -1539,7 +1539,9 @@ const PublicGradingList: React.FC = () => {
 
                         <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
-                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">{r.student_name}</TableCell>
+                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">
+                          <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
+                        </TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
