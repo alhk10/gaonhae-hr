@@ -133,9 +133,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-medium">{inv.invoice_number}</span>
-                            <Badge className={`text-[10px] ${statusClass(inv.status)}`} variant="secondary">
-                              {inv.status}
-                            </Badge>
+                            <StatusBadge status={inv.status} className="text-[10px]" />
                             <span className="text-[11px] text-muted-foreground">
                               {inv.issue_date ? formatDate(inv.issue_date) : ''}
                             </span>
