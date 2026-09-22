@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2 } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
+import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
+import StudentNameButton from '@/components/grading-list/StudentNameButton';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { SignedImage } from '@/components/common/SignedMedia';
