@@ -172,6 +172,7 @@ export interface PublicSeminarListRow {
   collected_at: string | null;
   matched_student_id: string | null;
   matched_invoice_id: string | null;
+  invoice_status?: string | null;
   invoice_number: string | null;
   reference_number: string;
   email: string | null;
