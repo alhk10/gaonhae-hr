@@ -1371,7 +1371,12 @@ const PublicGradingList: React.FC = () => {
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          {lockedBranchName && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {lockedBranchName} only
+            </span>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -1382,6 +1387,7 @@ const PublicGradingList: React.FC = () => {
             <Lock className="h-4 w-4" />
           </Button>
         </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
             <TabsTrigger value="summary">Summary</TabsTrigger>
