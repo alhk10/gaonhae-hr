@@ -16,6 +16,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 import { getDefaultBeltForNewStudent } from '@/constants/beltLevels';
+import { useNavigate } from 'react-router-dom';
+import { matchStudentByIdentity, type MatchedStudent } from '@/services/publicChatService';
+import { formatDate } from '@/utils/dateFormat';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const referralSourceOptions = [
   { value: 'family_friends', label: 'Family & Friends' },
