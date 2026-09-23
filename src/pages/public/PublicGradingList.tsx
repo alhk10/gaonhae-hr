@@ -1758,6 +1758,7 @@ const PublicGradingList: React.FC = () => {
 
 
       <RefundAsCreditDialog
+        publicMode
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
@@ -3106,6 +3107,7 @@ const CompetitionsTab: React.FC<{
 
 
       <RefundAsCreditDialog
+        publicMode
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}

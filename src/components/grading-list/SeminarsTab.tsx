@@ -333,6 +333,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
 
 
       <RefundAsCreditDialog
+        publicMode
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}

@@ -449,6 +449,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       </div>
 
       <RefundAsCreditDialog
+        publicMode
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}
