@@ -321,30 +321,44 @@ const PublicGradingList: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const lockedBranchName = React.useMemo(() => {
+    if (!lockedBranchId) return null;
+    const match = (publicBranches as any[]).find((b) => b.id === lockedBranchId);
+    return match?.name || null;
+  }, [lockedBranchId, publicBranches]);
+
+  // While a branch password is in use the branch filter can never widen.
+  useEffect(() => {
+    if (lockedBranchName && branchFilter !== lockedBranchName) {
+      setBranchFilter(lockedBranchName);
+    }
+  }, [lockedBranchName, branchFilter]);
+
   // Common selected date across mass-edit selection (if all share one date)
   // Declared below after selectedRows; see massSlotsQuery.
 
-
-
-
-
   const handleUnlock = () => {
-    if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
-      setUnlockLevel('full');
-      setPwInput('');
-      try {
-        sessionStorage.setItem('guards_list_unlocked_v1', '1');
-        sessionStorage.setItem('guards_list_unlock_level_v1', 'full');
-      } catch {}
-      toast.success('Full edit mode enabled');
-    } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
+    const branchId = BRANCH_UNLOCK_PASSWORDS[pwInput];
+    if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
+      setLockedBranchId(null);
       setPwInput('');
       try {
         sessionStorage.setItem('guards_list_unlocked_v1', '1');
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.removeItem(LOCKED_BRANCH_KEY);
       } catch {}
       toast.success('Edit mode enabled');
+    } else if (branchId) {
+      setUnlockLevel('standard');
+      setLockedBranchId(branchId);
+      setPwInput('');
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.setItem(LOCKED_BRANCH_KEY, branchId);
+      } catch {}
+      toast.success('Edit mode enabled for your branch');
     } else {
       toast.error('Incorrect password');
     }
@@ -352,11 +366,15 @@ const PublicGradingList: React.FC = () => {
 
   const handleLock = () => {
     setUnlockLevel('none');
+    setLockedBranchId(null);
+    setBranchFilter('all');
     try {
       sessionStorage.removeItem('guards_list_unlocked_v1');
       sessionStorage.removeItem('guards_list_unlock_level_v1');
+      sessionStorage.removeItem(LOCKED_BRANCH_KEY);
     } catch {}
   };
+
 
   const handleSlotSave = async () => {
     if (!slotEditRow?.submission_id || !slotChoice) return;
