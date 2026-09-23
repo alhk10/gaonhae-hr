@@ -643,6 +643,37 @@ const StudentRegistration = () => {
           </Button>
         </form>
       </div>
+
+      <AlertDialog open={existingPromptOpen} onOpenChange={setExistingPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>We already have a record for this student</AlertDialogTitle>
+            <AlertDialogDescription>
+              {existingMatch && (
+                <span className="block mb-2">
+                  {existingMatch.first_name} {existingMatch.last_name}
+                  {formData.date_of_birth ? ` — born ${formatDate(formData.date_of_birth)}` : ''}
+                  {branches.find(b => b.id === formData.branch_id)?.name
+                    ? ` — ${branches.find(b => b.id === formData.branch_id)?.name}`
+                    : ''}
+                </span>
+              )}
+              Are you trying to update your details?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                dismissedKeyRef.current = identityKey;
+                setExistingPromptOpen(false);
+              }}
+            >
+              No, this is a new student
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={goToHelloUpdate}>Yes, update my details</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
