@@ -204,18 +204,22 @@ export const refundLineItem = async (
     })
     .eq('id', invoiceItemId);
 
-  // 6. Recalculate invoice totals
-  const newTotal = invoice.total_amount - item.total_amount;
-  const newTax = invoice.tax_amount - item.tax_amount;
-  const newSubtotal = invoice.subtotal - item.total_amount;
-  const newBalance = newTotal - invoice.amount_paid;
+  // 6. Recalculate invoice totals — the refund returns the item and its tax,
+  // so both the invoice total and what counts as paid come down by that amount.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const newTotal = Math.max(0, round2(invoice.total_amount - refundAmount));
+  const newTax = Math.max(0, round2(invoice.tax_amount - item.tax_amount));
+  const newSubtotal = Math.max(0, round2(invoice.subtotal - item.total_amount));
+  const newAmountPaid = Math.max(0, round2(Math.min(invoice.amount_paid, newTotal)));
+  const newBalance = round2(newTotal - newAmountPaid);
 
   await supabase
     .from('invoices')
     .update({
-      total_amount: Math.max(0, newTotal),
-      tax_amount: Math.max(0, newTax),
-      subtotal: Math.max(0, newSubtotal),
+      total_amount: newTotal,
+      tax_amount: newTax,
+      subtotal: newSubtotal,
+      amount_paid: newAmountPaid,
       balance_due: newBalance,
       updated_at: new Date().toISOString(),
     })
