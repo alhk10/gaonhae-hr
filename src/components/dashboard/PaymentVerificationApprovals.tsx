@@ -33,7 +33,7 @@ const PaymentVerificationApprovals = () => {
         .from('payments')
         .select('*, invoices!inner(invoice_number, branch_id, total_amount, status, students(first_name, last_name))')
         .eq('is_verified', false)
-        .not('proof_of_payment_url', 'is', null)
+        .or('proof_of_payment_url.not.is.null,payment_method.eq.credit')
         .neq('payment_method', 'cash')
         .or('verification_status.is.null,verification_status.eq.pending')
         .order('payment_date', { ascending: false });
@@ -67,26 +67,52 @@ const PaymentVerificationApprovals = () => {
     queryClient.invalidateQueries({ queryKey: ['branch-invoices'] });
   };
 
+  // Recalculate what an invoice has actually been paid, ignoring rejected payments.
+  const recalcInvoice = async (invoiceId: string, invoiceTotal: number) => {
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('amount, verification_status, is_verified')
+      .eq('invoice_id', invoiceId);
+
+    const live = (payments || []).filter((p: any) => p.verification_status !== 'rejected');
+    const totalPaid = live.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const balanceDue = Math.max(0, Number((invoiceTotal - totalPaid).toFixed(2)));
+    const allVerified = live.length > 0 && live.every((p: any) => p.verification_status === 'verified');
+    const status = balanceDue > 0.009
+      ? (totalPaid > 0 ? 'partially_paid' : 'unpaid')
+      : (allVerified ? 'verified' : 'paid');
+
+    await supabase
+      .from('invoices')
+      .update({ amount_paid: totalPaid, balance_due: balanceDue, status })
+      .eq('id', invoiceId);
+  };
+
   const handleVerify = async (payment: any) => {
     try {
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .update({
-          is_verified: true,
-          verified_by: user?.employeeId || null,
-          verified_at: new Date().toISOString(),
-          verification_status: 'verified',
-        })
-        .eq('id', payment.id);
+      const stamp = {
+        is_verified: true,
+        verified_by: user?.employeeId || null,
+        verified_at: new Date().toISOString(),
+        verification_status: 'verified',
+      };
+
+      // Verify every outstanding payment on the invoice, including any credit
+      // applied at checkout, so the student's credit hold is settled with it.
+      const query = supabase.from('payments').update(stamp);
+      const { error: paymentError } = payment.invoice_id
+        ? await query
+            .eq('invoice_id', payment.invoice_id)
+            .or('verification_status.is.null,verification_status.eq.pending')
+        : await query.eq('id', payment.id);
       if (paymentError) throw paymentError;
 
       if (payment.invoice_id) {
-        const { error: invoiceError } = await supabase
-          .from('invoices')
-          .update({ status: 'verified' })
-          .eq('id', payment.invoice_id)
-          .eq('status', 'paid');
-        if (invoiceError) throw invoiceError;
+        await supabase.rpc('consume_credit_hold', {
+          p_invoice_id: payment.invoice_id,
+          p_actor: user?.email || 'staff',
+        });
+        await recalcInvoice(payment.invoice_id, Number(payment.invoices?.total_amount || 0));
       }
 
       invalidateQueries();
@@ -107,37 +133,28 @@ const PaymentVerificationApprovals = () => {
 
     setIsRejecting(true);
     try {
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .update({
-          verification_status: 'rejected',
-          verification_rejection_reason: rejectionReason.trim(),
-          verified_by: user?.employeeId || null,
-          verified_at: new Date().toISOString(),
-        })
-        .eq('id', rejectingPayment.id);
+      const stamp = {
+        verification_status: 'rejected',
+        verification_rejection_reason: rejectionReason.trim(),
+        verified_by: user?.employeeId || null,
+        verified_at: new Date().toISOString(),
+      };
+
+      const query = supabase.from('payments').update(stamp);
+      const { error: paymentError } = rejectingPayment.invoice_id
+        ? await query
+            .eq('invoice_id', rejectingPayment.invoice_id)
+            .or('verification_status.is.null,verification_status.eq.pending')
+        : await query.eq('id', rejectingPayment.id);
       if (paymentError) throw paymentError;
 
-      // Revert invoice status back to unpaid/partial since payment proof was rejected
       if (rejectingPayment.invoice_id) {
-        // Recalculate invoice amounts excluding this rejected payment
-        const { data: validPayments } = await supabase
-          .from('payments')
-          .select('amount, verification_status')
-          .eq('invoice_id', rejectingPayment.invoice_id)
-          .neq('id', rejectingPayment.id);
-
-        const totalPaid = (validPayments || [])
-          .filter((p: any) => p.verification_status !== 'rejected')
-          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        const invoiceTotal = rejectingPayment.invoices?.total_amount || 0;
-        const balanceDue = Math.max(0, invoiceTotal - totalPaid);
-        const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'unpaid';
-
-        await supabase
-          .from('invoices')
-          .update({ amount_paid: totalPaid, balance_due: balanceDue, status: newStatus })
-          .eq('id', rejectingPayment.invoice_id);
+        // Give any credit held for this payment back to the student.
+        await supabase.rpc('release_credit_hold', {
+          p_invoice_id: rejectingPayment.invoice_id,
+          p_actor: user?.email || 'staff',
+        });
+        await recalcInvoice(rejectingPayment.invoice_id, Number(rejectingPayment.invoices?.total_amount || 0));
       }
 
       invalidateQueries();
