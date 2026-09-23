@@ -37,6 +37,8 @@ export type SummaryDrillIntent = 'pending' | 'uncollected';
 interface SummaryTabProps {
   /** When set, only this branch is shown (branch-password access) */
   lockedBranchName?: string;
+  lockedBranchId?: string;
+  canApprove?: boolean;
   onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
 }
 
