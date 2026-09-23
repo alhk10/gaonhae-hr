@@ -15,6 +15,8 @@ import { formatDate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { calculateAgeYears } from '@/utils/birthDate';
 import { getPublicStudentProfile } from '@/services/studentDirectoryService';
+import InvoiceNumberButton from './InvoiceNumberButton';
+import InvoiceDetailDialog from './InvoiceDetailDialog';
 
 interface Props {
   studentId: string | null;
@@ -35,6 +37,7 @@ const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, valu
 
 export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange }) => {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['public-student-profile', studentId],
@@ -47,6 +50,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
   const invoices = data?.invoices || [];
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -133,7 +137,12 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-medium">{inv.invoice_number}</span>
+                            <InvoiceNumberButton
+                              invoiceId={inv.id}
+                              invoiceNumber={inv.invoice_number}
+                              onOpen={(id, num) => setInvoiceView({ id, number: num })}
+                              className="text-xs font-medium"
+                            />
                             <StatusBadge status={inv.status} className="text-[10px]" />
                             <span className="text-[11px] text-muted-foreground">
                               {inv.issue_date ? formatDate(inv.issue_date) : ''}
@@ -201,6 +210,14 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
         )}
       </DialogContent>
     </Dialog>
+
+    <InvoiceDetailDialog
+      invoiceId={invoiceView?.id ?? null}
+      invoiceNumber={invoiceView?.number ?? null}
+      open={!!invoiceView}
+      onOpenChange={(o) => !o && setInvoiceView(null)}
+    />
+    </>
   );
 };
 
