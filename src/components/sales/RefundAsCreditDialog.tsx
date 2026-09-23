@@ -102,6 +102,9 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
             ? `${selected.length} items refunded as student credit`
             : 'Item refunded as student credit'
         );
+      } else if (publicMode) {
+        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '');
+        toast.success('Refund request submitted for superadmin approval');
       } else {
         await submitRefundRequest(
           invoice.id,
