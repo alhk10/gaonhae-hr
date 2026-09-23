@@ -759,7 +759,14 @@ const PublicHelloChat: React.FC = () => {
           console.warn('Could not persist matched_student_id', err);
         }
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
-        goTo('matched');
+        if (autoPersonalInfoRef.current) {
+          autoPersonalInfoRef.current = false;
+          setPiLoaded(false);
+          setPiPending(null);
+          goTo('personal_info');
+        } else {
+          goTo('matched');
+        }
       } else {
         await logChatEvent(sid, 'no_student_match');
         goTo('choice');
