@@ -1405,6 +1405,8 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
               lockedBranchName={lockedBranchName ?? undefined}
+              lockedBranchId={lockedBranchId ?? undefined}
+              canApprove={editMode}
               onDrill={(tab, branch, intent) => {
                 if (!lockedBranchName) setBranchFilter(branch);
                 setDrill({ intent, nonce: Date.now() });

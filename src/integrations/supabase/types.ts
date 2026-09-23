@@ -8624,6 +8624,14 @@ export type Database = {
         Args: { p_id: string; p_verified_by: string }
         Returns: undefined
       }
+      approve_public_student_registration: {
+        Args: { p_actor?: string; p_id: string }
+        Returns: string
+      }
+      approve_public_student_update_request: {
+        Args: { p_actor?: string; p_id: string }
+        Returns: undefined
+      }
       approve_student_merge_request: {
         Args: { p_actor: string; p_request_id: string }
         Returns: Json
@@ -9328,6 +9336,20 @@ export type Database = {
           slot_start: string
         }[]
       }
+      get_public_pending_student_approvals: {
+        Args: { p_branch_id?: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          current_values: Json
+          details: Json
+          display_name: string
+          id: string
+          kind: string
+          student_id: string
+          submitted_at: string
+        }[]
+      }
       get_public_school_fees_invoice: {
         Args: { p_submission_id: string }
         Returns: Json
@@ -9815,6 +9837,14 @@ export type Database = {
           p_session_id: string
           p_status: string
         }
+        Returns: undefined
+      }
+      reject_public_student_registration: {
+        Args: { p_actor?: string; p_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      reject_public_student_update_request: {
+        Args: { p_actor?: string; p_id: string; p_reason?: string }
         Returns: undefined
       }
       reject_student_merge_request: {

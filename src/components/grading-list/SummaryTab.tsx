@@ -9,6 +9,7 @@ import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissio
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
+import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -37,6 +38,8 @@ export type SummaryDrillIntent = 'pending' | 'uncollected';
 interface SummaryTabProps {
   /** When set, only this branch is shown (branch-password access) */
   lockedBranchName?: string;
+  lockedBranchId?: string;
+  canApprove?: boolean;
   onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
 }
 
@@ -60,7 +63,7 @@ const DrillCell: React.FC<{
   );
 };
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, onDrill }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchId, canApprove, onDrill }) => {
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
@@ -208,6 +211,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, onDrill }) =>
 
   return (
     <div className="space-y-4">
+      <PendingApprovalsSection
+        lockedBranchName={lockedBranchName}
+        lockedBranchId={lockedBranchId}
+        canApprove={canApprove}
+      />
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
