@@ -9,6 +9,7 @@ import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissio
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
+import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
