@@ -147,15 +147,23 @@ const PublicGradingList: React.FC = () => {
   const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
-  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
+  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard'>(() => {
     try {
       const lvl = sessionStorage.getItem('guards_list_unlock_level_v1');
-      if (lvl === 'standard' || lvl === 'full') return lvl;
+      if (lvl === 'standard' || lvl === 'full') return 'standard';
     } catch {}
     return 'none';
   });
+  const [lockedBranchId, setLockedBranchId] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(LOCKED_BRANCH_KEY) || null;
+    } catch {}
+    return null;
+  });
   const editMode = unlockLevel !== 'none';
-  const canDelete = unlockLevel === 'full';
+  // Deletions are never immediate from /access: they are sent to the
+  // superadmin dashboard for approval (superadmins keep the direct path).
+  const canDelete = editMode;
   const { isSuperadmin: isSuperadminUser, email: superadminEmail } = useIsSuperadminUser();
   const { data: gradingFlags } = useSubmissionFlags('grading');
   const [pwInput, setPwInput] = useState('');
