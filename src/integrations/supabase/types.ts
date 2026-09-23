@@ -9032,6 +9032,7 @@ export type Database = {
           gender: string
           grading_card_urls: string[]
           indemnity_form_url: string
+          invoice_status: string
           matched_invoice_id: string
           matched_student_id: string
           paid_status: string
@@ -9080,6 +9081,7 @@ export type Database = {
           first_name: string
           grading_date: string
           invoice_id: string
+          invoice_status: string
           last_name: string
           location: string
           paid_status: string
@@ -9210,6 +9212,7 @@ export type Database = {
           gst_amount: number
           id: string
           invoice_id: string
+          invoice_status: string
           items: Json
           last_name: string
           matched_student_id: string
@@ -9224,6 +9227,10 @@ export type Database = {
           updated_at: string
           variant_selections: Json
         }[]
+      }
+      get_public_invoice_detail: {
+        Args: { p_invoice_id: string }
+        Returns: Json
       }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
@@ -9312,6 +9319,7 @@ export type Database = {
           grading_card_urls: string[]
           indemnity_form_url: string
           invoice_number: string
+          invoice_status: string
           last_name: string
           matched_invoice_id: string
           matched_student_id: string
@@ -9796,6 +9804,15 @@ export type Database = {
           invoice_number: string
           payment_number: string
         }[]
+      }
+      submit_public_refund_request: {
+        Args: {
+          p_invoice_id: string
+          p_item_ids: string[]
+          p_reason: string
+          p_requested_by?: string
+        }
+        Returns: string
       }
       submit_public_school_fees: {
         Args: {
