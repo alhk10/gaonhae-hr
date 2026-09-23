@@ -285,6 +285,34 @@ const PublicHelloChat: React.FC = () => {
     return `${dobYear}-${m}-${d}`;
   }, [dobDay, dobMonth, dobYear]);
 
+  // Pre-fill from a link (e.g. the registration form spotting an existing student).
+  const autoIdentifyRef = useRef(false);
+  const autoPersonalInfoRef = useRef(false);
+  const [autoIdentifyPending, setAutoIdentifyPending] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fn = params.get('first_name');
+    const ln = params.get('last_name');
+    const d = params.get('dob');
+    const g = params.get('gender');
+    const bid = params.get('branch_id');
+    if (!fn && !ln && !d && !bid) return;
+    if (fn) setFirstName(fn);
+    if (ln) setLastName(ln);
+    if (g) setGender(g);
+    if (bid) setBranchId(bid);
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const [y, m, day] = d.split('-');
+      setDobYear(y);
+      setDobMonth(String(parseInt(m) - 1));
+      setDobDay(String(parseInt(day)));
+    }
+    if (fn && bid) {
+      autoPersonalInfoRef.current = params.get('action') === 'personal_info';
+      setAutoIdentifyPending(true);
+    }
+  }, []);
+
   const { data: paymentOptions } = useQuery({
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
@@ -731,7 +759,14 @@ const PublicHelloChat: React.FC = () => {
           console.warn('Could not persist matched_student_id', err);
         }
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
-        goTo('matched');
+        if (autoPersonalInfoRef.current) {
+          autoPersonalInfoRef.current = false;
+          setPiLoaded(false);
+          setPiPending(null);
+          goTo('personal_info');
+        } else {
+          goTo('matched');
+        }
       } else {
         await logChatEvent(sid, 'no_student_match');
         goTo('choice');
@@ -743,6 +778,16 @@ const PublicHelloChat: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  // Auto-run identify once when the page was opened with pre-filled details.
+  useEffect(() => {
+    if (!autoIdentifyPending || autoIdentifyRef.current) return;
+    if (!firstName.trim() || !branchId || !dob) return;
+    autoIdentifyRef.current = true;
+    setAutoIdentifyPending(false);
+    void handleIdentify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoIdentifyPending, firstName, branchId, dob]);
 
   const openCallback = async () => {
     if (sessionId) await logChatEvent(sessionId, 'callback_opened');

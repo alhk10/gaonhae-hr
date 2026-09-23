@@ -16,6 +16,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { commonNationalities, commonLanguages } from '@/constants/studentOptions';
 import { relationshipOptions, trainingGoalOptions } from '@/constants/formOptions';
 import { getDefaultBeltForNewStudent } from '@/constants/beltLevels';
+import { useNavigate } from 'react-router-dom';
+import { matchStudentByIdentity, type MatchedStudent } from '@/services/publicChatService';
+import { formatDate } from '@/utils/dateFormat';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const referralSourceOptions = [
   { value: 'family_friends', label: 'Family & Friends' },
@@ -66,6 +79,66 @@ const StudentRegistration = () => {
     branch_id: '',
     notes: ''
   });
+
+  // Existing-student detection: once the five identity fields are filled, check
+  // whether this student is already registered at that branch.
+  const navigate = useNavigate();
+  const [existingMatch, setExistingMatch] = useState<MatchedStudent | null>(null);
+  const [existingPromptOpen, setExistingPromptOpen] = useState(false);
+  const dismissedKeyRef = useRef<string | null>(null);
+
+  const identityKey = [
+    formData.first_name.trim().toUpperCase(),
+    formData.last_name.trim().toUpperCase(),
+    formData.date_of_birth,
+    formData.gender,
+    formData.branch_id,
+  ].join('|');
+  const identityComplete =
+    !!formData.first_name.trim() &&
+    !!formData.last_name.trim() &&
+    !!formData.date_of_birth &&
+    !!formData.gender &&
+    !!formData.branch_id;
+
+  useEffect(() => {
+    if (!identityComplete) return;
+    if (dismissedKeyRef.current === identityKey) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const m = await matchStudentByIdentity(
+          formData.first_name.trim(),
+          formData.last_name.trim(),
+          formData.date_of_birth,
+          formData.branch_id,
+          { gender: formData.gender || null, email: formData.email || null, phone: formData.phone || null },
+        );
+        if (cancelled || !m) return;
+        setExistingMatch(m);
+        setExistingPromptOpen(true);
+      } catch {
+        // Never block registration if the lookup fails.
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityKey, identityComplete]);
+
+  const goToHelloUpdate = () => {
+    const params = new URLSearchParams({
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      dob: formData.date_of_birth,
+      gender: formData.gender,
+      branch_id: formData.branch_id,
+      action: 'personal_info',
+    });
+    navigate(`/hello?${params.toString()}`);
+  };
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -570,6 +643,37 @@ const StudentRegistration = () => {
           </Button>
         </form>
       </div>
+
+      <AlertDialog open={existingPromptOpen} onOpenChange={setExistingPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>We already have a record for this student</AlertDialogTitle>
+            <AlertDialogDescription>
+              {existingMatch && (
+                <span className="block mb-2">
+                  {existingMatch.first_name} {existingMatch.last_name}
+                  {formData.date_of_birth ? ` — born ${formatDate(formData.date_of_birth)}` : ''}
+                  {branches.find(b => b.id === formData.branch_id)?.name
+                    ? ` — ${branches.find(b => b.id === formData.branch_id)?.name}`
+                    : ''}
+                </span>
+              )}
+              Are you trying to update your details?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                dismissedKeyRef.current = identityKey;
+                setExistingPromptOpen(false);
+              }}
+            >
+              No, this is a new student
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={goToHelloUpdate}>Yes, update my details</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
