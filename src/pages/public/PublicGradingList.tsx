@@ -1791,6 +1791,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="competitions" className="mt-4">
             <CompetitionsTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canDelete={canDelete}
@@ -1802,6 +1803,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="seminars" className="mt-4">
             <SeminarsTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
@@ -1813,6 +1815,7 @@ const PublicGradingList: React.FC = () => {
             <PublicGuardsPurchaseList
               embedded
               initialBranchName={branchFilter}
+              lockedBranchId={lockedBranchId ?? undefined}
               initialCollectedFilter={drill?.intent === 'uncollected' ? 'no' : undefined}
               initialStatusFilter={drill?.intent === 'pending' ? 'pending_verification' : undefined}
               drillNonce={drill?.nonce}
@@ -1820,6 +1823,7 @@ const PublicGradingList: React.FC = () => {
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
           </TabsContent>
+
           <TabsContent value="ai-document" className="mt-4">
             <AiDocumentTab
               password={ADMIN_UNLOCK_PASSWORD}
