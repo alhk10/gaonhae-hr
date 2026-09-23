@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { AlertTriangle, User as UserIcon, FileText, Loader2 } from 'lucide-react';
 import {
   getGradingRowDeleteContext,
@@ -31,8 +32,10 @@ export type DeleteKind =
 interface Props {
   pending: DeleteKind | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
   loading?: boolean;
+  /** When true the action is only a request; a superadmin must approve it. */
+  requireApproval?: boolean;
 }
 
 const titleFor = (k: DeleteKind | null) => {
@@ -43,8 +46,11 @@ const titleFor = (k: DeleteKind | null) => {
   return 'Delete guards purchase?';
 };
 
-const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConfirm, loading }) => {
+const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConfirm, loading, requireApproval }) => {
   const open = !!pending;
+  const [reason, setReason] = React.useState('');
+
+  React.useEffect(() => { if (!open) setReason(''); }, [open]);
 
   const { data: ctx, isLoading } = useQuery<DeleteRowContext>({
     queryKey: ['delete-row-context', pending?.kind, (pending as any)?.source, pending?.id],
@@ -72,7 +78,10 @@ const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConf
         <DialogHeader>
           <DialogTitle>{titleFor(pending)}</DialogTitle>
           <DialogDescription>
-            {pending?.studentName || 'This row'} — this cannot be undone.
+            {pending?.studentName || 'This row'} —{' '}
+            {requireApproval
+              ? 'a superadmin has to approve before it is removed.'
+              : 'this cannot be undone.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,12 +126,31 @@ const DeleteRowConfirmDialog: React.FC<Props> = ({ pending, onOpenChange, onConf
           )}
         </div>
 
+        {requireApproval && (
+          <div className="space-y-1">
+            <div className="text-[11px] font-medium">Reason for deleting</div>
+            <Textarea
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. duplicate submission"
+              className="text-xs"
+            />
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={loading || isLoading}>
-            {loading ? 'Deleting…' : 'Delete'}
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(reason.trim())}
+            disabled={loading || isLoading || (requireApproval && reason.trim().length < 3)}
+          >
+            {loading
+              ? (requireApproval ? 'Sending…' : 'Deleting…')
+              : (requireApproval ? 'Request deletion' : 'Delete')}
           </Button>
         </DialogFooter>
       </DialogContent>

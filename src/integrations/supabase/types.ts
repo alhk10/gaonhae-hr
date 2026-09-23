@@ -7396,6 +7396,60 @@ export type Database = {
         }
         Relationships: []
       }
+      submission_deletion_requests: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          invoice_id: string | null
+          reason: string | null
+          record_id: string
+          reference_number: string | null
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          status: string
+          student_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          reason?: string | null
+          record_id: string
+          reference_number?: string | null
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source: string
+          status?: string
+          student_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          reason?: string | null
+          record_id?: string
+          reference_number?: string | null
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          status?: string
+          student_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       submission_match_events: {
         Row: {
           actor: string | null
@@ -8574,6 +8628,10 @@ export type Database = {
         Args: { p_actor: string; p_request_id: string }
         Returns: Json
       }
+      approve_submission_deletion_request: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       attach_public_chat_planned_schedule: {
         Args: {
           p_branch_id: string
@@ -8615,6 +8673,24 @@ export type Database = {
       check_password_history: {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
+      }
+      check_public_submission_duplicate: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_source: string
+        }
+        Returns: {
+          amount: number
+          created_at: string
+          editable: boolean
+          record_id: string
+          reference_number: string
+          status: string
+        }[]
       }
       consume_credit_hold: {
         Args: { p_actor?: string; p_invoice_id: string }
@@ -9482,6 +9558,15 @@ export type Database = {
               unbooked_count: number
             }[]
           }
+      get_public_submission_flags: {
+        Args: { p_source?: string }
+        Returns: {
+          delete_request_status: string
+          duplicate_of_reference: string
+          record_id: string
+          source: string
+        }[]
+      }
       get_public_term_slot_capacities:
         | {
             Args: {
@@ -9732,6 +9817,10 @@ export type Database = {
         Args: { p_actor: string; p_reason?: string; p_request_id: string }
         Returns: undefined
       }
+      reject_submission_deletion_request: {
+        Args: { p_id: string; p_note?: string }
+        Returns: undefined
+      }
       release_credit_hold: {
         Args: { p_actor?: string; p_invoice_id: string }
         Returns: undefined
@@ -9839,6 +9928,19 @@ export type Database = {
           reference_number: string
         }[]
       }
+      submit_submission_deletion_request: {
+        Args: {
+          p_amount?: number
+          p_invoice_id?: string
+          p_reason?: string
+          p_record_id: string
+          p_reference_number?: string
+          p_requested_by?: string
+          p_source: string
+          p_student_name?: string
+        }
+        Returns: string
+      }
       update_chat_student_personal_info: {
         Args: {
           p_date_of_birth: string
@@ -9851,6 +9953,15 @@ export type Database = {
           p_student_id: string
         }
         Returns: Json
+      }
+      update_public_submission: {
+        Args: {
+          p_amount?: number
+          p_proof_url?: string
+          p_record_id: string
+          p_source: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

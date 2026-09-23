@@ -34,6 +34,12 @@ import {
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
+import DuplicateSubmissionPrompt from '@/components/public/DuplicateSubmissionPrompt';
+import {
+  checkPublicSubmissionDuplicate,
+  updatePublicSubmission,
+  type DuplicateSubmissionHit,
+} from '@/services/publicDuplicateSubmissionService';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const POOM_BELTS = new Set(['1st Poom', '2nd Poom', '3rd Poom', '4th Poom']);
@@ -256,8 +262,46 @@ const PublicSeminarPayment: React.FC = () => {
     (!signatureRequired || (!!signatureDataUrl && indemnityAccepted)) &&
     !submitting;
 
+  const [dupHit, setDupHit] = useState<DuplicateSubmissionHit | null>(null);
+  const [dupBusy, setDupBusy] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit || !dob || !proofFile || selectedPackages.length < minPackages || !selectedEvent) return;
+    const hit = await checkPublicSubmissionDuplicate({
+      source: 'seminar',
+      branchId: branchId,
+      email: email.trim(),
+      firstName: firstName,
+      lastName: lastName,
+      amount: Number((totalAmount).toFixed(2)),
+    });
+    if (hit) { setDupHit(hit); return; }
+    await doSubmit();
+  };
+
+  const handleUpdateExisting = async () => {
+    if (!dupHit) return;
+    setDupBusy(true);
+    try {
+      await updatePublicSubmission({
+        source: 'seminar',
+        recordId: dupHit.record_id,
+        branchId,
+        amount: Number((totalAmount).toFixed(2)),
+        proofFile,
+      });
+      toast.success('Your earlier submission was updated');
+      setDupHit(null);
+      setSuccess({ ref: dupHit.reference_number || '' });
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not update your earlier submission');
+    } finally {
+      setDupBusy(false);
+    }
+  };
+
+  const doSubmit = async () => {
     if (!canSubmit || !dob || !proofFile || selectedPackages.length < minPackages || !selectedEvent) return;
 
     setSubmitting(true);
@@ -760,6 +804,14 @@ const PublicSeminarPayment: React.FC = () => {
             </form>
           </CardContent>
         </Card>
+
+        <DuplicateSubmissionPrompt
+          hit={dupHit}
+          busy={dupBusy}
+          onUpdateExisting={handleUpdateExisting}
+          onSubmitAnyway={async () => { setDupHit(null); await doSubmit(); }}
+          onCancel={() => setDupHit(null)}
+        />
 
         <p className="text-xs text-muted-foreground text-center mt-6">
           Gaonhae Taekwondo LLP | www.gaonhaetaekwondo.com

@@ -41,8 +41,11 @@ import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
+import SubmissionFlagBadges, { useSubmissionFlags } from './SubmissionFlagBadges';
 import { recordMatchEvent, rememberMatch } from '@/services/submissionMatchHistoryService';
 import { rememberSchoolFeesContact } from '@/services/studentContactService';
+import { useIsSuperadminUser } from '@/hooks/useIsSuperadminUser';
+import { submitSubmissionDeletionRequest } from '@/services/submissionDeletionRequestService';
 
 
 interface Props {
@@ -70,6 +73,7 @@ const methodLabel = (m?: string | null) =>
 
 const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly }) => {
   const qc = useQueryClient();
+  const { data: feeFlags } = useSubmissionFlags('school_fees');
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
 
@@ -89,6 +93,8 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [rejectRow, setRejectRow] = useState<SchoolFeesRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [deleteRow, setDeleteRow] = useState<SchoolFeesRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const { isSuperadmin: isSuperadminUser, email: superadminEmail } = useIsSuperadminUser();
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -198,6 +204,22 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     if (!deleteRow) return;
     setBusy(true);
     try {
+      if (!isSuperadminUser) {
+        await submitSubmissionDeletionRequest({
+          source: 'school_fees',
+          recordId: deleteRow.id,
+          studentName: deleteRow.student_name,
+          referenceNumber: (deleteRow as any).reference_number ?? null,
+          amount: (deleteRow as any).amount ?? null,
+          reason: deleteReason.trim(),
+          requestedBy: superadminEmail || actor,
+        });
+        toast.success('Delete request sent for superadmin approval');
+        setDeleteRow(null);
+        setDeleteReason('');
+        qc.invalidateQueries({ queryKey: ['submission-flags'] });
+        return;
+      }
       await deleteSchoolFeesSubmission(deleteRow.id, actor);
       toast.success('Submission deleted');
       setDeleteRow(null);
@@ -322,6 +344,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                       studentId={row.student_id}
                       onOpen={setProfileId}
                     />
+                    <SubmissionFlagBadges flag={feeFlags?.[row.id]} />
                     {!row.student_id && (
                       <div className="space-y-0.5">
                         <Badge variant="outline" className="text-[10px] bg-orange-100 text-orange-800 border-orange-200">
@@ -580,7 +603,8 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           <DialogHeader>
             <DialogTitle className="text-base">Delete school fee payment?</DialogTitle>
             <DialogDescription className="text-xs">
-              {deleteRow?.student_name || 'This row'} — this cannot be undone.
+              {deleteRow?.student_name || 'This row'} —{' '}
+              {isSuperadminUser ? 'this cannot be undone.' : 'a superadmin has to approve before it is removed.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-xs">
@@ -607,10 +631,28 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
               <div className="text-muted-foreground">No linked invoice was found for this row.</div>
             )}
           </div>
+          {!isSuperadminUser && (
+            <div className="space-y-1">
+              <div className="text-[11px] font-medium">Reason for deleting</div>
+              <Textarea
+                rows={2}
+                className="text-xs"
+                placeholder="e.g. duplicate submission"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+              />
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteRow(null)} disabled={busy}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={busy || ctxLoading}>
-              {busy ? 'Deleting…' : 'Delete'}
+            <Button variant="outline" onClick={() => { setDeleteRow(null); setDeleteReason(''); }} disabled={busy}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={busy || ctxLoading || (!isSuperadminUser && deleteReason.trim().length < 3)}
+            >
+              {busy
+                ? (isSuperadminUser ? 'Deleting…' : 'Sending…')
+                : (isSuperadminUser ? 'Delete' : 'Request deletion')}
             </Button>
           </DialogFooter>
         </DialogContent>

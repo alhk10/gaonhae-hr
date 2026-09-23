@@ -11,6 +11,7 @@ import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSu
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
+import SubmissionFlagBadges, { useSubmissionFlags } from './SubmissionFlagBadges';
 import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ interface Props {
 }
 
 const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly, onRequestDelete }) => {
+  const { data: flags } = useSubmissionFlags('seminar');
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
@@ -241,6 +243,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                   <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 font-medium">
                     <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
+                    <SubmissionFlagBadges flag={flags?.[r.submission_id]} />
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
