@@ -39,7 +39,7 @@ import {
   type VariantSelectionsMap,
 } from '@/services/guardsPurchaseService';
 
-const PASSWORDS = ['Hp97533488', 'Hp84311884'];
+const PASSWORDS = ['Hp97533488', 'Hp96706488', 'Hp89234866', 'Hp84944041', 'Hp84128821', 'Hp88769491'];
 const SS_KEY = 'guards_list_unlocked_v1';
 
 interface PublicGuardsPurchaseListProps {
@@ -92,7 +92,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
-  const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
+  const canDelete = canDeleteProp ?? false;
   const { data: guardFlags } = useSubmissionFlags('guards');
 
   // Auto-lock after 15 minutes of inactivity (standalone only)
