@@ -1394,12 +1394,13 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
           <TabsContent value="students" className="mt-4">
-            <StudentsTab canEdit={editMode} />
+            <StudentsTab canEdit={editMode} lockedBranchId={lockedBranchId ?? undefined} />
           </TabsContent>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
+              lockedBranchName={lockedBranchName ?? undefined}
               onDrill={(tab, branch, intent) => {
-                setBranchFilter(branch);
+                if (!lockedBranchName) setBranchFilter(branch);
                 setDrill({ intent, nonce: Date.now() });
                 setActiveTab(tab);
               }}
@@ -1408,12 +1409,14 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
             />
           </TabsContent>
+
           <TabsContent value="grading" className="space-y-4 mt-4">
 
             <div className="flex items-center justify-between gap-2 flex-wrap">
