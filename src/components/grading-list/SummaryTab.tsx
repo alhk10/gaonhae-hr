@@ -35,6 +35,8 @@ export type SummaryDrillTab = 'school-fees' | 'grading' | 'competitions' | 'semi
 export type SummaryDrillIntent = 'pending' | 'uncollected';
 
 interface SummaryTabProps {
+  /** When set, only this branch is shown (branch-password access) */
+  lockedBranchName?: string;
   onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
 }
 
@@ -58,7 +60,7 @@ const DrillCell: React.FC<{
   );
 };
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, onDrill }) => {
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
@@ -108,11 +110,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
     const rows = Array.from(map.entries())
       .map(([branch, months]) => ({ branch, months, peak: Math.max(0, ...months) }))
       .filter((r) => r.peak > 0)
+      .filter((r) => !lockedBranchName || r.branch === lockedBranchName)
       .sort((a, b) => a.branch.localeCompare(b.branch));
     const totals = Array(12).fill(0) as number[];
     for (const r of rows) r.months.forEach((v, i) => (totals[i] += v));
     return { rows, totals, peakTotal: Math.max(0, ...totals) };
-  }, [studentCounts]);
+  }, [studentCounts, lockedBranchName]);
 
   const isLoading = l1 || l2 || l3 || l4 || l5;
 
@@ -154,6 +157,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
         total: counts.schoolFees + counts.grading + counts.competitions + counts.seminars + counts.guards,
       }))
       .filter((r) => r.total > 0)
+      .filter((r) => !lockedBranchName || r.branch === lockedBranchName)
       .sort((a, b) => a.branch.localeCompare(b.branch));
 
     const totals = rows.reduce(
@@ -169,7 +173,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
     );
 
     return { rows, totals };
-  }, [schoolFeesRows, gradingRows, competitionRows, seminarRows, guardsRows, branchNameById]);
+  }, [schoolFeesRows, gradingRows, competitionRows, seminarRows, guardsRows, branchNameById, lockedBranchName]);
 
   const uncollected = useMemo(() => {
     const map = new Map<string, { count: number; amount: number }>();
@@ -185,13 +189,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ onDrill }) => {
     }
     const rows = Array.from(map.entries())
       .map(([branch, v]) => ({ branch, ...v }))
+      .filter((r) => !lockedBranchName || r.branch === lockedBranchName)
       .sort((a, b) => a.branch.localeCompare(b.branch));
     const totals = rows.reduce(
       (acc, r) => ({ count: acc.count + r.count, amount: acc.amount + r.amount }),
       { count: 0, amount: 0 },
     );
     return { rows, totals };
-  }, [guardsRows, branchNameById]);
+  }, [guardsRows, branchNameById, lockedBranchName]);
 
   if (isLoading) {
     return (
