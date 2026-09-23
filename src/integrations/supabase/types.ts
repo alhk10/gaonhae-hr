@@ -9311,6 +9311,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      get_public_invoice_full: { Args: { p_invoice_id: string }; Returns: Json }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {
