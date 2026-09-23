@@ -10,7 +10,7 @@ Five new passwords open /access locked to one branch. Everything a person can do
 | Hp84128821 | Yishun |
 | Hp88769491 | Jurong West |
 
-The two existing passwords keep working exactly as now: Hp97533488 unlocks all branches, Hp84311884 unlocks all branches plus delete.
+The all-branch password Hp97533488 keeps working as now. The old full-access password Hp84311884 is removed entirely — from now on every delete made from /access goes to the superadmin dashboard for approval.
 
 ## What the user sees
 
@@ -18,8 +18,10 @@ The two existing passwords keep working exactly as now: Hp97533488 unlocks all b
 - Branch dropdowns are locked to that branch (shown, but not changeable), so other branches cannot be viewed.
 - The branch name is shown next to the lock button so it is obvious which branch is open.
 - Summary totals, student counts and the approval lists only count that branch.
-- Delete still requires the full password, unchanged.
+- Delete buttons stay visible for everyone on /access, but pressing one asks for a reason and sends a delete request to the superadmin dashboard. Nothing is removed until a superadmin approves it.
+- Hp84311884 no longer unlocks anything; anyone still using it must use the all-branch or their branch password.
 - The 15-minute auto-lock and session memory behave as today; the locked branch is remembered for the session alongside the unlock level.
+
 
 ## Technical details
 
