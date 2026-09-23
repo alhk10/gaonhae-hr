@@ -1438,7 +1438,7 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchName}>
               <SelectTrigger className="flex-1 min-w-[140px]">
                 <SelectValue placeholder="All branches" />
               </SelectTrigger>
