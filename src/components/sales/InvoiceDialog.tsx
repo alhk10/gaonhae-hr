@@ -407,9 +407,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [refundCreditOpen, setRefundCreditOpen] = useState(false);
   const [refundCreditItemId, setRefundCreditItemId] = useState<string | null>(null);
 
-  // Grading prerequisite override (superadmin) state
-  const [prerequisiteOverrideOpen, setPrerequisiteOverrideOpen] = useState(false);
-  const prerequisiteOverriddenRef = useRef(false);
 
   // Record-payment-with-invoice (create mode)
   const [recordPayment, setRecordPayment] = useState(false);
@@ -1053,25 +1050,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
     setLoading(true);
     try {
-      // Grading validation
-      const hasGradingItem = items.some(i => products.find(p => p.id === i.product_id)?.category_id === GRADING_CATEGORY_ID);
-      const hasTermItem = items.some(i => !!i.term_id);
-      let prerequisiteFailed = false;
-      if (hasGradingItem && !hasTermItem && !prerequisiteOverriddenRef.current) {
-        const { data: studentInvoices } = await supabase.from('invoices').select('id, status').eq('student_id', formData.student_id).in('status', ['paid', 'verified']);
-        const paidIds = (studentInvoices || []).map(i => i.id);
-        let hasTermPaid = false;
-        if (paidIds.length > 0) {
-          const today = toISODate(new Date());
-          const { data: activeTerms } = await supabase.from('term_calendars').select('id').eq('branch_id', formData.branch_id).eq('is_active', true).gte('end_date', today);
-          if (activeTerms && activeTerms.length > 0) {
-            const termIds = activeTerms.map(t => t.id);
-            const { data: termItems } = await supabase.from('invoice_items').select('id, metadata').in('invoice_id', paidIds);
-            hasTermPaid = (termItems || []).some(item => { const meta = item.metadata as any; return meta?.term_id && termIds.includes(meta.term_id); });
-          } else hasTermPaid = true;
-        }
-        if (!hasTermPaid) prerequisiteFailed = true;
-      }
       // Duplicate grading check
       for (const item of items) {
         const product = products.find(p => p.id === item.product_id);
@@ -1081,18 +1059,14 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         }
       }
 
-      const isOverridden = prerequisiteOverriddenRef.current;
-      const overrideNote = isOverridden ? '[Superadmin override: grading prerequisite]' : '';
-      const combinedNotes = [formData.notes, overrideNote].filter(Boolean).join(' ').trim() || undefined;
+      const combinedNotes = formData.notes?.trim() || undefined;
 
       const invoiceItems = items.map(item => {
         const ld = item.discount_type && item.discount_value && item.discount_value > 0 ? { discount_type: item.discount_type, discount_value: item.discount_value } : undefined;
-        const isGradingLine = products.find(p => p.id === item.product_id)?.category_id === GRADING_CATEGORY_ID;
-        const overrideMeta = (isOverridden && isGradingLine) ? { prerequisite_overridden_by: user?.email || 'superadmin' } : {};
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...overrideMeta }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}) }
         };
       });
 
@@ -1111,21 +1085,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         items: invoiceItems
       };
 
-      // Prerequisite failed: superadmin → confirmation dialog; others → approval request
-      if (prerequisiteFailed) {
-        if (isSuperadmin) {
-          setPrerequisiteOverrideOpen(true);
-          setLoading(false);
-          return;
-        }
-        const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
-        const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
-        const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
-        const totalDiscPre = calculateTotalDiscount(items);
-        await submitDiscountApproval(invoiceData, studentName, branchName, totalDiscPre, totalAmount, user?.email || null, 'Grading invoice without paid term invoice');
-        toast.success('This student has no paid term invoice. Request submitted for superadmin approval.');
-        setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
-      }
 
       const hasException = items.some(i => outOfCriteriaProductIds.has(i.product_id));
       const totalDisc = calculateTotalDiscount(items);
@@ -1203,7 +1162,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
-    prerequisiteOverriddenRef.current = false;
     setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO());
     setPayReference(''); setPayProofFile(null);
   };
@@ -2219,29 +2177,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Grading prerequisite override (superadmin) */}
-      <AlertDialog open={prerequisiteOverrideOpen} onOpenChange={setPrerequisiteOverrideOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Override grading prerequisite?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {students.find(s => s.id === formData.student_id)?.name || 'This student'} has no paid term invoice for the current term at {branches.find(b => b.id === formData.branch_id)?.name || 'this branch'}. As superadmin you can issue this grading invoice anyway. Proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                prerequisiteOverriddenRef.current = true;
-                setPrerequisiteOverrideOpen(false);
-                handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-              }}
-            >
-              Override and create
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };
