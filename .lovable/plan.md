@@ -1,24 +1,20 @@
-# Fix "No grading slots" when a slot does exist
+# Remove restrictions on entering grading information
 
-## What's actually happening
+Right now the invoice screen only offers grading slots whose belt list and age range match the student, which is why YUZHOU HE (Yellow Tip, Morley) sees "No grading slots" even though a Morley grading event exists — that event's fee list skips White/Yellow, so nothing matches.
 
-YUZHOU HE is a Yellow Tip student at Morley. The Morley grading event created today for 19/09/2026 covers these belts only:
+## What changes
 
-Foundation, Foundation 1-3, Green Tip, Green, Blue Tip, Blue, Red Tip, Red, Black Tip, 1st/2nd/3rd Poom, 1st/2nd/3rd Dan.
+- The Term/Slot picker on an invoice lists **every active grading slot at the branch**, regardless of the student's belt or age. Slots that fall outside the usual belt/age criteria are still shown, marked in amber so it's obvious it's an exception.
+- The Add (+) button is no longer blocked when no "matching" slot exists.
+- The grading fee (product) dropdown likewise stops hiding fees that don't match the student's current belt, so staff can enter the correct grading themselves.
+- Assigning a slot from the branch dashboard Grading tab uses the same unrestricted list, so "Not Assigned" rows can always be given a slot.
+- If a branch genuinely has no active grading event, the message stays "No grading slots — create one in Sales → Grading".
 
-White, Yellow Tip and Yellow are missing, because the event's grading fee list left out "White >> Yellow Tip", "Yellow Tip >> Yellow" and "Yellow >> Green Tip" (belt levels on an event are derived from the fees ticked on it).
-
-So the invoice screen correctly finds no slot for this student — but it reports "No grading slots", which reads as if none exist at all, and the Create Invoice button stays blocked with no way forward.
-
-## Changes
-
-1. **Correct the Morley 19/09/2026 event data** — add the three missing white/yellow grading fees so the event covers White, Yellow Tip and Yellow. After this, YUZHOU HE's slot appears normally.
-
-2. **Say why, not just "none"** — when slots exist at the branch but none match, the invoice row shows e.g. "No slot for Yellow Tip on 19/09/2026" instead of the generic message. The plain "create one in Sales -> Grading" text stays only when the branch truly has no upcoming event.
-
-3. **Allow an override** — a small "Show all slots" link next to that message lists every active slot at the branch regardless of belt/age, so staff can still raise the invoice while the event is being corrected. A picked out-of-criteria slot is flagged in amber on the row, consistent with how out-of-criteria products are already marked.
+Nothing else about grading changes: fees, GST, invoices, registrations and results behave exactly as today.
 
 ## Technical detail
 
-- `src/components/sales/InvoiceDialog.tsx`: `getFilteredGradingSlots()` gains a bypass flag; the Term/Slot cell renders the reason text plus the "Show all slots" toggle, and `addItem` is no longer blocked when the override is on. No change to how the chosen slot is saved.
-- Data fix via migration on `grading_slots` row `5aba7f24-...` (Morley, 2026-09-19): append the three white/yellow product IDs to `grading_product_ids` and the belts White, Yellow Tip, Yellow to `belt_levels`. No schema change.
+- `src/components/sales/InvoiceDialog.tsx`: `getFilteredGradingSlots()` keeps only the branch filter (branch_id or available_branch_ids); belt and age filters are dropped. Grading product filtering (`isGradingProductForBelt`) no longer excludes non-matching fees — those IDs are added to the existing out-of-criteria amber set instead. Add-button disabled condition drops the grading-slot check.
+- Slot assignment UI used by the branch dashboard Grading tab (`BranchGradingList.tsx` / the slot-assign dialog it opens) drops its belt/age filter the same way, keeping the branch filter.
+- Auto-select of a single slot still applies when exactly one branch slot exists.
+- No database or schema change.
