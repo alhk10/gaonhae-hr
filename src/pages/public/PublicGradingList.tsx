@@ -2751,7 +2751,7 @@ const CompetitionsTab: React.FC<{
               </SelectContent>
             </Select>
           )}
-          <Select value={localBranchFilter} onValueChange={setLocalBranchFilter}>
+          <Select value={localBranchFilter} onValueChange={setLocalBranchFilter} disabled={!!lockedBranch}>
             <SelectTrigger className="h-8 text-xs w-[180px]">
               <SelectValue placeholder="All branches" />
             </SelectTrigger>
