@@ -2357,7 +2357,7 @@ const PublicHelloChat: React.FC = () => {
                       <span className="text-muted-foreground">Total</span>
                       <span className="tabular-nums">${payableTotal.toFixed(2)}</span>
                     </div>
-                    {(isSGBranch || gstIncluded) && (
+                    {GST_RATE > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">{gstLabel}</span>
                         <span className="tabular-nums">${gstAmount.toFixed(2)}</span>
