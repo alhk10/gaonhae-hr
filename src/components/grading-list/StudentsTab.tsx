@@ -43,6 +43,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 
 interface Props {
   canEdit?: boolean;
+  /** When set, the list is fixed to this branch and the selector is disabled */
+  lockedBranchId?: string;
 }
 
 const statusBadge = (s: string) => {
