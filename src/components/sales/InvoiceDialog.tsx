@@ -1085,21 +1085,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         items: invoiceItems
       };
 
-      // Prerequisite failed: superadmin → confirmation dialog; others → approval request
-      if (prerequisiteFailed) {
-        if (isSuperadmin) {
-          setPrerequisiteOverrideOpen(true);
-          setLoading(false);
-          return;
-        }
-        const studentName = students.find(s => s.id === formData.student_id)?.name || 'Unknown';
-        const branchName = branches.find(b => b.id === formData.branch_id)?.name || null;
-        const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
-        const totalDiscPre = calculateTotalDiscount(items);
-        await submitDiscountApproval(invoiceData, studentName, branchName, totalDiscPre, totalAmount, user?.email || null, 'Grading invoice without paid term invoice');
-        toast.success('This student has no paid term invoice. Request submitted for superadmin approval.');
-        setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
-      }
 
       const hasException = items.some(i => outOfCriteriaProductIds.has(i.product_id));
       const totalDisc = calculateTotalDiscount(items);
