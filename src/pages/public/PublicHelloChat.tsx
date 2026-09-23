@@ -285,6 +285,34 @@ const PublicHelloChat: React.FC = () => {
     return `${dobYear}-${m}-${d}`;
   }, [dobDay, dobMonth, dobYear]);
 
+  // Pre-fill from a link (e.g. the registration form spotting an existing student).
+  const autoIdentifyRef = useRef(false);
+  const autoPersonalInfoRef = useRef(false);
+  const [autoIdentifyPending, setAutoIdentifyPending] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fn = params.get('first_name');
+    const ln = params.get('last_name');
+    const d = params.get('dob');
+    const g = params.get('gender');
+    const bid = params.get('branch_id');
+    if (!fn && !ln && !d && !bid) return;
+    if (fn) setFirstName(fn);
+    if (ln) setLastName(ln);
+    if (g) setGender(g);
+    if (bid) setBranchId(bid);
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const [y, m, day] = d.split('-');
+      setDobYear(y);
+      setDobMonth(String(parseInt(m) - 1));
+      setDobDay(String(parseInt(day)));
+    }
+    if (fn && bid) {
+      autoPersonalInfoRef.current = params.get('action') === 'personal_info';
+      setAutoIdentifyPending(true);
+    }
+  }, []);
+
   const { data: paymentOptions } = useQuery({
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
