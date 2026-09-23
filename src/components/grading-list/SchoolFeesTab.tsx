@@ -394,7 +394,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
 
                   <TableCell>
-                    <StatusBadge status={row.status} className="text-[10px]" />
+                    <StatusBadge status={row.invoice_status || row.status} className="text-[10px]" />
                   </TableCell>
                   {(canEdit || canDelete) && (
                     <TableCell className="text-right whitespace-nowrap">
