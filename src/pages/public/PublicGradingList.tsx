@@ -2323,13 +2323,14 @@ const POOMSAE_CLEAR = '__clear__';
 
 const CompetitionsTab: React.FC<{
   branchFilter: string;
+  lockedBranch?: string;
   canDelete?: boolean;
   canEdit?: boolean;
   verifiedBy: string;
   drillNonce?: number;
   drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
+}> = ({ branchFilter, lockedBranch, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const { data: compFlags } = useSubmissionFlags('competition');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
