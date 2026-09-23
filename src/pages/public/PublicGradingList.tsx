@@ -602,7 +602,7 @@ const PublicGradingList: React.FC = () => {
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
       const currentRemark = editRow.remark || '';
-      const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
+      const resultEditable = isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
         if (pickedStudent && pickedStudent.id !== editRow.student_id) {
@@ -674,7 +674,7 @@ const PublicGradingList: React.FC = () => {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
         if (massForm.changeResult) {
-          const resultEditable = unlockLevel === 'full' || isWithinResultWindow(r.grading_date);
+          const resultEditable = isWithinResultWindow(r.grading_date);
           if (resultEditable) {
             if (r.source === 'registration' && r.registration_id) {
               ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
@@ -1644,7 +1644,7 @@ const PublicGradingList: React.FC = () => {
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
-                                  disabled={!(unlockLevel === 'full' || isWithinResultWindow(r.grading_date))}
+                                  disabled={!(isWithinResultWindow(r.grading_date))}
                                 >
                                   <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
                                     <SelectValue placeholder="—" />
@@ -1819,7 +1819,7 @@ const PublicGradingList: React.FC = () => {
           </TabsContent>
           <TabsContent value="ai-document" className="mt-4">
             <AiDocumentTab
-              password={unlockLevel === 'full' ? ADMIN_FULL_UNLOCK_PASSWORD : ADMIN_UNLOCK_PASSWORD}
+              password={ADMIN_UNLOCK_PASSWORD}
             />
           </TabsContent>
         </Tabs>
@@ -2109,7 +2109,7 @@ const PublicGradingList: React.FC = () => {
                   <Select
                     value={editForm.result}
                     onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}
-                    disabled={!(unlockLevel === 'full' || isWithinResultWindow(editRow?.grading_date))}
+                    disabled={!(isWithinResultWindow(editRow?.grading_date))}
                   >
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
