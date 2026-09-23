@@ -143,8 +143,17 @@ const InvoiceActionApprovals: React.FC = () => {
                 <div className="text-xs text-muted-foreground">
                   {request.student_name} · {request.requested_by_email} · {formatDate(new Date(request.created_at))}
                 </div>
-                {request.action_type === 'item_refund' && (request.request_data as any)?.reason && (
-                  <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
+                {request.action_type === 'item_refund' && (
+                  <>
+                    {((request.request_data as any)?.item_ids?.length > 1) && (
+                      <div className="text-xs text-muted-foreground">
+                        {(request.request_data as any).item_ids.length} items to refund
+                      </div>
+                    )}
+                    {(request.request_data as any)?.reason && (
+                      <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
+                    )}
+                  </>
                 )}
               </div>
             ))}

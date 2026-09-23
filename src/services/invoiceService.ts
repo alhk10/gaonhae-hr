@@ -1107,13 +1107,19 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
       throw new Error('Invoice not found');
     }
 
-    // Get all payments for this invoice
+    // Give back any credit still held against this invoice
+    await supabase.rpc('release_credit_hold', { p_invoice_id: invoiceId, p_actor: 'cancel_invoice' });
+
+    // Get all payments for this invoice. Credit that was put on hold is returned
+    // by the release above, so it must not be credited a second time here.
     const { data: payments } = await supabase
       .from('payments')
-      .select('id, amount')
+      .select('id, amount, payment_method, verification_status')
       .eq('invoice_id', invoiceId);
 
-    const totalPaid = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalPaid = (payments || [])
+      .filter(p => p.payment_method !== 'credit' && p.verification_status !== 'rejected')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
     // Refund payments as student credits
     if (totalPaid > 0) {
