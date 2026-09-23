@@ -80,6 +80,66 @@ const StudentRegistration = () => {
     notes: ''
   });
 
+  // Existing-student detection: once the five identity fields are filled, check
+  // whether this student is already registered at that branch.
+  const navigate = useNavigate();
+  const [existingMatch, setExistingMatch] = useState<MatchedStudent | null>(null);
+  const [existingPromptOpen, setExistingPromptOpen] = useState(false);
+  const dismissedKeyRef = useRef<string | null>(null);
+
+  const identityKey = [
+    formData.first_name.trim().toUpperCase(),
+    formData.last_name.trim().toUpperCase(),
+    formData.date_of_birth,
+    formData.gender,
+    formData.branch_id,
+  ].join('|');
+  const identityComplete =
+    !!formData.first_name.trim() &&
+    !!formData.last_name.trim() &&
+    !!formData.date_of_birth &&
+    !!formData.gender &&
+    !!formData.branch_id;
+
+  useEffect(() => {
+    if (!identityComplete) return;
+    if (dismissedKeyRef.current === identityKey) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const m = await matchStudentByIdentity(
+          formData.first_name.trim(),
+          formData.last_name.trim(),
+          formData.date_of_birth,
+          formData.branch_id,
+          { gender: formData.gender || null, email: formData.email || null, phone: formData.phone || null },
+        );
+        if (cancelled || !m) return;
+        setExistingMatch(m);
+        setExistingPromptOpen(true);
+      } catch {
+        // Never block registration if the lookup fails.
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityKey, identityComplete]);
+
+  const goToHelloUpdate = () => {
+    const params = new URLSearchParams({
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      dob: formData.date_of_birth,
+      gender: formData.gender,
+      branch_id: formData.branch_id,
+      action: 'personal_info',
+    });
+    navigate(`/hello?${params.toString()}`);
+  };
+
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
