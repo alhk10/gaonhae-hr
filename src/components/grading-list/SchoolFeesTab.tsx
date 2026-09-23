@@ -50,6 +50,8 @@ import { submitSubmissionDeletionRequest } from '@/services/submissionDeletionRe
 
 interface Props {
   branchFilter: string;
+  /** When set, the branch is fixed by a branch password */
+  lockedBranch?: string;
   canEdit?: boolean;
   canDelete?: boolean;
   /** Bump to re-apply drill filters from the Summary tab */

@@ -122,7 +122,16 @@ const isWithinResultWindow = (gradingDate: string | null | undefined): boolean =
 
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
-const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
+// Branch-scoped passwords: same abilities as the standard password, but every
+// list, count and dropdown is locked to that one branch.
+const BRANCH_UNLOCK_PASSWORDS: Record<string, string> = {
+  Hp96706488: 'balmoral',
+  Hp89234866: 'bukit-merah',
+  Hp84944041: 'kembangan',
+  Hp84128821: 'yishun',
+  Hp88769491: 'jurong-west',
+};
+const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
 
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
@@ -138,15 +147,23 @@ const PublicGradingList: React.FC = () => {
   const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
-  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard' | 'full'>(() => {
+  const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard'>(() => {
     try {
       const lvl = sessionStorage.getItem('guards_list_unlock_level_v1');
-      if (lvl === 'standard' || lvl === 'full') return lvl;
+      if (lvl === 'standard' || lvl === 'full') return 'standard';
     } catch {}
     return 'none';
   });
+  const [lockedBranchId, setLockedBranchId] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(LOCKED_BRANCH_KEY) || null;
+    } catch {}
+    return null;
+  });
   const editMode = unlockLevel !== 'none';
-  const canDelete = unlockLevel === 'full';
+  // Deletions are never immediate from /access: they are sent to the
+  // superadmin dashboard for approval (superadmins keep the direct path).
+  const canDelete = editMode;
   const { isSuperadmin: isSuperadminUser, email: superadminEmail } = useIsSuperadminUser();
   const { data: gradingFlags } = useSubmissionFlags('grading');
   const [pwInput, setPwInput] = useState('');
@@ -304,30 +321,44 @@ const PublicGradingList: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const lockedBranchName = React.useMemo(() => {
+    if (!lockedBranchId) return null;
+    const match = (publicBranches as any[]).find((b) => b.id === lockedBranchId);
+    return match?.name || null;
+  }, [lockedBranchId, publicBranches]);
+
+  // While a branch password is in use the branch filter can never widen.
+  useEffect(() => {
+    if (lockedBranchName && branchFilter !== lockedBranchName) {
+      setBranchFilter(lockedBranchName);
+    }
+  }, [lockedBranchName, branchFilter]);
+
   // Common selected date across mass-edit selection (if all share one date)
   // Declared below after selectedRows; see massSlotsQuery.
 
-
-
-
-
   const handleUnlock = () => {
-    if (pwInput === ADMIN_FULL_UNLOCK_PASSWORD) {
-      setUnlockLevel('full');
-      setPwInput('');
-      try {
-        sessionStorage.setItem('guards_list_unlocked_v1', '1');
-        sessionStorage.setItem('guards_list_unlock_level_v1', 'full');
-      } catch {}
-      toast.success('Full edit mode enabled');
-    } else if (pwInput === ADMIN_UNLOCK_PASSWORD) {
+    const branchId = BRANCH_UNLOCK_PASSWORDS[pwInput];
+    if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
+      setLockedBranchId(null);
       setPwInput('');
       try {
         sessionStorage.setItem('guards_list_unlocked_v1', '1');
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.removeItem(LOCKED_BRANCH_KEY);
       } catch {}
       toast.success('Edit mode enabled');
+    } else if (branchId) {
+      setUnlockLevel('standard');
+      setLockedBranchId(branchId);
+      setPwInput('');
+      try {
+        sessionStorage.setItem('guards_list_unlocked_v1', '1');
+        sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.setItem(LOCKED_BRANCH_KEY, branchId);
+      } catch {}
+      toast.success('Edit mode enabled for your branch');
     } else {
       toast.error('Incorrect password');
     }
@@ -335,11 +366,15 @@ const PublicGradingList: React.FC = () => {
 
   const handleLock = () => {
     setUnlockLevel('none');
+    setLockedBranchId(null);
+    setBranchFilter('all');
     try {
       sessionStorage.removeItem('guards_list_unlocked_v1');
       sessionStorage.removeItem('guards_list_unlock_level_v1');
+      sessionStorage.removeItem(LOCKED_BRANCH_KEY);
     } catch {}
   };
+
 
   const handleSlotSave = async () => {
     if (!slotEditRow?.submission_id || !slotChoice) return;
@@ -567,7 +602,7 @@ const PublicGradingList: React.FC = () => {
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
       const currentRemark = editRow.remark || '';
-      const resultEditable = unlockLevel === 'full' || isWithinResultWindow(editRow.grading_date);
+      const resultEditable = isWithinResultWindow(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
         if (pickedStudent && pickedStudent.id !== editRow.student_id) {
@@ -639,7 +674,7 @@ const PublicGradingList: React.FC = () => {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
         if (massForm.changeResult) {
-          const resultEditable = unlockLevel === 'full' || isWithinResultWindow(r.grading_date);
+          const resultEditable = isWithinResultWindow(r.grading_date);
           if (resultEditable) {
             if (r.source === 'registration' && r.registration_id) {
               ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
@@ -1336,7 +1371,12 @@ const PublicGradingList: React.FC = () => {
   return (
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          {lockedBranchName && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {lockedBranchName} only
+            </span>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -1347,6 +1387,7 @@ const PublicGradingList: React.FC = () => {
             <Lock className="h-4 w-4" />
           </Button>
         </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
             <TabsTrigger value="summary">Summary</TabsTrigger>
@@ -1359,12 +1400,13 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
           <TabsContent value="students" className="mt-4">
-            <StudentsTab canEdit={editMode} />
+            <StudentsTab canEdit={editMode} lockedBranchId={lockedBranchId ?? undefined} />
           </TabsContent>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
+              lockedBranchName={lockedBranchName ?? undefined}
               onDrill={(tab, branch, intent) => {
-                setBranchFilter(branch);
+                if (!lockedBranchName) setBranchFilter(branch);
                 setDrill({ intent, nonce: Date.now() });
                 setActiveTab(tab);
               }}
@@ -1373,12 +1415,14 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="school-fees" className="mt-4">
             <SchoolFeesTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
               canDelete={canDelete}
             />
           </TabsContent>
+
           <TabsContent value="grading" className="space-y-4 mt-4">
 
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1400,7 +1444,7 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchName}>
               <SelectTrigger className="flex-1 min-w-[140px]">
                 <SelectValue placeholder="All branches" />
               </SelectTrigger>
@@ -1609,7 +1653,7 @@ const PublicGradingList: React.FC = () => {
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
-                                  disabled={!(unlockLevel === 'full' || isWithinResultWindow(r.grading_date))}
+                                  disabled={!(isWithinResultWindow(r.grading_date))}
                                 >
                                   <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
                                     <SelectValue placeholder="—" />
@@ -1753,6 +1797,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="competitions" className="mt-4">
             <CompetitionsTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canDelete={canDelete}
@@ -1764,6 +1809,7 @@ const PublicGradingList: React.FC = () => {
           <TabsContent value="seminars" className="mt-4">
             <SeminarsTab
               branchFilter={branchFilter}
+              lockedBranch={lockedBranchName ?? undefined}
               drillNonce={drill?.nonce}
               drillPendingOnly={drill?.intent === 'pending'}
               canEdit={editMode}
@@ -1775,6 +1821,7 @@ const PublicGradingList: React.FC = () => {
             <PublicGuardsPurchaseList
               embedded
               initialBranchName={branchFilter}
+              lockedBranchId={lockedBranchId ?? undefined}
               initialCollectedFilter={drill?.intent === 'uncollected' ? 'no' : undefined}
               initialStatusFilter={drill?.intent === 'pending' ? 'pending_verification' : undefined}
               drillNonce={drill?.nonce}
@@ -1782,9 +1829,10 @@ const PublicGradingList: React.FC = () => {
               onRequestDelete={(id, name) => setPendingDelete({ kind: 'guards', id, studentName: name })}
             />
           </TabsContent>
+
           <TabsContent value="ai-document" className="mt-4">
             <AiDocumentTab
-              password={unlockLevel === 'full' ? ADMIN_FULL_UNLOCK_PASSWORD : ADMIN_UNLOCK_PASSWORD}
+              password={ADMIN_UNLOCK_PASSWORD}
             />
           </TabsContent>
         </Tabs>
@@ -2074,7 +2122,7 @@ const PublicGradingList: React.FC = () => {
                   <Select
                     value={editForm.result}
                     onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}
-                    disabled={!(unlockLevel === 'full' || isWithinResultWindow(editRow?.grading_date))}
+                    disabled={!(isWithinResultWindow(editRow?.grading_date))}
                   >
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
@@ -2275,13 +2323,14 @@ const POOMSAE_CLEAR = '__clear__';
 
 const CompetitionsTab: React.FC<{
   branchFilter: string;
+  lockedBranch?: string;
   canDelete?: boolean;
   canEdit?: boolean;
   verifiedBy: string;
   drillNonce?: number;
   drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
-}> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
+}> = ({ branchFilter, lockedBranch, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const { data: compFlags } = useSubmissionFlags('competition');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -2314,17 +2363,18 @@ const CompetitionsTab: React.FC<{
   }, [events]);
 
   const [eventFilter, setEventFilter] = useState<string>('');
-  const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
+  const [localBranchFilter, setLocalBranchFilter] = useState<string>(lockedBranch || 'all');
   const [paidFilter, setPaidFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   // Filters coming from the Summary tab drill-through
   useEffect(() => {
-    setLocalBranchFilter(branchFilter || 'all');
+    setLocalBranchFilter(lockedBranch || branchFilter || 'all');
     if (drillPendingOnly) {
       setPaidFilter('pending');
       setEventFilter('all');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, drillNonce, drillPendingOnly]);
+  }, [branchFilter, lockedBranch, drillNonce, drillPendingOnly]);
+
   useEffect(() => {
     if (!eventFilter && sortedEvents.length > 0) {
       setEventFilter(sortedEvents[0].id);
@@ -2701,7 +2751,7 @@ const CompetitionsTab: React.FC<{
               </SelectContent>
             </Select>
           )}
-          <Select value={localBranchFilter} onValueChange={setLocalBranchFilter}>
+          <Select value={localBranchFilter} onValueChange={setLocalBranchFilter} disabled={!!lockedBranch}>
             <SelectTrigger className="h-8 text-xs w-[180px]">
               <SelectValue placeholder="All branches" />
             </SelectTrigger>
