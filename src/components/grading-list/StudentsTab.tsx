@@ -59,14 +59,14 @@ const statusBadge = (s: string) => {
 };
 
 
-const StudentsTab: React.FC<Props> = ({ canEdit }) => {
+const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState(lockedBranchId || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
@@ -240,7 +240,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit }) => {
             className="pl-8 h-9 text-sm"
           />
         </div>
-        <Select value={branchFilter} onValueChange={setBranchFilter}>
+        <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchId}>
           <SelectTrigger className="w-full sm:w-[180px] h-9">
             <SelectValue placeholder="All branches" />
           </SelectTrigger>
