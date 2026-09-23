@@ -308,7 +308,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           ))}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={r.sale_status} className="text-[10px]" />
+                          <StatusBadge status={r.invoice_status || r.sale_status} className="text-[10px]" />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
@@ -449,6 +449,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       </div>
 
       <RefundAsCreditDialog
+        publicMode
         invoiceId={refundInvoiceId}
         open={!!refundInvoiceId}
         onOpenChange={(o) => { if (!o) setRefundInvoiceId(null); }}

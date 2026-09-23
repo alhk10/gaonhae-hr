@@ -270,3 +270,52 @@ export const submitRefundRequest = async (
   );
 };
 
+
+// ---------------------------------------------------------------------------
+// Public (/access) refund support
+//
+// The /access tabs are public pages, so they cannot read `invoices` or insert
+// into `invoice_action_requests` directly. These helpers go through
+// SECURITY DEFINER RPCs instead. Approval by a superadmin is still required.
+// ---------------------------------------------------------------------------
+
+export interface PublicRefundInvoice {
+  id: string;
+  invoice_number: string;
+  status: string;
+  total_amount: number;
+  student_name: string | null;
+  items: Array<{
+    id: string;
+    product_name: string | null;
+    description: string | null;
+    total_amount: number;
+    tax_amount: number;
+    metadata: any;
+  }>;
+}
+
+export const getPublicInvoiceForRefund = async (
+  invoiceId: string
+): Promise<PublicRefundInvoice | null> => {
+  const { data, error } = await supabase.rpc('get_public_invoice_detail' as any, {
+    p_invoice_id: invoiceId,
+  });
+  if (error) throw error;
+  return (data as PublicRefundInvoice) ?? null;
+};
+
+export const submitPublicRefundRequest = async (
+  invoiceId: string,
+  invoiceItemIds: string[],
+  reason: string,
+  requestedBy?: string
+): Promise<void> => {
+  const { error } = await supabase.rpc('submit_public_refund_request' as any, {
+    p_invoice_id: invoiceId,
+    p_item_ids: invoiceItemIds,
+    p_reason: reason,
+    p_requested_by: requestedBy || null,
+  });
+  if (error) throw error;
+};

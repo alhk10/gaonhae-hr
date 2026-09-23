@@ -19,7 +19,12 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { getInvoiceById } from '@/services/invoiceService';
-import { refundLineItems, submitRefundRequest } from '@/services/invoiceRefundService';
+import {
+  refundLineItems,
+  submitRefundRequest,
+  getPublicInvoiceForRefund,
+  submitPublicRefundRequest,
+} from '@/services/invoiceRefundService';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -30,12 +35,15 @@ interface RefundAsCreditDialogProps {
   onRefunded?: () => void;
   /** Optionally preselect a single line (used by the invoice dialog icon) */
   initialItemId?: string | null;
+  /** Public /access pages: read and submit through public RPCs */
+  publicMode?: boolean;
 }
 
 const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
-  invoiceId, open, onOpenChange, onRefunded, initialItemId,
+  invoiceId, open, onOpenChange, onRefunded, initialItemId, publicMode = false,
 }) => {
-  const { isSuperadmin } = useInvoiceAccess();
+  const { isSuperadmin: isSuperadminRaw } = useInvoiceAccess();
+  const isSuperadmin = publicMode ? false : isSuperadminRaw;
   const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>([]);
   const [reason, setReason] = useState('');
@@ -43,8 +51,13 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
 
   const { data: invoice, isLoading } = useQuery({
-    queryKey: ['refund-invoice', invoiceId],
-    queryFn: () => (invoiceId ? getInvoiceById(invoiceId) : null),
+    queryKey: ['refund-invoice', invoiceId, publicMode],
+    queryFn: async () => {
+      if (!invoiceId) return null;
+      return publicMode
+        ? ((await getPublicInvoiceForRefund(invoiceId)) as any)
+        : ((await getInvoiceById(invoiceId)) as any);
+    },
     enabled: open && !!invoiceId,
   });
 
@@ -89,6 +102,9 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
             ? `${selected.length} items refunded as student credit`
             : 'Item refunded as student credit'
         );
+      } else if (publicMode) {
+        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '');
+        toast.success('Refund request submitted for superadmin approval');
       } else {
         await submitRefundRequest(
           invoice.id,
