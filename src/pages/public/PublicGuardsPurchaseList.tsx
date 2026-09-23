@@ -68,6 +68,12 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [collectedFilter, setCollectedFilter] = useState<string>('all');
   useEffect(() => {
+    if (lockedBranchId) {
+      setBranchFilter(lockedBranchId);
+      if (initialCollectedFilter) setCollectedFilter(initialCollectedFilter);
+      if (initialStatusFilter) setStatusFilter(initialStatusFilter);
+      return;
+    }
     if (!initialBranchName) return;
     if (initialBranchName === 'all') {
       setBranchFilter('all');
