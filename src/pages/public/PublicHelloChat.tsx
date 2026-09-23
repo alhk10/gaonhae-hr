@@ -683,15 +683,11 @@ const PublicHelloChat: React.FC = () => {
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
-  const gstIncluded = isAUBranch;
-  const gstAmount = isSGBranch
-    ? cartTotal * GST_RATE
-    : gstIncluded
-      ? cartTotal * (GST_RATE / (1 + GST_RATE))
-      : 0;
-  const totalWithTax = cartTotal + (isSGBranch ? gstAmount : 0);
-  const gstLabel = isSGBranch ? 'GST (9%)' : 'GST included amount (10%)';
-  const payableTotal = isSGBranch ? totalWithTax : cartTotal;
+  // GST is always added on top, matching every other invoice in the system.
+  const gstAmount = Number((cartTotal * GST_RATE).toFixed(2));
+  const totalWithTax = Number((cartTotal + gstAmount).toFixed(2));
+  const gstLabel = `GST (${Math.round(GST_RATE * 100)}%)`;
+  const payableTotal = totalWithTax;
   const creditToUse = Math.max(0, Math.min(Number(availableCredit) || 0, payableTotal));
   const creditRemaining = Math.max(0, (Number(availableCredit) || 0) - creditToUse);
   const amountDue = Math.max(0, Number((payableTotal - creditToUse).toFixed(2)));
