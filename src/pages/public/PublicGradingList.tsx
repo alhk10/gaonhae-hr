@@ -122,7 +122,16 @@ const isWithinResultWindow = (gradingDate: string | null | undefined): boolean =
 
 
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
-const ADMIN_FULL_UNLOCK_PASSWORD = 'Hp84311884';
+// Branch-scoped passwords: same abilities as the standard password, but every
+// list, count and dropdown is locked to that one branch.
+const BRANCH_UNLOCK_PASSWORDS: Record<string, string> = {
+  Hp96706488: 'balmoral',
+  Hp89234866: 'bukit-merah',
+  Hp84944041: 'kembangan',
+  Hp84128821: 'yishun',
+  Hp88769491: 'jurong-west',
+};
+const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
 
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
