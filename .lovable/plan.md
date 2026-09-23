@@ -1,20 +1,18 @@
-# Remove restrictions on entering grading information
+# Remove the invoice status restriction on grading
 
-Right now the invoice screen only offers grading slots whose belt list and age range match the student, which is why YUZHOU HE (Yellow Tip, Morley) sees "No grading slots" even though a Morley grading event exists — that event's fee list skips White/Yellow, so nothing matches.
+Today a grading fee can only be invoiced or paid when the student already has a **paid or verified** invoice for the current term. That rule is what blocks grading entry for students like YUZHOU HE at Morley, and it is enforced in three places in the app (nothing in the database enforces it).
 
 ## What changes
 
-- The Term/Slot picker on an invoice lists **every active grading slot at the branch**, regardless of the student's belt or age. Slots that fall outside the usual belt/age criteria are still shown, marked in amber so it's obvious it's an exception.
-- The Add (+) button is no longer blocked when no "matching" slot exists.
-- The grading fee (product) dropdown likewise stops hiding fees that don't match the student's current belt, so staff can enter the correct grading themselves.
-- Assigning a slot from the branch dashboard Grading tab uses the same unrestricted list, so "Not Assigned" rows can always be given a slot.
-- If a branch genuinely has no active grading event, the message stays "No grading slots — create one in Sales → Grading".
+- **Creating a grading invoice (Sales / branch dashboard):** the "no paid term invoice" check is dropped. Staff can raise a grading invoice for any student at any time — no superadmin override dialog, and no "waiting for superadmin approval" message for this reason.
+- **Student portal:** "Pay grading fee" no longer opens the "Term Invoice Payment Required" warning; it goes straight into the grading payment flow.
+- **/hello chat:** grading stays available regardless of whether the term fee invoice is paid (already the case, confirmed as part of this change).
 
-Nothing else about grading changes: fees, GST, invoices, registrations and results behave exactly as today.
+Everything else about grading is untouched: fee selection by belt, slot eligibility, GST, credits, proof upload, verification and invoicing all behave exactly as now. Superadmin approval for discounts and out-of-criteria products is unaffected.
 
 ## Technical detail
 
-- `src/components/sales/InvoiceDialog.tsx`: `getFilteredGradingSlots()` keeps only the branch filter (branch_id or available_branch_ids); belt and age filters are dropped. Grading product filtering (`isGradingProductForBelt`) no longer excludes non-matching fees — those IDs are added to the existing out-of-criteria amber set instead. Add-button disabled condition drops the grading-slot check.
-- Slot assignment UI used by the branch dashboard Grading tab (`BranchGradingList.tsx` / the slot-assign dialog it opens) drops its belt/age filter the same way, keeping the branch filter.
-- Auto-select of a single slot still applies when exactly one branch slot exists.
-- No database or schema change.
+- `src/components/sales/InvoiceDialog.tsx`: remove the `hasTermPaid` / `prerequisiteFailed` block, the `prerequisiteOverriddenRef` and `prerequisiteOverrideOpen` state, the override AlertDialog, and the `'Grading invoice without paid term invoice'` approval submission. The `[Superadmin override: grading prerequisite]` note and `prerequisite_overridden_by` metadata are no longer written.
+- `src/components/dashboard/StudentDashboard.tsx`: remove the `currentTermInvoicePaid` query, the `showTermPaymentRequired` state and its AlertDialog; the grading action proceeds directly.
+- `src/components/dashboard/InvoiceDiscountApprovals.tsx`: keep the "Grading prerequisite" label so existing pending approval requests still render correctly; no new ones will be created.
+- No database or schema change; no migration.
