@@ -210,6 +210,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
 
   return (
     <div className="space-y-4">
+      <PendingApprovalsSection
+        lockedBranchName={lockedBranchName}
+        lockedBranchId={lockedBranchId}
+        canApprove={canApprove}
+      />
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
