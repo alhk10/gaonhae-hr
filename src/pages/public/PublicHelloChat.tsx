@@ -779,6 +779,16 @@ const PublicHelloChat: React.FC = () => {
     }
   };
 
+  // Auto-run identify once when the page was opened with pre-filled details.
+  useEffect(() => {
+    if (!autoIdentifyPending || autoIdentifyRef.current) return;
+    if (!firstName.trim() || !branchId || !dob) return;
+    autoIdentifyRef.current = true;
+    setAutoIdentifyPending(false);
+    void handleIdentify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoIdentifyPending, firstName, branchId, dob]);
+
   const openCallback = async () => {
     if (sessionId) await logChatEvent(sessionId, 'callback_opened');
     goTo('callback');
