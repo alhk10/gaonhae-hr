@@ -1162,7 +1162,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
-    prerequisiteOverriddenRef.current = false;
     setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO());
     setPayReference(''); setPayProofFile(null);
   };
@@ -2178,29 +2177,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Grading prerequisite override (superadmin) */}
-      <AlertDialog open={prerequisiteOverrideOpen} onOpenChange={setPrerequisiteOverrideOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Override grading prerequisite?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {students.find(s => s.id === formData.student_id)?.name || 'This student'} has no paid term invoice for the current term at {branches.find(b => b.id === formData.branch_id)?.name || 'this branch'}. As superadmin you can issue this grading invoice anyway. Proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                prerequisiteOverriddenRef.current = true;
-                setPrerequisiteOverrideOpen(false);
-                handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-              }}
-            >
-              Override and create
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };
