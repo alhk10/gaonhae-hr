@@ -62,7 +62,7 @@ const DrillCell: React.FC<{
   );
 };
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, onDrill }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchId, canApprove, onDrill }) => {
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
