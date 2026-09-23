@@ -103,6 +103,8 @@ import GradingCardUploadDialog from '@/components/grading-list/GradingCardUpload
 import { tryAutoImport } from '@/utils/submissionAutoImport';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import InvoiceNumberButton from '@/components/grading-list/InvoiceNumberButton';
+import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import SubmissionFlagBadges, { useSubmissionFlags } from '@/components/grading-list/SubmissionFlagBadges';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
@@ -201,6 +203,7 @@ const PublicGradingList: React.FC = () => {
   }>({ changeResult: false, result: '', changeSlot: false, slot_id: '', changeBranch: false, branch_id: '', changeRemark: false, remark: '' });
   const [savingMass, setSavingMass] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
 
 
   // All grading dates on record (past + future) — independent of the row query
@@ -1556,6 +1559,15 @@ const PublicGradingList: React.FC = () => {
                         <TableCell className="px-2 py-0.5 text-[11px] font-medium">
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
                           <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
+                          {r.invoice_id && (
+                            <div className="text-[10px]">
+                              <InvoiceNumberButton
+                                invoiceId={r.invoice_id}
+                                invoiceNumber={r.invoice_number}
+                                onOpen={(id, num) => setInvoiceView({ id, number: num })}
+                              />
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
@@ -2228,6 +2240,12 @@ const PublicGradingList: React.FC = () => {
         open={!!profileId}
         onOpenChange={(o) => !o && setProfileId(null)}
       />
+      <InvoiceDetailDialog
+        invoiceId={invoiceView?.id ?? null}
+        invoiceNumber={invoiceView?.number ?? null}
+        open={!!invoiceView}
+        onOpenChange={(o) => !o && setInvoiceView(null)}
+      />
     </div>
   );
 };
@@ -2346,6 +2364,7 @@ const CompetitionsTab: React.FC<{
   const [gradingCardDialog, setGradingCardDialog] = useState<{ row: PublicCompetitionListRow; pendingVerify: boolean } | null>(null);
   const [registeredFilter, setRegisteredFilter] = useState<'all' | 'yes' | 'no'>('all');
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
 
   const displayRows = React.useMemo(() => {
     return [...(rows as PublicCompetitionListRow[])]
@@ -2786,6 +2805,15 @@ const CompetitionsTab: React.FC<{
                 <TableCell className="text-xs px-2 py-1 font-medium">
                   <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                   <SubmissionFlagBadges flag={compFlags?.[r.submission_id]} />
+                  {r.matched_invoice_id && (
+                    <div className="text-[10px]">
+                      <InvoiceNumberButton
+                        invoiceId={r.matched_invoice_id}
+                        invoiceNumber={r.invoice_number}
+                        onOpen={(id, num) => setInvoiceView({ id, number: num })}
+                      />
+                    </div>
+                  )}
                   {r.gender && (
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}
@@ -2990,6 +3018,14 @@ const CompetitionsTab: React.FC<{
                 <div className="text-xs">
                   <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} className="font-medium" />
                   {r.gender && <span className="text-[10px] uppercase text-muted-foreground ml-1">{r.gender}</span>}
+                  {r.matched_invoice_id && (
+                    <InvoiceNumberButton
+                      invoiceId={r.matched_invoice_id}
+                      invoiceNumber={r.invoice_number}
+                      onOpen={(id, num) => setInvoiceView({ id, number: num })}
+                      className="ml-1 text-[10px]"
+                    />
+                  )}
                 </div>
                 <span className="text-xs tabular-nums">{age}</span>
                 <span className="text-xs">{r.current_belt || '—'}</span>
@@ -3347,6 +3383,12 @@ const CompetitionsTab: React.FC<{
         studentId={profileId}
         open={!!profileId}
         onOpenChange={(o) => !o && setProfileId(null)}
+      />
+      <InvoiceDetailDialog
+        invoiceId={invoiceView?.id ?? null}
+        invoiceNumber={invoiceView?.number ?? null}
+        open={!!invoiceView}
+        onOpenChange={(o) => !o && setInvoiceView(null)}
       />
     </div>
   );
