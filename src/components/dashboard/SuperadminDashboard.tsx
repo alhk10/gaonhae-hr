@@ -28,6 +28,8 @@ import ClaimsApprovals from './ClaimsApprovals';
 import LeaveApprovals from './LeaveApprovals';
 import SlotBookingApprovals from './SlotBookingApprovals';
 import GradingDeletionApprovals from './GradingDeletionApprovals';
+import SubmissionDeleteApprovals from './SubmissionDeleteApprovals';
+import { getPendingSubmissionDeletionRequestsCount } from '@/services/submissionDeletionRequestService';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import UnifiedSubmissionApprovals from './UnifiedSubmissionApprovals';
@@ -69,6 +71,12 @@ const SuperadminDashboard = () => {
   const { data: pendingGradingDeletionsCount = 0 } = useQuery({
     queryKey: ['pending-grading-deletion-count'],
     queryFn: getPendingGradingDeletionRequestsCount,
+    ...countQueryOpts,
+  });
+
+  const { data: pendingSubmissionDeletionsCount = 0 } = useQuery({
+    queryKey: ['pending-submission-deletion-count'],
+    queryFn: getPendingSubmissionDeletionRequestsCount,
     ...countQueryOpts,
   });
 
@@ -176,6 +184,7 @@ const SuperadminDashboard = () => {
     pendingPaymentDeletionsCount +
     pendingInvoiceDeletionsCount +
     pendingGradingDeletionsCount +
+    pendingSubmissionDeletionsCount +
     pendingOrdersCount +
     pendingEditRequestsCount +
     pendingTransferCount +
@@ -217,6 +226,7 @@ const SuperadminDashboard = () => {
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
         {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
         {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}
+        <SubmissionDeleteApprovals />
         <InventoryOrderApprovals />
         <StockTransferApprovals />
         <SlotBookingEditApprovals />

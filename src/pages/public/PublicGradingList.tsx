@@ -59,6 +59,8 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
+import { useIsSuperadminUser } from '@/hooks/useIsSuperadminUser';
+import { submitSubmissionDeletionRequest } from '@/services/submissionDeletionRequestService';
 import { formatDate, formatDateTime, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { SignedImage } from '@/components/common/SignedMedia';
@@ -101,6 +103,7 @@ import GradingCardUploadDialog from '@/components/grading-list/GradingCardUpload
 import { tryAutoImport } from '@/utils/submissionAutoImport';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import SubmissionFlagBadges, { useSubmissionFlags } from '@/components/grading-list/SubmissionFlagBadges';
 
 const REMARK_OPTIONS = ['AWOL', 'Medical Certificate', 'Double Testing', 'Video Testing', 'To delete. Duplicate', 'For refund as credits'] as const;
 
@@ -142,6 +145,8 @@ const PublicGradingList: React.FC = () => {
   });
   const editMode = unlockLevel !== 'none';
   const canDelete = unlockLevel === 'full';
+  const { isSuperadmin: isSuperadminUser, email: superadminEmail } = useIsSuperadminUser();
+  const { data: gradingFlags } = useSubmissionFlags('grading');
   const [pwInput, setPwInput] = useState('');
 
   const [slotEditRow, setSlotEditRow] = useState<PublicGradingListRow | null>(null);
@@ -346,10 +351,27 @@ const PublicGradingList: React.FC = () => {
     }
   };
 
-  const handlePendingDelete = async () => {
+  const handlePendingDelete = async (reason: string) => {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
+      if (!isSuperadminUser) {
+        const source =
+          pendingDelete.kind === 'grading'
+            ? (pendingDelete.source === 'submission' ? 'grading' : 'grading_registration')
+            : pendingDelete.kind;
+        await submitSubmissionDeletionRequest({
+          source: source as any,
+          recordId: pendingDelete.id,
+          studentName: pendingDelete.studentName,
+          reason,
+          requestedBy: superadminEmail,
+        });
+        toast.success('Delete request sent for superadmin approval');
+        setPendingDelete(null);
+        qc.invalidateQueries({ queryKey: ['submission-flags'] });
+        return;
+      }
       if (pendingDelete.kind === 'grading') {
         if (pendingDelete.source === 'submission') {
           await adminDeleteGradingSubmission(pendingDelete.id);
@@ -1533,6 +1555,7 @@ const PublicGradingList: React.FC = () => {
                         <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] font-medium">
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
+                          <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
                         </TableCell>
                         <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
@@ -1800,6 +1823,7 @@ const PublicGradingList: React.FC = () => {
         onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
         onConfirm={handlePendingDelete}
         loading={deleting}
+        requireApproval={!isSuperadminUser}
       />
 
       {/* Proof lightbox */}
@@ -2240,6 +2264,7 @@ const CompetitionsTab: React.FC<{
   drillPendingOnly?: boolean;
   onRequestDelete?: (id: string, studentName: string) => void;
 }> = ({ branchFilter, canDelete, canEdit, verifiedBy, drillNonce, drillPendingOnly, onRequestDelete }) => {
+  const { data: compFlags } = useSubmissionFlags('competition');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
@@ -2760,6 +2785,7 @@ const CompetitionsTab: React.FC<{
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 font-medium">
                   <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
+                  <SubmissionFlagBadges flag={compFlags?.[r.submission_id]} />
                   {r.gender && (
                     <div className="text-[10px] uppercase text-muted-foreground">{r.gender}</div>
                   )}

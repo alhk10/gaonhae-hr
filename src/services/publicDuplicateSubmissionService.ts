@@ -1,0 +1,85 @@
+/**
+ * Duplicate detection for the public payment forms.
+ *
+ * Before a form saves, it asks the database whether the same person already
+ * sent the same amount for the same branch within the last 24 hours. If so the
+ * form offers to update that earlier submission instead of creating a second
+ * record.
+ */
+import { supabase } from '@/integrations/supabase/client';
+
+export type PublicSubmissionSource = 'grading' | 'competition' | 'seminar' | 'guards';
+
+export interface DuplicateSubmissionHit {
+  record_id: string;
+  reference_number: string | null;
+  status: string | null;
+  amount: number | null;
+  created_at: string;
+  editable: boolean;
+}
+
+const db = supabase as any;
+
+export const checkPublicSubmissionDuplicate = async (args: {
+  source: PublicSubmissionSource;
+  branchId: string | null;
+  email: string;
+  firstName: string;
+  lastName: string;
+  amount: number;
+}): Promise<DuplicateSubmissionHit | null> => {
+  try {
+    const { data, error } = await db.rpc('check_public_submission_duplicate', {
+      p_source: args.source,
+      p_branch_id: args.branchId,
+      p_email: args.email,
+      p_first_name: args.firstName,
+      p_last_name: args.lastName,
+      p_amount: args.amount,
+    });
+    if (error) return null; // never block a payment because the check failed
+    const row = Array.isArray(data) ? data[0] : data;
+    return (row as DuplicateSubmissionHit) || null;
+  } catch {
+    return null;
+  }
+};
+
+/** Upload a replacement payment screenshot and return its URL. */
+export const uploadReplacementProof = async (
+  source: PublicSubmissionSource,
+  branchId: string | null,
+  file: File,
+): Promise<string> => {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `public-${source}/${branchId || 'unknown'}/${Date.now()}_update.${ext}`;
+  const { error } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (error) throw error;
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  return signed?.signedUrl ?? path;
+};
+
+export const updatePublicSubmission = async (args: {
+  source: PublicSubmissionSource;
+  recordId: string;
+  branchId?: string | null;
+  amount?: number | null;
+  proofFile?: File | null;
+}): Promise<void> => {
+  let proofUrl: string | null = null;
+  if (args.proofFile) {
+    proofUrl = await uploadReplacementProof(args.source, args.branchId ?? null, args.proofFile);
+  }
+  const { error } = await db.rpc('update_public_submission', {
+    p_source: args.source,
+    p_record_id: args.recordId,
+    p_amount: args.amount ?? null,
+    p_proof_url: proofUrl,
+  });
+  if (error) throw new Error(error.message);
+};

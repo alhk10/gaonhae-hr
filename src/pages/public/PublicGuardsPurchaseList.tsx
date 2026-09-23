@@ -18,6 +18,7 @@ import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProduct
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import SubmissionFlagBadges, { useSubmissionFlags } from '@/components/grading-list/SubmissionFlagBadges';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
@@ -81,6 +82,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const canDelete = canDeleteProp ?? (typeof window !== 'undefined' && sessionStorage.getItem('guards_list_unlock_level_v1') === 'full');
+  const { data: guardFlags } = useSubmissionFlags('guards');
 
   // Auto-lock after 15 minutes of inactivity (standalone only)
   React.useEffect(() => {
@@ -298,6 +300,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             onOpen={setProfileId}
                             className="font-medium"
                           />
+                          <SubmissionFlagBadges flag={guardFlags?.[r.id]} />
                         </TableCell>
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}
