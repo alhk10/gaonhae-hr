@@ -9108,6 +9108,7 @@ export type Database = {
           gender: string
           grading_card_urls: string[]
           indemnity_form_url: string
+          invoice_number: string
           invoice_status: string
           matched_invoice_id: string
           matched_student_id: string
@@ -9157,6 +9158,7 @@ export type Database = {
           first_name: string
           grading_date: string
           invoice_id: string
+          invoice_number: string
           invoice_status: string
           last_name: string
           location: string
@@ -9288,6 +9290,7 @@ export type Database = {
           gst_amount: number
           id: string
           invoice_id: string
+          invoice_number: string
           invoice_status: string
           items: Json
           last_name: string
@@ -9308,6 +9311,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      get_public_invoice_full: { Args: { p_invoice_id: string }; Returns: Json }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {

@@ -187,6 +187,7 @@ export interface GuardsPurchaseRow {
   created_at: string;
   updated_at: string;
   invoice_status?: string | null;
+  invoice_number?: string | null;
 }
 
 export interface PurchaseComponentSpec {

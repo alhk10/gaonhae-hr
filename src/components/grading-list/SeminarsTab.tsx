@@ -11,6 +11,8 @@ import EditSeminarSubmissionDialog from '@/components/grading-list/EditSeminarSu
 import SeminarEventsSettingsDialog from '@/components/grading-list/SeminarEventsSettingsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
+import InvoiceNumberButton from './InvoiceNumberButton';
+import InvoiceDetailDialog from './InvoiceDetailDialog';
 import SubmissionFlagBadges, { useSubmissionFlags } from './SubmissionFlagBadges';
 import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -70,6 +72,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
   const [reuploadBusy, setReuploadBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
 
   // Apply filters coming from the Summary tab drill-through
   useEffect(() => {
@@ -244,6 +247,15 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
                   <TableCell className="text-xs px-2 py-1 font-medium">
                     <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                     <SubmissionFlagBadges flag={flags?.[r.submission_id]} />
+                    {r.matched_invoice_id && (
+                      <div className="text-[10px]">
+                        <InvoiceNumberButton
+                          invoiceId={r.matched_invoice_id}
+                          invoiceNumber={r.invoice_number}
+                          onOpen={(id, num) => setInvoiceView({ id, number: num })}
+                        />
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                   <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
@@ -449,6 +461,12 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
         studentId={profileId}
         open={!!profileId}
         onOpenChange={(o) => !o && setProfileId(null)}
+      />
+      <InvoiceDetailDialog
+        invoiceId={invoiceView?.id ?? null}
+        invoiceNumber={invoiceView?.number ?? null}
+        open={!!invoiceView}
+        onOpenChange={(o) => !o && setInvoiceView(null)}
       />
     </div>
   );
