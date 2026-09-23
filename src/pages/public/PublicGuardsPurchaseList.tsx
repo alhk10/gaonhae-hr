@@ -47,6 +47,8 @@ interface PublicGuardsPurchaseListProps {
   canDelete?: boolean;
   /** Branch NAME to preselect (resolved to branch id internally). 'all' clears. */
   initialBranchName?: string;
+  /** When set, the branch is fixed and the selector is disabled */
+  lockedBranchId?: string;
   /** 'no' = uncollected only, 'yes' = collected only */
   initialCollectedFilter?: string;
   initialStatusFilter?: string;
@@ -55,14 +57,14 @@ interface PublicGuardsPurchaseListProps {
   onRequestDelete?: (id: string, studentName: string) => void;
 }
 
-const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, initialBranchName, initialCollectedFilter, initialStatusFilter, drillNonce, onRequestDelete }) => {
+const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ embedded = false, canDelete: canDeleteProp, initialBranchName, lockedBranchId, initialCollectedFilter, initialStatusFilter, drillNonce, onRequestDelete }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const { branches } = useBranches();
   const [unlocked, setUnlocked] = useState<boolean>(() => embedded || sessionStorage.getItem(SS_KEY) === '1');
   const [pwInput, setPwInput] = useState('');
   const [productSettingsOpen, setProductSettingsOpen] = useState(false);
-  const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>(lockedBranchId || 'all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [collectedFilter, setCollectedFilter] = useState<string>('all');
   useEffect(() => {
@@ -76,7 +78,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
     if (initialCollectedFilter) setCollectedFilter(initialCollectedFilter);
     if (initialStatusFilter) setStatusFilter(initialStatusFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBranchName, initialCollectedFilter, initialStatusFilter, drillNonce, branches]);
+  }, [initialBranchName, lockedBranchId, initialCollectedFilter, initialStatusFilter, drillNonce, branches]);
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -213,7 +215,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
 
         <Card>
           <CardContent className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchId}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>

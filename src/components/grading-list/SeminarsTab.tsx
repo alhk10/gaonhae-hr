@@ -45,6 +45,8 @@ import { tryAutoImport } from '@/utils/submissionAutoImport';
 
 interface Props {
   branchFilter: string;
+  /** When set, the branch is fixed and the selector is disabled */
+  lockedBranch?: string;
   canEdit?: boolean;
   canDelete?: boolean;
   /** Bump to re-apply drill filters (branch + pending only) */
@@ -53,14 +55,14 @@ interface Props {
   onRequestDelete?: (id: string, studentName: string) => void;
 }
 
-const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillNonce, drillPendingOnly, onRequestDelete }) => {
+const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, canDelete, drillNonce, drillPendingOnly, onRequestDelete }) => {
   const { data: flags } = useSubmissionFlags('seminar');
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
-  const [localBranchFilter, setLocalBranchFilter] = useState<string>('all');
+  const [localBranchFilter, setLocalBranchFilter] = useState<string>(lockedBranch || 'all');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicSeminarListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -76,7 +78,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
 
   // Apply filters coming from the Summary tab drill-through
   useEffect(() => {
-    setLocalBranchFilter(branchFilter || 'all');
+    setLocalBranchFilter(lockedBranch || branchFilter || 'all');
     if (drillPendingOnly) {
       setStatusFilter('pending');
       setEventFilter('all');
@@ -192,7 +194,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, drillN
             ))}
           </SelectContent>
         </Select>
-        <Select value={localBranchFilter} onValueChange={setLocalBranchFilter}>
+        <Select value={localBranchFilter} onValueChange={setLocalBranchFilter} disabled={!!lockedBranch}>
           <SelectTrigger className="w-[180px] h-8 text-xs">
             <SelectValue placeholder="All branches" />
           </SelectTrigger>
