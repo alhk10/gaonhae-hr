@@ -70,6 +70,8 @@ export const updatePublicSubmission = async (args: {
   branchId?: string | null;
   amount?: number | null;
   proofFile?: File | null;
+  email?: string | null;
+  phone?: string | null;
 }): Promise<void> => {
   let proofUrl: string | null = null;
   if (args.proofFile) {
@@ -80,6 +82,35 @@ export const updatePublicSubmission = async (args: {
     p_record_id: args.recordId,
     p_amount: args.amount ?? null,
     p_proof_url: proofUrl,
+    p_email: args.email ?? null,
+    p_phone: args.phone ?? null,
   });
   if (error) throw new Error(error.message);
+};
+
+/**
+ * Verified submissions can't be edited directly — the parent asks for a
+ * correction instead, and a superadmin approves it from the dashboard.
+ */
+export const submitSubmissionEditRequest = async (args: {
+  source: PublicSubmissionSource | 'school_fees';
+  recordId: string;
+  studentName?: string | null;
+  referenceNumber?: string | null;
+  amount?: number | null;
+  proposedChanges: { amount?: number | null; email?: string | null; phone?: string | null };
+  reason?: string | null;
+}): Promise<string> => {
+  const { data, error } = await db.rpc('submit_submission_edit_request', {
+    p_source: args.source,
+    p_record_id: args.recordId,
+    p_student_name: args.studentName ?? null,
+    p_reference_number: args.referenceNumber ?? null,
+    p_amount: args.amount ?? null,
+    p_proposed_changes: args.proposedChanges,
+    p_reason: args.reason ?? null,
+    p_requested_by: 'public_form',
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
 };
