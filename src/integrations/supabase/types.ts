@@ -7582,6 +7582,27 @@ export type Database = {
         }
         Relationships: []
       }
+      superadmin_alert_state: {
+        Row: {
+          id: number
+          last_sent_at: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          last_sent_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          last_sent_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       superadmin_users: {
         Row: {
           created_at: string | null
@@ -10059,6 +10080,7 @@ export type Database = {
         }
         Returns: string
       }
+      superadmin_pending_counts: { Args: never; Returns: Json }
       update_chat_student_personal_info: {
         Args: {
           p_date_of_birth: string
