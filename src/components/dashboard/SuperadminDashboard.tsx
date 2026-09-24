@@ -220,6 +220,7 @@ const SuperadminDashboard = () => {
         <InvoiceDiscountApprovals />
         <InvoiceActionApprovals />
         <PaymentVerificationApprovals />
+        <FailedScheduleAlerts />
         <UnifiedSubmissionApprovals />
         <PublicHelloCallbackApprovals />
         <PublicHelloLessonRequestApprovals />
