@@ -18,10 +18,12 @@ interface Props {
   onUpdateExisting: () => void;
   onSubmitAnyway: () => void;
   onCancel: () => void;
+  /** Shown for already-verified submissions: sends a correction request to staff. */
+  onRequestCorrection?: () => void;
 }
 
 const DuplicateSubmissionPrompt: React.FC<Props> = ({
-  hit, busy, onUpdateExisting, onSubmitAnyway, onCancel,
+  hit, busy, onUpdateExisting, onSubmitAnyway, onCancel, onRequestCorrection,
 }) => (
   <Dialog open={!!hit} onOpenChange={(o) => { if (!o && !busy) onCancel(); }}>
     <DialogContent className="max-w-sm">
@@ -41,7 +43,7 @@ const DuplicateSubmissionPrompt: React.FC<Props> = ({
       {hit && !hit.editable && (
         <div className="rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">
           Our staff have already checked that payment, so it can no longer be changed here.
-          Please contact your branch if something needs correcting.
+          You can ask our staff to correct it for you.
         </div>
       )}
 
@@ -49,6 +51,11 @@ const DuplicateSubmissionPrompt: React.FC<Props> = ({
         {hit?.editable && (
           <Button className="w-full" onClick={onUpdateExisting} disabled={busy}>
             {busy ? 'Updating…' : 'Update my earlier submission'}
+          </Button>
+        )}
+        {hit && !hit.editable && onRequestCorrection && (
+          <Button className="w-full" onClick={onRequestCorrection} disabled={busy}>
+            {busy ? 'Sending…' : 'Ask staff to correct it'}
           </Button>
         )}
         <Button variant="outline" className="w-full" onClick={onSubmitAnyway} disabled={busy}>
