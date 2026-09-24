@@ -279,7 +279,12 @@ const seminarAdapter: SubmissionSourceAdapter<PendingSeminarSubmission> = {
     await rememberStudentContact(studentId, { email: s.email });
   },
   verify: (s, actor) => verifySeminarSubmission(s.id, actor),
-  importInvoice: (s, actor) => importSeminarSubmissionStudent(s.id, actor),
+  // Seminar "import" only creates a student; never run it for already-matched rows
+  // (invoices are created automatically by the database once verified + matched).
+  importInvoice: async (s, actor) => {
+    if (s.matched_student_id) return;
+    await importSeminarSubmissionStudent(s.id, actor);
+  },
   reject: (s, reason, actor) => rejectSeminarSubmission(s.id, reason, actor),
   updateDetails: (s, patch) => updateSeminarSubmissionDetails(s.id, patch),
 };
