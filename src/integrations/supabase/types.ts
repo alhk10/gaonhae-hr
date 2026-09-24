@@ -2026,6 +2026,7 @@ export type Database = {
           amount: number | null
           amount_net: number | null
           branch_id: string
+          client_ref: string | null
           created_at: string
           current_belt: string | null
           date_of_birth: string
@@ -2057,6 +2058,7 @@ export type Database = {
           amount?: number | null
           amount_net?: number | null
           branch_id: string
+          client_ref?: string | null
           created_at?: string
           current_belt?: string | null
           date_of_birth: string
@@ -2088,6 +2090,7 @@ export type Database = {
           amount?: number | null
           amount_net?: number | null
           branch_id?: string
+          client_ref?: string | null
           created_at?: string
           current_belt?: string | null
           date_of_birth?: string
@@ -2408,6 +2411,7 @@ export type Database = {
       guards_purchases: {
         Row: {
           branch_id: string | null
+          client_ref: string | null
           collected: boolean
           collected_at: string | null
           collected_by: string | null
@@ -2439,6 +2443,7 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          client_ref?: string | null
           collected?: boolean
           collected_at?: string | null
           collected_by?: string | null
@@ -2470,6 +2475,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          client_ref?: string | null
           collected?: boolean
           collected_at?: string | null
           collected_by?: string | null
@@ -4870,6 +4876,7 @@ export type Database = {
           amount_net: number | null
           branch_id: string | null
           category: string | null
+          client_ref: string | null
           created_at: string
           gst_amount: number | null
           id: string
@@ -4891,6 +4898,7 @@ export type Database = {
           amount_net?: number | null
           branch_id?: string | null
           category?: string | null
+          client_ref?: string | null
           created_at?: string
           gst_amount?: number | null
           id?: string
@@ -4912,6 +4920,7 @@ export type Database = {
           amount_net?: number | null
           branch_id?: string | null
           category?: string | null
+          client_ref?: string | null
           created_at?: string
           gst_amount?: number | null
           id?: string
@@ -7450,6 +7459,60 @@ export type Database = {
         }
         Relationships: []
       }
+      submission_edit_requests: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          proposed_changes: Json
+          reason: string | null
+          record_id: string
+          reference_number: string | null
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          status: string
+          student_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          proposed_changes?: Json
+          reason?: string | null
+          record_id: string
+          reference_number?: string | null
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source: string
+          status?: string
+          student_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          proposed_changes?: Json
+          reason?: string | null
+          record_id?: string
+          reference_number?: string | null
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          status?: string
+          student_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       submission_match_events: {
         Row: {
           actor: string | null
@@ -8637,6 +8700,10 @@ export type Database = {
         Returns: Json
       }
       approve_submission_deletion_request: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      approve_submission_edit_request: {
         Args: { p_id: string }
         Returns: undefined
       }
@@ -9855,6 +9922,10 @@ export type Database = {
         Args: { p_id: string; p_note?: string }
         Returns: undefined
       }
+      reject_submission_edit_request: {
+        Args: { p_id: string; p_note?: string }
+        Returns: undefined
+      }
       release_credit_hold: {
         Args: { p_actor?: string; p_invoice_id: string }
         Returns: undefined
@@ -9975,6 +10046,19 @@ export type Database = {
         }
         Returns: string
       }
+      submit_submission_edit_request: {
+        Args: {
+          p_amount?: number
+          p_proposed_changes?: Json
+          p_reason?: string
+          p_record_id: string
+          p_reference_number?: string
+          p_requested_by?: string
+          p_source: string
+          p_student_name?: string
+        }
+        Returns: string
+      }
       update_chat_student_personal_info: {
         Args: {
           p_date_of_birth: string
@@ -9988,15 +10072,27 @@ export type Database = {
         }
         Returns: Json
       }
-      update_public_submission: {
-        Args: {
-          p_amount?: number
-          p_proof_url?: string
-          p_record_id: string
-          p_source: string
-        }
-        Returns: undefined
-      }
+      update_public_submission:
+        | {
+            Args: {
+              p_amount?: number
+              p_proof_url?: string
+              p_record_id: string
+              p_source: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_amount?: number
+              p_email?: string
+              p_phone?: string
+              p_proof_url?: string
+              p_record_id: string
+              p_source: string
+            }
+            Returns: undefined
+          }
     }
     Enums: {
       [_ in never]: never
