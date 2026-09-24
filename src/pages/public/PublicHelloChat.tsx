@@ -172,6 +172,7 @@ const PublicHelloChat: React.FC = () => {
   const [stageHistory, setStageHistory] = useState<Stage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [matched, setMatched] = useState<MatchedStudent | null>(null);
+  const [sessionLinked, setSessionLinked] = useState(false);
 
   const goTo = useCallback((next: Stage) => {
     setStageHistory((h) => [...h, stage]);
@@ -321,11 +322,16 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!branchId && (stage === 'payment_pay'),
   });
 
-  const { data: availableCredit = 0 } = useQuery({
+  const { data: availableCredit = 0, refetch: refetchCredit } = useQuery({
     queryKey: ['hello-student-credit', sessionId, matched?.id],
     queryFn: () => getChatStudentCredit(sessionId!, matched!.id),
-    enabled: !!sessionId && !!matched?.id,
+    enabled: !!sessionId && !!matched?.id && sessionLinked,
+    retry: 2,
   });
+
+  useEffect(() => {
+    if (stage === 'payment_pay' && sessionLinked && matched?.id) refetchCredit();
+  }, [stage, sessionLinked, matched?.id, refetchCredit]);
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
     queryKey: ['hello-products', branchId, payCategory?.id, sessionId, matched?.id],
@@ -750,6 +756,7 @@ const PublicHelloChat: React.FC = () => {
         phone: phone || null,
       });
       if (m) {
+        setSessionLinked(false);
         setMatched(m);
         // Persist match on the session so SECURITY DEFINER RPCs validate
         try {
@@ -758,6 +765,7 @@ const PublicHelloChat: React.FC = () => {
         } catch (err) {
           console.warn('Could not persist matched_student_id', err);
         }
+        setSessionLinked(true);
         await logChatEvent(sid, 'student_matched', { student_id: m.id });
         if (autoPersonalInfoRef.current) {
           autoPersonalInfoRef.current = false;

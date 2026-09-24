@@ -536,7 +536,7 @@ export const getChatStudentCredit = async (sessionId: string, studentId: string)
   });
   if (error) {
     console.warn('Could not read student credit', error);
-    return 0;
+    throw error;
   }
   return Number(data ?? 0);
 };
