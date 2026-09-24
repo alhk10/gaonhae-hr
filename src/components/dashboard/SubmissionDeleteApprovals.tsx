@@ -27,7 +27,7 @@ import {
   rejectSubmissionEditRequest,
 } from '@/services/publicDuplicateSubmissionService';
 
-const SubmissionDeleteApprovals: React.FC = () => {
+const SubmissionDeleteApprovalsCard: React.FC = () => {
   const qc = useQueryClient();
 
   const { data: requests = [], isLoading, error } = useQuery({
