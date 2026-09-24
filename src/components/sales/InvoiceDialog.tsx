@@ -383,6 +383,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // ─── View/Edit Mode State ──────────────────────────────────────
   const [invoice, setInvoice] = useState<(Invoice & { items: ServiceInvoiceItem[] }) | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const isDraftDeletable = invoice?.status === 'draft' && (invoice?.amount_paid || 0) === 0 && payments.length === 0;
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [editingClassSlots, setEditingClassSlots] = useState<Record<string, string[]>>({});
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
@@ -2130,6 +2131,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         {isCreateMode && trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
         {dialogContent}
       </Dialog>
+
+      {/* Delete draft confirmation */}
+      <AlertDialog open={deleteDraftOpen} onOpenChange={setDeleteDraftOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete draft {invoice?.invoice_number}?</AlertDialogTitle>
+            <AlertDialogDescription>No payments have been made. The invoice and its linked grading, lessons and bookings will be removed.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingDraft}>Keep</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDeleteDraft(); }} disabled={deletingDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingDraft && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Delete draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Refund as credit (multi-line) dialog */}
       <RefundAsCreditDialog
