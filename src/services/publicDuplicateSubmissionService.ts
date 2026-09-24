@@ -114,3 +114,39 @@ export const submitSubmissionEditRequest = async (args: {
   if (error) throw new Error(error.message);
   return data as string;
 };
+
+export interface SubmissionEditRequest {
+  id: string;
+  source: string;
+  record_id: string;
+  student_name: string | null;
+  reference_number: string | null;
+  amount: number | null;
+  proposed_changes: { amount?: number | null; email?: string | null; phone?: string | null };
+  reason: string | null;
+  requested_by: string | null;
+  created_at: string;
+}
+
+/** Superadmin: list pending correction requests. */
+export const getPendingSubmissionEditRequests = async (): Promise<SubmissionEditRequest[]> => {
+  const { data, error } = await db
+    .from('submission_edit_requests')
+    .select('id, source, record_id, student_name, reference_number, amount, proposed_changes, reason, requested_by, created_at')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SubmissionEditRequest[];
+};
+
+/** Superadmin: approve — applies the proposed changes to the record. */
+export const approveSubmissionEditRequest = async (id: string): Promise<void> => {
+  const { error } = await db.rpc('approve_submission_edit_request', { p_request_id: id });
+  if (error) throw new Error(error.message);
+};
+
+/** Superadmin: reject a correction request. */
+export const rejectSubmissionEditRequest = async (id: string): Promise<void> => {
+  const { error } = await db.rpc('reject_submission_edit_request', { p_request_id: id });
+  if (error) throw new Error(error.message);
+};
