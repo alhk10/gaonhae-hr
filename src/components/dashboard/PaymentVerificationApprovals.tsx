@@ -97,15 +97,24 @@ const PaymentVerificationApprovals = () => {
         verification_status: 'verified',
       };
 
-      // Verify every outstanding payment on the invoice, including any credit
-      // applied at checkout, so the student's credit hold is settled with it.
-      const query = supabase.from('payments').update(stamp);
-      const { error: paymentError } = payment.invoice_id
-        ? await query
-            .eq('invoice_id', payment.invoice_id)
-            .or('verification_status.is.null,verification_status.eq.pending')
-        : await query.eq('id', payment.id);
+      // Verify only the reviewed payment row. If the invoice also has a
+      // pending credit payment (credit applied at checkout), stamp that row
+      // too so the student's credit hold is settled with this decision —
+      // other unrelated pending payments on the invoice are left untouched.
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update(stamp)
+        .eq('id', payment.id);
       if (paymentError) throw paymentError;
+
+      if (payment.invoice_id && payment.payment_method !== 'credit') {
+        await supabase
+          .from('payments')
+          .update(stamp)
+          .eq('invoice_id', payment.invoice_id)
+          .eq('payment_method', 'credit')
+          .or('verification_status.is.null,verification_status.eq.pending');
+      }
 
       if (payment.invoice_id) {
         await supabase.rpc('consume_credit_hold', {
@@ -140,13 +149,23 @@ const PaymentVerificationApprovals = () => {
         verified_at: new Date().toISOString(),
       };
 
-      const query = supabase.from('payments').update(stamp);
-      const { error: paymentError } = rejectingPayment.invoice_id
-        ? await query
-            .eq('invoice_id', rejectingPayment.invoice_id)
-            .or('verification_status.is.null,verification_status.eq.pending')
-        : await query.eq('id', rejectingPayment.id);
+      // Reject only the reviewed payment row; the linked credit row on the
+      // same invoice follows the decision so its hold is released. Other
+      // pending payments on the invoice are not affected.
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update(stamp)
+        .eq('id', rejectingPayment.id);
       if (paymentError) throw paymentError;
+
+      if (rejectingPayment.invoice_id && rejectingPayment.payment_method !== 'credit') {
+        await supabase
+          .from('payments')
+          .update(stamp)
+          .eq('invoice_id', rejectingPayment.invoice_id)
+          .eq('payment_method', 'credit')
+          .or('verification_status.is.null,verification_status.eq.pending');
+      }
 
       if (rejectingPayment.invoice_id) {
         // Give any credit held for this payment back to the student.
