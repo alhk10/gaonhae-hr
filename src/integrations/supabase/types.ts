@@ -8233,6 +8233,7 @@ export type Database = {
           term_name: string
         }[]
       }
+      _sur_reviewer: { Args: { p_actor: string }; Returns: string }
       _validate_public_chat_session: {
         Args: {
           p_branch_id?: string
