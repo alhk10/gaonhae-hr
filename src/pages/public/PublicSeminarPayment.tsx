@@ -38,6 +38,7 @@ import DuplicateSubmissionPrompt from '@/components/public/DuplicateSubmissionPr
 import {
   checkPublicSubmissionDuplicate,
   updatePublicSubmission,
+  submitSubmissionEditRequest,
   type DuplicateSubmissionHit,
 } from '@/services/publicDuplicateSubmissionService';
 
