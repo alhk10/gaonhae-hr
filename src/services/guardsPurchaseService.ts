@@ -146,6 +146,8 @@ export interface SubmitGuardsPurchaseInput {
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
   is_singapore: boolean;
+  /** Stable id per form attempt — retries with the same ref return the original row. */
+  client_ref?: string;
 }
 
 export interface VariantSelection {
@@ -339,6 +341,7 @@ export const submitGuardsPurchase = async (
     payment_method: input.payment_method,
     proof_url: proofUrl,
     sale_status: 'pending_verification' as const,
+    client_ref: input.client_ref ?? null,
   };
 
   console.info('[/guards] calling submit_guards_purchase RPC');
