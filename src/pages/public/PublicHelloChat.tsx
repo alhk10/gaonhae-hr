@@ -96,9 +96,11 @@ const getVariantArray = (product: ChatProduct, key: string): string[] => {
 
 const getDisplayPrice = (product: ChatProduct, country?: string | null): number => {
   const sgTarget = Number(product.metadata?.sg_target_price ?? NaN);
-  return country?.toLowerCase() === 'singapore' && Number.isFinite(sgTarget)
-    ? sgTarget
-    : Number(product.branch_price || 0);
+  const auTarget = Number(product.metadata?.au_target_price ?? NaN);
+  const normalizedCountry = country?.toLowerCase();
+  if (normalizedCountry === 'singapore' && Number.isFinite(sgTarget)) return sgTarget;
+  if (normalizedCountry === 'australia' && Number.isFinite(auTarget)) return auTarget;
+  return Number(product.branch_price || 0);
 };
 
 const isPreorderProduct = (product: ChatProduct): boolean => product.metadata?.is_preorder === true;
@@ -683,10 +685,12 @@ const PublicHelloChat: React.FC = () => {
   const isSGBranch = branch?.country?.toLowerCase() === 'singapore';
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
-  // GST is always added on top, matching every other invoice in the system.
-  const gstAmount = Number((cartTotal * GST_RATE).toFixed(2));
-  const totalWithTax = Number((cartTotal + gstAmount).toFixed(2));
-  const gstLabel = `GST (${Math.round(GST_RATE * 100)}%)`;
+  // Singapore prices exclude GST; Australian advertised prices include GST.
+  const gstAmount = Number((isAUBranch
+    ? cartTotal - cartTotal / (1 + GST_RATE)
+    : cartTotal * GST_RATE).toFixed(2));
+  const totalWithTax = Number((isAUBranch ? cartTotal : cartTotal + gstAmount).toFixed(2));
+  const gstLabel = `GST (${Math.round(GST_RATE * 100)}%${isAUBranch ? ' incl.' : ''})`;
   const payableTotal = totalWithTax;
   const creditToUse = Math.max(0, Math.min(Number(availableCredit) || 0, payableTotal));
   const creditRemaining = Math.max(0, (Number(availableCredit) || 0) - creditToUse);

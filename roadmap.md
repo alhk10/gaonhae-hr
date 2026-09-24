@@ -8,3 +8,9 @@
 - [x] Correct past grading invoices (591 corrected: fee + 9% GST, payment matches amount received)
 - [x] Fill fee/GST split on remaining grading, competition, seminar and school-fee submissions
 - [x] Verified no public invoices remain with missing GST and no slip/amount mismatches
+
+## Australian public payments
+
+- [x] Treat Australian advertised fees as GST-inclusive in `/hello`
+- [x] Store the extracted 10% GST without increasing the submitted total
+- [x] Return the Australian invoice template and bank-transfer details for Australian branches
