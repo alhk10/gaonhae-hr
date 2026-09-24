@@ -767,15 +767,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     } catch { return { exists: false }; }
   };
 
-  // Grading slots filtered
+  // Grading slots for the invoice branch. Staff can assign any slot —
+  // belt/age eligibility is only enforced in the student portal and /hello.
   const getFilteredGradingSlots = (): GradingSlot[] => {
     let filtered = gradingSlots;
     if (formData.branch_id) filtered = filtered.filter(s => s.branch_id === formData.branch_id || (s.available_branch_ids && s.available_branch_ids.includes(formData.branch_id)));
-    if (studentBelt) {
-      const n = normalizeBelt(studentBelt);
-      filtered = filtered.filter(s => s.belt_levels?.some(b => normalizeBelt(b) === n));
-    }
-    if (studentAge > 0) filtered = filtered.filter(s => (s.min_age == null || studentAge >= s.min_age) && (s.max_age == null || studentAge <= s.max_age));
     return filtered;
   };
 
@@ -788,9 +784,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const availableInBranch = !branchId || branchAvailableProductIds === null
       ? true
       : branchAvailableProductIds.has(p.id);
-    const isGrading = p.category_id === GRADING_CATEGORY_ID;
-    const matchesGrading = !isGrading || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
-    return matchesCategory && matchesGrading && notHidden && availableInBranch;
+    // Staff can invoice any grading product — belt eligibility is only
+    // enforced in the student portal and /hello.
+    return matchesCategory && notHidden && availableInBranch;
   });
 
   const outOfCriteriaProductIds = useMemo(() => {
