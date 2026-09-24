@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ShieldCheck, CheckCircle, Pencil, XCircle } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
@@ -238,6 +238,13 @@ const PaymentVerificationApprovals = () => {
               key={payment.id}
               className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-background rounded-lg border"
             >
+              {payment.payment_method === 'credit' && !payment.proof_of_payment_url ? (
+                <div className="shrink-0 w-full sm:w-[200px] h-[100px] rounded border flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground bg-muted">
+                  <Wallet className="w-5 h-5" />
+                  <span>Credit payment — no proof needed</span>
+                  <span className="text-[10px]">Confirm to finalise the credit, or Reject to return it</span>
+                </div>
+              ) : (
               <SignedLink
                 href={payment.proof_of_payment_url}
                 target="_blank"
@@ -255,6 +262,7 @@ const PaymentVerificationApprovals = () => {
                   }
                 />
               </SignedLink>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">
                   {payment.invoices?.invoice_number || 'N/A'}
