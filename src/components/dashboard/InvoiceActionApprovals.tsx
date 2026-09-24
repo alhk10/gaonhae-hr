@@ -30,6 +30,44 @@ const InvoiceActionApprovals: React.FC = () => {
     refetchInterval: 60 * 1000,
   });
 
+  // Look up the descriptions of every line item referenced by pending refund
+  // requests, so multi-item refunds show the full list instead of just a count.
+  const refundItemIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of requests) {
+      if (r.action_type !== 'item_refund') continue;
+      const rd = r.request_data as any;
+      const list: string[] = Array.isArray(rd?.item_ids) && rd.item_ids.length > 0
+        ? rd.item_ids
+        : rd?.item_id ? [rd.item_id] : [];
+      list.forEach((id) => ids.add(id));
+    }
+    return [...ids];
+  }, [requests]);
+
+  const { data: itemDescriptions = new Map<string, string>() } = useQuery({
+    queryKey: ['refund-item-descriptions', refundItemIds],
+    enabled: refundItemIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('invoice_items')
+        .select('id, description, products(name)')
+        .in('id', refundItemIds);
+      const map = new Map<string, string>();
+      (data || []).forEach((it: any) => map.set(it.id, it.products?.name || it.description || 'Item'));
+      return map;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const getRefundItemNames = (request: InvoiceActionRequest): string[] => {
+    const rd = request.request_data as any;
+    const ids: string[] = Array.isArray(rd?.item_ids) && rd.item_ids.length > 0
+      ? rd.item_ids
+      : rd?.item_id ? [rd.item_id] : [];
+    return ids.map((id) => itemDescriptions.get(id) || 'Item');
+  };
+
   if (requests.length === 0) return null;
 
   const getActionLabel = (actionType: string) => {
