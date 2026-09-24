@@ -468,6 +468,7 @@ const PublicGradingPayment: React.FC = () => {
         resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
         payment_method: paymentMethod,
         proof_file: proofFile,
+        client_ref: clientRef.current,
       });
       await recordProofScan('grading', result.ids?.[0], await proofScan.waitForResult());
       setSuccess({ refs: result.reference_numbers });
