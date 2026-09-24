@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.auto_verify_matched_scan_payment() FROM anon, authenticated, public;
