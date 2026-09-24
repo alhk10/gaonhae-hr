@@ -44,6 +44,7 @@ import StudentWithdrawalApprovals from './StudentWithdrawalApprovals';
 import StudentMergeApprovals from './StudentMergeApprovals';
 import LowStockWarnings from './LowStockWarnings';
 import InvoiceActionApprovals from './InvoiceActionApprovals';
+import FailedScheduleAlerts from './FailedScheduleAlerts';
 
 import InvoicesCreatedSection from './InvoicesCreatedSection';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
