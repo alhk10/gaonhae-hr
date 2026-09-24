@@ -674,13 +674,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     finally { setGradingSlotsLoading(false); }
   };
 
+  // Keep current/upcoming terms plus the single most recent ended term,
+  // so staff can bill for the term that just finished.
+  const withPreviousTerm = (terms: Term[], today: string): Term[] => {
+    const currentOrUpcoming = terms.filter(t => t.end_date >= today);
+    const ended = terms.filter(t => t.end_date < today);
+    const previous = ended.length > 0 ? [ended[ended.length - 1]] : [];
+    return [...previous, ...currentOrUpcoming];
+  };
+
   const loadBranchTerms = async (branchId: string) => {
     if (!branchId) { setBranchTerms([]); return; }
     try {
       const today = toISODate(new Date());
-      const { data, error } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).gte('end_date', today).order('start_date', { ascending: true });
+      const { data, error } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).order('start_date', { ascending: true });
       if (error) throw error;
-      setBranchTerms((data || []) as Term[]);
+      setBranchTerms(withPreviousTerm((data || []) as Term[], today));
     } catch (error: any) {
       if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) setTermError('Session expired. Please refresh the page.');
       setBranchTerms([]);
