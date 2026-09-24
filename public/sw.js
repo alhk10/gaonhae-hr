@@ -60,6 +60,7 @@ self.addEventListener('push', (event) => {
     icon: notificationData.icon,
     badge: notificationData.badge,
     tag: notificationData.tag,
+    renotify: !!notificationData.renotify,
     vibrate: [100, 50, 100],
     data: notificationData.data,
     actions: notificationData.actions || [

@@ -49,6 +49,7 @@ import FailedScheduleAlerts from './FailedScheduleAlerts';
 import InvoicesCreatedSection from './InvoicesCreatedSection';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationOptIn } from '@/components/notifications/NotificationOptIn';
 
 const countQueryOpts = { staleTime: 30 * 1000, refetchInterval: 60 * 1000 };
 
@@ -198,7 +199,10 @@ const SuperadminDashboard = () => {
     <NegativeInventoryAlert />
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <h2 className="text-lg sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg sm:text-2xl font-bold text-foreground">Superadmin Dashboard</h2>
+          <NotificationOptIn compact />
+        </div>
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview" className="text-xs sm:text-sm">
             Overview
