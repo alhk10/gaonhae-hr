@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       body: `${plural(approvals, "approval")} and ${plural(verifications, "verification")} waiting`,
       icon: "/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png",
       badge: "/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png",
-      url: "/superadmin",
+      url: "/",
       tag: "superadmin-approvals",
       renotify: true,
       data: { template_key: "superadmin_approvals" },
