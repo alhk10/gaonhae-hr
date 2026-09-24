@@ -2,7 +2,7 @@
  * Public guards purchase page (no auth). Mounted at /guards.
  * Mirrors /grading flow: buyer details + product selection + payment + proof upload.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,8 +34,10 @@ import DuplicateSubmissionPrompt from '@/components/public/DuplicateSubmissionPr
 import {
   checkPublicSubmissionDuplicate,
   updatePublicSubmission,
+  submitSubmissionEditRequest,
   type DuplicateSubmissionHit,
 } from '@/services/publicDuplicateSubmissionService';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -188,6 +190,9 @@ const PublicGuardsPurchase: React.FC = () => {
 
   const [dupHit, setDupHit] = useState<DuplicateSubmissionHit | null>(null);
   const [dupBusy, setDupBusy] = useState(false);
+  // Stable per form mount — a retry after a network failure reuses the same
+  // reference, so the server returns the original row instead of duplicating.
+  const clientRef = useRef(newClientRef());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,12 +219,36 @@ const PublicGuardsPurchase: React.FC = () => {
         branchId,
         amount: totalInc,
         proofFile,
+        email: email.trim(),
+        phone: phone.trim(),
       });
       toast.success('Your earlier order was updated');
       setDupHit(null);
       setSuccess({ ref: dupHit.reference_number || '' });
     } catch (err: any) {
       toast.error(err?.message || 'Could not update your earlier order');
+    } finally {
+      setDupBusy(false);
+    }
+  };
+
+  const handleRequestCorrection = async () => {
+    if (!dupHit) return;
+    setDupBusy(true);
+    try {
+      await submitSubmissionEditRequest({
+        source: 'guards',
+        recordId: dupHit.record_id,
+        studentName: `${firstName} ${lastName}`.trim(),
+        referenceNumber: dupHit.reference_number,
+        amount: dupHit.amount,
+        proposedChanges: { amount: totalInc, email: email.trim(), phone: phone.trim() },
+        reason: 'Customer re-submitted the form with different details',
+      });
+      toast.success('Correction request sent to our staff');
+      setDupHit(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not send the correction request');
     } finally {
       setDupBusy(false);
     }
@@ -252,6 +281,7 @@ const PublicGuardsPurchase: React.FC = () => {
         payment_method: paymentMethod,
         proof_file: proofFile,
         is_singapore: isSingapore,
+        client_ref: clientRef.current,
       });
       await recordProofScan('guards', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });
@@ -504,6 +534,7 @@ const PublicGuardsPurchase: React.FC = () => {
           onUpdateExisting={handleUpdateExisting}
           onSubmitAnyway={async () => { setDupHit(null); await doSubmit(); }}
           onCancel={() => setDupHit(null)}
+          onRequestCorrection={handleRequestCorrection}
         />
 
         <p className="text-xs text-muted-foreground text-center mt-6">

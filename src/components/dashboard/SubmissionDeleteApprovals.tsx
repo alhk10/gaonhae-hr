@@ -2,13 +2,15 @@
  * Transaction delete requests raised from the public /access lists
  * (school fees, grading, competitions, seminars, uniforms & guards).
  * Only superadmins can approve; approving runs the full deletion.
+ * Also shows correction requests parents raised from the public forms
+ * for already-verified submissions.
  */
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, X, Trash2, AlertCircle } from 'lucide-react';
+import { Check, X, Trash2, AlertCircle, Pencil } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/utils/dateFormat';
@@ -19,8 +21,13 @@ import {
   rejectSubmissionDeletionRequest,
   SOURCE_LABELS,
 } from '@/services/submissionDeletionRequestService';
+import {
+  getPendingSubmissionEditRequests,
+  approveSubmissionEditRequest,
+  rejectSubmissionEditRequest,
+} from '@/services/publicDuplicateSubmissionService';
 
-const SubmissionDeleteApprovals: React.FC = () => {
+const SubmissionDeleteApprovalsCard: React.FC = () => {
   const qc = useQueryClient();
 
   const { data: requests = [], isLoading, error } = useQuery({
@@ -128,5 +135,108 @@ const SubmissionDeleteApprovals: React.FC = () => {
     </Card>
   );
 };
+
+const SubmissionEditApprovals: React.FC = () => {
+  const qc = useQueryClient();
+
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ['pending-submission-edit-requests'],
+    queryFn: getPendingSubmissionEditRequests,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['pending-submission-edit-requests'] });
+    qc.invalidateQueries({ queryKey: ['submission-flags'] });
+  };
+
+  const approve = useMutation({
+    mutationFn: approveSubmissionEditRequest,
+    onSuccess: () => { toast.success('Correction applied'); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reject = useMutation({
+    mutationFn: (id: string) => rejectSubmissionEditRequest(id),
+    onSuccess: () => { toast.success('Correction request rejected'); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!isLoading && requests.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <Pencil className="w-4 h-4 text-amber-600" />
+          Submission Correction Requests
+          {requests.length > 0 && (
+            <Badge variant="destructive" className="text-[10px]">{requests.length}</Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 space-y-2">
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : (
+          requests.map((r) => (
+            <div key={r.id} className="rounded border p-2 space-y-1 text-xs">
+              <div className="flex flex-wrap items-center gap-1">
+                <Badge variant="outline" className="text-[10px]">{SOURCE_LABELS[r.source] ?? r.source}</Badge>
+                <span className="font-medium">{r.student_name || 'Unnamed'}</span>
+                {r.reference_number && (
+                  <span className="font-mono text-muted-foreground">{r.reference_number}</span>
+                )}
+                {r.amount != null && <span className="text-muted-foreground">{formatCurrency(r.amount)}</span>}
+              </div>
+              <div className="text-muted-foreground">
+                Requested changes:{' '}
+                {[
+                  r.proposed_changes?.amount != null ? `amount → ${formatCurrency(r.proposed_changes.amount)}` : null,
+                  r.proposed_changes?.email ? `email → ${r.proposed_changes.email}` : null,
+                  r.proposed_changes?.phone ? `phone → ${r.proposed_changes.phone}` : null,
+                ].filter(Boolean).join(', ') || '—'}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Requested {formatDateTime(r.created_at)}
+                {r.requested_by ? ` by ${r.requested_by}` : ''}
+                {r.reason ? ` — ${r.reason}` : ''}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={approve.isPending}
+                  onClick={() => {
+                    if (confirm('Approve and apply these changes to the submission?')) approve.mutate(r.id);
+                  }}
+                >
+                  <Check className="w-3 h-3 mr-1" /> Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={reject.isPending}
+                  onClick={() => reject.mutate(r.id)}
+                >
+                  <X className="w-3 h-3 mr-1" /> Reject
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const SubmissionDeleteApprovals: React.FC = () => (
+  <>
+    <SubmissionDeleteApprovalsCard />
+    <SubmissionEditApprovals />
+  </>
+);
 
 export default SubmissionDeleteApprovals;

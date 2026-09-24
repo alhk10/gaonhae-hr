@@ -38,6 +38,7 @@ import DuplicateSubmissionPrompt from '@/components/public/DuplicateSubmissionPr
 import {
   checkPublicSubmissionDuplicate,
   updatePublicSubmission,
+  submitSubmissionEditRequest,
   type DuplicateSubmissionHit,
 } from '@/services/publicDuplicateSubmissionService';
 
@@ -290,12 +291,35 @@ const PublicSeminarPayment: React.FC = () => {
         branchId,
         amount: Number((totalAmount).toFixed(2)),
         proofFile,
+        email: email.trim(),
       });
       toast.success('Your earlier submission was updated');
       setDupHit(null);
       setSuccess({ ref: dupHit.reference_number || '' });
     } catch (err: any) {
       toast.error(err?.message || 'Could not update your earlier submission');
+    } finally {
+      setDupBusy(false);
+    }
+  };
+
+  const handleRequestCorrection = async () => {
+    if (!dupHit) return;
+    setDupBusy(true);
+    try {
+      await submitSubmissionEditRequest({
+        source: 'seminar',
+        recordId: dupHit.record_id,
+        studentName: `${firstName} ${lastName}`.trim(),
+        referenceNumber: dupHit.reference_number,
+        amount: dupHit.amount,
+        proposedChanges: { amount: Number((totalAmount).toFixed(2)), email: email.trim() },
+        reason: 'Parent re-submitted the form with different details',
+      });
+      toast.success('Correction request sent to our staff');
+      setDupHit(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not send the correction request');
     } finally {
       setDupBusy(false);
     }
@@ -811,6 +835,7 @@ const PublicSeminarPayment: React.FC = () => {
           onUpdateExisting={handleUpdateExisting}
           onSubmitAnyway={async () => { setDupHit(null); await doSubmit(); }}
           onCancel={() => setDupHit(null)}
+          onRequestCorrection={handleRequestCorrection}
         />
 
         <p className="text-xs text-muted-foreground text-center mt-6">

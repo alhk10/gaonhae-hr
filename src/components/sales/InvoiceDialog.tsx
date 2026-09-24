@@ -146,15 +146,6 @@ const isProductAvailableForBelt = (product: ProductWithVariants, studentBelt: st
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
-const isGradingProductForBelt = (productName: string, studentBelt: string): boolean => {
-  if (!studentBelt) return true;
-  const normalizedBelt = normalizeBelt(studentBelt);
-  if (!normalizedBelt) return true;
-  const parts = productName.split('>>').map(p => p.trim());
-  if (parts.length !== 2) return true;
-  return normalizeBelt(parts[0]) === normalizedBelt;
-};
-
 const fuzzyMatch = (target: string, query: string): boolean => {
   const t = target.toLowerCase();
   const q = query.toLowerCase();
@@ -767,15 +758,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     } catch { return { exists: false }; }
   };
 
-  // Grading slots filtered
+  // Grading slots for the invoice branch. Staff can assign any slot —
+  // belt/age eligibility is only enforced in the student portal and /hello.
   const getFilteredGradingSlots = (): GradingSlot[] => {
     let filtered = gradingSlots;
     if (formData.branch_id) filtered = filtered.filter(s => s.branch_id === formData.branch_id || (s.available_branch_ids && s.available_branch_ids.includes(formData.branch_id)));
-    if (studentBelt) {
-      const n = normalizeBelt(studentBelt);
-      filtered = filtered.filter(s => s.belt_levels?.some(b => normalizeBelt(b) === n));
-    }
-    if (studentAge > 0) filtered = filtered.filter(s => (s.min_age == null || studentAge >= s.min_age) && (s.max_age == null || studentAge <= s.max_age));
     return filtered;
   };
 
@@ -788,9 +775,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const availableInBranch = !branchId || branchAvailableProductIds === null
       ? true
       : branchAvailableProductIds.has(p.id);
-    const isGrading = p.category_id === GRADING_CATEGORY_ID;
-    const matchesGrading = !isGrading || !formData.student_id || isGradingProductForBelt(p.name, studentBelt);
-    return matchesCategory && matchesGrading && notHidden && availableInBranch;
+    // Staff can invoice any grading product — belt eligibility is only
+    // enforced in the student portal and /hello.
+    return matchesCategory && notHidden && availableInBranch;
   });
 
   const outOfCriteriaProductIds = useMemo(() => {
@@ -1855,143 +1842,132 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             <h3 className="text-sm font-medium mb-2">Items {mode === 'edit' ? `(${editItems.length})` : `(${invoice.items.length})`}</h3>
 
             {mode === 'edit' ? (
-              /* Edit mode items */
+              /* Edit mode items — same table layout as Create Invoice */
               <>
-                <div className="space-y-2">
-                  {editItems.map((item) => {
-                    const metadata = item.metadata as any;
-                    const isClassItem = item.category_name === 'Classes' || item.is_lesson;
-                    const termIds: string[] = metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []);
-                    const classSlots = editingClassSlots[item.id] || [];
-                    return (
-                      <div key={item.id} className="border rounded-lg p-2 md:p-3 space-y-2">
-                        <div className="flex items-start gap-1.5">
-                          <div className="flex-1 min-w-0">
-                            <Label className="text-xs">Product</Label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-7 text-xs">
-                                  <span className="truncate">{item.product_id ? (viewProducts.find(p => p.id === item.product_id)?.name || 'Select...') : 'Select product...'}</span>
-                                  <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[280px] p-0 max-h-[60vh] overflow-hidden" align="start">
-                                <Command><CommandInput placeholder="Search products..." /><CommandList
-                                  className="max-h-[300px] overflow-y-auto overscroll-contain"
-                                  onWheel={(e) => e.stopPropagation()}
-                                  onTouchMove={(e) => e.stopPropagation()}
-                                ><CommandEmpty>No products available for this branch.</CommandEmpty><CommandGroup>
-                                  {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id) && (!branchAvailableProductIds || branchAvailableProductIds.has(p.id))).map(p => (
-                                    <CommandItem key={p.id} value={p.name} onSelect={() => handleEditProductChange(item.id, p.id)}>
-                                      <Check className={cn("mr-2 h-3 w-3", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
-                                      <span className="text-xs">{p.name}</span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup></CommandList></Command>
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive mt-4" onClick={() => handleRemoveEditItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1.5 items-end">
-                          <div><Label className="text-xs">Qty</Label><Input type="number" min={1} value={item.quantity} onChange={(e) => handleEditItemFieldChange(item.id, 'quantity', parseInt(e.target.value) || 1)} className="h-7 text-xs" /></div>
-                          <div><Label className="text-xs">Price</Label><Input type="number" step="0.01" min={0} value={item.unit_price} onChange={(e) => handleEditItemFieldChange(item.id, 'unit_price', parseFloat(e.target.value) || 0)} className="h-7 text-xs" /></div>
-                          <div><Label className="text-xs">Disc.</Label><LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => handleEditItemDiscountChange(item.id, type, value)} /></div>
-                          <div className="text-right"><Label className="text-xs">Total</Label><div className="text-xs font-medium pt-1">{formatCurrency(item.total_amount)}</div></div>
-                        </div>
-                        {/* Variants */}
-                        {(() => {
-                          const product = viewProducts.find(p => p.id === item.product_id);
-                          const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
-                          const availableColors: string[] = (product as any)?.available_variants?.colors || [];
-                          if (!availableSizes.length && !availableColors.length) return null;
-                          return (
-                            <div className="flex items-center gap-2 pt-1 flex-wrap">
-                              {availableSizes.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Label className="text-xs text-muted-foreground">Size:</Label>
-                                  <Select value={item.size_variant || ''} onValueChange={(v) => handleEditItemFieldChange(item.id, 'size_variant', v)}>
-                                    <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                                    <SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-                              {availableColors.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Label className="text-xs text-muted-foreground">Color:</Label>
-                                  <Select value={item.color_variant || ''} onValueChange={(v) => handleEditItemFieldChange(item.id, 'color_variant', v)}>
-                                    <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                                    <SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {/* Term & class schedule */}
-                        {isClassItem && invoice.branch_id && (
-                          <div className="space-y-2 pt-1 border-t">
-                            <div className="flex items-center gap-1.5">
-                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Term:</Label>
-                              <Select value={termIds[0] || ''} onValueChange={(newTermId) => {
-                                const newTerm = branchTerms.find(t => t.id === newTermId);
-                                if (!newTerm) return;
-                                setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), term_id: newTermId, term_ids: [newTermId] } }));
-                                setTermDataMap(prev => ({ ...prev, [newTermId]: newTerm }));
-                                setEditingClassSlots(prev => ({ ...prev, [item.id]: [] }));
-                              }}>
-                                <SelectTrigger className="h-7 w-full md:w-60 text-xs"><SelectValue placeholder="Select term" /></SelectTrigger>
-                                <SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                              </Select>
-                            </div>
-                            {termIds.map(termId => {
-                              const term = termDataMap[termId];
-                              if (!term) return null;
-                              return (
-                                <div key={termId} className="space-y-1">
-                                  <ClassScheduleSelector branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={viewProducts.find(p => p.id === item.product_id)?.allowed_class_types} allowedDays={viewProducts.find(p => p.id === item.product_id)?.lesson_days} lessonsPerWeek={viewProducts.find(p => p.id === item.product_id)?.lessons_per_week} studentAllowedClassTypes={viewStudentAllowedClassTypes} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* Grading slot selector — for Grading category items (backfill legacy rows) */}
-                        {(() => {
-                          const product = viewProducts.find(p => p.id === item.product_id);
-                          const isGradingItem = (product?.category_name || item.category_name) === 'Grading';
-                          if (!isGradingItem) return null;
-                          const currentSlotId = (item.metadata as any)?.grading_slot_id || '';
-                          const branchSlots = gradingSlots.filter(s =>
-                            s.branch_id === invoice.branch_id ||
-                            (Array.isArray(s.available_branch_ids) && s.available_branch_ids.includes(invoice.branch_id || ''))
-                          );
-                          return (
-                            <div className="flex items-center gap-1.5 pt-1 border-t">
-                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Grading slot:</Label>
-                              {branchSlots.length > 0 ? (
-                                <Select value={currentSlotId} onValueChange={(newSlotId) => {
-                                  setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), grading_slot_id: newSlotId } }));
-                                }}>
-                                  <SelectTrigger className="h-7 w-full md:w-72 text-xs"><SelectValue placeholder="Select grading slot" /></SelectTrigger>
-                                  <SelectContent>
-                                    {branchSlots.map(s => (
-                                      <SelectItem key={s.id} value={s.id}>
-                                        {s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}
-                                      </SelectItem>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {editItems.map((item) => {
+                        const metadata = item.metadata as any;
+                        const isClassItem = item.category_name === 'Classes' || item.is_lesson;
+                        const termIds: string[] = metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []);
+                        const product = viewProducts.find(p => p.id === item.product_id);
+                        const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
+                        const availableColors: string[] = (product as any)?.available_variants?.colors || [];
+                        const isGradingItem = (product?.category_name || item.category_name) === 'Grading';
+                        const currentSlotId = metadata?.grading_slot_id || '';
+                        const branchSlots = gradingSlots.filter(s =>
+                          s.branch_id === invoice.branch_id ||
+                          (Array.isArray(s.available_branch_ids) && s.available_branch_ids.includes(invoice.branch_id || ''))
+                        );
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="px-2 text-muted-foreground">{product?.category_name || item.category_name || '-'}</TableCell>
+                            <TableCell className="px-2 min-w-[180px]">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-7 text-xs">
+                                    <span className="truncate">{item.product_id ? (viewProducts.find(p => p.id === item.product_id)?.name || 'Select...') : 'Select product...'}</span>
+                                    <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[280px] p-0 max-h-[60vh] overflow-hidden" align="start">
+                                  <Command><CommandInput placeholder="Search products..." /><CommandList
+                                    className="max-h-[300px] overflow-y-auto overscroll-contain"
+                                    onWheel={(e) => e.stopPropagation()}
+                                    onTouchMove={(e) => e.stopPropagation()}
+                                  ><CommandEmpty>No products available for this branch.</CommandEmpty><CommandGroup>
+                                    {viewProducts.filter(p => p.is_active && !hiddenProductIds.has(p.id) && (!branchAvailableProductIds || branchAvailableProductIds.has(p.id))).map(p => (
+                                      <CommandItem key={p.id} value={p.name} onSelect={() => handleEditProductChange(item.id, p.id)}>
+                                        <Check className={cn("mr-2 h-3 w-3", item.product_id === p.id ? "opacity-100" : "opacity-0")} />
+                                        <span className="text-xs">{p.name}</span>
+                                      </CommandItem>
                                     ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <span className="text-[10px] text-muted-foreground">No grading slots — create one in Sales → Grading</span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
-                      </div>
-                    );
-                  })}
+                                  </CommandGroup></CommandList></Command>
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
+                            <TableCell className="px-2"><Input type="number" min={1} value={item.quantity} onChange={(e) => handleEditItemFieldChange(item.id, 'quantity', parseInt(e.target.value) || 1)} className="w-12 h-7 text-xs px-1" /></TableCell>
+                            <TableCell className="px-2"><Input type="number" step="0.01" min={0} value={item.unit_price} onChange={(e) => handleEditItemFieldChange(item.id, 'unit_price', parseFloat(e.target.value) || 0)} className="w-16 h-7 text-xs px-1" /></TableCell>
+                            <TableCell className="px-2"><LineDiscountPopover discountType={item.discount_type} discountValue={item.discount_value} onChange={(type, value) => handleEditItemDiscountChange(item.id, type, value)} /></TableCell>
+                            <TableCell className="px-2">{availableSizes.length > 0 ? (
+                              <Select value={item.size_variant || ''} onValueChange={(v) => handleEditItemFieldChange(item.id, 'size_variant', v)}>
+                                <SelectTrigger className="h-7 w-16 text-xs"><SelectValue placeholder="Size" /></SelectTrigger>
+                                <SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                              </Select>
+                            ) : <span className="text-muted-foreground">-</span>}</TableCell>
+                            <TableCell className="px-2">{availableColors.length > 0 ? (
+                              <Select value={item.color_variant || ''} onValueChange={(v) => handleEditItemFieldChange(item.id, 'color_variant', v)}>
+                                <SelectTrigger className="h-7 w-16 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
+                                <SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                              </Select>
+                            ) : <span className="text-muted-foreground">-</span>}</TableCell>
+                            <TableCell className="px-2">
+                              {isClassItem && invoice.branch_id ? (
+                                branchTerms.length > 0 ? (
+                                  <Select value={termIds[0] || ''} onValueChange={(newTermId) => {
+                                    const newTerm = branchTerms.find(t => t.id === newTermId);
+                                    if (!newTerm) return;
+                                    setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), term_id: newTermId, term_ids: [newTermId] } }));
+                                    setTermDataMap(prev => ({ ...prev, [newTermId]: newTerm }));
+                                    setEditingClassSlots(prev => ({ ...prev, [item.id]: [] }));
+                                  }}>
+                                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Term" /></SelectTrigger>
+                                    <SelectContent>{branchTerms.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                ) : <span className="text-muted-foreground text-xs">No terms</span>
+                              ) : isGradingItem ? (
+                                branchSlots.length > 0 ? (
+                                  <Select value={currentSlotId} onValueChange={(newSlotId) => {
+                                    setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : { ...ei, metadata: { ...(ei.metadata as any || {}), grading_slot_id: newSlotId } }));
+                                  }}>
+                                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Slot" /></SelectTrigger>
+                                    <SelectContent>
+                                      {branchSlots.map(s => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                          {s.title || `${s.branch_name} - ${formatDate(new Date(s.grading_date))}`}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : <span className="text-muted-foreground text-[10px] leading-tight block">No grading slots for this branch — create one in Sales → Grading</span>
+                              ) : <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell className="px-2 font-medium text-right">{formatCurrency(item.total_amount)}</TableCell>
+                            <TableCell className="px-1"><Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemoveEditItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
+
+                {/* Class schedule selectors — one per class item, below the table like Create Invoice */}
+                {editItems.map((item) => {
+                  const metadata = item.metadata as any;
+                  const isClassItem = item.category_name === 'Classes' || item.is_lesson;
+                  if (!isClassItem || !invoice.branch_id) return null;
+                  const termIds: string[] = metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []);
+                  const classSlots = editingClassSlots[item.id] || [];
+                  const product = viewProducts.find(p => p.id === item.product_id);
+                  return (
+                    <div key={`sched-${item.id}`} className="space-y-1 md:space-y-2 mt-2">
+                      <h4 className="text-xs md:text-sm font-medium">{product?.name || 'Class'} — Select Class Schedule</h4>
+                      {termIds.map(termId => {
+                        const term = termDataMap[termId];
+                        if (!term) return null;
+                        return (
+                          <ClassScheduleSelector key={termId} branchId={invoice.branch_id!} studentAge={studentAge} selectedSlots={editingClassSlots[item.id] || []} onSlotsChange={(slots) => setEditingClassSlots(prev => ({ ...prev, [item.id]: slots }))} term={term} allowedClassTypes={product?.allowed_class_types} allowedDays={product?.lesson_days} lessonsPerWeek={product?.lessons_per_week} studentAllowedClassTypes={viewStudentAllowedClassTypes} />
+                        );
+                      })}
+                      {classSlots.length > 0 && renderClassSlotBadges(classSlots)}
+                    </div>
+                  );
+                })}
+
                 <Button variant="outline" className="w-full mt-2 h-8 text-xs" onClick={handleAddEditItem}><Plus className="h-3.5 w-3.5 mr-1" />Add Item</Button>
                 <Separator className="my-3" />
                 <div className="flex justify-end">

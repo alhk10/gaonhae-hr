@@ -3,7 +3,7 @@
  * Used by the public /pay and /access pages (no auth required).
  */
 import { supabase } from '@/integrations/supabase/client';
-import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
+import { assertValidPaymentProof, assertValidDateOfBirth, newClientRef } from '@/utils/publicPaymentValidation';
 
 export interface PublicBranch {
   id: string;
@@ -397,6 +397,8 @@ export interface SubmitGradingPaymentInput {
   resolved_grading_slot_id: string | null;
   payment_method: 'paynow' | 'bank_transfer';
   proof_file: File;
+  /** Stable id per form attempt — retries with the same ref return the original rows. */
+  client_ref?: string;
 }
 
 export interface PublicGradingSlot {
@@ -574,7 +576,8 @@ export const submitGradingPayment = async (
 
   const proofUrl = signed?.signedUrl ?? path;
 
-  const rows = input.items.map((item) => ({
+  const clientRef = input.client_ref || newClientRef();
+  const rows = input.items.map((item, idx) => ({
     first_name: fn,
     last_name: ln,
     email: input.email.trim().toLowerCase() || null,
@@ -589,6 +592,8 @@ export const submitGradingPayment = async (
     payment_method: input.payment_method,
     proof_url: proofUrl,
     status: 'pending_verification' as const,
+    // One client_ref per line item so a multi-item retry stays idempotent.
+    client_ref: `${clientRef}:${idx}`,
   }));
 
   const { data, error } = await supabase.rpc('submit_grading_payments', {

@@ -2,7 +2,7 @@
  * Public grading payment page (no auth).
  * Mounted at /grading. Intended subdomain: payment.gaonhae.app.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,12 +27,13 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import { usePaymentProofScan, recordProofScan } from '@/hooks/usePaymentProofScan';
-import { gstRateForCountry } from '@/utils/publicPaymentValidation';
+import { gstRateForCountry, newClientRef } from '@/utils/publicPaymentValidation';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import DuplicateSubmissionPrompt from '@/components/public/DuplicateSubmissionPrompt';
 import {
   checkPublicSubmissionDuplicate,
   updatePublicSubmission,
+  submitSubmissionEditRequest,
   type DuplicateSubmissionHit,
 } from '@/services/publicDuplicateSubmissionService';
 
@@ -383,6 +384,9 @@ const PublicGradingPayment: React.FC = () => {
 
   const [dupHit, setDupHit] = useState<DuplicateSubmissionHit | null>(null);
   const [dupBusy, setDupBusy] = useState(false);
+  // Stable per form mount — a retry after a network failure reuses the same
+  // reference, so the server returns the original rows instead of duplicating.
+  const clientRef = useRef(newClientRef());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,12 +413,35 @@ const PublicGradingPayment: React.FC = () => {
         branchId,
         amount: Number(totalAmount.toFixed(2)),
         proofFile,
+        email: email.trim(),
       });
       toast.success('Your earlier submission was updated');
       setDupHit(null);
       setSuccess({ refs: dupHit.reference_number ? [dupHit.reference_number] : [] });
     } catch (err: any) {
       toast.error(err?.message || 'Could not update your earlier submission');
+    } finally {
+      setDupBusy(false);
+    }
+  };
+
+  const handleRequestCorrection = async () => {
+    if (!dupHit) return;
+    setDupBusy(true);
+    try {
+      await submitSubmissionEditRequest({
+        source: 'grading',
+        recordId: dupHit.record_id,
+        studentName: `${firstName} ${lastName}`.trim(),
+        referenceNumber: dupHit.reference_number,
+        amount: dupHit.amount,
+        proposedChanges: { amount: Number(totalAmount.toFixed(2)), email: email.trim() },
+        reason: 'Parent re-submitted the form with different details',
+      });
+      toast.success('Correction request sent to our staff');
+      setDupHit(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not send the correction request');
     } finally {
       setDupBusy(false);
     }
@@ -441,6 +468,7 @@ const PublicGradingPayment: React.FC = () => {
         resolved_grading_slot_id: selectedSlotId || options?.slot_id || null,
         payment_method: paymentMethod,
         proof_file: proofFile,
+        client_ref: clientRef.current,
       });
       await recordProofScan('grading', result.ids?.[0], await proofScan.waitForResult());
       setSuccess({ refs: result.reference_numbers });
@@ -782,6 +810,7 @@ const PublicGradingPayment: React.FC = () => {
           onUpdateExisting={handleUpdateExisting}
           onSubmitAnyway={async () => { setDupHit(null); await doSubmit(); }}
           onCancel={() => setDupHit(null)}
+          onRequestCorrection={handleRequestCorrection}
         />
 
         <p className="text-xs text-muted-foreground text-center mt-6">
