@@ -219,7 +219,16 @@ const InvoiceActionApprovals: React.FC = () => {
                         {getActionLabel(request.action_type)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{request.invoice_number}</TableCell>
+                    <TableCell className="font-medium">
+                      {request.invoice_number}
+                      {request.action_type === 'item_refund' && (
+                        <ul className="text-xs text-muted-foreground font-normal list-disc pl-4 mt-0.5 space-y-0.5">
+                          {getRefundItemNames(request).map((name, i) => (
+                            <li key={i}>{name}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </TableCell>
                     <TableCell>{request.student_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{request.requested_by_email}</TableCell>
                     <TableCell className="text-sm">{formatDate(new Date(request.created_at))}</TableCell>
