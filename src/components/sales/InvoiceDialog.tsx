@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
+import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
@@ -383,6 +383,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // ─── View/Edit Mode State ──────────────────────────────────────
   const [invoice, setInvoice] = useState<(Invoice & { items: ServiceInvoiceItem[] }) | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const isDraftDeletable = invoice?.status === 'draft' && (invoice?.amount_paid || 0) === 0 && payments.length === 0;
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [editingClassSlots, setEditingClassSlots] = useState<Record<string, string[]>>({});
   const [termDataMap, setTermDataMap] = useState<Record<string, Term>>({});
@@ -419,6 +420,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const isPaidOrVerified = invoice?.status === 'paid' || invoice?.status === 'verified' || (invoice?.status as string) === 'partially_paid';
   const isCancelled = invoice?.status === 'cancelled';
+  const isVerifiedLocked = invoice?.status === 'verified';
+  const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
+  const [deletingDraft, setDeletingDraft] = useState(false);
 
   // ─── Effects ────────────────────────────────────────────────────
   // Preload reference data once when component mounts (create mode only)
@@ -1180,26 +1184,24 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   // ─── Edit Mode Logic ───────────────────────────────────────────
-  // Tax-inclusive flag for edit mode (derived from invoice's branch country)
-  const editIsTaxInclusive = useMemo(() => {
-    if (!invoice?.branch_id) return DEFAULT_TAX_INCLUDED;
-    const b = branches.find(br => br.id === invoice.branch_id);
-    const country = b?.country || null;
-    return country ? (COUNTRY_TAX_INCLUDED[country] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+  // Tax config for edit mode — identical to Create Invoice (branch country rate + inclusion rule)
+  const editCountry = useMemo(() => {
+    if (!invoice?.branch_id) return null;
+    return branches.find(br => br.id === invoice.branch_id)?.country || null;
   }, [invoice?.branch_id, branches]);
+  const editIsTaxInclusive = editCountry ? (COUNTRY_TAX_INCLUDED[editCountry] ?? DEFAULT_TAX_INCLUDED) : DEFAULT_TAX_INCLUDED;
+  const editTaxRatePct = editCountry ? (COUNTRY_TAX_RATES[editCountry] ?? DEFAULT_TAX_RATE) : DEFAULT_TAX_RATE;
 
   const recalcItem = (item: EditableItem): EditableItem => {
+    const rate = editTaxRatePct / 100;
     const gross = item.quantity * item.unit_price;
     const discountAmt = item.discount_type === 'percentage' ? gross * ((item.discount_value || 0) / 100) : (item.discount_value || 0);
     const net = Math.max(0, gross - discountAmt);
     if (editIsTaxInclusive) {
-      // unit_price is tax-inclusive: net IS the line total; tax is embedded
-      const lineSubtotal = net / (1 + item.tax_rate);
-      const lineTax = net - lineSubtotal;
-      return { ...item, tax_amount: lineTax, total_amount: net };
+      const lineSubtotal = net / (1 + rate);
+      return { ...item, tax_rate: rate, tax_amount: net - lineSubtotal, total_amount: net };
     }
-    // Tax-exclusive: net is subtotal, tax added on top
-    return { ...item, tax_amount: net * item.tax_rate, total_amount: net + net * item.tax_rate };
+    return { ...item, tax_rate: rate, tax_amount: net * rate, total_amount: net + net * rate };
   };
 
   const editTotals = useMemo(() => {
@@ -1253,8 +1255,27 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setEditItems(prev => prev.map(item => item.id !== itemId ? item : recalcItem({ ...item, discount_type: type, discount_value: value })));
   };
 
+  const handleDeleteDraft = async () => {
+    if (!invoice) return;
+    setDeletingDraft(true);
+    try {
+      await deleteInvoice(invoice.id);
+      toast.success(`Draft ${invoice.invoice_number} deleted`);
+      setDeleteDraftOpen(false);
+      onInvoiceUpdated?.();
+      setDialogOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete draft');
+    } finally { setDeletingDraft(false); }
+  };
+
   const handleSave = async () => {
     if (!invoice) return;
+    // Drop empty rows (no product selected) before saving
+    const blankIds = new Set(editItems.filter(i => !i.product_id).map(i => i.id));
+    if (blankIds.size > 0) {
+      editItems.splice(0, editItems.length, ...editItems.filter(i => !blankIds.has(i.id)));
+    }
     setSaving(true);
     try {
       const originalIds = new Set(invoice.items.map(i => i.id));
@@ -1513,13 +1534,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
               } />
               {mode === 'view' && !isCancelled ? (
                 <>
-                  <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setMode('edit')}>
-                    <Wrench className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Adjustments</span>
-                  </Button>
-                  {(['paid', 'verified', 'partial', 'partially_paid', 'draft'] as string[]).includes(invoice!.status) && (
+                  {!isVerifiedLocked && (
+                    <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setMode('edit')}>
+                      <Wrench className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Adjustments</span>
+                    </Button>
+                  )}
+                  {isDraftDeletable ? (
+                    <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => setDeleteDraftOpen(true)}>
+                      <Trash2 className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Delete</span>
+                    </Button>
+                  ) : !isVerifiedLocked && (['paid', 'partial', 'partially_paid', 'draft'] as string[]).includes(invoice!.status) && (
                     <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
                       <Ban className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Cancel & Refund</span>
                     </Button>
+                  )}
+                  {isVerifiedLocked && (
+                    <span className="text-[10px] text-muted-foreground">Locked — refund lines as credit</span>
                   )}
                 </>
               ) : mode === 'edit' ? (
@@ -1808,11 +1838,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Total</span>
-              <div className="font-medium">{formatCurrency(invoice.total_amount)}</div>
+              <div className="font-medium">{formatCurrency(mode === 'edit' ? editTotals.total : invoice.total_amount)}</div>
             </div>
             <div className="bg-muted/50 rounded-lg p-2">
               <span className="text-muted-foreground">Balance</span>
-              <div className={`font-medium ${invoice.balance_due > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(invoice.balance_due)}</div>
+              {(() => { const bal = mode === 'edit' ? editTotals.balanceDue : invoice.balance_due; return (
+                <div className={`font-medium ${bal > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(bal)}</div>
+              ); })()}
             </div>
           </div>
 
@@ -1965,7 +1997,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 <div className="flex justify-end">
                   <div className="w-full md:w-64 space-y-1.5">
                     <div className="flex justify-between text-xs md:text-sm"><span>Subtotal:</span><span>{formatCurrency(editTotals.subtotal)}</span></div>
-                    <div className="flex justify-between text-xs md:text-sm"><span>Tax{editIsTaxInclusive ? ' (incl.)' : ''}:</span><span>{formatCurrency(editTotals.tax)}</span></div>
+                    <div className="flex justify-between text-xs md:text-sm text-muted-foreground"><span>{editTaxRatePct > 0 ? `GST (${editTaxRatePct}%${editIsTaxInclusive ? ' incl.' : ''})` : 'Tax'}:</span><span>{formatCurrency(editTotals.tax)}</span></div>
                     <Separator />
                     <div className="flex justify-between font-bold text-sm md:text-base"><span>Total:</span><span>{formatCurrency(editTotals.total)}</span></div>
                     <div className="flex justify-between text-xs md:text-sm"><span>Paid:</span><span className="text-green-600">{formatCurrency(invoice.amount_paid)}</span></div>
@@ -2099,6 +2131,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         {isCreateMode && trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
         {dialogContent}
       </Dialog>
+
+      {/* Delete draft confirmation */}
+      <AlertDialog open={deleteDraftOpen} onOpenChange={setDeleteDraftOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete draft {invoice?.invoice_number}?</AlertDialogTitle>
+            <AlertDialogDescription>No payments have been made. The invoice and its linked grading, lessons and bookings will be removed.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingDraft}>Keep</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDeleteDraft(); }} disabled={deletingDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingDraft && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Delete draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Refund as credit (multi-line) dialog */}
       <RefundAsCreditDialog
