@@ -42,6 +42,8 @@ export interface SchoolFeesRow {
   payment_id: string | null;
   payment_number: string | null;
   payment_verification_status: string | null;
+  /** 'hello' = paid inside the /hello chat (invoice-backed); 'submission' = legacy /fees form */
+  source?: 'hello' | 'submission';
 }
 
 export interface SchoolFeesDeleteContext {

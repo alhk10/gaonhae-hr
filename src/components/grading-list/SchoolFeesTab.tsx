@@ -38,6 +38,7 @@ import {
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
+import { getPublicInvoiceFull } from '@/services/publicInvoiceService';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
@@ -114,7 +115,9 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     setInvoiceError(null);
     (async () => {
       try {
-        const detail = await getSchoolFeesInvoiceDetail(invoiceRow.id);
+        const detail = invoiceRow.source === 'hello' && invoiceRow.invoice_id
+          ? await getPublicInvoiceFull(invoiceRow.invoice_id)
+          : await getSchoolFeesInvoiceDetail(invoiceRow.id);
         if (!detail) throw new Error('No invoice found for this payment');
         const blob = await getInvoicePDFBlob(detail);
         if (cancelled) return;
@@ -421,7 +424,12 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   <TableCell>
                     <StatusBadge status={row.invoice_status || row.status} className="text-[10px]" />
                   </TableCell>
-                  {(canEdit || canDelete) && (
+                  {(canEdit || canDelete) && row.source === 'hello' && (
+                    <TableCell className="text-right text-[10px] text-muted-foreground whitespace-nowrap">
+                      {row.status === 'pending_verification' ? 'Check on dashboard' : 'Paid via /hello'}
+                    </TableCell>
+                  )}
+                  {(canEdit || canDelete) && row.source !== 'hello' && (
                     <TableCell className="text-right whitespace-nowrap">
                       {canEdit && !row.student_id && (
                         <Button

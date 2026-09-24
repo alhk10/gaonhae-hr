@@ -32,6 +32,8 @@ const BARE_PATH_PREFIX_TO_BUCKET: Record<string, string> = {
   'public-competition/': 'payment-proofs',
   'public-guards/': 'payment-proofs',
   'competition/': 'payment-proofs',
+  'public-hello/': 'payment-proofs',
+  'public-fees/': 'payment-proofs',
 };
 
 const parseStoragePath = (urlOrPath: string): ParsedUrl | null => {
