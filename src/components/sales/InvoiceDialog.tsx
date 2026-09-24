@@ -146,15 +146,6 @@ const isProductAvailableForBelt = (product: ProductWithVariants, studentBelt: st
   return product.allowed_belt_levels.includes(normalizedStudentBelt);
 };
 
-const isGradingProductForBelt = (productName: string, studentBelt: string): boolean => {
-  if (!studentBelt) return true;
-  const normalizedBelt = normalizeBelt(studentBelt);
-  if (!normalizedBelt) return true;
-  const parts = productName.split('>>').map(p => p.trim());
-  if (parts.length !== 2) return true;
-  return normalizeBelt(parts[0]) === normalizedBelt;
-};
-
 const fuzzyMatch = (target: string, query: string): boolean => {
   const t = target.toLowerCase();
   const q = query.toLowerCase();
