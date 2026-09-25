@@ -181,6 +181,7 @@ const PublicGradingList: React.FC = () => {
   const [lightboxRotation, setLightboxRotation] = useState(0);
   const [lightboxCtx, setLightboxCtx] = useState<{ submissionId: string; branchId: string } | null>(null);
   const [lightboxReuploadBusy, setLightboxReuploadBusy] = useState(false);
+  const [editProofBusy, setEditProofBusy] = useState(false);
   const [rejectRow, setRejectRow] = useState<PublicGradingListRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -2016,6 +2017,65 @@ const PublicGradingList: React.FC = () => {
                     <p className="text-[10px] text-muted-foreground mt-0.5">No matched student — cannot save certificate name.</p>
                   )}
                 </div>
+                {editRow.source === 'submission' && editRow.submission_id && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">Payment proof</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {editRow.proof_url ? (
+                        <button
+                          type="button"
+                          className="text-xs text-primary underline"
+                          onClick={() => {
+                            setLightboxCtx({ submissionId: editRow.submission_id!, branchId: editRow.branch_id || '' });
+                            setLightboxUrl(editRow.proof_url);
+                          }}
+                        >
+                          View current proof
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No proof uploaded</span>
+                      )}
+                      <input
+                        id="edit-row-proof-reupload-input"
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file || !editRow?.submission_id) return;
+                          setEditProofBusy(true);
+                          try {
+                            const newUrl = await adminReplaceGradingSubmissionProof(
+                              editRow.submission_id,
+                              file,
+                              editRow.branch_id || '',
+                            );
+                            toast.success('Payment proof replaced');
+                            setEditRow({ ...editRow, proof_url: newUrl });
+                            qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+                          } catch (err: any) {
+                            toast.error(err?.message || 'Failed to reupload payment proof');
+                          } finally {
+                            setEditProofBusy(false);
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        disabled={editProofBusy}
+                        onClick={() => document.getElementById('edit-row-proof-reupload-input')?.click()}
+                        title="Reupload payment proof"
+                      >
+                        <Upload className="h-3.5 w-3.5 mr-1" />
+                        {editProofBusy ? 'Uploading…' : (editRow.proof_url ? 'Reupload' : 'Upload')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {editRow.source === 'registration' && (
                   <div className="rounded-md border p-2 space-y-2">
                     <label className="text-xs text-muted-foreground">Student on this entry</label>
