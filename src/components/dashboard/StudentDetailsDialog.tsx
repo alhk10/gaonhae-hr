@@ -406,6 +406,19 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
           />
         </div>
       </DialogContent>
+      {student && (
+        <InvoiceDialog
+          mode="create"
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          branchId={branchId}
+          prefilledStudentId={student.id}
+          onInvoiceCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ['student-invoices-dialog', student.id] });
+            onStudentUpdated?.();
+          }}
+        />
+      )}
     </Dialog>
   );
 };
