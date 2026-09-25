@@ -8460,6 +8460,14 @@ export type Database = {
         Args: { p_id: string; p_index: number; p_new_url: string }
         Returns: string[]
       }
+      admin_replace_guards_proof: {
+        Args: { p_id: string; p_proof_url: string }
+        Returns: undefined
+      }
+      admin_replace_school_fees_proof: {
+        Args: { p_id: string; p_proof_url: string }
+        Returns: undefined
+      }
       admin_reset_password: {
         Args: {
           new_password_hash: string
