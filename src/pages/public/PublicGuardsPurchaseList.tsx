@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2 } from 'lucide-react';
+import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2, Upload } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
@@ -37,6 +37,7 @@ import {
   isVariantSelectionComplete,
   type GuardsPurchaseRow,
   type VariantSelectionsMap,
+  adminReplaceGuardsProof,
 } from '@/services/guardsPurchaseService';
 
 const PASSWORDS = ['Hp97533488', 'Hp96706488', 'Hp89234866', 'Hp84944041', 'Hp84128821', 'Hp88769491'];
@@ -88,6 +89,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxCtx, setLightboxCtx] = useState<{ id: string; branchId: string | null } | null>(null);
+  const [lightboxReuploadBusy, setLightboxReuploadBusy] = useState(false);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<GuardsPurchaseRow | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
