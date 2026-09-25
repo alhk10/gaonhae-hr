@@ -1,16 +1,19 @@
-# Plan: Grading belt auto-update + payment date default in staff invoice creation
+# Plan: Grading belt promotion on result + payment date default in staff invoice creation
 
-Two small changes to the staff Create Invoice flow (branch dashboard / student dialog "+" button).
+Two changes around staff-created grading invoices.
 
-## 1. Automatically update the student's belt when a grading item is invoiced
+## 1. Belt moves up only when the grading result is pass or double
 
-When staff create an invoice containing a Grading item (e.g. "Green Tip >> Green"), the student's belt is automatically set to the target belt ("Green").
+Current behaviour: creating an invoice with a Grading item (e.g. "Green Tip >> Green") creates the grading entry with the student's **current** belt — that stays as is. Setting the result today does not change the belt; the belt only moves later at certificate collection.
 
-- The invoice creation code already reads the belt transition from the grading product name and creates the grading entry — the belt update is added in the same place.
-- The belt only moves **up**: if the student is already on the target belt or higher, nothing changes (avoids demoting a student when an old grading is invoiced late).
-- Every automatic belt change is recorded in the student's change history, marked as coming from the invoice.
-- Also applies when a grading item is added while editing an existing invoice.
-- The normal grading flow (results, certificate collection) is untouched.
+New behaviour — when staff set the grading result (grading list, edit dialog):
+
+- **Pass** → student's belt moves up one level (e.g. Green Tip → Green).
+- **Double** → student's belt moves up two levels (e.g. Green Tip → Blue).
+- **Confirmed** or **Fail** → no belt change.
+- The new belt is worked out from the belt recorded on the grading entry, and the student's belt is only ever moved **up** — if the student is already on that belt or higher (e.g. result re-saved), nothing changes.
+- Every automatic belt change is recorded in the student's change history.
+- Certificate collection keeps working; it will not promote a second time because the student is already on the higher belt.
 
 ## 2. Payment date defaults to the invoice date
 
@@ -21,6 +24,6 @@ When staff record a payment while creating an invoice, the payment date now star
 
 ## Technical details
 
-- `src/services/invoiceService.ts` — in the existing grading-registration block (and the edit-invoice equivalent), after parsing the "From >> To" transition, promote `students.current_belt` to the parsed target belt using the existing belt-order helpers (`compareBeltLevels`), skipping equal/lower targets; write a `student_change_logs` entry.
+- `src/services/gradingPaymentSubmissionService.ts` — `adminUpdateGradingResult` (the single path used to set results) computes the target belt from the registration's `current_belt` using the existing `getNextBeltLevel` / `getDoubleBeltLevel` helpers (country-aware), then promotes `students.current_belt` only if the target is higher (`compareBeltLevels`), and writes a `student_change_logs` entry. The `admin_update_grading_result` RPC itself is unchanged.
 - `src/components/sales/InvoiceDialog.tsx` — `payDate` state initialises from `formData.issue_date`; a "payment date touched" flag stops the sync once staff edit it manually; reset logic updated.
 - No database or permission changes; no changes to the student portal or /hello.
