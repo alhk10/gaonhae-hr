@@ -1501,7 +1501,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   }
 
   const dialogContent = (
-    <DialogContent ref={(el) => { dialogContentRef.current = el as HTMLDivElement | null; setDialogContentEl(el); }} className="w-[98vw] sm:w-[95vw] max-w-[1400px] max-h-[95vh] sm:max-h-[90vh] min-h-[60vh] overflow-y-auto p-3 sm:p-6 top-[2%] sm:top-[5%] translate-y-0 flex flex-col">
+    <DialogContent ref={(el) => { dialogContentRef.current = el as HTMLDivElement | null; setDialogContentEl(el); }} className="w-[98vw] sm:w-[95vw] max-w-[1400px] max-h-[95vh] sm:h-[96vh] sm:max-h-[96vh] min-h-[60vh] overflow-y-auto p-3 sm:p-6 top-[2%] translate-y-0 flex flex-col">
       {/* ─── HEADER ─── */}
       <DialogHeader className="pb-2">
         {isCreateMode ? (
