@@ -7,8 +7,20 @@
     <title>Gaonhae Taekwondo</title>
     <meta name="description" content="Gaonhae Taekwondo management system" />
     <meta name="author" content="Gaonhae" />
+    <link rel="canonical" href="https://x.gaonhae.app/" />
+    <script>
+      // Only https://x.gaonhae.app may be indexed; every other host serving
+      // this app (gaonhae.app, *.lovable.app previews) is hidden from search.
+      if (window.location.hostname !== 'x.gaonhae.app') {
+        var m = document.createElement('meta');
+        m.name = 'robots';
+        m.content = 'noindex, nofollow';
+        document.head.appendChild(m);
+      }
+    </script>
     
     <meta property="og:title" content="Gaonhae Taekwondo" />
+    <meta property="og:url" content="https://x.gaonhae.app/" />
     <meta property="og:description" content="Gaonhae Taekwondo management system" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png" />
