@@ -55,6 +55,9 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
   onStudentUpdated,
   onViewInvoice,
 }) => {
+  const queryClient = useQueryClient();
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = React.useState(false);
+
   // Fetch invoices for this student
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ['student-invoices-dialog', student?.id, branchId],
@@ -244,6 +247,15 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
               <h3 className="flex items-center gap-2 text-sm font-semibold mb-2">
                 <Receipt className="w-4 h-4" />
                 Invoices
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-6 w-6 p-0"
+                  onClick={() => setInvoiceDialogOpen(true)}
+                  title="Create invoice for this student"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               </h3>
               <div className="bg-muted/50 rounded-lg p-2">
                 {invoicesLoading ? (
