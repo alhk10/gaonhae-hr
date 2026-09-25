@@ -141,12 +141,12 @@ export const getPendingSubmissionEditRequests = async (): Promise<SubmissionEdit
 
 /** Superadmin: approve — applies the proposed changes to the record. */
 export const approveSubmissionEditRequest = async (id: string): Promise<void> => {
-  const { error } = await db.rpc('approve_submission_edit_request', { p_request_id: id });
+  const { error } = await db.rpc('approve_submission_edit_request', { p_id: id });
   if (error) throw new Error(error.message);
 };
 
 /** Superadmin: reject a correction request. */
 export const rejectSubmissionEditRequest = async (id: string): Promise<void> => {
-  const { error } = await db.rpc('reject_submission_edit_request', { p_request_id: id });
+  const { error } = await db.rpc('reject_submission_edit_request', { p_id: id, p_note: null });
   if (error) throw new Error(error.message);
 };
