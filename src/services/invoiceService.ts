@@ -299,13 +299,15 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         total_amount: totalAmount,
         amount_paid: 0,
         balance_due: balanceDue,
-        status: 'draft',
+        status: totalAmount <= 0 ? 'verified' : 'draft',
         issue_date: issueDateStr,
         due_date: toISODateLocal(dueDate),
         payment_terms_days: invoiceData.payment_terms_days || 30,
         branch_id: invoiceData.branch_id,
         notes: invoiceData.notes,
-        internal_notes: invoiceData.internal_notes
+        internal_notes: totalAmount <= 0
+          ? [invoiceData.internal_notes, 'Sponsored — 100% discount, no payment required'].filter(Boolean).join(' ')
+          : invoiceData.internal_notes
       }])
       .select(`
         *,
