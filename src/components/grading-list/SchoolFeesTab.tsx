@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2, Upload } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import {
   getSchoolFeesStudentMatches,
   matchSchoolFeesSubmission,
   getSchoolFeesInvoiceDetail,
+  adminReplaceSchoolFeesProof,
   type SchoolFeesRow,
 } from '@/services/schoolFeesSubmissionService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
@@ -100,6 +101,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const { isSuperadmin: isSuperadminUser, email: superadminEmail } = useIsSuperadminUser();
   const [matchRow, setMatchRow] = useState<SchoolFeesRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [proofReuploadBusy, setProofReuploadBusy] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
 
   // Build the invoice PDF for the selected row and preview it inline
