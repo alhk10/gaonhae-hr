@@ -1,25 +1,29 @@
-# Make only gaonhae.app searchable on Google
+# Make only https://x.gaonhae.app searchable and search-engine optimised
 
 ## Goal
 
-Google should index **gaonhae.app** only. The Lovable URLs (gaonhae.lovable.app and the id-preview URL) should not appear in search results.
+Google should index **https://x.gaonhae.app** only. Every other address serving this app — gaonhae.app, gaonhae.lovable.app, and the id-preview URL — should stay out of search results.
 
 ## What changes
 
-1. **Tell Google the real address (index.html)**
-   - Add `<link rel="canonical" href="https://gaonhae.app/" />` and `<meta property="og:url" content="https://gaonhae.app/" />` so every page points Google at the custom domain as the one true address.
+1. **Point search engines at x.gaonhae.app (index.html)**
+   - Add `<link rel="canonical" href="https://x.gaonhae.app/" />` and `<meta property="og:url" content="https://x.gaonhae.app/" />` so every page names the subdomain as the one true address.
 
-2. **Hide the Lovable URLs from Google (index.html)**
-   - Add a small inline script in `<head>` that checks the site's address. If it is **not** gaonhae.app (i.e. any lovable.app preview or published URL), it adds a "noindex" tag telling Google not to list that page. On gaonhae.app nothing is added, so the real site stays fully searchable.
-   - This is the reliable way to do it: one build serves all addresses, and `robots.txt` alone can't differ per address (and blocking crawling via robots.txt would actually prevent Google from ever seeing the noindex tag).
+2. **Hide every other address from Google (index.html)**
+   - Add a small inline script in `<head>` that checks the site's address. If it is **not** x.gaonhae.app, it adds a "noindex" tag telling search engines not to list the page. On x.gaonhae.app nothing is added, so the real site stays fully searchable.
+   - This is the reliable approach: one build serves all addresses, and `robots.txt` can't differ per address (blocking crawling there would also stop Google from ever seeing the noindex tag).
 
-3. **Leave `public/robots.txt` as is** — it already allows crawling, which is what gaonhae.app needs.
+3. **Basic search optimisation (index.html + public/)**
+   - Keep the real title "Gaonhae Taekwondo" and a proper description (already set).
+   - Add `public/sitemap.xml` listing the public pages (/, /hello, /register) on https://x.gaonhae.app.
+   - Update `public/robots.txt` to allow crawling and add `Sitemap: https://x.gaonhae.app/sitemap.xml`.
 
-## What you'll need to do (one-time, outside the app)
+## What you'll need to do (one-time, outside the code)
 
-- In **Google Search Console**, add/verify the `gaonhae.app` property and use **Removals** or just wait: any lovable.app pages already in Google will drop out after Google re-crawls them and sees the noindex tag (typically days to a few weeks). I can't speed up Google's recrawl from the code side.
+- **Connect the subdomain**: x.gaonhae.app must be added as a custom domain (I can open the domain setup for you — it needs a DNS CNAME record at your domain provider).
+- In **Google Search Console**, verify the x.gaonhae.app property and submit the sitemap. Any gaonhae.app or lovable.app pages already in Google drop out after re-crawl (days to a few weeks); I can't speed that up from the code side.
 
 ## Notes
 
-- The change shows on the live site only after the next **publish**.
-- If you ever want the whole site hidden from Google instead, that's a one-line change — just ask.
+- Changes reach the live site only after the next **publish**.
+- This app is a single-page app, so search engines see one shared title/description for all pages. Per-page search listings would need the newer server-rendered template — say the word if you ever want that upgrade.
