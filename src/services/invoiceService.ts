@@ -305,7 +305,9 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
         payment_terms_days: invoiceData.payment_terms_days || 30,
         branch_id: invoiceData.branch_id,
         notes: invoiceData.notes,
-        internal_notes: invoiceData.internal_notes
+        internal_notes: totalAmount <= 0
+          ? [invoiceData.internal_notes, 'Sponsored — 100% discount, no payment required'].filter(Boolean).join(' ')
+          : invoiceData.internal_notes
       }])
       .select(`
         *,
