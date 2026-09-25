@@ -790,3 +790,29 @@ export const getGuardsPurchaseDeleteContext = async (id: string) => {
     invoice_number: (row?.invoice_number ?? null) as string | null,
   };
 };
+
+/**
+ * Replace the proof file on a guards purchase row.
+ */
+export const adminReplaceGuardsProof = async (
+  id: string,
+  file: File,
+  branchId: string | null,
+): Promise<string> => {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `public-guards/${branchId || 'unknown'}/edit_${Date.now()}_proof.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const url = signed?.signedUrl ?? path;
+  const { error: updErr } = await supabase.rpc('admin_replace_guards_proof' as any, {
+    p_id: id,
+    p_proof_url: url,
+  });
+  if (updErr) throw updErr;
+  return url;
+};
