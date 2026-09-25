@@ -558,11 +558,50 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
 
       <Dialog open={!!proofRow} onOpenChange={(o) => !o && setProofRow(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base">Payment proof</DialogTitle>
-            <DialogDescription className="text-xs">
-              {proofRow?.student_name} — {formatCurrency(Number(proofRow?.amount || 0))}
-            </DialogDescription>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
+            <div>
+              <DialogTitle className="text-base">Payment proof</DialogTitle>
+              <DialogDescription className="text-xs">
+                {proofRow?.student_name} — {formatCurrency(Number(proofRow?.amount || 0))}
+              </DialogDescription>
+            </div>
+            {proofRow && (
+              <>
+                <input
+                  id="school-fees-proof-reupload-input"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file || !proofRow) return;
+                    setProofReuploadBusy(true);
+                    try {
+                      const newUrl = await adminReplaceSchoolFeesProof(proofRow.id, file, proofRow.branch_id);
+                      toast.success('Payment proof replaced');
+                      setProofRow({ ...proofRow, proof_url: newUrl });
+                      qc.invalidateQueries({ queryKey: ['school-fees-list'] });
+                    } catch (err: any) {
+                      toast.error(err?.message || 'Failed to reupload payment proof');
+                    } finally {
+                      setProofReuploadBusy(false);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={proofReuploadBusy}
+                  onClick={() => document.getElementById('school-fees-proof-reupload-input')?.click()}
+                  title="Reupload payment proof"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {proofReuploadBusy ? 'Uploading…' : 'Reupload'}
+                </Button>
+              </>
+            )}
           </DialogHeader>
           {proofRow?.proof_url && (
             isPdf(proofRow.proof_url) ? (
