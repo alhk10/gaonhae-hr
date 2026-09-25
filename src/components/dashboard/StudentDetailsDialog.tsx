@@ -23,13 +23,15 @@ import {
   FileText,
   Receipt,
   ClipboardList,
-  Eye
+  Eye,
+  Plus
 } from 'lucide-react';
 
 import { Student } from '@/services/studentService';
 import EditStudentDialog from '@/components/sales/EditStudentDialog';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import PersonDocumentsTab from '@/components/documents/PersonDocumentsTab';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/utils/currencyUtils';
