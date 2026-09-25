@@ -724,17 +724,12 @@ const PublicHelloChat: React.FC = () => {
 
   // Identify -> match
   const handleIdentify = async () => {
-    if (!firstName.trim() || !branchId) {
-      toast.error('Please fill first name and branch');
+    if (!firstName.trim() || !branchId || !dob) {
+      toast.error('Please fill first name, date of birth and branch');
       return;
     }
     if (isBlockedEmail(email)) {
       toast.error(BLOCKED_EMAIL_MESSAGE);
-      return;
-    }
-    const hasAltIdentity = !!gender && (!!email.trim() || !!phone.trim());
-    if (!dob && !hasAltIdentity) {
-      toast.error('Please provide date of birth, or fill gender plus email or contact number');
       return;
     }
     setSubmitting(true);
@@ -1476,7 +1471,7 @@ const PublicHelloChat: React.FC = () => {
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase())} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Date of birth (recommended)</Label>
+                  <Label className="text-xs">Date of birth *</Label>
                   <div className="grid grid-cols-3 gap-2">
                     <Select value={dobDay} onValueChange={setDobDay}>
                       <SelectTrigger className="h-10"><SelectValue placeholder="Day" /></SelectTrigger>
@@ -1516,7 +1511,7 @@ const PublicHelloChat: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Gender (optional)</Label>
+                  <Label className="text-xs">Gender</Label>
                   <Select value={gender} onValueChange={setGender}>
                     <SelectTrigger className="h-10"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -1527,14 +1522,14 @@ const PublicHelloChat: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Email (optional)</Label>
+                  <Label className="text-xs">Email</Label>
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
                   {isBlockedEmail(email) && (
                     <p className="text-xs text-destructive">{BLOCKED_EMAIL_MESSAGE}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Contact number (optional)</Label>
+                  <Label className="text-xs">Contact number</Label>
                   <PhoneInput value={phone} onChange={setPhone} />
                 </div>
                 <Button onClick={handleIdentify} disabled={submitting} className="w-full h-11 mt-1">
