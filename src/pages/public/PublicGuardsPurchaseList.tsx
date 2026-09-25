@@ -343,7 +343,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           {r.proof_url ? (
                             <button
                               type="button"
-                              onClick={() => setLightboxUrl(r.proof_url)}
+                              onClick={() => { setLightboxUrl(r.proof_url); setLightboxCtx({ id: r.id, branchId: r.branch_id }); }}
                               className="block h-10 w-10 rounded border overflow-hidden hover:opacity-80"
                               title="View proof"
                             >
@@ -534,7 +534,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                 {detailsRow.proof_url && (
                   <button
                     type="button"
-                    onClick={() => setLightboxUrl(detailsRow.proof_url)}
+                    onClick={() => { setLightboxUrl(detailsRow.proof_url); setLightboxCtx({ id: detailsRow.id, branchId: detailsRow.branch_id }); }}
                     className="mt-1.5 block h-24 w-24 rounded border overflow-hidden hover:opacity-80"
                   >
                     <SignedImage src={detailsRow.proof_url} alt="proof" className="h-full w-full object-cover" />
@@ -547,9 +547,48 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       </Dialog>
 
       {/* Proof lightbox */}
-      <Dialog open={!!lightboxUrl} onOpenChange={(o) => !o && setLightboxUrl(null)}>
+      <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) { setLightboxUrl(null); setLightboxCtx(null); } }}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Proof of Payment</DialogTitle></DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
+            <DialogTitle>Proof of Payment</DialogTitle>
+            {lightboxCtx && (
+              <>
+                <input
+                  id="guards-proof-reupload-input"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file || !lightboxCtx) return;
+                    setLightboxReuploadBusy(true);
+                    try {
+                      const newUrl = await adminReplaceGuardsProof(lightboxCtx.id, file, lightboxCtx.branchId);
+                      toast.success('Payment proof replaced');
+                      setLightboxUrl(newUrl);
+                      refresh();
+                    } catch (err: any) {
+                      toast.error(err?.message || 'Failed to reupload payment proof');
+                    } finally {
+                      setLightboxReuploadBusy(false);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={lightboxReuploadBusy}
+                  onClick={() => document.getElementById('guards-proof-reupload-input')?.click()}
+                  title="Reupload payment proof"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {lightboxReuploadBusy ? 'Uploading…' : 'Reupload'}
+                </Button>
+              </>
+            )}
+          </DialogHeader>
           {lightboxUrl && <SignedImage src={lightboxUrl} alt="Proof" className="w-full h-auto" />}
         </DialogContent>
       </Dialog>
