@@ -17,5 +17,5 @@
 
 ## Staff invoice creation: belt + payment date
 
-- [ ] Grading result pass promotes belt by 1, double by 2; confirmed/fail no change; invoice keeps student's current belt
-- [ ] Payment date in manual invoice creation defaults to the invoice date
+- [x] Grading result pass promotes belt by 1, double by 2; confirmed/fail no change; invoice keeps student's current belt
+- [x] Payment date in manual invoice creation defaults to the invoice date
