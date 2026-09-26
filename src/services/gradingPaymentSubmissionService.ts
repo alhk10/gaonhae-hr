@@ -119,10 +119,12 @@ export const adminUpdateGradingResult = async (
 
     await supabase.from('student_change_logs').insert({
       student_id: reg.student_id,
+      action: 'update',
       field_name: 'current_belt',
       old_value: liveBelt,
       new_value: targetBelt,
-      changed_by: 'grading_result_promotion',
+      changed_by: null,
+      changed_by_email: 'system:grading_result_promotion',
     });
   } catch (promoteErr) {
     // Result is already saved — never fail the result update because of promotion.
