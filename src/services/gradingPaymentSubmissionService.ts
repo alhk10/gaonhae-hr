@@ -65,6 +65,71 @@ export const adminUpdateGradingResult = async (
     p_result: result,
   });
   if (error) throw error;
+
+  // Belt promotion: pass → up one belt, double → up two belts.
+  // confirmed/fail/null → no change. The belt is only ever moved UP,
+  // computed from the belt recorded on the registration, so re-saving
+  // a result never demotes or double-promotes a student.
+  if (result !== 'pass' && result !== 'double') return;
+  try {
+    const { data: reg, error: regErr } = await supabase
+      .from('grading_registrations')
+      .select('student_id, current_belt, branch_id')
+      .eq('id', registrationId)
+      .maybeSingle();
+    if (regErr || !reg?.student_id) return;
+
+    const { data: student, error: stuErr } = await supabase
+      .from('students')
+      .select('current_belt, branch_id')
+      .eq('id', reg.student_id)
+      .maybeSingle();
+    if (stuErr || !student) return;
+
+    const { getNextBeltLevel, getDoubleBeltLevel, compareBeltLevels } = await import('@/constants/beltLevels');
+
+    // Country comes from the student's branch (belt ladders differ SG/AU).
+    let country: string | null = null;
+    const branchId = student.branch_id || reg.branch_id;
+    if (branchId) {
+      const { data: branch } = await supabase
+        .from('branches')
+        .select('country')
+        .eq('id', branchId)
+        .maybeSingle();
+      country = branch?.country ?? null;
+    }
+
+    const baseBelt = reg.current_belt || student.current_belt;
+    if (!baseBelt) return;
+    const targetBelt = result === 'double'
+      ? getDoubleBeltLevel(baseBelt, country)
+      : getNextBeltLevel(baseBelt, country);
+    if (!targetBelt) return;
+
+    const liveBelt = student.current_belt || null;
+    // Only promote: skip when the student is already on the target or higher.
+    if (liveBelt && compareBeltLevels(liveBelt, targetBelt, country) >= 0) return;
+
+    const { error: updErr } = await supabase
+      .from('students')
+      .update({ current_belt: targetBelt })
+      .eq('id', reg.student_id);
+    if (updErr) throw updErr;
+
+    await supabase.from('student_change_logs').insert({
+      student_id: reg.student_id,
+      action: 'update',
+      field_name: 'current_belt',
+      old_value: liveBelt,
+      new_value: targetBelt,
+      changed_by: null,
+      changed_by_email: 'system:grading_result_promotion',
+    });
+  } catch (promoteErr) {
+    // Result is already saved — never fail the result update because of promotion.
+    console.error('Belt promotion after grading result failed:', promoteErr);
+  }
 };
 
 export const adminUpdateGradingRegistrationSlot = async (

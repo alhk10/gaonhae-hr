@@ -404,7 +404,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [recordPayment, setRecordPayment] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [payAmountTouched, setPayAmountTouched] = useState(false);
-  const [payDate, setPayDate] = useState(todayISO());
+  const [payDate, setPayDate] = useState(formData.issue_date);
+  const [payDateTouched, setPayDateTouched] = useState(false);
+  // Payment date defaults to the invoice date and follows it until staff pick a date manually.
+  useEffect(() => {
+    if (!payDateTouched && formData.issue_date) setPayDate(formData.issue_date);
+  }, [formData.issue_date, payDateTouched]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'cash' | 'bank_transfer'>('paynow');
   const [payReference, setPayReference] = useState('');
   const [payProofFile, setPayProofFile] = useState<File | null>(null);
@@ -1166,7 +1171,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setFormData({ student_id: '', branch_id: lockedBranchId || '', notes: '', issue_date: todayISO() });
     setItems([]); setNewItem({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
     setBranchTerms([]); setTermError(null); setSelectedClassSlots([]); setTaxIncluded(null); taxManuallySet.current = false;
-    setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO());
+    setRecordPayment(false); setPayAmount(''); setPayAmountTouched(false); setPayDate(todayISO()); setPayDateTouched(false);
     setPayReference(''); setPayProofFile(null);
   };
 
@@ -1759,7 +1764,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Payment Date</Label>
-                        <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className="h-7 text-xs" />
+                        <Input type="date" value={payDate} onChange={(e) => { setPayDate(e.target.value); setPayDateTouched(true); }} className="h-7 text-xs" />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Method</Label>

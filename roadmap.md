@@ -14,3 +14,8 @@
 - [x] Treat Australian advertised fees as GST-inclusive in `/hello`
 - [x] Store the extracted 10% GST without increasing the submitted total
 - [x] Return the Australian invoice template and bank-transfer details for Australian branches
+
+## Staff invoice creation: belt + payment date
+
+- [x] Grading result pass promotes belt by 1, double by 2; confirmed/fail no change; invoice keeps student's current belt
+- [x] Payment date in manual invoice creation defaults to the invoice date
