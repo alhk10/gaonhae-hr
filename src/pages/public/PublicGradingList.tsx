@@ -160,6 +160,14 @@ const PublicGradingList: React.FC = () => {
     } catch {}
     return null;
   });
+  // True only when unlocked with the all-branch password (Hp97533488);
+  // gates the grading report (Summary PDF) button.
+  const [isAllBranch, setIsAllBranch] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('guards_list_all_branch_v1') === '1';
+    } catch {}
+    return false;
+  });
   const editMode = unlockLevel !== 'none';
   // Deletions are never immediate from /access: they are sent to the
   // superadmin dashboard for approval (superadmins keep the direct path).
@@ -343,20 +351,24 @@ const PublicGradingList: React.FC = () => {
     if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
       setLockedBranchId(null);
+      setIsAllBranch(true);
       setPwInput('');
       try {
         sessionStorage.setItem('guards_list_unlocked_v1', '1');
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.setItem('guards_list_all_branch_v1', '1');
         sessionStorage.removeItem(LOCKED_BRANCH_KEY);
       } catch {}
       toast.success('Edit mode enabled');
     } else if (branchId) {
       setUnlockLevel('standard');
       setLockedBranchId(branchId);
+      setIsAllBranch(false);
       setPwInput('');
       try {
         sessionStorage.setItem('guards_list_unlocked_v1', '1');
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
+        sessionStorage.removeItem('guards_list_all_branch_v1');
         sessionStorage.setItem(LOCKED_BRANCH_KEY, branchId);
       } catch {}
       toast.success('Edit mode enabled for your branch');
@@ -368,10 +380,12 @@ const PublicGradingList: React.FC = () => {
   const handleLock = () => {
     setUnlockLevel('none');
     setLockedBranchId(null);
+    setIsAllBranch(false);
     setBranchFilter('all');
     try {
       sessionStorage.removeItem('guards_list_unlocked_v1');
       sessionStorage.removeItem('guards_list_unlock_level_v1');
+      sessionStorage.removeItem('guards_list_all_branch_v1');
       sessionStorage.removeItem(LOCKED_BRANCH_KEY);
     } catch {}
   };
@@ -1483,7 +1497,7 @@ const PublicGradingList: React.FC = () => {
             >
               <Download className="h-4 w-4" />
             </Button>
-            {canDelete && (
+            {canDelete && isAllBranch && (
               <Button
                 type="button"
                 variant="secondary"
