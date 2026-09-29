@@ -724,6 +724,21 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     runBulkDownload(inputs);
   };
 
+  const allCertCount = buildBulkInputs(displayedStudents).inputs.length;
+
+  const handlePrintAllCertificates = () => {
+    if (!isMorley) { toast.info('Certificate template pending for this branch'); return; }
+    const { inputs, eligibleStudents, skipped } = buildBulkInputs(displayedStudents);
+    if (inputs.length === 0) {
+      toast.error('No students in this list are eligible for certificates (require pass or double).');
+      return;
+    }
+    if (skipped > 0) toast.info(`${skipped} student${skipped === 1 ? '' : 's'} skipped (not pass/double or missing data)`);
+    const unpaidNames = eligibleStudents.filter(s => s.grading_paid !== 'paid').map(s => s.student_name);
+    if (unpaidNames.length > 0) { setPendingBulkPrint({ inputs, unpaidNames }); return; }
+    runBulkDownload(inputs);
+  };
+
   const allVisibleSelected = displayedStudents.length > 0 && displayedStudents.every(s => selectedIds.has(s.student_id));
   const someVisibleSelected = displayedStudents.some(s => selectedIds.has(s.student_id));
   const toggleAll = () => {
@@ -830,6 +845,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                 title="Print grading preparation checklist"
               >
                 <Printer className="w-3.5 h-3.5 mr-1" /> Print
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={handlePrintAllCertificates}
+                disabled={!isMorley || bulkPrinting || allCertCount === 0}
+                title={!isMorley ? 'Template pending for this branch' : 'Print certificates for all students shown (double promotion = 2 certificates)'}
+              >
+                <Award className="w-3.5 h-3.5 mr-1" />
+                {bulkPrinting ? 'Generating…' : `Print All Certificates (${allCertCount})`}
               </Button>
             </div>
             <div className="flex gap-2">
