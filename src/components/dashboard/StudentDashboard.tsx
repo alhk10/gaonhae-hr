@@ -745,7 +745,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       toast.success('Invoice PDF downloaded');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate PDF');
     } finally {
       setGeneratingPdfId(null);
     }

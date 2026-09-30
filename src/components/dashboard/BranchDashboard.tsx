@@ -728,7 +728,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       toast.success('Invoice PDF downloaded');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
+       toast.error(error instanceof Error ? error.message : 'Failed to generate PDF');
     } finally {
       setPdfLoadingId(null);
     }

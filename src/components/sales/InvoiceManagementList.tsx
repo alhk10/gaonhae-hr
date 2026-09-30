@@ -411,7 +411,7 @@ const InvoiceManagementList: React.FC = () => {
       toast.success('Invoice PDF downloaded');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate PDF');
     } finally {
       setPdfLoadingId(null);
     }
@@ -442,7 +442,6 @@ const InvoiceManagementList: React.FC = () => {
       // Enrich with branch name + bank transfer info (needed for the SMS-style body)
       let branchName: string | undefined;
       let branchAddress: string | undefined;
-      let branchCountry = 'Singapore';
       if (invoice.branch_id) {
         const { data: branchData } = await supabase
           .from('branches')
@@ -451,7 +450,6 @@ const InvoiceManagementList: React.FC = () => {
           .single();
         branchName = branchData?.name;
         branchAddress = branchData?.address;
-        if (branchData?.country) branchCountry = branchData.country;
       }
       const bankTransferInfo = invoiceData.template?.bank_transfer_info;
 
