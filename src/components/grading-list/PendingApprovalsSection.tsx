@@ -11,13 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, UserPlus, PencilLine } from 'lucide-react';
+import { Loader2, UserPlus, PencilLine, Pencil } from 'lucide-react';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import {
   getPendingStudentApprovals,
   approvePendingApproval,
   rejectPendingApproval,
+  updatePendingApprovalDetails,
   type PendingStudentApproval,
   type PendingApprovalKind,
 } from '@/services/publicStudentApprovalService';
@@ -50,6 +52,17 @@ const showValue = (k: string, v: any) => {
   if (v === null || v === undefined || v === '') return '—';
   if (k === 'date_of_birth') return formatDate(String(v));
   return String(v);
+};
+
+/** DD/MM/YYYY (or ISO) -> ISO yyyy-mm-dd for saving; returns null when unparsable. */
+const toIsoDate = (raw: string): string | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 };
 
 interface Props {
