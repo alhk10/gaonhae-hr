@@ -158,6 +158,46 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
     }
   };
 
+  const openEdit = (row: PendingStudentApproval) => {
+    const vals: Record<string, string> = {};
+    for (const [k, v] of Object.entries(row.details)) {
+      if (v === null || v === undefined) continue;
+      vals[k] = k === 'date_of_birth' ? formatDate(String(v)) : String(v);
+    }
+    setEditValues(vals);
+    setEditing(row);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editing) return;
+    const details: Record<string, any> = {};
+    for (const [k, v] of Object.entries(editValues)) {
+      const trimmed = v.trim();
+      if (k === 'date_of_birth') {
+        if (!trimmed) continue;
+        const iso = toIsoDate(trimmed);
+        if (!iso) {
+          toast.error('Date of birth must be DD/MM/YYYY');
+          return;
+        }
+        details[k] = iso;
+      } else {
+        details[k] = trimmed;
+      }
+    }
+    setBusyId(editing.id);
+    try {
+      await updatePendingApprovalDetails(editing, details);
+      toast.success('Details updated');
+      setEditing(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not save changes');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const Count: React.FC<{ value: number; branch: string; kind: PendingApprovalKind }> = ({ value, branch, kind }) => {
     if (!value) return <span>–</span>;
     return (
