@@ -44,6 +44,7 @@ export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceDa
       total_amount: Number(it.total_price || 0),
       tax_rate: 0,
       tax_amount: 0,
+      metadata: it.refunded ? ({ refunded: true } as any) : undefined,
     })),
   };
 }
