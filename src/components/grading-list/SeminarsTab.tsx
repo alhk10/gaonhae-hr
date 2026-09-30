@@ -227,7 +227,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
         <div className="text-sm text-muted-foreground">No seminar bookings yet.</div>
       ) : (
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="access-list-table">
             <TableHeader>
               <TableRow>
                 <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
@@ -245,8 +245,8 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.submission_id}>
-                  <TableCell className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
-                  <TableCell className="text-xs px-2 py-1 font-medium">
+                  <TableCell data-label="Branch" data-field="branch" className="text-xs px-2 py-1">{r.branch_name || '—'}</TableCell>
+                  <TableCell data-label="Student" data-field="student" className="text-xs px-2 py-1 font-medium">
                     <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                     <SubmissionFlagBadges flag={flags?.[r.submission_id]} />
                     {r.matched_invoice_id && (
@@ -259,13 +259,13 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
-                  <TableCell className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
-                  <TableCell className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
-                  <TableCell className="px-2 py-1">
+                  <TableCell data-label="Belt" data-field="belt" className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
+                  <TableCell data-label="Seminar" data-field="details" className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
+                  <TableCell data-label="Package" data-field="details" className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
+                  <TableCell data-label="Status" data-field="status" className="px-2 py-1">
                     <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
                   </TableCell>
-                  <TableCell className="text-xs px-2 py-1 text-right">
+                  <TableCell data-label="Amount" data-field="amount" className="text-xs px-2 py-1 text-right">
                     ${Number(r.amount).toFixed(2)}
                     {Number(r.discount_amount) > 0 && (
                       <div className="text-[10px] text-green-700">
@@ -273,10 +273,10 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="px-2 py-1">
+                  <TableCell data-label="Proof" data-field="proof" className="px-2 py-1">
                     <Thumb url={r.proof_url} title={`${r.student_name} — Payment Proof`} submissionId={r.submission_id} branchId={r.branch_id} />
                   </TableCell>
-                  <TableCell className="px-2 py-1">
+                  <TableCell data-label="Actions" data-field="actions" className="px-2 py-1">
                     <div className="flex items-center gap-1">
                       {canEdit && (
                         <button
@@ -326,7 +326,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
                   </TableCell>
 
                   {canDelete && (
-                    <TableCell className="px-2 py-1">
+                    <TableCell data-label="Actions" data-field="actions" className="px-2 py-1">
                       {onRequestDelete && (
                         <button
                           type="button"
