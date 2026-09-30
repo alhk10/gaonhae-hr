@@ -482,7 +482,7 @@ export const submitCompetitionPayment = async (
     amount_net: input.amount_net ?? null,
     gst_amount: input.gst_amount ?? null,
     payment_method: input.payment_method,
-    proof_url: proofUrl,
+    proof_url: proofUrl ?? '',
     certificate_url: certificateUrl,
     event_id: input.event_id,
     gender: input.gender ?? null,
@@ -860,3 +860,17 @@ export const adminReplaceCompetitionGradingCardAt = async (
 
 
 
+/** /hello: hold the recognised student's credit against a competition submission (server re-validates). */
+export const applyHelloCreditToCompetition = async (
+  sessionId: string,
+  studentId: string,
+  submissionId: string,
+): Promise<number> => {
+  const { data, error } = await supabase.rpc('apply_hello_credit_to_competition' as any, {
+    p_session_id: sessionId,
+    p_student_id: studentId,
+    p_submission_id: submissionId,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+};
