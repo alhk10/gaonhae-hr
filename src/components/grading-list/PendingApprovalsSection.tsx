@@ -79,6 +79,8 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
   const [rejecting, setRejecting] = useState<PendingStudentApproval | null>(null);
   const [reason, setReason] = useState('');
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<PendingStudentApproval | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-pending-student-approvals', lockedBranchId || 'all'],
