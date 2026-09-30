@@ -28,6 +28,7 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import CompetitionRegistrationForm from '@/components/public/CompetitionRegistrationForm';
+import { getHelloStudentPhoto, saveHelloStudentPhoto } from '@/services/helloStudentPhotoService';
 import { PhoneInput } from '@/components/ui/phone-input';
 import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
@@ -270,6 +271,8 @@ const PublicHelloChat: React.FC = () => {
   const [piExtraPhones, setPiExtraPhones] = useState<string[]>([]);
   const [piLoaded, setPiLoaded] = useState(false);
   const [piSaving, setPiSaving] = useState(false);
+  const [piPhotoFile, setPiPhotoFile] = useState<File | null>(null);
+  const [piPhotoSaving, setPiPhotoSaving] = useState(false);
   const [piPending, setPiPending] = useState<string[] | null>(null);
 
 
@@ -366,10 +369,17 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
   });
 
-  const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching } = useQuery({
+  const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching, refetch: refetchPersonalInfo } = useQuery({
     queryKey: ['hello-personal-info', sessionId, matched?.id],
     queryFn: () => getChatStudentPersonalInfo(sessionId!, matched!.id),
     enabled: !!sessionId && !!matched?.id && (stage === 'personal_info' || stage === 'competition'),
+  });
+  const { data: savedPhotoUrl, refetch: refetchSavedPhoto } = useQuery({
+    queryKey: ['hello-saved-photo', sessionId, matched?.id],
+    queryFn: () => getHelloStudentPhoto(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && !!personalInfo?.has_passport_photo && (stage === 'personal_info' || stage === 'competition'),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   useEffect(() => {
@@ -430,6 +440,13 @@ const PublicHelloChat: React.FC = () => {
     }
     setPiSaving(true);
     try {
+      if (piPhotoFile) {
+        setPiPhotoSaving(true);
+        await saveHelloStudentPhoto(sessionId, matched.id, piPhotoFile);
+        setPiPhotoFile(null);
+        await refetchPersonalInfo();
+        await refetchSavedPhoto();
+      }
       const res = await updateChatStudentPersonalInfo({
         session_id: sessionId,
         student_id: matched.id,
@@ -451,6 +468,7 @@ const PublicHelloChat: React.FC = () => {
       toast.error(err?.message || 'Could not save your details');
     } finally {
       setPiSaving(false);
+      setPiPhotoSaving(false);
     }
   };
 
@@ -1692,6 +1710,7 @@ const PublicHelloChat: React.FC = () => {
                     ? { sessionId, studentId: matched.id, availableCredit: Number(availableCredit) || 0 }
                     : null
                 }
+                savedPhoto={sessionId && savedPhotoUrl && matched ? { sessionId, studentId: matched.id, previewUrl: savedPhotoUrl } : null}
                 onSuccess={(ref) => {
                   refetchCredit();
                   if (sessionId) logChatEvent(sessionId, 'competition_registration_submitted', { reference: ref }).catch(() => {});
@@ -1820,6 +1839,12 @@ const PublicHelloChat: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Passport-size photo</Label>
+                        {savedPhotoUrl && !piPhotoFile && <img src={savedPhotoUrl} alt="Current passport-size photo" className="h-28 w-24 rounded-md border object-cover" />}
+                        <ProofOfPaymentUpload value={piPhotoFile} onChange={setPiPhotoFile} acceptPdf={false} maxSizeMB={5} label={savedPhotoUrl ? 'Replace photo' : 'Upload photo'} disabled={piSaving} />
+                        {piPhotoSaving && <p className="text-xs text-muted-foreground">Saving photo…</p>}
+                      </div>
                       {piPending && (
                         <div className="rounded bg-muted px-2 py-1.5 text-[12px]">
                           {piPending.length > 0
