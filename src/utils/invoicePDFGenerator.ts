@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import australiaLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 
@@ -143,9 +144,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   let yPos = 20;
 
   // Load and add logo with proper aspect ratio (downscaled to ~200px)
-  const logoResult = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
-  // A removed logo should not prevent the saved country letterhead from being printed.
-  if (invoice.template.logo_url && !logoResult) console.warn('Invoice template logo is unavailable');
+  const savedLogo = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
+  // The saved Australian storage object can be missing; retain branding without replacing its country letterhead.
+  const logoResult = savedLogo ?? (invoice.template.country === 'AU' ? await loadImage(australiaLogo, 200, 200) : null);
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
@@ -350,14 +351,15 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  const gstPct = invoice.subtotal > 0 && invoice.tax_amount > 0
-    ? Math.round((invoice.tax_amount / invoice.subtotal) * 100)
+  const isAustralian = invoice.template.country === 'AU';
+  const gstPct = invoice.tax_amount > 0
+    ? isAustralian ? 10 : 9
     : null;
-  doc.text(gstPct ? 'Subtotal (before GST):' : 'Subtotal:', totalsX, yPos);
+  doc.text(gstPct ? (isAustralian ? 'Subtotal (incl GST):' : 'Subtotal (before GST):') : 'Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
-  doc.text(gstPct ? `GST (${gstPct}%):` : 'GST:', totalsX, yPos);
+  doc.text(gstPct ? `GST (${gstPct}%${isAustralian ? ' included' : ''}):` : 'GST:', totalsX, yPos);
   doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
