@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2, Upload } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2, Upload, Pencil, ImagePlus, Coins } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StatusBadge from './StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ import {
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import { getPublicInvoiceFull } from '@/services/publicInvoiceService';
 import SchoolFeeProductSettingsDialog from '@/components/grading-list/SchoolFeeProductSettingsDialog';
+import { SchoolFeesEditDialog, SchoolFeesExtraProofDialog, SchoolFeesOverpayDialog, schoolFeesPaidDiff } from './SchoolFeesRowDialogs';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
 import SubmissionFlagBadges, { useSubmissionFlags } from './SubmissionFlagBadges';
@@ -103,6 +104,17 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
   const [busy, setBusy] = useState(false);
   const [proofReuploadBusy, setProofReuploadBusy] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [editRow, setEditRow] = useState<SchoolFeesRow | null>(null);
+  const [extraProofRow, setExtraProofRow] = useState<SchoolFeesRow | null>(null);
+  const [overpayRow, setOverpayRow] = useState<SchoolFeesRow | null>(null);
+  const refreshList = () => qc.invalidateQueries({ queryKey: ['school-fees-list'] });
+  const rowExtras = (row: SchoolFeesRow) => {
+    const diff = schoolFeesPaidDiff(row);
+    const scanned = !!row.proof_url && row.scan_amount != null;
+    // No amount read from the screenshot, or screenshots don't add up to the amount due
+    const mismatch = !!row.proof_url && (row.scan_amount == null ? (row.extra_proofs?.length || 0) === 0 || (diff != null && Math.abs(diff) > 0.01) : diff != null && Math.abs(diff) > 0.01);
+    return { diff, scanned, mismatch, short: diff != null && diff < -0.01, over: diff != null && diff > 0.01 };
+  };
 
   // Build the invoice PDF for the selected row and preview it inline
   useEffect(() => {
@@ -373,6 +385,20 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   <TableCell className="text-xs text-right whitespace-nowrap">
                     {formatCurrency(Number(row.amount || 0))}
+                    {(() => {
+                      const x = rowExtras(row);
+                      if (!x.mismatch) return null;
+                      return (
+                        <div className="mt-0.5 flex flex-col items-end gap-0.5">
+                          <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-800 border-amber-200">
+                            {x.over ? `Overpaid ${formatCurrency(x.diff!)}` : `Short ${formatCurrency(-x.diff!)}`}
+                          </Badge>
+                          {row.overpayment_request_status && (
+                            <span className="text-[10px] text-muted-foreground">Credit {row.overpayment_request_status}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{methodLabel(row.payment_method)}</TableCell>
                   <TableCell>
@@ -395,6 +421,9 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                       </button>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                    {(row.extra_proofs?.length || 0) > 0 && (
+                      <span className="text-[10px] text-muted-foreground">+{row.extra_proofs!.length}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-xs font-mono whitespace-nowrap">
@@ -428,11 +457,41 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                   </TableCell>
                   {(canEdit || canDelete) && row.source === 'hello' && (
                     <TableCell className="text-right text-[10px] text-muted-foreground whitespace-nowrap">
-                      {row.status === 'pending_verification' ? 'Check on dashboard' : 'Paid via /hello'}
+                      {canEdit && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" disabled={busy} onClick={() => setEditRow(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canEdit && rowExtras(row).mismatch && !rowExtras(row).over && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" title="Add 2nd payment screenshot" onClick={() => setExtraProofRow(row)}>
+                          <ImagePlus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canEdit && rowExtras(row).over && !row.overpayment_request_status && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" title="Request overpayment as credit" disabled={!row.student_id} onClick={() => setOverpayRow(row)}>
+                          <Coins className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <div>{row.status === 'pending_verification' ? 'Check on dashboard' : 'Paid via /hello'}</div>
                     </TableCell>
                   )}
                   {(canEdit || canDelete) && row.source !== 'hello' && (
                     <TableCell className="text-right whitespace-nowrap">
+                      {canEdit && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" disabled={busy} onClick={() => setEditRow(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canEdit && rowExtras(row).mismatch && !rowExtras(row).over && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" title="Add 2nd payment screenshot" onClick={() => setExtraProofRow(row)}>
+                          <ImagePlus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canEdit && rowExtras(row).over && !row.overpayment_request_status && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" title="Request overpayment as credit" disabled={!row.student_id} onClick={() => setOverpayRow(row)}>
+                          <Coins className="h-4 w-4" />
+                        </Button>
+                      )}
                       {canEdit && !row.student_id && (
                         <Button
                           size="icon"
@@ -491,6 +550,9 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
         </div>
       )}
 
+      <SchoolFeesEditDialog row={editRow} onClose={() => setEditRow(null)} onDone={refreshList} actor={actor} />
+      <SchoolFeesExtraProofDialog row={extraProofRow} onClose={() => setExtraProofRow(null)} onDone={refreshList} />
+      <SchoolFeesOverpayDialog row={overpayRow} onClose={() => setOverpayRow(null)} onDone={refreshList} actor={actor} />
       <RefundAsCreditDialog
         publicMode
         invoiceId={refundInvoiceId}
@@ -620,6 +682,29 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                 className="w-full max-h-[70vh] object-contain rounded border"
               />
             )
+          )}
+          {proofRow && (proofRow.scan_amount != null || (proofRow.extra_proofs?.length || 0) > 0) && (
+            <div className="text-xs text-muted-foreground">
+              First screenshot: {proofRow.scan_amount != null ? formatCurrency(proofRow.scan_amount) : 'amount not read'}
+            </div>
+          )}
+          {(proofRow?.extra_proofs || []).map((p, i) => (
+            <div key={i} className="space-y-1">
+              <div className="text-xs text-muted-foreground">
+                Screenshot {i + 2}: {p.amount != null ? formatCurrency(Number(p.amount)) : 'no amount entered'}
+              </div>
+              <SignedImage src={p.url} alt={`Payment proof ${i + 2}`} className="w-full max-h-[50vh] object-contain rounded border" />
+            </div>
+          ))}
+          {proofRow && proofRow.paid_total != null && (
+            <div className="text-xs font-medium">
+              Total from screenshots {formatCurrency(proofRow.paid_total)} · due {formatCurrency(Number(proofRow.amount || 0))}
+            </div>
+          )}
+          {proofRow && canEdit && rowExtras(proofRow).mismatch && !rowExtras(proofRow).over && (
+            <Button size="sm" variant="outline" className="text-xs" onClick={() => { setExtraProofRow(proofRow); setProofRow(null); }}>
+              <ImagePlus className="h-4 w-4 mr-1" />Add 2nd screenshot
+            </Button>
           )}
         </DialogContent>
       </Dialog>
