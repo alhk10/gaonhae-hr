@@ -112,7 +112,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     const diff = schoolFeesPaidDiff(row);
     const scanned = !!row.proof_url && row.scan_amount != null;
     // No amount read from the screenshot, or screenshots don't add up to the amount due
-    const mismatch = !!row.proof_url && (row.scan_amount == null ? (row.extra_proofs?.length || 0) === 0 || (diff != null && Math.abs(diff) > 0.01) : diff != null && Math.abs(diff) > 0.01);
+    const mismatch = !!row.proof_url && (row.scan_amount == null ? ((row.extra_proofs?.length || 0) === 0 && row.status === 'pending_verification') || (diff != null && Math.abs(diff) > 0.01) : diff != null && Math.abs(diff) > 0.01);
     return { diff, scanned, mismatch, short: diff != null && diff < -0.01, over: diff != null && diff > 0.01 };
   };
 
@@ -391,7 +391,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                       return (
                         <div className="mt-0.5 flex flex-col items-end gap-0.5">
                           <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-800 border-amber-200">
-                            {x.over ? `Overpaid ${formatCurrency(x.diff!)}` : `Short ${formatCurrency(-x.diff!)}`}
+                            {x.diff == null ? 'Amount not read' : x.over ? `Overpaid ${formatCurrency(x.diff)}` : `Short ${formatCurrency(-x.diff)}`}
                           </Badge>
                           {row.overpayment_request_status && (
                             <span className="text-[10px] text-muted-foreground">Credit {row.overpayment_request_status}</span>
