@@ -28,6 +28,7 @@ export interface InvoiceItem {
 
 export interface InvoiceTemplate {
   letterhead_url?: string;
+  logo_url?: string;
   paynow_qr_url?: string;
   country?: string;
   default_notes?: string;
@@ -62,14 +63,6 @@ export interface InvoiceData {
   };
   template?: InvoiceTemplate;
 }
-
-const COMPANY_INFO = {
-  name: 'GAONHAE TAEKWONDO LLP',
-  address: 'Singapore',
-  phone: '+65 9XXX XXXX',
-  email: 'info@gaonhae.com',
-  uen: 'T24LL0001A'
-};
 
 interface LoadedImage {
   data: string;
@@ -141,13 +134,17 @@ const resolveInvoiceStatus = (invoice: InvoiceData): string => {
 };
 
 export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
+  if (!invoice.template?.country || !invoice.template.letterhead_url?.trim()) {
+    throw new Error('The country invoice template and letterhead are required to generate this PDF');
+  }
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let yPos = 20;
 
   // Load and add logo with proper aspect ratio (downscaled to ~200px)
-  const logoResult = await loadImage('/images/company-logo.jpg', 200, 200);
+  const logoResult = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
+  if (invoice.template.logo_url && !logoResult) throw new Error('Could not load the country invoice logo');
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
@@ -165,8 +162,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const textStartX = margin + (logoResult ? logoWidth + 5 : 0); // Offset if logo exists
   
   if (letterheadText && letterheadText.trim()) {
-    // Render letterhead as multi-line text
-    const lines = letterheadText.split('\n');
+    // Wrap the saved letterhead within the space between logo and invoice title.
+    const lines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - 38 - textStartX)) as string[]);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
@@ -177,16 +174,6 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       }
       doc.text(line.trim(), textStartX, yPos + 5 + (index * 5));
     });
-  } else {
-    // Fallback: Draw default text manually
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(COMPANY_INFO.name, textStartX, yPos + 8);
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(COMPANY_INFO.address, textStartX, yPos + 15);
-    doc.text(`UEN: ${COMPANY_INFO.uen}`, textStartX, yPos + 21);
   }
 
   // Invoice title on the right
@@ -194,7 +181,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
 
-  yPos += 40;
+  yPos += Math.max(40, 10 + letterheadText.split('\n').length * 5);
 
   // Draw a line
   doc.setDrawColor(200, 200, 200);
@@ -421,7 +408,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     let qrData: LoadedImage | null = null;
     
     // Load QR code if available
-    if (hasQrCode) {
+      if (hasQrCode) {
       qrData = await loadImage(invoice.template!.paynow_qr_url!, 168, 168);
     }
     
@@ -464,7 +451,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.text('Bank Transfer:', rightColumnX, notesStartY);
       doc.setFont('helvetica', 'normal');
       
-      const bankLines = invoice.template!.bank_transfer_info!.split('\n');
+       const bankLines = invoice.template!.bank_transfer_info!.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), rightColumnWidth) as string[]);
       let bankY = notesStartY + 5;
       bankLines.forEach((line) => {
         doc.text(line.trim(), rightColumnX, bankY);
