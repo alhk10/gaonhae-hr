@@ -1261,6 +1261,7 @@ export type Database = {
           competition_at: string | null
           court: string | null
           created_at: string
+          credit_applied: number
           current_belt: string | null
           date_of_birth: string | null
           display_name: string | null
@@ -1309,6 +1310,7 @@ export type Database = {
           competition_at?: string | null
           court?: string | null
           created_at?: string
+          credit_applied?: number
           current_belt?: string | null
           date_of_birth?: string | null
           display_name?: string | null
@@ -1357,6 +1359,7 @@ export type Database = {
           competition_at?: string | null
           court?: string | null
           created_at?: string
+          credit_applied?: number
           current_belt?: string | null
           date_of_birth?: string | null
           display_name?: string | null
@@ -8743,6 +8746,14 @@ export type Database = {
       admin_verify_seminar_submission: {
         Args: { p_id: string; p_verified_by: string }
         Returns: undefined
+      }
+      apply_hello_credit_to_competition: {
+        Args: {
+          p_session_id: string
+          p_student_id: string
+          p_submission_id: string
+        }
+        Returns: number
       }
       approve_public_student_registration: {
         Args: { p_actor?: string; p_id: string }
