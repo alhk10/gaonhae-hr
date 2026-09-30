@@ -1,0 +1,1 @@
+UPDATE public.invoice_templates SET bank_transfer_info = NULL, paynow_qr_url = NULL, updated_at = now() WHERE id = '93b5f34e-6fcf-4fd0-ae92-40fee149021e'::uuid AND country = 'SG' AND is_active = true;

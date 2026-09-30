@@ -1,5 +1,10 @@
 # Roadmap
 
+## Invoice template payment details
+
+- [x] Save cleared bank-transfer and PayNow QR fields and verify persisted values
+- [x] Clear the previously retained Singapore details and verify public payment options and existing invoice PDF
+
 ## Country-specific invoice PDFs
 
 - [x] Use saved country template for public invoice previews and School Fees invoices

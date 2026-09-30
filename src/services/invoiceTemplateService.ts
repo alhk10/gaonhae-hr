@@ -26,10 +26,10 @@ export interface InvoiceTemplate {
   is_active: boolean;
   branch_id?: string;
   country?: string;
-  paynow_qr_url?: string;
+  paynow_qr_url?: string | null;
   logo_url?: string;
   letterhead_url?: string;
-  bank_transfer_info?: string;
+  bank_transfer_info?: string | null;
   created_by?: string;
   updated_by?: string;
   created_at: string;
@@ -46,10 +46,10 @@ export interface CreateTemplateData {
   template_items?: TemplateItem[];
   branch_id?: string;
   country?: string;
-  paynow_qr_url?: string;
+  paynow_qr_url?: string | null;
   logo_url?: string;
   letterhead_url?: string;
-  bank_transfer_info?: string;
+  bank_transfer_info?: string | null;
 }
 
 export interface UpdateTemplateData {
@@ -63,10 +63,10 @@ export interface UpdateTemplateData {
   is_active?: boolean;
   branch_id?: string;
   country?: string;
-  paynow_qr_url?: string;
+  paynow_qr_url?: string | null;
   logo_url?: string;
   letterhead_url?: string;
-  bank_transfer_info?: string;
+  bank_transfer_info?: string | null;
 }
 
 /**
@@ -146,6 +146,7 @@ export const createInvoiceTemplate = async (templateData: CreateTemplateData): P
         branch_id: templateData.branch_id,
         country: templateData.country || 'SG',
         paynow_qr_url: templateData.paynow_qr_url,
+        bank_transfer_info: templateData.bank_transfer_info,
         logo_url: templateData.logo_url,
         letterhead_url: templateData.letterhead_url,
         is_active: true
@@ -196,10 +197,13 @@ export const updateInvoiceTemplate = async (
       throw new Error(`Failed to update template: ${error.message}`);
     }
 
-    return {
-      ...data,
-      template_items: (data.template_items as TemplateItem[]) || []
-    } as InvoiceTemplate;
+    // Read the saved row again: report success only when cleared fields persisted.
+    const saved = await getInvoiceTemplateById(templateId);
+    if (!saved || (updates.paynow_qr_url !== undefined && saved.paynow_qr_url !== updates.paynow_qr_url) ||
+        (updates.bank_transfer_info !== undefined && saved.bank_transfer_info !== updates.bank_transfer_info)) {
+      throw new Error('Template payment details did not save. Please try again.');
+    }
+    return saved;
   } catch (error) {
     logger.error('Error in updateInvoiceTemplate', error);
     throw error;
