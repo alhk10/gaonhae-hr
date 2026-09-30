@@ -9800,6 +9800,10 @@ export type Database = {
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
+      invoice_fully_refunded: {
+        Args: { p_invoice_id: string }
+        Returns: boolean
+      }
       is_blocked_public_email: { Args: { p_email: string }; Returns: boolean }
       is_partner: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
