@@ -58,6 +58,7 @@ import ViewEditPaymentDialog from '@/components/sales/ViewEditPaymentDialog';
 import { deleteInvoice, getInvoiceById } from '@/services/invoiceService';
 import { getStudentById } from '@/services/studentService';
 import { downloadInvoicePDF, shareInvoiceViaSMS, shareInvoiceViaWhatsApp, shareInvoiceOverdueReminderViaSMS, hasUsableMobileNumber, buildCombinedReminderMessage, normalizeWhatsAppTarget, type InvoiceData } from '@/utils/invoicePDFGenerator';
+import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { createInvoiceDeletionRequest } from '@/services/invoiceDeletionRequestService';
 import { deletePayment } from '@/services/paymentService';
@@ -670,14 +671,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       let studentData;
       try { studentData = await getStudentById(invoice.student_id); } catch { studentData = null; }
       
-      let branchCountry = 'Singapore';
-      if (invoice.branch_id) {
-        const { data: branchData } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
-        if (branchData?.country) branchCountry = branchData.country;
-      }
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase.from('invoice_templates').select('letterhead_url, paynow_qr_url, country, default_notes, footer_text, bank_transfer_info').eq('country', countryCode).eq('is_active', true).limit(1);
-      const template = templates?.[0] || null;
+       if (!invoice.branch_id) throw new Error('Invoice branch is missing');
+       const { data: branchData, error: branchError } = await supabase.from('branches').select('country').eq('id', invoice.branch_id).single();
+       if (branchError) throw branchError;
+       const template = await getInvoicePDFTemplate(branchData?.country);
 
       const termIds: string[] = [];
       const gradingSlotIds: string[] = [];
@@ -725,7 +722,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           return { id: item.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price, total_amount: item.total_amount, tax_rate: item.tax_rate, tax_amount: item.tax_amount, metadata, term_info, grading_info };
         }) || [],
         branch: branch ? { name: branch.name, address: branch.address } : undefined,
-        template: template ? { letterhead_url: template.letterhead_url || undefined, paynow_qr_url: template.paynow_qr_url || undefined, country: template.country || undefined, default_notes: template.default_notes || undefined, footer_text: template.footer_text || undefined, bank_transfer_info: template.bank_transfer_info || undefined } : undefined
+         template
       };
       await downloadInvoicePDF(invoiceData);
       toast.success('Invoice PDF downloaded');

@@ -58,6 +58,7 @@ import {
   updateChatStudentPersonalInfo,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
+import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 import {
   FOUR_WEEK_NOTE,
@@ -456,6 +457,14 @@ const PublicHelloChat: React.FC = () => {
 
   const handleDownloadInvoice = async (inv: ChatInvoice) => {
     try {
+      // Select by the invoice's own branch, not the student's current branch.
+      const { data: invoiceBranch, error: invoiceBranchError } = await supabase
+        .from('invoices').select('branch_id').eq('id', inv.id).single();
+      if (invoiceBranchError) throw invoiceBranchError;
+      const { data: branchCountry, error: branchCountryError } = await supabase
+        .from('branches').select('country').eq('id', invoiceBranch.branch_id).single();
+      if (branchCountryError) throw branchCountryError;
+      const template = await getInvoicePDFTemplate(branchCountry?.country);
       const pdfData: InvoiceData = {
         id: inv.id,
         invoice_number: inv.invoice_number,
@@ -487,13 +496,7 @@ const PublicHelloChat: React.FC = () => {
           term_info: item.term_info || undefined,
           grading_info: item.grading_info || undefined,
         })),
-        template: pastInvoices?.template ? {
-          letterhead_url: pastInvoices.template.letterhead_url || undefined,
-          paynow_qr_url: pastInvoices.template.paynow_qr_url || undefined,
-          country: pastInvoices.template.country || undefined,
-          default_notes: pastInvoices.template.default_notes || undefined,
-          footer_text: pastInvoices.template.footer_text || undefined,
-        } : undefined,
+        template,
       };
       await downloadInvoicePDF(pdfData);
       toast.success('Invoice PDF downloaded');

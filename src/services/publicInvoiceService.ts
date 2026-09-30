@@ -4,6 +4,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { InvoiceData } from '@/utils/invoicePDFGenerator';
+import { invoiceCountryCode } from '@/services/invoicePDFTemplate';
 
 export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceData | null> {
   const { data, error } = await (supabase as any).rpc('get_public_invoice_full', {
@@ -13,6 +14,8 @@ export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceDa
   if (!data) return null;
   const raw = data as any;
   const items = Array.isArray(raw.items) ? raw.items : [];
+  const country = invoiceCountryCode(raw.branch?.country);
+  if (raw.template?.country !== country) throw new Error(`No active ${country} invoice template is set up`);
   return {
     id: raw.id,
     invoice_number: raw.invoice_number,
@@ -36,6 +39,7 @@ export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceDa
       name: raw.branch?.name || '',
       address: raw.branch?.address ?? undefined,
     },
+    template: raw.template,
     items: items.map((it: any, idx: number) => ({
       id: String(idx),
       description: it.description || '',

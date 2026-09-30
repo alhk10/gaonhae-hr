@@ -300,6 +300,7 @@ export const getSchoolFeesStudentMatches = async (
 /* ------------------------------------------------------------------ */
 
 import type { InvoiceData } from '@/utils/invoicePDFGenerator';
+import { invoiceCountryCode } from '@/services/invoicePDFTemplate';
 
 /**
  * Loads the full invoice created for a matched school-fee submission,
@@ -317,6 +318,8 @@ export const getSchoolFeesInvoiceDetail = async (
 
   const raw = data as any;
   const items = Array.isArray(raw.items) ? raw.items : [];
+  const country = invoiceCountryCode(raw.branch?.country);
+  if (raw.template?.country !== country) throw new Error(`No active ${country} invoice template is set up`);
 
   return {
     id: raw.id,
@@ -341,6 +344,7 @@ export const getSchoolFeesInvoiceDetail = async (
       name: raw.branch?.name || '',
       address: raw.branch?.address ?? undefined,
     },
+    template: raw.template,
     items: items.map((it: any, idx: number) => ({
       id: String(idx),
       description: it.description || '',
@@ -349,6 +353,7 @@ export const getSchoolFeesInvoiceDetail = async (
       total_amount: Number(it.total_price || 0),
       tax_rate: 0,
       tax_amount: 0,
+      metadata: it.refunded ? { refunded: true } : undefined,
     })),
   };
 };

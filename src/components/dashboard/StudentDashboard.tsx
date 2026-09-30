@@ -43,6 +43,7 @@ import { getNotices, Notice } from '@/services/noticeService';
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
+import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
 import StudentProfileCompletionDialog from './StudentProfileCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -627,16 +628,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
         }
       }
 
-      // Find matching template by country code (same logic as admin page)
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase
-        .from('invoice_templates')
-        .select('letterhead_url, paynow_qr_url, country, default_notes, footer_text')
-        .eq('country', countryCode)
-        .eq('is_active', true)
-        .limit(1);
-      
-      const template = templates?.[0] || null;
+      const template = await getInvoicePDFTemplate(branchCountry);
 
       // Collect term_ids and grading_slot_ids from items for additional info
       const termIds: string[] = [];
@@ -756,13 +748,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             grading_info
           };
         }) || [],
-        template: template ? {
-          letterhead_url: template.letterhead_url || undefined,
-          paynow_qr_url: template.paynow_qr_url || undefined,
-          country: template.country || undefined,
-          default_notes: template.default_notes || undefined,
-          footer_text: template.footer_text || undefined
-        } : undefined,
+        template,
       };
       
       await downloadInvoicePDF(pdfData);
