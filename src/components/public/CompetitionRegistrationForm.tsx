@@ -14,12 +14,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
-import { getHelloStudentPhoto } from '@/services/helloStudentPhotoService';
+import { getHelloStudentPhoto, getHelloStudentCertificate, saveHelloStudentPhoto, saveHelloStudentCertificate } from '@/services/helloStudentPhotoService';
 import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
@@ -160,6 +161,7 @@ interface CompetitionRegistrationFormProps {
   /** /hello only: recognised student's credit, applied before payment. */
   creditContext?: { sessionId: string; studentId: string; availableCredit: number } | null;
   savedPhoto?: { sessionId: string; studentId: string; previewUrl: string } | null;
+  savedCertificate?: { sessionId: string; studentId: string; previewUrl: string } | null;
 }
 
 const parseDob = (iso?: string | null): Date | undefined => {
@@ -176,6 +178,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   onSuccess,
   creditContext = null,
   savedPhoto = null,
+  savedCertificate = null,
 }) => {
   const [eventId, setEventId] = useState<string>('');
   const [firstName, setFirstName] = useState(prefill?.firstName || '');
@@ -192,11 +195,13 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const [proofFile, setProofFile] = useState<File | null>(null);
   const proofScan = usePaymentProofScan();
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [saveCertificate, setSaveCertificate] = useState(true);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [indemnityClauseAccepted, setIndemnityClauseAccepted] = useState(false);
   const [indemnityFormFile, setIndemnityFormFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [savePhoto, setSavePhoto] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
@@ -315,7 +320,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
     !!currentBelt &&
     !!gender &&
     (fullyCoveredByCredit || !!proofFile) &&
-    (!certificateRequired || !!certificateFile) &&
+    (!certificateRequired || !!certificateFile || !!savedCertificate) &&
     (!signatureRequired || (!!signatureDataUrl && indemnityClauseAccepted)) &&
     (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
     (!selectedEvent.require_passport || !!passportFile) &&
@@ -423,6 +428,16 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         if (!blob.type.startsWith('image/') || blob.size > 5 * 1024 * 1024) throw new Error('Saved photo invalid. Please upload a new participant photo.');
         participantPhoto = new File([blob], 'participant-photo.jpg', { type: blob.type });
       }
+      let submissionCertificate = certificateRequired ? certificateFile : null;
+      if (certificateRequired && !submissionCertificate && savedCertificate) {
+        const freshUrl = await getHelloStudentCertificate(savedCertificate.sessionId, savedCertificate.studentId);
+        if (!freshUrl) throw new Error('Saved certificate unavailable. Please upload a new certificate.');
+        const response = await fetch(freshUrl);
+        if (!response.ok) throw new Error('Saved certificate unavailable. Please upload a new certificate.');
+        const blob = await response.blob();
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type) || !blob.size || blob.size > 5 * 1024 * 1024) throw new Error('Saved certificate invalid. Please upload a new certificate.');
+        submissionCertificate = new File([blob], 'poom-dan-certificate.jpg', { type: blob.type });
+      }
       const result = await submitCompetitionPayment({
         first_name: firstName,
         last_name: lastName,
@@ -435,7 +450,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         gst_amount: gstAmount,
         payment_method: paymentMethod,
         proof_file: fullyCoveredByCredit ? null : proofFile,
-        certificate_file: certificateFile,
+        certificate_file: submissionCertificate,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
         coaching_amount: coachingIncluded ? withGst(coachingAmount) : 0,
         extra_lines: extras,
@@ -454,6 +469,22 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
       if (proofFile && !fullyCoveredByCredit) {
         await recordProofScan('competition', result.id, await proofScan.waitForResult());
       }
+      // The submission keeps its own attachment even when the student's saved copy changes later.
+      const failedSaves: string[] = [];
+      if (savedPhoto && photoFile && savePhoto) {
+        try { await saveHelloStudentPhoto(savedPhoto.sessionId, savedPhoto.studentId, photoFile); }
+        catch { failedSaves.push('photo'); }
+      }
+      if (creditContext && !savedPhoto && photoFile && savePhoto) {
+        try { await saveHelloStudentPhoto(creditContext.sessionId, creditContext.studentId, photoFile); }
+        catch { failedSaves.push('photo'); }
+      }
+      const studentContext = creditContext || savedCertificate || savedPhoto;
+      if (studentContext && certificateFile && saveCertificate) {
+        try { await saveHelloStudentCertificate(studentContext.sessionId, studentContext.studentId, certificateFile); }
+        catch { failedSaves.push('certificate'); }
+      }
+      if (failedSaves.length) toast.error(`Registration submitted, but ${failedSaves.join(' and ')} could not be saved for future use. Please retry from Personal Information.`);
       finishSuccess(result.reference_number);
     } catch (err: any) {
       console.error(err);
@@ -692,19 +723,31 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                     maxSizeMB={5}
                     label={savedPhoto ? 'Replace participant photo for this registration' : 'Participant Photo'}
                   />
+                  {creditContext && photoFile && <div className="flex items-center justify-between gap-3 border rounded-md p-2">
+                    <Label htmlFor="save-competition-photo" className="text-sm">Save photo to personal information for future use</Label>
+                    <Switch id="save-competition-photo" checked={savePhoto} onCheckedChange={setSavePhoto} />
+                  </div>}
                 </div>
               )}
 
               {certificateRequired && (
                 <div className="space-y-2">
+                  {savedCertificate && !certificateFile && <div className="flex items-center gap-3 rounded-md border p-2">
+                    <img src={savedCertificate.previewUrl} alt="Saved Poom/Dan certificate" className="h-16 w-12 shrink-0 rounded object-cover" />
+                    <span className="text-sm text-muted-foreground">Saved certificate will be used</span>
+                  </div>}
                   <ProofOfPaymentUpload
                     value={certificateFile}
                     onChange={setCertificateFile}
-                    required
+                    required={!savedCertificate}
                     acceptPdf={false}
                     maxSizeMB={5}
-                    label="Certificate Upload (Poom/Dan)"
+                    label={savedCertificate ? 'Replace certificate for this registration' : 'Certificate Upload (Poom/Dan)'}
                   />
+                  {creditContext && certificateFile && <div className="flex items-center justify-between gap-3 border rounded-md p-2">
+                    <Label htmlFor="save-competition-certificate" className="text-sm">Save certificate to personal information for future use</Label>
+                    <Switch id="save-competition-certificate" checked={saveCertificate} onCheckedChange={setSaveCertificate} />
+                  </div>}
                   <p className="text-xs text-muted-foreground">
                     Please upload a clear photo of your Poom or Dan certificate.
                   </p>
