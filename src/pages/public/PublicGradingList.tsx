@@ -3160,7 +3160,7 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight whitespace-nowrap">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
+                <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
                 <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 
