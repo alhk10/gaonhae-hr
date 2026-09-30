@@ -425,7 +425,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         const response = await fetch(freshUrl);
         if (!response.ok) throw new Error('Saved photo unavailable. Please upload a new participant photo.');
         const blob = await response.blob();
-        if (!blob.type.startsWith('image/') || blob.size > 5 * 1024 * 1024) throw new Error('Saved photo invalid. Please upload a new participant photo.');
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type) || !blob.size || blob.size > 5 * 1024 * 1024) throw new Error('Saved photo invalid. Please upload a new participant photo.');
         participantPhoto = new File([blob], 'participant-photo.jpg', { type: blob.type });
       }
       let submissionCertificate = certificateRequired ? certificateFile : null;
@@ -717,7 +717,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                   </div>}
                   <ProofOfPaymentUpload
                     value={photoFile}
-                    onChange={setPhotoFile}
+                    onChange={(file) => { setPhotoFile(file); if (file) setSavePhoto(true); }}
                     required={!savedPhoto}
                     acceptPdf={false}
                     maxSizeMB={5}
@@ -738,7 +738,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                   </div>}
                   <ProofOfPaymentUpload
                     value={certificateFile}
-                    onChange={setCertificateFile}
+                    onChange={(file) => { setCertificateFile(file); if (file) setSaveCertificate(true); }}
                     required={!savedCertificate}
                     acceptPdf={false}
                     maxSizeMB={5}
