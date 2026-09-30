@@ -158,13 +158,10 @@ export const createInvoiceTemplate = async (templateData: CreateTemplateData): P
       throw new Error(`Failed to create template: ${error.message}`);
     }
 
-    // Read the saved row again: report success only when cleared fields persisted.
-    const saved = await getInvoiceTemplateById(templateId);
-    if (!saved || (updates.paynow_qr_url !== undefined && saved.paynow_qr_url !== updates.paynow_qr_url) ||
-        (updates.bank_transfer_info !== undefined && saved.bank_transfer_info !== updates.bank_transfer_info)) {
-      throw new Error('Template payment details did not save. Please try again.');
-    }
-    return saved;
+    return {
+      ...data,
+      template_items: (data.template_items as TemplateItem[]) || []
+    } as InvoiceTemplate;
   } catch (error) {
     logger.error('Error in createInvoiceTemplate', error);
     throw error;
@@ -200,10 +197,13 @@ export const updateInvoiceTemplate = async (
       throw new Error(`Failed to update template: ${error.message}`);
     }
 
-    return {
-      ...data,
-      template_items: (data.template_items as TemplateItem[]) || []
-    } as InvoiceTemplate;
+    // Read the saved row again: report success only when cleared fields persisted.
+    const saved = await getInvoiceTemplateById(templateId);
+    if (!saved || (updates.paynow_qr_url !== undefined && saved.paynow_qr_url !== updates.paynow_qr_url) ||
+        (updates.bank_transfer_info !== undefined && saved.bank_transfer_info !== updates.bank_transfer_info)) {
+      throw new Error('Template payment details did not save. Please try again.');
+    }
+    return saved;
   } catch (error) {
     logger.error('Error in updateInvoiceTemplate', error);
     throw error;
