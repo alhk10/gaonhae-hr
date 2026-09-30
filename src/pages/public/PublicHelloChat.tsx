@@ -28,7 +28,7 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import CompetitionRegistrationForm from '@/components/public/CompetitionRegistrationForm';
-import { getHelloStudentPhoto, saveHelloStudentPhoto } from '@/services/helloStudentPhotoService';
+import { getHelloStudentPhoto, saveHelloStudentPhoto, getHelloStudentCertificate, saveHelloStudentCertificate } from '@/services/helloStudentPhotoService';
 import { PhoneInput } from '@/components/ui/phone-input';
 import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
@@ -272,6 +272,7 @@ const PublicHelloChat: React.FC = () => {
   const [piLoaded, setPiLoaded] = useState(false);
   const [piSaving, setPiSaving] = useState(false);
   const [piPhotoFile, setPiPhotoFile] = useState<File | null>(null);
+  const [piCertificateFile, setPiCertificateFile] = useState<File | null>(null);
   const [piPhotoSaving, setPiPhotoSaving] = useState(false);
   const [piPending, setPiPending] = useState<string[] | null>(null);
 
@@ -381,6 +382,13 @@ const PublicHelloChat: React.FC = () => {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+  const { data: savedCertificateUrl, refetch: refetchSavedCertificate } = useQuery({
+    queryKey: ['hello-saved-certificate', sessionId, matched?.id],
+    queryFn: () => getHelloStudentCertificate(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && !!personalInfo?.has_poom_dan_certificate && (stage === 'personal_info' || stage === 'competition'),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!personalInfo || piLoaded) return;
@@ -446,6 +454,12 @@ const PublicHelloChat: React.FC = () => {
         setPiPhotoFile(null);
         await refetchPersonalInfo();
         await refetchSavedPhoto();
+      }
+      if (piCertificateFile) {
+        await saveHelloStudentCertificate(sessionId, matched.id, piCertificateFile);
+        setPiCertificateFile(null);
+        await refetchPersonalInfo();
+        await refetchSavedCertificate();
       }
       const res = await updateChatStudentPersonalInfo({
         session_id: sessionId,
@@ -1711,6 +1725,7 @@ const PublicHelloChat: React.FC = () => {
                     : null
                 }
                 savedPhoto={sessionId && savedPhotoUrl && matched ? { sessionId, studentId: matched.id, previewUrl: savedPhotoUrl } : null}
+                savedCertificate={sessionId && savedCertificateUrl && matched ? { sessionId, studentId: matched.id, previewUrl: savedCertificateUrl } : null}
                 onSuccess={(ref) => {
                   refetchCredit();
                   if (sessionId) logChatEvent(sessionId, 'competition_registration_submitted', { reference: ref }).catch(() => {});
@@ -1844,6 +1859,11 @@ const PublicHelloChat: React.FC = () => {
                         {savedPhotoUrl && !piPhotoFile && <img src={savedPhotoUrl} alt="Current passport-size photo" className="h-28 w-24 rounded-md border object-cover" />}
                         <ProofOfPaymentUpload value={piPhotoFile} onChange={setPiPhotoFile} acceptPdf={false} maxSizeMB={5} label={savedPhotoUrl ? 'Replace photo' : 'Upload photo'} disabled={piSaving} />
                         {piPhotoSaving && <p className="text-xs text-muted-foreground">Saving photo…</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Poom/Dan certificate</Label>
+                        {savedCertificateUrl && !piCertificateFile && <img src={savedCertificateUrl} alt="Saved Poom/Dan certificate" className="h-28 w-24 rounded-md border object-cover" />}
+                        <ProofOfPaymentUpload value={piCertificateFile} onChange={setPiCertificateFile} acceptPdf={false} maxSizeMB={5} label={savedCertificateUrl ? 'Replace certificate' : 'Upload certificate'} disabled={piSaving} />
                       </div>
                       {piPending && (
                         <div className="rounded bg-muted px-2 py-1.5 text-[12px]">

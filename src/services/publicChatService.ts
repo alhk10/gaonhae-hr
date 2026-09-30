@@ -689,6 +689,7 @@ export interface ChatStudentPersonalInfo {
   last_name_first: boolean;
   has_pending_request: boolean;
   has_passport_photo: boolean;
+  has_poom_dan_certificate: boolean;
 }
 
 export const getChatStudentPersonalInfo = async (
@@ -713,6 +714,7 @@ export const getChatStudentPersonalInfo = async (
     last_name_first: !!d.last_name_first,
     has_pending_request: !!d.has_pending_request,
     has_passport_photo: !!d.has_passport_photo,
+    has_poom_dan_certificate: !!d.has_poom_dan_certificate,
   };
 };
 

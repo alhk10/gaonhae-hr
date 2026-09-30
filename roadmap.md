@@ -4,6 +4,7 @@
 
 - [x] Add passport photo upload and saved preview in `/hello` Update Personal Information
 - [x] Reuse saved photo for photo-required `/hello` competition entries, allowing a submission-only replacement
+- [x] Add default-on save-for-future-use switches to new `/hello` competition photo and Poom/Dan certificate uploads; show saved certificates in Personal Information
 - [ ] Check saved-photo upload and competition submission with a real recognized session (blocked: external unmanaged Supabase session unavailable)
 
 ## Competition registration form
