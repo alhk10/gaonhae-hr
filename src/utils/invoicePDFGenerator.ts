@@ -181,12 +181,12 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Fallback: Draw default text manually
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(COMPANY_INFO.name, margin, yPos + 8);
+    doc.text(COMPANY_INFO.name, textStartX, yPos + 8);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(COMPANY_INFO.address, margin, yPos + 15);
-    doc.text(`UEN: ${COMPANY_INFO.uen}`, margin, yPos + 21);
+    doc.text(COMPANY_INFO.address, textStartX, yPos + 15);
+    doc.text(`UEN: ${COMPANY_INFO.uen}`, textStartX, yPos + 21);
   }
 
   // Invoice title on the right
@@ -306,8 +306,22 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(item.description.substring(0, 80), margin + 2, yPos);
-      doc.text(formatCurrency(item.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
+      const isRefunded = (item.metadata as any)?.refunded === true;
+      const desc = item.description.substring(0, 80);
+      const amt = formatCurrency(item.total_amount);
+      if (isRefunded) doc.setTextColor(130, 130, 130);
+      doc.text(desc, margin + 2, yPos);
+      doc.text(amt, pageWidth - margin - 2, yPos, { align: 'right' });
+      if (isRefunded) {
+        doc.setDrawColor(130, 130, 130);
+        doc.line(margin + 2, yPos - 1.2, margin + 2 + doc.getTextWidth(desc), yPos - 1.2);
+        const aw = doc.getTextWidth(amt);
+        doc.line(pageWidth - margin - 2 - aw, yPos - 1.2, pageWidth - margin - 2, yPos - 1.2);
+        doc.setFontSize(8);
+        doc.text('Refunded as credit', margin + 2, yPos + 4.5);
+        doc.setTextColor(0, 0, 0);
+        yPos += 4.5;
+      }
       
       yPos += 6;
 

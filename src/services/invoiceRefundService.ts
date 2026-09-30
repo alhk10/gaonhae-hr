@@ -207,9 +207,19 @@ export const refundLineItem = async (
   // 6. Recalculate invoice totals — the refund returns the item and its tax,
   // so both the invoice total and what counts as paid come down by that amount.
   const round2 = (n: number) => Math.round(n * 100) / 100;
-  const newTotal = Math.max(0, round2(invoice.total_amount - refundAmount));
-  const newTax = Math.max(0, round2(invoice.tax_amount - item.tax_amount));
-  const newSubtotal = Math.max(0, round2(invoice.subtotal - item.total_amount));
+  const { data: remainingItems } = await supabase
+    .from('invoice_items')
+    .select('id, metadata')
+    .eq('invoice_id', invoice.id);
+  const anyLeft = (remainingItems || []).some((r: any) => r.metadata?.refunded !== true);
+
+  let newTotal = Math.max(0, round2(invoice.total_amount - refundAmount));
+  // GST-inclusive lines carry tax_amount 0 — reduce invoice GST in proportion instead.
+  let newTax = Number(item.tax_amount) > 0
+    ? Math.max(0, round2(invoice.tax_amount - item.tax_amount))
+    : (invoice.total_amount > 0 ? Math.max(0, round2(invoice.tax_amount * newTotal / invoice.total_amount)) : 0);
+  let newSubtotal = Math.max(0, round2(invoice.subtotal - item.total_amount));
+  if (!anyLeft) { newTotal = 0; newTax = 0; newSubtotal = 0; }
   const newAmountPaid = Math.max(0, round2(Math.min(invoice.amount_paid, newTotal)));
   const newBalance = round2(newTotal - newAmountPaid);
 
@@ -221,6 +231,7 @@ export const refundLineItem = async (
       subtotal: newSubtotal,
       amount_paid: newAmountPaid,
       balance_due: newBalance,
+      ...(anyLeft ? {} : { status: 'cancelled' }),
       updated_at: new Date().toISOString(),
     })
     .eq('id', invoice.id);
