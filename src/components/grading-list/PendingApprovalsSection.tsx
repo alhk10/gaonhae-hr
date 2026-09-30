@@ -312,6 +312,16 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
                   <div className="flex gap-1 shrink-0">
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={!canApprove || busyId === row.id}
+                      onClick={() => openEdit(row)}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
                       className="h-7 text-xs"
                       disabled={!canApprove || busyId === row.id}
                       onClick={() => handleApprove(row)}
@@ -354,6 +364,37 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
                 </div>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Edit {editing?.display_name || ''}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {Object.entries(editValues).map(([k, v]) => (
+              <label key={k} className="text-[11px] space-y-0.5">
+                <span className="text-muted-foreground">
+                  {label(k)}
+                  {k === 'date_of_birth' ? ' (DD/MM/YYYY)' : ''}
+                </span>
+                <Input
+                  value={v}
+                  onChange={(e) => setEditValues((prev) => ({ ...prev, [k]: e.target.value }))}
+                  className="h-7 text-xs"
+                />
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 text-xs" disabled={!!busyId} onClick={handleSaveEdit}>
+              {busyId === editing?.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
