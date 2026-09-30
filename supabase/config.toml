@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.notify-superadmin-approvals]
 verify_jwt = false
+
+[functions.hello-student-photo]
+verify_jwt = false
