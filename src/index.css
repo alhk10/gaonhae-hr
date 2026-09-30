@@ -133,7 +133,6 @@
     }
     .access-list-table tbody td[data-field="student"],
     .access-list-table tbody td[data-field="details"],
-    .access-list-table tbody td[data-field="actions"],
     .access-list-table tbody td[data-field="selection"] {
       @apply col-span-2;
     }
@@ -148,7 +147,19 @@
       @apply text-left font-semibold;
     }
     .access-list-table tbody td[data-field="actions"] {
-      @apply border-t pt-2 text-left;
+      @apply flex min-w-0 items-center gap-2 text-left;
+    }
+    .access-list-table tbody td[data-field="actions"]:not(:has(*)) {
+      @apply hidden;
+    }
+    .access-list-table tbody td[data-field="actions"]::before {
+      @apply mb-0;
+    }
+    .access-list-table tbody td[data-field="actions"]:has([title]) {
+      @apply col-span-1;
+    }
+    .access-list-table tbody td[data-field="details"] {
+      @apply break-words;
     }
   }
 }
