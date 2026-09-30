@@ -7304,6 +7304,7 @@ export type Database = {
           passport_no: string | null
           passport_photo_url: string | null
           phone: string | null
+          poom_dan_certificate_url: string | null
           postal_code: string | null
           preferred_name: string | null
           previous_experience: string | null
@@ -7351,6 +7352,7 @@ export type Database = {
           passport_no?: string | null
           passport_photo_url?: string | null
           phone?: string | null
+          poom_dan_certificate_url?: string | null
           postal_code?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
@@ -7398,6 +7400,7 @@ export type Database = {
           passport_no?: string | null
           passport_photo_url?: string | null
           phone?: string | null
+          poom_dan_certificate_url?: string | null
           postal_code?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
