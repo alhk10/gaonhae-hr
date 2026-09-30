@@ -10154,6 +10154,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_public_pending_approval: {
+        Args: { p_details: Json; p_id: string; p_kind: string }
+        Returns: undefined
+      }
       update_public_submission:
         | {
             Args: {

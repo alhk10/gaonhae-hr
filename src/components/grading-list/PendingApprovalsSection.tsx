@@ -11,13 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, UserPlus, PencilLine } from 'lucide-react';
+import { Loader2, UserPlus, PencilLine, Pencil } from 'lucide-react';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import {
   getPendingStudentApprovals,
   approvePendingApproval,
   rejectPendingApproval,
+  updatePendingApprovalDetails,
   type PendingStudentApproval,
   type PendingApprovalKind,
 } from '@/services/publicStudentApprovalService';
@@ -52,6 +54,17 @@ const showValue = (k: string, v: any) => {
   return String(v);
 };
 
+/** DD/MM/YYYY (or ISO) -> ISO yyyy-mm-dd for saving; returns null when unparsable. */
+const toIsoDate = (raw: string): string | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+};
+
 interface Props {
   lockedBranchName?: string;
   lockedBranchId?: string;
@@ -66,6 +79,8 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
   const [rejecting, setRejecting] = useState<PendingStudentApproval | null>(null);
   const [reason, setReason] = useState('');
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<PendingStudentApproval | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-pending-student-approvals', lockedBranchId || 'all'],
@@ -138,6 +153,46 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
       refresh();
     } catch (e: any) {
       toast.error(e?.message || 'Could not reject');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openEdit = (row: PendingStudentApproval) => {
+    const vals: Record<string, string> = {};
+    for (const [k, v] of Object.entries(row.details)) {
+      if (v === null || v === undefined) continue;
+      vals[k] = k === 'date_of_birth' ? formatDate(String(v)) : String(v);
+    }
+    setEditValues(vals);
+    setEditing(row);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editing) return;
+    const details: Record<string, any> = {};
+    for (const [k, v] of Object.entries(editValues)) {
+      const trimmed = v.trim();
+      if (k === 'date_of_birth') {
+        if (!trimmed) continue;
+        const iso = toIsoDate(trimmed);
+        if (!iso) {
+          toast.error('Date of birth must be DD/MM/YYYY');
+          return;
+        }
+        details[k] = iso;
+      } else {
+        details[k] = trimmed;
+      }
+    }
+    setBusyId(editing.id);
+    try {
+      await updatePendingApprovalDetails(editing, details);
+      toast.success('Details updated');
+      setEditing(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not save changes');
     } finally {
       setBusyId(null);
     }
@@ -257,6 +312,16 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
                   <div className="flex gap-1 shrink-0">
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={!canApprove || busyId === row.id}
+                      onClick={() => openEdit(row)}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
                       className="h-7 text-xs"
                       disabled={!canApprove || busyId === row.id}
                       onClick={() => handleApprove(row)}
@@ -299,6 +364,37 @@ const PendingApprovalsSection: React.FC<Props> = ({ lockedBranchName, lockedBran
                 </div>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Edit {editing?.display_name || ''}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {Object.entries(editValues).map(([k, v]) => (
+              <label key={k} className="text-[11px] space-y-0.5">
+                <span className="text-muted-foreground">
+                  {label(k)}
+                  {k === 'date_of_birth' ? ' (DD/MM/YYYY)' : ''}
+                </span>
+                <Input
+                  value={v}
+                  onChange={(e) => setEditValues((prev) => ({ ...prev, [k]: e.target.value }))}
+                  className="h-7 text-xs"
+                />
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 text-xs" disabled={!!busyId} onClick={handleSaveEdit}>
+              {busyId === editing?.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

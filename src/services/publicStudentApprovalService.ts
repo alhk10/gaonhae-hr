@@ -55,3 +55,16 @@ export async function rejectPendingApproval(
   });
   if (error) throw new Error(error.message);
 }
+
+/** Edit a still-pending registration / detail-change request before approving. */
+export async function updatePendingApprovalDetails(
+  row: PendingStudentApproval,
+  details: Record<string, any>,
+): Promise<void> {
+  const { error } = await supabase.rpc('update_public_pending_approval' as any, {
+    p_kind: row.kind,
+    p_id: row.id,
+    p_details: details,
+  });
+  if (error) throw new Error(error.message);
+}
