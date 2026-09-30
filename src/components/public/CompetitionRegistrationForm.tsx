@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
+import { getHelloStudentPhoto } from '@/services/helloStudentPhotoService';
 import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
@@ -158,6 +159,7 @@ interface CompetitionRegistrationFormProps {
   onSuccess?: (referenceNumber: string) => void;
   /** /hello only: recognised student's credit, applied before payment. */
   creditContext?: { sessionId: string; studentId: string; availableCredit: number } | null;
+  savedPhoto?: { sessionId: string; studentId: string; previewUrl: string } | null;
 }
 
 const parseDob = (iso?: string | null): Date | undefined => {
@@ -173,6 +175,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   embedded = false,
   onSuccess,
   creditContext = null,
+  savedPhoto = null,
 }) => {
   const [eventId, setEventId] = useState<string>('');
   const [firstName, setFirstName] = useState(prefill?.firstName || '');
@@ -316,7 +319,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
     (!signatureRequired || (!!signatureDataUrl && indemnityClauseAccepted)) &&
     (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
     (!selectedEvent.require_passport || !!passportFile) &&
-    (!selectedEvent.require_photo || !!photoFile) &&
+    (!selectedEvent.require_photo || !!photoFile || !!savedPhoto) &&
     !missingWeights &&
     !submitting;
 
@@ -410,6 +413,16 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
           };
         });
 
+      let participantPhoto = selectedEvent.require_photo ? photoFile : null;
+      if (selectedEvent.require_photo && !participantPhoto && savedPhoto) {
+        const freshUrl = await getHelloStudentPhoto(savedPhoto.sessionId, savedPhoto.studentId);
+        if (!freshUrl) throw new Error('Saved photo unavailable. Please upload a new participant photo.');
+        const response = await fetch(freshUrl);
+        if (!response.ok) throw new Error('Saved photo unavailable. Please upload a new participant photo.');
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/') || blob.size > 5 * 1024 * 1024) throw new Error('Saved photo invalid. Please upload a new participant photo.');
+        participantPhoto = new File([blob], 'participant-photo.jpg', { type: blob.type });
+      }
       const result = await submitCompetitionPayment({
         first_name: firstName,
         last_name: lastName,
@@ -432,7 +445,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         signature_data_url: signatureRequired ? signatureDataUrl : null,
         indemnity_form_file: selectedEvent.require_indemnity_form ? indemnityFormFile : null,
         passport_file: selectedEvent.require_passport ? passportFile : null,
-        photo_file: selectedEvent.require_photo ? photoFile : null,
+        photo_file: participantPhoto,
         weight_kg: null,
       });
       if (creditContext && creditToUse > 0) {
@@ -666,14 +679,20 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
               </div>
 
               {selectedEvent.require_photo && (
-                <ProofOfPaymentUpload
-                  value={photoFile}
-                  onChange={setPhotoFile}
-                  required
-                  acceptPdf={false}
-                  maxSizeMB={5}
-                  label="Participant Photo"
-                />
+                <div className="space-y-2">
+                  {savedPhoto && !photoFile && <div className="flex items-center gap-3 rounded-md border p-2">
+                    <img src={savedPhoto.previewUrl} alt="Saved participant photo" className="h-16 w-12 shrink-0 rounded object-cover" />
+                    <span className="text-sm text-muted-foreground">Saved photo will be used</span>
+                  </div>}
+                  <ProofOfPaymentUpload
+                    value={photoFile}
+                    onChange={setPhotoFile}
+                    required={!savedPhoto}
+                    acceptPdf={false}
+                    maxSizeMB={5}
+                    label={savedPhoto ? 'Replace participant photo for this registration' : 'Participant Photo'}
+                  />
+                </div>
               )}
 
               {certificateRequired && (
