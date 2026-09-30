@@ -410,7 +410,7 @@ const InvoiceTemplateList: React.FC = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                     title="Remove QR code from template"
+                    title="Remove QR code from template"
                     onClick={handleRemoveQR}
                     className="text-destructive hover:text-destructive"
                   >
