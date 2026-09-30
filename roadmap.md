@@ -35,3 +35,9 @@
 
 - [x] Grading result pass promotes belt by 1, double by 2; confirmed/fail no change; invoice keeps student's current belt
 - [x] Payment date in manual invoice creation defaults to the invoice date
+
+## `/access` list readability
+
+- [ ] Align headings, data hierarchy, status, amounts, proof/invoice links and row actions across five lists
+- [ ] Give narrow screens labelled, readable rows without losing tab-specific controls
+- [ ] Verify desktop and phone presentation and existing actions
