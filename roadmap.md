@@ -38,6 +38,6 @@
 
 ## `/access` list readability
 
-- [ ] Align headings, data hierarchy, status, amounts, proof/invoice links and row actions across five lists
-- [ ] Give narrow screens labelled, readable rows without losing tab-specific controls
-- [ ] Verify desktop and phone presentation and existing actions
+- [x] Align row spacing and field labels across five lists; prioritize student, status and amount on competition phone rows
+- [x] Give narrow screens labelled, readable rows without losing tab-specific controls
+- [ ] Verify populated desktop and phone lists and existing actions (blocked: `/access` password and external Supabase session unavailable)

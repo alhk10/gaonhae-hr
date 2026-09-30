@@ -124,6 +124,15 @@
     .access-list-table tbody tr {
       @apply mb-2 grid grid-cols-2 gap-x-3 gap-y-2 rounded-md border bg-card p-3;
     }
+    .access-list-table tbody tr:has(td[colspan]) {
+      @apply block text-center;
+    }
+    .access-list-table tbody tr:has(td[colspan]) td {
+      @apply block;
+    }
+    .access-list-table tbody tr:has(td[colspan]) td::before {
+      content: none;
+    }
     .access-list-table tbody td {
       @apply block min-w-0 p-0 text-left whitespace-normal;
     }
