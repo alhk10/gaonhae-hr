@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import australiaLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 
@@ -28,6 +29,7 @@ export interface InvoiceItem {
 
 export interface InvoiceTemplate {
   letterhead_url?: string;
+  logo_url?: string;
   paynow_qr_url?: string;
   country?: string;
   default_notes?: string;
@@ -62,14 +64,6 @@ export interface InvoiceData {
   };
   template?: InvoiceTemplate;
 }
-
-const COMPANY_INFO = {
-  name: 'GAONHAE TAEKWONDO LLP',
-  address: 'Singapore',
-  phone: '+65 9XXX XXXX',
-  email: 'info@gaonhae.com',
-  uen: 'T24LL0001A'
-};
 
 interface LoadedImage {
   data: string;
@@ -141,13 +135,18 @@ const resolveInvoiceStatus = (invoice: InvoiceData): string => {
 };
 
 export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> => {
+  if (!invoice.template?.country || !invoice.template.letterhead_url?.trim()) {
+    throw new Error('The country invoice template and letterhead are required to generate this PDF');
+  }
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let yPos = 20;
 
   // Load and add logo with proper aspect ratio (downscaled to ~200px)
-  const logoResult = await loadImage('/images/company-logo.jpg', 200, 200);
+  const savedLogo = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
+  // The saved Australian storage object can be missing; retain branding without replacing its country letterhead.
+  const logoResult = savedLogo ?? (invoice.template.country === 'AU' ? await loadImage(australiaLogo, 200, 200) : null);
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
@@ -164,37 +163,29 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const letterheadText = invoice.template?.letterhead_url;
   const textStartX = margin + (logoResult ? logoWidth + 5 : 0); // Offset if logo exists
   
+  let letterheadLines: string[] = [];
   if (letterheadText && letterheadText.trim()) {
-    // Render letterhead as multi-line text
-    const lines = letterheadText.split('\n');
+    // Wrap the saved letterhead within the page, beside the country logo.
     doc.setFontSize(9);
+    letterheadLines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - textStartX)) as string[]);
     doc.setFont('helvetica', 'bold');
     
-    lines.forEach((line, index) => {
+    letterheadLines.forEach((line, index) => {
       // First line bold, rest normal
       if (index > 0) {
         doc.setFont('helvetica', 'normal');
       }
       doc.text(line.trim(), textStartX, yPos + 5 + (index * 5));
     });
-  } else {
-    // Fallback: Draw default text manually
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(COMPANY_INFO.name, textStartX, yPos + 8);
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(COMPANY_INFO.address, textStartX, yPos + 15);
-    doc.text(`UEN: ${COMPANY_INFO.uen}`, textStartX, yPos + 21);
   }
 
-  // Invoice title on the right
+  // Place the title below the full letterhead so neither country's long details overlap it.
+  const headerHeight = Math.max(logoHeight, 5 + letterheadLines.length * 5);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
+  doc.text('INVOICE', pageWidth - margin, yPos + headerHeight + 10, { align: 'right' });
 
-  yPos += 40;
+  yPos += headerHeight + 17;
 
   // Draw a line
   doc.setDrawColor(200, 200, 200);
@@ -360,14 +351,15 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  const gstPct = invoice.subtotal > 0 && invoice.tax_amount > 0
-    ? Math.round((invoice.tax_amount / invoice.subtotal) * 100)
+  const isAustralian = invoice.template.country === 'AU';
+  const gstPct = invoice.tax_amount > 0
+    ? isAustralian ? 10 : 9
     : null;
   doc.text(gstPct ? 'Subtotal (before GST):' : 'Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
-  doc.text(gstPct ? `GST (${gstPct}%):` : 'GST:', totalsX, yPos);
+  doc.text(gstPct ? `GST (${gstPct}%${isAustralian ? ' included' : ''}):` : 'GST:', totalsX, yPos);
   doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
@@ -464,7 +456,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.text('Bank Transfer:', rightColumnX, notesStartY);
       doc.setFont('helvetica', 'normal');
       
-      const bankLines = invoice.template!.bank_transfer_info!.split('\n');
+      const bankLines = invoice.template!.bank_transfer_info!.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), rightColumnWidth) as string[]);
       let bankY = notesStartY + 5;
       bankLines.forEach((line) => {
         doc.text(line.trim(), rightColumnX, bankY);

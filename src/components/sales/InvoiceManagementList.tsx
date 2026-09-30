@@ -50,6 +50,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { downloadInvoicePDF, shareInvoiceViaWhatsApp, getInvoicePDFBase64, hasUsableMobileNumber, type InvoiceData } from '@/utils/invoicePDFGenerator';
 import { resolveInvoiceTermContext } from '@/utils/invoiceTermContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 
@@ -270,28 +271,11 @@ const InvoiceManagementList: React.FC = () => {
     }
 
     // Get branch details to determine country for template matching
-    let branchCountry = 'Singapore';
-    if (invoice.branch_id) {
-      const { data: branchData } = await supabase
-        .from('branches')
-        .select('country')
-        .eq('id', invoice.branch_id)
-        .single();
-      if (branchData?.country) {
-        branchCountry = branchData.country;
-      }
-    }
-
-    // Find matching template by country
-    const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-    const { data: templates } = await supabase
-      .from('invoice_templates')
-      .select('letterhead_url, paynow_qr_url, country, default_notes, footer_text')
-      .eq('country', countryCode)
-      .eq('is_active', true)
-      .limit(1);
-    
-    const template = templates?.[0] || null;
+    if (!invoice.branch_id) throw new Error('Invoice branch is missing');
+    const { data: branchData, error: branchError } = await supabase
+      .from('branches').select('country').eq('id', invoice.branch_id).single();
+    if (branchError) throw branchError;
+    const template = await getInvoicePDFTemplate(branchData?.country);
 
     // Collect term_ids and grading_slot_ids from items
     const termIds: string[] = [];
@@ -414,13 +398,7 @@ const InvoiceManagementList: React.FC = () => {
           grading_info
         };
       }) || [],
-      template: template ? {
-        letterhead_url: template.letterhead_url || undefined,
-        paynow_qr_url: template.paynow_qr_url || undefined,
-        country: template.country || undefined,
-        default_notes: template.default_notes || undefined,
-        footer_text: template.footer_text || undefined
-      } : undefined
+      template
     };
   };
 
@@ -433,7 +411,7 @@ const InvoiceManagementList: React.FC = () => {
       toast.success('Invoice PDF downloaded');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate PDF');
     } finally {
       setPdfLoadingId(null);
     }
@@ -464,7 +442,6 @@ const InvoiceManagementList: React.FC = () => {
       // Enrich with branch name + bank transfer info (needed for the SMS-style body)
       let branchName: string | undefined;
       let branchAddress: string | undefined;
-      let branchCountry = 'Singapore';
       if (invoice.branch_id) {
         const { data: branchData } = await supabase
           .from('branches')
@@ -473,16 +450,8 @@ const InvoiceManagementList: React.FC = () => {
           .single();
         branchName = branchData?.name;
         branchAddress = branchData?.address;
-        if (branchData?.country) branchCountry = branchData.country;
       }
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase
-        .from('invoice_templates')
-        .select('bank_transfer_info')
-        .eq('country', countryCode)
-        .eq('is_active', true)
-        .limit(1);
-      const bankTransferInfo = templates?.[0]?.bank_transfer_info || undefined;
+      const bankTransferInfo = invoiceData.template?.bank_transfer_info;
 
       const enriched: InvoiceData = {
         ...invoiceData,

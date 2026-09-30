@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
+import type { InvoiceTemplate } from '@/utils/invoicePDFGenerator';
 
 export interface ChatSessionInput {
   first_name: string;
@@ -351,11 +352,12 @@ export interface ChatInvoice {
   balance_due: number;
   notes: string | null;
   items: ChatInvoiceItem[];
+  template: InvoiceTemplate | null;
 }
 
 export interface ChatInvoicesResult {
   student: { name: string; address: string | null; phone: string | null; email: string | null } | null;
-  template: { letterhead_url?: string; paynow_qr_url?: string; country?: string; default_notes?: string; footer_text?: string } | null;
+  template: InvoiceTemplate | null;
   invoices: ChatInvoice[];
 }
 

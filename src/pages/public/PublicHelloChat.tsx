@@ -456,6 +456,7 @@ const PublicHelloChat: React.FC = () => {
 
   const handleDownloadInvoice = async (inv: ChatInvoice) => {
     try {
+      const template = inv.template;
       const pdfData: InvoiceData = {
         id: inv.id,
         invoice_number: inv.invoice_number,
@@ -487,19 +488,13 @@ const PublicHelloChat: React.FC = () => {
           term_info: item.term_info || undefined,
           grading_info: item.grading_info || undefined,
         })),
-        template: pastInvoices?.template ? {
-          letterhead_url: pastInvoices.template.letterhead_url || undefined,
-          paynow_qr_url: pastInvoices.template.paynow_qr_url || undefined,
-          country: pastInvoices.template.country || undefined,
-          default_notes: pastInvoices.template.default_notes || undefined,
-          footer_text: pastInvoices.template.footer_text || undefined,
-        } : undefined,
+        template,
       };
       await downloadInvoicePDF(pdfData);
       toast.success('Invoice PDF downloaded');
     } catch (e) {
       console.error(e);
-      toast.error('Failed to generate PDF');
+      toast.error(e instanceof Error ? e.message : 'Failed to generate PDF');
     }
   };
 

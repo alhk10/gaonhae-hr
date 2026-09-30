@@ -43,6 +43,7 @@ import { getNotices, Notice } from '@/services/noticeService';
 import PaySchoolFeesDialog from './PaySchoolFeesDialog';
 import PayGradingDialog from './PayGradingDialog';
 import { downloadInvoicePDF, InvoiceData, InvoiceItem } from '@/utils/invoicePDFGenerator';
+import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import UnpaidInvoiceReminderDialog from './UnpaidInvoiceReminderDialog';
 import StudentProfileCompletionDialog from './StudentProfileCompletionDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -518,7 +519,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       queryClient.invalidateQueries({ queryKey: ['student-profile'] });
       toast.success('Passport photo uploaded');
-    } catch (error) {
+      } catch (error) {
       console.error('Error uploading photo:', error);
       toast.error('Failed to upload photo');
     } finally {
@@ -613,30 +614,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       if (itemsError) throw itemsError;
       
       // Get branch details to determine country for template matching
-      const branchId = invoiceData.branch_id || student?.branch_id;
-      let branchCountry = 'Singapore';
-      
-      if (branchId) {
-        const { data: branchData } = await supabase
-          .from('branches')
-          .select('country')
-          .eq('id', branchId)
-          .single();
-        if (branchData?.country) {
-          branchCountry = branchData.country;
-        }
-      }
-
-      // Find matching template by country code (same logic as admin page)
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase
-        .from('invoice_templates')
-        .select('letterhead_url, paynow_qr_url, country, default_notes, footer_text')
-        .eq('country', countryCode)
-        .eq('is_active', true)
-        .limit(1);
-      
-      const template = templates?.[0] || null;
+      if (!invoiceData.branch_id) throw new Error('Invoice branch is missing');
+      const { data: branchData, error: branchError } = await supabase
+        .from('branches').select('country').eq('id', invoiceData.branch_id).single();
+      if (branchError) throw branchError;
+      const template = await getInvoicePDFTemplate(branchData?.country);
 
       // Collect term_ids and grading_slot_ids from items for additional info
       const termIds: string[] = [];
@@ -756,20 +738,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
             grading_info
           };
         }) || [],
-        template: template ? {
-          letterhead_url: template.letterhead_url || undefined,
-          paynow_qr_url: template.paynow_qr_url || undefined,
-          country: template.country || undefined,
-          default_notes: template.default_notes || undefined,
-          footer_text: template.footer_text || undefined
-        } : undefined,
+        template,
       };
       
       await downloadInvoicePDF(pdfData);
       toast.success('Invoice PDF downloaded');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate PDF');
     } finally {
       setGeneratingPdfId(null);
     }
