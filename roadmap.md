@@ -1,5 +1,10 @@
 # Roadmap
 
+## Competition registration form
+
+- [x] Prefill `/hello` competition email from saved Email 1
+- [x] Remove general weight field while retaining category-specific required weight
+
 ## Invoice template payment details
 
 - [x] Save cleared bank-transfer and PayNow QR fields and verify persisted values

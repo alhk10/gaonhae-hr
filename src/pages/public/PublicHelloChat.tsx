@@ -366,10 +366,10 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
   });
 
-  const { data: personalInfo, isLoading: personalInfoLoading } = useQuery({
+  const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching } = useQuery({
     queryKey: ['hello-personal-info', sessionId, matched?.id],
     queryFn: () => getChatStudentPersonalInfo(sessionId!, matched!.id),
-    enabled: !!sessionId && !!matched?.id && stage === 'personal_info',
+    enabled: !!sessionId && !!matched?.id && (stage === 'personal_info' || stage === 'competition'),
   });
 
   useEffect(() => {
@@ -1675,13 +1675,13 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">
                 Register <strong>{matched.first_name}</strong> for a competition below — your details are pre-filled.
               </Bubble>
-              <CompetitionRegistrationForm
+              {!personalInfoFetching && !personalInfoLoading && <CompetitionRegistrationForm
                 embedded
                 lockBranch
                 prefill={{
                   firstName: matched.first_name,
                   lastName: matched.last_name,
-                  email,
+                  email: personalInfo?.email || '',
                   branchId,
                   dob,
                   belt: matched.current_belt,
@@ -1698,7 +1698,7 @@ const PublicHelloChat: React.FC = () => {
                   toast.success(`Competition registration submitted. Reference: ${ref}`);
                   goTo('matched');
                 }}
-              />
+              />}
               <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
                 Back to menu
               </Button>

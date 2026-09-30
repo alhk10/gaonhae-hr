@@ -182,7 +182,6 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const [dob, setDob] = useState<Date | undefined>(() => parseDob(prefill?.dob));
   const [currentBelt, setCurrentBelt] = useState<string>(prefill?.belt || '');
   const [gender, setGender] = useState<string>(prefill?.gender || '');
-  const [weightKg, setWeightKg] = useState<string>('');
   const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
   const [extraWeights, setExtraWeights] = useState<Record<number, string>>({});
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
@@ -434,7 +433,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         indemnity_form_file: selectedEvent.require_indemnity_form ? indemnityFormFile : null,
         passport_file: selectedEvent.require_passport ? passportFile : null,
         photo_file: selectedEvent.require_photo ? photoFile : null,
-        weight_kg: weightKg.trim() === '' ? null : Number(weightKg),
+        weight_kg: null,
       });
       if (creditContext && creditToUse > 0) {
         await applyHelloCreditToCompetition(creditContext.sessionId, creditContext.studentId, result.id);
@@ -664,20 +663,6 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="weight">Weight (kg)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="e.g. 62.5"
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                />
               </div>
 
               {selectedEvent.require_photo && (
