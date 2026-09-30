@@ -101,3 +101,74 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Shared staff-list rhythm; each list supplies its own domain-specific columns. */
+  .access-list-table thead th {
+    @apply h-9 px-2 text-xs font-medium;
+  }
+  .access-list-table tbody td {
+    @apply px-2 py-2 text-xs align-top;
+  }
+  .access-list-table tbody tr {
+    @apply odd:bg-muted/30;
+  }
+  @media (max-width: 767px) {
+    .access-list-table,
+    .access-list-table tbody {
+      @apply block w-full;
+    }
+    .access-list-table thead {
+      @apply sr-only;
+    }
+    .access-list-table tbody tr {
+      @apply mb-2 grid grid-cols-2 gap-x-3 gap-y-2 rounded-md border bg-card p-3;
+    }
+    .access-list-table tbody tr:has(td[colspan]) {
+      @apply block text-center;
+    }
+    .access-list-table tbody tr:has(td[colspan]) td {
+      @apply block;
+    }
+    .access-list-table tbody tr:has(td[colspan]) td::before {
+      content: none;
+    }
+    .access-list-table tbody td {
+      @apply block min-w-0 p-0 text-left whitespace-normal;
+    }
+    .access-list-table tbody td::before {
+      content: attr(data-label);
+      @apply mb-0.5 block text-[10px] font-medium text-muted-foreground;
+    }
+    .access-list-table tbody td[data-field="student"],
+    .access-list-table tbody td[data-field="details"],
+    .access-list-table tbody td[data-field="selection"] {
+      @apply col-span-2;
+    }
+    .access-list-table tbody td[data-field="student"]::before,
+    .access-list-table tbody td[data-field="selection"]::before {
+      content: none;
+    }
+    .access-list-table tbody td[data-field="student"] {
+      @apply text-sm font-semibold;
+    }
+    .access-list-table tbody td[data-field="amount"] {
+      @apply text-left font-semibold;
+    }
+    .access-list-table tbody td[data-field="actions"] {
+      @apply flex min-w-0 items-center gap-2 text-left;
+    }
+    .access-list-table tbody td[data-field="actions"]:not(:has(*)) {
+      @apply hidden;
+    }
+    .access-list-table tbody td[data-field="actions"]::before {
+      @apply mb-0;
+    }
+    .access-list-table tbody td[data-field="actions"]:has([title]) {
+      @apply col-span-1;
+    }
+    .access-list-table tbody td[data-field="details"] {
+      @apply break-words;
+    }
+  }
+}

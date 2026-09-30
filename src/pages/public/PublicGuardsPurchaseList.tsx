@@ -223,7 +223,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
 
 
         <Card>
-          <CardContent className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchId}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
@@ -258,7 +258,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
             {isLoading ? (
               <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>
             ) : (
-              <Table>
+              <Table className="access-list-table">
                 <TableHeader>
                   <TableRow className="[&_th]:h-8 [&_th]:px-2 [&_th]:text-[11px]">
                     <TableHead>Branch</TableHead>
@@ -271,8 +271,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead>Refund</TableHead>
-                    <TableHead></TableHead>
-                    {canDelete && onRequestDelete && <TableHead></TableHead>}
+                    <TableHead>Actions</TableHead>
+                    {canDelete && onRequestDelete && <TableHead>Delete</TableHead>}
                   </TableRow>
                 </TableHeader>
 
@@ -306,8 +306,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                         className="cursor-pointer hover:bg-muted/40"
                         onClick={() => setDetailsRow(r)}
                       >
-                        <TableCell className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
-                        <TableCell>
+                        <TableCell data-label="Branch" data-field="branch" className="whitespace-nowrap">{branchMap.get(r.branch_id || '') || '—'}</TableCell>
+                        <TableCell data-label="Student" data-field="student">
                           <StudentNameButton
                             name={`${r.first_name || ''} ${r.last_name || ''}`.trim()}
                             studentId={r.matched_student_id}
@@ -325,21 +325,21 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <TableCell data-label="Belt" data-field="belt" className="text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell data-label="Package" data-field="details">
                           {items.map((it, i) => (
                             <div key={i} className="leading-tight">{it.qty}× {it.label}</div>
                           ))}
                         </TableCell>
-                        <TableCell>
+                        <TableCell data-label="Status" data-field="status">
                           <StatusBadge status={r.invoice_status || r.sale_status} className="text-[10px]" />
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-right">
+                        <TableCell data-label="Amount" data-field="amount" className="whitespace-nowrap text-right">
                           ${Number(r.total).toFixed(2)}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Proof" data-field="proof" onClick={(e) => e.stopPropagation()}>
                           {r.proof_url ? (
                             <button
                               type="button"
@@ -353,7 +353,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Variants" data-field="details" onClick={(e) => e.stopPropagation()}>
                           {components.length === 0 ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
@@ -401,7 +401,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             </div>
                           )}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Collected" data-field="collected" onClick={(e) => e.stopPropagation()}>
                           <div className={`flex items-center gap-1.5 ${collectedBlocked ? 'opacity-40' : ''}`}>
                             <Checkbox
                               checked={r.collected}
@@ -420,7 +420,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             </div>
                           )}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Refund" data-field="actions" onClick={(e) => e.stopPropagation()}>
                           {r.invoice_id ? (
                             <Button
                               size="sm"
@@ -435,7 +435,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Actions" data-field="actions" onClick={(e) => e.stopPropagation()}>
                           {r.sale_status === 'pending_verification' && (
                             <div className="flex gap-1">
                               <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => handleVerify(r)} disabled={busyId === r.id}>
@@ -448,7 +448,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                           )}
                         </TableCell>
                         {canDelete && onRequestDelete && (
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell data-label="Actions" data-field="actions" onClick={(e) => e.stopPropagation()}>
                             <Button
                               size="sm"
                               variant="ghost"

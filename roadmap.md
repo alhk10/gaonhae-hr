@@ -35,3 +35,9 @@
 
 - [x] Grading result pass promotes belt by 1, double by 2; confirmed/fail no change; invoice keeps student's current belt
 - [x] Payment date in manual invoice creation defaults to the invoice date
+
+## `/access` list readability
+
+- [x] Align row spacing and field labels across five lists; prioritize student, status and amount on competition phone rows
+- [x] Give narrow screens labelled, readable rows without losing tab-specific controls
+- [ ] Verify populated desktop and phone lists and existing actions (blocked: `/access` password and external Supabase session unavailable)
