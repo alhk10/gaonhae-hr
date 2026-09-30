@@ -2440,7 +2440,7 @@ const CompetitionsTab: React.FC<{
 
   const [eventFilter, setEventFilter] = useState<string>('');
   const [localBranchFilter, setLocalBranchFilter] = useState<string>(lockedBranch || 'all');
-  const [paidFilter, setPaidFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  const [paidFilter, setPaidFilter] = useState<'all' | 'pending' | 'paid' | 'rejected' | 'cancelled_refunded'>('all');
   // Filters coming from the Summary tab drill-through
   useEffect(() => {
     setLocalBranchFilter(lockedBranch || branchFilter || 'all');
@@ -2501,7 +2501,8 @@ const CompetitionsTab: React.FC<{
         if (paidFilter === 'all') return true;
         if (paidFilter === 'paid') return r.paid_status === 'paid';
         if (paidFilter === 'rejected') return r.paid_status === 'rejected';
-        return r.paid_status !== 'paid' && r.paid_status !== 'rejected';
+        if (paidFilter === 'cancelled_refunded') return r.paid_status === 'cancelled_refunded';
+        return r.paid_status !== 'paid' && r.paid_status !== 'rejected' && r.paid_status !== 'cancelled_refunded';
       })
       .sort((a, b) => {
         const ta = a.competition_at ? new Date(a.competition_at).getTime() : Number.POSITIVE_INFINITY;
@@ -2846,6 +2847,7 @@ const CompetitionsTab: React.FC<{
               <SelectItem value="all" className="text-xs">All statuses</SelectItem>
               <SelectItem value="pending" className="text-xs">Pending verification</SelectItem>
               <SelectItem value="paid" className="text-xs">Paid &amp; Verified</SelectItem>
+              <SelectItem value="cancelled_refunded" className="text-xs">Cancelled &amp; Refunded</SelectItem>
               <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
             </SelectContent>
           </Select>
@@ -2962,7 +2964,7 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
+                  <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 text-right">
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
@@ -3158,7 +3160,7 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight whitespace-nowrap">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
+                <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
                 <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 
