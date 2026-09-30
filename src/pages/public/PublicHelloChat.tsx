@@ -27,6 +27,7 @@ import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
+import CompetitionRegistrationForm from '@/components/public/CompetitionRegistrationForm';
 import { PhoneInput } from '@/components/ui/phone-input';
 import gaonhaeLogo from '@/assets/gaonhae-logo.png';
 import {
@@ -131,6 +132,7 @@ type Stage =
   | 'payment_done'
   | 'past_invoices'
   | 'personal_info'
+  | 'competition'
   | 'lesson_action'
   | 'lesson_request'
   | 'lesson_request_done';
@@ -1617,6 +1619,13 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
+                  <Button
+                    onClick={() => goTo('competition')}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    Register for Competition <ArrowRight className="h-4 w-4" />
+                  </Button>
                   {[
                     { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
                     { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
@@ -1663,6 +1672,35 @@ const PublicHelloChat: React.FC = () => {
                 </CardContent>
 
               </Card>
+            </>
+          )}
+
+          {stage === 'competition' && matched && (
+            <>
+              <Bubble who="bot">
+                Register <strong>{matched.first_name}</strong> for a competition below — your details are pre-filled.
+              </Bubble>
+              <CompetitionRegistrationForm
+                embedded
+                lockBranch
+                prefill={{
+                  firstName: matched.first_name,
+                  lastName: matched.last_name,
+                  email,
+                  branchId,
+                  dob,
+                  belt: matched.current_belt,
+                  gender: matched.gender || gender,
+                }}
+                onSuccess={(ref) => {
+                  if (sessionId) logChatEvent(sessionId, 'competition_registration_submitted', { reference: ref }).catch(() => {});
+                  toast.success(`Competition registration submitted. Reference: ${ref}`);
+                  goTo('matched');
+                }}
+              />
+              <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
+                Back to menu
+              </Button>
             </>
           )}
 
