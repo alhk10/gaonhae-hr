@@ -2964,7 +2964,7 @@ const CompetitionsTab: React.FC<{
                   </div>
                 </TableCell>
                 <TableCell className="px-2 py-1">
-                  <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
+                  <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1 text-right">
                   {r.amount != null ? formatCurrency(Number(r.amount)) : '—'}
