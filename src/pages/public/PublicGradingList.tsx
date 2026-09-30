@@ -1570,7 +1570,7 @@ const PublicGradingList: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <Table>
+                <Table className="access-list-table">
                   <TableHeader>
                     <TableRow>
                       {editMode && (
@@ -1606,7 +1606,7 @@ const PublicGradingList: React.FC = () => {
                     {g.items.map((r, i) => (
                       <TableRow key={i} className="odd:bg-muted/40">
                         {editMode && (
-                          <TableCell className="px-2 py-0.5">
+                          <TableCell data-label="Select" data-field="selection" className="px-2 py-0.5">
                             <Checkbox
                               checked={selectedCerts.has(rowCertKey(r))}
                               onCheckedChange={() => toggleCert(r)}
@@ -1615,9 +1615,9 @@ const PublicGradingList: React.FC = () => {
                           </TableCell>
                         )}
 
-                        <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
-                        <TableCell className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
-                        <TableCell className="px-2 py-0.5 text-[11px] font-medium">
+                        <TableCell data-label="#" data-field="number" className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
+                        <TableCell data-label="Branch" data-field="branch" className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
+                        <TableCell data-label="Student" data-field="student" className="px-2 py-0.5 text-[11px] font-medium">
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
                           <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
                           {r.invoice_id && (
@@ -1630,18 +1630,18 @@ const PublicGradingList: React.FC = () => {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
+                        <TableCell data-label="Belt" data-field="belt" className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
                           {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
                         </TableCell>
-                        <TableCell className="px-2 py-0.5">
+                        <TableCell data-label="Status" data-field="status" className="px-2 py-0.5">
                           <StatusBadge status={r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status)} className="text-[10px] px-1.5 py-0" />
                         </TableCell>
                         {editMode && (
                           <>
-                            <TableCell className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
+                            <TableCell data-label="Amount" data-field="amount" className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
                               {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Proof" data-field="proof" className="px-2 py-0.5">
                               {r.proof_url ? (
                                 <button
                                   type="button"
@@ -1665,7 +1665,7 @@ const PublicGradingList: React.FC = () => {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Result" data-field="result" className="px-2 py-0.5">
                               {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.result ?? ''}
@@ -1687,7 +1687,7 @@ const PublicGradingList: React.FC = () => {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Remark" data-field="remark" className="px-2 py-0.5">
                               {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.remark ?? ''}
@@ -1707,7 +1707,7 @@ const PublicGradingList: React.FC = () => {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Verify" data-field="actions" className="px-2 py-0.5">
                               {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
@@ -1720,7 +1720,7 @@ const PublicGradingList: React.FC = () => {
                                 </button>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Reject" data-field="actions" className="px-2 py-0.5">
                               {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
@@ -1733,7 +1733,7 @@ const PublicGradingList: React.FC = () => {
                                 </button>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Actions" data-field="actions" className="px-2 py-0.5">
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -1756,7 +1756,7 @@ const PublicGradingList: React.FC = () => {
                               </div>
                             </TableCell>
 
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Delete" data-field="actions" className="px-2 py-0.5">
                               {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
                                 <button
                                   type="button"
@@ -1773,7 +1773,7 @@ const PublicGradingList: React.FC = () => {
                                 </button>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-0.5">
+                            <TableCell data-label="Certificates" data-field="actions" className="px-2 py-0.5">
                               {isCertEligible(r) && (
                                 <div className="flex items-center gap-1">
                                   <button
@@ -2884,7 +2884,7 @@ const CompetitionsTab: React.FC<{
 
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="hidden lg:block overflow-x-auto">
-        <Table>
+        <Table className="access-list-table">
           <TableHeader>
             <TableRow>
               <TableHead className="h-7 px-2 text-[11px]">Competition</TableHead>
