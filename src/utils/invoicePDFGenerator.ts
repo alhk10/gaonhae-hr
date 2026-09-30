@@ -144,7 +144,8 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   // Load and add logo with proper aspect ratio (downscaled to ~200px)
   const logoResult = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
-  if (invoice.template.logo_url && !logoResult) throw new Error('Could not load the country invoice logo');
+  // A removed logo should not prevent the saved country letterhead from being printed.
+  if (invoice.template.logo_url && !logoResult) console.warn('Invoice template logo is unavailable');
   const targetLogoHeight = 18.54; // Fixed height (18 * 1.03 = 18.54), width calculated to maintain aspect ratio
   let logoWidth = 0;
   let logoHeight = 0;
