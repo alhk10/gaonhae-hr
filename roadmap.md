@@ -4,7 +4,7 @@
 
 - [x] Use saved country template for public invoice previews and School Fees invoices
 - [x] Use saved country template for staff, student portal and `/hello` PDF downloads and emailed PDFs
-- [ ] Verify Singapore and Australian PDF appearance, including refunded invoices
+- [x] Verify Singapore and Australian PDF appearance, including refunded invoices
 
 ## Accurate payment amounts from public forms to invoices
 

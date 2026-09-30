@@ -355,7 +355,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const gstPct = invoice.tax_amount > 0
     ? isAustralian ? 10 : 9
     : null;
-  doc.text(gstPct ? (isAustralian ? 'Subtotal (incl GST):' : 'Subtotal (before GST):') : 'Subtotal:', totalsX, yPos);
+  doc.text(gstPct ? 'Subtotal (before GST):' : 'Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
