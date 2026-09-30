@@ -223,7 +223,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
 
 
         <Card>
-          <CardContent className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchId}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
@@ -271,8 +271,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                     <TableHead>Variants</TableHead>
                     <TableHead>Collected</TableHead>
                     <TableHead>Refund</TableHead>
-                    <TableHead></TableHead>
-                    {canDelete && onRequestDelete && <TableHead></TableHead>}
+                    <TableHead>Actions</TableHead>
+                    {canDelete && onRequestDelete && <TableHead>Delete</TableHead>}
                   </TableRow>
                 </TableHeader>
 
@@ -333,7 +333,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <div key={i} className="leading-tight">{it.qty}× {it.label}</div>
                           ))}
                         </TableCell>
-                        <TableCell data-label="Status" data-field="actions">
+                        <TableCell data-label="Status" data-field="status">
                           <StatusBadge status={r.invoice_status || r.sale_status} className="text-[10px]" />
                         </TableCell>
                         <TableCell data-label="Amount" data-field="amount" className="whitespace-nowrap text-right">

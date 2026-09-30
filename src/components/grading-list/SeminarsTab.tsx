@@ -182,7 +182,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-semibold mr-auto">Seminars</h2>
         <Select value={eventFilter} onValueChange={setEventFilter}>
-          <SelectTrigger className="w-[200px] h-8 text-xs">
+          <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs">
             <SelectValue placeholder="All seminars" />
           </SelectTrigger>
           <SelectContent>
@@ -195,7 +195,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
           </SelectContent>
         </Select>
         <Select value={localBranchFilter} onValueChange={setLocalBranchFilter} disabled={!!lockedBranch}>
-          <SelectTrigger className="w-[180px] h-8 text-xs">
+          <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs">
             <SelectValue placeholder="All branches" />
           </SelectTrigger>
           <SelectContent>
@@ -206,7 +206,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-          <SelectTrigger className="w-[160px] h-8 text-xs">
+          <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs">
             <SelectValue placeholder="Sale status" />
           </SelectTrigger>
           <SelectContent>

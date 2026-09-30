@@ -295,10 +295,10 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search student"
-          className="h-8 w-[160px] text-xs"
+          className="h-8 w-full sm:w-[180px] text-xs"
         />
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-          <SelectTrigger className="h-8 w-[150px] text-xs">
+          <SelectTrigger className="h-8 w-full sm:w-[170px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

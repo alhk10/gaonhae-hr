@@ -2959,7 +2959,7 @@ const CompetitionsTab: React.FC<{
                 </TableCell>
                 <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                 <TableCell className="text-xs px-2 py-1">
-                  <div className="text-[11px] leading-tight whitespace-nowrap">
+                  <div className="text-[11px] leading-tight break-words min-w-0">
                     {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                   </div>
                 </TableCell>
@@ -3133,7 +3133,7 @@ const CompetitionsTab: React.FC<{
           return (
             <div
               key={`mobile-${r.submission_id}__${idx}`}
-              className="rounded-md border bg-card p-2 space-y-2"
+              className="rounded-md border bg-card p-3 space-y-3"
               style={{ borderLeft: `4px solid ${branchColor}` }}
             >
               <div className="flex flex-wrap items-center gap-2">
