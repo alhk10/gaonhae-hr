@@ -181,12 +181,12 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Fallback: Draw default text manually
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(COMPANY_INFO.name, margin, yPos + 8);
+    doc.text(COMPANY_INFO.name, textStartX, yPos + 8);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(COMPANY_INFO.address, margin, yPos + 15);
-    doc.text(`UEN: ${COMPANY_INFO.uen}`, margin, yPos + 21);
+    doc.text(COMPANY_INFO.address, textStartX, yPos + 15);
+    doc.text(`UEN: ${COMPANY_INFO.uen}`, textStartX, yPos + 21);
   }
 
   // Invoice title on the right
