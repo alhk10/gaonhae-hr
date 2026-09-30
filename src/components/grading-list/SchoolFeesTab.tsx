@@ -295,10 +295,10 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search student"
-          className="h-8 w-full sm:w-[180px] text-xs"
+          className="h-8 w-[160px] text-xs"
         />
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-          <SelectTrigger className="h-8 w-full sm:w-[170px] text-xs">
+          <SelectTrigger className="h-8 w-[150px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -337,26 +337,27 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           No school fee payments submitted through /hello yet.
         </p>
       ) : (
-        <div className="min-w-0 overflow-x-auto">
-          <Table className="access-list-table">
+        <div className="overflow-x-auto">
+          <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Proof</TableHead>
-                <TableHead>Invoice</TableHead>
+                <TableHead className="text-xs">Date</TableHead>
+                <TableHead className="text-xs">Student</TableHead>
+                <TableHead className="text-xs">Branch</TableHead>
+                <TableHead className="text-xs">Items</TableHead>
+                <TableHead className="text-xs text-right">Amount</TableHead>
+                <TableHead className="text-xs">Method</TableHead>
+                <TableHead className="text-xs">Proof</TableHead>
+                <TableHead className="text-xs">Invoice</TableHead>
+                <TableHead className="text-xs">Status</TableHead>
                 {(canEdit || canDelete) && <TableHead className="text-xs text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell data-label="Student" data-field="student" className="text-xs font-medium">
+                  <TableCell className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
+                  <TableCell className="text-xs font-medium">
                     <StudentNameButton
                       name={row.student_name || row.contact_name || '—'}
                       studentId={row.student_id}
@@ -378,11 +379,11 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     )}
                   </TableCell>
 
-                  <TableCell data-label="Branch" data-field="branch" className="text-xs">{row.branch_name || '—'}</TableCell>
-                  <TableCell data-label="Items" data-field="details" className="text-xs max-w-[220px]">
+                  <TableCell className="text-xs">{row.branch_name || '—'}</TableCell>
+                  <TableCell className="text-xs max-w-[220px]">
                     <span className="line-clamp-2 break-words">{itemsSummary(row) || '—'}</span>
                   </TableCell>
-                  <TableCell data-label="Amount" data-field="amount" className="text-xs text-right whitespace-nowrap">
+                  <TableCell className="text-xs text-right whitespace-nowrap">
                     {formatCurrency(Number(row.amount || 0))}
                     {(() => {
                       const x = rowExtras(row);
@@ -399,13 +400,8 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                       );
                     })()}
                   </TableCell>
-                  <TableCell data-label="Status" data-field="status">
-                    <StatusBadge status={row.invoice_status || row.status} className="text-[10px]" />
-                  </TableCell>
-                  {(canEdit || canDelete) && row.source === 'hello' && (
-                    <TableCell data-label="Date" data-field="date" className="text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</TableCell>
-                  <TableCell data-label="Method" data-field="method" className="text-xs whitespace-nowrap">{methodLabel(row.payment_method)}</TableCell>
-                  <TableCell data-label="Proof" data-field="proof">
+                  <TableCell className="text-xs whitespace-nowrap">{methodLabel(row.payment_method)}</TableCell>
+                  <TableCell>
                     {row.proof_url ? (
                       <button
                         type="button"
@@ -430,7 +426,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                       <span className="text-[10px] text-muted-foreground">+{row.extra_proofs!.length}</span>
                     )}
                   </TableCell>
-                  <TableCell data-label="Invoice" data-field="invoice" className="text-xs font-mono whitespace-nowrap">
+                  <TableCell className="text-xs font-mono whitespace-nowrap">
                     {row.invoice_id ? (
                       <div className="flex items-center gap-1.5">
                         <button
@@ -456,7 +452,11 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     )}
                   </TableCell>
 
-                  <TableCell data-label="Actions" data-field="actions" className="text-right text-[10px] text-muted-foreground whitespace-nowrap">
+                  <TableCell>
+                    <StatusBadge status={row.invoice_status || row.status} className="text-[10px]" />
+                  </TableCell>
+                  {(canEdit || canDelete) && row.source === 'hello' && (
+                    <TableCell className="text-right text-[10px] text-muted-foreground whitespace-nowrap">
                       {canEdit && (
                         <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" disabled={busy} onClick={() => setEditRow(row)}>
                           <Pencil className="h-4 w-4" />
@@ -472,11 +472,11 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                           <Coins className="h-4 w-4" />
                         </Button>
                       )}
-                      <div className="text-[10px] text-muted-foreground">{row.status === 'pending_verification' ? 'Check on dashboard' : 'Paid via /hello'}</div>
+                      <div>{row.status === 'pending_verification' ? 'Check on dashboard' : 'Paid via /hello'}</div>
                     </TableCell>
                   )}
                   {(canEdit || canDelete) && row.source !== 'hello' && (
-                    <TableCell data-label="Actions" data-field="actions" className="text-right whitespace-nowrap">
+                    <TableCell className="text-right whitespace-nowrap">
                       {canEdit && (
                         <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit" disabled={busy} onClick={() => setEditRow(row)}>
                           <Pencil className="h-4 w-4" />
