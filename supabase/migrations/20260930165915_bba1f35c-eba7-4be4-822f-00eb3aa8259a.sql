@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.invoice_fully_refunded(uuid) FROM PUBLIC, anon, authenticated;
