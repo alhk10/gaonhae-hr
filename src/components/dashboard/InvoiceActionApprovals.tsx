@@ -15,6 +15,7 @@ import { cancelInvoice } from '@/services/invoiceService';
 import { refundLineItems } from '@/services/invoiceRefundService';
 import { completeCreditRefundRequest, releaseCreditRefundHold } from '@/services/studentCreditService';
 
+import { reviewOverpaymentCredit } from '@/services/schoolFeesSubmissionService';
 import { formatDate } from '@/utils/dateFormat';
 
 const InvoiceActionApprovals: React.FC = () => {
@@ -76,6 +77,7 @@ const InvoiceActionApprovals: React.FC = () => {
       case 'cancellation': return 'Cancel';
       case 'item_refund': return 'Item Refund';
       case 'credit_refund': return 'Credit Refund';
+      case 'overpayment_credit': return 'Overpayment → Credit';
       case 'adjustment': return 'Adjust';
       default: return actionType;
     }
@@ -92,6 +94,14 @@ const InvoiceActionApprovals: React.FC = () => {
   const handleApprove = async (request: InvoiceActionRequest) => {
     try {
       setProcessingId(request.id);
+      if (request.action_type === 'overpayment_credit') {
+        const { data: { user } } = await supabase.auth.getUser();
+        await reviewOverpaymentCredit(request.id, true, user?.email || 'superadmin');
+        toast.success(`$${Number((request.request_data as any)?.amount || 0).toFixed(2)} added to student credits`);
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
+        return;
+      }
       if (request.action_type === 'cancellation') {
         await cancelInvoice(request.invoice_id);
       } else if (request.action_type === 'item_refund') {
@@ -136,7 +146,12 @@ const InvoiceActionApprovals: React.FC = () => {
       if (selectedRequest.action_type === 'credit_refund') {
         await releaseCreditRefundHold(selectedRequest.request_data as any);
       }
-      await rejectActionRequest(selectedRequest.id, rejectionReason);
+      if (selectedRequest.action_type === 'overpayment_credit') {
+        const { data: { user } } = await supabase.auth.getUser();
+        await reviewOverpaymentCredit(selectedRequest.id, false, user?.email || 'superadmin', rejectionReason);
+      } else {
+        await rejectActionRequest(selectedRequest.id, rejectionReason);
+      }
       toast.success('Request rejected');
       setRejectDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });

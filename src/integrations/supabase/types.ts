@@ -4240,6 +4240,7 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          extra_proofs: Json
           id: string
           invoice_id: string
           is_verified: boolean
@@ -4264,6 +4265,7 @@ export type Database = {
           amount: number
           created_at?: string
           created_by?: string | null
+          extra_proofs?: Json
           id?: string
           invoice_id: string
           is_verified?: boolean
@@ -4288,6 +4290,7 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          extra_proofs?: Json
           id?: string
           invoice_id?: string
           is_verified?: boolean
@@ -4878,6 +4881,7 @@ export type Database = {
           category: string | null
           client_ref: string | null
           created_at: string
+          extra_proofs: Json
           gst_amount: number | null
           id: string
           items: Json
@@ -4900,6 +4904,7 @@ export type Database = {
           category?: string | null
           client_ref?: string | null
           created_at?: string
+          extra_proofs?: Json
           gst_amount?: number | null
           id?: string
           items?: Json
@@ -4922,6 +4927,7 @@ export type Database = {
           category?: string | null
           client_ref?: string | null
           created_at?: string
+          extra_proofs?: Json
           gst_amount?: number | null
           id?: string
           items?: Json
@@ -8246,6 +8252,15 @@ export type Database = {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
       }
+      admin_add_school_fees_extra_proof: {
+        Args: {
+          p_amount: number
+          p_id: string
+          p_source: string
+          p_url: string
+        }
+        Returns: undefined
+      }
       admin_append_competition_grading_cards: {
         Args: { p_id: string; p_new_urls: string[] }
         Returns: string[]
@@ -8584,6 +8599,18 @@ export type Database = {
       admin_update_grading_submission_slot: {
         Args: { p_id: string; p_slot_id: string }
         Returns: undefined
+      }
+      admin_update_school_fees_row: {
+        Args: {
+          p_actor: string
+          p_amount: number
+          p_email: string
+          p_id: string
+          p_payment_method: string
+          p_reason: string
+          p_source: string
+        }
+        Returns: string
       }
       admin_update_student_basic: {
         Args: {
@@ -9462,17 +9489,21 @@ export type Database = {
           contact_email: string
           contact_name: string
           created_at: string
+          extra_proofs: Json
           id: string
           invoice_id: string
           invoice_number: string
           invoice_status: string
           items: Json
+          overpayment_request_status: string
+          paid_total: number
           payment_id: string
           payment_method: string
           payment_number: string
           payment_verification_status: string
           proof_url: string
           reference_number: string
+          scan_amount: number
           source: string
           status: string
           student_id: string
@@ -9965,6 +9996,16 @@ export type Database = {
         Args: { p_purchase_id: string }
         Returns: undefined
       }
+      request_overpayment_credit: {
+        Args: {
+          p_actor: string
+          p_amount: number
+          p_id: string
+          p_reason: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       resolve_public_amount: {
         Args: {
           p_amount: number
@@ -9978,6 +10019,15 @@ export type Database = {
           tax: number
           total: number
         }[]
+      }
+      review_overpayment_credit: {
+        Args: {
+          p_approve: boolean
+          p_reason?: string
+          p_request_id: string
+          p_reviewer: string
+        }
+        Returns: undefined
       }
       set_public_chat_session_match: {
         Args: {
