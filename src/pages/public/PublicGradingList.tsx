@@ -3136,35 +3136,31 @@ const CompetitionsTab: React.FC<{
               className="rounded-md border bg-card p-3 space-y-3"
               style={{ borderLeft: `4px solid ${branchColor}` }}
             >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 break-words text-sm font-semibold">
+                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
+                  <SubmissionFlagBadges flag={compFlags?.[r.submission_id]} />
+                  <div className="mt-1 text-xs font-normal text-muted-foreground">{r.branch_name || '—'} · {r.current_belt || '—'}</div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="text-sm font-semibold tabular-nums">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
+                  <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 <DateTimeCell id={r.submission_id} field="reporting_at" value={r.reporting_at} />
                 <CourtCell id={r.submission_id} value={r.court} />
-                <span className="text-xs font-medium px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: `${branchColor}22` }}>
-                  {r.branch_name || '—'}
-                </span>
-                <div className="text-xs">
-                  <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} className="font-medium" />
-                  {r.gender && <span className="text-[10px] uppercase text-muted-foreground ml-1">{r.gender}</span>}
-                  {r.matched_invoice_id && (
-                    <InvoiceNumberButton
-                      invoiceId={r.matched_invoice_id}
-                      invoiceNumber={r.invoice_number}
-                      onOpen={(id, num) => setInvoiceView({ id, number: num })}
-                      className="ml-1 text-[10px]"
-                    />
-                  )}
-                </div>
+                {r.matched_invoice_id && (
+                  <InvoiceNumberButton invoiceId={r.matched_invoice_id} invoiceNumber={r.invoice_number} onOpen={(id, num) => setInvoiceView({ id, number: num })} />
+                )}
                 <span className="text-xs tabular-nums">{age}</span>
-                <span className="text-xs">{r.current_belt || '—'}</span>
-                <span className="text-[11px] leading-tight whitespace-nowrap">
+                <span className="text-[11px] leading-tight break-words min-w-0">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-                <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
-                <span className="text-xs font-medium">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 border-t pt-2">
                 {renderPoomsae(r.poomsae_1, (v) =>
                   poomsaeMutation.mutate({ id: r.submission_id, p1: v, p2: r.poomsae_2 }),
                 )}
