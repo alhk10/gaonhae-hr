@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/utils/dateFormat';
 import { 
@@ -33,6 +34,7 @@ const COUNTRY_OPTIONS = [
 type UploadType = 'qr';
 
 const InvoiceTemplateList: React.FC = () => {
+  const queryClient = useQueryClient();
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -139,20 +141,8 @@ const InvoiceTemplateList: React.FC = () => {
     }
   };
 
-  const handleRemoveQR = async () => {
-    const url = formData.paynow_qr_url;
-    if (url) {
-      try {
-        const urlParts = url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        
-        await supabase.storage
-          .from('invoice-qr-codes')
-          .remove([fileName]);
-      } catch (error) {
-        console.error('Error deleting QR:', error);
-      }
-    }
+  const handleRemoveQR = () => {
+    // Clear the template reference on Save, not the storage object while editing.
     setFormData(prev => ({ ...prev, paynow_qr_url: '' }));
   };
 
@@ -168,9 +158,9 @@ const InvoiceTemplateList: React.FC = () => {
         await updateInvoiceTemplate(editingTemplate.id, {
           name: formData.name,
           country: formData.country,
-          paynow_qr_url: formData.paynow_qr_url || undefined,
+          paynow_qr_url: formData.paynow_qr_url || null,
           letterhead_url: formData.letterhead_url || undefined,
-          bank_transfer_info: formData.bank_transfer_info || undefined,
+          bank_transfer_info: formData.bank_transfer_info.trim() || null,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
           footer_text: formData.footer_text
@@ -180,9 +170,9 @@ const InvoiceTemplateList: React.FC = () => {
         await createInvoiceTemplate({
           name: formData.name,
           country: formData.country,
-          paynow_qr_url: formData.paynow_qr_url || undefined,
+          paynow_qr_url: formData.paynow_qr_url || null,
           letterhead_url: formData.letterhead_url || undefined,
-          bank_transfer_info: formData.bank_transfer_info || undefined,
+          bank_transfer_info: formData.bank_transfer_info.trim() || null,
           default_notes: formData.default_notes,
           default_internal_notes: formData.default_internal_notes,
           footer_text: formData.footer_text
@@ -190,7 +180,8 @@ const InvoiceTemplateList: React.FC = () => {
         toast.success('Template created successfully');
       }
       setDialogOpen(false);
-      loadTemplates();
+      await loadTemplates();
+      await queryClient.invalidateQueries({ queryKey: ['public-payment-options-hello'] });
     } catch (error) {
       console.error('Error saving template:', error);
       toast.error('Failed to save template');
@@ -291,7 +282,7 @@ const InvoiceTemplateList: React.FC = () => {
                     <TableCell>{formatDate(template.created_at)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button
+                     <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
@@ -419,6 +410,7 @@ const InvoiceTemplateList: React.FC = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
+                     title="Remove QR code from template"
                     onClick={handleRemoveQR}
                     className="text-destructive hover:text-destructive"
                   >
