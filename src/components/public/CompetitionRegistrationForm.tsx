@@ -27,6 +27,7 @@ import {
 import {
   getPublicCompetitionEvents,
   submitCompetitionPayment,
+  applyHelloCreditToCompetition,
   getPublicCompetitionExtraLinePresets,
   type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
