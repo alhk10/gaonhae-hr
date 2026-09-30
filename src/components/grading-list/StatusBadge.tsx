@@ -12,6 +12,7 @@ export type CanonicalStatus =
   | 'overdue'
   | 'rejected'
   | 'cancelled'
+  | 'cancelled_refunded'
   | 'none';
 
 const GREEN = 'bg-green-100 text-green-800 border-green-200';
@@ -29,6 +30,7 @@ const META: Record<CanonicalStatus, { label: string; className: string }> = {
   overdue: { label: 'Overdue', className: RED },
   rejected: { label: 'Rejected', className: RED },
   cancelled: { label: 'Cancelled', className: GREY },
+  cancelled_refunded: { label: 'Cancelled & Refunded', className: GREY },
   none: { label: 'No invoice', className: GREY },
 };
 
@@ -58,6 +60,9 @@ export const normalizeStatus = (raw?: string | null): CanonicalStatus => {
     case 'rejected':
     case 'failed':
       return 'rejected';
+    case 'cancelled_refunded':
+    case 'cancelled_and_refunded':
+      return 'cancelled_refunded';
     case 'cancelled':
     case 'canceled':
     case 'refunded':
