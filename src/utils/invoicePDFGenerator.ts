@@ -161,13 +161,15 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const letterheadText = invoice.template?.letterhead_url;
   const textStartX = margin + (logoResult ? logoWidth + 5 : 0); // Offset if logo exists
   
+  let letterheadLines: string[] = [];
   if (letterheadText && letterheadText.trim()) {
     // Wrap the saved letterhead within the space between logo and invoice title.
-    const lines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - 38 - textStartX)) as string[]);
+    doc.setFontSize(9);
+    letterheadLines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - 38 - textStartX)) as string[]);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
-    lines.forEach((line, index) => {
+    letterheadLines.forEach((line, index) => {
       // First line bold, rest normal
       if (index > 0) {
         doc.setFont('helvetica', 'normal');
@@ -181,7 +183,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
 
-  yPos += Math.max(40, 10 + letterheadText.split('\n').length * 5);
+  yPos += Math.max(40, 10 + letterheadLines.length * 5);
 
   // Draw a line
   doc.setDrawColor(200, 200, 200);
@@ -408,7 +410,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     let qrData: LoadedImage | null = null;
     
     // Load QR code if available
-      if (hasQrCode) {
+    if (hasQrCode) {
       qrData = await loadImage(invoice.template!.paynow_qr_url!, 168, 168);
     }
     
@@ -451,7 +453,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.text('Bank Transfer:', rightColumnX, notesStartY);
       doc.setFont('helvetica', 'normal');
       
-       const bankLines = invoice.template!.bank_transfer_info!.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), rightColumnWidth) as string[]);
+      const bankLines = invoice.template!.bank_transfer_info!.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), rightColumnWidth) as string[]);
       let bankY = notesStartY + 5;
       bankLines.forEach((line) => {
         doc.text(line.trim(), rightColumnX, bankY);

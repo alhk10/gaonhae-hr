@@ -614,21 +614,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
       if (itemsError) throw itemsError;
       
       // Get branch details to determine country for template matching
-      const branchId = invoiceData.branch_id || student?.branch_id;
-      let branchCountry = 'Singapore';
-      
-      if (branchId) {
-        const { data: branchData } = await supabase
-          .from('branches')
-          .select('country')
-          .eq('id', branchId)
-          .single();
-        if (branchData?.country) {
-          branchCountry = branchData.country;
-        }
-      }
-
-      const template = await getInvoicePDFTemplate(branchCountry);
+      if (!invoiceData.branch_id) throw new Error('Invoice branch is missing');
+      const { data: branchData, error: branchError } = await supabase
+        .from('branches').select('country').eq('id', invoiceData.branch_id).single();
+      if (branchError) throw branchError;
+      const template = await getInvoicePDFTemplate(branchData?.country);
 
       // Collect term_ids and grading_slot_ids from items for additional info
       const termIds: string[] = [];

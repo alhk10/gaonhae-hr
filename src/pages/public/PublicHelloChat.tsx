@@ -58,7 +58,6 @@ import {
   updateChatStudentPersonalInfo,
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
-import { getInvoicePDFTemplate } from '@/services/invoicePDFTemplate';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
 import {
   FOUR_WEEK_NOTE,
@@ -457,14 +456,7 @@ const PublicHelloChat: React.FC = () => {
 
   const handleDownloadInvoice = async (inv: ChatInvoice) => {
     try {
-      // Select by the invoice's own branch, not the student's current branch.
-      const { data: invoiceBranch, error: invoiceBranchError } = await supabase
-        .from('invoices').select('branch_id').eq('id', inv.id).single();
-      if (invoiceBranchError) throw invoiceBranchError;
-      const { data: branchCountry, error: branchCountryError } = await supabase
-        .from('branches').select('country').eq('id', invoiceBranch.branch_id).single();
-      if (branchCountryError) throw branchCountryError;
-      const template = await getInvoicePDFTemplate(branchCountry?.country);
+      const template = inv.template;
       const pdfData: InvoiceData = {
         id: inv.id,
         invoice_number: inv.invoice_number,
@@ -502,7 +494,7 @@ const PublicHelloChat: React.FC = () => {
       toast.success('Invoice PDF downloaded');
     } catch (e) {
       console.error(e);
-      toast.error('Failed to generate PDF');
+      toast.error(e instanceof Error ? e.message : 'Failed to generate PDF');
     }
   };
 
