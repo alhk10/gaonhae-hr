@@ -453,14 +453,7 @@ const InvoiceManagementList: React.FC = () => {
         branchAddress = branchData?.address;
         if (branchData?.country) branchCountry = branchData.country;
       }
-      const countryCode = branchCountry === 'Australia' ? 'AU' : 'SG';
-      const { data: templates } = await supabase
-        .from('invoice_templates')
-        .select('bank_transfer_info')
-        .eq('country', countryCode)
-        .eq('is_active', true)
-        .limit(1);
-      const bankTransferInfo = templates?.[0]?.bank_transfer_info || undefined;
+      const bankTransferInfo = invoiceData.template?.bank_transfer_info;
 
       const enriched: InvoiceData = {
         ...invoiceData,

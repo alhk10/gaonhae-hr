@@ -519,7 +519,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
 
       queryClient.invalidateQueries({ queryKey: ['student-profile'] });
       toast.success('Passport photo uploaded');
-    } catch (error) {
+      } catch (error) {
       console.error('Error uploading photo:', error);
       toast.error('Failed to upload photo');
     } finally {

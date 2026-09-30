@@ -166,7 +166,6 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     // Wrap the saved letterhead within the page, beside the country logo.
     doc.setFontSize(9);
     letterheadLines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - textStartX)) as string[]);
-    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
     letterheadLines.forEach((line, index) => {
