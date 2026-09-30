@@ -332,7 +332,7 @@ const PublicHelloChat: React.FC = () => {
   });
 
   useEffect(() => {
-    if (stage === 'payment_pay' && sessionLinked && matched?.id) refetchCredit();
+    if ((stage === 'payment_pay' || stage === 'competition') && sessionLinked && matched?.id) refetchCredit();
   }, [stage, sessionLinked, matched?.id, refetchCredit]);
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
@@ -1692,7 +1692,13 @@ const PublicHelloChat: React.FC = () => {
                   belt: matched.current_belt,
                   gender: matched.gender || gender,
                 }}
+                creditContext={
+                  sessionId && sessionLinked
+                    ? { sessionId, studentId: matched.id, availableCredit: Number(availableCredit) || 0 }
+                    : null
+                }
                 onSuccess={(ref) => {
+                  refetchCredit();
                   if (sessionId) logChatEvent(sessionId, 'competition_registration_submitted', { reference: ref }).catch(() => {});
                   toast.success(`Competition registration submitted. Reference: ${ref}`);
                   goTo('matched');

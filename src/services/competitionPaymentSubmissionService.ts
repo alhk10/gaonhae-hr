@@ -304,7 +304,7 @@ export interface SubmitCompetitionPaymentInput {
   amount_net?: number | null;
   gst_amount?: number | null;
   payment_method: 'paynow' | 'bank_transfer';
-  proof_file: File;
+  proof_file: File | null;
   certificate_file?: File | null;
   coaching_label: string;
   coaching_amount: number;
@@ -417,7 +417,7 @@ const dataUrlToFile = (dataUrl: string, filename: string, fallbackType = 'image/
 export const submitCompetitionPayment = async (
   input: SubmitCompetitionPaymentInput,
 ): Promise<{ id: string; reference_number: string }> => {
-  assertValidPaymentProof(input.proof_file);
+  if (input.proof_file) assertValidPaymentProof(input.proof_file);
   assertValidDateOfBirth(input.date_of_birth);
   const clientRef = newClientRef();
   const fn = (input.first_name || '').trim().toUpperCase();
@@ -425,13 +425,14 @@ export const submitCompetitionPayment = async (
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
   const ts = Date.now();
 
-  // Upload proof
-  const proofExt = input.proof_file.name.split('.').pop() || 'jpg';
-  const proofPath = `public-comps/${input.branch_id}/${ts}_${safeName}_proof.${proofExt}`;
-  console.info('[/comps] uploading proof', { path: proofPath, size: input.proof_file.size, type: input.proof_file.type });
-  await safeUpload('Proof', proofPath, input.proof_file, input.proof_file.type);
-  console.info('[/comps] proof uploaded');
-  const proofUrl = await safeSignedUrl('Proof', proofPath);
+  // Upload proof (not needed when student credit covers the full amount)
+  let proofUrl: string | null = null;
+  if (input.proof_file) {
+    const proofExt = input.proof_file.name.split('.').pop() || 'jpg';
+    const proofPath = `public-comps/${input.branch_id}/${ts}_${safeName}_proof.${proofExt}`;
+    await safeUpload('Proof', proofPath, input.proof_file, input.proof_file.type);
+    proofUrl = await safeSignedUrl('Proof', proofPath);
+  }
 
   // Upload certificate (optional)
   let certificateUrl: string | null = null;
@@ -481,7 +482,7 @@ export const submitCompetitionPayment = async (
     amount_net: input.amount_net ?? null,
     gst_amount: input.gst_amount ?? null,
     payment_method: input.payment_method,
-    proof_url: proofUrl,
+    proof_url: proofUrl ?? '',
     certificate_url: certificateUrl,
     event_id: input.event_id,
     gender: input.gender ?? null,
@@ -859,3 +860,17 @@ export const adminReplaceCompetitionGradingCardAt = async (
 
 
 
+/** /hello: hold the recognised student's credit against a competition submission (server re-validates). */
+export const applyHelloCreditToCompetition = async (
+  sessionId: string,
+  studentId: string,
+  submissionId: string,
+): Promise<number> => {
+  const { data, error } = await supabase.rpc('apply_hello_credit_to_competition' as any, {
+    p_session_id: sessionId,
+    p_student_id: studentId,
+    p_submission_id: submissionId,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+};

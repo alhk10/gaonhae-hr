@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.trg_release_competition_credit() FROM PUBLIC, anon, authenticated;

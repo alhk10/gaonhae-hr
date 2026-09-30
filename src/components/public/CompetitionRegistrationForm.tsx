@@ -27,6 +27,7 @@ import {
 import {
   getPublicCompetitionEvents,
   submitCompetitionPayment,
+  applyHelloCreditToCompetition,
   getPublicCompetitionExtraLinePresets,
   type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
@@ -155,6 +156,8 @@ interface CompetitionRegistrationFormProps {
   embedded?: boolean;
   /** When provided, called with the reference number instead of showing the built-in success screen. */
   onSuccess?: (referenceNumber: string) => void;
+  /** /hello only: recognised student's credit, applied before payment. */
+  creditContext?: { sessionId: string; studentId: string; availableCredit: number } | null;
 }
 
 const parseDob = (iso?: string | null): Date | undefined => {
@@ -169,6 +172,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   lockBranch = false,
   embedded = false,
   onSuccess,
+  creditContext = null,
 }) => {
   const [eventId, setEventId] = useState<string>('');
   const [firstName, setFirstName] = useState(prefill?.firstName || '');
@@ -293,6 +297,11 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const withGst = (v: number) => Number((v * (1 + gstRate)).toFixed(2));
   const gstAmount = Number((netSubtotal * gstRate).toFixed(2));
   const totalAmount = Number((netSubtotal + gstAmount).toFixed(2));
+  const credit = creditContext ? Math.max(0, Number(creditContext.availableCredit) || 0) : 0;
+  const creditToUse = Math.max(0, Math.min(credit, totalAmount));
+  const creditRemaining = Math.max(0, credit - creditToUse);
+  const amountDue = Math.max(0, Number((totalAmount - creditToUse).toFixed(2)));
+  const fullyCoveredByCredit = creditToUse > 0 && amountDue < 0.01;
 
   const canSubmit =
     !!selectedEvent &&
@@ -303,7 +312,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
     !!dob &&
     !!currentBelt &&
     !!gender &&
-    !!proofFile &&
+    (fullyCoveredByCredit || !!proofFile) &&
     (!certificateRequired || !!certificateFile) &&
     (!signatureRequired || (!!signatureDataUrl && indemnityClauseAccepted)) &&
     (!selectedEvent.require_indemnity_form || !!indemnityFormFile) &&
@@ -317,7 +326,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !selectedEvent || !dob || !proofFile) return;
+    if (!canSubmit || !selectedEvent || !dob) return;
     const hit = await checkPublicSubmissionDuplicate({
       source: 'competition',
       branchId: branchId,
@@ -383,7 +392,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   };
 
   const doSubmit = async () => {
-    if (!canSubmit || !selectedEvent || !dob || !proofFile) return;
+    if (!canSubmit || !selectedEvent || !dob || (!proofFile && !fullyCoveredByCredit)) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -413,7 +422,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         amount_net: netSubtotal,
         gst_amount: gstAmount,
         payment_method: paymentMethod,
-        proof_file: proofFile,
+        proof_file: fullyCoveredByCredit ? null : proofFile,
         certificate_file: certificateFile,
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
         coaching_amount: coachingIncluded ? withGst(coachingAmount) : 0,
@@ -427,7 +436,12 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         photo_file: selectedEvent.require_photo ? photoFile : null,
         weight_kg: weightKg.trim() === '' ? null : Number(weightKg),
       });
-      await recordProofScan('competition', result.id, await proofScan.waitForResult());
+      if (creditContext && creditToUse > 0) {
+        await applyHelloCreditToCompetition(creditContext.sessionId, creditContext.studentId, result.id);
+      }
+      if (proofFile && !fullyCoveredByCredit) {
+        await recordProofScan('competition', result.id, await proofScan.waitForResult());
+      }
       finishSuccess(result.reference_number);
     } catch (err: any) {
       console.error(err);
@@ -828,6 +842,22 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                       <span>${totalAmount.toFixed(2)}</span>
                     </div>
                   )}
+                  {creditToUse > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-green-700">
+                        <span>Credit applied</span>
+                        <span className="tabular-nums">−${creditToUse.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>Amount to pay</span>
+                        <span className="tabular-nums">${amountDue.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Credit remaining</span>
+                        <span className="tabular-nums">${creditRemaining.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -873,6 +903,14 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
               )}
 
 
+              {fullyCoveredByCredit ? (
+                <Alert>
+                  <AlertDescription className="text-sm">
+                    Your credit covers this in full — no payment needed.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+              <>
               <div className="space-y-2">
                 <Label htmlFor="payment-method">Payment Method</Label>
                 <Select
@@ -905,11 +943,13 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
 
               <ProofOfPaymentUpload
                 value={proofFile}
-                onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(totalAmount || 0)); }}
+                onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(amountDue || 0)); }}
                 required
                 acceptPdf={false}
               />
-              <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(totalAmount || 0)} />
+              <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(amountDue || 0)} />
+              </>
+              )}
 
               {submitError && (
                 <Alert variant="destructive">
@@ -918,7 +958,11 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
               )}
 
               <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {submitting ? 'Submitting...' : `Submit Payment${totalAmount > 0 ? ` ($${totalAmount.toFixed(2)})` : ''}`}
+                {submitting
+                  ? 'Submitting...'
+                  : fullyCoveredByCredit
+                    ? 'Confirm using credit'
+                    : `Submit Payment${amountDue > 0 ? ` ($${amountDue.toFixed(2)})` : ''}`}
               </Button>
             </>
           )}
