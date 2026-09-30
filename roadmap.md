@@ -1,5 +1,11 @@
 # Roadmap
 
+## Recognized-student passport photos
+
+- [x] Add passport photo upload and saved preview in `/hello` Update Personal Information
+- [x] Reuse saved photo for photo-required `/hello` competition entries, allowing a submission-only replacement
+- [ ] Check saved-photo upload and competition submission with a real recognized session (blocked: external unmanaged Supabase session unavailable)
+
 ## Competition registration form
 
 - [x] Prefill `/hello` competition email from saved Email 1
