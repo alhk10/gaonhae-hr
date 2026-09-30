@@ -44,6 +44,13 @@ export interface SchoolFeesRow {
   payment_verification_status: string | null;
   /** 'hello' = paid inside the /hello chat (invoice-backed); 'submission' = legacy /fees form */
   source?: 'hello' | 'submission';
+  /** Amount read from the first screenshot */
+  scan_amount?: number | null;
+  /** Additional screenshots added by staff: { url, amount } */
+  extra_proofs?: { url: string; amount: number | null }[];
+  /** Scanned first proof + extra proofs */
+  paid_total?: number | null;
+  overpayment_request_status?: string | null;
 }
 
 export interface SchoolFeesDeleteContext {
@@ -69,6 +76,9 @@ export const getSchoolFeesList = async (
     ...r,
     items: Array.isArray(r.items) ? r.items : [],
     amount: r.amount === null ? null : Number(r.amount),
+    scan_amount: r.scan_amount == null ? null : Number(r.scan_amount),
+    paid_total: r.paid_total == null ? null : Number(r.paid_total),
+    extra_proofs: Array.isArray(r.extra_proofs) ? r.extra_proofs : [],
   })) as SchoolFeesRow[];
 };
 
@@ -367,4 +377,81 @@ export const adminReplaceSchoolFeesProof = async (
   });
   if (updErr) throw updErr;
   return url;
+};
+
+/* ------------------------------------------------------------------ */
+/* Inline edit, extra proofs, overpayment-to-credit requests           */
+/* ------------------------------------------------------------------ */
+
+export const updateSchoolFeesRow = async (
+  row: Pick<SchoolFeesRow, 'id' | 'source'>,
+  changes: { amount?: number | null; payment_method?: string | null; email?: string | null; reason?: string | null },
+  actor: string,
+): Promise<'saved' | 'requested'> => {
+  const { data, error } = await supabase.rpc('admin_update_school_fees_row' as any, {
+    p_id: row.id,
+    p_source: row.source === 'hello' ? 'hello' : 'submission',
+    p_amount: changes.amount ?? null,
+    p_payment_method: changes.payment_method ?? null,
+    p_email: changes.email ?? null,
+    p_reason: changes.reason ?? null,
+    p_actor: actor,
+  });
+  if (error) throw error;
+  return data as 'saved' | 'requested';
+};
+
+export const addSchoolFeesExtraProof = async (
+  row: Pick<SchoolFeesRow, 'id' | 'source' | 'branch_id'>,
+  file: File,
+  amount: number | null,
+): Promise<void> => {
+  if (!file.type.startsWith('image/')) throw new Error('Please upload an image (PDF not accepted)');
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `public-fees/${row.branch_id || 'unknown'}/extra_${Date.now()}_proof.${ext}`;
+  const { error: upErr } = await supabase.storage
+    .from('payment-proofs')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+  const { data: signed } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+  const { error } = await supabase.rpc('admin_add_school_fees_extra_proof' as any, {
+    p_id: row.id,
+    p_source: row.source === 'hello' ? 'hello' : 'submission',
+    p_url: signed?.signedUrl ?? path,
+    p_amount: amount,
+  });
+  if (error) throw error;
+};
+
+export const requestOverpaymentCredit = async (
+  row: Pick<SchoolFeesRow, 'id' | 'source'>,
+  amount: number,
+  reason: string,
+  actor: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('request_overpayment_credit' as any, {
+    p_id: row.id,
+    p_source: row.source === 'hello' ? 'hello' : 'submission',
+    p_amount: amount,
+    p_reason: reason,
+    p_actor: actor,
+  });
+  if (error) throw error;
+};
+
+export const reviewOverpaymentCredit = async (
+  requestId: string,
+  approve: boolean,
+  reviewer: string,
+  reason?: string,
+): Promise<void> => {
+  const { error } = await supabase.rpc('review_overpayment_credit' as any, {
+    p_request_id: requestId,
+    p_approve: approve,
+    p_reviewer: reviewer,
+    p_reason: reason ?? null,
+  });
+  if (error) throw error;
 };
