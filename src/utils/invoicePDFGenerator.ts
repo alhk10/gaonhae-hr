@@ -163,9 +163,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   
   let letterheadLines: string[] = [];
   if (letterheadText && letterheadText.trim()) {
-    // Wrap the saved letterhead within the space between logo and invoice title.
+    // Wrap the saved letterhead within the page, beside the country logo.
     doc.setFontSize(9);
-    letterheadLines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - 38 - textStartX)) as string[]);
+    letterheadLines = letterheadText.split('\n').flatMap(line => doc.splitTextToSize(line.trim(), Math.max(40, pageWidth - margin - textStartX)) as string[]);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
@@ -178,12 +178,13 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     });
   }
 
-  // Invoice title on the right
+  // Place the title below the full letterhead so neither country's long details overlap it.
+  const headerHeight = Math.max(logoHeight, 5 + letterheadLines.length * 5);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
+  doc.text('INVOICE', pageWidth - margin, yPos + headerHeight + 10, { align: 'right' });
 
-  yPos += Math.max(40, 10 + letterheadLines.length * 5);
+  yPos += headerHeight + 17;
 
   // Draw a line
   doc.setDrawColor(200, 200, 200);
