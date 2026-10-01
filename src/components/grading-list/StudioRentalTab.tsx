@@ -81,6 +81,13 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
                     <div className="font-medium">{r.renter_name}</div>
                     <div className="text-muted-foreground">{r.nric_uen} · {r.contact_number}</div>
                     <div className="text-muted-foreground break-all">{r.email}</div>
+                    <div className="mt-1 flex flex-wrap gap-1 items-center">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${r.is_commercial ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>
+                        {r.is_commercial ? 'Commercial' : 'Personal'}
+                      </span>
+                      {r.id_document_url && <DocLink url={r.id_document_url} label="ID / Bizfile" />}
+                      {r.liability_cert_url && <DocLink url={r.liability_cert_url} label="Liability cert" />}
+                    </div>
                   </TableCell>
                   <TableCell data-label="Branch" className="text-xs">{r.branch_name}</TableCell>
                   <TableCell data-label="Sessions" className="text-xs">
