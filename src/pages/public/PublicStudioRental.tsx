@@ -22,7 +22,7 @@ import { assertValidPaymentProof, newClientRef } from '@/utils/publicPaymentVali
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import {
-  buildAgreementText, getRentalSettings, quoteRental, submitRental, type RentalSession,
+  buildAgreementText, getAgreementTemplate, getRentalSettings, quoteRental, submitRental, type RentalSession,
 } from '@/services/studioRentalService';
 
 const TIMES = Array.from({ length: 34 }, (_, i) => {
@@ -78,11 +78,12 @@ const PublicStudioRental: React.FC = () => {
     retry: false,
   });
 
+  const { data: agreementTemplate } = useQuery({ queryKey: ['studio-rental-agreement-template'], queryFn: getAgreementTemplate });
   const agreementText = cfg ? buildAgreementText({
     branchName: cfg.branch_name, renterName: name.trim().toUpperCase(), nric: nric.trim().toUpperCase(),
     contact, hourly: cfg.hourly_rate, discounted: cfg.discounted_rate,
     threshold: cfg.monthly_threshold_hours, deposit: cfg.deposit_amount, lawCountry: 'Singapore',
-  }) : '';
+  }, agreementTemplate) : '';
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const canSubmit = !!cfg && name.trim().length >= 2 && nric.trim().length >= 4 && contact.trim().length >= 6
