@@ -7484,7 +7484,10 @@ export type Database = {
           email: string
           gst_amount: number
           id: string
+          id_document_url: string | null
           invoice_id: string | null
+          is_commercial: boolean
+          liability_cert_url: string | null
           nric_uen: string
           payment_id: string | null
           payment_method: string
@@ -7514,7 +7517,10 @@ export type Database = {
           email: string
           gst_amount?: number
           id?: string
+          id_document_url?: string | null
           invoice_id?: string | null
+          is_commercial?: boolean
+          liability_cert_url?: string | null
           nric_uen: string
           payment_id?: string | null
           payment_method?: string
@@ -7544,7 +7550,10 @@ export type Database = {
           email?: string
           gst_amount?: number
           id?: string
+          id_document_url?: string | null
           invoice_id?: string | null
+          is_commercial?: boolean
+          liability_cert_url?: string | null
           nric_uen?: string
           payment_id?: string | null
           payment_method?: string
@@ -10015,9 +10024,12 @@ export type Database = {
           email: string
           gst_amount: number
           id: string
+          id_document_url: string
           invoice_id: string
           invoice_number: string
           invoice_status: string
+          is_commercial: boolean
+          liability_cert_url: string
           nric_uen: string
           payment_method: string
           proof_url: string
@@ -10402,6 +10414,9 @@ export type Database = {
           p_client_ref: string
           p_contact: string
           p_email: string
+          p_id_document_url?: string
+          p_is_commercial?: boolean
+          p_liability_cert_url?: string
           p_nric: string
           p_payment_method: string
           p_proof_url: string

@@ -42,6 +42,9 @@ const PublicStudioRental: React.FC = () => {
   const [nric, setNric] = useState('');
   const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');
+  const [idDoc, setIdDoc] = useState<File | null>(null);
+  const [commercial, setCommercial] = useState<'no' | 'yes'>('no');
+  const [liabilityCert, setLiabilityCert] = useState<File | null>(null);
   const [rows, setRows] = useState<Row[]>([{ start: '09:00', end: '10:00' }]);
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
@@ -86,20 +89,23 @@ const PublicStudioRental: React.FC = () => {
   }, agreementTemplate) : '';
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const docsOk = !!idDoc && (commercial === 'no' || !!liabilityCert);
   const canSubmit = !!cfg && name.trim().length >= 2 && nric.trim().length >= 4 && contact.trim().length >= 6
-    && emailOk && rowsValid && !!quote && agreed && !!signature && !!proof && !submitting;
+    && emailOk && docsOk && rowsValid && !!quote && agreed && !!signature && !!proof && !submitting;
 
   const updateRow = (i: number, patch: Partial<Row>) =>
     setRows(rs => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   const handleSubmit = async () => {
-    if (!cfg || !signature || !proof) return;
+    if (!cfg || !signature || !proof || !idDoc) return;
     try {
       assertValidPaymentProof(proof);
       setSubmitting(true);
       const res = await submitRental({
         clientRef: clientRef.current, branchId, renterName: name, nric, contact, email,
         sessions, agreementText, signature, paymentMethod: method, proofFile: proof,
+        isCommercial: commercial === 'yes', idDocumentFile: idDoc,
+        liabilityCertFile: commercial === 'yes' ? liabilityCert : null,
       });
       setDone({ reference: res.reference, total: Number(res.total_amount) });
       window.scrollTo({ top: 0 });
@@ -162,6 +168,34 @@ const PublicStudioRental: React.FC = () => {
               <div><Label>Contact number *</Label><PhoneInput value={contact} onChange={setContact} /></div>
               <div><Label>Email *</Label><Input type="email" value={email} maxLength={255} onChange={e => setEmail(e.target.value)} /></div>
             </div>
+            <div>
+              <Label>NRIC / FIN / Passport / ACRA Bizfile *</Label>
+              <Input type="file" accept="image/*,application/pdf"
+                onChange={e => setIdDoc(e.target.files?.[0] ?? null)} />
+              <p className="text-xs text-muted-foreground mt-1">
+                {idDoc ? idDoc.name : 'Upload a photo or PDF of your identification or company Bizfile.'}
+              </p>
+            </div>
+            <div>
+              <Label>Is this venue rental for commercial purpose? *</Label>
+              <Select value={commercial} onValueChange={v => setCommercial(v as 'no' | 'yes')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="yes">Yes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {commercial === 'yes' && (
+              <div>
+                <Label>Public liability insurance certificate *</Label>
+                <Input type="file" accept="image/*,application/pdf"
+                  onChange={e => setLiabilityCert(e.target.files?.[0] ?? null)} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {liabilityCert ? liabilityCert.name : 'Required for commercial use. Upload a photo or PDF of your certificate.'}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
