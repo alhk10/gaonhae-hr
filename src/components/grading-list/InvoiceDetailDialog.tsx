@@ -16,6 +16,7 @@ import { Loader2 } from 'lucide-react';
 import { getPublicInvoiceFull } from '@/services/publicInvoiceService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import { formatDate } from '@/utils/dateFormat';
+import PdfPagesPreview from '@/components/common/PdfPagesPreview';
 
 interface Props {
   invoiceId: string | null;
@@ -89,7 +90,7 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
         ) : error ? (
           <p className="py-10 text-center text-xs text-destructive">{error}</p>
         ) : url ? (
-          <iframe src={url} title="Invoice preview" className="w-full h-[70vh] rounded border" />
+          <PdfPagesPreview url={url} />
         ) : null}
         <DialogFooter className="gap-2">
           {url && (

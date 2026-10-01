@@ -4,6 +4,7 @@
  * unlocked staff verify, reject or delete a submission (with its auto invoice).
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import PdfPagesPreview from '@/components/common/PdfPagesPreview';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, FileText, UserPlus, Settings, Undo2, Upload, Pencil, ImagePlus, Coins } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
@@ -581,11 +582,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           ) : invoiceError ? (
             <p className="py-10 text-center text-xs text-destructive">{invoiceError}</p>
           ) : invoiceUrl ? (
-            <iframe
-              src={invoiceUrl}
-              title="Invoice preview"
-              className="w-full h-[70vh] rounded border"
-            />
+            <PdfPagesPreview url={invoiceUrl} />
           ) : null}
           <DialogFooter className="gap-2">
             {invoiceUrl && (
