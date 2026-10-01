@@ -8682,6 +8682,10 @@ export type Database = {
         Args: { p_by: string; p_id: string; p_note?: string; p_status: string }
         Returns: undefined
       }
+      admin_save_studio_rental_agreement_template: {
+        Args: { p_actor: string; p_text: string }
+        Returns: undefined
+      }
       admin_school_fees_delete_context: {
         Args: { p_id: string }
         Returns: Json
@@ -9999,6 +10003,7 @@ export type Database = {
           signed_at: string
         }[]
       }
+      get_studio_rental_agreement_template: { Args: never; Returns: string }
       get_studio_rental_list: {
         Args: { p_branch_id?: string }
         Returns: {

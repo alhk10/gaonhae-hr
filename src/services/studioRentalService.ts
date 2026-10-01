@@ -102,24 +102,23 @@ export const reviewRental = async (id: string, status: 'verified' | 'rejected', 
 
 const money = (n: number) => `$${Number(n).toFixed(2).replace(/\.00$/, '')}`;
 
-/** The Studio Rental Agreement text with branch details filled in. */
-export const buildAgreementText = (p: {
-  branchName: string; renterName: string; nric: string; contact: string;
-  hourly: number; discounted: number; threshold: number; deposit: number; lawCountry: string;
-}) => `STUDIO RENTAL AGREEMENT
+export const AGREEMENT_PLACEHOLDERS = ['{branch}','{renter_name}','{nric_uen}','{contact}','{hourly_rate}','{discounted_rate}','{threshold}','{deposit}','{law_country}'];
+
+/** Default agreement wording; placeholders are filled per branch/renter. */
+export const DEFAULT_AGREEMENT_TEMPLATE = `STUDIO RENTAL AGREEMENT
 
 Gaonhae Taekwondo LLP ("Gaonhae")
-Renter: ${p.renterName || '________'}
-NRIC/UEN: ${p.nric || '________'}
-Contact: ${p.contact || '________'}
+Renter: {renter_name}
+NRIC/UEN: {nric_uen}
+Contact: {contact}
 
 1. Studio Use
-Gaonhae permits the Renter to use the designated studio at Gaonhae Taekwondo ${p.branchName} for yoga lessons/practice during confirmed booking times.
+Gaonhae permits the Renter to use the designated studio at Gaonhae Taekwondo {branch} for yoga lessons/practice during confirmed booking times.
 Commercial use is not permitted unless approved in writing by Gaonhae and the Renter provides valid Public Liability Insurance.
 
 2. Rental Rates
-- ${money(p.hourly)}/hour for up to ${p.threshold} hours per calendar month.
-- ${money(p.discounted)}/hour for all hours once monthly usage exceeds ${p.threshold} hours.
+- {hourly_rate}/hour for up to {threshold} hours per calendar month.
+- {discounted_rate}/hour for all hours once monthly usage exceeds {threshold} hours.
 - Minimum booking: 1 hour.
 - Additional bookings in 30-minute increments.
 All fees must be paid in full before use. Bookings are confirmed only upon payment.
@@ -132,8 +131,8 @@ Bookings are subject to availability and must be made in advance.
 - The Renter must not use the studio beyond the confirmed booking period without prior approval.
 
 4. Deposit
-A ${money(p.deposit)} security deposit is payable before the first use.
-The deposit may be used for unpaid fees, cleaning or damage. If damage exceeds ${money(p.deposit)}, the Renter remains responsible for the full additional cost of repair or replacement.
+A {deposit} security deposit is payable before the first use.
+The deposit may be used for unpaid fees, cleaning or damage. If damage exceeds {deposit}, the Renter remains responsible for the full additional cost of repair or replacement.
 
 5. Setup & Cleaning
 The Renter is allowed 10 minutes before and 10 minutes after each booked session for setup, cleaning and pack-up. All activities must be completed within these periods.
@@ -157,4 +156,28 @@ Gaonhae may terminate immediately for non-payment, damage, unsafe or unlawful co
 
 10. General
 This agreement does not create a partnership, employment or agency relationship. Use is subject to landlord/building requirements.
-${p.lawCountry} law applies.`;
+{law_country} law applies.`;
+
+export const getAgreementTemplate = async (): Promise<string | null> => {
+  const { data, error } = await db.rpc('get_studio_rental_agreement_template');
+  if (error) throw error;
+  return (data as string | null) || null;
+};
+
+export const saveAgreementTemplate = async (text: string | null) => {
+  const { error } = await db.rpc('admin_save_studio_rental_agreement_template', { p_text: text, p_actor: 'access' });
+  if (error) throw error;
+};
+
+/** The Studio Rental Agreement text with branch details filled in. */
+export const buildAgreementText = (p: {
+  branchName: string; renterName: string; nric: string; contact: string;
+  hourly: number; discounted: number; threshold: number; deposit: number; lawCountry: string;
+}, template?: string | null) => {
+  const vals: Record<string, string> = {
+    branch: p.branchName, renter_name: p.renterName || '________', nric_uen: p.nric || '________',
+    contact: p.contact || '________', hourly_rate: money(p.hourly), discounted_rate: money(p.discounted),
+    threshold: String(p.threshold), deposit: money(p.deposit), law_country: p.lawCountry,
+  };
+  return (template || DEFAULT_AGREEMENT_TEMPLATE).replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m));
+};
