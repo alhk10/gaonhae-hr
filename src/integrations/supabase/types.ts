@@ -3177,6 +3177,11 @@ export type Database = {
           branch_id: string | null
           created_at: string
           created_by: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          customer_reference: string | null
+          customer_type: string
           discount_amount: number
           due_date: string | null
           id: string
@@ -3186,7 +3191,7 @@ export type Database = {
           notes: string | null
           payment_terms_days: number | null
           status: string | null
-          student_id: string
+          student_id: string | null
           subtotal: number
           tax_amount: number
           total_amount: number
@@ -3199,6 +3204,11 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          customer_reference?: string | null
+          customer_type?: string
           discount_amount?: number
           due_date?: string | null
           id?: string
@@ -3208,7 +3218,7 @@ export type Database = {
           notes?: string | null
           payment_terms_days?: number | null
           status?: string | null
-          student_id: string
+          student_id?: string | null
           subtotal?: number
           tax_amount?: number
           total_amount?: number
@@ -3221,6 +3231,11 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          customer_reference?: string | null
+          customer_type?: string
           discount_amount?: number
           due_date?: string | null
           id?: string
@@ -3230,7 +3245,7 @@ export type Database = {
           notes?: string | null
           payment_terms_days?: number | null
           status?: string | null
-          student_id?: string
+          student_id?: string | null
           subtotal?: number
           tax_amount?: number
           total_amount?: number
@@ -7469,7 +7484,9 @@ export type Database = {
           email: string
           gst_amount: number
           id: string
+          invoice_id: string | null
           nric_uen: string
+          payment_id: string | null
           payment_method: string
           pricing: Json | null
           proof_url: string | null
@@ -7497,7 +7514,9 @@ export type Database = {
           email: string
           gst_amount?: number
           id?: string
+          invoice_id?: string | null
           nric_uen: string
+          payment_id?: string | null
           payment_method?: string
           pricing?: Json | null
           proof_url?: string | null
@@ -7525,7 +7544,9 @@ export type Database = {
           email?: string
           gst_amount?: number
           id?: string
+          invoice_id?: string | null
           nric_uen?: string
+          payment_id?: string | null
           payment_method?: string
           pricing?: Json | null
           proof_url?: string | null
@@ -7549,6 +7570,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_rental_submissions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -8380,6 +8408,14 @@ export type Database = {
           term_id: string
           term_name: string
         }[]
+      }
+      _studio_rental_create_invoice: {
+        Args: { p_by: string; p_id: string }
+        Returns: string
+      }
+      _studio_rental_product: {
+        Args: { p_name: string; p_sku: string }
+        Returns: string
       }
       _studio_rental_quote: {
         Args: {
@@ -9974,6 +10010,9 @@ export type Database = {
           email: string
           gst_amount: number
           id: string
+          invoice_id: string
+          invoice_number: string
+          invoice_status: string
           nric_uen: string
           payment_method: string
           proof_url: string
