@@ -7417,6 +7417,142 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_rental_settings: {
+        Row: {
+          branch_id: string
+          created_at: string
+          deposit_amount: number
+          discounted_rate: number
+          enabled: boolean
+          hourly_rate: number
+          monthly_threshold_hours: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          deposit_amount?: number
+          discounted_rate?: number
+          enabled?: boolean
+          hourly_rate?: number
+          monthly_threshold_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          deposit_amount?: number
+          discounted_rate?: number
+          enabled?: boolean
+          hourly_rate?: number
+          monthly_threshold_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_rental_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_rental_submissions: {
+        Row: {
+          agreement_text: string
+          branch_id: string
+          client_ref: string | null
+          contact_number: string
+          created_at: string
+          deposit_amount: number
+          email: string
+          gst_amount: number
+          id: string
+          nric_uen: string
+          payment_method: string
+          pricing: Json | null
+          proof_url: string | null
+          reference_number: string
+          rental_amount: number
+          renter_name: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sessions: Json
+          signature_data: string
+          signed_at: string
+          status: string
+          total_amount: number
+          total_hours: number
+          updated_at: string
+        }
+        Insert: {
+          agreement_text: string
+          branch_id: string
+          client_ref?: string | null
+          contact_number: string
+          created_at?: string
+          deposit_amount?: number
+          email: string
+          gst_amount?: number
+          id?: string
+          nric_uen: string
+          payment_method?: string
+          pricing?: Json | null
+          proof_url?: string | null
+          reference_number?: string
+          rental_amount: number
+          renter_name: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sessions: Json
+          signature_data: string
+          signed_at?: string
+          status?: string
+          total_amount: number
+          total_hours: number
+          updated_at?: string
+        }
+        Update: {
+          agreement_text?: string
+          branch_id?: string
+          client_ref?: string | null
+          contact_number?: string
+          created_at?: string
+          deposit_amount?: number
+          email?: string
+          gst_amount?: number
+          id?: string
+          nric_uen?: string
+          payment_method?: string
+          pricing?: Json | null
+          proof_url?: string | null
+          reference_number?: string
+          rental_amount?: number
+          renter_name?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sessions?: Json
+          signature_data?: string
+          signed_at?: string
+          status?: string
+          total_amount?: number
+          total_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_rental_submissions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submission_deletion_requests: {
         Row: {
           amount: number | null
@@ -8245,6 +8381,15 @@ export type Database = {
           term_name: string
         }[]
       }
+      _studio_rental_quote: {
+        Args: {
+          p_branch_id: string
+          p_email: string
+          p_nric: string
+          p_sessions: Json
+        }
+        Returns: Json
+      }
       _sur_reviewer: { Args: { p_actor: string }; Returns: string }
       _validate_public_chat_session: {
         Args: {
@@ -8497,6 +8642,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_review_studio_rental: {
+        Args: { p_by: string; p_id: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       admin_school_fees_delete_context: {
         Args: { p_id: string }
         Returns: Json
@@ -8729,6 +8878,17 @@ export type Database = {
           p_require_photo?: boolean
         }
         Returns: string
+      }
+      admin_upsert_studio_rental_settings: {
+        Args: {
+          p_branch_id: string
+          p_deposit: number
+          p_discounted: number
+          p_enabled: boolean
+          p_hourly: number
+          p_threshold: number
+        }
+        Returns: undefined
       }
       admin_verify_accessory_submission: {
         Args: { p_id: string; p_verified_by: string }
@@ -9793,6 +9953,56 @@ export type Database = {
         Args: { p_student_id: string; p_term_id: string }
         Returns: string
       }
+      get_studio_rental_agreement: {
+        Args: { p_id: string }
+        Returns: {
+          agreement_text: string
+          reference_number: string
+          renter_name: string
+          signature_data: string
+          signed_at: string
+        }[]
+      }
+      get_studio_rental_list: {
+        Args: { p_branch_id?: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          contact_number: string
+          created_at: string
+          deposit_amount: number
+          email: string
+          gst_amount: number
+          id: string
+          nric_uen: string
+          payment_method: string
+          proof_url: string
+          reference_number: string
+          rental_amount: number
+          renter_name: string
+          review_note: string
+          reviewed_at: string
+          reviewed_by: string
+          sessions: Json
+          signed_at: string
+          status: string
+          total_amount: number
+          total_hours: number
+        }[]
+      }
+      get_studio_rental_settings: {
+        Args: never
+        Returns: {
+          branch_id: string
+          branch_name: string
+          country: string
+          deposit_amount: number
+          discounted_rate: number
+          enabled: boolean
+          hourly_rate: number
+          monthly_threshold_hours: number
+        }[]
+      }
       get_submission_match_event_detail: {
         Args: { p_event_id: string }
         Returns: Json
@@ -9956,6 +10166,15 @@ export type Database = {
       public_set_guards_variant_selections: {
         Args: { p_id: string; p_selections: Json }
         Returns: undefined
+      }
+      quote_studio_rental: {
+        Args: {
+          p_branch_id: string
+          p_email: string
+          p_nric: string
+          p_sessions: Json
+        }
+        Returns: Json
       }
       record_proof_scan: {
         Args: {
@@ -10131,6 +10350,22 @@ export type Database = {
           id: string
           reference_number: string
         }[]
+      }
+      submit_studio_rental: {
+        Args: {
+          p_agreement_text: string
+          p_branch_id: string
+          p_client_ref: string
+          p_contact: string
+          p_email: string
+          p_nric: string
+          p_payment_method: string
+          p_proof_url: string
+          p_renter_name: string
+          p_sessions: Json
+          p_signature: string
+        }
+        Returns: Json
       }
       submit_submission_deletion_request: {
         Args: {
