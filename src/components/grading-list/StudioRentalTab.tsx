@@ -10,6 +10,8 @@ import { CheckCircle, XCircle, FileText, Settings, Download } from 'lucide-react
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -166,7 +168,10 @@ const RatesDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Studio rental rates by branch</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Studio rental settings</DialogTitle></DialogHeader>
+        <Tabs defaultValue="rates">
+          <TabsList><TabsTrigger value="rates">Rates</TabsTrigger><TabsTrigger value="agreement">Agreement</TabsTrigger></TabsList>
+          <TabsContent value="rates">
         <div className="space-y-2">
           <div className="hidden sm:grid grid-cols-[1.4fr_auto_1fr_1fr_1fr_1fr] gap-2 text-xs text-muted-foreground">
             <span>Branch</span><span>On</span><span>$/hour</span><span>Discounted $/hour</span><span>Threshold (h/month)</span><span>Deposit</span>
@@ -183,8 +188,52 @@ const RatesDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           ); })}
           <Button onClick={save} disabled={Object.keys(edits).length === 0}>Save</Button>
         </div>
+          </TabsContent>
+          <TabsContent value="agreement"><AgreementEditor settings={data} /></TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const AgreementEditor: React.FC<{ settings: RentalSettings[] }> = ({ settings }) => {
+  const qc = useQueryClient();
+  const { data: saved, isLoading } = useQuery({ queryKey: ['studio-rental-agreement-template'], queryFn: getAgreementTemplate });
+  const [text, setText] = useState<string | null>(null);
+  const [branch, setBranch] = useState('');
+  const value = text ?? saved ?? DEFAULT_AGREEMENT_TEMPLATE;
+  const cfg = settings.find(s => s.branch_id === branch) ?? settings[0];
+  const preview = cfg ? buildAgreementText({
+    branchName: cfg.branch_name, renterName: '', nric: '', contact: '', hourly: cfg.hourly_rate,
+    discounted: cfg.discounted_rate, threshold: cfg.monthly_threshold_hours, deposit: cfg.deposit_amount, lawCountry: 'Singapore',
+  }, value) : '';
+  const persist = async (t: string | null, msg: string) => {
+    try {
+      await saveAgreementTemplate(t);
+      toast.success(msg);
+      setText(null);
+      qc.invalidateQueries({ queryKey: ['studio-rental-agreement-template'] });
+    } catch (e: any) { toast.error(e.message); }
+  };
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Fill-in fields: {AGREEMENT_PLACEHOLDERS.join(' ')}. New bookings use the saved wording; past bookings keep what they signed.
+      </p>
+      <Textarea className="min-h-[300px] font-mono text-xs" value={value} onChange={e => setText(e.target.value)} />
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => persist(value === DEFAULT_AGREEMENT_TEMPLATE ? null : value, 'Agreement saved')} disabled={text === null}>Save</Button>
+        <Button size="sm" variant="outline" onClick={() => { if (confirm('Reset the agreement to the default wording?')) persist(null, 'Agreement reset to default'); }}>Reset to default</Button>
+      </div>
+      <div className="flex items-center gap-2 pt-2">
+        <span className="text-xs font-medium">Preview for</span>
+        <select className="h-8 rounded border bg-background px-2 text-xs" value={cfg?.branch_id ?? ''} onChange={e => setBranch(e.target.value)}>
+          {settings.map(s => <option key={s.branch_id} value={s.branch_id}>{s.branch_name}</option>)}
+        </select>
+      </div>
+      <div className="text-xs whitespace-pre-wrap border rounded p-3 bg-muted/30 max-h-[300px] overflow-y-auto">{preview}</div>
+    </div>
   );
 };
 
