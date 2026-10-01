@@ -129,8 +129,8 @@ const PublicStudioRental: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 p-3 sm:p-6">
-      <div className="max-w-2xl mx-auto space-y-4">
-        <header className="text-center py-2">
+      <div className="max-w-2xl mx-auto space-y-4 text-left">
+        <header className="!text-center py-2">
           <h1 className="text-2xl font-bold">Studio Rental Booking</h1>
           <p className="text-sm text-muted-foreground">Gaonhae Taekwondo</p>
         </header>
