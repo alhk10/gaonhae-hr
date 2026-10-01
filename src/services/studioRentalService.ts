@@ -34,6 +34,7 @@ export interface RentalRow {
   status: string; reviewed_by: string | null; reviewed_at: string | null; review_note: string | null;
   signed_at: string; created_at: string;
   invoice_id: string | null; invoice_number: string | null; invoice_status: string | null;
+  is_commercial: boolean; id_document_url: string | null; liability_cert_url: string | null;
 }
 
 export const getRentalSettings = async (): Promise<RentalSettings[]> => {
@@ -62,20 +63,35 @@ export const quoteRental = async (branchId: string, nric: string, email: string,
   return data as RentalQuote;
 };
 
+const uploadRentalFile = async (file: File, clientRef: string, kind: string) => {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const path = `studio-rental/${clientRef}-${kind}.${ext}`;
+  const up = await supabase.storage.from('payment-proofs')
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (up.error) throw up.error;
+  return `payment-proofs/${path}`;
+};
+
 export const submitRental = async (input: {
   clientRef: string; branchId: string; renterName: string; nric: string; contact: string; email: string;
   sessions: RentalSession[]; agreementText: string; signature: string; paymentMethod: string; proofFile: File;
+  isCommercial: boolean; idDocumentFile: File; liabilityCertFile?: File | null;
 }) => {
   const ext = (input.proofFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
   const path = `studio-rental/${input.clientRef}.${ext}`;
   const up = await supabase.storage.from('payment-proofs')
     .upload(path, input.proofFile, { upsert: true, contentType: input.proofFile.type });
   if (up.error) throw up.error;
+  const idUrl = await uploadRentalFile(input.idDocumentFile, input.clientRef, 'id');
+  const certUrl = input.isCommercial && input.liabilityCertFile
+    ? await uploadRentalFile(input.liabilityCertFile, input.clientRef, 'liability')
+    : null;
   const { data, error } = await db.rpc('submit_studio_rental', {
     p_client_ref: input.clientRef, p_branch_id: input.branchId, p_renter_name: input.renterName,
     p_nric: input.nric, p_contact: input.contact, p_email: input.email, p_sessions: input.sessions,
     p_agreement_text: input.agreementText, p_signature: input.signature,
     p_payment_method: input.paymentMethod, p_proof_url: `payment-proofs/${path}`,
+    p_is_commercial: input.isCommercial, p_id_document_url: idUrl, p_liability_cert_url: certUrl,
   });
   if (error) throw error;
   return data as { id: string; reference: string; total_amount: number };
