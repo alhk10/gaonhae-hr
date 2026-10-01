@@ -89,7 +89,9 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
                   <TableCell data-label="Proof">
                     {r.proof_url ? <SignedImage src={r.proof_url} alt="Proof" className="h-12 w-12 object-cover rounded border" /> : '—'}
                   </TableCell>
-                  <TableCell data-label="Status"><StatusBadge status={r.status} /></TableCell>
+                  <TableCell data-label="Status"><StatusBadge status={r.status} />
+                    {r.invoice_id && <button type="button" className="block mt-1 text-xs font-mono text-primary underline" onClick={() => setInvoice({ id: r.invoice_id!, number: r.invoice_number })}>{r.invoice_number}</button>}
+                  </TableCell>
                   <TableCell data-label="Actions" data-field="actions">
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" title="Signed agreement" onClick={() => setAgreementId(r.id)}><FileText className="h-4 w-4" /></Button>

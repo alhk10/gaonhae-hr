@@ -33,6 +33,7 @@ export interface RentalRow {
   gst_amount: number; total_amount: number; payment_method: string; proof_url: string | null;
   status: string; reviewed_by: string | null; reviewed_at: string | null; review_note: string | null;
   signed_at: string; created_at: string;
+  invoice_id: string | null; invoice_number: string | null; invoice_status: string | null;
 }
 
 export const getRentalSettings = async (): Promise<RentalSettings[]> => {
