@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CheckCircle, XCircle, FileText, Settings, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -29,6 +30,7 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
   const qc = useQueryClient();
   const [agreementId, setAgreementId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [invoice, setInvoice] = useState<{ id: string; number: string | null } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['studio-rentals', lockedBranchId ?? null],
@@ -89,7 +91,9 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
                   <TableCell data-label="Proof">
                     {r.proof_url ? <SignedImage src={r.proof_url} alt="Proof" className="h-12 w-12 object-cover rounded border" /> : '—'}
                   </TableCell>
-                  <TableCell data-label="Status"><StatusBadge status={r.status} /></TableCell>
+                  <TableCell data-label="Status"><StatusBadge status={r.status} />
+                    {r.invoice_id && <button type="button" className="block mt-1 text-xs font-mono text-primary underline" onClick={() => setInvoice({ id: r.invoice_id!, number: r.invoice_number })}>{r.invoice_number}</button>}
+                  </TableCell>
                   <TableCell data-label="Actions" data-field="actions">
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" title="Signed agreement" onClick={() => setAgreementId(r.id)}><FileText className="h-4 w-4" /></Button>
@@ -106,6 +110,7 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
         )}
       </CardContent>
       <AgreementDialog id={agreementId} onClose={() => setAgreementId(null)} />
+      <InvoiceDetailDialog invoiceId={invoice?.id ?? null} invoiceNumber={invoice?.number} open={!!invoice} onOpenChange={(o) => !o && setInvoice(null)} />
       {settingsOpen && <RatesDialog onClose={() => setSettingsOpen(false)} />}
     </Card>
   );
