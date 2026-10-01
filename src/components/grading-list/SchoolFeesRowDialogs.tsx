@@ -47,13 +47,17 @@ export const SchoolFeesEditDialog: React.FC<BaseProps> = ({ row, onClose, onDone
 
   const save = async () => {
     if (!row) return;
-    const amt = amount.trim() === '' ? null : Number(amount);
+    const isHello = row.source === 'hello';
+    const amt = isHello || amount.trim() === '' ? null : Number(amount);
     if (amt != null && (!isFinite(amt) || amt < 0)) { toast.error('Enter a valid amount'); return; }
+    // Only send the amount when staff actually changed it. /hello rows list the
+    // invoice total, not the payment amount, so their amount is never edited here.
+    const amountChanged = amt != null && Number(amt) !== Number(row.amount ?? NaN);
     if (verified && !reason.trim()) { toast.error('Please give a reason for the superadmin'); return; }
     setBusy(true);
     try {
       const res = await updateSchoolFeesRow(row, {
-        amount: amt,
+        amount: amountChanged ? amt : null,
         payment_method: method,
         email: row.source === 'hello' ? null : email,
         reason,
@@ -79,10 +83,16 @@ export const SchoolFeesEditDialog: React.FC<BaseProps> = ({ row, onClose, onDone
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <div>
-            <Label className="text-xs">Amount paid</Label>
-            <Input className="h-8 text-xs" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
+          {row?.source === 'hello' ? (
+            <p className="text-xs text-muted-foreground">
+              Amount due {formatCurrency(Number(row?.amount || 0))}. To change amounts on this /hello payment, open its invoice.
+            </p>
+          ) : (
+            <div>
+              <Label className="text-xs">Amount paid</Label>
+              <Input className="h-8 text-xs" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+          )}
           <div>
             <Label className="text-xs">Payment method</Label>
             <Select value={method} onValueChange={setMethod}>
