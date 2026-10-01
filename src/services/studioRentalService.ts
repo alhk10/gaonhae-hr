@@ -65,10 +65,10 @@ export const quoteRental = async (branchId: string, nric: string, email: string,
 
 const uploadRentalFile = async (file: File, clientRef: string, kind: string) => {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const path = `studio-rental/${clientRef}-${kind}.${ext}`;
+  const path = `studio-rental/${clientRef}-${kind}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const up = await supabase.storage.from('payment-proofs')
-    .upload(path, file, { upsert: true, contentType: file.type });
-  if (up.error) throw up.error;
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (up.error) throw new Error('Could not upload your file, please try again.');
   return `payment-proofs/${path}`;
 };
 
@@ -78,10 +78,10 @@ export const submitRental = async (input: {
   isCommercial: boolean; idDocumentFile: File; liabilityCertFile?: File | null;
 }) => {
   const ext = (input.proofFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const path = `studio-rental/${input.clientRef}.${ext}`;
+  const path = `studio-rental/${input.clientRef}-proof-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const up = await supabase.storage.from('payment-proofs')
-    .upload(path, input.proofFile, { upsert: true, contentType: input.proofFile.type });
-  if (up.error) throw up.error;
+    .upload(path, input.proofFile, { upsert: false, contentType: input.proofFile.type });
+  if (up.error) throw new Error('Could not upload your file, please try again.');
   const idUrl = await uploadRentalFile(input.idDocumentFile, input.clientRef, 'id');
   const certUrl = input.isCommercial && input.liabilityCertFile
     ? await uploadRentalFile(input.liabilityCertFile, input.clientRef, 'liability')
