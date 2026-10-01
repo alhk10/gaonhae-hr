@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CheckCircle, XCircle, FileText, Settings, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -29,6 +30,7 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
   const qc = useQueryClient();
   const [agreementId, setAgreementId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [invoice, setInvoice] = useState<{ id: string; number: string | null } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['studio-rentals', lockedBranchId ?? null],
@@ -108,6 +110,7 @@ const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdi
         )}
       </CardContent>
       <AgreementDialog id={agreementId} onClose={() => setAgreementId(null)} />
+      <InvoiceDetailDialog invoiceId={invoice?.id ?? null} invoiceNumber={invoice?.number} open={!!invoice} onOpenChange={(o) => !o && setInvoice(null)} />
       {settingsOpen && <RatesDialog onClose={() => setSettingsOpen(false)} />}
     </Card>
   );
