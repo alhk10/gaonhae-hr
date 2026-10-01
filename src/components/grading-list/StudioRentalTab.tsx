@@ -13,7 +13,7 @@ import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import StatusBadge from '@/components/grading-list/StatusBadge';
-import { SignedImage } from '@/components/common/SignedMedia';
+import { SignedImage, openSignedUrl } from '@/components/common/SignedMedia';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import {
@@ -28,6 +28,10 @@ interface Props {
   canEdit: boolean;
   isAllBranch: boolean;
 }
+
+const DocLink: React.FC<{ url: string; label: string }> = ({ url, label }) => (
+  <button type="button" className="text-[10px] text-primary underline" onClick={() => openSignedUrl(url)}>{label}</button>
+);
 
 const StudioRentalTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdit, isAllBranch }) => {
   const qc = useQueryClient();
