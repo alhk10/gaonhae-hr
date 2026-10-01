@@ -34,6 +34,7 @@ import SeminarsTab from '@/components/grading-list/SeminarsTab';
 import SummaryTab from '@/components/grading-list/SummaryTab';
 import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
 import StudentsTab from '@/components/grading-list/StudentsTab';
+import StudioRentalTab from '@/components/grading-list/StudioRentalTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -1404,7 +1405,7 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
@@ -1412,8 +1413,17 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
+            <TabsTrigger value="rental">Studio Rental</TabsTrigger>
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
+          <TabsContent value="rental" className="mt-4">
+            <StudioRentalTab
+              branchFilter={branchFilter}
+              lockedBranchId={lockedBranchId ?? undefined}
+              canEdit={editMode}
+              isAllBranch={editMode && !lockedBranchId}
+            />
+          </TabsContent>
           <TabsContent value="students" className="mt-4">
             <StudentsTab canEdit={editMode} lockedBranchId={lockedBranchId ?? undefined} />
           </TabsContent>

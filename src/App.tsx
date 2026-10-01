@@ -83,6 +83,7 @@ const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPaym
 const PublicSchoolFeesPayment = lazy(() => import('./pages/public/PublicSchoolFeesPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
 const PublicCompetitionPayment = lazy(() => import('./pages/public/PublicCompetitionPayment'));
+const PublicStudioRental = lazy(() => import('./pages/public/PublicStudioRental'));
 const PublicSeminarPayment = lazy(() => import('./pages/public/PublicSeminarPayment'));
 const PublicHelloChat = lazy(() => import('./pages/public/PublicHelloChat'));
 const PublicGuardsPurchase = lazy(() => import('./pages/public/PublicGuardsPurchase'));
@@ -159,6 +160,7 @@ function App() {
                     <Route path="/pay" element={<Navigate to="/grading" replace />} />
                     <Route path="/fees" element={<PublicSchoolFeesPayment />} />
                     <Route path="/comps" element={<PublicCompetitionPayment />} />
+                    <Route path="/rental" element={<PublicStudioRental />} />
                     <Route path="/seminars" element={<PublicSeminarPayment />} />
                     <Route path="/access" element={<PublicGradingList />} />
                     <Route path="/grading-list" element={<Navigate to="/access" replace />} />
