@@ -18,6 +18,7 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import {
   getRentalAgreement, getRentalList, getRentalSettings, reviewRental, saveRentalSettings,
+  getAgreementTemplate, saveAgreementTemplate, buildAgreementText, DEFAULT_AGREEMENT_TEMPLATE, AGREEMENT_PLACEHOLDERS,
   type RentalRow, type RentalSettings,
 } from '@/services/studioRentalService';
 
