@@ -72,14 +72,20 @@ export const getSchoolFeesList = async (
     p_status: status || null,
   });
   if (error) throw error;
-  return ((data || []) as any[]).map((r) => ({
+  // /hello stores bare storage paths; turn them into viewable signed links.
+  const sign = async (u: string | null | undefined) =>
+    u && !/^https?:/i.test(u) ? (await resolveStorageUrl(u)) ?? u : u ?? null;
+  return Promise.all(((data || []) as any[]).map(async (r) => ({
     ...r,
+    proof_url: await sign(r.proof_url),
     items: Array.isArray(r.items) ? r.items : [],
     amount: r.amount === null ? null : Number(r.amount),
     scan_amount: r.scan_amount == null ? null : Number(r.scan_amount),
     paid_total: r.paid_total == null ? null : Number(r.paid_total),
-    extra_proofs: Array.isArray(r.extra_proofs) ? r.extra_proofs : [],
-  })) as SchoolFeesRow[];
+    extra_proofs: Array.isArray(r.extra_proofs)
+      ? await Promise.all(r.extra_proofs.map(async (p: any) => ({ ...p, url: await sign(p?.url) })))
+      : [],
+  }))) as Promise<SchoolFeesRow[]>;
 };
 
 export const verifySchoolFeesSubmission = async (id: string, verifiedBy: string): Promise<void> => {
