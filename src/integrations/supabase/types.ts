@@ -8784,6 +8784,10 @@ export type Database = {
         Args: { p_registration_id: string; p_result: string }
         Returns: undefined
       }
+      admin_update_grading_scorecard: {
+        Args: { p_label: string; p_registration_id: string; p_value: string }
+        Returns: Json
+      }
       admin_update_grading_submission_branch: {
         Args: { p_branch_id: string; p_submission_id: string }
         Returns: undefined
@@ -9522,6 +9526,7 @@ export type Database = {
           registration_id: string
           remark: string
           result: string
+          scorecard: Json
           slot_id: string
           slot_title: string
           source: string
