@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -137,6 +138,7 @@ const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
 
+const isMorleyRow = (r: PublicGradingListRow) => (r.branch_name || '').trim().toLowerCase() === 'morley';
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -1823,7 +1825,7 @@ const PublicGradingList: React.FC = () => {
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
                               scorecard={r.scorecard as any}
-                              onSaved={() => queryClient.invalidateQueries({ queryKey: ['public-grading-list'] })}
+                              onSaved={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
                             />
                           </TableCell>
                         </TableRow>
