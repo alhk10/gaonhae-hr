@@ -5,7 +5,6 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
-import { resolveStorageUrl } from '@/utils/storageUrl';
 
 export interface SchoolFeesItem {
   product_id?: string;
@@ -73,20 +72,29 @@ export const getSchoolFeesList = async (
     p_status: status || null,
   });
   if (error) throw error;
-  // /hello stores bare storage paths; turn them into viewable signed links.
-  const sign = async (u: string | null | undefined) =>
-    u && !/^https?:/i.test(u) ? (await resolveStorageUrl(u)) ?? u : u ?? null;
-  return Promise.all(((data || []) as any[]).map(async (r) => ({
+  const rows = (data || []) as any[];
+  // /hello stores bare private storage paths; sign them server-side in one batch.
+  const isBare = (u: any) => typeof u === 'string' && u && !/^https?:/i.test(u);
+  const bare = new Set<string>();
+  rows.forEach((r) => {
+    if (isBare(r.proof_url)) bare.add(r.proof_url);
+    (Array.isArray(r.extra_proofs) ? r.extra_proofs : []).forEach((p: any) => isBare(p?.url) && bare.add(p.url));
+  });
+  let signed: Record<string, string> = {};
+  if (bare.size) {
+    const { data: res } = await supabase.functions.invoke('sign-payment-proof', { body: { paths: [...bare] } });
+    signed = (res as any)?.urls || {};
+  }
+  const sign = (u: any) => (isBare(u) ? signed[u] || u : u ?? null);
+  return rows.map((r) => ({
     ...r,
-    proof_url: await sign(r.proof_url),
+    proof_url: sign(r.proof_url),
     items: Array.isArray(r.items) ? r.items : [],
     amount: r.amount === null ? null : Number(r.amount),
     scan_amount: r.scan_amount == null ? null : Number(r.scan_amount),
     paid_total: r.paid_total == null ? null : Number(r.paid_total),
-    extra_proofs: Array.isArray(r.extra_proofs)
-      ? await Promise.all(r.extra_proofs.map(async (p: any) => ({ ...p, url: await sign(p?.url) })))
-      : [],
-  }))) as Promise<SchoolFeesRow[]>;
+    extra_proofs: Array.isArray(r.extra_proofs) ? r.extra_proofs.map((p: any) => ({ ...p, url: sign(p?.url) })) : [],
+  })) as SchoolFeesRow[];
 };
 
 export const verifySchoolFeesSubmission = async (id: string, verifiedBy: string): Promise<void> => {
