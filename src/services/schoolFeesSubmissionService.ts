@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { assertValidPaymentProof, assertValidDateOfBirth } from '@/utils/publicPaymentValidation';
+import { resolveStorageUrl } from '@/utils/storageUrl';
 
 export interface SchoolFeesItem {
   product_id?: string;
