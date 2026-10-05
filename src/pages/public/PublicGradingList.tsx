@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -137,6 +138,7 @@ const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
 
+const isMorleyRow = (r: PublicGradingListRow) => (r.branch_name || '').trim().toLowerCase() === 'morley';
 const PublicGradingList: React.FC = () => {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -1222,11 +1224,14 @@ const PublicGradingList: React.FC = () => {
   ): GradingCertificateInput | null => {
     const belt = beltOverride ?? r.current_belt ?? r.student_current_belt;
     if (!r.grading_date || !belt) return null;
+    const morley = isMorleyRow(r);
+    const res = (r.result || '').toLowerCase();
     return {
       studentName: resolveCertName(r),
       beltAchieved: belt,
       gradingDate: r.grading_date,
-      scorecard: [],
+      scorecard: morley && Array.isArray(r.scorecard) ? (r.scorecard as any) : [],
+      result: morley && ['pass', 'double', 'fail'].includes(res) ? (res as any) : null,
       branchCountry: r.branch_country ?? null,
     };
   };
@@ -1614,7 +1619,8 @@ const PublicGradingList: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {g.items.map((r, i) => (
-                      <TableRow key={i} className="odd:bg-muted/40">
+                      <React.Fragment key={i}>
+                      <TableRow className={i % 2 === 0 ? 'bg-muted/40' : ''}>
                         {editMode && (
                           <TableCell data-label="Select" data-field="selection" className="px-2 py-0.5">
                             <Checkbox
@@ -1813,6 +1819,18 @@ const PublicGradingList: React.FC = () => {
                           </>
                         )}
                       </TableRow>
+                      {editMode && isMorleyRow(r) && (
+                        <TableRow key={`${i}-scores`} className={i % 2 === 0 ? 'bg-muted/40' : ''}>
+                          <TableCell colSpan={16} className="px-2 pt-0 pb-1">
+                            <PublicScorecardInline
+                              registrationId={r.source === 'registration' ? r.registration_id : null}
+                              scorecard={r.scorecard as any}
+                              onSaved={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
