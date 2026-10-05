@@ -1,0 +1,2 @@
+DROP TRIGGER IF EXISTS trg_sync_invoice_status_from_payments ON public.payments;
+CREATE TRIGGER trg_sync_invoice_status_from_payments AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION public.sync_invoice_status_from_payments();

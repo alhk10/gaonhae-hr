@@ -72,13 +72,28 @@ export const getSchoolFeesList = async (
     p_status: status || null,
   });
   if (error) throw error;
-  return ((data || []) as any[]).map((r) => ({
+  const rows = (data || []) as any[];
+  // /hello stores bare private storage paths; sign them server-side in one batch.
+  const isBare = (u: any) => typeof u === 'string' && u && !/^https?:/i.test(u);
+  const bare = new Set<string>();
+  rows.forEach((r) => {
+    if (isBare(r.proof_url)) bare.add(r.proof_url);
+    (Array.isArray(r.extra_proofs) ? r.extra_proofs : []).forEach((p: any) => isBare(p?.url) && bare.add(p.url));
+  });
+  let signed: Record<string, string> = {};
+  if (bare.size) {
+    const { data: res } = await supabase.functions.invoke('sign-payment-proof', { body: { paths: [...bare] } });
+    signed = (res as any)?.urls || {};
+  }
+  const sign = (u: any) => (isBare(u) ? signed[u] || u : u ?? null);
+  return rows.map((r) => ({
     ...r,
+    proof_url: sign(r.proof_url),
     items: Array.isArray(r.items) ? r.items : [],
     amount: r.amount === null ? null : Number(r.amount),
     scan_amount: r.scan_amount == null ? null : Number(r.scan_amount),
     paid_total: r.paid_total == null ? null : Number(r.paid_total),
-    extra_proofs: Array.isArray(r.extra_proofs) ? r.extra_proofs : [],
+    extra_proofs: Array.isArray(r.extra_proofs) ? r.extra_proofs.map((p: any) => ({ ...p, url: sign(p?.url) })) : [],
   })) as SchoolFeesRow[];
 };
 
