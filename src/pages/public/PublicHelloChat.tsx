@@ -370,6 +370,16 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!sessionId && !!matched?.id && (stage === 'past_invoices' || stage === 'matched'),
   });
 
+  const [outstandingDismissedFor, setOutstandingDismissedFor] = useState<string | null>(null);
+  const outstandingInvoices = useMemo(
+    () => (pastInvoices?.invoices || []).filter(
+      (inv) => Number(inv.balance_due) > 0.009 && !['draft', 'cancelled', 'refunded'].includes(String(inv.status || '').toLowerCase()),
+    ),
+    [pastInvoices],
+  );
+  const showOutstandingPopup = stage === 'matched' && !!matched?.id
+    && outstandingDismissedFor !== matched.id && outstandingInvoices.length > 0;
+
   const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching, refetch: refetchPersonalInfo } = useQuery({
     queryKey: ['hello-personal-info', sessionId, matched?.id],
     queryFn: () => getChatStudentPersonalInfo(sessionId!, matched!.id),
