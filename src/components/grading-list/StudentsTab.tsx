@@ -5,7 +5,8 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus } from 'lucide-react';
+import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus, FilePlus } from 'lucide-react';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,6 +95,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [invoiceFor, setInvoiceFor] = useState<PublicStudentDirectoryRow | null>(null);
 
   const years = useMemo(() => {
     const cy = new Date().getFullYear();
@@ -286,6 +288,21 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
         onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
       />
       <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
+      {invoiceFor && (
+        <InvoiceDialog
+          key={invoiceFor.id}
+          mode="create"
+          open={!!invoiceFor}
+          onOpenChange={(o) => !o && setInvoiceFor(null)}
+          branchId={invoiceFor.branch_id || undefined}
+          prefilledStudentId={invoiceFor.id}
+          onInvoiceCreated={() => {
+            setInvoiceFor(null);
+            qc.invalidateQueries({ queryKey: ['public-student-directory'] });
+            qc.invalidateQueries({ queryKey: ['public-student-profile'] });
+          }}
+        />
+      )}
       <StudentProfileDialog
         studentId={profileId}
         open={!!profileId}
@@ -364,9 +381,14 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
                     </TableCell>
                     {canEdit && (
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
+                            <FilePlus className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -390,9 +412,14 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
                     <div className="flex items-center gap-1 shrink-0">
                       <StatusBadge status={r.invoice_status} />
                       {canEdit && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
+                            <FilePlus className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
