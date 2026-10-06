@@ -367,7 +367,7 @@ const PublicHelloChat: React.FC = () => {
   const { data: pastInvoices, isLoading: pastInvoicesLoading } = useQuery({
     queryKey: ['hello-past-invoices', sessionId, matched?.id],
     queryFn: () => getChatInvoices(sessionId!, matched!.id),
-    enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
+    enabled: !!sessionId && !!matched?.id && (stage === 'past_invoices' || stage === 'matched'),
   });
 
   const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching, refetch: refetchPersonalInfo } = useQuery({
