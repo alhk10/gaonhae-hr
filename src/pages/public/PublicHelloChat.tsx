@@ -367,8 +367,18 @@ const PublicHelloChat: React.FC = () => {
   const { data: pastInvoices, isLoading: pastInvoicesLoading } = useQuery({
     queryKey: ['hello-past-invoices', sessionId, matched?.id],
     queryFn: () => getChatInvoices(sessionId!, matched!.id),
-    enabled: !!sessionId && !!matched?.id && stage === 'past_invoices',
+    enabled: !!sessionId && !!matched?.id && (stage === 'past_invoices' || stage === 'matched'),
   });
+
+  const [outstandingDismissedFor, setOutstandingDismissedFor] = useState<string | null>(null);
+  const outstandingInvoices = useMemo(
+    () => (pastInvoices?.invoices || []).filter(
+      (inv) => Number(inv.balance_due) > 0.009 && !['draft', 'cancelled', 'refunded'].includes(String(inv.status || '').toLowerCase()),
+    ),
+    [pastInvoices],
+  );
+  const showOutstandingPopup = stage === 'matched' && !!matched?.id
+    && outstandingDismissedFor !== matched.id && outstandingInvoices.length > 0;
 
   const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching, refetch: refetchPersonalInfo } = useQuery({
     queryKey: ['hello-personal-info', sessionId, matched?.id],
@@ -1579,6 +1589,51 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'matched' && matched && (
             <>
+              <Dialog open={showOutstandingPopup} onOpenChange={(o) => { if (!o) setOutstandingDismissedFor(matched.id); }}>
+                <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">Outstanding invoices</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    {matched.first_name} has {outstandingInvoices.length} unpaid invoice{outstandingInvoices.length === 1 ? '' : 's'}.
+                    Please make payment to avoid disruption to classes.
+                  </p>
+                  <div className="space-y-2">
+                    {outstandingInvoices.map((inv) => (
+                      <button
+                        key={inv.id}
+                        type="button"
+                        onClick={() => handleDownloadInvoice(inv)}
+                        className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-left hover:bg-muted"
+                      >
+                        <span>
+                          <span className="block text-sm font-medium">{inv.invoice_number}</span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {formatDate(inv.issue_date)}{inv.due_date ? ` · Due ${formatDate(inv.due_date)}` : ''}
+                          </span>
+                        </span>
+                        <span className="text-sm font-semibold text-destructive">${Number(inv.balance_due).toFixed(2)}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Tap an invoice to download it.</p>
+                  <div className="flex flex-col gap-2">
+                    {(() => {
+                      const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
+                      if (!cat) return null;
+                      return (
+                        <Button onClick={() => { setOutstandingDismissedFor(matched.id); setPayCategory(cat); setCart([]); goTo('payment_products'); }}>
+                          Pay now <ArrowRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      );
+                    })()}
+                    <Button variant="outline" onClick={() => { setOutstandingDismissedFor(matched.id); goTo('past_invoices'); }}>
+                      View all invoices
+                    </Button>
+                    <Button variant="ghost" onClick={() => setOutstandingDismissedFor(matched.id)}>Later</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Bubble who="bot">
                 Welcome back, <strong>{matched.first_name}</strong>! I found your record
                 {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}.
