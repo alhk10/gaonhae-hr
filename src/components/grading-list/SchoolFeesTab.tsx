@@ -338,7 +338,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
           No school fee payments submitted through /hello yet.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="access-list-shell overflow-x-auto">
           <Table className="access-list-table">
             <TableHeader>
               <TableRow>

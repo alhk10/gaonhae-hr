@@ -226,7 +226,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
       {rows.length === 0 ? (
         <div className="text-sm text-muted-foreground">No seminar bookings yet.</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="access-list-shell overflow-x-auto">
           <Table className="access-list-table">
             <TableHeader>
               <TableRow>
@@ -261,7 +261,7 @@ const SeminarsTab: React.FC<Props> = ({ branchFilter, lockedBranch, canEdit, can
                   </TableCell>
                   <TableCell data-label="Belt" data-field="belt" className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
                   <TableCell data-label="Seminar" data-field="details" className="text-xs px-2 py-1 max-w-[200px]">{r.event_name || '—'}</TableCell>
-                  <TableCell data-label="Package" data-field="details" className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
+                  <TableCell data-label="Package" data-field="package" className="text-xs px-2 py-1 max-w-[260px]">{r.package_label}</TableCell>
                   <TableCell data-label="Status" data-field="status" className="px-2 py-1">
                     <StatusBadge status={r.invoice_status || r.status || r.paid_status} />
                   </TableCell>

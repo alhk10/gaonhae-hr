@@ -103,6 +103,11 @@
 }
 
 @layer components {
+  .access-list-shell {
+    container-type: inline-size;
+    width: 100%;
+  }
+
   /* Shared staff-list rhythm; each list supplies its own domain-specific columns. */
   .access-list-table thead th {
     @apply h-9 px-2 text-xs font-medium;
@@ -112,6 +117,74 @@
   }
   .access-list-table tbody tr {
     @apply odd:bg-muted/30;
+  }
+  .access-list-compact {
+    display: none;
+  }
+  @container (max-width: 1180px) {
+    .access-list-wide {
+      display: none;
+    }
+    .access-list-compact {
+      display: block;
+    }
+    .access-list-table,
+    .access-list-table tbody {
+      display: block;
+      width: 100%;
+    }
+    .access-list-table thead {
+      @apply sr-only;
+    }
+    .access-list-table tbody tr:not(:has(td[colspan])) {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 0.45rem 0.75rem;
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+    }
+    .access-list-table tbody td {
+      display: block;
+      min-width: 0;
+      padding: 0;
+      text-align: left;
+      white-space: normal;
+    }
+    .access-list-table tbody td::before {
+      content: attr(data-label);
+      @apply mb-0.5 block text-[10px] font-medium text-muted-foreground;
+    }
+    .access-list-table tbody td[data-field="student"] { grid-column: span 3; order: 1; }
+    .access-list-table tbody td[data-field="branch"] { grid-column: span 2; order: 2; }
+    .access-list-table tbody td[data-field="belt"] { grid-column: span 1; order: 3; }
+    .access-list-table tbody td[data-field="details"] { grid-column: span 2; order: 4; }
+    .access-list-table tbody td[data-field="status"] { grid-column: span 2; order: 5; }
+    .access-list-table tbody td[data-field="amount"] { grid-column: span 2; order: 6; @apply font-semibold; }
+    .access-list-table tbody td[data-field="date"],
+    .access-list-table tbody td[data-field="method"],
+    .access-list-table tbody td[data-field="proof"],
+    .access-list-table tbody td[data-field="invoice"],
+    .access-list-table tbody td[data-field="package"],
+    .access-list-table tbody td[data-field="variants"],
+    .access-list-table tbody td[data-field="collected"],
+    .access-list-table tbody td[data-field="result"],
+    .access-list-table tbody td[data-field="remark"],
+    .access-list-table tbody td[data-field="number"],
+    .access-list-table tbody td[data-field="selection"],
+    .access-list-table tbody td[data-field="actions"] {
+      grid-column: span 2;
+      order: 20;
+    }
+    .access-list-table tbody td[data-field="package"],
+    .access-list-table tbody td[data-field="variants"] {
+      grid-column: span 4;
+    }
+    .access-list-table tbody td[data-field="actions"] {
+      @apply flex items-start gap-2;
+    }
+    .access-list-table tbody td[data-field="actions"]:not(:has(*)) {
+      display: none;
+    }
   }
   @media (max-width: 767px) {
     .access-list-table,

@@ -47,4 +47,5 @@
 
 - [x] Align row spacing and field labels across five lists; prioritize student, status and amount on competition phone rows
 - [x] Give narrow screens labelled, readable rows without losing tab-specific controls
+- [x] Make School Fees, Grading, Competitions, Seminars, and Uniforms & Guards flow into structured second lines based on available list width
 - [ ] Verify populated desktop and phone lists and existing actions (blocked: `/access` password and external Supabase session unavailable)
