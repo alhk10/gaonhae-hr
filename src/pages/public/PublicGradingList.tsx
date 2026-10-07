@@ -1267,13 +1267,15 @@ const PublicGradingList: React.FC = () => {
     'provisional pass confirmation',
   ];
 
-  const isCertEligible = (r: PublicGradingListRow): boolean => {
-    if (!r.grading_date || !r.current_belt) return false;
-    if (r.result !== 'pass' && r.result !== 'double') return false;
+  const certIneligibleReason = (r: PublicGradingListRow): string | null => {
+    if (!r.grading_date) return 'missing grading date';
+    if (!r.current_belt) return 'missing belt';
+    if (r.result !== 'pass' && r.result !== 'double') return 'no Pass/Double result set';
     const title = (r.slot_title ?? '').trim().toLowerCase();
-    if (NON_CERT_TITLE_KEYWORDS.some((kw) => title.includes(kw))) return false;
-    return true;
+    if (NON_CERT_TITLE_KEYWORDS.some((kw) => title.includes(kw))) return 'slot does not issue certificates';
+    return null;
   };
+  const isCertEligible = (r: PublicGradingListRow): boolean => certIneligibleReason(r) === null;
 
   const toggleCert = (r: PublicGradingListRow) => {
     const key = rowCertKey(r);
@@ -1332,8 +1334,10 @@ const PublicGradingList: React.FC = () => {
   const handleDownloadSelectedCertificates = async () => {
     const inputs: GradingCertificateInput[] = [];
     let skipped = 0;
+    const skippedNotes: string[] = [];
     for (const r of selectedRows) {
-      if (!isCertEligible(r)) { skipped++; continue; }
+      const why = certIneligibleReason(r);
+      if (why) { skipped++; skippedNotes.push(`${resolveCertName(r) || 'Student'}: ${why}`); continue; }
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
       else { skipped++; continue; }
@@ -1347,7 +1351,9 @@ const PublicGradingList: React.FC = () => {
     }
 
     if (inputs.length === 0) {
-      toast.error('No eligible rows selected');
+      toast.error('No certificates to generate', {
+        description: skippedNotes.slice(0, 6).join('\n') + (skippedNotes.length > 6 ? `\n+${skippedNotes.length - 6} more` : ''),
+      });
       return;
     }
     const toastId = 'bulk-cert';
@@ -1359,7 +1365,7 @@ const PublicGradingList: React.FC = () => {
       });
       const stamp = toISODate(new Date()).replace(/-/g, '');
       doc.save(`Certificates_Bulk_${stamp}.pdf`);
-      toast.success(`Generated ${inputs.length} certificate${inputs.length > 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, { id: toastId });
+      toast.success(`Generated ${inputs.length} certificate${inputs.length > 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, { id: toastId, description: skippedNotes.length ? skippedNotes.slice(0, 6).join('\n') : undefined });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to generate certificates', { id: toastId });
     }
@@ -1536,7 +1542,7 @@ const PublicGradingList: React.FC = () => {
                   className="gap-1"
                 >
                   <Award className="h-4 w-4" />
-                  <span className="text-xs">Certificates ({selectedRows.length})</span>
+                  <span className="text-xs">Certificates ({(() => { const n = selectedRows.filter(isCertEligible).length; return n === selectedRows.length ? n : `${n} of ${selectedRows.length}`; })()})</span>
                 </Button>
                 <Button
                   type="button"
@@ -1790,6 +1796,9 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell data-label="Certificates" data-field="actions" className="px-2 py-0.5">
+                              {!isCertEligible(r) && (
+                                <span className="text-[10px] text-muted-foreground">{certIneligibleReason(r)}</span>
+                              )}
                               {isCertEligible(r) && (
                                 <div className="flex items-center gap-1">
                                   <button
