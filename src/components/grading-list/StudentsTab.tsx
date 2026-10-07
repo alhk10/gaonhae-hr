@@ -66,6 +66,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
+  // Invoice creation writes directly to protected tables, so it needs a signed-in staff account.
+  const canInvoice = !!user;
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -382,9 +384,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
                     {canEdit && (
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
+                          {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
                             <FilePlus className="h-4 w-4" />
-                          </Button>
+                          </Button>}
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -413,9 +415,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
                       <StatusBadge status={r.invoice_status} />
                       {canEdit && (
                         <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
+                          {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
                             <FilePlus className="h-4 w-4" />
-                          </Button>
+                          </Button>}
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
