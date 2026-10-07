@@ -254,7 +254,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
         </Card>
 
         <Card>
-          <CardContent className="p-0 overflow-x-auto">
+          <CardContent className="access-list-shell p-0 overflow-x-auto">
             {isLoading ? (
               <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>
             ) : (
@@ -353,7 +353,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell data-label="Variants" data-field="details" onClick={(e) => e.stopPropagation()}>
+                        <TableCell data-label="Variants" data-field="variants" onClick={(e) => e.stopPropagation()}>
                           {components.length === 0 ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (

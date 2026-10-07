@@ -1584,7 +1584,7 @@ const PublicGradingList: React.FC = () => {
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="access-list-shell pt-0">
                 <Table className="access-list-table">
                   <TableHeader>
                     <TableRow>
@@ -2911,7 +2911,8 @@ const CompetitionsTab: React.FC<{
 
 
       <CompetitionEventsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <div className="hidden lg:block overflow-x-auto">
+      <div className="access-list-shell">
+      <div className="access-list-wide overflow-x-auto">
         <Table className="access-list-table">
           <TableHeader>
             <TableRow>
@@ -3147,7 +3148,7 @@ const CompetitionsTab: React.FC<{
         </Table>
       </div>
 
-      <div className="lg:hidden space-y-2">
+      <div className="access-list-compact space-y-2">
         {displayRows.map(({ r, cat, idx, branchColor }) => {
           const age = (() => {
             const dob = r.date_of_birth;
@@ -3175,7 +3176,7 @@ const CompetitionsTab: React.FC<{
                   <StatusBadge status={r.paid_status === 'cancelled_refunded' ? 'cancelled_refunded' : (r.invoice_status || r.status || r.paid_status)} />
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 border-t pt-2">
                 <DateTimeCell id={r.submission_id} field="competition_at" value={r.competition_at} />
                 <DateTimeCell id={r.submission_id} field="reporting_at" value={r.reporting_at} />
                 <CourtCell id={r.submission_id} value={r.court} />
@@ -3186,9 +3187,6 @@ const CompetitionsTab: React.FC<{
                 <span className="text-[11px] leading-tight break-words min-w-0">
                   {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
                 </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 border-t pt-2">
                 {renderPoomsae(r.poomsae_1, (v) =>
                   poomsaeMutation.mutate({ id: r.submission_id, p1: v, p2: r.poomsae_2 }),
                 )}
@@ -3315,6 +3313,7 @@ const CompetitionsTab: React.FC<{
             </div>
           );
         })}
+      </div>
       </div>
 
 
