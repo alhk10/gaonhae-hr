@@ -24,6 +24,7 @@ import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import {
   getClassProductsForBranchAdmin,
   setClassProductBranchPricing,
+  setClassProductAgeRange,
   type BranchClassProduct,
 } from '@/services/schoolFeesSubmissionService';
 
@@ -36,7 +37,13 @@ interface Props {
 interface DraftRow {
   available: boolean;
   price: string;
+  minAge: string;
+  maxAge: string;
 }
+
+const ageDirty = (p: BranchClassProduct, d: DraftRow) =>
+  d.minAge.trim() !== (p.min_age == null ? '' : String(p.min_age)) ||
+  d.maxAge.trim() !== (p.max_age == null ? '' : String(p.max_age));
 
 const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, actor }) => {
   const qc = useQueryClient();
@@ -70,6 +77,8 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
       next[p.product_id] = {
         available: p.is_available,
         price: p.price_override === null ? '' : String(p.price_override),
+        minAge: p.min_age == null ? '' : String(p.min_age),
+        maxAge: p.max_age == null ? '' : String(p.max_age),
       };
     });
     setDraft(next);
@@ -81,7 +90,7 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
         const d = draft[p.product_id];
         if (!d) return false;
         const original = p.price_override === null ? '' : String(p.price_override);
-        return d.available !== p.is_available || d.price.trim() !== original;
+        return d.available !== p.is_available || d.price.trim() !== original || ageDirty(p, d);
       })
       .map((p) => p.product_id);
   }, [products, draft]);
@@ -97,7 +106,17 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
         if (price !== null && (Number.isNaN(price) || price < 0)) {
           throw new Error('Enter a valid price');
         }
-        await setClassProductBranchPricing(branchId, id, d.available, price, actor);
+        const p = (products as BranchClassProduct[]).find((x) => x.product_id === id)!;
+        const original = p.price_override === null ? '' : String(p.price_override);
+        if (d.available !== p.is_available || d.price.trim() !== original) {
+          await setClassProductBranchPricing(branchId, id, d.available, price, actor);
+        }
+        if (ageDirty(p, d)) {
+          const mn = d.minAge.trim() === '' ? null : parseInt(d.minAge, 10);
+          const mx = d.maxAge.trim() === '' ? null : parseInt(d.maxAge, 10);
+          if ((mn !== null && Number.isNaN(mn)) || (mx !== null && Number.isNaN(mx))) throw new Error('Enter a valid age');
+          await setClassProductAgeRange(id, mn, mx, actor);
+        }
       }
       toast.success('Class settings saved');
       qc.invalidateQueries({ queryKey: ['branch-class-products'] });
@@ -116,7 +135,7 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
           <DialogTitle className="text-base">Class availability &amp; pricing</DialogTitle>
           <DialogDescription className="text-xs">
             Controls which classes appear on the public /fees page for a branch and the weekly
-            price charged. Leave the price blank to use the product's base price.
+            price charged. Leave the price blank to use the product's base price. Age limits apply to the class at every branch; leave blank for no limit.
           </DialogDescription>
         </DialogHeader>
 
@@ -155,12 +174,13 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
                   <TableHead className="text-xs">Class</TableHead>
                   <TableHead className="text-xs w-[90px]">Base</TableHead>
                   <TableHead className="text-xs w-[120px]">Price /wk</TableHead>
+                  <TableHead className="text-xs w-[120px]">Age</TableHead>
                   <TableHead className="text-xs w-[90px] text-right">Available</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(products as BranchClassProduct[]).map((p) => {
-                  const d = draft[p.product_id] || { available: false, price: '' };
+                  const d = draft[p.product_id] || { available: false, price: '', minAge: '', maxAge: '' };
                   return (
                     <TableRow key={p.product_id} className={d.available ? '' : 'opacity-60'}>
                       <TableCell className="text-xs py-1.5">{p.product_name}</TableCell>
@@ -182,6 +202,17 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
                           }
                           className="h-7 text-xs"
                         />
+                      </TableCell>
+                      <TableCell className="py-1.5">
+                        <div className="flex items-center gap-1">
+                          <Input type="number" min={0} max={99} value={d.minAge} placeholder="from" aria-label="Age from"
+                            onChange={(e) => setDraft((prev) => ({ ...prev, [p.product_id]: { ...d, minAge: e.target.value } }))}
+                            className="h-7 text-xs px-1.5" />
+                          <span className="text-xs text-muted-foreground">–</span>
+                          <Input type="number" min={0} max={99} value={d.maxAge} placeholder="to" aria-label="Age to"
+                            onChange={(e) => setDraft((prev) => ({ ...prev, [p.product_id]: { ...d, maxAge: e.target.value } }))}
+                            className="h-7 text-xs px-1.5" />
+                        </div>
                       </TableCell>
                       <TableCell className="py-1.5 text-right">
                         <Switch

@@ -172,6 +172,8 @@ export interface BranchClassProduct {
   rule_id: string | null;
   price_override: number | null;
   is_available: boolean;
+  min_age: number | null;
+  max_age: number | null;
 }
 
 export const getClassProductsForBranchAdmin = async (
@@ -204,6 +206,22 @@ export const setClassProductBranchPricing = async (
     p_product_id: productId,
     p_available: available,
     p_price_override: priceOverride,
+    p_actor: actor || null,
+  });
+  if (error) throw error;
+};
+
+/** Age range is a product-wide setting (applies at every branch). */
+export const setClassProductAgeRange = async (
+  productId: string,
+  minAge: number | null,
+  maxAge: number | null,
+  actor?: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_class_product_age_range' as any, {
+    p_product_id: productId,
+    p_min_age: minAge,
+    p_max_age: maxAge,
     p_actor: actor || null,
   });
   if (error) throw error;

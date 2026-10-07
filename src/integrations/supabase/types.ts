@@ -8719,6 +8719,15 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_set_class_product_age_range: {
+        Args: {
+          p_actor?: string
+          p_max_age: number
+          p_min_age: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
       admin_set_class_product_branch_pricing: {
         Args: {
           p_actor?: string
@@ -9184,6 +9193,8 @@ export type Database = {
           base_price: number
           description: string
           is_available: boolean
+          max_age: number
+          min_age: number
           price_override: number
           product_id: string
           product_name: string
