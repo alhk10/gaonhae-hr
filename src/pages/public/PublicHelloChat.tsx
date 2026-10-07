@@ -280,7 +280,12 @@ const PublicHelloChat: React.FC = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { data: branches = [] } = useQuery({
+  const {
+    data: branches = [],
+    isLoading: branchesLoading,
+    isError: branchesError,
+    refetch: refetchBranches,
+  } = useQuery({
     queryKey: ['public-branches-hello'],
     queryFn: getPublicBranches,
   });
@@ -1540,14 +1545,29 @@ const PublicHelloChat: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Branch *</Label>
-                  <Select value={branchId} onValueChange={setBranchId}>
-                    <SelectTrigger className="h-10"><SelectValue placeholder="Choose your branch" /></SelectTrigger>
-                    <SelectContent>
-                      {branches.map(b => (
-                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={branchId}
+                    onChange={(event) => setBranchId(event.target.value)}
+                    disabled={branchesLoading || branchesError}
+                    aria-label="Branch"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="" disabled>
+                      {branchesLoading ? 'Loading branches…' : branchesError ? 'Branches unavailable' : 'Choose your branch'}
+                    </option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  {branchesError && (
+                    <button
+                      type="button"
+                      onClick={() => refetchBranches()}
+                      className="text-xs font-medium text-primary underline underline-offset-2"
+                    >
+                      Could not load branches. Tap to retry.
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Gender</Label>
