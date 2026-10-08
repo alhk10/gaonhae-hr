@@ -1031,8 +1031,9 @@ const PublicHelloChat: React.FC = () => {
           goTo('payment_done');
           return;
         }
-        toast.success('Payment received. Schedule your lessons below.');
-        goTo('lesson_request');
+        // Schedule booking after payment temporarily disabled — staff confirm lesson times.
+        toast.success('Payment received. Our staff will confirm your lesson times with you.');
+        goTo('payment_done');
         return;
       }
       goTo('payment_done');
