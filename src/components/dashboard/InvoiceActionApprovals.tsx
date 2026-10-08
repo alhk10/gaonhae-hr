@@ -329,10 +329,10 @@ const InvoiceActionApprovals: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
       {viewInvoice && (
         <InvoiceDetailDialog invoiceId={viewInvoice.id} invoiceNumber={viewInvoice.number} open={!!viewInvoice} onOpenChange={(o) => { if (!o) setViewInvoice(null); }} />
       )}
+    </>
   );
 };
 
