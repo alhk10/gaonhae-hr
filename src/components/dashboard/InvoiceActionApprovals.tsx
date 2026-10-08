@@ -17,6 +17,8 @@ import { completeCreditRefundRequest, releaseCreditRefundHold } from '@/services
 
 import { reviewOverpaymentCredit } from '@/services/schoolFeesSubmissionService';
 import { formatDate } from '@/utils/dateFormat';
+import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
+import { SignedImagePreview } from '@/components/common/SignedImagePreview';
 
 const InvoiceActionApprovals: React.FC = () => {
   const queryClient = useQueryClient();
@@ -24,6 +26,7 @@ const InvoiceActionApprovals: React.FC = () => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<InvoiceActionRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [viewInvoice, setViewInvoice] = useState<{ id: string; number: string } | null>(null);
 
   const { data: requests = [] } = useQuery({
     queryKey: ['pending-invoice-action-requests'],
@@ -31,6 +34,47 @@ const InvoiceActionApprovals: React.FC = () => {
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
+
+  const invoiceIds = React.useMemo(() => [...new Set(requests.map((r) => r.invoice_id).filter(Boolean))], [requests]);
+
+  const { data: paymentsByInvoice = new Map<string, any[]>() } = useQuery({
+    queryKey: ['action-approval-payments', invoiceIds],
+    enabled: invoiceIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('payments')
+        .select('invoice_id, proof_of_payment_url, extra_proofs, payment_method, amount, payment_date')
+        .in('invoice_id', invoiceIds);
+      const map = new Map<string, any[]>();
+      (data || []).forEach((p: any) => {
+        const arr = map.get(p.invoice_id) || [];
+        arr.push(p);
+        map.set(p.invoice_id, arr);
+      });
+      return map;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const renderProofs = (invoiceId: string) => {
+    const list = paymentsByInvoice.get(invoiceId) || [];
+    const urls: string[] = [];
+    list.forEach((p: any) => {
+      if (p.proof_of_payment_url) urls.push(p.proof_of_payment_url);
+      const extras = Array.isArray(p.extra_proofs) ? p.extra_proofs : [];
+      extras.forEach((e: any) => { const u = typeof e === 'string' ? e : e?.url; if (u) urls.push(u); });
+    });
+    if (urls.length === 0) {
+      return <span className="text-[10px] text-muted-foreground">No proof</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {urls.map((u, i) => (
+          <SignedImagePreview key={i} src={u} label="Payment proof" thumbClassName="h-14 w-14 object-cover rounded border hover:opacity-80" />
+        ))}
+      </div>
+    );
+  };
 
   // Look up the descriptions of every line item referenced by pending refund
   // requests, so multi-item refunds show the full list instead of just a count.
@@ -183,7 +227,7 @@ const InvoiceActionApprovals: React.FC = () => {
                     <Badge variant={getActionVariant(request.action_type)} className="text-[10px] shrink-0">
                       {getActionLabel(request.action_type)}
                     </Badge>
-                    <span className="font-medium text-sm truncate">{request.invoice_number}</span>
+                    <button type="button" className="font-medium text-sm text-primary hover:underline truncate text-left" onClick={() => setViewInvoice({ id: request.invoice_id, number: request.invoice_number })}>{request.invoice_number}</button>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleApprove(request)} disabled={processingId === request.id}>
@@ -197,6 +241,7 @@ const InvoiceActionApprovals: React.FC = () => {
                 <div className="text-xs text-muted-foreground">
                   {request.student_name} · {request.requested_by_email} · {formatDate(new Date(request.created_at))}
                 </div>
+                <div className="pt-1">{renderProofs(request.invoice_id)}</div>
                 {request.action_type === 'item_refund' && (
                   <>
                     <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
@@ -235,7 +280,8 @@ const InvoiceActionApprovals: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {request.invoice_number}
+                      <button type="button" className="text-primary hover:underline" onClick={() => setViewInvoice({ id: request.invoice_id, number: request.invoice_number })}>{request.invoice_number}</button>
+                      <div className="mt-1">{renderProofs(request.invoice_id)}</div>
                       {request.action_type === 'item_refund' && (
                         <ul className="text-xs text-muted-foreground font-normal list-disc pl-4 mt-0.5 space-y-0.5">
                           {getRefundItemNames(request).map((name, i) => (
@@ -283,6 +329,9 @@ const InvoiceActionApprovals: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {viewInvoice && (
+        <InvoiceDetailDialog invoiceId={viewInvoice.id} invoiceNumber={viewInvoice.number} open={!!viewInvoice} onOpenChange={(o) => { if (!o) setViewInvoice(null); }} />
+      )}
     </>
   );
 };
