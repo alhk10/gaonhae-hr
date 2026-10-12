@@ -205,6 +205,8 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
+  // One client ref per loaded form so retries stay idempotent server-side.
+  const clientRef = useRef(newClientRef());
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -462,6 +464,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         passport_file: selectedEvent.require_passport ? passportFile : null,
         photo_file: participantPhoto,
         weight_kg: null,
+        client_ref: clientRef.current,
       });
       if (creditContext && creditToUse > 0) {
         await applyHelloCreditToCompetition(creditContext.sessionId, creditContext.studentId, result.id);

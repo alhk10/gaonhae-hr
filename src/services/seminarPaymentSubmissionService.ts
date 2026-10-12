@@ -221,6 +221,7 @@ export interface SubmitSeminarPaymentInput {
   grading_card_files?: File[];
   indemnity_form_file?: File | null;
   signature_data_url?: string | null;
+  client_ref?: string;
 }
 
 const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
@@ -267,7 +268,7 @@ export const submitSeminarPayment = async (
 ): Promise<{ id: string; reference_number: string }> => {
   assertValidPaymentProof(input.proof_file);
   assertValidDateOfBirth(input.date_of_birth);
-  const clientRef = newClientRef();
+  const clientRef = input.client_ref || newClientRef();
   const fn = (input.first_name || '').trim().toUpperCase();
   const ln = (input.last_name || '').trim().toUpperCase();
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
