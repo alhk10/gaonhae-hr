@@ -2659,6 +2659,101 @@ const PublicHelloChat: React.FC = () => {
             </>
           )}
 
+          {stage === 'pay_invoice' && (
+            <>
+              <Bubble who="bot">
+                {payInvFullyCovered
+                  ? 'Your credit covers this in full — no payment needed.'
+                  : 'Review the invoice details, choose a payment method and upload your proof.'}
+              </Bubble>
+              <Card>
+                <CardContent className="p-3 space-y-3">
+                  <div className="space-y-2">
+                    {payInvoices.map((inv) => (
+                      <div key={inv.id} className="rounded-md border px-3 py-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{inv.invoice_number}</span>
+                          <span className="text-sm font-semibold tabular-nums">${Number(inv.balance_due).toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {(inv.items || []).map((item) => (
+                            <div key={item.id} className="flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
+                              <span className="min-w-0 break-words">
+                                {item.description}
+                                {item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                                {item.term_info ? ` · ${item.term_info}` : ''}
+                              </span>
+                              <span className="shrink-0 tabular-nums">${Number(item.total_amount).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1 text-sm border-t pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="tabular-nums">${payInvTotal.toFixed(2)}</span>
+                    </div>
+                    {payInvCredit > 0 && (
+                      <>
+                        <div className="flex items-center justify-between text-green-700">
+                          <span>Credit used</span>
+                          <span className="tabular-nums">−${payInvCredit.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Credit remaining after this</span>
+                          <span className="tabular-nums">${payInvCreditRemaining.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-semibold">Amount to pay</span>
+                      <span className="text-base font-bold tabular-nums">${payInvAmountDue.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {!payInvFullyCovered && (
+                    <>
+                      <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {allowedPayMethods.map(m => (
+                            <SelectItem key={m} value={m}>
+                              {m === 'paynow' ? 'PayNow' : 'Bank Transfer'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <PaymentInfoDisplay
+                        paymentMethod={payMethod}
+                        bankTransferInfo={paymentOptions?.bank_transfer_info}
+                        paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
+                      />
+                      <ProofOfPaymentUpload
+                        value={payInvProofFile}
+                        onChange={(f) => { setPayInvProofFile(f); void payInvScan.scan(f, Number(payInvAmountDue || 0)); }}
+                        required
+                      />
+                      <PaymentProofScanNotice scanning={payInvScan.scanning} result={payInvScan.result} expectedAmount={Number(payInvAmountDue || 0)} />
+                    </>
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={goBack} className="flex-1 h-10">Back</Button>
+                    <Button
+                      onClick={handlePayInvoices}
+                      disabled={submitting || (!payInvProofFile && !payInvFullyCovered)}
+                      className="flex-1 h-10"
+                    >
+                      {submitting ? 'Submitting…' : payInvFullyCovered ? 'Confirm using credit' : 'Submit payment'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
           {stage === 'payment_done' && (
             <Bubble who="bot">
               <div className="flex items-start gap-2">
