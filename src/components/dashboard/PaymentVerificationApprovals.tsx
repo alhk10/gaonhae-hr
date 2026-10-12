@@ -325,6 +325,12 @@ const PaymentVerificationApprovals = () => {
                   <Pencil className="w-3 h-3 mr-1" />
                   Edit
                 </Button>
+                {payment.invoice_id && (
+                  <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setEditingInvoiceId(payment.invoice_id)}>
+                    <FileText className="w-3 h-3 mr-1" />
+                    Edit Invoice
+                  </Button>
+                )}
                 <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
                   <XCircle className="w-3 h-3 mr-1" />
                   Reject
