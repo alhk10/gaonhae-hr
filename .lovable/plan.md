@@ -22,6 +22,14 @@ The Refund as Credit dialog (`src/components/sales/RefundAsCreditDialog.tsx`) re
 - `submitRefundRequest` / `submitActionRequest` payload includes per-item quantities so the superadmin approval applies the same partial amounts.
 - Public `/access` path: extend the `submit_public_refund_request` RPC (migration) to accept quantities, and `get_public_invoice_detail` to return item quantity and already-refunded quantity.
 
+### Automatic invoice update
+- On every refund (full or partial), the invoice is updated immediately and automatically:
+  - Total, subtotal and GST reduced by the refunded amount (GST prorated for GST-inclusive lines).
+  - Amount paid and balance recalculated.
+  - When all lines are fully refunded, the invoice status becomes **cancelled** automatically.
+  - The change is recorded in the invoice change log with the refunded quantity and amount.
+- This applies to both direct superadmin refunds and approved refund requests.
+
 ### Database (one migration)
 - Update `submit_public_refund_request` to accept a quantities map and store it in the action request payload.
 - Ensure the approval-execution path (wherever `item_refund` requests are applied) honours the stored quantities.
