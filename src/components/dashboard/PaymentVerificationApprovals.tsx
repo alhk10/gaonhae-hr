@@ -605,6 +605,46 @@ const PaymentVerificationApprovals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Extra Proofs Dialog */}
+      <Dialog open={!!viewingExtras} onOpenChange={(open) => { if (!open) setViewingExtras(null); }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Extra payment proofs</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {viewingExtras?.invoices?.invoice_number} — {viewingExtras?.invoices?.students
+                ? `${viewingExtras.invoices.students.first_name} ${viewingExtras.invoices.students.last_name}`
+                : 'Unknown'}
+            </p>
+            {(Array.isArray(viewingExtras?.extra_proofs) ? viewingExtras.extra_proofs : []).map((p: any, i: number) => (
+              <div key={i} className="space-y-1">
+                <div className="text-xs text-muted-foreground">
+                  Screenshot {i + 2}
+                  {p?.amount != null && Number(p.amount) > 0 ? ` · $${Number(p.amount).toFixed(2)}` : ' · no amount entered'}
+                  {p?.uploaded_at ? ` · ${formatDate(new Date(p.uploaded_at))}` : ''}
+                </div>
+                <SignedLink href={typeof p === 'string' ? p : p?.url} target="_blank" rel="noopener noreferrer">
+                  <SignedImage
+                    src={typeof p === 'string' ? p : p?.url}
+                    alt={`Extra payment proof ${i + 2}`}
+                    className="w-full max-h-[50vh] object-contain rounded border cursor-pointer hover:opacity-80"
+                    fallback={
+                      <div className="w-full h-[100px] flex items-center justify-center text-xs text-muted-foreground bg-muted rounded border">
+                        Payment proof
+                      </div>
+                    }
+                  />
+                </SignedLink>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingExtras(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
