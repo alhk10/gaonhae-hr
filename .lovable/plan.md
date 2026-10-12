@@ -34,6 +34,11 @@ The Refund as Credit dialog (`src/components/sales/RefundAsCreditDialog.tsx`) re
 - Update `submit_public_refund_request` to accept a quantities map and store it in the action request payload.
 - Ensure the approval-execution path (wherever `item_refund` requests are applied) honours the stored quantities.
 
+### Show refunded credit on the invoice
+- Track a running `refunded_amount` on the invoice (migration adds the column, default 0; backfilled from existing refunded line items).
+- Every refund (full or partial) increases it by the credited amount.
+- The invoice detail dialog and invoice PDF show a "Refunded as credit" line with the accumulated amount, so staff can see at a glance how much of the invoice has been returned as credit.
+
 ### Consistency and safety rules
 - The same Refund as Credit dialog and logic serve all transaction tabs: school fees, seminars, grading, uniforms & guards, and competitions — identical behaviour everywhere.
 - A refund never creates a new invoice and never duplicates one. It only updates the existing invoice (totals, GST, balance, status) and issues student credit.
