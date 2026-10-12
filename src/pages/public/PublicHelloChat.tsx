@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import CompetitionRegistrationForm from '@/components/public/CompetitionRegistrationForm';
 import { getHelloStudentPhoto, saveHelloStudentPhoto, getHelloStudentCertificate, saveHelloStudentCertificate } from '@/services/helloStudentPhotoService';
@@ -1045,6 +1046,55 @@ const PublicHelloChat: React.FC = () => {
       }
       goTo('payment_done');
 
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not submit payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ---- Pay existing outstanding invoice(s) ----
+  const payInvTotal = useMemo(
+    () => Number(payInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)),
+    [payInvoices],
+  );
+  const payInvCredit = Math.max(0, Math.min(Number(availableCredit) || 0, payInvTotal));
+  const payInvCreditRemaining = Math.max(0, (Number(availableCredit) || 0) - payInvCredit);
+  const payInvAmountDue = Math.max(0, Number((payInvTotal - payInvCredit).toFixed(2)));
+  const payInvFullyCovered = payInvCredit > 0 && payInvAmountDue < 0.01;
+
+  const startPayInvoices = (invoices: ChatInvoice[]) => {
+    setPayInvoices(invoices);
+    setPayInvProofFile(null);
+    payInvClientRef.current = newClientRef();
+    setOutstandingDismissedFor(matched?.id ?? null);
+    goTo('pay_invoice');
+  };
+
+  const handlePayInvoices = async () => {
+    if (!sessionId || !branchId || !matched?.id || payInvoices.length === 0 || (!payInvProofFile && !payInvFullyCovered)) {
+      toast.error('Missing required information');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await payChatInvoices({
+        session_id: sessionId,
+        student_id: matched.id,
+        branch_id: branchId,
+        invoice_ids: payInvoices.map((i) => i.id),
+        payment_method: payMethod,
+        proof_file: payInvProofFile,
+        client_ref: payInvClientRef.current,
+        contact_first_name: firstName,
+        contact_last_name: lastName,
+      });
+      toast.success('Thank you for your payment. Your payment will be verified by our staff.');
+      setPayInvoices([]);
+      setPayInvProofFile(null);
+      queryClient.invalidateQueries({ queryKey: ['hello-past-invoices'] });
+      refetchCredit();
+      goTo('payment_done');
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
