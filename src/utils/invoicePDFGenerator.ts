@@ -48,6 +48,7 @@ export interface InvoiceData {
   total_amount: number;
   amount_paid: number;
   balance_due: number;
+  refunded_amount?: number;
   notes: string | null;
   status: string | null;
   student?: {
@@ -386,6 +387,12 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text('Amount Paid:', totalsX, yPos);
   doc.text(formatCurrency(invoice.amount_paid), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
+
+  if (Number(invoice.refunded_amount || 0) > 0) {
+    doc.text('Refunded as Credit:', totalsX, yPos);
+    doc.text(`-${formatCurrency(Number(invoice.refunded_amount))}`, pageWidth - margin - 2, yPos, { align: 'right' });
+    yPos += 6;
+  }
 
   // Balance Due (increased from 10pt to 11pt)
   doc.setFont('helvetica', 'bold');
