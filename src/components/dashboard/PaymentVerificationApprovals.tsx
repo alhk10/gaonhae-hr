@@ -35,6 +35,7 @@ const PaymentVerificationApprovals = () => {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofAmount, setProofAmount] = useState('');
   const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [viewingExtras, setViewingExtras] = useState<any>(null);
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
@@ -413,9 +414,14 @@ const PaymentVerificationApprovals = () => {
                   </Badge>
                 )}
                 {Array.isArray(payment.extra_proofs) && payment.extra_proofs.length > 0 && (
-                  <Badge variant="secondary" className="mt-1 ml-1 text-[10px]">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-1 ml-1 h-auto text-[10px] px-1.5 py-0.5"
+                    onClick={() => setViewingExtras(payment)}
+                  >
                     +{payment.extra_proofs.length} extra proof{payment.extra_proofs.length > 1 ? 's' : ''}
-                  </Badge>
+                  </Button>
                 )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
