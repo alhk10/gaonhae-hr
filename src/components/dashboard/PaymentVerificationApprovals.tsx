@@ -412,6 +412,11 @@ const PaymentVerificationApprovals = () => {
                         : 'Screenshot could not be read'}
                   </Badge>
                 )}
+                {Array.isArray(payment.extra_proofs) && payment.extra_proofs.length > 0 && (
+                  <Badge variant="secondary" className="mt-1 ml-1 text-[10px]">
+                    +{payment.extra_proofs.length} extra proof{payment.extra_proofs.length > 1 ? 's' : ''}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEditAmount(payment)}>
@@ -424,6 +429,14 @@ const PaymentVerificationApprovals = () => {
                     Edit Invoice
                   </Button>
                 )}
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => { setProofPayment(payment); setProofFile(null); setProofAmount(''); }}>
+                  <ImagePlus className="w-3 h-3 mr-1" />
+                  Add Proof
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { setDeletingPayment(payment); setDeleteReason(''); }}>
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Delete
+                </Button>
                 <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
                   <XCircle className="w-3 h-3 mr-1" />
                   Reject
