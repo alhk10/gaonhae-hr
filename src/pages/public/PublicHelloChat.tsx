@@ -54,6 +54,7 @@ import {
   type MatchedStudent,
   getChatInvoices,
   getChatStudentCredit,
+  payChatInvoices,
   type ChatInvoice,
   getChatStudentPersonalInfo,
   updateChatStudentPersonalInfo,
@@ -131,6 +132,7 @@ type Stage =
   | 'fees_schedule'
   | 'payment_pay'
   | 'payment_done'
+  | 'pay_invoice'
   | 'past_invoices'
   | 'personal_info'
   | 'competition'
@@ -222,6 +224,11 @@ const PublicHelloChat: React.FC = () => {
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>('bank_transfer');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const proofScan = usePaymentProofScan();
+  // Pay existing outstanding invoice(s)
+  const [payInvoices, setPayInvoices] = useState<ChatInvoice[]>([]);
+  const [payInvProofFile, setPayInvProofFile] = useState<File | null>(null);
+  const payInvClientRef = useRef(newClientRef());
+  const payInvScan = usePaymentProofScan();
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
   const [selectedFoundationLevels, setSelectedFoundationLevels] = useState<Set<string>>(new Set());
@@ -330,7 +337,7 @@ const PublicHelloChat: React.FC = () => {
   const { data: paymentOptions } = useQuery({
     queryKey: ['public-payment-options-hello', branchId],
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
-    enabled: !!branchId && (stage === 'payment_pay'),
+    enabled: !!branchId && (stage === 'payment_pay' || stage === 'pay_invoice'),
   });
 
   const { data: availableCredit = 0, refetch: refetchCredit } = useQuery({
@@ -341,7 +348,7 @@ const PublicHelloChat: React.FC = () => {
   });
 
   useEffect(() => {
-    if ((stage === 'payment_pay' || stage === 'competition') && sessionLinked && matched?.id) refetchCredit();
+    if ((stage === 'payment_pay' || stage === 'competition' || stage === 'pay_invoice') && sessionLinked && matched?.id) refetchCredit();
   }, [stage, sessionLinked, matched?.id, refetchCredit]);
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
