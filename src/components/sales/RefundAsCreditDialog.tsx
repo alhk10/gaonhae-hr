@@ -90,12 +90,24 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   const isCancelled = String(invoice?.status) === 'cancelled';
   const canRefund = isPaidOrVerified && !isCancelled;
 
+  // Prorated credit: (line total + tax) / quantity × chosen refund quantity
+  const lineRefundAmount = (item: any) => {
+    const qty = itemQty(item);
+    const chosen = Math.min(quantities[item.id] ?? remainingQty(item), remainingQty(item));
+    return ((Number(item.total_amount || 0) + Number(item.tax_amount || 0)) / qty) * chosen;
+  };
+
   const selectedTotal = items
     .filter(i => selected.includes(i.id))
-    .reduce((sum, i) => sum + Number(i.total_amount || 0) + Number(i.tax_amount || 0), 0);
+    .reduce((sum, i) => sum + lineRefundAmount(i), 0);
 
   const toggle = (id: string) => {
     setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const setQty = (id: string, qty: number, max: number) => {
+    const clamped = Math.min(Math.max(1, Math.floor(qty) || 1), max);
+    setQuantities(prev => ({ ...prev, [id]: clamped }));
   };
 
   const handleConfirm = async () => {
