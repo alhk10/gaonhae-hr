@@ -4259,6 +4259,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          client_ref: string | null
           created_at: string
           created_by: string | null
           extra_proofs: Json
@@ -4284,6 +4285,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_ref?: string | null
           created_at?: string
           created_by?: string | null
           extra_proofs?: Json
@@ -4309,6 +4311,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_ref?: string | null
           created_at?: string
           created_by?: string | null
           extra_proofs?: Json
@@ -10198,6 +10201,22 @@ export type Database = {
           p_type: string
         }
         Returns: number
+      }
+      pay_public_chat_invoice: {
+        Args: {
+          p_client_ref: string
+          p_invoice_ids: string[]
+          p_payment_method: string
+          p_proof_url: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: {
+          cash_amount: number
+          credit_used: number
+          payment_count: number
+          total_amount: number
+        }[]
       }
       process_leave_encashment: {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
