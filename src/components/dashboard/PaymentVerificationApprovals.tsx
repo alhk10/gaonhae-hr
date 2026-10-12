@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText } from 'lucide-react';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
@@ -25,6 +26,7 @@ const PaymentVerificationApprovals = () => {
   const [rejectingPayment, setRejectingPayment] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
@@ -323,6 +325,12 @@ const PaymentVerificationApprovals = () => {
                   <Pencil className="w-3 h-3 mr-1" />
                   Edit
                 </Button>
+                {payment.invoice_id && (
+                  <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setEditingInvoiceId(payment.invoice_id)}>
+                    <FileText className="w-3 h-3 mr-1" />
+                    Edit Invoice
+                  </Button>
+                )}
                 <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
                   <XCircle className="w-3 h-3 mr-1" />
                   Reject
@@ -367,6 +375,20 @@ const PaymentVerificationApprovals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Invoice Dialog */}
+      {editingInvoiceId && (
+        <InvoiceDialog
+          mode="edit"
+          invoiceId={editingInvoiceId}
+          open={!!editingInvoiceId}
+          onOpenChange={(open) => { if (!open) setEditingInvoiceId(null); }}
+          onInvoiceUpdated={() => {
+            invalidateQueries();
+            setEditingInvoiceId(null);
+          }}
+        />
+      )}
 
       {/* Reject Payment Dialog */}
       <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
