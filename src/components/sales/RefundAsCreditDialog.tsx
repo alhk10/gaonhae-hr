@@ -46,6 +46,7 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   const isSuperadmin = publicMode ? false : isSuperadminRaw;
   const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
@@ -66,16 +67,22 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   if (open && lastInvoiceId === null && invoiceId) {
     setLastInvoiceId(invoiceId);
     setSelected(initialItemId ? [initialItemId] : []);
+    setQuantities({});
     setReason('');
   }
   if (!open && lastInvoiceId !== null) {
     setLastInvoiceId(null);
     setSelected([]);
+    setQuantities({});
     setReason('');
   }
 
   const items = useMemo(() => (invoice?.items || []).filter(Boolean), [invoice]);
-  const isRefunded = (item: any) => (item?.metadata as any)?.refunded === true;
+  const itemQty = (item: any) => Math.max(1, Number(item?.quantity) || 1);
+  const refundedQty = (item: any) => Number((item?.metadata as any)?.refunded_quantity) || 0;
+  const remainingQty = (item: any) => Math.max(0, itemQty(item) - refundedQty(item));
+  const isRefunded = (item: any) =>
+    (item?.metadata as any)?.refunded === true || remainingQty(item) === 0;
 
   const isPaidOrVerified = invoice
     ? ['paid', 'verified', 'partially_paid'].includes(String(invoice.status))
