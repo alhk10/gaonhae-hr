@@ -19,12 +19,13 @@ import { submitActionRequest } from './invoiceActionRequestService';
  */
 export const refundLineItem = async (
   invoiceItemId: string,
-  reason: string
+  reason: string,
+  quantity?: number
 ): Promise<void> => {
   // 1. Get the item and parent invoice
   const { data: item, error: itemError } = await supabase
     .from('invoice_items')
-    .select('id, invoice_id, product_id, total_amount, tax_amount, description, metadata, products(name)')
+    .select('id, invoice_id, product_id, quantity, total_amount, tax_amount, description, metadata, products(name)')
     .eq('id', invoiceItemId)
     .single();
 
@@ -34,7 +35,7 @@ export const refundLineItem = async (
 
   const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
-    .select('id, student_id, invoice_number, total_amount, tax_amount, subtotal, balance_due, amount_paid')
+    .select('id, student_id, invoice_number, total_amount, tax_amount, subtotal, balance_due, amount_paid, refunded_amount')
     .eq('id', item.invoice_id)
     .single();
 
@@ -42,14 +43,26 @@ export const refundLineItem = async (
     throw new Error('Parent invoice not found');
   }
 
-  // Guard: never refund an item twice — a second refund would issue a
-  // duplicate credit and reduce the invoice totals again.
-  if ((item.metadata as any)?.refunded === true) {
+  // Guard: never refund more than the line's original quantity. Fully
+  // refunded lines are blocked outright; partially refunded lines can be
+  // refunded again only up to the remaining quantity.
+  const itemQty = Math.max(1, Number((item as any).quantity) || 1);
+  const prevRefundedQty = Number((item.metadata as any)?.refunded_quantity) || 0;
+  if ((item.metadata as any)?.refunded === true || prevRefundedQty >= itemQty) {
     throw new Error('This item has already been refunded');
   }
+  const remainingQty = itemQty - prevRefundedQty;
+  const refundQty = Math.min(Math.max(1, Math.floor(quantity ?? remainingQty)), remainingQty);
+  const isFullRefund = refundQty >= itemQty && prevRefundedQty === 0
+    ? true
+    : (prevRefundedQty + refundQty) >= itemQty;
 
   const productName = (item.products as any)?.name || item.description;
-  const refundAmount = item.total_amount + item.tax_amount;
+  // Prorate the line amounts by refunded quantity
+  const round2q = (n: number) => Math.round(n * 100) / 100;
+  const refundAmount = round2q(((item.total_amount + item.tax_amount) / itemQty) * refundQty);
+  const refundItemAmount = round2q((item.total_amount / itemQty) * refundQty);
+  const refundTaxAmount = round2q((item.tax_amount / itemQty) * refundQty);
 
   // 2. Create student credit (positive = credit to student)
   const { error: creditError } = await supabase
