@@ -21,6 +21,7 @@ import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { getHelloStudentPhoto, getHelloStudentCertificate, saveHelloStudentPhoto, saveHelloStudentCertificate } from '@/services/helloStudentPhotoService';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,

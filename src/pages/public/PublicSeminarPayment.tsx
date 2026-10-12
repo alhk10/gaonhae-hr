@@ -3,7 +3,8 @@
  * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
  * events (packages, indemnity, required uploads) in /access settings.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Download, FileText } from 'lucide-react';
 import { formatDate } from '@/utils/dateFormat';
