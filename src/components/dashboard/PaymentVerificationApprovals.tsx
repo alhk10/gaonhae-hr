@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText, Trash2, ImagePlus } from 'lucide-react';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { deletePayment } from '@/services/paymentService';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
@@ -27,6 +28,13 @@ const PaymentVerificationApprovals = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [proofPayment, setProofPayment] = useState<any>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofAmount, setProofAmount] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
@@ -239,6 +247,91 @@ const PaymentVerificationApprovals = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deletingPayment) return;
+    if (!deleteReason.trim()) {
+      toast.error('Please give a reason (e.g. duplicate, wrong payment)');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      // Return any held credit to the student before removing the payment.
+      if (deletingPayment.invoice_id) {
+        await supabase.rpc('release_credit_hold', {
+          p_invoice_id: deletingPayment.invoice_id,
+          p_actor: user?.email || 'superadmin',
+        });
+      }
+      await deletePayment(deletingPayment.id);
+      await logInvoiceChangeSafe(deletingPayment.invoice_id, deleteReason.trim());
+      invalidateQueries();
+      toast.success('Payment deleted and invoice recalculated');
+      setDeletingPayment(null);
+      setDeleteReason('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete payment');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const logInvoiceChangeSafe = async (invoiceId: string | undefined, reason: string) => {
+    if (!invoiceId) return;
+    try {
+      const { logInvoiceChange } = await import('@/services/invoiceChangeLogService');
+      await logInvoiceChange({
+        invoice_id: invoiceId,
+        action: 'payment_removed',
+        changes: { reason },
+      });
+    } catch { /* logging is best-effort */ }
+  };
+
+  const handleAddProof = async () => {
+    if (!proofPayment || !proofFile) {
+      toast.error('Choose a screenshot');
+      return;
+    }
+    if (!proofFile.type.startsWith('image/')) {
+      toast.error('Please upload an image (PDF not accepted)');
+      return;
+    }
+    const amt = proofAmount.trim() === '' ? null : Number(proofAmount);
+    if (amt != null && (!isFinite(amt) || amt <= 0)) {
+      toast.error('Enter the amount shown on the screenshot');
+      return;
+    }
+    setIsUploadingProof(true);
+    try {
+      const ext = proofFile.name.split('.').pop() || 'jpg';
+      const path = `public-fees/${proofPayment.invoices?.branch_id || 'unknown'}/extra_${Date.now()}_proof.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('payment-proofs')
+        .upload(path, proofFile, { upsert: false, contentType: proofFile.type });
+      if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+
+      const existing = Array.isArray(proofPayment.extra_proofs) ? proofPayment.extra_proofs : [];
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          extra_proofs: [...existing, { url: path, amount: amt, uploaded_at: new Date().toISOString() }],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', proofPayment.id);
+      if (error) throw error;
+
+      invalidateQueries();
+      toast.success('Second payment screenshot added');
+      setProofPayment(null);
+      setProofFile(null);
+      setProofAmount('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Upload failed');
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
   if (isLoading || unverifiedPayments.length === 0) return null;
 
   return (
@@ -319,6 +412,11 @@ const PaymentVerificationApprovals = () => {
                         : 'Screenshot could not be read'}
                   </Badge>
                 )}
+                {Array.isArray(payment.extra_proofs) && payment.extra_proofs.length > 0 && (
+                  <Badge variant="secondary" className="mt-1 ml-1 text-[10px]">
+                    +{payment.extra_proofs.length} extra proof{payment.extra_proofs.length > 1 ? 's' : ''}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEditAmount(payment)}>
@@ -331,6 +429,14 @@ const PaymentVerificationApprovals = () => {
                     Edit Invoice
                   </Button>
                 )}
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => { setProofPayment(payment); setProofFile(null); setProofAmount(''); }}>
+                  <ImagePlus className="w-3 h-3 mr-1" />
+                  Add Proof
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { setDeletingPayment(payment); setDeleteReason(''); }}>
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Delete
+                </Button>
                 <Button size="sm" variant="destructive" className="h-7 text-xs px-2" onClick={() => { setRejectingPayment(payment); setRejectionReason(''); }}>
                   <XCircle className="w-3 h-3 mr-1" />
                   Reject
@@ -389,6 +495,77 @@ const PaymentVerificationApprovals = () => {
           }}
         />
       )}
+
+      {/* Delete Payment Dialog */}
+      <Dialog open={!!deletingPayment} onOpenChange={(open) => { if (!open) { setDeletingPayment(null); setDeleteReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {deletingPayment?.invoices?.invoice_number} — {deletingPayment?.invoices?.students
+                ? `${deletingPayment.invoices.students.first_name} ${deletingPayment.invoices.students.last_name}`
+                : 'Unknown'}
+              {' '}· ${deletingPayment?.amount?.toFixed(2)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The payment is removed and the invoice total paid / balance / status recalculated. Any held credit returns to the student. If the whole invoice is a duplicate, delete it afterwards from Edit Invoice.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-reason">Reason *</Label>
+              <Textarea
+                id="delete-reason"
+                placeholder="e.g. Duplicate payment, wrong invoice..."
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingPayment(null); setDeleteReason(''); }} disabled={isDeleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting || !deleteReason.trim()}>
+              {isDeleting ? 'Deleting...' : 'Delete Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Second Proof Dialog */}
+      <Dialog open={!!proofPayment} onOpenChange={(open) => { if (!open) { setProofPayment(null); setProofFile(null); setProofAmount(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add another payment screenshot</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {proofPayment?.invoices?.invoice_number} — {proofPayment?.invoices?.students
+                ? `${proofPayment.invoices.students.first_name} ${proofPayment.invoices.students.last_name}`
+                : 'Unknown'}
+            </p>
+            <Input type="file" accept="image/*" className="text-xs" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+            <div className="space-y-1.5">
+              <Label htmlFor="proof-amount">Amount on this screenshot ($)</Label>
+              <Input
+                id="proof-amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={proofAmount}
+                onChange={(e) => setProofAmount(e.target.value)}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">The first screenshot is kept. Verification status does not change.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setProofPayment(null); setProofFile(null); setProofAmount(''); }} disabled={isUploadingProof}>Cancel</Button>
+            <Button onClick={handleAddProof} disabled={isUploadingProof || !proofFile}>
+              {isUploadingProof ? 'Uploading...' : 'Add screenshot'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Payment Dialog */}
       <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
