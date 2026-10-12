@@ -3,7 +3,7 @@
  * Used by the standalone /comps page (no prefill) and embedded in the /hello
  * chat (prefilled with the recognized student's details, branch locked).
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
