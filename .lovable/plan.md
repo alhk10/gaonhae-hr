@@ -34,6 +34,11 @@ The Refund as Credit dialog (`src/components/sales/RefundAsCreditDialog.tsx`) re
 - Update `submit_public_refund_request` to accept a quantities map and store it in the action request payload.
 - Ensure the approval-execution path (wherever `item_refund` requests are applied) honours the stored quantities.
 
+### Consistency and safety rules
+- The same Refund as Credit dialog and logic serve all transaction tabs: school fees, seminars, grading, uniforms & guards, and competitions — identical behaviour everywhere.
+- A refund never creates a new invoice and never duplicates one. It only updates the existing invoice (totals, GST, balance, status) and issues student credit.
+- The shared dialog already guards against double-refunding a line; the quantity tracking extends that guard so a line can never be refunded for more than its original quantity.
+
 ## Verification
 - Typecheck/build passes.
 - Partial refund of a ×12 lesson line issues the correct prorated credit, keeps enrolment active, and the line remains refundable for the remainder; full refund behaves as today.
