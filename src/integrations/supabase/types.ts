@@ -3190,6 +3190,7 @@ export type Database = {
           issue_date: string | null
           notes: string | null
           payment_terms_days: number | null
+          refunded_amount: number
           status: string | null
           student_id: string | null
           subtotal: number
@@ -3217,6 +3218,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_terms_days?: number | null
+          refunded_amount?: number
           status?: string | null
           student_id?: string | null
           subtotal?: number
@@ -3244,6 +3246,7 @@ export type Database = {
           issue_date?: string | null
           notes?: string | null
           payment_terms_days?: number | null
+          refunded_amount?: number
           status?: string | null
           student_id?: string | null
           subtotal?: number
@@ -10393,6 +10396,7 @@ export type Database = {
         Args: {
           p_invoice_id: string
           p_item_ids: string[]
+          p_quantities?: Json
           p_reason: string
           p_requested_by?: string
         }
