@@ -154,7 +154,7 @@ const InvoiceActionApprovals: React.FC = () => {
           ? requestData.item_ids
           : requestData?.item_id ? [requestData.item_id] : [];
         if (ids.length > 0) {
-          await refundLineItems(ids, requestData?.reason || 'Approved refund');
+          await refundLineItems(ids, requestData?.reason || 'Approved refund', requestData?.quantities || undefined);
         }
       } else if (request.action_type === 'credit_refund') {
         await completeCreditRefundRequest(request.request_data as any, request.requested_by_email || undefined);

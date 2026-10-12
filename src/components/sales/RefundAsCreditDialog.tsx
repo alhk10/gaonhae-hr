@@ -175,6 +175,11 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
               </div>
               <div className="text-right">
                 <div className="font-semibold">{formatCurrency(Number(invoice.total_amount || 0))}</div>
+                {Number((invoice as any).refunded_amount || 0) > 0 && (
+                  <div className="text-[10px] text-amber-600">
+                    {formatCurrency(Number((invoice as any).refunded_amount))} refunded as credit
+                  </div>
+                )}
                 <Badge variant="secondary" className="text-[10px] capitalize">{String(invoice.status).replace('_', ' ')}</Badge>
               </div>
             </div>
