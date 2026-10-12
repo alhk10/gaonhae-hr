@@ -46,6 +46,7 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   const isSuperadmin = publicMode ? false : isSuperadminRaw;
   const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
@@ -66,16 +67,22 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   if (open && lastInvoiceId === null && invoiceId) {
     setLastInvoiceId(invoiceId);
     setSelected(initialItemId ? [initialItemId] : []);
+    setQuantities({});
     setReason('');
   }
   if (!open && lastInvoiceId !== null) {
     setLastInvoiceId(null);
     setSelected([]);
+    setQuantities({});
     setReason('');
   }
 
   const items = useMemo(() => (invoice?.items || []).filter(Boolean), [invoice]);
-  const isRefunded = (item: any) => (item?.metadata as any)?.refunded === true;
+  const itemQty = (item: any) => Math.max(1, Number(item?.quantity) || 1);
+  const refundedQty = (item: any) => Number((item?.metadata as any)?.refunded_quantity) || 0;
+  const remainingQty = (item: any) => Math.max(0, itemQty(item) - refundedQty(item));
+  const isRefunded = (item: any) =>
+    (item?.metadata as any)?.refunded === true || remainingQty(item) === 0;
 
   const isPaidOrVerified = invoice
     ? ['paid', 'verified', 'partially_paid'].includes(String(invoice.status))
@@ -83,27 +90,44 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
   const isCancelled = String(invoice?.status) === 'cancelled';
   const canRefund = isPaidOrVerified && !isCancelled;
 
+  // Prorated credit: (line total + tax) / quantity × chosen refund quantity
+  const lineRefundAmount = (item: any) => {
+    const qty = itemQty(item);
+    const chosen = Math.min(quantities[item.id] ?? remainingQty(item), remainingQty(item));
+    return ((Number(item.total_amount || 0) + Number(item.tax_amount || 0)) / qty) * chosen;
+  };
+
   const selectedTotal = items
     .filter(i => selected.includes(i.id))
-    .reduce((sum, i) => sum + Number(i.total_amount || 0) + Number(i.tax_amount || 0), 0);
+    .reduce((sum, i) => sum + lineRefundAmount(i), 0);
 
   const toggle = (id: string) => {
     setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const setQty = (id: string, qty: number, max: number) => {
+    const clamped = Math.min(Math.max(1, Math.floor(qty) || 1), max);
+    setQuantities(prev => ({ ...prev, [id]: clamped }));
   };
 
   const handleConfirm = async () => {
     if (!invoice || selected.length === 0 || !reason.trim()) return;
     try {
       setIsSubmitting(true);
+      const qtyMap: Record<string, number> = {};
+      selected.forEach(id => {
+        const item = items.find((i: any) => i.id === id);
+        if (item) qtyMap[id] = Math.min(quantities[id] ?? remainingQty(item), remainingQty(item));
+      });
       if (isSuperadmin) {
-        await refundLineItems(selected, reason.trim());
+        await refundLineItems(selected, reason.trim(), qtyMap);
         toast.success(
           selected.length > 1
             ? `${selected.length} items refunded as student credit`
             : 'Item refunded as student credit'
         );
       } else if (publicMode) {
-        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '');
+        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '', qtyMap);
         toast.success('Refund request submitted for superadmin approval');
       } else {
         await submitRefundRequest(
@@ -112,7 +136,8 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
           reason.trim(),
           invoice.invoice_number,
           (invoice as any).student_name || '',
-          user?.email || ''
+          user?.email || '',
+          qtyMap
         );
         toast.success('Refund request submitted for superadmin approval');
       }
@@ -150,6 +175,11 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
               </div>
               <div className="text-right">
                 <div className="font-semibold">{formatCurrency(Number(invoice.total_amount || 0))}</div>
+                {Number((invoice as any).refunded_amount || 0) > 0 && (
+                  <div className="text-[10px] text-amber-600">
+                    {formatCurrency(Number((invoice as any).refunded_amount))} refunded as credit
+                  </div>
+                )}
                 <Badge variant="secondary" className="text-[10px] capitalize">{String(invoice.status).replace('_', ' ')}</Badge>
               </div>
             </div>
@@ -167,18 +197,25 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
               {items.map((item: any) => {
                 const refunded = isRefunded(item);
                 const disabled = refunded || !canRefund;
+                const qty = itemQty(item);
+                const prevQty = refundedQty(item);
+                const remaining = remainingQty(item);
+                const isSelected = selected.includes(item.id);
+                const chosenQty = Math.min(quantities[item.id] ?? remaining, remaining);
                 return (
-                  <label
+                  <div
                     key={item.id}
                     className={cn(
                       'flex items-start gap-2 border rounded-lg p-2 cursor-pointer',
                       disabled && 'opacity-60 cursor-not-allowed'
                     )}
+                    onClick={() => !disabled && toggle(item.id)}
                   >
                     <Checkbox
-                      checked={selected.includes(item.id)}
+                      checked={isSelected}
                       disabled={disabled}
                       onCheckedChange={() => !disabled && toggle(item.id)}
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <div className="flex-1 min-w-0">
@@ -188,14 +225,44 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
                       {item.description && item.product_name && (
                         <div className="text-[11px] text-muted-foreground truncate">{item.description}</div>
                       )}
+                      {prevQty > 0 && !refunded && (
+                        <div className="text-[10px] text-amber-600">{prevQty} of {qty} already refunded</div>
+                      )}
+                      {isSelected && remaining > 1 && (
+                        <div
+                          className="flex items-center gap-1.5 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[10px] text-muted-foreground">Qty to refund:</span>
+                          <button
+                            type="button"
+                            className="h-6 w-6 rounded border text-xs leading-none disabled:opacity-40"
+                            disabled={chosenQty <= 1}
+                            onClick={() => setQty(item.id, chosenQty - 1, remaining)}
+                          >−</button>
+                          <span className="text-xs font-medium w-6 text-center">{chosenQty}</span>
+                          <button
+                            type="button"
+                            className="h-6 w-6 rounded border text-xs leading-none disabled:opacity-40"
+                            disabled={chosenQty >= remaining}
+                            onClick={() => setQty(item.id, chosenQty + 1, remaining)}
+                          >+</button>
+                          <span className="text-[10px] text-muted-foreground">of {remaining}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <div className={cn('text-xs font-semibold', refunded && 'line-through')}>
                         {formatCurrency(Number(item.total_amount || 0) + Number(item.tax_amount || 0))}
                       </div>
+                      {isSelected && chosenQty < remaining && (
+                        <div className="text-[10px] text-green-600 font-medium">
+                          −{formatCurrency(lineRefundAmount(item))}
+                        </div>
+                      )}
                       {refunded && <Badge variant="secondary" className="text-[10px]">Refunded</Badge>}
                     </div>
-                  </label>
+                  </div>
                 );
               })}
             </div>

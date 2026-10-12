@@ -19,12 +19,13 @@ import { submitActionRequest } from './invoiceActionRequestService';
  */
 export const refundLineItem = async (
   invoiceItemId: string,
-  reason: string
+  reason: string,
+  quantity?: number
 ): Promise<void> => {
   // 1. Get the item and parent invoice
   const { data: item, error: itemError } = await supabase
     .from('invoice_items')
-    .select('id, invoice_id, product_id, total_amount, tax_amount, description, metadata, products(name)')
+    .select('id, invoice_id, product_id, quantity, total_amount, tax_amount, description, metadata, products(name)')
     .eq('id', invoiceItemId)
     .single();
 
@@ -34,7 +35,7 @@ export const refundLineItem = async (
 
   const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
-    .select('id, student_id, invoice_number, total_amount, tax_amount, subtotal, balance_due, amount_paid')
+    .select('id, student_id, invoice_number, total_amount, tax_amount, subtotal, balance_due, amount_paid, refunded_amount')
     .eq('id', item.invoice_id)
     .single();
 
@@ -42,14 +43,26 @@ export const refundLineItem = async (
     throw new Error('Parent invoice not found');
   }
 
-  // Guard: never refund an item twice — a second refund would issue a
-  // duplicate credit and reduce the invoice totals again.
-  if ((item.metadata as any)?.refunded === true) {
+  // Guard: never refund more than the line's original quantity. Fully
+  // refunded lines are blocked outright; partially refunded lines can be
+  // refunded again only up to the remaining quantity.
+  const itemQty = Math.max(1, Number((item as any).quantity) || 1);
+  const prevRefundedQty = Number((item.metadata as any)?.refunded_quantity) || 0;
+  if ((item.metadata as any)?.refunded === true || prevRefundedQty >= itemQty) {
     throw new Error('This item has already been refunded');
   }
+  const remainingQty = itemQty - prevRefundedQty;
+  const refundQty = Math.min(Math.max(1, Math.floor(quantity ?? remainingQty)), remainingQty);
+  const isFullRefund = refundQty >= itemQty && prevRefundedQty === 0
+    ? true
+    : (prevRefundedQty + refundQty) >= itemQty;
 
   const productName = (item.products as any)?.name || item.description;
-  const refundAmount = item.total_amount + item.tax_amount;
+  // Prorate the line amounts by refunded quantity
+  const round2q = (n: number) => Math.round(n * 100) / 100;
+  const refundAmount = round2q(((item.total_amount + item.tax_amount) / itemQty) * refundQty);
+  const refundItemAmount = round2q((item.total_amount / itemQty) * refundQty);
+  const refundTaxAmount = round2q((item.tax_amount / itemQty) * refundQty);
 
   // 2. Create student credit (positive = credit to student)
   const { error: creditError } = await supabase
@@ -59,7 +72,7 @@ export const refundLineItem = async (
       amount: refundAmount,
       type: 'item_refund',
       reference_id: invoiceItemId,
-      description: `Refund for ${productName} from Invoice #${invoice.invoice_number}`,
+      description: `Refund for ${productName}${refundQty < itemQty ? ` (×${refundQty} of ${itemQty})` : ''} from Invoice #${invoice.invoice_number}`,
     });
 
 
@@ -68,25 +81,28 @@ export const refundLineItem = async (
     throw new Error(`Failed to create refund credit: ${creditError.message}`);
   }
 
-  // 3. Deactivate entitlement linked to this item
-  await supabase
-    .from('entitlements')
-    .update({ is_active: false, notes: `Deactivated - item refunded: ${reason}` })
-    .eq('source_id', invoiceItemId)
-    .eq('source_type', 'invoice_item');
-
-  // 4. Cancel enrollment linked to this item
-  const { data: enrollments } = await supabase
-    .from('student_class_enrollments')
-    .select('id')
-    .eq('invoice_item_id', invoiceItemId);
-
-  if (enrollments && enrollments.length > 0) {
-    const enrollmentIds = enrollments.map(e => e.id);
+  // 3. Deactivate entitlement linked to this item — only on a full refund;
+  // a partial refund keeps the enrolment and entitlement active.
+  if (isFullRefund) {
     await supabase
+      .from('entitlements')
+      .update({ is_active: false, notes: `Deactivated - item refunded: ${reason}` })
+      .eq('source_id', invoiceItemId)
+      .eq('source_type', 'invoice_item');
+
+    // 4. Cancel enrollment linked to this item
+    const { data: enrollments } = await supabase
       .from('student_class_enrollments')
-      .update({ status: 'cancelled' })
-      .in('id', enrollmentIds);
+      .select('id')
+      .eq('invoice_item_id', invoiceItemId);
+
+    if (enrollments && enrollments.length > 0) {
+      const enrollmentIds = enrollments.map(e => e.id);
+      await supabase
+        .from('student_class_enrollments')
+        .update({ status: 'cancelled' })
+        .in('id', enrollmentIds);
+    }
   }
 
   // 4b. Grading registration cleanup for grading-fee or lesson refunds
@@ -103,7 +119,8 @@ export const refundLineItem = async (
   //      → If the grading item has also been refunded (or doesn't exist),
   //        delete the registration when no result has been recorded.
   //      → Otherwise leave the registration intact (grading still paid).
-  try {
+  // Partial refunds skip this cleanup entirely — the enrolment stays active.
+  if (isFullRefund) try {
     // Pull all sibling items on the same invoice, including refund metadata,
     // so we can decide whether the grading fee or lesson side is still active.
     const { data: siblingItems } = await supabase
@@ -190,22 +207,25 @@ export const refundLineItem = async (
     logger.error('Grading registration cleanup after refund failed (non-fatal)', gradingCleanupError);
   }
 
-  // 5. Mark item metadata as refunded
+  // 5. Mark item metadata — track refunded quantity; only flag the line as
+  // fully refunded once the whole quantity has been refunded.
   const existingMetadata = (item.metadata as Record<string, any>) || {};
+  const newRefundedQty = prevRefundedQty + refundQty;
   await supabase
     .from('invoice_items')
     .update({
       metadata: {
         ...existingMetadata,
-        refunded: true,
+        refunded: isFullRefund,
+        refunded_quantity: newRefundedQty,
         refund_reason: reason,
         refunded_at: new Date().toISOString(),
       },
     })
     .eq('id', invoiceItemId);
 
-  // 6. Recalculate invoice totals — the refund returns the item and its tax,
-  // so both the invoice total and what counts as paid come down by that amount.
+  // 6. Recalculate invoice totals — the refund returns the prorated amount
+  // and its tax, so both the invoice total and what counts as paid come down.
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const { data: remainingItems } = await supabase
     .from('invoice_items')
@@ -215,13 +235,14 @@ export const refundLineItem = async (
 
   let newTotal = Math.max(0, round2(invoice.total_amount - refundAmount));
   // GST-inclusive lines carry tax_amount 0 — reduce invoice GST in proportion instead.
-  let newTax = Number(item.tax_amount) > 0
-    ? Math.max(0, round2(invoice.tax_amount - item.tax_amount))
+  let newTax = refundTaxAmount > 0
+    ? Math.max(0, round2(invoice.tax_amount - refundTaxAmount))
     : (invoice.total_amount > 0 ? Math.max(0, round2(invoice.tax_amount * newTotal / invoice.total_amount)) : 0);
-  let newSubtotal = Math.max(0, round2(invoice.subtotal - item.total_amount));
+  let newSubtotal = Math.max(0, round2(invoice.subtotal - refundItemAmount));
   if (!anyLeft) { newTotal = 0; newTax = 0; newSubtotal = 0; }
   const newAmountPaid = Math.max(0, round2(Math.min(invoice.amount_paid, newTotal)));
   const newBalance = round2(newTotal - newAmountPaid);
+  const newRefundedAmount = round2(Number((invoice as any).refunded_amount || 0) + refundAmount);
 
   await supabase
     .from('invoices')
@@ -231,6 +252,7 @@ export const refundLineItem = async (
       subtotal: newSubtotal,
       amount_paid: newAmountPaid,
       balance_due: newBalance,
+      refunded_amount: newRefundedAmount,
       ...(anyLeft ? {} : { status: 'cancelled' }),
       updated_at: new Date().toISOString(),
     })
@@ -243,6 +265,7 @@ export const refundLineItem = async (
     changes: {
       action: 'item_refund',
       item_description: productName,
+      refund_quantity: refundQty,
       refund_amount: refundAmount,
       reason,
     },
@@ -256,10 +279,11 @@ export const refundLineItem = async (
  */
 export const refundLineItems = async (
   invoiceItemIds: string[],
-  reason: string
+  reason: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   for (const itemId of invoiceItemIds) {
-    await refundLineItem(itemId, reason);
+    await refundLineItem(itemId, reason, quantities?.[itemId]);
   }
 };
 
@@ -272,13 +296,14 @@ export const submitRefundRequest = async (
   reason: string,
   invoiceNumber: string,
   studentName: string,
-  requestedByEmail: string
+  requestedByEmail: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   const ids = Array.isArray(invoiceItemIds) ? invoiceItemIds : [invoiceItemIds];
   await submitActionRequest(
     invoiceId,
     'item_refund' as any,
-    { item_id: ids[0], item_ids: ids, reason },
+    { item_id: ids[0], item_ids: ids, reason, quantities: quantities || {} },
     invoiceNumber,
     studentName,
     requestedByEmail
@@ -300,10 +325,13 @@ export interface PublicRefundInvoice {
   status: string;
   total_amount: number;
   student_name: string | null;
+  refunded_amount?: number;
   items: Array<{
     id: string;
     product_name: string | null;
     description: string | null;
+    quantity: number;
+    unit_price: number;
     total_amount: number;
     tax_amount: number;
     metadata: any;
@@ -324,13 +352,15 @@ export const submitPublicRefundRequest = async (
   invoiceId: string,
   invoiceItemIds: string[],
   reason: string,
-  requestedBy?: string
+  requestedBy?: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   const { error } = await supabase.rpc('submit_public_refund_request' as any, {
     p_invoice_id: invoiceId,
     p_item_ids: invoiceItemIds,
     p_reason: reason,
     p_requested_by: requestedBy || null,
+    p_quantities: quantities || {},
   });
   if (error) throw error;
 };
