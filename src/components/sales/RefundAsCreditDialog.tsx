@@ -114,15 +114,20 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
     if (!invoice || selected.length === 0 || !reason.trim()) return;
     try {
       setIsSubmitting(true);
+      const qtyMap: Record<string, number> = {};
+      selected.forEach(id => {
+        const item = items.find((i: any) => i.id === id);
+        if (item) qtyMap[id] = Math.min(quantities[id] ?? remainingQty(item), remainingQty(item));
+      });
       if (isSuperadmin) {
-        await refundLineItems(selected, reason.trim());
+        await refundLineItems(selected, reason.trim(), qtyMap);
         toast.success(
           selected.length > 1
             ? `${selected.length} items refunded as student credit`
             : 'Item refunded as student credit'
         );
       } else if (publicMode) {
-        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '');
+        await submitPublicRefundRequest(invoice.id, selected, reason.trim(), user?.email || '', qtyMap);
         toast.success('Refund request submitted for superadmin approval');
       } else {
         await submitRefundRequest(
@@ -131,7 +136,8 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
           reason.trim(),
           invoice.invoice_number,
           (invoice as any).student_name || '',
-          user?.email || ''
+          user?.email || '',
+          qtyMap
         );
         toast.success('Refund request submitted for superadmin approval');
       }
