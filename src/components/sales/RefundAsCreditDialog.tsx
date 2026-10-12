@@ -192,18 +192,25 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
               {items.map((item: any) => {
                 const refunded = isRefunded(item);
                 const disabled = refunded || !canRefund;
+                const qty = itemQty(item);
+                const prevQty = refundedQty(item);
+                const remaining = remainingQty(item);
+                const isSelected = selected.includes(item.id);
+                const chosenQty = Math.min(quantities[item.id] ?? remaining, remaining);
                 return (
-                  <label
+                  <div
                     key={item.id}
                     className={cn(
                       'flex items-start gap-2 border rounded-lg p-2 cursor-pointer',
                       disabled && 'opacity-60 cursor-not-allowed'
                     )}
+                    onClick={() => !disabled && toggle(item.id)}
                   >
                     <Checkbox
-                      checked={selected.includes(item.id)}
+                      checked={isSelected}
                       disabled={disabled}
                       onCheckedChange={() => !disabled && toggle(item.id)}
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <div className="flex-1 min-w-0">
@@ -213,14 +220,44 @@ const RefundAsCreditDialog: React.FC<RefundAsCreditDialogProps> = ({
                       {item.description && item.product_name && (
                         <div className="text-[11px] text-muted-foreground truncate">{item.description}</div>
                       )}
+                      {prevQty > 0 && !refunded && (
+                        <div className="text-[10px] text-amber-600">{prevQty} of {qty} already refunded</div>
+                      )}
+                      {isSelected && remaining > 1 && (
+                        <div
+                          className="flex items-center gap-1.5 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[10px] text-muted-foreground">Qty to refund:</span>
+                          <button
+                            type="button"
+                            className="h-6 w-6 rounded border text-xs leading-none disabled:opacity-40"
+                            disabled={chosenQty <= 1}
+                            onClick={() => setQty(item.id, chosenQty - 1, remaining)}
+                          >−</button>
+                          <span className="text-xs font-medium w-6 text-center">{chosenQty}</span>
+                          <button
+                            type="button"
+                            className="h-6 w-6 rounded border text-xs leading-none disabled:opacity-40"
+                            disabled={chosenQty >= remaining}
+                            onClick={() => setQty(item.id, chosenQty + 1, remaining)}
+                          >+</button>
+                          <span className="text-[10px] text-muted-foreground">of {remaining}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <div className={cn('text-xs font-semibold', refunded && 'line-through')}>
                         {formatCurrency(Number(item.total_amount || 0) + Number(item.tax_amount || 0))}
                       </div>
+                      {isSelected && chosenQty < remaining && (
+                        <div className="text-[10px] text-green-600 font-medium">
+                          −{formatCurrency(lineRefundAmount(item))}
+                        </div>
+                      )}
                       {refunded && <Badge variant="secondary" className="text-[10px]">Refunded</Badge>}
                     </div>
-                  </label>
+                  </div>
                 );
               })}
             </div>
