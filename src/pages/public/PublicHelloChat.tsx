@@ -378,7 +378,7 @@ const PublicHelloChat: React.FC = () => {
   const [outstandingDismissedFor, setOutstandingDismissedFor] = useState<string | null>(null);
   const outstandingInvoices = useMemo(
     () => (pastInvoices?.invoices || []).filter(
-      (inv) => Number(inv.balance_due) > 0.009 && !['draft', 'cancelled', 'refunded'].includes(String(inv.status || '').toLowerCase()),
+      (inv) => Number(inv.balance_due) > 0.009 && !['cancelled', 'refunded'].includes(String(inv.status || '').toLowerCase()),
     ),
     [pastInvoices],
   );
@@ -1685,6 +1685,19 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
+                  {outstandingInvoices.length > 0 && (
+                    <Button
+                      onClick={() => setOutstandingDismissedFor(null)}
+                      variant="destructive"
+                      className="w-full h-11 justify-between"
+                    >
+                      <span>
+                        Outstanding Invoice{outstandingInvoices.length > 1 ? 's' : ''} ({outstandingInvoices.length})
+                        {' · '}${outstandingInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)}
+                      </span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
                   {(() => {
                     const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
                     if (!cat) return null;
