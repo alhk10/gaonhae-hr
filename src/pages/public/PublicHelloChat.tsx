@@ -4,7 +4,7 @@
  * Persistent "Not what I'm looking for" escape hatch -> Callback (emails hello@gaonhaetaekwondo.com).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download, UserCog, X } from 'lucide-react';
 
@@ -176,6 +176,7 @@ const PublicHelloChat: React.FC = () => {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('identify');
   const [stageHistory, setStageHistory] = useState<Stage[]>([]);
+  const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [matched, setMatched] = useState<MatchedStudent | null>(null);
   const [sessionLinked, setSessionLinked] = useState(false);
