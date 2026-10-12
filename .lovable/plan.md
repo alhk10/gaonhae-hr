@@ -1,19 +1,19 @@
-# Outstanding invoice button on /hello
+# Outstanding invoice button + popup fix on /hello
 
-## What exists today
-- `/hello` already shows a popup right after a student is recognized: "X has N unpaid invoice(s)" with each invoice listed (number, date, amount) and **Pay now** / **View all invoices** / **Later** buttons. Tapping **Later** dismisses it for that student.
-- The student portal login already shows a similar "Outstanding Invoices" popup with a **Pay** button per invoice using the standard payment flow.
-- What is missing: once the popup is dismissed, there is no way to get back to it — the menu only shows Pay Term Fees, grading, competition, etc.
+## Root cause of the missing popup
+- `/hello` already has an outstanding-invoice popup after recognition, but its filter excludes invoices with status `draft`.
+- Ellie Xu's only unpaid invoice (INV-2026-00512, $214.00) is a **draft**, so the list came back empty and no popup appeared. The database lookup returns drafts; only the screen filter hides them.
 
-## Change
-In `src/pages/public/PublicHelloChat.tsx`, on the recognized-student menu:
+## Changes (single file: `src/pages/public/PublicHelloChat.tsx`)
 
-- Add an **Outstanding Invoice** button directly above **Pay Term Fees**, shown only when the student has unpaid invoices (the same `outstandingInvoices` list the popup already uses).
-- Button shows the count and total, e.g. `Outstanding Invoice (1) · $265.00`, styled in the red/destructive style so it stands out.
-- Tapping it re-opens the existing outstanding-invoices popup (clears the dismissed state), where the parent can tap **Pay now** to pay through the standard payment flow, or view/download each invoice.
-- No change to the popup itself or to the student portal popup — both already work as requested.
+1. **Count draft invoices as outstanding** — remove `draft` from the excluded statuses in the `outstandingInvoices` filter (keep excluding `cancelled` and `refunded`). This makes the existing popup appear for Ellie and any student with a draft/unpaid invoice.
 
-## Technical details
-- Single file edit: `src/pages/public/PublicHelloChat.tsx` (menu section around line 1686).
-- Reuses existing `outstandingInvoices`, `outstandingDismissedFor` state and the existing Dialog — no new queries or database changes.
-- Verify with typecheck/build; visual check of the menu with a student who has an unpaid invoice.
+2. **Add an "Outstanding Invoice" button above Pay Term Fees** — shown only when the student has outstanding invoices:
+   - Label shows count and total, e.g. `Outstanding Invoice (1) · $214.00`, in the red/destructive style so it stands out.
+   - Tapping it re-opens the existing outstanding-invoices popup (clears the dismissed state), where the parent can tap **Pay now** (standard payment flow) or view/download each invoice.
+
+3. No changes to the popup itself, the database, or the student portal (its login popup already works).
+
+## Verification
+- Typecheck/build.
+- Confirm via database that Ellie Xu's popup would now trigger (draft, $214 balance).
