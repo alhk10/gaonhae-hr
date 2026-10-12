@@ -4,3 +4,4 @@
 - Public invoice-detail SECURITY DEFINER functions attach only the matched invoice's country template; `/hello` uses its session-validated invoice list to preserve access checks.
 - Shared `/access` staff-list presentation uses an `.access-list-shell` container and `.access-list-table` field markers, so rows flow into labelled two-line layouts based on available list width without changing actions or queries.
 - `/hello` reusable passport photos and Poom/Dan certificates are private `student-photos` objects, uploaded and previewed only after a server-validated recognized-student chat session; competition forms copy authorized images into each submission and save new profile copies only when the default-on switch remains enabled, so later replacements never alter past entries.
+- Convert invoice-edit overpayments through the database function keyed by invoice reference, so the existing invoice reaches zero balance and repeated saves cannot duplicate student credits.

@@ -148,6 +148,74 @@ const InvoiceActionApprovals: React.FC = () => {
       }
       if (request.action_type === 'cancellation') {
         await cancelInvoice(request.invoice_id);
+      } else if (request.action_type === 'adjustment') {
+        const requestData = request.request_data as any;
+        const requestedItems: any[] = Array.isArray(requestData?.editItems) ? requestData.editItems : [];
+        const requestedTotals = requestData?.editTotals;
+        if (!requestedTotals || requestedItems.length === 0) throw new Error('Adjustment details are incomplete');
+
+        const { data: existingItems, error: existingError } = await supabase
+          .from('invoice_items')
+          .select('id')
+          .eq('invoice_id', request.invoice_id);
+        if (existingError) throw existingError;
+        const requestedExistingIds = new Set(requestedItems.filter((item) => !item.isNew).map((item) => item.id));
+        const removedIds = (existingItems || []).map((item) => item.id).filter((id) => !requestedExistingIds.has(id));
+        if (removedIds.length > 0) {
+          const { error } = await supabase.from('invoice_items').delete().in('id', removedIds);
+          if (error) throw error;
+        }
+
+        for (const item of requestedItems.filter((entry) => !entry.isNew)) {
+          const { error } = await supabase.from('invoice_items').update({
+            product_id: item.product_id,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            tax_rate: item.tax_rate,
+            tax_amount: item.tax_amount,
+            total_amount: item.total_amount,
+            size_variant: item.size_variant || null,
+            metadata: item.metadata || null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', item.id).eq('invoice_id', request.invoice_id);
+          if (error) throw error;
+        }
+
+        const newItems = requestedItems.filter((entry) => entry.isNew && entry.product_id).map((item) => ({
+          invoice_id: request.invoice_id,
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+          total_amount: item.total_amount,
+          size_variant: item.size_variant || null,
+          metadata: item.metadata || null,
+        }));
+        if (newItems.length > 0) {
+          const { error } = await supabase.from('invoice_items').insert(newItems);
+          if (error) throw error;
+        }
+
+        const { error: invoiceError } = await supabase.from('invoices').update({
+          subtotal: Number(requestedTotals.subtotal || 0),
+          tax_amount: Number(requestedTotals.tax || 0),
+          total_amount: Number(requestedTotals.total || 0),
+          balance_due: Number(requestedTotals.balanceDue || 0),
+          updated_at: new Date().toISOString(),
+        }).eq('id', request.invoice_id);
+        if (invoiceError) throw invoiceError;
+
+        if (requestData?.convertOverpaymentToCredit) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error } = await supabase.rpc('convert_invoice_edit_overpayment_to_credit', {
+            p_invoice_id: request.invoice_id,
+            p_actor: user?.email || null,
+          });
+          if (error) throw error;
+        }
       } else if (request.action_type === 'item_refund') {
         const requestData = request.request_data as any;
         const ids: string[] = Array.isArray(requestData?.item_ids) && requestData.item_ids.length > 0
