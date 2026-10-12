@@ -119,7 +119,8 @@ export const refundLineItem = async (
   //      → If the grading item has also been refunded (or doesn't exist),
   //        delete the registration when no result has been recorded.
   //      → Otherwise leave the registration intact (grading still paid).
-  try {
+  // Partial refunds skip this cleanup entirely — the enrolment stays active.
+  if (isFullRefund) try {
     // Pull all sibling items on the same invoice, including refund metadata,
     // so we can decide whether the grading fee or lesson side is still active.
     const { data: siblingItems } = await supabase
