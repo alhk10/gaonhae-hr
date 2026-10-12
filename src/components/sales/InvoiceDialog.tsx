@@ -51,6 +51,7 @@ import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
 import { calculateAgeDecimal } from '@/utils/birthDate';
+import { calculateInvoiceOverpayment } from '@/utils/invoiceOverpayment';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 
 // ─── Props ──────────────────────────────────────────────────────────
@@ -1215,6 +1216,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const total = subtotal + tax;
     return { subtotal, tax, total, balanceDue: total - (invoice?.amount_paid || 0) };
   }, [editItems, invoice?.amount_paid, editIsTaxInclusive]);
+  const editOverpayment = calculateInvoiceOverpayment(editTotals.total, invoice?.amount_paid || 0);
 
   const handleAddEditItem = () => {
     setEditItems(prev => [...prev, { id: `new_${Date.now()}`, isNew: true, product_id: '', product_name: '', description: '', quantity: 1, unit_price: 0, tax_rate: 0, tax_amount: 0, total_amount: 0 }]);
@@ -1408,7 +1410,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue,
           },
           convertOverpaymentToCredit,
-          overpaymentAmount: convertOverpaymentToCredit ? Math.max(0, -editTotals.balanceDue) : 0,
+          overpaymentAmount: convertOverpaymentToCredit ? editOverpayment : 0,
         }, invoice.invoice_number, invoice.student_name || '', user?.email || '');
         toast.success('Adjustment request submitted for superadmin approval');
         setMode('view');
@@ -1419,7 +1421,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const handleSaveWithApproval = async () => {
     if (!invoice) return;
-    if (editTotals.balanceDue < -0.005) {
+    if (editOverpayment > 0) {
       setOverpaymentCreditPromptOpen(true);
       return;
     }
@@ -2164,7 +2166,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Add overpayment to student credits?</AlertDialogTitle>
             <AlertDialogDescription>
-              This invoice is overpaid by {formatCurrency(Math.max(0, -editTotals.balanceDue))}. Add this amount to the student's available credits and set the invoice balance to {formatCurrency(0)}?
+              This invoice is overpaid by {formatCurrency(editOverpayment)}. Add this amount to the student's available credits and set the invoice balance to {formatCurrency(0)}?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
