@@ -1691,21 +1691,24 @@ const PublicHelloChat: React.FC = () => {
                             {formatDate(inv.issue_date)}{inv.due_date ? ` · Due ${formatDate(inv.due_date)}` : ''}
                           </span>
                         </span>
-                        <span className="text-sm font-semibold text-destructive">${Number(inv.balance_due).toFixed(2)}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-destructive">${Number(inv.balance_due).toFixed(2)}</span>
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => { e.stopPropagation(); startPayInvoices([inv]); }}
+                          >
+                            Pay
+                          </Button>
+                        </span>
                       </button>
                     ))}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Tap an invoice to download it.</p>
+                  <p className="text-[11px] text-muted-foreground">Tap an invoice to download it, or Pay to settle it.</p>
                   <div className="flex flex-col gap-2">
-                    {(() => {
-                      const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
-                      if (!cat) return null;
-                      return (
-                        <Button onClick={() => { setOutstandingDismissedFor(matched.id); setPayCategory(cat); setCart([]); goTo('payment_products'); }}>
-                          Pay now <ArrowRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      );
-                    })()}
+                    <Button onClick={() => startPayInvoices(outstandingInvoices)}>
+                      {outstandingInvoices.length > 1 ? `Pay all ${outstandingInvoices.length} invoices` : 'Pay now'} <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
                     <Button variant="outline" onClick={() => { setOutstandingDismissedFor(matched.id); goTo('past_invoices'); }}>
                       View all invoices
                     </Button>
@@ -1745,7 +1748,7 @@ const PublicHelloChat: React.FC = () => {
                 <CardContent className="p-3 space-y-2">
                   {outstandingInvoices.length > 0 && (
                     <Button
-                      onClick={() => setOutstandingDismissedFor(null)}
+                      onClick={() => startPayInvoices(outstandingInvoices)}
                       variant="destructive"
                       className="w-full h-11 justify-between"
                     >
