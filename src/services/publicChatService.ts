@@ -370,6 +370,69 @@ export const getChatInvoices = async (sessionId: string, studentId: string): Pro
   return { student: row.student ?? null, template: row.template ?? null, invoices: row.invoices ?? [] };
 };
 
+export interface PayChatInvoicesInput {
+  session_id: string;
+  student_id: string;
+  branch_id: string;
+  invoice_ids: string[];
+  payment_method: 'paynow' | 'bank_transfer';
+  proof_file: File | null;
+  client_ref: string;
+  contact_first_name?: string;
+  contact_last_name?: string;
+}
+
+export interface PayChatInvoicesResult {
+  payment_count: number;
+  total_amount: number;
+  credit_used: number;
+  cash_amount: number;
+}
+
+/** Pay one or more existing outstanding invoices (credit first, then PayNow/bank transfer with proof). */
+export const payChatInvoices = async (input: PayChatInvoicesInput): Promise<PayChatInvoicesResult> => {
+  let proofUrl: string | null = null;
+
+  if (input.proof_file) {
+    assertValidPaymentProof(input.proof_file);
+    const ext = input.proof_file.name.split('.').pop() || 'jpg';
+    const ts = Date.now();
+    const fn = (input.contact_first_name || '').trim().toUpperCase();
+    const ln = (input.contact_last_name || '').trim().toUpperCase();
+    const safeName = `${fn}_${ln}`.replace(/[^A-Z0-9_]/gi, '_');
+    const path = `public-hello/${input.branch_id}/${ts}_${safeName}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, input.proof_file, { upsert: false, contentType: input.proof_file.type });
+    if (uploadError) throw uploadError;
+
+    const { data: signed } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    proofUrl = signed?.signedUrl ?? path;
+  }
+
+  const { data, error } = await supabase.rpc('pay_public_chat_invoice' as any, {
+    p_session_id: input.session_id,
+    p_student_id: input.student_id,
+    p_invoice_ids: input.invoice_ids,
+    p_payment_method: input.payment_method,
+    p_proof_url: proofUrl,
+    p_client_ref: input.client_ref,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  await logChatEvent(input.session_id, 'invoice_payment_submitted', { invoice_ids: input.invoice_ids });
+  return {
+    payment_count: Number(row?.payment_count ?? 0),
+    total_amount: Number(row?.total_amount ?? 0),
+    credit_used: Number(row?.credit_used ?? 0),
+    cash_amount: Number(row?.cash_amount ?? 0),
+  };
+};
+
 export interface TimetableSlot {
   id: string;
   weekday: number;
