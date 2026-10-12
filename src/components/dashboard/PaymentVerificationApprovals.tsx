@@ -247,6 +247,91 @@ const PaymentVerificationApprovals = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deletingPayment) return;
+    if (!deleteReason.trim()) {
+      toast.error('Please give a reason (e.g. duplicate, wrong payment)');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      // Return any held credit to the student before removing the payment.
+      if (deletingPayment.invoice_id) {
+        await supabase.rpc('release_credit_hold', {
+          p_invoice_id: deletingPayment.invoice_id,
+          p_actor: user?.email || 'superadmin',
+        });
+      }
+      await deletePayment(deletingPayment.id);
+      await logInvoiceChangeSafe(deletingPayment.invoice_id, deleteReason.trim());
+      invalidateQueries();
+      toast.success('Payment deleted and invoice recalculated');
+      setDeletingPayment(null);
+      setDeleteReason('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete payment');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const logInvoiceChangeSafe = async (invoiceId: string | undefined, reason: string) => {
+    if (!invoiceId) return;
+    try {
+      const { logInvoiceChange } = await import('@/services/invoiceChangeLogService');
+      await logInvoiceChange({
+        invoice_id: invoiceId,
+        action: 'payment_removed',
+        changes: { reason },
+      });
+    } catch { /* logging is best-effort */ }
+  };
+
+  const handleAddProof = async () => {
+    if (!proofPayment || !proofFile) {
+      toast.error('Choose a screenshot');
+      return;
+    }
+    if (!proofFile.type.startsWith('image/')) {
+      toast.error('Please upload an image (PDF not accepted)');
+      return;
+    }
+    const amt = proofAmount.trim() === '' ? null : Number(proofAmount);
+    if (amt != null && (!isFinite(amt) || amt <= 0)) {
+      toast.error('Enter the amount shown on the screenshot');
+      return;
+    }
+    setIsUploadingProof(true);
+    try {
+      const ext = proofFile.name.split('.').pop() || 'jpg';
+      const path = `public-fees/${proofPayment.invoices?.branch_id || 'unknown'}/extra_${Date.now()}_proof.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('payment-proofs')
+        .upload(path, proofFile, { upsert: false, contentType: proofFile.type });
+      if (upErr) throw new Error(`Proof upload failed: ${upErr.message}`);
+
+      const existing = Array.isArray(proofPayment.extra_proofs) ? proofPayment.extra_proofs : [];
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          extra_proofs: [...existing, { url: path, amount: amt, uploaded_at: new Date().toISOString() }],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', proofPayment.id);
+      if (error) throw error;
+
+      invalidateQueries();
+      toast.success('Second payment screenshot added');
+      setProofPayment(null);
+      setProofFile(null);
+      setProofAmount('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Upload failed');
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
   if (isLoading || unverifiedPayments.length === 0) return null;
 
   return (
