@@ -207,22 +207,25 @@ export const refundLineItem = async (
     logger.error('Grading registration cleanup after refund failed (non-fatal)', gradingCleanupError);
   }
 
-  // 5. Mark item metadata as refunded
+  // 5. Mark item metadata — track refunded quantity; only flag the line as
+  // fully refunded once the whole quantity has been refunded.
   const existingMetadata = (item.metadata as Record<string, any>) || {};
+  const newRefundedQty = prevRefundedQty + refundQty;
   await supabase
     .from('invoice_items')
     .update({
       metadata: {
         ...existingMetadata,
-        refunded: true,
+        refunded: isFullRefund,
+        refunded_quantity: newRefundedQty,
         refund_reason: reason,
         refunded_at: new Date().toISOString(),
       },
     })
     .eq('id', invoiceItemId);
 
-  // 6. Recalculate invoice totals — the refund returns the item and its tax,
-  // so both the invoice total and what counts as paid come down by that amount.
+  // 6. Recalculate invoice totals — the refund returns the prorated amount
+  // and its tax, so both the invoice total and what counts as paid come down.
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const { data: remainingItems } = await supabase
     .from('invoice_items')
@@ -232,13 +235,14 @@ export const refundLineItem = async (
 
   let newTotal = Math.max(0, round2(invoice.total_amount - refundAmount));
   // GST-inclusive lines carry tax_amount 0 — reduce invoice GST in proportion instead.
-  let newTax = Number(item.tax_amount) > 0
-    ? Math.max(0, round2(invoice.tax_amount - item.tax_amount))
+  let newTax = refundTaxAmount > 0
+    ? Math.max(0, round2(invoice.tax_amount - refundTaxAmount))
     : (invoice.total_amount > 0 ? Math.max(0, round2(invoice.tax_amount * newTotal / invoice.total_amount)) : 0);
-  let newSubtotal = Math.max(0, round2(invoice.subtotal - item.total_amount));
+  let newSubtotal = Math.max(0, round2(invoice.subtotal - refundItemAmount));
   if (!anyLeft) { newTotal = 0; newTax = 0; newSubtotal = 0; }
   const newAmountPaid = Math.max(0, round2(Math.min(invoice.amount_paid, newTotal)));
   const newBalance = round2(newTotal - newAmountPaid);
+  const newRefundedAmount = round2(Number((invoice as any).refunded_amount || 0) + refundAmount);
 
   await supabase
     .from('invoices')
@@ -248,6 +252,7 @@ export const refundLineItem = async (
       subtotal: newSubtotal,
       amount_paid: newAmountPaid,
       balance_due: newBalance,
+      refunded_amount: newRefundedAmount,
       ...(anyLeft ? {} : { status: 'cancelled' }),
       updated_at: new Date().toISOString(),
     })
@@ -260,6 +265,7 @@ export const refundLineItem = async (
     changes: {
       action: 'item_refund',
       item_description: productName,
+      refund_quantity: refundQty,
       refund_amount: refundAmount,
       reason,
     },
