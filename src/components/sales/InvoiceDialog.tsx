@@ -419,6 +419,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const isVerifiedLocked = invoice?.status === 'verified';
   const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
   const [deletingDraft, setDeletingDraft] = useState(false);
+  const [overpaymentCreditPromptOpen, setOverpaymentCreditPromptOpen] = useState(false);
 
   // ─── Effects ────────────────────────────────────────────────────
   // Preload reference data once when component mounts (create mode only)
@@ -1261,7 +1262,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     } finally { setDeletingDraft(false); }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (convertOverpaymentToCredit = false) => {
     if (!invoice) return;
     // Drop empty rows (no product selected) before saving
     const blankIds = new Set(editItems.filter(i => !i.product_id).map(i => i.id));
@@ -1306,7 +1307,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         subtotal: editTotals.subtotal,
         tax_amount: editTotals.tax,
         total_amount: editTotals.total,
-        balance_due: editTotals.balanceDue,
+        balance_due: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue,
         updated_at: new Date().toISOString(),
       };
       let dateChanged = false;
@@ -1321,6 +1322,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         dateChanged = true;
       }
       await supabase.from('invoices').update(invoiceUpdate).eq('id', invoice.id);
+      let creditedAmount = 0;
+      if (convertOverpaymentToCredit) {
+        const { data, error } = await supabase.rpc('convert_invoice_edit_overpayment_to_credit', {
+          p_invoice_id: invoice.id,
+          p_actor: user?.email || null,
+        });
+        if (error) throw new Error(error.message);
+        creditedAmount = Number(data || 0);
+      }
       if (dateChanged) {
         try {
           await logInvoiceChange({
@@ -1376,7 +1386,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
       queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
 
-      toast.success('Invoice updated successfully');
+      toast.success(creditedAmount > 0
+        ? `Invoice updated and ${formatCurrency(creditedAmount)} added to student credits`
+        : 'Invoice updated successfully');
       setMode('view');
       loadInvoiceData();
       onInvoiceUpdated?.();
@@ -1384,17 +1396,34 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     finally { setSaving(false); }
   };
 
-  const handleSaveWithApproval = async () => {
+  const saveOrSubmitAdjustment = async (convertOverpaymentToCredit: boolean) => {
     if (!invoice) return;
     if (isPaidOrVerified && !isSuperadmin) {
       try {
         setSaving(true);
-        await submitActionRequest(invoice.id, 'adjustment', { editItems, editTotals }, invoice.invoice_number, invoice.student_name || '', user?.email || '');
+        await submitActionRequest(invoice.id, 'adjustment', {
+          editItems,
+          editTotals: {
+            ...editTotals,
+            balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue,
+          },
+          convertOverpaymentToCredit,
+          overpaymentAmount: convertOverpaymentToCredit ? Math.max(0, -editTotals.balanceDue) : 0,
+        }, invoice.invoice_number, invoice.student_name || '', user?.email || '');
         toast.success('Adjustment request submitted for superadmin approval');
         setMode('view');
       } catch (error: any) { toast.error(`Failed: ${error.message}`); }
       finally { setSaving(false); }
-    } else { handleSave(); }
+    } else { await handleSave(convertOverpaymentToCredit); }
+  };
+
+  const handleSaveWithApproval = async () => {
+    if (!invoice) return;
+    if (editTotals.balanceDue < -0.005) {
+      setOverpaymentCreditPromptOpen(true);
+      return;
+    }
+    await saveOrSubmitAdjustment(false);
   };
 
   // Cancel & Refund
@@ -2124,6 +2153,31 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             <AlertDialogCancel disabled={deletingDraft}>Keep</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDeleteDraft(); }} disabled={deletingDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deletingDraft && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Delete draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Negative balance must be resolved as student credit before saving. */}
+      <AlertDialog open={overpaymentCreditPromptOpen} onOpenChange={setOverpaymentCreditPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add overpayment to student credits?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This invoice is overpaid by {formatCurrency(Math.max(0, -editTotals.balanceDue))}. Add this amount to the student's available credits and set the invoice balance to {formatCurrency(0)}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(event) => {
+                event.preventDefault();
+                void saveOrSubmitAdjustment(true).then(() => setOverpaymentCreditPromptOpen(false));
+              }}
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Add Credit & Save
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
