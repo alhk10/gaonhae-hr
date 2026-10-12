@@ -3,7 +3,7 @@
  * Used by the standalone /comps page (no prefill) and embedded in the /hello
  * chat (prefilled with the recognized student's details, branch locked).
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { getBeltLevelsForCountry } from '@/constants/beltLevels';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { getHelloStudentPhoto, getHelloStudentCertificate, saveHelloStudentPhoto, saveHelloStudentCertificate } from '@/services/helloStudentPhotoService';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 import SignaturePad from '@/components/common/SignaturePad';
 import {
   getPublicBranches,
@@ -205,6 +206,8 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
+  // One client ref per loaded form so retries stay idempotent server-side.
+  const clientRef = useRef(newClientRef());
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -462,6 +465,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         passport_file: selectedEvent.require_passport ? passportFile : null,
         photo_file: participantPhoto,
         weight_kg: null,
+        client_ref: clientRef.current,
       });
       if (creditContext && creditToUse > 0) {
         await applyHelloCreditToCompetition(creditContext.sessionId, creditContext.studentId, result.id);

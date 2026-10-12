@@ -3,7 +3,8 @@
  * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
  * events (packages, indemnity, required uploads) in /access settings.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { newClientRef } from '@/utils/publicPaymentValidation';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Download, FileText } from 'lucide-react';
 import { formatDate } from '@/utils/dateFormat';
@@ -156,6 +157,8 @@ const PublicSeminarPayment: React.FC = () => {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [indemnityAccepted, setIndemnityAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // One client ref per loaded form so retries stay idempotent server-side.
+  const clientRef = useRef(newClientRef());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
 
@@ -355,6 +358,7 @@ const PublicSeminarPayment: React.FC = () => {
         grading_card_files: selectedEvent.require_grading_card && gradingCardFile ? [gradingCardFile] : [],
         indemnity_form_file: indemnityFormRequired ? indemnityFormFile : null,
         signature_data_url: signatureRequired ? signatureDataUrl : null,
+        client_ref: clientRef.current,
       });
       await recordProofScan('seminar', result.id, await proofScan.waitForResult());
       setSuccess({ ref: result.reference_number });

@@ -317,6 +317,7 @@ export interface SubmitCompetitionPaymentInput {
   passport_file?: File | null;
   photo_file?: File | null;
   weight_kg?: number | null;
+  client_ref?: string;
 }
 
 export const getCompetitionProducts = async (): Promise<CompetitionProduct[]> => {
@@ -419,7 +420,7 @@ export const submitCompetitionPayment = async (
 ): Promise<{ id: string; reference_number: string }> => {
   if (input.proof_file) assertValidPaymentProof(input.proof_file);
   assertValidDateOfBirth(input.date_of_birth);
-  const clientRef = newClientRef();
+  const clientRef = input.client_ref || newClientRef();
   const fn = (input.first_name || '').trim().toUpperCase();
   const ln = (input.last_name || '').trim().toUpperCase();
   const safeName = `${fn}_${ln}`.replace(/[^a-z0-9_]/gi, '_');
