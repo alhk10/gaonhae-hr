@@ -1032,7 +1032,7 @@ const PublicHelloChat: React.FC = () => {
           return;
         }
         // Schedule booking after payment temporarily disabled — staff confirm lesson times.
-        toast.success('Payment received. Our staff will confirm your lesson times with you.');
+        toast.success('Thank you for your payment. Your payment will be verified by our staff.');
         goTo('payment_done');
         return;
       }
