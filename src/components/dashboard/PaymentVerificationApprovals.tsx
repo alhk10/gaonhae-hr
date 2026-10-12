@@ -376,6 +376,20 @@ const PaymentVerificationApprovals = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Invoice Dialog */}
+      {editingInvoiceId && (
+        <InvoiceDialog
+          mode="edit"
+          invoiceId={editingInvoiceId}
+          open={!!editingInvoiceId}
+          onOpenChange={(open) => { if (!open) setEditingInvoiceId(null); }}
+          onInvoiceUpdated={() => {
+            invalidateQueries();
+            setEditingInvoiceId(null);
+          }}
+        />
+      )}
+
       {/* Reject Payment Dialog */}
       <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
         <DialogContent className="max-w-sm">
