@@ -9067,6 +9067,10 @@ export type Database = {
         Args: { p_actor?: string; p_invoice_id: string }
         Returns: undefined
       }
+      convert_invoice_edit_overpayment_to_credit: {
+        Args: { p_actor?: string; p_invoice_id: string }
+        Returns: number
+      }
       create_public_chat_callback: {
         Args: {
           p_branch_id: string
