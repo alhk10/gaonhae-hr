@@ -279,10 +279,11 @@ export const refundLineItem = async (
  */
 export const refundLineItems = async (
   invoiceItemIds: string[],
-  reason: string
+  reason: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   for (const itemId of invoiceItemIds) {
-    await refundLineItem(itemId, reason);
+    await refundLineItem(itemId, reason, quantities?.[itemId]);
   }
 };
 
@@ -295,13 +296,14 @@ export const submitRefundRequest = async (
   reason: string,
   invoiceNumber: string,
   studentName: string,
-  requestedByEmail: string
+  requestedByEmail: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   const ids = Array.isArray(invoiceItemIds) ? invoiceItemIds : [invoiceItemIds];
   await submitActionRequest(
     invoiceId,
     'item_refund' as any,
-    { item_id: ids[0], item_ids: ids, reason },
+    { item_id: ids[0], item_ids: ids, reason, quantities: quantities || {} },
     invoiceNumber,
     studentName,
     requestedByEmail
@@ -323,10 +325,13 @@ export interface PublicRefundInvoice {
   status: string;
   total_amount: number;
   student_name: string | null;
+  refunded_amount?: number;
   items: Array<{
     id: string;
     product_name: string | null;
     description: string | null;
+    quantity: number;
+    unit_price: number;
     total_amount: number;
     tax_amount: number;
     metadata: any;
@@ -347,13 +352,15 @@ export const submitPublicRefundRequest = async (
   invoiceId: string,
   invoiceItemIds: string[],
   reason: string,
-  requestedBy?: string
+  requestedBy?: string,
+  quantities?: Record<string, number>
 ): Promise<void> => {
   const { error } = await supabase.rpc('submit_public_refund_request' as any, {
     p_invoice_id: invoiceId,
     p_item_ids: invoiceItemIds,
     p_reason: reason,
     p_requested_by: requestedBy || null,
+    p_quantities: quantities || {},
   });
   if (error) throw error;
 };
