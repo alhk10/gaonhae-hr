@@ -72,7 +72,7 @@ export const refundLineItem = async (
       amount: refundAmount,
       type: 'item_refund',
       reference_id: invoiceItemId,
-      description: `Refund for ${productName} from Invoice #${invoice.invoice_number}`,
+      description: `Refund for ${productName}${refundQty < itemQty ? ` (×${refundQty} of ${itemQty})` : ''} from Invoice #${invoice.invoice_number}`,
     });
 
 
@@ -81,25 +81,28 @@ export const refundLineItem = async (
     throw new Error(`Failed to create refund credit: ${creditError.message}`);
   }
 
-  // 3. Deactivate entitlement linked to this item
-  await supabase
-    .from('entitlements')
-    .update({ is_active: false, notes: `Deactivated - item refunded: ${reason}` })
-    .eq('source_id', invoiceItemId)
-    .eq('source_type', 'invoice_item');
-
-  // 4. Cancel enrollment linked to this item
-  const { data: enrollments } = await supabase
-    .from('student_class_enrollments')
-    .select('id')
-    .eq('invoice_item_id', invoiceItemId);
-
-  if (enrollments && enrollments.length > 0) {
-    const enrollmentIds = enrollments.map(e => e.id);
+  // 3. Deactivate entitlement linked to this item — only on a full refund;
+  // a partial refund keeps the enrolment and entitlement active.
+  if (isFullRefund) {
     await supabase
+      .from('entitlements')
+      .update({ is_active: false, notes: `Deactivated - item refunded: ${reason}` })
+      .eq('source_id', invoiceItemId)
+      .eq('source_type', 'invoice_item');
+
+    // 4. Cancel enrollment linked to this item
+    const { data: enrollments } = await supabase
       .from('student_class_enrollments')
-      .update({ status: 'cancelled' })
-      .in('id', enrollmentIds);
+      .select('id')
+      .eq('invoice_item_id', invoiceItemId);
+
+    if (enrollments && enrollments.length > 0) {
+      const enrollmentIds = enrollments.map(e => e.id);
+      await supabase
+        .from('student_class_enrollments')
+        .update({ status: 'cancelled' })
+        .in('id', enrollmentIds);
+    }
   }
 
   // 4b. Grading registration cleanup for grading-fee or lesson refunds
