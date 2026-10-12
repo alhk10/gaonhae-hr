@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText, Trash2, ImagePlus } from 'lucide-react';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { deletePayment } from '@/services/paymentService';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
@@ -27,6 +28,13 @@ const PaymentVerificationApprovals = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [proofPayment, setProofPayment] = useState<any>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofAmount, setProofAmount] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   const { data: unverifiedPayments = [], isLoading } = useQuery({
     queryKey: ['superadmin-unverified-payments'],
