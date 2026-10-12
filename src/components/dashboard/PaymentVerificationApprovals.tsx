@@ -496,6 +496,77 @@ const PaymentVerificationApprovals = () => {
         />
       )}
 
+      {/* Delete Payment Dialog */}
+      <Dialog open={!!deletingPayment} onOpenChange={(open) => { if (!open) { setDeletingPayment(null); setDeleteReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {deletingPayment?.invoices?.invoice_number} — {deletingPayment?.invoices?.students
+                ? `${deletingPayment.invoices.students.first_name} ${deletingPayment.invoices.students.last_name}`
+                : 'Unknown'}
+              {' '}· ${deletingPayment?.amount?.toFixed(2)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The payment is removed and the invoice total paid / balance / status recalculated. Any held credit returns to the student. If the whole invoice is a duplicate, delete it afterwards from Edit Invoice.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-reason">Reason *</Label>
+              <Textarea
+                id="delete-reason"
+                placeholder="e.g. Duplicate payment, wrong invoice..."
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingPayment(null); setDeleteReason(''); }} disabled={isDeleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting || !deleteReason.trim()}>
+              {isDeleting ? 'Deleting...' : 'Delete Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Second Proof Dialog */}
+      <Dialog open={!!proofPayment} onOpenChange={(open) => { if (!open) { setProofPayment(null); setProofFile(null); setProofAmount(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add another payment screenshot</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              {proofPayment?.invoices?.invoice_number} — {proofPayment?.invoices?.students
+                ? `${proofPayment.invoices.students.first_name} ${proofPayment.invoices.students.last_name}`
+                : 'Unknown'}
+            </p>
+            <Input type="file" accept="image/*" className="text-xs" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+            <div className="space-y-1.5">
+              <Label htmlFor="proof-amount">Amount on this screenshot ($)</Label>
+              <Input
+                id="proof-amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={proofAmount}
+                onChange={(e) => setProofAmount(e.target.value)}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">The first screenshot is kept. Verification status does not change.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setProofPayment(null); setProofFile(null); setProofAmount(''); }} disabled={isUploadingProof}>Cancel</Button>
+            <Button onClick={handleAddProof} disabled={isUploadingProof || !proofFile}>
+              {isUploadingProof ? 'Uploading...' : 'Add screenshot'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reject Payment Dialog */}
       <Dialog open={!!rejectingPayment} onOpenChange={(open) => { if (!open) { setRejectingPayment(null); setRejectionReason(''); } }}>
         <DialogContent className="max-w-sm">
