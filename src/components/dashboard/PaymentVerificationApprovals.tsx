@@ -42,7 +42,7 @@ const PaymentVerificationApprovals = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('*, invoices!inner(invoice_number, branch_id, total_amount, status, students(first_name, last_name))')
+        .select('*, invoices!inner(invoice_number, branch_id, student_id, total_amount, status, students(first_name, last_name))')
         .eq('is_verified', false)
         .or('proof_of_payment_url.not.is.null,payment_method.eq.credit')
         .neq('payment_method', 'cash')
@@ -54,6 +54,33 @@ const PaymentVerificationApprovals = () => {
     },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
+  });
+
+  const creditStudentIds = React.useMemo(
+    () => Array.from(new Set(
+      (unverifiedPayments as any[])
+        .filter((p) => p.payment_method === 'credit' && p.invoices?.student_id)
+        .map((p) => p.invoices.student_id as string)
+    )),
+    [unverifiedPayments]
+  );
+
+  const { data: creditBalances = new Map<string, number>() } = useQuery({
+    queryKey: ['credit-payment-balances', creditStudentIds.join(',')],
+    enabled: creditStudentIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('student_credits')
+        .select('student_id, amount')
+        .in('student_id', creditStudentIds);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      (data || []).forEach((row: any) => {
+        map.set(row.student_id, (map.get(row.student_id) || 0) + Number(row.amount || 0));
+      });
+      return map;
+    },
+    staleTime: 30 * 1000,
   });
 
   const { data: branches = [] } = useQuery({
