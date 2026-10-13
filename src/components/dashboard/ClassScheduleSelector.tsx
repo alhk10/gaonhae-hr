@@ -21,6 +21,7 @@ interface ClassScheduleSelectorProps {
   allowedClassTypes?: string[]; // Filter to only show these class types
   allowedDays?: string[]; // Filter to only show these days (e.g., ["Monday", "Tuesday"])
   studentAllowedClassTypes?: string[]; // Student-level age exception overrides
+  classesLoader?: () => Promise<any[]>; // Override for password-only /access sessions
 }
 
 const WEEKDAYS = [
@@ -47,11 +48,13 @@ const ClassScheduleSelector: React.FC<ClassScheduleSelectorProps> = ({
   allowedClassTypes,
   allowedDays,
   studentAllowedClassTypes,
+  classesLoader,
 }) => {
   // Fetch class schedules for this branch
   const { data: allClasses = [], isLoading } = useQuery({
-    queryKey: ['branch-class-schedules', branchId],
+    queryKey: ['branch-class-schedules', branchId, !!classesLoader],
     queryFn: async () => {
+      if (classesLoader) return await classesLoader();
       const { data, error } = await supabase
         .from('branch_timetables')
         .select('*')

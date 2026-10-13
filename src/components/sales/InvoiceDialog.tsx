@@ -19,6 +19,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
+import { transformProduct } from '@/services/productService';
+import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
@@ -342,6 +345,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
   const addProductTriggerRef = useRef<HTMLButtonElement>(null);
+  // Password-only /access sessions can't read protected tables; load everything via one RPC.
+  const accessMode = !!onSubmitOverride;
+  const catalogPromise = useRef<Promise<AccessInvoiceCatalog> | null>(null);
+  const getCatalog = () => {
+    if (!catalogPromise.current) catalogPromise.current = getAccessInvoiceCatalog(lockedBranchId || null).catch(e => { catalogPromise.current = null; throw e; });
+    return catalogPromise.current;
+  };
 
 
 
@@ -506,9 +516,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('price_rules')
-          .select('product_id, branch_id, is_active');
+        const { data, error } = accessMode
+          ? { data: (await getCatalog()).price_rules, error: null }
+          : await supabase.from('price_rules').select('product_id, branch_id, is_active');
         if (error) throw error;
         const rules = data || [];
 
@@ -635,7 +645,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // ─── Data Loaders ─────────────────────────────────────────────
   const loadStudents = async () => {
     try {
-      const response = await getStudents(1, 1000);
+      const response = accessMode ? { students: (await getCatalog()).students } : await getStudents(1, 1000);
       setStudents(response.students.map(s => ({
         id: s.id,
         name: s.display_name || `${s.first_name} ${s.last_name}`,
@@ -651,7 +661,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const loadProducts = async () => {
     try {
-      const response = await getProducts(1, 1000);
+      const response = accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000);
       setProducts(response.products.map(p => ({
         id: p.id, name: p.name, sku: p.sku, base_price: p.base_price,
         category_id: p.category_id, available_variants: p.available_variants,
@@ -679,7 +689,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   const loadCategories = async () => {
-    try { setCategories(await getProductCategories()); } catch { console.error('Error loading categories'); }
+    try { setCategories(accessMode ? (await getCatalog()).categories : await getProductCategories()); } catch { console.error('Error loading categories'); }
   };
 
   const loadGradingSlots = async () => {
@@ -690,7 +700,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - GRADING_DUPLICATE_CHECK_DAYS);
       const fromDateStr = toISODate(fromDate);
-      setGradingSlots(await getGradingSlots({ status: 'active', from_date: fromDateStr }));
+      setGradingSlots(accessMode ? ((await getCatalog()).grading_slots as GradingSlot[]) : await getGradingSlots({ status: 'active', from_date: fromDateStr }));
     } catch { console.error('Error loading grading slots'); }
     finally { setGradingSlotsLoading(false); }
   };
@@ -708,7 +718,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (!branchId) { setBranchTerms([]); return; }
     try {
       const today = toISODate(new Date());
-      const { data, error } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).order('start_date', { ascending: true });
+      const { data, error } = accessMode ? { data: (await getCatalog()).terms.filter((t: any) => t.branch_id === branchId), error: null } : await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).order('start_date', { ascending: true });
       if (error) throw error;
       setBranchTerms(withPreviousTerm((data || []) as Term[], today));
     } catch (error: any) {
@@ -766,7 +776,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const getBranchPrice = async (productId: string, branchId: string): Promise<number | null> => {
     if (!productId || !branchId) return null;
     try {
-      const { data, error } = await supabase.from('price_rules').select('price_override, is_active').eq('product_id', productId).eq('branch_id', branchId).eq('is_active', true).maybeSingle();
+      const { data, error } = accessMode
+        ? { data: (await getCatalog()).price_rules.find(r => r.product_id === productId && r.branch_id === branchId && r.is_active) || null, error: null }
+        : await supabase.from('price_rules').select('price_override, is_active').eq('product_id', productId).eq('branch_id', branchId).eq('is_active', true).maybeSingle();
       if (error || !data) return null;
       return data.price_override;
     } catch { return null; }
@@ -900,7 +912,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setTermError(null);
     try {
       const today = toISODate(new Date());
-      const { data: allTerms, error: termsError } = await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).order('start_date', { ascending: true });
+      const { data: allTerms, error: termsError } = accessMode ? { data: (await getCatalog()).terms.filter((t: any) => t.branch_id === branchId), error: null } : await supabase.from('term_calendars').select('*').eq('branch_id', branchId).eq('is_active', true).order('start_date', { ascending: true });
       if (termsError) throw termsError;
       const availableTerms = withPreviousTerm((allTerms || []) as Term[], today);
       if (availableTerms.length === 0) return '';
@@ -921,7 +933,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   const checkExistingClassInvoice = async (studentId: string, termId: string): Promise<boolean> => {
-    if (!studentId || !termId) return false;
+    if (!studentId || !termId || accessMode) return false;
     try {
       const { data: invoices } = await supabase.from('invoices').select('id').eq('student_id', studentId);
       if (!invoices?.length) return false;
@@ -958,7 +970,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     let siblingDiscountType: 'amount' | undefined;
     let siblingDiscountValue: number | undefined;
     if (term && formData.student_id) {
-      const discount = await getSiblingDiscount(formData.student_id);
+      const accessStudent = accessMode ? (await getCatalog()).students.find((s: any) => s.id === formData.student_id) : null;
+      const discount = accessMode ? (accessStudent && Number(accessStudent.sibling_count) >= 2 ? siblingDiscountForBranch(accessStudent.branch_id) : 0) : await getSiblingDiscount(formData.student_id);
       if (discount > 0) { siblingDiscountType = 'amount'; siblingDiscountValue = discount; toast.info(`Sibling discount of $${discount.toFixed(2)} auto-applied`); }
     }
 
@@ -1140,7 +1153,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         const invTotal = items.reduce((s, i) => s + i.total, 0);
         let creditToApply = 0;
         try {
-          const creditBalance = await getStudentCreditBalance(formData.student_id);
+          const creditBalance = accessMode ? Number((await getCatalog()).students.find((s: any) => s.id === formData.student_id)?.credit_balance || 0) : await getStudentCreditBalance(formData.student_id);
           if (creditBalance > 0) creditToApply = Math.min(creditBalance, invTotal);
         } catch { /* non-fatal */ }
 
@@ -1181,7 +1194,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       // Auto-apply credits
       let creditApplied = 0;
       try {
-        const creditBalance = await getStudentCreditBalance(formData.student_id);
+        const creditBalance = accessMode ? Number((await getCatalog()).students.find((s: any) => s.id === formData.student_id)?.credit_balance || 0) : await getStudentCreditBalance(formData.student_id);
         if (creditBalance > 0 && createdInvoice?.id) {
           const invTotal = items.reduce((s, i) => s + i.total, 0);
           const creditToApply = Math.min(creditBalance, invTotal);
@@ -1819,7 +1832,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
             {selectedCategory?.name === 'Classes' && newItem.term_id && formData.branch_id && (
               <div className="space-y-1 md:space-y-2">
                 <h4 className="text-xs md:text-sm font-medium">Select Class Schedule</h4>
-                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} studentAllowedClassTypes={studentAllowedClassTypes} />
+                <ClassScheduleSelector branchId={formData.branch_id} studentAge={studentAge} selectedSlots={selectedClassSlots} onSlotsChange={setSelectedClassSlots} term={branchTerms.find(t => t.id === newItem.term_id)!} allowedClassTypes={selectedProduct?.allowed_class_types} allowedDays={selectedProduct?.lesson_days} lessonsPerWeek={selectedProduct?.lessons_per_week} studentAllowedClassTypes={studentAllowedClassTypes} classesLoader={accessMode ? async () => (await getCatalog()).timetables.filter((t: any) => t.branch_id === formData.branch_id) : undefined} />
               </div>
             )}
 

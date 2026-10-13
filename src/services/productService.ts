@@ -25,7 +25,7 @@ const parseVariants = (data: unknown): ProductVariants | undefined => {
 };
 
 // Helper to transform raw product data to Product type
-const transformProduct = (raw: any): Product => ({
+export const transformProduct = (raw: any): Product => ({
   id: raw.id,
   name: raw.name,
   sku: raw.sku,
