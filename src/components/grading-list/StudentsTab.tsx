@@ -7,6 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus, FilePlus } from 'lucide-react';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { createAccessInvoice } from '@/services/invoiceService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
