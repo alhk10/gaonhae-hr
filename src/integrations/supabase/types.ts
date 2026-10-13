@@ -9074,6 +9074,7 @@ export type Database = {
         Args: { p_actor?: string; p_invoice_id: string }
         Returns: number
       }
+      create_access_invoice: { Args: { p_payload: Json }; Returns: Json }
       create_public_chat_callback: {
         Args: {
           p_branch_id: string

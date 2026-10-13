@@ -7,6 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus, FilePlus } from 'lucide-react';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { createAccessInvoice } from '@/services/invoiceService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,8 +67,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
-  // Invoice creation writes directly to protected tables, so it needs a signed-in staff account.
-  const canInvoice = !!user;
+  // Signed-in staff save invoices directly; password-only /access sessions
+  // save through the create_access_invoice database function instead.
+  const canInvoice = true;
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -298,6 +300,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
           onOpenChange={(o) => !o && setInvoiceFor(null)}
           branchId={invoiceFor.branch_id || undefined}
           prefilledStudentId={invoiceFor.id}
+          onSubmitOverride={user ? undefined : createAccessInvoice}
           onInvoiceCreated={() => {
             setInvoiceFor(null);
             qc.invalidateQueries({ queryKey: ['public-student-directory'] });
