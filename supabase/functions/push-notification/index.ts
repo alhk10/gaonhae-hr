@@ -90,36 +90,16 @@ serve(async (req) => {
       );
     }
 
-    // Get subscription - check if it's for a student or employee
-    let subscription = null;
-    let subscriptionError = null;
-    let recipientType = 'employee';
-    let recipientId = payload.employee_id;
+    const isStudent = !!payload.student_id;
+    const table = isStudent ? 'student_notification_subscriptions' : 'notification_subscriptions';
+    const { data: subs, error: subscriptionError } = await supabase
+      .from(table)
+      .select('*')
+      .eq(isStudent ? 'student_id' : 'employee_id', isStudent ? payload.student_id! : payload.employee_id);
 
-    if (payload.student_id) {
-      recipientType = 'student';
-      recipientId = payload.student_id;
-      const result = await supabase
-        .from('student_notification_subscriptions')
-        .select('*')
-        .eq('student_id', payload.student_id)
-        .maybeSingle();
-      subscription = result.data;
-      subscriptionError = result.error;
-    } else if (payload.employee_id) {
-      const result = await supabase
-        .from('notification_subscriptions')
-        .select('*')
-        .eq('employee_id', payload.employee_id)
-        .maybeSingle();
-      subscription = result.data;
-      subscriptionError = result.error;
-    }
-
-    if (subscriptionError || !subscription) {
-      console.log(`No subscription found for ${recipientType}:`, recipientId);
+    if (subscriptionError || !subs || subs.length === 0) {
       return new Response(
-        JSON.stringify({ message: `No push subscription for this ${recipientType}` }),
+        JSON.stringify({ message: `No push subscription for this ${isStudent ? 'student' : 'employee'}` }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -138,7 +118,7 @@ serve(async (req) => {
       body: formattedBody,
       icon: '/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png',
       badge: '/lovable-uploads/fbbeccdc-3802-4172-9a2a-8e1b0f83829d.png',
-      url: payload.url || '/',
+      url: payload.url || (isStudent ? '/hello' : '/'),
       tag: payload.template_key,
       data: {
         template_key: payload.template_key,
@@ -147,53 +127,22 @@ serve(async (req) => {
       }
     });
 
-    // Send push notification using Web Push protocol
-    const pushResult = await sendWebPush(
-      subscription.endpoint,
-      subscription.p256dh,
-      subscription.auth,
-      vapidPublicKey,
-      vapidPrivateKey,
-      vapidSubject,
-      notificationPayload
-    );
-
-    if (pushResult.success) {
-      if (payload.employee_id) {
-        await supabase.from('notification_logs').insert({
-          employee_id: payload.employee_id,
-          template_key: payload.template_key,
-          metadata: { variables: payload.variables }
-        });
-      }
-
-      console.log('Push notification sent successfully');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Notification sent' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else {
-      if (pushResult.status === 410 || pushResult.status === 404) {
-        console.log('Subscription expired, removing from database');
-        if (payload.student_id) {
-          await supabase
-            .from('student_notification_subscriptions')
-            .delete()
-            .eq('id', subscription.id);
-        } else {
-          await supabase
-            .from('notification_subscriptions')
-            .delete()
-            .eq('id', subscription.id);
-        }
-      }
-
-      console.error('Push notification failed:', pushResult);
-      return new Response(
-        JSON.stringify({ error: 'Failed to send notification', details: pushResult }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let sent = 0;
+    for (const sub of subs) {
+      const r = await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, vapidPublicKey, vapidPrivateKey, vapidSubject, notificationPayload);
+      if (r.success) sent++;
+      else if (r.status === 410 || r.status === 404) await supabase.from(table).delete().eq('id', sub.id);
+      else console.error('Push failed:', r);
     }
+    if (sent > 0 && payload.employee_id && !isStudent) {
+      await supabase.from('notification_logs').insert({
+        employee_id: payload.employee_id, template_key: payload.template_key, metadata: { variables: payload.variables },
+      });
+    }
+    return new Response(
+      JSON.stringify({ success: sent > 0, sent, total: subs.length }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
     console.error('Error in push-notification function:', error);
     return new Response(
