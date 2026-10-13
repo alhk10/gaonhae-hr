@@ -384,6 +384,13 @@ const PaymentVerificationApprovals = () => {
                 <div className="shrink-0 w-full sm:w-[200px] h-[100px] rounded border flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground bg-muted">
                   <Wallet className="w-5 h-5" />
                   <span>Credit payment — no proof needed</span>
+                  {payment.invoices?.student_id && creditBalances.has(payment.invoices.student_id) && (
+                    <span className="text-[10px] font-medium text-foreground">
+                      Balance: ${(creditBalances.get(payment.invoices.student_id)! + Number(payment.amount || 0)).toFixed(2)}
+                      {' → '}
+                      ${creditBalances.get(payment.invoices.student_id)!.toFixed(2)}
+                    </span>
+                  )}
                   <span className="text-[10px]">Confirm to finalise the credit, or Reject to return it</span>
                 </div>
               ) : (
