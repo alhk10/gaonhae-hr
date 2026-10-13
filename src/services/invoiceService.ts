@@ -1478,3 +1478,15 @@ export const backfillOrphanGradingRegistrationsForBranch = async (branchId: stri
     return 0;
   }
 };
+
+/**
+ * Create an invoice from a password-only /access session.
+ * Routes the fully-calculated payload through the create_access_invoice
+ * SECURITY DEFINER function, which performs the same inserts server-side
+ * (invoice, items, GST, entitlements, class bookings, credit, payment).
+ */
+export const createAccessInvoice = async (payload: Record<string, unknown>): Promise<{ invoice_id: string; invoice_number: string }> => {
+  const { data, error } = await supabase.rpc('create_access_invoice', { p_payload: payload });
+  if (error) throw new Error(error.message || 'Failed to create invoice');
+  return data as { invoice_id: string; invoice_number: string };
+};
