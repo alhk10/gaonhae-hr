@@ -2570,11 +2570,6 @@ const CompetitionsTab: React.FC<{
     onError: (e: any) => toast.error(e?.message || 'Failed to update registered'),
   });
 
-  const gradingCardRequiredAndMissing = (r: PublicCompetitionListRow): boolean => {
-    return r.require_grading_card === true
-      && isFoundationToBlackTip(r.current_belt)
-      && (!r.grading_card_urls || r.grading_card_urls.length === 0);
-  };
 
   const doVerify = async (submissionId: string) => {
     setVerifyingId(submissionId);
@@ -2595,11 +2590,6 @@ const CompetitionsTab: React.FC<{
   };
 
   const handleVerify = async (submissionId: string) => {
-    const r = (rows as PublicCompetitionListRow[]).find(x => x.submission_id === submissionId);
-    if (r && gradingCardRequiredAndMissing(r)) {
-      setGradingCardDialog({ row: r, pendingVerify: true });
-      return;
-    }
     await doVerify(submissionId);
   };
 
