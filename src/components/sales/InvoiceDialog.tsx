@@ -337,6 +337,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   onInvoiceUpdated,
   branchId: lockedBranchId,
   prefilledStudentId,
+  onSubmitOverride,
 }) => {
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
