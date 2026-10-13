@@ -72,6 +72,7 @@ import {
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import { HelloHomeScreenPrompt, HelloNotificationButton } from '@/components/hello/HelloAppExtras';
 
 
 
@@ -1835,6 +1836,18 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  {matched?.id && sessionLinked && (
+                    <>
+                      <HelloNotificationButton sessionId={sessionId} studentId={matched.id} branchId={branchId} />
+                      <HelloHomeScreenPrompt
+                        suppressed={showOutstandingPopup}
+                        sessionId={sessionId}
+                        studentId={matched.id}
+                        branchId={branchId}
+                        studentName={matched.first_name}
+                      />
+                    </>
+                  )}
                   <Button
                     onClick={() => { setPiLoaded(false); setPiPending(null); goTo('personal_info'); }}
                     variant="outline"
