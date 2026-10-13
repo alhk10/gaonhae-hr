@@ -299,6 +299,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
           onOpenChange={(o) => !o && setInvoiceFor(null)}
           branchId={invoiceFor.branch_id || undefined}
           prefilledStudentId={invoiceFor.id}
+          onSubmitOverride={user ? undefined : createAccessInvoice}
           onInvoiceCreated={() => {
             setInvoiceFor(null);
             qc.invalidateQueries({ queryKey: ['public-student-directory'] });
