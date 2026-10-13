@@ -66,8 +66,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
-  // Invoice creation writes directly to protected tables, so it needs a signed-in staff account.
-  const canInvoice = !!user;
+  // Signed-in staff save invoices directly; password-only /access sessions
+  // save through the create_access_invoice database function instead.
+  const canInvoice = true;
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
