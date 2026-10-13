@@ -100,7 +100,7 @@ import {
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
-import { getNextBeltLevel, isFoundationToBlackTip } from '@/constants/beltLevels';
+import { getNextBeltLevel } from '@/constants/beltLevels';
 import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
