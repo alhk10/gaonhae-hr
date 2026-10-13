@@ -9185,6 +9185,10 @@ export type Database = {
       generate_grading_payment_reference: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_student_number: { Args: never; Returns: string }
+      get_access_invoice_catalog: {
+        Args: { p_branch_id?: string }
+        Returns: Json
+      }
       get_admin_access_for_auth: {
         Args: { p_employee_id: string }
         Returns: {

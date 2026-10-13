@@ -1490,3 +1490,15 @@ export const createAccessInvoice = async (payload: any): Promise<{ invoice_id: s
   if (error) throw new Error(error.message || 'Failed to create invoice');
   return data as { invoice_id: string; invoice_number: string };
 };
+
+/** Read-only catalogue for password-only /access invoice creation (tables are not readable without sign-in). */
+export interface AccessInvoiceCatalog {
+  students: any[]; products: any[]; categories: Array<{ id: string; name: string }>;
+  price_rules: Array<{ product_id: string; branch_id: string; is_active: boolean; price_override: number | null }>;
+  terms: any[]; timetables: any[]; grading_slots: any[];
+}
+export const getAccessInvoiceCatalog = async (branchId?: string | null): Promise<AccessInvoiceCatalog> => {
+  const { data, error } = await supabase.rpc('get_access_invoice_catalog' as any, { p_branch_id: branchId || null });
+  if (error) throw error;
+  return data as unknown as AccessInvoiceCatalog;
+};
