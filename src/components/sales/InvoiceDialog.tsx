@@ -1134,6 +1134,49 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
       }
 
+      // Password-only /access sessions: route the save through the secure
+      // database function instead of direct table writes.
+      if (onSubmitOverride) {
+        const invTotal = items.reduce((s, i) => s + i.total, 0);
+        let creditToApply = 0;
+        try {
+          const creditBalance = await getStudentCreditBalance(formData.student_id);
+          if (creditBalance > 0) creditToApply = Math.min(creditBalance, invTotal);
+        } catch { /* non-fatal */ }
+
+        let payment: AccessInvoicePayload['payment'] = null;
+        if (recordPayment) {
+          const requested = parseFloat(payAmount) || 0;
+          const amountToPay = Math.max(0, requested - creditToApply);
+          if (amountToPay > 0) {
+            let proofUrl: string | undefined;
+            if (payProofFile) {
+              const fileExt = payProofFile.name.split('.').pop();
+              const fileName = `access/${formData.student_id}/${Date.now()}.${fileExt}`;
+              const { error: uploadError } = await supabase.storage.from('payment-proofs').upload(fileName, payProofFile);
+              if (uploadError) throw new Error(`Failed to upload proof: ${uploadError.message}`);
+              proofUrl = supabase.storage.from('payment-proofs').getPublicUrl(fileName).data.publicUrl;
+            }
+            payment = {
+              amount: amountToPay,
+              payment_date: payDate,
+              payment_method: payMethod,
+              reference_number: payReference || undefined,
+              proof_of_payment_url: proofUrl,
+            };
+          }
+        }
+
+        const result = await onSubmitOverride({
+          ...invoiceData,
+          credit_to_apply: creditToApply,
+          payment,
+          actor: user?.email || 'access',
+        });
+        toast.success(`Invoice ${result.invoice_number} created successfully${creditToApply > 0 ? ` — $${creditToApply.toFixed(2)} credit applied` : ''}`);
+        setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
+      }
+
       const createdInvoice = await createInvoice(invoiceData);
       // Auto-apply credits
       let creditApplied = 0;
