@@ -65,6 +65,24 @@ interface InvoiceDialogProps {
   onInvoiceUpdated?: () => void;
   branchId?: string;
   prefilledStudentId?: string;
+  /**
+   * When set (password-only /access sessions), create-mode saves are routed
+   * through this callback instead of direct table writes, which require a
+   * signed-in staff account.
+   */
+  onSubmitOverride?: (payload: AccessInvoicePayload) => Promise<{ invoice_id: string; invoice_number: string }>;
+}
+
+export interface AccessInvoicePayload extends CreateInvoiceData {
+  credit_to_apply?: number;
+  payment?: {
+    amount: number;
+    payment_date: string;
+    payment_method: string;
+    reference_number?: string;
+    proof_of_payment_url?: string;
+  } | null;
+  actor?: string;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
