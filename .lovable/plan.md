@@ -3,7 +3,7 @@
 ## What was found
 - The Students tab's Add invoice opens the staff Create Invoice form. It loads products, terms, price rules, product categories, class timetables and student details directly from the database.
 - Those tables can only be read by signed-in staff accounts. A password-only `/access` session isn't signed in, so every list comes back empty (branches load because they are public).
-- Note: `Hp84894041` is not one of the configured passwords. Kembangan is `Hp84944041`. If `Hp84894041` was meant to be a new login, please confirm which branch it belongs to.
+- This affects the Kembangan login (`Hp84944041`) and every other password-only login the same way.
 
 ## Fix
 1. Add one read-only server function, `get_access_invoice_catalog(branch_id)`, which returns the data the form needs for that branch: active products, product categories, active price rules, active terms, active class timetables and class pricing tiers.
