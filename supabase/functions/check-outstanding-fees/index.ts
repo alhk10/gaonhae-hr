@@ -89,7 +89,7 @@ serve(async (req) => {
           variables: {
             amount: formattedAmount
           },
-          url: '/'
+          url: '/hello'
         })
       });
 

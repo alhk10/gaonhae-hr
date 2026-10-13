@@ -10222,6 +10222,15 @@ export type Database = {
         Args: { p_employee_id: string; p_processed_by?: string; p_year: number }
         Returns: string
       }
+      public_chat_push_status: {
+        Args: {
+          p_branch_id: string
+          p_endpoint: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: boolean
+      }
       public_find_duplicate_students: {
         Args: { p_criteria?: Json }
         Returns: {
@@ -10495,7 +10504,28 @@ export type Database = {
         }
         Returns: string
       }
+      subscribe_public_chat_push: {
+        Args: {
+          p_auth: string
+          p_branch_id: string
+          p_endpoint: string
+          p_p256dh: string
+          p_session_id: string
+          p_student_id: string
+          p_user_agent?: string
+        }
+        Returns: boolean
+      }
       superadmin_pending_counts: { Args: never; Returns: Json }
+      unsubscribe_public_chat_push: {
+        Args: {
+          p_branch_id: string
+          p_endpoint: string
+          p_session_id: string
+          p_student_id: string
+        }
+        Returns: boolean
+      }
       update_chat_student_personal_info: {
         Args: {
           p_date_of_birth: string

@@ -120,7 +120,7 @@ serve(async (req) => {
             current_belt: reg.current_belt,
             target_belt: reg.target_belt
           },
-          url: '/'
+          url: '/hello'
         })
       });
 
