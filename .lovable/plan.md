@@ -18,8 +18,10 @@ One public page in Gaonhae navy, red and gold (from the logo):
    - **Geup events**: Geup 10 & 9 Taegeuk 1; 8 & 7 Taegeuk 2; 6 Taegeuk 3; 5 Taegeuk 4; 4 Taegeuk 5; 3 Taegeuk 6; 2 Taegeuk 7; 1 Taegeuk 8.
    - **Poom/Dan events**: Taegeuk 7, Taegeuk 8, Koryo, Keumgang, Taebaek.
    - **Event eligibility**: competitors can enter their own grade event and higher grade events, never a lower one. Poom/Dan holders can enter only Poom/Dan events. **Maximum 2 events.** The grade used is the rank at registration.
-   - Belt-to-geup mapping (assumed, please confirm): White = Geup 10, Yellow Tip = 9, Yellow = 8, Green Tip = 7, Green = 6, Blue Tip = 5, Blue = 4, Red Tip = 3, Red = 2, Black Tip = 1. Poom and Dan belts go to Poom/Dan events.
-4. **Registration form**: name, gender, date of birth, belt, club (invited clubs), email, mobile (+61), seminars ticked, up to 2 competition events ticked from the eligible list (age division shown automatically), indemnity tick and signature. Seminars and events the participant does not qualify for are greyed out, with the reason shown.
+   - **Grade, not belt colour**: clubs use different belt systems, so the form asks for the competitor's **grade**: Geup 10 to Geup 1, or Poom/Dan. The available poomsae events follow that grade.
+   - Gaonhae students can pick their Gaonhae belt instead, and it maps automatically: White 10, Yellow Tip 9, Yellow 8, Green Tip 7, Green 6, Blue Tip 5, Blue 4, Red Tip 3, Red 2, Black Tip 1, Poom/Dan to Poom/Dan. Foundation 1, 2 and 3 are non-geup and cannot enter the competition; seminars still apply where eligible.
+   - Seminar belt rules use the same grade scale: Green = Geup 6, Red = Geup 2, Black Tip = Geup 1.
+4. **Registration form**: name, gender, date of birth, club (invited clubs), grade (or Gaonhae belt), email, mobile (+61), seminars ticked, up to 2 competition events ticked from the eligible list (age division shown automatically), indemnity tick and signature. Seminars and events the participant does not qualify for are greyed out, with the reason shown.
 5. **Payment**: live total with the GST included, the Australian bank transfer details (GAONHAE TAEKWONDO, BSB 803-439, account 238 648 651), a payment-proof image upload, then a confirmation screen.
 
 ## Gaonhae student price
@@ -41,5 +43,4 @@ One public page in Gaonhae navy, red and gold (from the logo):
   - Add `get_perth_event_log(p_password)`, which checks the password on the server against a stored hash and only then returns the rows. The password is never stored in the page code.
 - Proofs upload to the existing private payment-proofs storage. The log shows them through short-lived signed links.
 
-## Open question
-Should the poomsae choice depend on belt (for example Taegeuk only for coloured belts, Koryo and above for Poom/Dan), or should any form be selectable?
+- The server repeats every rule check (grade events, 2-event limit, age by birth year) and does not trust the browser.
