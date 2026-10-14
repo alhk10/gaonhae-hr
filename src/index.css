@@ -245,20 +245,20 @@
     }
   }
 }
-/* Gaonhae brand theme for the /perthcomp event page (navy, red, gold). */
+/* Gaonhae brand theme for the /perthcomp event page (blue, red, dark grey on white). */
 .perth-theme {
-  --background: 220 40% 97%;
-  --foreground: 222 55% 14%;
+  --background: 0 0% 100%;
+  --foreground: 215 15% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 222 55% 14%;
-  --primary: 222 62% 22%;
-  --primary-foreground: 45 90% 96%;
-  --secondary: 45 85% 55%;
-  --secondary-foreground: 222 62% 16%;
+  --card-foreground: 215 15% 20%;
+  --primary: 215 90% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 12% 28%;
+  --secondary-foreground: 0 0% 100%;
   --accent: 354 75% 46%;
   --accent-foreground: 0 0% 100%;
-  --muted: 220 30% 93%;
-  --muted-foreground: 222 20% 40%;
-  --border: 220 25% 85%;
-  --ring: 354 75% 46%;
+  --muted: 215 15% 95%;
+  --muted-foreground: 215 12% 40%;
+  --border: 215 15% 88%;
+  --ring: 215 90% 42%;
 }
