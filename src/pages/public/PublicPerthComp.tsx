@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Receipt, Trophy } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Receipt, Trash2, Trophy } from 'lucide-react';
 import { usePaymentProofScan } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { toast } from 'sonner';
@@ -398,6 +398,14 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     setRows((data as any[]) || []);
   };
 
+  const removeRow = async (r: any) => {
+    if (!window.confirm(`Permanently delete the registration for ${r.first_name} ${r.last_name}? This cannot be undone.`)) return;
+    const { error } = await supabase.rpc('delete_perth_event_registration' as any, { p_password: pw, p_id: r.id });
+    if (error) return toast.error(error.message?.includes('Invalid password') ? 'Incorrect password' : 'Delete failed');
+    setRows((prev) => (prev || []).filter((x) => x.id !== r.id));
+    toast.success('Registration deleted');
+  };
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { comp: 0 };
     SEMINARS.forEach((s) => (c[s.code] = 0));
@@ -483,7 +491,8 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
         {r.proof_scan_status === 'match' && <span className="rounded bg-green-100 px-1.5 text-green-800">Amount matches</span>}
         {r.proof_scan_status === 'mismatch' && <span className="rounded bg-amber-100 px-1.5 text-amber-800">Amount differs (${Number(r.proof_scan_amount ?? 0).toFixed(2)})</span>}
         {(!r.proof_scan_status || r.proof_scan_status === 'unreadable') && <span className="rounded bg-muted px-1.5">Not read</span>}
-        <span>{formatDateTime(r.created_at)}</span></div>
+        <span>{formatDateTime(r.created_at)}</span>
+        <button className="inline-flex items-center gap-1 text-red-600 hover:underline" title="Delete registration" onClick={() => removeRow(r)}><Trash2 className="h-4 w-4" /> Delete</button></div>
     </div>
   );
 
