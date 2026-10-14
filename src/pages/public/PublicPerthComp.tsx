@@ -262,7 +262,10 @@ const PublicPerthComp: React.FC = () => {
             <section><h3 className="font-semibold">5. Competition structure</h3>
               <ul className="list-disc pl-5"><li>Single-elimination individual recognised poomsae competition.</li><li>Grouped by age category, gender and event; randomly allocated into elimination groups.</li>
                 <li>Competitors perform the designated poomsae; winners advance to the next round.</li></ul></section>
-            <a href="/downloads/perth-2026-competition-outline.pdf" download="perth-2026-competition-outline.pdf" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"><Download className="h-4 w-4" /> Download Complete Competition Outline (PDF)</a>
+            <div className="flex flex-col gap-2">
+              <a href="/downloads/perth-2026-competition-outline.pdf" download="perth-2026-competition-outline.pdf" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"><Download className="h-4 w-4" /> Download Complete Competition Outline (PDF)</a>
+              <button type="button" onClick={downloadCompetitorsPdf} disabled={competitorsLoading} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-50"><Download className="h-4 w-4" /> {competitorsLoading ? 'Preparing list…' : 'Download List of Registered Competitors (PDF)'}</button>
+            </div>
           </CardContent>
         </Card>
 
@@ -448,6 +451,29 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     doc.setFontSize(14); doc.text(`Perth Seminars & Poomsae Championship 2026 — ${title}`, 14, 14);
     doc.setFontSize(9); doc.text(`Generated ${formatDateTime(new Date())}`, 14, 20);
     return { doc, autoTable };
+  };
+
+  const [competitorsLoading, setCompetitorsLoading] = useState(false);
+  const downloadCompetitorsPdf = async () => {
+    setCompetitorsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_perth_competition_entries' as any);
+      if (error) throw error;
+      const rows = (data as any[]) || [];
+      const { doc, autoTable } = await loadPdf(`Registered Competitors (${rows.length})`);
+      autoTable(doc, {
+        startY: 24, styles: { fontSize: 8 },
+        head: [['#', 'Name', 'Club', 'Age Category', 'Grade', 'Events']],
+        body: rows.length
+          ? rows.map((r, i) => [i + 1, r.name, r.club, r.age_division ? `${r.age_division} Years` : '', gradeLabel(r.grade), (r.events || []).map(eventLabel).join(', ')])
+          : [['', 'No competitors registered yet', '', '', '', '']],
+      });
+      doc.save('perth-2026-registered-competitors.pdf');
+    } catch {
+      toast.error('Could not load the competitors list. Please try again.');
+    } finally {
+      setCompetitorsLoading(false);
+    }
   };
 
   const downloadSeminarPdf = async () => {
