@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Receipt, Trash2, Trophy } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Download, Lock, Mail, MapPin, Receipt, Trash2, Trophy } from 'lucide-react';
 import { usePaymentProofScan } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { toast } from 'sonner';
@@ -296,8 +296,11 @@ const PublicPerthComp: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-3">
           <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 px-10" onClick={() => setRegOpen(true)}>Register & pay</Button>
+          <a href="mailto:perth.gaonhaetaekwondo@gmail.com" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline">
+            <Mail className="h-4 w-4 text-secondary" /> Need help? Please email perth.gaonhaetaekwondo@gmail.com
+          </a>
         </div>
 
         <Dialog open={regOpen} onOpenChange={setRegOpen}>
