@@ -277,6 +277,20 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     return c;
   }, [rows]);
 
+  const sections = useMemo(() => {
+    const list: { key: string; title: string; cap: number; rows: any[] }[] = SEMINARS.map((s) => ({
+      key: s.code, title: s.name, cap: 60, rows: (rows || []).filter((r) => r.seminars?.includes(s.code)),
+    }));
+    list.push({ key: 'comp', title: 'Poomsae Competition', cap: 100, rows: (rows || []).filter((r) => r.comp_events?.length) });
+    return list;
+  }, [rows]);
+
+  const rowCells = (r: any, i: number) => [
+    i + 1, `${r.first_name} ${r.last_name}`, r.gender, formatDate(r.date_of_birth), r.age_division || '-',
+    gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`,
+    r.comp_events.map(eventLabel).join(', ') || '-', `$${Number(r.total_amount).toFixed(2)}`, r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at),
+  ];
+
   const downloadPdf = async () => {
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
@@ -284,12 +298,15 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     doc.setFontSize(14); doc.text('Perth Seminars & Poomsae Championship 2026 — Registration Log', 14, 14);
     doc.setFontSize(9);
     doc.text(`Generated ${formatDateTime(new Date())} · Competition ${counts.comp}/100 · ${SEMINARS.map((s) => `${s.short} ${counts[s.code]}/60`).join(' · ')}`, 14, 20);
-    autoTable(doc, {
-      startY: 24, styles: { fontSize: 7 },
-      head: [['#', 'Name', 'Gender', 'DOB', 'Div', 'Grade', 'Club', 'Contact', 'Seminars', 'Events', 'Amount', 'Gaonhae', 'Submitted']],
-      body: (rows || []).map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, r.gender, formatDate(r.date_of_birth), r.age_division || '-',
-        gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`, r.seminars.map(seminarLabel).join(', ') || '-',
-        r.comp_events.map(eventLabel).join(', ') || '-', `$${Number(r.total_amount).toFixed(2)}`, r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at)]),
+    let y = 24;
+    sections.forEach((sec) => {
+      doc.setFontSize(11); doc.text(`${sec.title} — ${sec.rows.length}/${sec.cap}`, 14, y + 6);
+      autoTable(doc, {
+        startY: y + 8, styles: { fontSize: 7 },
+        head: [['#', 'Name', 'Gender', 'DOB', 'Div', 'Grade', 'Club', 'Contact', 'Events', 'Amount', 'Gaonhae', 'Submitted']],
+        body: sec.rows.map(rowCells),
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
     });
     doc.save('perth-2026-registration-log.pdf');
   };
