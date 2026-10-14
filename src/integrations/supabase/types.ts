@@ -9391,6 +9391,7 @@ export type Database = {
           submit_claim: boolean
         }[]
       }
+      get_perth_competition_entries: { Args: never; Returns: Json }
       get_perth_event_availability: { Args: never; Returns: Json }
       get_perth_event_clubs: {
         Args: never
