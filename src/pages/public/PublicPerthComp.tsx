@@ -75,7 +75,7 @@ const PublicPerthComp: React.FC = () => {
     set(list.includes(code) ? list.filter((c) => c !== code) : [...list, code]);
 
   const submit = async () => {
-    if (!first.trim() || !last.trim() || !gender || !dob || !club.trim() || !email.trim() || phone.trim().length < 6 || !grade)
+    if (!first.trim() || !last.trim() || !gender || !dob || !effectiveClub.trim() || !email.trim() || phone.trim().length < 6 || !grade)
       return toast.error('Please complete all participant details');
     if (seminars.length + events.length === 0) return toast.error('Select at least one seminar or competition event');
     if (!agree || !signature) return toast.error('Please accept the indemnity and sign');
@@ -90,7 +90,7 @@ const PublicPerthComp: React.FC = () => {
       const { data, error } = await supabase.rpc('submit_perth_event_registration' as any, {
         p: {
           client_ref: clientRef.current, first_name: first, last_name: last, gender, date_of_birth: dob,
-          club, grade, email, phone, seminars, comp_events: events, is_gaonhae_student: isGaonhae,
+          club: effectiveClub, grade, email, phone, seminars, comp_events: events, is_gaonhae_student: isGaonhae,
           proof_url: signed?.signedUrl || path, signature_data_url: signature,
         },
       });
