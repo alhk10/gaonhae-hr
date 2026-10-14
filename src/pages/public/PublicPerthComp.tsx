@@ -131,7 +131,7 @@ const PublicPerthComp: React.FC = () => {
         <div className="h-1.5 bg-accent" />
       </header>
 
-      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-6 text-left">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg">Saturday 28 Nov 2026 — Seminars</CardTitle>
             <p className="text-sm text-muted-foreground">$45 per seminar · Gaonhae students $40 · GST included · 60 places per seminar</p></CardHeader>
@@ -296,7 +296,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-5xl max-h-[85vh] overflow-y-auto text-left">
         <DialogHeader><DialogTitle>Registration log</DialogTitle></DialogHeader>
         {!rows ? (
           <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); unlock(); }}>

@@ -1,3 +1,4 @@
+declare const describe: any, it: any, expect: any;
 import { eventIneligibility, gradeRank, seminarIneligibility, ageByBirthYear, ageDivision } from './perthCompRules';
 
 describe('Perth comp rules', () => {
