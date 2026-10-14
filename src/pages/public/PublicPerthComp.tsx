@@ -230,7 +230,7 @@ const PublicPerthComp: React.FC = () => {
                 <li>Poom/Dan holders may only enter Poom/Dan events.</li><li>Maximum of two (2) events.</li><li>Eligibility is based on rank at the time of registration.</li></ul></section>
             <section><h3 className="font-semibold">5. Competition structure</h3>
               <ul className="list-disc pl-5"><li>Single-elimination individual recognised poomsae competition.</li><li>Grouped by age category, gender and event; randomly allocated into elimination groups.</li>
-                <li>Competitors perform the designated poomsae; winners advance to the next round.</li><li>Where six competitors are registered, they are randomly split into two groups of three.</li></ul></section>
+                <li>Competitors perform the designated poomsae; winners advance to the next round.</li></ul></section>
           </CardContent>
         </Card>
 
