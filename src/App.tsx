@@ -85,6 +85,7 @@ const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'))
 const PublicCompetitionPayment = lazy(() => import('./pages/public/PublicCompetitionPayment'));
 const PublicStudioRental = lazy(() => import('./pages/public/PublicStudioRental'));
 const PublicSeminarPayment = lazy(() => import('./pages/public/PublicSeminarPayment'));
+const PublicPerthComp = lazy(() => import('./pages/public/PublicPerthComp'));
 const PublicHelloChat = lazy(() => import('./pages/public/PublicHelloChat'));
 const PublicGuardsPurchase = lazy(() => import('./pages/public/PublicGuardsPurchase'));
 const PublicGuardsPurchaseList = lazy(() => import('./pages/public/PublicGuardsPurchaseList'));
@@ -162,6 +163,7 @@ function App() {
                     <Route path="/comps" element={<PublicCompetitionPayment />} />
                     <Route path="/rental" element={<PublicStudioRental />} />
                     <Route path="/seminars" element={<PublicSeminarPayment />} />
+                    <Route path="/perthcomp" element={<PublicPerthComp />} />
                     <Route path="/access" element={<PublicGradingList />} />
                     <Route path="/grading-list" element={<Navigate to="/access" replace />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
