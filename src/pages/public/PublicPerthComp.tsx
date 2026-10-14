@@ -14,7 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Trophy } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Receipt, Trophy } from 'lucide-react';
+import { usePaymentProofScan } from '@/hooks/usePaymentProofScan';
+import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { toast } from 'sonner';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
@@ -69,8 +71,30 @@ const PublicPerthComp: React.FC = () => {
   const dob = y && m && d ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
   const age = dob ? ageByBirthYear(dob) : null;
   const rank = grade ? gradeRank(grade) : null;
-  const unit = isGaonhae ? 40 : 45;
+  // Instant student check: confirm against records as soon as the box is ticked.
+  const matchKey = first.trim() && last.trim() && dob ? `${first.trim().toUpperCase()}|${last.trim().toUpperCase()}|${dob}` : '';
+  const [studentMatch, setStudentMatch] = useState<'idle' | 'checking' | 'yes' | 'no'>('idle');
+  const [noMatchKey, setNoMatchKey] = useState('');
+  useEffect(() => {
+    if (!isGaonhae || !matchKey) { setStudentMatch('idle'); return; }
+    let cancelled = false;
+    setStudentMatch('checking');
+    const t = setTimeout(async () => {
+      const { data, error } = await supabase.rpc('check_perth_gaonhae_student' as any, { p_first: first, p_last: last, p_dob: dob });
+      if (cancelled) return;
+      if (!error && data === true) { setStudentMatch('yes'); return; }
+      setStudentMatch('no'); setNoMatchKey(matchKey); setIsGaonhae(false); setGrade('');
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [isGaonhae, matchKey]);
+
+  const unit = isGaonhae && studentMatch === 'yes' ? 40 : 45;
   const total = unit * (seminars.length + events.length);
+
+  const proofScan = usePaymentProofScan();
+  useEffect(() => {
+    if (proof && total > 0) proofScan.scan(proof, total, 'AUD'); else proofScan.reset();
+  }, [proof, total]);
 
   // Drop selections that become ineligible when grade/DOB change.
   useEffect(() => {
@@ -103,6 +127,13 @@ const PublicPerthComp: React.FC = () => {
       });
       if (error) throw error;
       const r = data as any;
+      const scanRes = await proofScan.waitForResult();
+      if (scanRes && r?.id) {
+        await supabase.rpc('record_perth_proof_scan' as any, {
+          p_id: r.id, p_client_ref: clientRef.current, p_status: scanRes.status,
+          p_amount: scanRes.amount, p_details: scanRes.details as any,
+        }).then(() => undefined, () => undefined);
+      }
       setDone({
         id: String(r.id), total: Number(r.total_amount), unit: Number(r.unit_price),
         matched: !!r.is_gaonhae_student, claimed: isGaonhae,
@@ -276,7 +307,17 @@ const PublicPerthComp: React.FC = () => {
               <div><Label>Mobile</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={isGaonhae} onCheckedChange={(v) => { setIsGaonhae(!!v); setGrade(''); }} /> I am a Gaonhae Taekwondo student ($40 rate)</label>
+            <div>
+              <label className={`flex items-center gap-2 text-sm ${noMatchKey === matchKey && matchKey ? 'opacity-50' : ''}`}>
+                <Checkbox disabled={!!matchKey && noMatchKey === matchKey} checked={isGaonhae} onCheckedChange={(v) => { setIsGaonhae(!!v); setGrade(''); }} /> I am a Gaonhae Taekwondo student ($40 rate)
+              </label>
+              {isGaonhae && !matchKey && <p className="text-xs text-muted-foreground mt-1">Enter first name, last name and date of birth to confirm.</p>}
+              {isGaonhae && matchKey && studentMatch === 'checking' && <p className="text-xs text-muted-foreground mt-1">Checking our student records…</p>}
+              {isGaonhae && studentMatch === 'yes' && <p className="text-xs text-green-700 mt-1">Gaonhae student confirmed — $40 rate.</p>}
+              {matchKey && noMatchKey === matchKey && (
+                <Alert className="mt-2"><AlertDescription>We couldn't match these details to an active Gaonhae student, so the $45 rate applies.</AlertDescription></Alert>
+              )}
+            </div>
 
             <div className="sm:w-1/2"><Label>{isGaonhae ? 'Gaonhae belt' : 'Grade'}</Label>
               <Select value={grade} onValueChange={setGrade}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -316,7 +357,10 @@ const PublicPerthComp: React.FC = () => {
             </div>
 
             <PaymentInfoDisplay paymentMethod="bank_transfer" bankTransferInfo={PERTH_BANK_INFO} />
-            <ProofOfPaymentUpload value={proof} onChange={setProof} required />
+            <div>
+              <ProofOfPaymentUpload value={proof} onChange={setProof} required />
+              <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={total} />
+            </div>
 
             <div className="text-xs text-muted-foreground border rounded-md p-3 max-h-40 overflow-y-auto">
               The participant (or parent/legal guardian of a participant under 18 years of age) acknowledges that participation in Taekwondo seminars and competitions involves inherent risks of injury, and voluntarily accepts all such risks. The participant and/or parent or legal guardian releases Gaonhae Taekwondo, its instructors, officials, volunteers and venue providers from liability for any injury, loss or damage arising from participation, except where liability cannot be excluded under Australian law, and consents to photographs and videos being used for promotional and educational purposes.
@@ -435,7 +479,10 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
       <div className="flex flex-wrap gap-x-3"><strong>{i + 1}. {r.first_name} {r.last_name}</strong><span>{r.gender}</span><span>{formatDate(r.date_of_birth)}</span>
         <span>{gradeLabel(r.grade)}</span><span>{r.club}</span><span>${Number(r.total_amount).toFixed(2)}{r.is_gaonhae_student ? ' (Gaonhae)' : ''}</span></div>
       <div className="flex flex-wrap gap-x-3 text-muted-foreground"><span>{r.email} · {r.phone}</span>
-        {r.proof_url?.startsWith('http') && <a className="underline" href={r.proof_url} target="_blank" rel="noreferrer">Proof</a>}
+        {r.proof_url?.startsWith('http') && <a className="inline-flex items-center gap-1 text-primary" href={r.proof_url} target="_blank" rel="noreferrer" title="View payment proof"><Receipt className="h-4 w-4" /> Proof</a>}
+        {r.proof_scan_status === 'match' && <span className="rounded bg-green-100 px-1.5 text-green-800">Amount matches</span>}
+        {r.proof_scan_status === 'mismatch' && <span className="rounded bg-amber-100 px-1.5 text-amber-800">Amount differs (${Number(r.proof_scan_amount ?? 0).toFixed(2)})</span>}
+        {(!r.proof_scan_status || r.proof_scan_status === 'unreadable') && <span className="rounded bg-muted px-1.5">Not read</span>}
         <span>{formatDateTime(r.created_at)}</span></div>
     </div>
   );
