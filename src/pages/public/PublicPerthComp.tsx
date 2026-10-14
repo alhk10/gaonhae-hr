@@ -195,7 +195,16 @@ const PublicPerthComp: React.FC = () => {
                 </div>
                 {age !== null && <p className="text-xs text-muted-foreground mt-1">Competition age {age}{ageDivision(age) ? ` · Division ${ageDivision(age)}` : ''}</p>}
               </div>
-              <div><Label>Club</Label><Input value={club} onChange={(e) => setClub(e.target.value)} placeholder="Your invited club" /></div>
+              <div><Label>Club</Label>
+                <Select value={club} onValueChange={setClub}>
+                  <SelectTrigger><SelectValue placeholder="Select your invited club" /></SelectTrigger>
+                  <SelectContent>
+                    {clubs.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    <SelectItem value="__other__">Other / add a new club</SelectItem>
+                  </SelectContent>
+                </Select>
+                {club === '__other__' && <Input className="mt-2" value={clubOther} onChange={(e) => setClubOther(e.target.value)} placeholder="Type your club name" />}
+              </div>
               <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div><Label>Mobile</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
             </div>
