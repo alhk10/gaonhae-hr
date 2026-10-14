@@ -147,6 +147,33 @@ const PublicPerthComp: React.FC = () => {
     } finally { setSubmitting(false); }
   };
 
+  const [competitorsLoading, setCompetitorsLoading] = useState(false);
+  const downloadCompetitorsPdf = async () => {
+    setCompetitorsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_perth_competition_entries' as any);
+      if (error) throw error;
+      const rows = (data as any[]) || [];
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFontSize(14); doc.text(`Perth Seminars & Poomsae Championship 2026 — Registered Competitors (${rows.length})`, 14, 14);
+      doc.setFontSize(9); doc.text(`Generated ${formatDateTime(new Date())}`, 14, 20);
+      autoTable(doc, {
+        startY: 24, styles: { fontSize: 8 },
+        head: [['#', 'Name', 'Club', 'Age Category', 'Grade', 'Events']],
+        body: rows.length
+          ? rows.map((r, i) => [i + 1, r.name, r.club, r.age_division ? `${r.age_division} Years` : '', gradeLabel(r.grade), (r.events || []).map(eventLabel).join(', ')])
+          : [['', 'No competitors registered yet', '', '', '', '']],
+      });
+      doc.save('perth-2026-registered-competitors.pdf');
+    } catch {
+      toast.error('Could not load the competitors list. Please try again.');
+    } finally {
+      setCompetitorsLoading(false);
+    }
+  };
+
   const downloadConfirmation = async () => {
     if (!done) return;
     const { default: jsPDF } = await import('jspdf');
@@ -453,28 +480,6 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     return { doc, autoTable };
   };
 
-  const [competitorsLoading, setCompetitorsLoading] = useState(false);
-  const downloadCompetitorsPdf = async () => {
-    setCompetitorsLoading(true);
-    try {
-      const { data, error } = await supabase.rpc('get_perth_competition_entries' as any);
-      if (error) throw error;
-      const rows = (data as any[]) || [];
-      const { doc, autoTable } = await loadPdf(`Registered Competitors (${rows.length})`);
-      autoTable(doc, {
-        startY: 24, styles: { fontSize: 8 },
-        head: [['#', 'Name', 'Club', 'Age Category', 'Grade', 'Events']],
-        body: rows.length
-          ? rows.map((r, i) => [i + 1, r.name, r.club, r.age_division ? `${r.age_division} Years` : '', gradeLabel(r.grade), (r.events || []).map(eventLabel).join(', ')])
-          : [['', 'No competitors registered yet', '', '', '', '']],
-      });
-      doc.save('perth-2026-registered-competitors.pdf');
-    } catch {
-      toast.error('Could not load the competitors list. Please try again.');
-    } finally {
-      setCompetitorsLoading(false);
-    }
-  };
 
   const downloadSeminarPdf = async () => {
     const { doc, autoTable } = await loadPdf('Seminar Registration Log');
