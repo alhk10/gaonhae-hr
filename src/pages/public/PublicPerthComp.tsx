@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CalendarDays, CheckCircle2, Download, Lock, MapPin, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -54,6 +54,7 @@ const PublicPerthComp: React.FC = () => {
   } | null>(null);
   const clientRef = useRef(newClientRef());
   const [logOpen, setLogOpen] = useState(false);
+  const [regOpen, setRegOpen] = useState(false);
 
   const loadAvail = () => supabase.rpc('get_perth_event_availability' as any).then(({ data }) => data && setAvail(data as any));
   const loadClubs = () => supabase.rpc('get_perth_event_clubs' as any).then(({ data }) => {
@@ -226,9 +227,17 @@ const PublicPerthComp: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-lg">Register &amp; pay</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+        <div className="flex justify-center">
+          <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 px-10" onClick={() => setRegOpen(true)}>Register & pay</Button>
+        </div>
+
+        <Dialog open={regOpen} onOpenChange={setRegOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Register & pay</DialogTitle>
+              <DialogDescription className="sr-only">Complete participant details, select seminars or events, upload payment proof and submit.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-3">
               <div><Label>First name</Label><Input value={first} onChange={(e) => setFirst(e.target.value.toUpperCase())} /></div>
               <div><Label>Last name</Label><Input value={last} onChange={(e) => setLast(e.target.value.toUpperCase())} /></div>
@@ -311,8 +320,9 @@ const PublicPerthComp: React.FC = () => {
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={submitting} onClick={submit}>
               {submitting ? 'Submitting…' : `Submit registration · $${total.toFixed(2)}`}
             </Button>
-          </CardContent>
-        </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
 
       <footer className="max-w-4xl mx-auto px-4 pb-6 flex justify-between items-center text-xs text-muted-foreground">
