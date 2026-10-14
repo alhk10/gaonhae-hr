@@ -20,7 +20,7 @@ export const COMP_EVENTS = [
   { code: 'pd_taebaek', kind: 'poomdan' as const, label: 'Poom/Dan – Taebaek' },
 ];
 
-export const AGE_DIVISIONS = ['4–6', '7–8', '9–11', '12–14', '15–17', '18 & above'];
+export const AGE_DIVISIONS = ['5–6', '7–8', '9–11', '12–14', '15–17', '18 & above'];
 
 export const GRADES = [
   ...[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((g) => ({ value: `g${g}`, label: `${g} Geup` })),
@@ -49,7 +49,7 @@ export const gradeLabel = (grade: string) =>
 export const ageByBirthYear = (dob: string) => 2026 - Number(dob.slice(0, 4));
 
 export const ageDivision = (age: number) =>
-  age < 4 ? null : age <= 6 ? '4-6' : age <= 8 ? '7-8' : age <= 11 ? '9-11' : age <= 14 ? '12-14' : age <= 17 ? '15-17' : '18+';
+  age < 5 ? null : age <= 6 ? '5-6' : age <= 8 ? '7-8' : age <= 11 ? '9-11' : age <= 14 ? '12-14' : age <= 17 ? '15-17' : '18+';
 
 export const seminarIneligibility = (code: string, age: number | null, rank: number | null, selected: string[]): string | null => {
   if (age === null || rank === null) return 'Enter date of birth and grade';

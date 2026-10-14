@@ -35,7 +35,8 @@ describe('Perth comp rules', () => {
   });
   it('age is by birth year', () => {
     expect(ageByBirthYear('2020-12-31')).toBe(6);
-    expect(ageDivision(6)).toBe('4-6');
+    expect(ageDivision(6)).toBe('5-6');
+    expect(ageDivision(4)).toBeNull();
     expect(ageDivision(18)).toBe('18+');
   });
 });
