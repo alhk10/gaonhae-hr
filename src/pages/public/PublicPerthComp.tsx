@@ -246,7 +246,7 @@ const PublicPerthComp: React.FC = () => {
 
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-secondary" /> Sunday 29 Nov 2026 — Poomsae Competition</CardTitle>
-            <p className="text-sm text-muted-foreground">$45 per event · Gaonhae students $40 · GST included · No spectator fee · Registration closes 10 Nov 2026 · Max 100 participants{avail ? ` (${Math.max(0, avail.competition_left)} places left)` : ''}</p></CardHeader>
+            <p className="text-sm text-muted-foreground">$45 per event · Gaonhae students $40 · GST included · No spectator fee · Registration closes 6 Nov 2026, 11:59pm GMT+8 · Max 100 participants{avail ? ` (${Math.max(0, avail.competition_left)} places left)` : ''}</p></CardHeader>
           <CardContent className="text-sm space-y-3">
             <section><h3 className="font-semibold">1. Eligibility</h3>
               <ul className="list-disc pl-5"><li>Open to all clubs — anyone may enter.</li><li>Competitors compete by age category, gender and event category.</li><li>Age is determined by birth year.</li></ul></section>
