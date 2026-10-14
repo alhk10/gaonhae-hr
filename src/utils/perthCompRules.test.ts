@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { eventIneligibility, gradeRank, seminarIneligibility, ageByBirthYear, ageDivision } from './perthCompRules';
 
 describe('Perth comp rules', () => {
