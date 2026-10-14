@@ -47,7 +47,11 @@ const PublicPerthComp: React.FC = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const [proof, setProof] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<{ total: number; unit: number; matched: boolean; claimed: boolean } | null>(null);
+  const [done, setDone] = useState<{
+    id: string; total: number; unit: number; matched: boolean; claimed: boolean;
+    name: string; club: string; grade: string; email: string; phone: string;
+    seminars: string[]; events: string[]; division: string;
+  } | null>(null);
   const clientRef = useRef(newClientRef());
   const [logOpen, setLogOpen] = useState(false);
 
@@ -96,7 +100,12 @@ const PublicPerthComp: React.FC = () => {
       });
       if (error) throw error;
       const r = data as any;
-      setDone({ total: Number(r.total_amount), unit: Number(r.unit_price), matched: !!r.is_gaonhae_student, claimed: isGaonhae });
+      setDone({
+        id: String(r.id), total: Number(r.total_amount), unit: Number(r.unit_price),
+        matched: !!r.is_gaonhae_student, claimed: isGaonhae,
+        name: `${first.trim()} ${last.trim()}`, club: effectiveClub.trim(), grade, email: email.trim(), phone: phone.trim(),
+        seminars: [...seminars], events: [...events], division: age ? ageDivision(age) : '',
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e: any) {
       toast.error(e?.message || 'Submission failed, please try again');
