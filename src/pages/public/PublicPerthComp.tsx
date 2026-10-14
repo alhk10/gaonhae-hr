@@ -262,6 +262,7 @@ const PublicPerthComp: React.FC = () => {
             <section><h3 className="font-semibold">5. Competition structure</h3>
               <ul className="list-disc pl-5"><li>Single-elimination individual recognised poomsae competition.</li><li>Grouped by age category, gender and event; randomly allocated into elimination groups.</li>
                 <li>Competitors perform the designated poomsae; winners advance to the next round.</li></ul></section>
+            <a href="/downloads/perth-2026-competition-outline.pdf" download="perth-2026-competition-outline.pdf" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"><Download className="h-4 w-4" /> Download Complete Competition Outline (PDF)</a>
           </CardContent>
         </Card>
 
