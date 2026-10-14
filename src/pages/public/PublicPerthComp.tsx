@@ -113,6 +113,47 @@ const PublicPerthComp: React.FC = () => {
     } finally { setSubmitting(false); }
   };
 
+  const downloadConfirmation = async () => {
+    if (!done) return;
+    const { default: jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    let yPos = 18;
+    try {
+      const img = new Image();
+      img.src = '/lovable-uploads/gaonhae-logo-transparent.png';
+      await img.decode();
+      const h = 22;
+      doc.addImage(img, 'PNG', 105 - (h * (img.width / img.height)) / 2, yPos, h * (img.width / img.height), h);
+      yPos += h + 8;
+    } catch { yPos += 4; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+    doc.text('Gaonhae Taekwondo Perth Seminars & Poomsae Championship 2026', 105, yPos, { align: 'center' }); yPos += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text('28 to 29 November 2026 · Scarborough Community Centre 2, Function Room', 105, yPos, { align: 'center' }); yPos += 10;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('REGISTRATION CONFIRMATION', 105, yPos, { align: 'center' }); yPos += 9;
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    const line = (label: string, value: string) => { doc.setFont('helvetica', 'bold'); doc.text(label, 20, yPos); doc.setFont('helvetica', 'normal'); doc.text(value, 70, yPos); yPos += 6; };
+    line('Reference:', done.id);
+    line('Submitted:', formatDateTime(new Date().toISOString()));
+    line('Name:', done.name);
+    line('Club:', done.club);
+    line('Grade / Belt:', gradeLabel(done.grade));
+    line('Email:', done.email);
+    line('Mobile:', done.phone);
+    yPos += 4;
+    doc.setFont('helvetica', 'bold'); doc.text('Registered for:', 20, yPos); yPos += 6; doc.setFont('helvetica', 'normal');
+    done.seminars.forEach((c) => { doc.text(`• ${seminarLabel(c)} — $${done.unit.toFixed(2)}`, 24, yPos); yPos += 5.5; });
+    done.events.forEach((c) => { doc.text(`• Competition: ${done.division} · ${eventLabel(c)} — $${done.unit.toFixed(2)}`, 24, yPos); yPos += 5.5; });
+    yPos += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total paid: $${done.total.toFixed(2)} AUD (GST included)`, 20, yPos); yPos += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    if (done.matched) { doc.text('Gaonhae student rate applied.', 20, yPos); yPos += 5; }
+    doc.text('Payment is pending verification by our staff. Please keep this confirmation for your records.', 20, yPos);
+    doc.save(`perth-2026-confirmation-${done.id.slice(0, 8)}.pdf`);
+  };
+
   if (done) {
     return (
       <div className="perth-theme min-h-screen bg-background text-foreground flex items-center justify-center p-4">
@@ -125,7 +166,8 @@ const PublicPerthComp: React.FC = () => {
               <Alert><AlertDescription>We couldn't match these details to an active Gaonhae student, so the $45 rate applies. Our staff will contact you if an adjustment is needed.</AlertDescription></Alert>
             )}
             <p className="text-sm text-muted-foreground">Thank you for your payment. Your payment will be verified by our staff.</p>
-            <Button onClick={() => window.location.reload()}>Register another participant</Button>
+            <Button onClick={downloadConfirmation} className="w-full"><Download className="h-4 w-4 mr-2" /> Download Confirmation (PDF)</Button>
+            <Button variant="outline" onClick={() => window.location.reload()} className="w-full">Register another participant</Button>
           </CardContent>
         </Card>
       </div>
