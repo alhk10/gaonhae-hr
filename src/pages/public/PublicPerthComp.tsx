@@ -249,7 +249,7 @@ const PublicPerthComp: React.FC = () => {
             <p className="text-sm text-muted-foreground">$45 per event · Gaonhae students $40 · GST included · No spectator fee · Registration closes 10 Nov 2026 · Max 100 participants{avail ? ` (${Math.max(0, avail.competition_left)} places left)` : ''}</p></CardHeader>
           <CardContent className="text-sm space-y-3">
             <section><h3 className="font-semibold">1. Eligibility</h3>
-              <ul className="list-disc pl-5"><li>Open to competitors from invited clubs only.</li><li>Competitors compete by age category, gender and event category.</li><li>Age is determined by birth year.</li></ul></section>
+              <ul className="list-disc pl-5"><li>Open to all clubs — anyone may enter.</li><li>Competitors compete by age category, gender and event category.</li><li>Age is determined by birth year.</li></ul></section>
             <section><h3 className="font-semibold">2. Age categories</h3><p>{AGE_DIVISIONS.join(' · ')} years</p></section>
             <section><h3 className="font-semibold">3. Poomsae events</h3>
               <div className="grid sm:grid-cols-2 gap-2">
@@ -295,7 +295,7 @@ const PublicPerthComp: React.FC = () => {
               </div>
               <div><Label>Club</Label>
                 <Select value={club} onValueChange={setClub}>
-                  <SelectTrigger><SelectValue placeholder="Select your invited club" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select your club" /></SelectTrigger>
                   <SelectContent>
                     {clubs.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     <SelectItem value="__other__">Other / add a new club</SelectItem>
