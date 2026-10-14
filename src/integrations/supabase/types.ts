@@ -4474,6 +4474,78 @@ export type Database = {
           },
         ]
       }
+      perth_event_registrations: {
+        Row: {
+          age_division: string | null
+          client_ref: string | null
+          club: string
+          comp_events: string[]
+          created_at: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          gender: string
+          grade: string
+          id: string
+          is_gaonhae_student: boolean
+          last_name: string
+          phone: string
+          proof_url: string | null
+          seminars: string[]
+          signature_data_url: string | null
+          status: string
+          student_id: string | null
+          total_amount: number
+          unit_price: number
+        }
+        Insert: {
+          age_division?: string | null
+          client_ref?: string | null
+          club: string
+          comp_events?: string[]
+          created_at?: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          gender: string
+          grade: string
+          id?: string
+          is_gaonhae_student?: boolean
+          last_name: string
+          phone: string
+          proof_url?: string | null
+          seminars?: string[]
+          signature_data_url?: string | null
+          status?: string
+          student_id?: string | null
+          total_amount: number
+          unit_price: number
+        }
+        Update: {
+          age_division?: string | null
+          client_ref?: string | null
+          club?: string
+          comp_events?: string[]
+          created_at?: string
+          date_of_birth?: string
+          email?: string
+          first_name?: string
+          gender?: string
+          grade?: string
+          id?: string
+          is_gaonhae_student?: boolean
+          last_name?: string
+          phone?: string
+          proof_url?: string | null
+          seminars?: string[]
+          signature_data_url?: string | null
+          status?: string
+          student_id?: string | null
+          total_amount?: number
+          unit_price?: number
+        }
+        Relationships: []
+      }
       pl_categories: {
         Row: {
           created_at: string
@@ -8399,6 +8471,7 @@ export type Database = {
     Functions: {
       _auto_invoice_active: { Args: never; Returns: boolean }
       _next_invoice_number: { Args: never; Returns: string }
+      _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
       _remember_student_email: {
         Args: { p_email: string; p_student_id: string }
         Returns: undefined
@@ -9300,6 +9373,39 @@ export type Database = {
           social_media: boolean
           submit_claim: boolean
         }[]
+      }
+      get_perth_event_availability: { Args: never; Returns: Json }
+      get_perth_event_log: {
+        Args: { p_password: string }
+        Returns: {
+          age_division: string | null
+          client_ref: string | null
+          club: string
+          comp_events: string[]
+          created_at: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          gender: string
+          grade: string
+          id: string
+          is_gaonhae_student: boolean
+          last_name: string
+          phone: string
+          proof_url: string | null
+          seminars: string[]
+          signature_data_url: string | null
+          status: string
+          student_id: string | null
+          total_amount: number
+          unit_price: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "perth_event_registrations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_public_accessory_list: {
         Args: never
@@ -10412,6 +10518,7 @@ export type Database = {
           reference_number: string
         }[]
       }
+      submit_perth_event_registration: { Args: { p: Json }; Returns: Json }
       submit_public_chat_invoice: {
         Args: {
           p_amount: number
