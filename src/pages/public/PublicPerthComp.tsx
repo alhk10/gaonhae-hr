@@ -25,6 +25,8 @@ import {
   SEMINARS, COMP_EVENTS, GRADES, GAONHAE_BELTS, AGE_DIVISIONS, PERTH_BANK_INFO,
   ageByBirthYear, gradeRank, seminarIneligibility, eventIneligibility, ageDivision, eventLabel, seminarLabel, gradeLabel,
 } from '@/utils/perthCompRules';
+import kyorugiPoster from '@/assets/perth-kyorugi-seminar.png.asset.json';
+import poomsaePoster from '@/assets/perth-poomsae-seminar.png.asset.json';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const YEARS = Array.from({ length: 80 }, (_, i) => 2023 - i);
@@ -191,9 +193,14 @@ const PublicPerthComp: React.FC = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-6 text-left">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <img src={poomsaePoster.url} alt="Poomsae Seminar — Master Kang Hyeonman" className="w-full rounded-md border border-border" loading="lazy" />
+          <img src={kyorugiPoster.url} alt="Kyorugi Seminar — Master Jang Heejae" className="w-full rounded-md border border-border" loading="lazy" />
+        </div>
+
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg">Saturday 28 Nov 2026 — Seminars</CardTitle>
-            <p className="text-sm text-muted-foreground">$45 per seminar · Gaonhae students $40 · GST included · 60 places per seminar</p></CardHeader>
+            <p className="text-sm text-muted-foreground">$45 per seminar · Gaonhae students $40 · GST included</p></CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-2">
             {SEMINARS.map((s) => (
               <div key={s.code} className="rounded-md border p-3 border-l-4 border-l-accent">
@@ -357,7 +364,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
   const [tab, setTab] = useState<'seminars' | 'comp'>('seminars');
 
   const seminarSections = useMemo(() => SEMINARS.map((s) => ({
-    key: s.code, title: s.name, rows: (rows || []).filter((r) => r.seminars?.includes(s.code)),
+    key: s.code, title: s.name, cap: s.cap, rows: (rows || []).filter((r) => r.seminars?.includes(s.code)),
   })), [rows]);
 
   const compRows = useMemo(() => (rows || []).filter((r) => r.comp_events?.length), [rows]);
@@ -446,7 +453,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
           <div className="space-y-3 text-xs">
             <div className="flex flex-wrap gap-2 items-center">
               <span className="font-semibold">Competition {counts.comp}/100</span>
-              {SEMINARS.map((s) => <span key={s.code}>{s.short} {counts[s.code]}/60</span>)}
+              {SEMINARS.map((s) => <span key={s.code}>{s.short} {counts[s.code]}/{s.cap}</span>)}
             </div>
             <div className="flex flex-wrap gap-2 items-center border-b pb-2">
               <Button size="sm" variant={tab === 'seminars' ? 'default' : 'outline'} onClick={() => setTab('seminars')}>Seminars</Button>
@@ -457,7 +464,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
             </div>
             {tab === 'seminars' ? seminarSections.map((sec) => (
               <div key={sec.key} className="space-y-1">
-                <p className="font-semibold text-sm border-b pb-1">{sec.title} — {sec.rows.length}/60</p>
+                <p className="font-semibold text-sm border-b pb-1">{sec.title} — {sec.rows.length}/{sec.cap}</p>
                 {sec.rows.length === 0 ? <p className="text-muted-foreground">No registrations yet.</p> : sec.rows.map(personLine)}
               </div>
             )) : compGroups.length === 0 ? <p>No competition registrations yet.</p> : compGroups.map((g) => (
