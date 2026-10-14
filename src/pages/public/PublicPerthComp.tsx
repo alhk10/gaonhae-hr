@@ -327,15 +327,19 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
               {SEMINARS.map((s) => <span key={s.code}>{s.short} {counts[s.code]}/60</span>)}
               <Button size="sm" className="ml-auto" onClick={downloadPdf}><Download className="h-4 w-4 mr-1" /> Download PDF</Button>
             </div>
-            {rows.length === 0 ? <p>No registrations yet.</p> : rows.map((r, i) => (
-              <div key={r.id} className="border rounded p-2">
-                <div className="flex flex-wrap gap-x-3"><strong>{i + 1}. {r.first_name} {r.last_name}</strong><span>{r.gender}</span><span>{formatDate(r.date_of_birth)}</span>
-                  <span>{gradeLabel(r.grade)}</span><span>{r.club}</span><span>${Number(r.total_amount).toFixed(2)}{r.is_gaonhae_student ? ' (Gaonhae)' : ''}</span></div>
-                <div className="flex flex-wrap gap-x-3 text-muted-foreground"><span>{r.email} · {r.phone}</span>
-                  <span>Seminars: {r.seminars.map(seminarLabel).join(', ') || '-'}</span>
-                  <span>Events{r.age_division ? ` (${r.age_division})` : ''}: {r.comp_events.map(eventLabel).join(', ') || '-'}</span>
-                  {r.proof_url?.startsWith('http') && <a className="underline" href={r.proof_url} target="_blank" rel="noreferrer">Proof</a>}
-                  <span>{formatDateTime(r.created_at)}</span></div>
+            {rows.length === 0 ? <p>No registrations yet.</p> : sections.map((sec) => (
+              <div key={sec.key} className="space-y-1">
+                <p className="font-semibold text-sm border-b pb-1">{sec.title} — {sec.rows.length}/{sec.cap}</p>
+                {sec.rows.length === 0 ? <p className="text-muted-foreground">No registrations yet.</p> : sec.rows.map((r, i) => (
+                  <div key={r.id} className="border rounded p-2">
+                    <div className="flex flex-wrap gap-x-3"><strong>{i + 1}. {r.first_name} {r.last_name}</strong><span>{r.gender}</span><span>{formatDate(r.date_of_birth)}</span>
+                      <span>{gradeLabel(r.grade)}</span><span>{r.club}</span><span>${Number(r.total_amount).toFixed(2)}{r.is_gaonhae_student ? ' (Gaonhae)' : ''}</span></div>
+                    <div className="flex flex-wrap gap-x-3 text-muted-foreground"><span>{r.email} · {r.phone}</span>
+                      {sec.key === 'comp' && <span>Events{r.age_division ? ` (${r.age_division})` : ''}: {r.comp_events.map(eventLabel).join(', ') || '-'}</span>}
+                      {r.proof_url?.startsWith('http') && <a className="underline" href={r.proof_url} target="_blank" rel="noreferrer">Proof</a>}
+                      <span>{formatDateTime(r.created_at)}</span></div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
