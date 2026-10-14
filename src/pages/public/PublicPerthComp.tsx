@@ -37,6 +37,8 @@ const PublicPerthComp: React.FC = () => {
   const [gender, setGender] = useState('');
   const [d, setD] = useState(''); const [m, setM] = useState(''); const [y, setY] = useState('');
   const [club, setClub] = useState(''); const [email, setEmail] = useState(''); const [phone, setPhone] = useState('+61 ');
+  const [clubs, setClubs] = useState<string[]>([]);
+  const [clubOther, setClubOther] = useState('');
   const [isGaonhae, setIsGaonhae] = useState(false);
   const [grade, setGrade] = useState('');
   const [seminars, setSeminars] = useState<string[]>([]);
@@ -50,7 +52,12 @@ const PublicPerthComp: React.FC = () => {
   const [logOpen, setLogOpen] = useState(false);
 
   const loadAvail = () => supabase.rpc('get_perth_event_availability' as any).then(({ data }) => data && setAvail(data as any));
-  useEffect(() => { document.title = 'Perth Seminars & Poomsae Championship 2026 | Gaonhae Taekwondo'; loadAvail(); }, []);
+  const loadClubs = () => supabase.rpc('get_perth_event_clubs' as any).then(({ data }) => {
+    if (data) setClubs(['Gaonhae Taekwondo', ...(data as any[]).map((r) => r.club).filter((c) => c !== 'Gaonhae Taekwondo')]);
+  });
+  useEffect(() => { document.title = 'Perth Seminars & Poomsae Championship 2026 | Gaonhae Taekwondo'; loadAvail(); loadClubs(); }, []);
+
+  const effectiveClub = club === '__other__' ? clubOther : club;
 
   const dob = y && m && d ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
   const age = dob ? ageByBirthYear(dob) : null;
