@@ -4490,6 +4490,9 @@ export type Database = {
           is_gaonhae_student: boolean
           last_name: string
           phone: string
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string | null
           seminars: string[]
           signature_data_url: string | null
@@ -4513,6 +4516,9 @@ export type Database = {
           is_gaonhae_student?: boolean
           last_name: string
           phone: string
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           seminars?: string[]
           signature_data_url?: string | null
@@ -4536,6 +4542,9 @@ export type Database = {
           is_gaonhae_student?: boolean
           last_name?: string
           phone?: string
+          proof_scan_amount?: number | null
+          proof_scan_details?: Json | null
+          proof_scan_status?: string | null
           proof_url?: string | null
           seminars?: string[]
           signature_data_url?: string | null
@@ -9121,6 +9130,10 @@ export type Database = {
         Args: { p_email: string; p_new_hash: string }
         Returns: boolean
       }
+      check_perth_gaonhae_student: {
+        Args: { p_dob: string; p_first: string; p_last: string }
+        Returns: boolean
+      }
       check_public_submission_duplicate: {
         Args: {
           p_amount: number
@@ -9398,6 +9411,9 @@ export type Database = {
           is_gaonhae_student: boolean
           last_name: string
           phone: string
+          proof_scan_amount: number | null
+          proof_scan_details: Json | null
+          proof_scan_status: string | null
           proof_url: string | null
           seminars: string[]
           signature_data_url: string | null
@@ -10399,6 +10415,16 @@ export type Database = {
           p_sessions: Json
         }
         Returns: Json
+      }
+      record_perth_proof_scan: {
+        Args: {
+          p_amount: number
+          p_client_ref: string
+          p_details: Json
+          p_id: string
+          p_status: string
+        }
+        Returns: undefined
       }
       record_proof_scan: {
         Args: {
