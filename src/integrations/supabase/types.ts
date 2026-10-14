@@ -9192,6 +9192,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_perth_event_registration: {
+        Args: { p_id: string; p_password: string }
+        Returns: boolean
+      }
       email_portal_record: {
         Args: { p_email: string }
         Returns: {
