@@ -30,8 +30,8 @@ One public page in Gaonhae navy, red and gold (from the logo):
 
 ## Staff registration log (separate from /access)
 - A small, discreet lock icon in the page footer opens a password prompt. The password is the Hp97533488 one.
-- After unlocking, staff see a simple log: participant, age, gender, belt, club, contact, seminars, competition division and poomsae, amount, Gaonhae-student price yes/no, submitted date, and a payment-proof link. Totals per seminar and for the competition are shown against each cap.
-- A **Download PDF** button saves the log as a PDF file.
+- After unlocking, staff see the log **split into separate sections — one per seminar** (Poomsae Seminar 1, Kyorugi Seminar 1, Poomsae Seminar 2, Kyorugi Seminar 2) **plus a Competition section**. Each section lists only that activity's participants: name, age, gender, grade/belt, club, contact, amount, Gaonhae-student price yes/no, submitted date, and a payment-proof link. Each section shows its own total against its cap (60 per seminar, 100 for the competition). A participant in several activities appears in each relevant section.
+- A **Download PDF** button saves the log as a PDF file, with the same per-seminar and competition sections.
 - Nothing appears in the /access tabs, and no automatic invoices are created.
 
 ## Technical details
@@ -42,5 +42,4 @@ One public page in Gaonhae navy, red and gold (from the logo):
   - Add `get_perth_event_availability()`, which returns only the places left.
   - Add `get_perth_event_log(p_password)`, which checks the password on the server against a stored hash and only then returns the rows. The password is never stored in the page code.
 - Proofs upload to the existing private payment-proofs storage. The log shows them through short-lived signed links.
-
 - The server repeats every rule check (grade events, 2-event limit, age by birth year) and does not trust the browser.
