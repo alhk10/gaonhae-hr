@@ -9375,6 +9375,12 @@ export type Database = {
         }[]
       }
       get_perth_event_availability: { Args: never; Returns: Json }
+      get_perth_event_clubs: {
+        Args: never
+        Returns: {
+          club: string
+        }[]
+      }
       get_perth_event_log: {
         Args: { p_password: string }
         Returns: {

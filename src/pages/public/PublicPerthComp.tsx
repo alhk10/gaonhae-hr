@@ -37,6 +37,8 @@ const PublicPerthComp: React.FC = () => {
   const [gender, setGender] = useState('');
   const [d, setD] = useState(''); const [m, setM] = useState(''); const [y, setY] = useState('');
   const [club, setClub] = useState(''); const [email, setEmail] = useState(''); const [phone, setPhone] = useState('+61 ');
+  const [clubs, setClubs] = useState<string[]>([]);
+  const [clubOther, setClubOther] = useState('');
   const [isGaonhae, setIsGaonhae] = useState(false);
   const [grade, setGrade] = useState('');
   const [seminars, setSeminars] = useState<string[]>([]);
@@ -50,7 +52,12 @@ const PublicPerthComp: React.FC = () => {
   const [logOpen, setLogOpen] = useState(false);
 
   const loadAvail = () => supabase.rpc('get_perth_event_availability' as any).then(({ data }) => data && setAvail(data as any));
-  useEffect(() => { document.title = 'Perth Seminars & Poomsae Championship 2026 | Gaonhae Taekwondo'; loadAvail(); }, []);
+  const loadClubs = () => supabase.rpc('get_perth_event_clubs' as any).then(({ data }) => {
+    if (data) setClubs(['Gaonhae Taekwondo', ...(data as any[]).map((r) => r.club).filter((c) => c !== 'Gaonhae Taekwondo')]);
+  });
+  useEffect(() => { document.title = 'Perth Seminars & Poomsae Championship 2026 | Gaonhae Taekwondo'; loadAvail(); loadClubs(); }, []);
+
+  const effectiveClub = club === '__other__' ? clubOther : club;
 
   const dob = y && m && d ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
   const age = dob ? ageByBirthYear(dob) : null;
@@ -68,7 +75,7 @@ const PublicPerthComp: React.FC = () => {
     set(list.includes(code) ? list.filter((c) => c !== code) : [...list, code]);
 
   const submit = async () => {
-    if (!first.trim() || !last.trim() || !gender || !dob || !club.trim() || !email.trim() || phone.trim().length < 6 || !grade)
+    if (!first.trim() || !last.trim() || !gender || !dob || !effectiveClub.trim() || !email.trim() || phone.trim().length < 6 || !grade)
       return toast.error('Please complete all participant details');
     if (seminars.length + events.length === 0) return toast.error('Select at least one seminar or competition event');
     if (!agree || !signature) return toast.error('Please accept the indemnity and sign');
@@ -83,7 +90,7 @@ const PublicPerthComp: React.FC = () => {
       const { data, error } = await supabase.rpc('submit_perth_event_registration' as any, {
         p: {
           client_ref: clientRef.current, first_name: first, last_name: last, gender, date_of_birth: dob,
-          club, grade, email, phone, seminars, comp_events: events, is_gaonhae_student: isGaonhae,
+          club: effectiveClub, grade, email, phone, seminars, comp_events: events, is_gaonhae_student: isGaonhae,
           proof_url: signed?.signedUrl || path, signature_data_url: signature,
         },
       });
@@ -188,7 +195,16 @@ const PublicPerthComp: React.FC = () => {
                 </div>
                 {age !== null && <p className="text-xs text-muted-foreground mt-1">Competition age {age}{ageDivision(age) ? ` · Division ${ageDivision(age)}` : ''}</p>}
               </div>
-              <div><Label>Club</Label><Input value={club} onChange={(e) => setClub(e.target.value)} placeholder="Your invited club" /></div>
+              <div><Label>Club</Label>
+                <Select value={club} onValueChange={setClub}>
+                  <SelectTrigger><SelectValue placeholder="Select your invited club" /></SelectTrigger>
+                  <SelectContent>
+                    {clubs.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    <SelectItem value="__other__">Other / add a new club</SelectItem>
+                  </SelectContent>
+                </Select>
+                {club === '__other__' && <Input className="mt-2" value={clubOther} onChange={(e) => setClubOther(e.target.value)} placeholder="Type your club name" />}
+              </div>
               <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div><Label>Mobile</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
             </div>
