@@ -176,7 +176,7 @@ const PublicPerthComp: React.FC = () => {
 
   return (
     <div className="perth-theme min-h-screen bg-background text-foreground">
-      <header className="bg-primary text-primary-foreground">
+      <header className="bg-background text-foreground border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-8 text-center space-y-3">
           <img src="/lovable-uploads/gaonhae-logo-transparent.png" alt="Gaonhae Taekwondo" className="h-20 mx-auto" />
           <p className="uppercase tracking-[0.3em] text-secondary text-xs font-semibold">Gaonhae Taekwondo</p>
