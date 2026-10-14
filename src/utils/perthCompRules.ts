@@ -3,10 +3,10 @@
 export const PERTH_BANK_INFO = 'ACCOUNT NAME: GAONHAE TAEKWONDO\nBSB: 803-439\nACCOUNT NUMBER: 238 648 651\nPlease use the participant name as reference.';
 
 export const SEMINARS = [
-  { code: 'ps1', short: 'PS1', name: 'Poomsae Seminar 1', time: '11:00am – 12:30pm', who: 'Green to Black Tip belt · Age 7+' },
-  { code: 'ks1', short: 'KS1', name: 'Kyorugi Seminar 1', time: '12:40pm – 2:10pm', who: 'Green to Red belt · Age 7+' },
-  { code: 'ps2', short: 'PS2', name: 'Poomsae Seminar 2', time: '12:40pm – 2:40pm', who: 'Poom & Dan belts · Age 7+' },
-  { code: 'ks2', short: 'KS2', name: 'Kyorugi Seminar 2', time: '2:50pm – 5:50pm', who: 'Red belt & above · Age 9+' },
+  { code: 'ps1', short: 'PS1', name: 'Poomsae Seminar 1', time: '11:00am – 12:30pm', who: 'Green to Black Tip belt · Age 7+', cap: 30 },
+  { code: 'ks1', short: 'KS1', name: 'Kyorugi Seminar 1', time: '12:40pm – 2:10pm', who: 'Green Belt & Above · Age 7+', cap: 30 },
+  { code: 'ps2', short: 'PS2', name: 'Poomsae Seminar 2', time: '2:40pm – 4:10pm', who: 'Poom & Dan belts · Age 7+', cap: 50 },
+  { code: 'ks2', short: 'KS2', name: 'Kyorugi Seminar 2', time: '4:20pm – 5:50pm', who: 'Red Belt & Above · Age 10+', cap: 30 },
 ];
 
 const GEUP_POOMSAE: Record<number, string> = { 10: 'Taegeuk 1 Jang', 9: 'Taegeuk 1 Jang', 8: 'Taegeuk 2 Jang', 7: 'Taegeuk 2 Jang', 6: 'Taegeuk 3 Jang', 5: 'Taegeuk 4 Jang', 4: 'Taegeuk 5 Jang', 3: 'Taegeuk 6 Jang', 2: 'Taegeuk 7 Jang', 1: 'Taegeuk 8 Jang' };
@@ -55,14 +55,13 @@ export const seminarIneligibility = (code: string, age: number | null, rank: num
   if (age === null || rank === null) return 'Enter date of birth and grade';
   const rule: Record<string, [number, (r: number) => boolean, string]> = {
     ps1: [7, (r) => r >= 4 && r <= 9, 'Green to Black Tip only'],
-    ks1: [7, (r) => r >= 4 && r <= 8, 'Green to Red only'],
+    ks1: [7, (r) => r >= 4 && r <= 9, 'Green Belt & Above only'],
     ps2: [7, (r) => r === 10, 'Poom & Dan only'],
-    ks2: [9, (r) => r >= 8, 'Red belt & above only'],
+    ks2: [10, (r) => r >= 8, 'Red Belt & Above only'],
   };
   const [minAge, ok, msg] = rule[code];
   if (age < minAge) return `Age ${minAge}+ only`;
   if (!ok(rank)) return msg;
-  if ((code === 'ks1' && selected.includes('ps2')) || (code === 'ps2' && selected.includes('ks1'))) return 'Time overlaps another selected seminar';
   return null;
 };
 
