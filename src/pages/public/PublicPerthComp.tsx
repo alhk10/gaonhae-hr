@@ -293,39 +293,84 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     return c;
   }, [rows]);
 
-  const sections = useMemo(() => {
-    const list: { key: string; title: string; cap: number; rows: any[] }[] = SEMINARS.map((s) => ({
-      key: s.code, title: s.name, cap: 60, rows: (rows || []).filter((r) => r.seminars?.includes(s.code)),
+  const [tab, setTab] = useState<'seminars' | 'comp'>('seminars');
+
+  const seminarSections = useMemo(() => SEMINARS.map((s) => ({
+    key: s.code, title: s.name, rows: (rows || []).filter((r) => r.seminars?.includes(s.code)),
+  })), [rows]);
+
+  const compRows = useMemo(() => (rows || []).filter((r) => r.comp_events?.length), [rows]);
+
+  // Groups: age (youngest first) → event (lowest belt first) → gender (Female, Male)
+  const compGroups = useMemo(() => {
+    const divOrder = (d: string | null) => { const n = parseInt(d || ''); return isNaN(n) ? 999 : n; };
+    const evOrder = (c: string) => { const i = COMP_EVENTS.findIndex((e) => e.code === c); return i < 0 ? 999 : i; };
+    const gOrder = (g: string) => (/^f/i.test(g || '') ? 0 : /^m/i.test(g || '') ? 1 : 2);
+    const map = new Map<string, { div: string; event: string; gender: string; rows: any[] }>();
+    compRows.forEach((r) => (r.comp_events as string[]).forEach((ev) => {
+      const key = `${r.age_division}|${ev}|${r.gender}`;
+      if (!map.has(key)) map.set(key, { div: r.age_division || '-', event: ev, gender: r.gender || '-', rows: [] });
+      map.get(key)!.rows.push(r);
     }));
-    list.push({ key: 'comp', title: 'Poomsae Competition', cap: 100, rows: (rows || []).filter((r) => r.comp_events?.length) });
-    return list;
-  }, [rows]);
+    const list = [...map.values()];
+    list.forEach((g) => g.rows.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)));
+    return list.sort((a, b) => divOrder(a.div) - divOrder(b.div) || evOrder(a.event) - evOrder(b.event) || gOrder(a.gender) - gOrder(b.gender));
+  }, [compRows]);
 
-  const rowCells = (r: any, i: number) => [
-    i + 1, `${r.first_name} ${r.last_name}`, r.gender, formatDate(r.date_of_birth), r.age_division || '-',
-    gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`,
-    r.comp_events.map(eventLabel).join(', ') || '-', `$${Number(r.total_amount).toFixed(2)}`, r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at),
-  ];
+  const groupTitle = (g: { div: string; event: string; gender: string; rows: any[] }) =>
+    `${g.div} Years · ${g.gender} · ${eventLabel(g.event)} — ${g.rows.length} competitor${g.rows.length === 1 ? '' : 's'}`;
 
-  const downloadPdf = async () => {
+  const loadPdf = async (title: string) => {
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(14); doc.text('Perth Seminars & Poomsae Championship 2026 — Registration Log', 14, 14);
-    doc.setFontSize(9);
-    doc.text(`Generated ${formatDateTime(new Date())} · Competition ${counts.comp}/100 · ${SEMINARS.map((s) => `${s.short} ${counts[s.code]}/60`).join(' · ')}`, 14, 20);
+    doc.setFontSize(14); doc.text(`Perth Seminars & Poomsae Championship 2026 — ${title}`, 14, 14);
+    doc.setFontSize(9); doc.text(`Generated ${formatDateTime(new Date())}`, 14, 20);
+    return { doc, autoTable };
+  };
+
+  const downloadSeminarPdf = async () => {
+    const { doc, autoTable } = await loadPdf('Seminar Registration Log');
     let y = 24;
-    sections.forEach((sec) => {
-      doc.setFontSize(11); doc.text(`${sec.title} — ${sec.rows.length}/${sec.cap}`, 14, y + 6);
+    seminarSections.forEach((sec) => {
+      doc.setFontSize(11); doc.text(`${sec.title} — ${sec.rows.length}/60`, 14, y + 6);
       autoTable(doc, {
         startY: y + 8, styles: { fontSize: 7 },
-        head: [['#', 'Name', 'Gender', 'DOB', 'Div', 'Grade', 'Club', 'Contact', 'Events', 'Amount', 'Gaonhae', 'Submitted']],
-        body: sec.rows.map(rowCells),
+        head: [['#', 'Name', 'Gender', 'DOB', 'Grade', 'Club', 'Contact', 'Amount', 'Gaonhae', 'Submitted']],
+        body: sec.rows.length ? sec.rows.map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, r.gender, formatDate(r.date_of_birth), gradeLabel(r.grade), r.club,
+          `${r.email}\n${r.phone}`, `$${Number(r.total_amount).toFixed(2)}`, r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at)]) : [['', 'No registrations', '', '', '', '', '', '', '', '']],
       });
       y = (doc as any).lastAutoTable.finalY + 6;
     });
-    doc.save('perth-2026-registration-log.pdf');
+    doc.save('perth-2026-seminar-log.pdf');
   };
+
+  const downloadCompetitionPdf = async () => {
+    const { doc, autoTable } = await loadPdf(`Competition Registration Log (${compRows.length}/100)`);
+    let y = 24;
+    if (!compGroups.length) doc.text('No registrations yet.', 14, 30);
+    compGroups.forEach((g) => {
+      if (y > 180) { doc.addPage(); y = 10; }
+      doc.setFontSize(11); doc.text(groupTitle(g), 14, y + 6);
+      autoTable(doc, {
+        startY: y + 8, styles: { fontSize: 8 },
+        head: [['#', 'Name', 'DOB', 'Grade', 'Club', 'Contact', 'Gaonhae']],
+        body: g.rows.map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, formatDate(r.date_of_birth), gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`, r.is_gaonhae_student ? 'Yes' : 'No']),
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    });
+    doc.save('perth-2026-competition-log.pdf');
+  };
+
+  const personLine = (r: any, i: number) => (
+    <div key={`${r.id}-${i}`} className="border rounded p-2">
+      <div className="flex flex-wrap gap-x-3"><strong>{i + 1}. {r.first_name} {r.last_name}</strong><span>{r.gender}</span><span>{formatDate(r.date_of_birth)}</span>
+        <span>{gradeLabel(r.grade)}</span><span>{r.club}</span><span>${Number(r.total_amount).toFixed(2)}{r.is_gaonhae_student ? ' (Gaonhae)' : ''}</span></div>
+      <div className="flex flex-wrap gap-x-3 text-muted-foreground"><span>{r.email} · {r.phone}</span>
+        {r.proof_url?.startsWith('http') && <a className="underline" href={r.proof_url} target="_blank" rel="noreferrer">Proof</a>}
+        <span>{formatDateTime(r.created_at)}</span></div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -341,21 +386,23 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
             <div className="flex flex-wrap gap-2 items-center">
               <span className="font-semibold">Competition {counts.comp}/100</span>
               {SEMINARS.map((s) => <span key={s.code}>{s.short} {counts[s.code]}/60</span>)}
-              <Button size="sm" className="ml-auto" onClick={downloadPdf}><Download className="h-4 w-4 mr-1" /> Download PDF</Button>
             </div>
-            {rows.length === 0 ? <p>No registrations yet.</p> : sections.map((sec) => (
+            <div className="flex flex-wrap gap-2 items-center border-b pb-2">
+              <Button size="sm" variant={tab === 'seminars' ? 'default' : 'outline'} onClick={() => setTab('seminars')}>Seminars</Button>
+              <Button size="sm" variant={tab === 'comp' ? 'default' : 'outline'} onClick={() => setTab('comp')}>Competition</Button>
+              {tab === 'seminars'
+                ? <Button size="sm" variant="secondary" className="ml-auto" onClick={downloadSeminarPdf}><Download className="h-4 w-4 mr-1" /> Seminar Log PDF</Button>
+                : <Button size="sm" variant="secondary" className="ml-auto" onClick={downloadCompetitionPdf}><Download className="h-4 w-4 mr-1" /> Competition Log PDF</Button>}
+            </div>
+            {tab === 'seminars' ? seminarSections.map((sec) => (
               <div key={sec.key} className="space-y-1">
-                <p className="font-semibold text-sm border-b pb-1">{sec.title} — {sec.rows.length}/{sec.cap}</p>
-                {sec.rows.length === 0 ? <p className="text-muted-foreground">No registrations yet.</p> : sec.rows.map((r, i) => (
-                  <div key={r.id} className="border rounded p-2">
-                    <div className="flex flex-wrap gap-x-3"><strong>{i + 1}. {r.first_name} {r.last_name}</strong><span>{r.gender}</span><span>{formatDate(r.date_of_birth)}</span>
-                      <span>{gradeLabel(r.grade)}</span><span>{r.club}</span><span>${Number(r.total_amount).toFixed(2)}{r.is_gaonhae_student ? ' (Gaonhae)' : ''}</span></div>
-                    <div className="flex flex-wrap gap-x-3 text-muted-foreground"><span>{r.email} · {r.phone}</span>
-                      {sec.key === 'comp' && <span>Events{r.age_division ? ` (${r.age_division})` : ''}: {r.comp_events.map(eventLabel).join(', ') || '-'}</span>}
-                      {r.proof_url?.startsWith('http') && <a className="underline" href={r.proof_url} target="_blank" rel="noreferrer">Proof</a>}
-                      <span>{formatDateTime(r.created_at)}</span></div>
-                  </div>
-                ))}
+                <p className="font-semibold text-sm border-b pb-1">{sec.title} — {sec.rows.length}/60</p>
+                {sec.rows.length === 0 ? <p className="text-muted-foreground">No registrations yet.</p> : sec.rows.map(personLine)}
+              </div>
+            )) : compGroups.length === 0 ? <p>No competition registrations yet.</p> : compGroups.map((g) => (
+              <div key={`${g.div}|${g.event}|${g.gender}`} className="space-y-1">
+                <p className="font-semibold text-sm border-b pb-1">{groupTitle(g)}</p>
+                {g.rows.map(personLine)}
               </div>
             ))}
           </div>
