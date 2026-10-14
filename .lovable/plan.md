@@ -10,12 +10,16 @@ One public page in Gaonhae navy, red and gold (from the logo):
    - Poomsae Seminar 2, 12:40pm to 4:10pm, Poom & Dan, age 7+
    - Kyorugi Seminar 2, 4:20pm to 5:50pm, Red & above, age 9+
    - Each seminar shows the places left. A full seminar shows "Full" and cannot be selected.
-3. **Sunday 29 Nov: Poomsae Competition** ($45 per entry, $40 for Gaonhae students, GST included, no spectator fee)
+3. **Sunday 29 Nov: Poomsae Competition** ($45 per event, $40 for Gaonhae students, GST included, no spectator fee)
    - Registration closes **10 November 2026**, maximum **100 participants**. Places left are shown. After the deadline, or once full, competition entry is closed.
-   - Age divisions: 5 & 6, 7 & 8, 9 to 11, 12 to 14, 15 to 17, 18 to 30, over 30
-   - Male and Female
-   - Poomsae: Taegeuk 1 to 8, Koryo, Keumgang, Taebaek, Pyongwon
-4. **Registration form**: name, gender, date of birth, belt, club, email, mobile (+61), seminars ticked, a competition entry tick (age division and gender filled in automatically, plus a poomsae choice), indemnity tick and signature. Seminars the participant does not qualify for are greyed out, with the reason shown.
+   - An information section shows your rules: participation by invited clubs only; eligibility, age categories, events and event eligibility; competition structure and group allocation.
+   - **Age divisions (by birth year)**: 4–6, 7–8, 9–11, 12–14, 15–17, 18 & above. Age = 2026 minus birth year.
+   - **Gender**: Male / Female.
+   - **Geup events**: Geup 10 & 9 Taegeuk 1; 8 & 7 Taegeuk 2; 6 Taegeuk 3; 5 Taegeuk 4; 4 Taegeuk 5; 3 Taegeuk 6; 2 Taegeuk 7; 1 Taegeuk 8.
+   - **Poom/Dan events**: Taegeuk 7, Taegeuk 8, Koryo, Keumgang, Taebaek.
+   - **Event eligibility**: competitors can enter their own grade event and higher grade events, never a lower one. Poom/Dan holders can enter only Poom/Dan events. **Maximum 2 events.** The grade used is the rank at registration.
+   - Belt-to-geup mapping (assumed, please confirm): White = Geup 10, Yellow Tip = 9, Yellow = 8, Green Tip = 7, Green = 6, Blue Tip = 5, Blue = 4, Red Tip = 3, Red = 2, Black Tip = 1. Poom and Dan belts go to Poom/Dan events.
+4. **Registration form**: name, gender, date of birth, belt, club (invited clubs), email, mobile (+61), seminars ticked, up to 2 competition events ticked from the eligible list (age division shown automatically), indemnity tick and signature. Seminars and events the participant does not qualify for are greyed out, with the reason shown.
 5. **Payment**: live total with the GST included, the Australian bank transfer details (GAONHAE TAEKWONDO, BSB 803-439, account 238 648 651), a payment-proof image upload, then a confirmation screen.
 
 ## Gaonhae student price
