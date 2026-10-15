@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/sonner';
 import { Calendar, Users, MapPin, AlertTriangle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatDate } from '@/utils/dateFormat';
+import { getSlotCapacity } from '@/utils/slotCapacity';
 import { 
   getBranches, 
   addAdminSlotBooking,
@@ -243,8 +244,7 @@ const BulkSlotBookingDialog: React.FC<BulkSlotBookingDialogProps> = ({
   };
 
   const currentBranch = branches.find(b => b.id === selectedBranch);
-  const dayName =formatDate( editableDate).toLowerCase() as keyof WeeklySlotConfig;
-  const totalSlotsForDay = weeklyConfig[selectedBranch]?.[dayName] || 0;
+  const totalSlotsForDay = getSlotCapacity(weeklyConfig[selectedBranch], editableDate);
 
   const isOverbooking = selectedEmployees.length > availableSlots;
   const canProceed = selectedEmployees.length > 0 && (overrideSlotLimit || !isOverbooking);

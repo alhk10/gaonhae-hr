@@ -1,5 +1,12 @@
 # Roadmap
 
+## Staff branch-change capacity
+
+- [x] Confirm Jurong West Thursday capacity and actual bookings for 15/10/2026
+- [x] Correct weekday lookups in staff branch changes, bulk booking and date calendar; share readiness and submit calculations
+- [x] Capacity regression checks passed; preview build reports build OK
+- [ ] Verify authenticated branch-change dialog (blocked: external unmanaged Supabase session unavailable)
+
 ## `/hello` ordering and notifications
 
 - [x] Enable Uniforms and Apparel and Protection Guards and Accessories using the existing checkout

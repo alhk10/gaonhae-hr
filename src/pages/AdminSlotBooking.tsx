@@ -27,6 +27,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { isFromNovember2024, clearPricingCache } from '@/utils/slotPayCalculation';
 import { updatePricingConfig, SlotPricingConfig, SlotTimingConfig } from '@/services/slotPricingService';
 import { formatDate } from '@/utils/dateFormat';
+import { getBranchSlotAvailability } from '@/utils/slotCapacity';
 import {
   getBranches,
   getAllSlotBookings,
@@ -80,6 +81,9 @@ const AdminSlotBooking = () => {
   // New state for branch editing functionality
   const [selectedBranchForUpdate, setSelectedBranchForUpdate] = useState('');
   const [isUpdatingBranch, setIsUpdatingBranch] = useState(false);
+  const targetSlotAvailability = selectedBookingForApproval && selectedBranchForUpdate
+    ? getBranchSlotAvailability(currentWeeklySlots[selectedBranchForUpdate], allBookings, selectedBranchForUpdate, selectedBookingForApproval.date, selectedBookingForApproval.id)
+    : null;
   const [isPendingApprovalsDialogOpen, setIsPendingApprovalsDialogOpen] = useState(false);
   const [pricingConfig, setPricingConfig] = useState<Partial<SlotPricingConfig> | null>(null);
 
@@ -338,17 +342,9 @@ const AdminSlotBooking = () => {
       
       // Check if target branch has available slots for the date
       const bookingDate = selectedBookingForApproval.date;
-      const dayOfWeek =formatDate( new Date(bookingDate)).toLowerCase() as keyof Omit<WeeklySlotConfig, 'id' | 'branchId'>;
-      const totalSlots = currentWeeklySlots[selectedBranchForUpdate]?.[dayOfWeek] || 0;
-      const existingBookings = allBookings.filter(b => 
-        b.date === bookingDate && 
-        b.branchId === selectedBranchForUpdate && 
-        b.status !== 'cancelled' && 
-        b.status !== 'rejected' &&
-        b.id !== selectedBookingForApproval.id // Exclude current booking
-      );
+      const availability = getBranchSlotAvailability(currentWeeklySlots[selectedBranchForUpdate], allBookings, selectedBranchForUpdate, bookingDate, selectedBookingForApproval.id);
 
-      if (existingBookings.length >= totalSlots) {
+      if (availability.available === 0) {
         toast.error(`Target branch "${targetBranch.name}" is at full capacity for ${formatDate(new Date(bookingDate))}`);
         return;
       }
@@ -1236,7 +1232,11 @@ const AdminSlotBooking = () => {
                     {!selectedBranchForUpdate || selectedBranchForUpdate === selectedBookingForApproval?.branchId ? (
                       <p className="text-xs text-gray-500">Select a different branch to enable the update button</p>
                     ) : (
-                      <p className="text-xs text-blue-600">Ready to move booking to selected branch</p>
+                      <p className={`text-xs ${targetSlotAvailability?.available ? 'text-primary' : 'text-destructive'}`}>
+                        {targetSlotAvailability?.available
+                          ? `${targetSlotAvailability.available} of ${targetSlotAvailability.capacity} slots available`
+                          : targetSlotAvailability?.capacity === 0 ? 'No slots configured for this day' : 'Branch is at full capacity for this day'}
+                      </p>
                     )}
                   </div>
 
