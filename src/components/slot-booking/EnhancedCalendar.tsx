@@ -8,6 +8,7 @@ import { Info, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
+import { getSlotCapacity } from '@/utils/slotCapacity';
 
 interface EnhancedCalendarProps {
   selectedDates: Date[];
@@ -38,12 +39,11 @@ const EnhancedCalendar: React.FC<EnhancedCalendarProps> = ({
   const getSlotAvailability = (date: Date) => {
     if (!currentBranch || !weeklySlotConfig) return 0;
     
-    const dayName =formatDate( date).toLowerCase();
     const config = weeklySlotConfig[currentBranch.id];
     
     if (!config) return 0;
     
-    return config[dayName] || 0;
+    return getSlotCapacity(config, date);
   };
   
   const isDayWithNoSlots = (date: Date) => {

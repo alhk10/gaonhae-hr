@@ -1,5 +1,7 @@
 # Project architecture
 
+- Staff slot capacity uses the shared `slotCapacity` weekday and availability helpers, never display-formatted dates as configuration keys, so calendars and branch moves agree on daily limits.
+
 - Resolve invoice PDFs through the saved active template for each invoice's own branch country, never a generic country fallback, so branding and payment details stay accurate after branch changes.
 - Public invoice-detail SECURITY DEFINER functions attach only the matched invoice's country template; `/hello` uses its session-validated invoice list to preserve access checks.
 - Shared `/access` staff-list presentation uses an `.access-list-shell` container and `.access-list-table` field markers, so rows flow into labelled two-line layouts based on available list width without changing actions or queries.
