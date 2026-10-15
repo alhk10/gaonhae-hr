@@ -1,5 +1,12 @@
 # Roadmap
 
+## `/hello` ordering and notifications
+
+- [x] Enable Uniforms and Apparel and Protection Guards and Accessories using the existing checkout
+- [x] Move the notification button into Update Personal Information; preserve the home-screen prompt
+- [ ] Verify menu navigation and profile placement in the running page
+- [ ] Verify real-student order submission and notification persistence (blocked: external unmanaged Supabase session unavailable)
+
 ## Recognized-student passport photos
 
 - [x] Add passport photo upload and saved preview in `/hello` Update Personal Information

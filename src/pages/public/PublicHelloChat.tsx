@@ -1813,12 +1813,12 @@ const PublicHelloChat: React.FC = () => {
                     return (
                       <Button
                         key={btn.id}
-                        disabled
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
                         variant="outline"
-                        className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
+                        className="w-full h-11 justify-between"
                       >
                         {btn.label}
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
+                        <ArrowRight className="h-4 w-4" />
                       </Button>
                     );
                   })}
@@ -1838,7 +1838,6 @@ const PublicHelloChat: React.FC = () => {
                   </Button>
                   {matched?.id && sessionLinked && (
                     <>
-                      <HelloNotificationButton sessionId={sessionId} studentId={matched.id} branchId={branchId} />
                       <HelloHomeScreenPrompt
                         suppressed={showOutstandingPopup}
                         sessionId={sessionId}
@@ -2028,6 +2027,9 @@ const PublicHelloChat: React.FC = () => {
                         {savedCertificateUrl && !piCertificateFile && <img src={savedCertificateUrl} alt="Saved Poom/Dan certificate" className="h-28 w-24 rounded-md border object-cover" />}
                         <ProofOfPaymentUpload value={piCertificateFile} onChange={setPiCertificateFile} acceptPdf={false} maxSizeMB={5} label={savedCertificateUrl ? 'Replace certificate' : 'Upload certificate'} disabled={piSaving} />
                       </div>
+                      {matched?.id && sessionLinked && (
+                        <HelloNotificationButton sessionId={sessionId} studentId={matched.id} branchId={branchId} />
+                      )}
                       {piPending && (
                         <div className="rounded bg-muted px-2 py-1.5 text-[12px]">
                           {piPending.length > 0
