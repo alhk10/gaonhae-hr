@@ -1158,6 +1158,7 @@ export type Database = {
           indemnity_template_url: string | null
           is_active: boolean
           name: string
+          registration_deadline: string | null
           require_grading_card: boolean
           require_indemnity_form: boolean
           require_passport: boolean
@@ -1178,6 +1179,7 @@ export type Database = {
           indemnity_template_url?: string | null
           is_active?: boolean
           name: string
+          registration_deadline?: string | null
           require_grading_card?: boolean
           require_indemnity_form?: boolean
           require_passport?: boolean
@@ -1198,6 +1200,7 @@ export type Database = {
           indemnity_template_url?: string | null
           is_active?: boolean
           name?: string
+          registration_deadline?: string | null
           require_grading_card?: boolean
           require_indemnity_form?: boolean
           require_passport?: boolean
@@ -8830,6 +8833,10 @@ export type Database = {
         Args: { p_active: boolean; p_id: string }
         Returns: undefined
       }
+      admin_set_competition_event_deadline: {
+        Args: { p_deadline: string; p_id: string }
+        Returns: undefined
+      }
       admin_set_competition_grading_cards: {
         Args: { p_id: string; p_urls: string[] }
         Returns: undefined
@@ -9592,6 +9599,7 @@ export type Database = {
           indemnity_template_url: string
           is_active: boolean
           name: string
+          registration_deadline: string
           require_grading_card: boolean
           require_indemnity_form: boolean
           require_passport: boolean
