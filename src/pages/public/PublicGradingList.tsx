@@ -1641,6 +1641,7 @@ const PublicGradingList: React.FC = () => {
                         <TableCell data-label="Branch" data-field="branch" className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
                         <TableCell data-label="Student" data-field="student" className="px-2 py-0.5 text-[11px] font-medium">
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
+                          {r.source === 'hello' && <span className="ml-1 rounded bg-secondary px-1 text-[9px] text-secondary-foreground">Hello</span>}
                           <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
                           {r.invoice_id && (
                             <div className="text-[10px]">
