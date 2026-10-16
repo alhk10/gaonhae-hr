@@ -39,8 +39,10 @@ import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import {
   getGuardsProductsForBranchAdmin,
   setGuardsProductBranchSetting,
+  setGuardsProductRestrictions,
   type GuardsBranchAdminItem,
 } from '@/services/guardsPurchaseService';
+import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 
 interface Props {
   open: boolean;
@@ -51,7 +53,49 @@ interface Props {
 interface DraftRow {
   available: boolean;
   price: string;
+  minAge: string;
+  maxAge: string;
+  beltFrom: string; // '' = all belts, 'custom' = non-contiguous saved list
+  beltTo: string;
 }
+
+const ALL = '__all__';
+const CUSTOM = '__custom__';
+
+const beltRangeOf = (levels?: string[] | null): { from: string; to: string } => {
+  const l = levels || [];
+  if (!l.length) return { from: ALL, to: ALL };
+  const idx = l.map((b) => BELT_LEVELS_ARRAY.indexOf(b)).sort((a, b) => a - b);
+  if (idx.some((i) => i < 0)) return { from: CUSTOM, to: CUSTOM };
+  const lo = idx[0], hi = idx[idx.length - 1];
+  if (hi - lo + 1 !== idx.length) return { from: CUSTOM, to: CUSTOM };
+  return { from: BELT_LEVELS_ARRAY[lo], to: BELT_LEVELS_ARRAY[hi] };
+};
+
+const initialDraft = (p: GuardsBranchAdminItem): DraftRow => {
+  const r = beltRangeOf(p.allowed_belt_levels);
+  return {
+    available: p.is_available,
+    price: p.price_override === null ? '' : String(p.price_override),
+    minAge: p.min_age == null ? '' : String(p.min_age),
+    maxAge: p.max_age == null ? '' : String(p.max_age),
+    beltFrom: r.from,
+    beltTo: r.to,
+  };
+};
+
+const restrictionsDirty = (p: GuardsBranchAdminItem, d: DraftRow) => {
+  const o = initialDraft(p);
+  return d.minAge.trim() !== o.minAge || d.maxAge.trim() !== o.maxAge || d.beltFrom !== o.beltFrom || d.beltTo !== o.beltTo;
+};
+
+const beltsFromRange = (from: string, to: string): string[] | null => {
+  if (from === ALL || to === ALL) return null;
+  let a = BELT_LEVELS_ARRAY.indexOf(from), b = BELT_LEVELS_ARRAY.indexOf(to);
+  if (a < 0 || b < 0) throw new Error('Choose both belts');
+  if (a > b) [a, b] = [b, a];
+  return BELT_LEVELS_ARRAY.slice(a, b + 1);
+};
 
 const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, actor }) => {
   const qc = useQueryClient();
@@ -80,12 +124,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
 
   useEffect(() => {
     const next: Record<string, DraftRow> = {};
-    (items as GuardsBranchAdminItem[]).forEach((p) => {
-      next[p.item_key] = {
-        available: p.is_available,
-        price: p.price_override === null ? '' : String(p.price_override),
-      };
-    });
+    (items as GuardsBranchAdminItem[]).forEach((p) => { next[p.item_key] = initialDraft(p); });
     setDraft(next);
   }, [items]);
 
@@ -95,7 +134,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
         const d = draft[p.item_key];
         if (!d) return false;
         const original = p.price_override === null ? '' : String(p.price_override);
-        return d.available !== p.is_available || d.price.trim() !== original;
+        return d.available !== p.is_available || d.price.trim() !== original || (!!p.product_id && restrictionsDirty(p, d));
       })
       .map((p) => p.item_key);
   }, [items, draft]);
@@ -112,7 +151,19 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
         if (price !== null && (Number.isNaN(price) || price < 0)) {
           throw new Error('Enter a valid price');
         }
-        await setGuardsProductBranchSetting(branchId, key, row.product_id, d.available, price, actor);
+        const original = row.price_override === null ? '' : String(row.price_override);
+        if (d.available !== row.is_available || raw !== original) {
+          await setGuardsProductBranchSetting(branchId, key, row.product_id, d.available, price, actor);
+        }
+        if (row.product_id && restrictionsDirty(row, d)) {
+          const mn = d.minAge.trim() === '' ? null : parseInt(d.minAge, 10);
+          const mx = d.maxAge.trim() === '' ? null : parseInt(d.maxAge, 10);
+          if ((mn !== null && Number.isNaN(mn)) || (mx !== null && Number.isNaN(mx))) throw new Error('Enter a valid age');
+          const belts = d.beltFrom === CUSTOM
+            ? (row.allowed_belt_levels || null)
+            : beltsFromRange(d.beltFrom, d.beltTo);
+          await setGuardsProductRestrictions(row.product_id, mn, mx, belts, actor);
+        }
       }
       toast.success('Product settings saved');
       qc.invalidateQueries({ queryKey: ['guards-branch-products'] });
@@ -124,6 +175,54 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
     }
   };
 
+  const setRow = (key: string, patch: Partial<DraftRow>) =>
+    setDraft((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+
+  const renderRestrictionEditor = (p: GuardsBranchAdminItem, d: DraftRow) => {
+    if (!p.product_id) {
+      return <div className="text-[11px] text-muted-foreground">{ageText(p)} · {beltText(p)}</div>;
+    }
+    const beltSelect = (value: string, field: 'beltFrom' | 'beltTo', label: string) => (
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v === ALL) setRow(p.item_key, { beltFrom: ALL, beltTo: ALL });
+          else {
+            const other = field === 'beltFrom' ? d.beltTo : d.beltFrom;
+            const otherVal = other === ALL || other === CUSTOM ? v : other;
+            setRow(p.item_key, field === 'beltFrom' ? { beltFrom: v, beltTo: otherVal } : { beltTo: v, beltFrom: otherVal });
+          }
+        }}
+      >
+        <SelectTrigger className="h-7 text-[11px] px-1.5" aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL} className="text-xs">All belts</SelectItem>
+          {value === CUSTOM && <SelectItem value={CUSTOM} className="text-xs">Custom</SelectItem>}
+          {BELT_LEVELS_ARRAY.map((b) => (
+            <SelectItem key={b} value={b} className="text-xs">{b}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+    return (
+      <div className="space-y-1 min-w-[150px]">
+        <div className="flex items-center gap-1">
+          <Input type="number" min={0} max={99} value={d.minAge} placeholder="age from" aria-label="Age from"
+            onChange={(e) => setRow(p.item_key, { minAge: e.target.value })} className="h-7 text-xs px-1.5" />
+          <span className="text-xs text-muted-foreground">–</span>
+          <Input type="number" min={0} max={99} value={d.maxAge} placeholder="to" aria-label="Age to"
+            onChange={(e) => setRow(p.item_key, { maxAge: e.target.value })} className="h-7 text-xs px-1.5" />
+        </div>
+        <div className="flex items-center gap-1" title={(p.allowed_belt_levels || []).join(', ')}>
+          {beltSelect(d.beltFrom, 'beltFrom', 'Belt from')}
+          {d.beltFrom !== ALL && (<><span className="text-xs text-muted-foreground">–</span>{beltSelect(d.beltTo, 'beltTo', 'Belt to')}</>)}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-w-[95vw] max-h-[90vh] overflow-y-auto">
@@ -131,7 +230,8 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
           <DialogTitle className="text-base">Uniforms &amp; Guards availability</DialogTitle>
           <DialogDescription className="text-xs">
             Controls which packages and products appear on the public /guards page for a branch and
-            the price charged (GST inclusive). Leave the price blank to use the default price.
+            the price charged (GST inclusive). Leave the price blank to use the default price. Age and
+            belt limits apply to the product at every branch; leave blank / All belts for no limit.
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +266,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-xs">Item</TableHead>
-                  <TableHead className="hidden sm:table-cell text-xs w-[170px]">Restrictions</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs w-[210px]">Restrictions</TableHead>
                   <TableHead className="text-xs w-[90px]">Default</TableHead>
                   <TableHead className="text-xs w-[120px]">Price</TableHead>
                   <TableHead className="text-xs w-[90px] text-right">Available</TableHead>
@@ -174,7 +274,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
               </TableHeader>
               <TableBody>
                 {(items as GuardsBranchAdminItem[]).map((p) => {
-                  const d = draft[p.item_key] || { available: false, price: '' };
+                  const d = draft[p.item_key] || initialDraft(p);
                   return (
                     <TableRow key={p.item_key} className={d.available ? '' : 'opacity-60'}>
                       <TableCell className="text-xs py-1.5">
@@ -187,11 +287,10 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
                         {p.description && (
                           <p className="text-[11px] text-muted-foreground">{p.description}</p>
                         )}
-                        <p className="sm:hidden text-[11px] text-muted-foreground">{ageText(p)} · {beltText(p)}</p>
+                        <div className="sm:hidden mt-1">{renderRestrictionEditor(p, d)}</div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-[11px] py-1.5 text-muted-foreground">
-                        <div>{ageText(p)}</div>
-                        <div title={(p.allowed_belt_levels || []).join(', ')}>{beltText(p)}</div>
+                      <TableCell className="hidden sm:table-cell py-1.5">
+                        {renderRestrictionEditor(p, d)}
                       </TableCell>
                       <TableCell className="text-xs py-1.5 text-muted-foreground">
                         {formatCurrency(p.default_price)}

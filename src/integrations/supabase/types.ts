@@ -8852,6 +8852,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_guards_product_restrictions: {
+        Args: {
+          p_actor?: string
+          p_belts: string[]
+          p_max_age: number
+          p_min_age: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
       admin_set_seminar_event_active: {
         Args: { p_active: boolean; p_id: string }
         Returns: undefined
