@@ -135,6 +135,24 @@ export const setGuardsProductBranchSetting = async (
   if (error) throw error;
 };
 
+/** Product-wide age + belt limits (apply at every branch). Empty belts = all belts. */
+export const setGuardsProductRestrictions = async (
+  productId: string,
+  minAge: number | null,
+  maxAge: number | null,
+  belts: string[] | null,
+  actor?: string | null,
+): Promise<void> => {
+  const { error } = await supabase.rpc('admin_set_guards_product_restrictions' as any, {
+    p_product_id: productId,
+    p_min_age: minAge,
+    p_max_age: maxAge,
+    p_belts: belts && belts.length ? belts : null,
+    p_actor: actor || null,
+  });
+  if (error) throw error;
+};
+
 
 export interface SubmitGuardsPurchaseInput {
   first_name: string;
