@@ -152,6 +152,15 @@ const InvoiceActionApprovals: React.FC = () => {
         const requestData = request.request_data as any;
         const requestedItems: any[] = Array.isArray(requestData?.editItems) ? requestData.editItems : [];
         const requestedTotals = requestData?.editTotals;
+        if (requestData?.note && requestedItems.length === 0) {
+          // Described change from a password-only /access login: superadmin applies it
+          // via the invoice editor, approval just closes the request.
+          await approveActionRequest(request.id);
+          toast.success('Edit request closed. Apply the described change in the invoice editor.');
+          queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
+          return;
+        }
         if (!requestedTotals || requestedItems.length === 0) throw new Error('Adjustment details are incomplete');
 
         const { data: existingItems, error: existingError } = await supabase
@@ -317,6 +326,9 @@ const InvoiceActionApprovals: React.FC = () => {
                         <li key={i}>{name}</li>
                       ))}
                     </ul>
+                    {(request.request_data as any)?.note && (
+                      <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">Requested change: {(request.request_data as any).note}</div>
+                    )}
                     {(request.request_data as any)?.reason && (
                       <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
                     )}

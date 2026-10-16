@@ -1475,7 +1475,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const saveOrSubmitAdjustment = async (convertOverpaymentToCredit: boolean) => {
     if (!invoice) return;
-    if (isPaidOrVerified && !isSuperadmin) {
+    if (!isSuperadmin) {
       try {
         setSaving(true);
         await submitActionRequest(invoice.id, 'adjustment', {
