@@ -27,6 +27,7 @@ import {
   getPublicBranches,
   getPublicPaymentOptions,
 } from '@/services/gradingPaymentSubmissionService';
+import { isPastDeadline } from '@/utils/competitionDeadline';
 import {
   getPublicCompetitionEvents,
   submitCompetitionPayment,
@@ -232,7 +233,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
     [extraPresets],
   );
 
-  const activeEvents = useMemo(() => events.filter(e => e.is_active), [events]);
+  const activeEvents = useMemo(() => events.filter(e => e.is_active && !isPastDeadline(e.registration_deadline)), [events]);
   const selectedEvent: CompetitionEvent | undefined = useMemo(
     () => activeEvents.find(e => e.id === eventId),
     [activeEvents, eventId],

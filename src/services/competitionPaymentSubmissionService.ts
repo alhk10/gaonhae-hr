@@ -126,7 +126,16 @@ export interface CompetitionEvent {
   indemnity_template_url: string | null;
   indemnity_template_name: string | null;
   require_grading_card: boolean;
+  registration_deadline: string | null;
 }
+
+export const adminSetCompetitionEventDeadline = async (id: string, deadline: string | null) => {
+  const { error } = await supabase.rpc('admin_set_competition_event_deadline' as any, {
+    p_id: id,
+    p_deadline: deadline,
+  });
+  if (error) throw error;
+};
 
 export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> => {
   const { data, error } = await supabase.rpc('get_public_competition_events' as any);
@@ -138,6 +147,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     indemnity_template_url: r.indemnity_template_url ?? null,
     indemnity_template_name: r.indemnity_template_name ?? null,
     require_grading_card: r.require_grading_card === true,
+    registration_deadline: r.registration_deadline ?? null,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),

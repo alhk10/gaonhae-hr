@@ -17,6 +17,7 @@ import {
   adminUpsertCompetitionEvent,
   adminDeleteCompetitionEvent,
   adminSetCompetitionEventActive,
+  adminSetCompetitionEventDeadline,
   uploadIndemnityTemplate,
   getPublicCompetitionExtraLinePresets,
   adminUpsertCompetitionExtraLinePreset,
@@ -28,6 +29,7 @@ import { Download, Upload, X } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { parseDeadline, splitDeadline, formatDeadline } from '@/utils/competitionDeadline';
 
 interface Props {
   open: boolean;
@@ -54,6 +56,8 @@ const emptyForm = () => ({
   indemnity_template_url: null as string | null,
   indemnity_template_name: null as string | null,
   require_grading_card: false,
+  deadline_date: '',
+  deadline_time: '',
 });
 
 const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
@@ -135,6 +139,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
       require_grading_card: e.require_grading_card === true,
+      deadline_date: splitDeadline(e.registration_deadline).date,
+      deadline_time: splitDeadline(e.registration_deadline).time,
     });
   };
 
@@ -160,6 +166,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
       require_grading_card: e.require_grading_card === true,
+      deadline_date: splitDeadline(e.registration_deadline).date,
+      deadline_time: splitDeadline(e.registration_deadline).time,
     } as any);
     requestAnimationFrame(() => formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
@@ -167,9 +175,11 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Event name is required'); return; }
     if (!form.coaching_label.trim()) { toast.error('Coaching item name is required'); return; }
+    const deadline = parseDeadline(form.deadline_date, form.deadline_time);
+    if (deadline === undefined) { toast.error('Deadline must be DD/MM/YYYY and HH:MM'); return; }
     setSaving(true);
     try {
-      await adminUpsertCompetitionEvent({
+      const savedId = await adminUpsertCompetitionEvent({
         id: form.id,
         name: form.name.trim(),
         is_active: form.is_active,
@@ -193,6 +203,7 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         indemnity_template_name: form.indemnity_template_name,
         require_grading_card: form.require_grading_card,
       });
+      await adminSetCompetitionEventDeadline(form.id || savedId, deadline);
       toast.success(form.id ? 'Event updated' : 'Event created');
       qc.invalidateQueries({ queryKey: ['competition-events-admin'] });
       qc.invalidateQueries({ queryKey: ['public-competition-events'] });
@@ -278,6 +289,11 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                         {e.coaching_label || 'No coaching item'} · ${Number(e.coaching_amount || 0).toFixed(2)}
                         {extraCount > 0 ? ` · ${extraCount} extra` : ''}
                       </div>
+                      {e.registration_deadline && (
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          Closes {formatDeadline(e.registration_deadline)}
+                        </div>
+                      )}
                     </div>
                     <Switch checked={e.is_active} onCheckedChange={(v) => handleToggleActive(e, v)} />
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(e)} title="Edit">
@@ -332,6 +348,24 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                   />
                 </div>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Registration deadline (GMT+8, optional)</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  placeholder="DD/MM/YYYY"
+                  inputMode="numeric"
+                  value={form.deadline_date}
+                  onChange={(e) => setForm({ ...form, deadline_date: e.target.value })}
+                />
+                <Input
+                  placeholder="23:59"
+                  inputMode="numeric"
+                  value={form.deadline_time}
+                  onChange={(e) => setForm({ ...form, deadline_time: e.target.value })}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">After this time the event is hidden from /comps and /hello and switched to inactive.</p>
             </div>
 
             <div className="space-y-2 border rounded p-3">
