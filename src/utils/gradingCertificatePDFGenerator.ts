@@ -22,6 +22,13 @@ import worldTaekwondoLogo from '@/assets/certificates/au/world-taekwondo.jpg';
 import kukkiwonLogo from '@/assets/certificates/au/kukkiwon.jpg';
 import masterSignatureAU from '@/assets/certificates/au/master-signature.jpg';
 import masterSignatureSG from '@/assets/certificates/sg/master-signature.png';
+import gaonhaeLogoTransparent from '@/assets/certificates/gaonhae-logo-transparent.png';
+import poomDanBg from '@/assets/certificates/poom-dan-bg.jpg';
+import flagKR from '@/assets/certificates/flag-kr.png';
+import flagSG from '@/assets/certificates/flag-sg.png';
+import flagAU from '@/assets/certificates/flag-au.png';
+import taekwondoVertical from '@/assets/certificates/taekwondo-vertical.png';
+import { isPoomDanRank, poomDanRankLabel, splitOrdinal } from '@/utils/poomDanCertificate';
 
 import {
   ScorecardRow,
@@ -94,6 +101,100 @@ const withDerivedBmi = (rows: ScorecardRow[]): ScorecardRow[] => {
 };
 
 const drawCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
+  if (isPoomDanRank(input.beltAchieved)) return drawPoomDanCertificatePage(doc, input);
+  return drawStandardCertificatePage(doc, input);
+};
+
+/** Modern white Poom/Dan certificate with faint silhouette background. */
+const drawPoomDanCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
+  const cx = A4_W / 2;
+  const isSG = /^(sg|singapore)$/i.test((input.branchCountry || '').trim());
+  doc.addImage(poomDanBg, 'JPEG', 0, 0, A4_W, A4_H, undefined, 'FAST');
+  // Thin inner frame
+  doc.setDrawColor(215, 215, 215); doc.setLineWidth(0.3);
+  doc.rect(8, 8, A4_W - 16, A4_H - 16);
+  // Flags (small) and logo
+  const fw = 26, fh = fw * 271 / 400;
+  doc.addImage(flagKR, 'PNG', 14, 14, fw, fh, undefined, 'FAST');
+  doc.addImage(isSG ? flagSG : flagAU, 'PNG', A4_W - 14 - fw, 14, fw, fh, undefined, 'FAST');
+  const logoW = 62, logoH = 33;
+  doc.addImage(gaonhaeLogoTransparent, 'PNG', cx - logoW / 2, 18, logoW, logoH, undefined, 'FAST');
+  // Vertical 태권도
+  doc.addImage(taekwondoVertical, 'PNG', 16, 178, 26, 78, undefined, 'FAST');
+
+  // Title
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(40); doc.setTextColor(25, 25, 25);
+  doc.text('CERTIFICATE', cx, 78, { align: 'center' });
+  doc.setFontSize(11); doc.setTextColor(90, 90, 90);
+  doc.text('O F   A C H I E V E M E N T', cx, 87, { align: 'center' });
+  doc.setLineWidth(1.2);
+  doc.setDrawColor(205, 32, 47); doc.line(cx - 18, 93, cx, 93);
+  doc.setDrawColor(0, 71, 160); doc.line(cx, 93, cx + 18, 93);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(110, 110, 110);
+  doc.text('This certificate is awarded to', cx, 110, { align: 'center' });
+
+  // Name — up to two lines
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+  let size = 30; doc.setFontSize(size);
+  let lines: string[] = doc.splitTextToSize(input.studentName, 150);
+  if (lines.length > 2) { size = 24; doc.setFontSize(size); lines = doc.splitTextToSize(input.studentName, 150).slice(0, 2); }
+  const lineH = size * 0.45;
+  const nameTop = lines.length > 1 ? 126 : 132;
+  lines.forEach((l, i) => doc.text(l, cx, nameTop + i * lineH, { align: 'center' }));
+  const afterName = nameTop + (lines.length - 1) * lineH;
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(110, 110, 110);
+  doc.text('who has successfully achieved', cx, afterName + 16, { align: 'center' });
+
+  // Rank with raised ordinal
+  const rank = poomDanRankLabel(input.beltAchieved);
+  const rankY = afterName + 34;
+  doc.setTextColor(20, 20, 20);
+  const parts = rank.split(' / ').map(p => p.trim());
+  const pieces: { t: string; sup: boolean }[] = [];
+  parts.forEach((p, i) => {
+    if (i > 0) pieces.push({ t: '  /  ', sup: false });
+    const o = splitOrdinal(p);
+    if (o) { pieces.push({ t: o.num, sup: false }, { t: o.suffix, sup: true }, { t: ' ' + o.rest, sup: false }); }
+    else pieces.push({ t: p, sup: false });
+  });
+  const big = parts.length > 1 ? 24 : 32, small = big * 0.5;
+  doc.setFont('helvetica', 'bold');
+  const widthOf = (pc: { t: string; sup: boolean }) => { doc.setFontSize(pc.sup ? small : big); return doc.getTextWidth(pc.t); };
+  let x = cx - pieces.reduce((s, pc) => s + widthOf(pc), 0) / 2;
+  pieces.forEach(pc => {
+    doc.setFontSize(pc.sup ? small : big);
+    doc.text(pc.t, x, pc.sup ? rankY - big * 0.18 : rankY);
+    x += doc.getTextWidth(pc.t);
+  });
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(110, 110, 110);
+  doc.text(longDate(input.gradingDate), cx, rankY + 12, { align: 'center' });
+
+  // Signature block
+  const sigNative = isSG ? { w: 423, h: 269 } : { w: 456, h: 466 };
+  const sMaxW = 50, sMaxH = 26;
+  const sc = Math.min(sMaxW / sigNative.w, sMaxH / sigNative.h);
+  const sw = sigNative.w * sc, sh = sigNative.h * sc;
+  const lineY = 248;
+  doc.addImage(isSG ? masterSignatureSG : masterSignatureAU, isSG ? 'PNG' : 'JPEG', cx - sw / 2, lineY - sh - 1, sw, sh, undefined, 'FAST');
+  doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+  doc.line(cx - 30, lineY, cx + 30, lineY);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(120, 120, 120);
+  doc.text('Signature', cx, lineY + 5, { align: 'center' });
+
+  // Affiliation logos
+  const wt = { w: 484, h: 231 }, kw = { w: 347, h: 244 };
+  const lh = 14;
+  const wtW = wt.w * lh / wt.h, kwW = kw.w * lh / kw.h;
+  const gap = 10, total = wtW + gap + kwW;
+  const ly = 266;
+  doc.addImage(worldTaekwondoLogo, 'JPEG', cx - total / 2, ly, wtW, lh, undefined, 'FAST');
+  doc.addImage(kukkiwonLogo, 'JPEG', cx - total / 2 + wtW + gap, ly, kwW, lh, undefined, 'FAST');
+};
+
+const drawStandardCertificatePage = (doc: jsPDF, input: GradingCertificateInput) => {
   // Header logo — GaonHae Taekwondo (centered top)
   const logoW = 60;
   const logoH = 32;
