@@ -35,7 +35,9 @@ import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/use
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDate } from '@/utils/dateFormat';
-import { buildPayrollWarnings } from '@/utils/payrollWarnings';
+import { buildPayrollWarnings, hasBlockingWarnings } from '@/utils/payrollWarnings';
+import { useIsSuperadminUser } from '@/hooks/useIsSuperadminUser';
+import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
 const parsePeriod = (period: string) => {
@@ -860,6 +862,71 @@ const PayrollProcessing = () => {
     return { ...adj, calc, approvedClaims, allowances, deductions };
   };
 
+  const { isSuperadmin } = useIsSuperadminUser();
+  const [emailingPayslips, setEmailingPayslips] = useState(false);
+  const activeFullTime = allEmployees.filter(e => e.type !== 'Casual' && isEmployedInPeriod(e, selectedPeriod));
+  const reviewWarnings = buildPayrollWarnings(activeFullTime.map((e: any) => {
+    const ft = computeFullTime(e);
+    return {
+      name: e.displayName || e.name,
+      hasBankDetails: !!e.bankAccount,
+      proRatedDays: ft.proRate ? ft.proRate.days : null,
+      excessLeaveDays: monthAdjustments[e.id]?.excessAnnualDays || 0,
+      pendingClaims: (employeeClaims[e.id] || []).filter(c => c.status === 'Pending').length,
+      net: ft.calc.netSalary,
+    };
+  }));
+
+  const payslipData = (emp: any) => {
+    const ft = computeFullTime(emp);
+    const c: any = ft.calc;
+    const sum = (xs: any[]) => (xs || []).reduce((s, x) => s + Number(x.amount || 0), 0);
+    return {
+      employee: { id: emp.employeeId || emp.id, name: emp.name, nric: emp.nric || '', branch: emp.branch, position: emp.position, bankName: emp.bankName, bankAccount: emp.bankAccount },
+      month: selectedPeriod,
+      baseSalary: Number(ft.employee.baseSalary || 0),
+      totalAllowances: sum(ft.allowances),
+      totalDeductions: sum(ft.deductions),
+      grossSalary: c.grossSalary, employeeCPF: c.employeeCPF, employerCPF: c.employerCPF, totalCPF: c.totalCPF,
+      approvedClaims: ft.approvedClaims, netSalary: c.netSalary,
+      allowances: (ft.allowances || []).map((a: any) => ({ name: a.name, amount: Number(a.amount || 0) })),
+      deductions: (ft.deductions || []).map((d: any) => ({ name: d.name, amount: Number(d.amount || 0) })),
+    };
+  };
+
+  const downloadPayslip = async (emp: any) => {
+    try { await generatePayslipPDF(payslipData(emp) as any); }
+    catch { toast.error('Could not create payslip'); }
+  };
+
+  const emailAllPayslips = async () => {
+    const withEmail = activeFullTime.filter(e => e.email);
+    if (!withEmail.length) { toast.error('No employees have an email address'); return; }
+    setEmailingPayslips(true);
+    let sent = 0;
+    for (const emp of withEmail) {
+      const d = payslipData(emp);
+      const { error } = await supabase.functions.invoke('send-payslip-email', {
+        body: { employeeEmail: emp.email, employeeName: emp.displayName || emp.name, month: selectedPeriod, payrollData: d },
+      });
+      if (error) { toast.error('Email sending is not set up yet. Payslips can still be downloaded.'); break; }
+      sent++;
+    }
+    setEmailingPayslips(false);
+    if (sent) toast.success(`${sent} payslip email(s) sent`);
+  };
+
+  const reopenMonth = async () => {
+    if (!confirm('Reopen this month for editing?')) return;
+    try {
+      const { year, monthIndex: month } = parsePeriod(selectedPeriod);
+      await updatePayrollLockStatus(`PERIOD_${year}-${String(month).padStart(2, '0')}`, false);
+      setIsPeriodLocked(false);
+      setPeriodStatus(null);
+      toast.success('Month reopened');
+    } catch { toast.error('Could not reopen month'); }
+  };
+
   const saveItemsOverride = async (kind: 'allowances' | 'deductions', employeeId: string, items: any[]) => {
     const { year, formatted: month } = parsePeriod(selectedPeriod);
     const clean = items.map(i => ({ name: i.name, amount: Number(i.amount), type: i.type || 'Fixed' }));
@@ -1561,7 +1628,7 @@ const PayrollProcessing = () => {
                 setPayrollStatus('completed');
               }
             }}
-            disabled={currentStep === 'cpf'}
+            disabled={currentStep === 'cpf' || hasBlockingWarnings(reviewWarnings)}
             className="flex items-center space-x-2"
           >
             <ArrowRight className="w-4 h-4" />
@@ -2055,10 +2122,35 @@ const PayrollProcessing = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export CPF ezpay
               </Button>
-              <Button onClick={handleCPFSubmission}>
+              <Button onClick={handleCPFSubmission} disabled={isPeriodLocked}>
                 <FileText className="w-4 h-4 mr-2" />
-                Submit CPF Contributions
+                {isPeriodLocked ? 'Month finalised' : 'Finalise month'}
               </Button>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="text-sm font-semibold">Payslips · {selectedPeriod}</h3>
+              <Button size="sm" variant="outline" onClick={emailAllPayslips} disabled={emailingPayslips}>
+                {emailingPayslips ? 'Sending…' : 'Email all payslips'}
+              </Button>
+            </div>
+            <div className="divide-y rounded border">
+              {activeFullTime.map(emp => {
+                const net = computeFullTime(emp).calc.netSalary;
+                return (
+                  <div key={emp.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                    <span className="truncate">{emp.displayName || emp.name}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="tabular-nums">S${net.toFixed(2)}</span>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadPayslip(emp)}>
+                        <Download className="w-3.5 h-3.5" />
+                      </Button>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </CardContent>
@@ -2087,29 +2179,34 @@ const PayrollProcessing = () => {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {isPeriodLocked && isSuperadmin && (
+                <Button size="sm" variant="outline" onClick={reopenMonth}>Reopen month</Button>
+              )}
               <Button
                 size="sm"
                 onClick={async () => {
-                  if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
+                  if (confirm('Recalculate pro-rating, leave and slot pay for this month? Your manual edits for this month are kept.')) {
                     await forceRecalculatePayroll(selectedPeriod, true);
                   }
                 }}
                 variant="outline"
                 className="gap-2"
-                disabled={loading}
+                disabled={loading || isPeriodLocked}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 {loading ? 'Recalculating…' : 'Recalculate'}
               </Button>
-              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-3 py-1">
-                1. Review
-              </Badge>
-              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-3 py-1">
-                2. Pay & Bank
-              </Badge>
-              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-3 py-1">
-                3. CPF & Finalise
-              </Badge>
+              {([['processing', '1. Review'], ['payment', '2. Confirm Bank'], ['cpf', '3. CPF, Finalise & Payslips']] as const).map(([key, label], idx) => {
+                const order = ['processing', 'payment', 'cpf'];
+                const blocked = idx > 0 && hasBlockingWarnings(reviewWarnings);
+                return (
+                  <Button key={key} size="sm" variant={currentStep === key ? 'default' : 'secondary'} className="h-7 px-3"
+                    disabled={blocked && order.indexOf(currentStep) < idx}
+                    onClick={() => setCurrentStep(key)}>
+                    {label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         </div>
