@@ -88,6 +88,9 @@ export interface GuardsBranchAdminItem {
   default_price: number;
   is_available: boolean;
   price_override: number | null;
+  min_age?: number | null;
+  max_age?: number | null;
+  allowed_belt_levels?: string[] | null;
 }
 
 /** Items available for purchase on the public page for a branch. */

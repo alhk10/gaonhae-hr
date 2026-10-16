@@ -9365,11 +9365,14 @@ export type Database = {
       get_guards_products_for_branch_admin: {
         Args: { p_branch_id: string }
         Returns: {
+          allowed_belt_levels: string[]
           default_price: number
           description: string
           is_available: boolean
           item_key: string
           item_type: string
+          max_age: number
+          min_age: number
           name: string
           price_override: number
           product_id: string
