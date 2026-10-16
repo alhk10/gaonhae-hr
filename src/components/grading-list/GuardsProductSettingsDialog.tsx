@@ -266,7 +266,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-xs">Item</TableHead>
-                  <TableHead className="hidden sm:table-cell text-xs w-[170px]">Restrictions</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs w-[210px]">Restrictions</TableHead>
                   <TableHead className="text-xs w-[90px]">Default</TableHead>
                   <TableHead className="text-xs w-[120px]">Price</TableHead>
                   <TableHead className="text-xs w-[90px] text-right">Available</TableHead>
