@@ -64,3 +64,10 @@
 - [x] Give narrow screens labelled, readable rows without losing tab-specific controls
 - [x] Make School Fees, Grading, Competitions, Seminars, and Uniforms & Guards flow into structured second lines based on available list width
 - [ ] Verify populated desktop and phone lists and existing actions (blocked: `/access` password and external Supabase session unavailable)
+
+## Payroll overhaul
+
+- [x] Pro-rate joiner/leaver salary by calendar days (override via salary edit)
+- [x] Unpaid leave + excess annual leave deducted; encashment added; overridable per month
+- [x] Inline allowance/deduction editing; leave and claims columns; totals bar; full-width sticky header
+- [ ] Verify with a signed-in payroll login (blocked: external Supabase session unavailable)
