@@ -35,6 +35,7 @@ import { usePayrollPersistence, type HistoricalPayrollResult } from '@/hooks/use
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDate } from '@/utils/dateFormat';
+import { buildPayrollWarnings } from '@/utils/payrollWarnings';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
 const parsePeriod = (period: string) => {
@@ -998,6 +999,14 @@ const PayrollProcessing = () => {
       
       const formattedPeriod = formatPeriodForAPI(selectedPeriod);
       await finalizePayroll(formattedPeriod, userId);
+
+      // Mark approved claims included in this month as paid (idempotent, server-checked)
+      const { data: claimsMarked, error: claimErr } = await (authService as any).rpc('mark_claims_paid_for_payroll', {
+        _employee_ids: allEmployees.filter(e => isEmployedInPeriod(e, selectedPeriod)).map(e => e.id),
+        _month: formattedPeriod,
+      });
+      if (claimErr) toast.error('Payroll locked, but claims could not be marked paid');
+      else if (claimsMarked) toast.success(`${claimsMarked} claim(s) marked as paid`);
       
       setPayrollStatus('completed');
       setIsPeriodLocked(true);
@@ -1121,6 +1130,35 @@ const PayrollProcessing = () => {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Warning strip */}
+        {(() => {
+          const warnings = buildPayrollWarnings(fullTimeEmployees.map((e: any) => {
+            const ft = computeFullTime(e);
+            const adj = monthAdjustments[e.id];
+            return {
+              name: e.displayName || e.name,
+              hasBankDetails: !!(e.bankAccount || allEmployees.find(a => a.id === e.id)?.bankAccount),
+              proRatedDays: ft.proRate ? ft.proRate.days : null,
+              excessLeaveDays: adj?.excessAnnualDays || 0,
+              pendingClaims: (employeeClaims[e.id] || []).filter(c => c.status === 'Pending').length,
+              net: ft.calc.netSalary,
+            };
+          }));
+          if (!warnings.length) return null;
+          return (
+            <Alert className="py-2">
+              <AlertTitle className="text-sm">Check before continuing ({warnings.length})</AlertTitle>
+              <AlertDescription>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {warnings.map((w, i) => (
+                    <Badge key={i} variant={w.level === 'block' ? 'destructive' : 'secondary'} className="text-[11px] font-normal">{w.text}</Badge>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        })()}
 
         {/* Totals bar */}
         {(() => {
