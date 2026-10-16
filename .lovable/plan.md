@@ -27,13 +27,14 @@ Lock the month. Claims included in it are marked as paid. Payslips are generated
 
 ## Leave setup
 - Add an **Unpaid Leave** leave type (none exists today). Staff can then request it through the normal leave process, and payroll deducts it.
+- **Excess annual leave counts as unpaid.** Once someone's approved annual leave for the year goes past their entitlement (base days + service bonus + Monday-holiday days), the extra days in that month are deducted as unpaid leave. For example, with 14 days allowed and 16 taken, 2 days are deducted in the month they went over. The row shows "2 excess AL days" and the amount can be overridden.
 
 ## Speed
 - Load the month in a few combined requests instead of separate queries for each employee.
 - Split the 2,200-line payroll page into smaller pieces so it opens and updates quickly.
 
 ## Technical details
-- New `src/utils/payrollProration.ts`: `proRateSalary(base, joinDate, resignDate, period)` and `unpaidLeaveDeduction(base, days, period)`, both based on calendar days. Tests cover 27/09 resignation = 27/30, a mid-month join, and a full month.
+- New `src/utils/payrollProration.ts`: `proRateSalary(base, joinDate, resignDate, period)`, `unpaidLeaveDeduction(base, days, period)` (both based on calendar days), and `excessAnnualLeaveDays(entitlement, takenBeforeMonth, takenThisMonth)`. The last one counts only the days that go past the entitlement in this month, so later months don't deduct the same days again. Entitlement comes from the existing `calculate_annual_leave_entitlement` RPC. Tests cover 27/09 resignation = 27/30, a mid-month join, a full month, 14 allowed / 16 taken = 2 excess, and no double-counting across months.
 - Payroll inputs per employee: base, proRate, allowances, deductions, approvedClaims, unpaidLeaveDays, encashment. The figures are calculated with the existing `calculateFullTimePayroll` (encashment is already supported). Manual overrides are stored in `payroll_monthly_overrides` (adding fields for `salary_override`, `unpaid_leave_days_override` and `encashment_override` if they are missing).
 - Data loaded per month: employees, approved `leave_requests` overlapping the month, `leave_encashment_records`, approved `claims`, overrides and slot bookings. These run in parallel using react-query.
 - Restructure `PayrollProcessing.tsx` into `ReviewStep`, `ConfirmStep` and `FinaliseStep`, plus an inline `AllowanceCell`. Remove the separate payment step and CPF step pages, and stop using the per-item allowance dialogs.
