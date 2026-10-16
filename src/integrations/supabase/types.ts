@@ -892,6 +892,7 @@ export type Database = {
           description: string
           employee_id: string | null
           id: number
+          paid_in_payroll_month: string | null
           receipt_url: string | null
           reviewed_by: string | null
           reviewed_date: string | null
@@ -906,6 +907,7 @@ export type Database = {
           description: string
           employee_id?: string | null
           id?: number
+          paid_in_payroll_month?: string | null
           receipt_url?: string | null
           reviewed_by?: string | null
           reviewed_date?: string | null
@@ -920,6 +922,7 @@ export type Database = {
           description?: string
           employee_id?: string | null
           id?: number
+          paid_in_payroll_month?: string | null
           receipt_url?: string | null
           reviewed_by?: string | null
           reviewed_date?: string | null
@@ -10333,6 +10336,10 @@ export type Database = {
         Returns: undefined
       }
       login_email_exists: { Args: { p_email: string }; Returns: boolean }
+      mark_claims_paid_for_payroll: {
+        Args: { _employee_ids: string[]; _month: string }
+        Returns: number
+      }
       mark_public_chat_callback_email_sent: {
         Args: { p_id: string }
         Returns: undefined
