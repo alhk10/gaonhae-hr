@@ -79,15 +79,11 @@ const CreditManagement = lazy(() => import('./pages/sales/CreditManagement'));
 const StudentRegistration = lazy(() => import('./pages/StudentRegistration'));
 
 // Public grading payment module
-const PublicGradingPayment = lazy(() => import('./pages/public/PublicGradingPayment'));
-const PublicSchoolFeesPayment = lazy(() => import('./pages/public/PublicSchoolFeesPayment'));
 const PublicGradingList = lazy(() => import('./pages/public/PublicGradingList'));
-const PublicCompetitionPayment = lazy(() => import('./pages/public/PublicCompetitionPayment'));
 const PublicStudioRental = lazy(() => import('./pages/public/PublicStudioRental'));
 const PublicSeminarPayment = lazy(() => import('./pages/public/PublicSeminarPayment'));
 const PublicPerthComp = lazy(() => import('./pages/public/PublicPerthComp'));
 const PublicHelloChat = lazy(() => import('./pages/public/PublicHelloChat'));
-const PublicGuardsPurchase = lazy(() => import('./pages/public/PublicGuardsPurchase'));
 const PublicGuardsPurchaseList = lazy(() => import('./pages/public/PublicGuardsPurchaseList'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 
@@ -135,10 +131,9 @@ const PayrollRoute = ({ permission, children }: { permission?: keyof AdminAccess
   </ProtectedRoute>
 );
 
-// Hostname-aware root: payment.* → /grading, gradinglist.* → /access
+// Hostname-aware root: gradinglist.* → /access
 const HostnameRouter = () => {
   const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  if (host.startsWith('payment.')) return <PublicGradingPayment />;
   if (host.startsWith('gradinglist.')) return <PublicGradingList />;
   return <Index />;
 };
@@ -157,17 +152,12 @@ function App() {
                     {/* Public routes */}
                     <Route path="/" element={<HostnameRouter />} />
                     <Route path="/register" element={<StudentRegistration />} />
-                    <Route path="/grading" element={<PublicGradingPayment />} />
-                    <Route path="/pay" element={<Navigate to="/grading" replace />} />
-                    <Route path="/fees" element={<PublicSchoolFeesPayment />} />
-                    <Route path="/comps" element={<PublicCompetitionPayment />} />
                     <Route path="/rental" element={<PublicStudioRental />} />
                     <Route path="/seminars" element={<PublicSeminarPayment />} />
                     <Route path="/perthcomp" element={<PublicPerthComp />} />
                     <Route path="/access" element={<PublicGradingList />} />
                     <Route path="/grading-list" element={<Navigate to="/access" replace />} />
                     <Route path="/hello" element={<PublicHelloChat />} />
-                    <Route path="/guards" element={<PublicGuardsPurchase />} />
                     <Route path="/guardspurchase-list" element={<Navigate to="/access" replace />} />
                     <Route path="/auth/reset-password" element={<ResetPassword />} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
