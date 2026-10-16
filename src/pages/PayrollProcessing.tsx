@@ -919,7 +919,7 @@ const PayrollProcessing = () => {
   const reopenMonth = async () => {
     if (!confirm('Reopen this month for editing?')) return;
     try {
-      const { year, month } = parsePeriod(selectedPeriod);
+      const { year, monthIndex: month } = parsePeriod(selectedPeriod);
       await updatePayrollLockStatus(`PERIOD_${year}-${String(month).padStart(2, '0')}`, false);
       setIsPeriodLocked(false);
       setPeriodStatus(null);
