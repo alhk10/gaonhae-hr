@@ -26,7 +26,7 @@ export interface PublicPaymentOptions {
 }
 
 export interface PublicGradingListRow {
-  source: 'registration' | 'submission';
+  source: 'registration' | 'submission' | 'hello';
   scorecard?: { label: string; value: string }[] | null;
   submission_id: string | null;
   registration_id: string | null;
