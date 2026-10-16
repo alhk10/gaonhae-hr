@@ -69,11 +69,6 @@ export const loadMonthAdjustments = async (
       const inMonth = leaveDaysInPeriod(r, period);
       if (isAnnual(r.type)) {
         annualMonth += inMonth;
-        // days of this year before the month
-        if (r.start_date < start) {
-          const before = leaveDaysInPeriod({ ...r, end_date: r.end_date }, `${year}-01`) * 0; // placeholder, computed below
-          void before;
-        }
       } else if (isUnpaid(r.type)) unpaid += inMonth;
       else other += inMonth;
     }
