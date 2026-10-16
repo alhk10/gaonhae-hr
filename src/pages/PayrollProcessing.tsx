@@ -740,6 +740,7 @@ const PayrollProcessing = () => {
       return;
     }
 
+    refetchAdjustments();
     // Update local state
     setAllEmployees(prev => prev.map(emp => 
       emp.id === editSalaryDialog.employeeId 
@@ -2029,13 +2030,12 @@ const PayrollProcessing = () => {
 
   return (
     <ResponsiveLayout>
-      <div className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-lg border">
-          <div className="flex items-center justify-between">
+      <div className="space-y-4 w-full max-w-none">
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b -mx-2 px-2 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <p className="text-gray-600">Process payroll for {selectedPeriod}</p>
+              <h1 className="text-xl font-semibold">Payroll · {selectedPeriod}</h1>
+              <div className="flex items-center gap-2 mt-0.5">
                 {isPeriodLocked && (
                   <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
                     🔒 Locked
@@ -2048,8 +2048,9 @@ const PayrollProcessing = () => {
                 </p>
               )}
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
+                size="sm"
                 onClick={async () => {
                   if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
                     await forceRecalculatePayroll(selectedPeriod, true);
@@ -2060,16 +2061,16 @@ const PayrollProcessing = () => {
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'Recalculating...' : 'Force Recalculate'}
+                {loading ? 'Recalculating…' : 'Recalculate'}
               </Button>
-              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
-                1. Processing
+              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-3 py-1">
+                1. Review
               </Badge>
-              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-4 py-2">
-                2. Payment
+              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-3 py-1">
+                2. Pay & Bank
               </Badge>
-              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-4 py-2">
-                3. CPF
+              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-3 py-1">
+                3. CPF & Finalise
               </Badge>
             </div>
           </div>
