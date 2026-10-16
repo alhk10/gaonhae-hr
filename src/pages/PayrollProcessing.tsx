@@ -1,3 +1,4 @@
+import { isEmployedInPeriod } from '@/utils/payrollEmployment';
 import React, { useState, useEffect } from 'react';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -987,7 +988,7 @@ const PayrollProcessing = () => {
     // CRITICAL FIX: Merge employee data with calculated payroll data safely
     // Filter out resigned employees from the processing view
     const fullTimeEmployeeData = allEmployees
-      .filter(emp => emp.type === 'Full-Time' && !emp.resignDate) // Exclude resigned employees
+      .filter(emp => emp.type === 'Full-Time' && isEmployedInPeriod(emp, selectedPeriod)) // Exclude resigned employees
       .map(emp => {
         const payrollData = payrollState.fullTimeEmployees.find(pe => pe.employeeId === emp.id);
         // Only merge specific calculated fields, don't overwrite arrays
@@ -1004,7 +1005,7 @@ const PayrollProcessing = () => {
       });
     
     const casualEmployeeData = allEmployees
-      .filter(emp => emp.type === 'Casual' && !emp.resignDate) // Exclude resigned employees
+      .filter(emp => emp.type === 'Casual' && isEmployedInPeriod(emp, selectedPeriod)) // Exclude resigned employees
       .map(emp => {
         const payrollData = payrollState.casualEmployees.find(pe => pe.employeeId === emp.id);
         // Only merge specific calculated fields, preserve employee structure
@@ -1027,7 +1028,7 @@ const PayrollProcessing = () => {
     const casualEmployees = casualEmployeeData;
     
     // Filter allEmployees for summary cards to show only active employees
-    const activeEmployeesCount = allEmployees.filter(emp => !emp.resignDate).length;
+    const activeEmployeesCount = allEmployees.filter(emp => isEmployedInPeriod(emp, selectedPeriod)).length;
     
     console.log('DEBUG PayrollProcessing: Full-time employees with payroll:', fullTimeEmployees.length);
     console.log('DEBUG PayrollProcessing: Casual employees with payroll:', casualEmployees.length);
@@ -1582,7 +1583,7 @@ const PayrollProcessing = () => {
         seenFullTimeIds.add(empId);
         
         const employeeInfo = allEmployees.find(e => e.id === empId);
-        return employeeInfo && !employeeInfo.resignDate;
+        return isEmployedInPeriod(employeeInfo, selectedPeriod);
       })
       .map(emp => {
         const empId = emp.employeeId || emp.id;
@@ -1632,7 +1633,7 @@ const PayrollProcessing = () => {
         
         // Check if the employee exists in allEmployees and is not resigned
         const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
-        return employeeInfo && !employeeInfo.resignDate;
+        return isEmployedInPeriod(employeeInfo, selectedPeriod);
       })
       .map(emp => {
         const employeeInfo = allEmployees.find(e => e.id === emp.employeeId);
@@ -1821,7 +1822,7 @@ const PayrollProcessing = () => {
     const cpfEligibleEmployees = allEmployees
       .filter(emp => {
         // Filter out resigned employees
-        if (emp.resignDate) return false;
+        if (!isEmployedInPeriod(emp, selectedPeriod)) return false;
         
         // Filter for CPF eligible residency status only
         const isEligible = cpfEligibleResidencyStatuses.some(status => 
