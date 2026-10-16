@@ -945,15 +945,17 @@ const PayrollProcessing = () => {
         } else if (fullTimePayroll) {
           // Recompute using merged override allowances/deductions so the saved snapshot
           // matches the values displayed on the Processing/Payment screens
-          const effectiveEmployee = {
-            ...employee,
-            // Honour empty per-month overrides (cleared lists must stay cleared).
-            allowances: employeeId in employeeAllowances ? (allowances as any) : (employee.allowances || []),
-            deductions: employeeId in employeeDeductions ? (deductions as any) : (employee.deductions || []),
-          };
-          const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
+          const ft = computeFullTime(employee);
+          const recalc = ft.calc;
+          const adjInfo = monthAdjustments[employeeId];
           payrollDataToSave = {
             ...payrollDataToSave,
+            baseSalary: ft.employee.baseSalary,
+            contractBaseSalary: ft.contractBase,
+            proRatedDays: ft.proRate ? ft.proRate.days : null,
+            unpaidLeaveDays: adjInfo?.totalUnpaidDays || 0,
+            unpaidLeaveDeduction: ft.unpaidDeduction,
+            encashmentAmount: ft.encashment,
             grossSalary: recalc.grossSalary,
             employeeCPF: recalc.employeeCPF,
             employerCPF: recalc.employerCPF,
@@ -1650,9 +1652,7 @@ const PayrollProcessing = () => {
             : (employeeInfo.deductions || []),
         } : null;
         
-        const recalculated = effectiveEmployee
-          ? calculateFullTimePayroll(effectiveEmployee as any, 0, 0)
-          : null;
+        const recalculated = employeeInfo ? computeFullTime(employeeInfo).calc : null;
         
         const netPay = recalculated ? recalculated.netSalary : (emp.netPay || 0);
         const grossSalary = recalculated ? recalculated.grossSalary : (emp.grossPay || employeeInfo?.baseSalary || 0);
@@ -1896,16 +1896,18 @@ const PayrollProcessing = () => {
         
         // Get gross pay (base salary for full-time, slot booking pay for casual)
         let grossPay = 0;
+        let ftCalc: any = null;
         if (emp.type === 'Full-Time') {
-          grossPay = emp.baseSalary || 0;
+          ftCalc = computeFullTime(emp).calc;
+          grossPay = ftCalc.grossSalary;
         } else {
           // For casual employees, use slot booking pay (gross pay)
           grossPay = casualData?.grossPay || casualData?.totalPay || 0;
         }
         
         // Get CPF values - handle both FullTimeEmployee (cpfEmployee/cpfEmployer) and CasualEmployee (employeeCPF/employerCPF)
-        const employeeCPF = (payrollInfo as any)?.cpfEmployee || (payrollInfo as any)?.employeeCPF || 0;
-        const employerCPF = (payrollInfo as any)?.cpfEmployer || (payrollInfo as any)?.employerCPF || 0;
+        const employeeCPF = ftCalc ? ftCalc.employeeCPF : ((payrollInfo as any)?.cpfEmployee || (payrollInfo as any)?.employeeCPF || 0);
+        const employerCPF = ftCalc ? ftCalc.employerCPF : ((payrollInfo as any)?.cpfEmployer || (payrollInfo as any)?.employerCPF || 0);
         
         return {
           id: emp.id,
