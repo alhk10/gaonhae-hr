@@ -362,7 +362,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         invoiceItemIds.length > 0
           ? supabase
               .from('invoice_items')
-              .select('id, invoice_id, invoices!inner(id, status)')
+              .select('id, invoice_id, description, invoices!inner(id, status)')
               .in('id', invoiceItemIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
@@ -376,7 +376,9 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       ((slotsResult.data as any[]) || []).forEach((s: any) => { slotMap[s.id] = s; });
 
       const gradingItemStatusMap: Record<string, string> = {};
+      const gradingItemNameMap: Record<string, string> = {};
       ((gradingItemsResult.data as any[]) || []).forEach((ii: any) => {
+        gradingItemNameMap[ii.id] = ii.description || '';
         gradingItemStatusMap[ii.id] = (ii.invoices as any)?.status || 'draft';
       });
 
@@ -425,7 +427,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             : [],
           student_status: student.status || null,
           date_of_birth: student.date_of_birth || null,
-          grading_fee_name: (reg.invoice_item_id && itemToInvoice[reg.invoice_item_id]?.description) || fallbackByStudent[reg.student_id]?.description || null,
+          grading_fee_name: (reg.invoice_item_id && gradingItemNameMap[reg.invoice_item_id]) || null,
         });
       }
 
