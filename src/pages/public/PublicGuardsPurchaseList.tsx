@@ -314,6 +314,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                             onOpen={setProfileId}
                             className="font-medium"
                           />
+                          {r.notes === 'Ordered via /hello' && <span className="ml-1 rounded bg-secondary px-1 text-[9px] text-secondary-foreground">Hello</span>}
                           <SubmissionFlagBadges flag={guardFlags?.[r.id]} />
                           {r.invoice_id && (
                             <div className="text-[10px]">
