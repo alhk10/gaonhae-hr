@@ -248,7 +248,18 @@ const InvoiceActionApprovals: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
     } catch (error: any) {
-      toast.error(`Failed to approve: ${error.message}`);
+      const msg = String(error?.message || '');
+      if (/already (been )?(refunded|cancelled)|not found/i.test(msg)) {
+        // The change was already made by another request — close this one quietly.
+        await supabase.from('invoice_action_requests')
+          .update({ status: 'superseded', reviewed_at: new Date().toISOString(), reviewed_by: 'system: duplicate' } as any)
+          .eq('id', request.id);
+        toast.info('Already done by an earlier request — removed from the list');
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
+        return;
+      }
+      toast.error(`Failed to approve: ${msg}`);
     } finally {
       setProcessingId(null);
     }
