@@ -70,6 +70,7 @@ interface GradingListStudent {
   scorecard: ScorecardRow[];
   student_status?: string | null;
   date_of_birth?: string | null;
+  grading_fee_name?: string | null;
 }
 
 type CompletionFilter = 'all' | 'missing' | 'ready_print' | 'yet_to_receive';
@@ -338,7 +339,7 @@ const GradingListTab: React.FC = () => {
         slotIds.length > 0 ? supabase
           .from('grading_slots').select('id, title, grading_date').in('id', slotIds) : Promise.resolve({ data: [] }),
         invoiceItemIds.length > 0 ? supabase
-          .from('invoice_items').select('id, invoice_id, invoices!inner(id, status, branch_id)').in('id', invoiceItemIds) : Promise.resolve({ data: [] }),
+          .from('invoice_items').select('id, invoice_id, description, invoices!inner(id, status, branch_id)').in('id', invoiceItemIds) : Promise.resolve({ data: [] }),
       ]);
 
       const attendanceCountMap: Record<string, number> = {};
@@ -349,20 +350,20 @@ const GradingListTab: React.FC = () => {
       const slotMap: Record<string, any> = {};
       (slotsResult.data || []).forEach((s: any) => { slotMap[s.id] = s; });
 
-      const itemToInvoice: Record<string, { status: string; invoice_id: string }> = {};
+      const itemToInvoice: Record<string, { status: string; invoice_id: string; description?: string }> = {};
       (gradingItemsResult.data || []).forEach((ii: any) => {
         const inv = ii.invoices as any;
-        itemToInvoice[ii.id] = { status: inv?.status || 'draft', invoice_id: inv?.id || ii.invoice_id };
+        itemToInvoice[ii.id] = { status: inv?.status || 'draft', invoice_id: inv?.id || ii.invoice_id, description: ii.description };
       });
 
       const regsMissingItem = branchScopedRegs.filter(r => !r.invoice_item_id && r.grading_slot_id);
-      const fallbackByStudent: Record<string, { status: string; invoice_id: string }> = {};
+      const fallbackByStudent: Record<string, { status: string; invoice_id: string; description?: string }> = {};
       if (regsMissingItem.length > 0) {
         const fallbackSlotIds = [...new Set(regsMissingItem.map(r => r.grading_slot_id!))];
         const fallbackStudentIds = [...new Set(regsMissingItem.map(r => r.student_id))];
         const { data: fbItems } = await supabase
           .from('invoice_items')
-          .select('id, metadata, invoices!inner(id, status, branch_id, student_id)')
+          .select('id, metadata, description, invoices!inner(id, status, branch_id, student_id)')
           .in('invoices.student_id', fallbackStudentIds)
           .eq('invoices.branch_id', selectedBranch);
         (fbItems || []).forEach((it: any) => {
@@ -374,7 +375,7 @@ const GradingListTab: React.FC = () => {
           const status = (it.invoices as any)?.status || 'draft';
           const existing = fallbackByStudent[studentId];
           if (!existing || (['paid', 'verified'].includes(status) && !['paid', 'verified'].includes(existing.status))) {
-            fallbackByStudent[studentId] = { status, invoice_id: (it.invoices as any).id };
+            fallbackByStudent[studentId] = { status, invoice_id: (it.invoices as any).id, description: it.description };
           }
         });
       }
@@ -429,6 +430,7 @@ const GradingListTab: React.FC = () => {
             : [],
           student_status: student.status || null,
           date_of_birth: student.date_of_birth || null,
+          grading_fee_name: (reg.invoice_item_id && itemToInvoice[reg.invoice_item_id]?.description) || fallbackByStudent[reg.student_id]?.description || null,
         });
       }
 
@@ -614,6 +616,7 @@ const GradingListTab: React.FC = () => {
         scorecard: student.scorecard,
         result: student.result === 'pass' || student.result === 'double' || student.result === 'fail' ? student.result : null,
         columnOrder: scorecardColumns.map(c => c.label),
+        gradingFeeName: student.grading_fee_name,
       },
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
@@ -648,7 +651,7 @@ const GradingListTab: React.FC = () => {
     const eligibleStudents: GradingListStudent[] = [];
     let skipped = 0;
     rows.forEach(student => {
-      const beltInRange = isFoundationToBlackTip(student.current_belt);
+      const beltInRange = !!student.current_belt;
       const result = student.result;
       const isPass = result === 'pass';
       const isDouble = result === 'double';
@@ -662,6 +665,7 @@ const GradingListTab: React.FC = () => {
         scorecard: student.scorecard,
         result: isDouble ? 'double' : 'pass',
         columnOrder: scorecardColumns.map(c => c.label),
+        gradingFeeName: student.grading_fee_name,
       });
       if (isDouble) {
         const secondBelt = getNextBeltLevel(baseBelt, 'Australia');
@@ -673,6 +677,7 @@ const GradingListTab: React.FC = () => {
             scorecard: student.scorecard,
             result: 'double',
             columnOrder: scorecardColumns.map(c => c.label),
+            gradingFeeName: student.grading_fee_name,
           });
         }
       }
@@ -891,7 +896,7 @@ const GradingListTab: React.FC = () => {
                     const result = student.result;
                     const ready = displayReady(student);
                     const isSelected = selectedIds.has(student.student_id);
-                    const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+                    const beltInRange = !!(student.target_belt || student.current_belt);
                     const canViewCertificate = (result === 'pass' || result === 'double') && beltInRange;
                     const canViewCertificateII = result === 'double' && beltInRange;
                     const certDisabled = !isMorley;

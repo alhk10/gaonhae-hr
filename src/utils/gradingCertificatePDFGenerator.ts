@@ -24,11 +24,7 @@ import masterSignatureAU from '@/assets/certificates/au/master-signature.jpg';
 import masterSignatureSG from '@/assets/certificates/sg/master-signature.png';
 import gaonhaeLogoTransparent from '@/assets/certificates/gaonhae-logo-transparent.png';
 import poomDanBg from '@/assets/certificates/poom-dan-bg.jpg';
-import flagKR from '@/assets/certificates/flag-kr.png';
-import flagSG from '@/assets/certificates/flag-sg.png';
-import flagAU from '@/assets/certificates/flag-au.png';
-import taekwondoVertical from '@/assets/certificates/taekwondo-vertical.png';
-import { isPoomDanRank, poomDanRankLabel, splitOrdinal } from '@/utils/poomDanCertificate';
+import { isPoomDanRank, resolvePoomDanRank, splitOrdinal } from '@/utils/poomDanCertificate';
 
 import {
   ScorecardRow,
@@ -53,6 +49,10 @@ export interface GradingCertificateInput {
    * original relative order.
    */
   columnOrder?: string[];
+  /** Paid grading fee name, e.g. "Black Tip >> 1st Dan"; decides Poom vs Dan. */
+  gradingFeeName?: string | null;
+  /** Explicit rank override for the Poom/Dan certificate. */
+  rankAchieved?: string | null;
 }
 
 const A4_W = 210;
@@ -113,15 +113,9 @@ const drawPoomDanCertificatePage = (doc: jsPDF, input: GradingCertificateInput) 
   // Thin inner frame
   doc.setDrawColor(215, 215, 215); doc.setLineWidth(0.3);
   doc.rect(8, 8, A4_W - 16, A4_H - 16);
-  // Flags (small) and logo
-  const fw = 26, fh = fw * 271 / 400;
-  doc.addImage(flagKR, 'PNG', 14, 14, fw, fh, undefined, 'FAST');
-  doc.addImage(isSG ? flagSG : flagAU, 'PNG', A4_W - 14 - fw, 14, fw, fh, undefined, 'FAST');
+  // Logo
   const logoW = 62, logoH = 33;
   doc.addImage(gaonhaeLogoTransparent, 'PNG', cx - logoW / 2, 18, logoW, logoH, undefined, 'FAST');
-  // Vertical 태권도
-  doc.addImage(taekwondoVertical, 'PNG', 16, 178, 26, 78, undefined, 'FAST');
-
   // Title
   doc.setFont('helvetica', 'bold'); doc.setFontSize(40); doc.setTextColor(25, 25, 25);
   doc.text('CERTIFICATE', cx, 78, { align: 'center' });
@@ -148,7 +142,7 @@ const drawPoomDanCertificatePage = (doc: jsPDF, input: GradingCertificateInput) 
   doc.text('who has successfully achieved', cx, afterName + 16, { align: 'center' });
 
   // Rank with raised ordinal
-  const rank = poomDanRankLabel(input.beltAchieved);
+  const rank = input.rankAchieved || resolvePoomDanRank(input.beltAchieved, input.gradingFeeName);
   const rankY = afterName + 34;
   doc.setTextColor(20, 20, 20);
   const parts = rank.split(' / ').map(p => p.trim());
