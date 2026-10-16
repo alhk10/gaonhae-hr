@@ -230,7 +230,8 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
           <DialogTitle className="text-base">Uniforms &amp; Guards availability</DialogTitle>
           <DialogDescription className="text-xs">
             Controls which packages and products appear on the public /guards page for a branch and
-            the price charged (GST inclusive). Leave the price blank to use the default price.
+            the price charged (GST inclusive). Leave the price blank to use the default price. Age and
+            belt limits apply to the product at every branch; leave blank / All belts for no limit.
           </DialogDescription>
         </DialogHeader>
 
@@ -273,7 +274,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
               </TableHeader>
               <TableBody>
                 {(items as GuardsBranchAdminItem[]).map((p) => {
-                  const d = draft[p.item_key] || { available: false, price: '' };
+                  const d = draft[p.item_key] || initialDraft(p);
                   return (
                     <TableRow key={p.item_key} className={d.available ? '' : 'opacity-60'}>
                       <TableCell className="text-xs py-1.5">
@@ -286,11 +287,10 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
                         {p.description && (
                           <p className="text-[11px] text-muted-foreground">{p.description}</p>
                         )}
-                        <p className="sm:hidden text-[11px] text-muted-foreground">{ageText(p)} · {beltText(p)}</p>
+                        <div className="sm:hidden mt-1">{renderRestrictionEditor(p, d)}</div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-[11px] py-1.5 text-muted-foreground">
-                        <div>{ageText(p)}</div>
-                        <div title={(p.allowed_belt_levels || []).join(', ')}>{beltText(p)}</div>
+                      <TableCell className="hidden sm:table-cell py-1.5">
+                        {renderRestrictionEditor(p, d)}
                       </TableCell>
                       <TableCell className="text-xs py-1.5 text-muted-foreground">
                         {formatCurrency(p.default_price)}
