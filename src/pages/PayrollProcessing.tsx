@@ -1,5 +1,10 @@
 import { isEmployedInPeriod } from '@/utils/payrollEmployment';
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { loadMonthAdjustments, applyMonthAdjustment, saveLeaveOverride } from '@/services/payrollAdjustmentsService';
+import InlineItemsCell from '@/components/payroll/InlineItemsCell';
+import LeaveCell from '@/components/payroll/LeaveCell';
+import { formatCurrency as fmtMoney } from '@/utils/currencyUtils';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -827,6 +832,49 @@ const PayrollProcessing = () => {
       .reduce((sum, claim) => sum + claim.amount, 0);
     
     return total;
+  };
+
+  // Month-level leave / pro-ration adjustments (loaded in parallel, cached per month)
+  const adjEmployees = allEmployees.filter(e => isEmployedInPeriod(e, selectedPeriod));
+  const { data: monthAdjustments = {}, refetch: refetchAdjustments } = useQuery({
+    queryKey: ['payroll-month-adjustments', selectedPeriod, adjEmployees.map(e => e.id).join(',')],
+    queryFn: () => loadMonthAdjustments(selectedPeriod, adjEmployees),
+    enabled: adjEmployees.length > 0,
+    staleTime: 60_000,
+  });
+
+  /** Effective calculation for a full-time employee, matching every step. */
+  const computeFullTime = (employee: any) => {
+    const allowances = employeeAllowances[employee.id] || [];
+    const deductions = employeeDeductions[employee.id] || [];
+    const merged = {
+      ...employee,
+      allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+      deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
+    };
+    const adj = applyMonthAdjustment(merged, monthAdjustments[employee.id], selectedPeriod);
+    const approvedClaims = getApprovedClaimsTotal(employee.id);
+    const calc = calculateFullTimePayroll(adj.employee as any, approvedClaims, adj.encashment);
+    return { ...adj, calc, approvedClaims, allowances, deductions };
+  };
+
+  const saveItemsOverride = async (kind: 'allowances' | 'deductions', employeeId: string, items: any[]) => {
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    const clean = items.map(i => ({ name: i.name, amount: Number(i.amount), type: i.type || 'Fixed' }));
+    const { error } = await upsertMonthlyOverride(employeeId, year, month, { [kind]: clean });
+    if (error) { toast.error(`Could not save ${kind}`); throw error; }
+    const withIds = clean.map((c, idx) => ({ ...c, id: idx, employee_id: employeeId }));
+    if (kind === 'allowances') setEmployeeAllowances(prev => ({ ...prev, [employeeId]: withIds }));
+    else setEmployeeDeductions(prev => ({ ...prev, [employeeId]: withIds }));
+    toast.success('Saved for this month');
+  };
+
+  const saveLeave = async (employeeId: string, v: { unpaid: number | null; encashment: number | null }) => {
+    try {
+      await saveLeaveOverride(employeeId, selectedPeriod, { unpaid_leave_days_override: v.unpaid, encashment_override: v.encashment });
+      await refetchAdjustments();
+      toast.success('Leave updated for this month');
+    } catch { toast.error('Could not save leave'); throw new Error('save failed'); }
   };
 
 
