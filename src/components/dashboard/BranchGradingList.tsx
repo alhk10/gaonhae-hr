@@ -73,6 +73,7 @@ interface GradingListStudent {
   scorecard: ScorecardRow[];
   student_status?: string | null;
   date_of_birth?: string | null;
+  grading_fee_name?: string | null;
 }
 
 type CompletionFilter = 'all' | 'missing' | 'ready_print' | 'yet_to_receive';
@@ -361,7 +362,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         invoiceItemIds.length > 0
           ? supabase
               .from('invoice_items')
-              .select('id, invoice_id, invoices!inner(id, status)')
+              .select('id, invoice_id, description, invoices!inner(id, status)')
               .in('id', invoiceItemIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
@@ -375,7 +376,9 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
       ((slotsResult.data as any[]) || []).forEach((s: any) => { slotMap[s.id] = s; });
 
       const gradingItemStatusMap: Record<string, string> = {};
+      const gradingItemNameMap: Record<string, string> = {};
       ((gradingItemsResult.data as any[]) || []).forEach((ii: any) => {
+        gradingItemNameMap[ii.id] = ii.description || '';
         gradingItemStatusMap[ii.id] = (ii.invoices as any)?.status || 'draft';
       });
 
@@ -424,6 +427,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             : [],
           student_status: student.status || null,
           date_of_birth: student.date_of_birth || null,
+          grading_fee_name: (reg.invoice_item_id && gradingItemNameMap[reg.invoice_item_id]) || null,
         });
       }
 
@@ -615,6 +619,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         scorecard: student.scorecard,
         result: student.result === 'pass' || student.result === 'double' || student.result === 'fail' ? student.result : null,
         columnOrder: scorecardColumns.map(c => c.label),
+        gradingFeeName: student.grading_fee_name,
       },
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
@@ -649,7 +654,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
     const eligibleStudents: GradingListStudent[] = [];
     let skipped = 0;
     rows.forEach(student => {
-      const beltInRange = isFoundationToBlackTip(student.current_belt);
+      const beltInRange = !!student.current_belt;
       const result = student.result;
       const isPass = result === 'pass';
       const isDouble = result === 'double';
@@ -663,6 +668,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         scorecard: student.scorecard,
         result: isDouble ? 'double' : 'pass',
         columnOrder: scorecardColumns.map(c => c.label),
+        gradingFeeName: student.grading_fee_name,
       });
       if (isDouble) {
         const secondBelt = getNextBeltLevel(baseBelt, 'Australia');
@@ -674,6 +680,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
             scorecard: student.scorecard,
             result: 'double',
             columnOrder: scorecardColumns.map(c => c.label),
+            gradingFeeName: student.grading_fee_name,
           });
         }
       }
@@ -954,7 +961,7 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
                       const isSelected = selectedIds.has(student.student_id);
                       // Phase 1 cert eligibility: pass/double + Foundation→Black Tip range.
                       // Non-Morley branches still see the icon (disabled with tooltip).
-                      const beltInRange = isFoundationToBlackTip(student.target_belt || student.current_belt);
+                      const beltInRange = !!(student.target_belt || student.current_belt);
                       const canViewCertificate = (result === 'pass' || result === 'double') && beltInRange;
                       const canViewCertificateII = result === 'double' && beltInRange;
                       const certDisabled = !isMorley;
