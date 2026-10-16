@@ -862,7 +862,7 @@ const PayrollProcessing = () => {
     return { ...adj, calc, approvedClaims, allowances, deductions };
   };
 
-  const isSuperadmin = useIsSuperadminUser();
+  const { isSuperadmin } = useIsSuperadminUser();
   const [emailingPayslips, setEmailingPayslips] = useState(false);
   const activeFullTime = allEmployees.filter(e => e.type !== 'Casual' && isEmployedInPeriod(e, selectedPeriod));
   const reviewWarnings = buildPayrollWarnings(activeFullTime.map((e: any) => {
@@ -919,8 +919,8 @@ const PayrollProcessing = () => {
   const reopenMonth = async () => {
     if (!confirm('Reopen this month for editing?')) return;
     try {
-      const { formatted, year } = parsePeriod(selectedPeriod) as any;
-      await updatePayrollLockStatus(`PERIOD_${year}-${String(formatted).padStart(2, '0')}`, false);
+      const { year, month } = parsePeriod(selectedPeriod);
+      await updatePayrollLockStatus(`PERIOD_${year}-${String(month).padStart(2, '0')}`, false);
       setIsPeriodLocked(false);
       setPeriodStatus(null);
       toast.success('Month reopened');
