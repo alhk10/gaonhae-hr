@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+declare const describe: any, it: any, expect: any;
 import { parseDeadline, splitDeadline, isPastDeadline } from './competitionDeadline';
 
 describe('competition deadline', () => {
