@@ -4355,9 +4355,11 @@ export type Database = {
           created_at: string | null
           deductions: Json | null
           employee_id: string
+          encashment_override: number | null
           hourly_rate: number | null
           id: string
           month: string
+          unpaid_leave_days_override: number | null
           updated_at: string | null
           year: number
         }
@@ -4367,9 +4369,11 @@ export type Database = {
           created_at?: string | null
           deductions?: Json | null
           employee_id: string
+          encashment_override?: number | null
           hourly_rate?: number | null
           id?: string
           month: string
+          unpaid_leave_days_override?: number | null
           updated_at?: string | null
           year: number
         }
@@ -4379,9 +4383,11 @@ export type Database = {
           created_at?: string | null
           deductions?: Json | null
           employee_id?: string
+          encashment_override?: number | null
           hourly_rate?: number | null
           id?: string
           month?: string
+          unpaid_leave_days_override?: number | null
           updated_at?: string | null
           year?: number
         }

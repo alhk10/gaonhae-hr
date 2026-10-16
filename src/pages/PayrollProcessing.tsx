@@ -1,5 +1,10 @@
 import { isEmployedInPeriod } from '@/utils/payrollEmployment';
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { loadMonthAdjustments, applyMonthAdjustment, saveLeaveOverride } from '@/services/payrollAdjustmentsService';
+import InlineItemsCell from '@/components/payroll/InlineItemsCell';
+import LeaveCell from '@/components/payroll/LeaveCell';
+import { formatCurrency as fmtMoney } from '@/utils/currencyUtils';
 import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -735,6 +740,7 @@ const PayrollProcessing = () => {
       return;
     }
 
+    refetchAdjustments();
     // Update local state
     setAllEmployees(prev => prev.map(emp => 
       emp.id === editSalaryDialog.employeeId 
@@ -829,6 +835,49 @@ const PayrollProcessing = () => {
     return total;
   };
 
+  // Month-level leave / pro-ration adjustments (loaded in parallel, cached per month)
+  const adjEmployees = allEmployees.filter(e => isEmployedInPeriod(e, selectedPeriod));
+  const { data: monthAdjustments = {}, refetch: refetchAdjustments } = useQuery({
+    queryKey: ['payroll-month-adjustments', selectedPeriod, adjEmployees.map(e => e.id).join(',')],
+    queryFn: () => loadMonthAdjustments(selectedPeriod, adjEmployees),
+    enabled: adjEmployees.length > 0,
+    staleTime: 60_000,
+  });
+
+  /** Effective calculation for a full-time employee, matching every step. */
+  const computeFullTime = (employee: any) => {
+    const allowances = employeeAllowances[employee.id] || [];
+    const deductions = employeeDeductions[employee.id] || [];
+    const merged = {
+      ...employee,
+      allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
+      deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
+    };
+    const adj = applyMonthAdjustment(merged, monthAdjustments[employee.id], selectedPeriod);
+    const approvedClaims = getApprovedClaimsTotal(employee.id);
+    const calc = calculateFullTimePayroll(adj.employee as any, approvedClaims, adj.encashment);
+    return { ...adj, calc, approvedClaims, allowances, deductions };
+  };
+
+  const saveItemsOverride = async (kind: 'allowances' | 'deductions', employeeId: string, items: any[]) => {
+    const { year, formatted: month } = parsePeriod(selectedPeriod);
+    const clean = items.map(i => ({ name: i.name, amount: Number(i.amount), type: i.type || 'Fixed' }));
+    const { error } = await upsertMonthlyOverride(employeeId, year, month, { [kind]: clean });
+    if (error) { toast.error(`Could not save ${kind}`); throw error; }
+    const withIds = clean.map((c, idx) => ({ ...c, id: idx, employee_id: employeeId }));
+    if (kind === 'allowances') setEmployeeAllowances(prev => ({ ...prev, [employeeId]: withIds }));
+    else setEmployeeDeductions(prev => ({ ...prev, [employeeId]: withIds }));
+    toast.success('Saved for this month');
+  };
+
+  const saveLeave = async (employeeId: string, v: { unpaid: number | null; encashment: number | null }) => {
+    try {
+      await saveLeaveOverride(employeeId, selectedPeriod, { unpaid_leave_days_override: v.unpaid, encashment_override: v.encashment });
+      await refetchAdjustments();
+      toast.success('Leave updated for this month');
+    } catch { toast.error('Could not save leave'); throw new Error('save failed'); }
+  };
+
 
   const handleProcessPayment = async () => {
     try {
@@ -897,15 +946,17 @@ const PayrollProcessing = () => {
         } else if (fullTimePayroll) {
           // Recompute using merged override allowances/deductions so the saved snapshot
           // matches the values displayed on the Processing/Payment screens
-          const effectiveEmployee = {
-            ...employee,
-            // Honour empty per-month overrides (cleared lists must stay cleared).
-            allowances: employeeId in employeeAllowances ? (allowances as any) : (employee.allowances || []),
-            deductions: employeeId in employeeDeductions ? (deductions as any) : (employee.deductions || []),
-          };
-          const recalc = calculateFullTimePayroll(effectiveEmployee as any, approvedClaims, 0);
+          const ft = computeFullTime(employee);
+          const recalc = ft.calc;
+          const adjInfo = monthAdjustments[employeeId];
           payrollDataToSave = {
             ...payrollDataToSave,
+            baseSalary: ft.employee.baseSalary,
+            contractBaseSalary: ft.contractBase,
+            proRatedDays: ft.proRate ? ft.proRate.days : null,
+            unpaidLeaveDays: adjInfo?.totalUnpaidDays || 0,
+            unpaidLeaveDeduction: ft.unpaidDeduction,
+            encashmentAmount: ft.encashment,
             grossSalary: recalc.grossSalary,
             employeeCPF: recalc.employeeCPF,
             employerCPF: recalc.employerCPF,
@@ -1035,7 +1086,7 @@ const PayrollProcessing = () => {
     console.log('DEBUG PayrollProcessing: Payroll data:', payrollData);
     
     return (
-      <div className="space-y-8">
+      <div className="space-y-4">
         {/* Payroll Period Selector */}
         <PayrollPeriodSelector 
           selectedPeriod={selectedPeriod}
@@ -1071,218 +1122,130 @@ const PayrollProcessing = () => {
           </Alert>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="w-8 h-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-blue-600">Active Employees</p>
-                  <p className="text-2xl font-bold text-blue-900">{activeEmployeesCount}</p>
+        {/* Totals bar */}
+        {(() => {
+          const ft = fullTimeEmployees.map(computeFullTime);
+          const casualNet = casualEmployees.reduce((s, e: any) => s + Number(e.totalPay || e.netPay || 0), 0);
+          const casualGross = casualEmployees.reduce((s, e: any) => s + Number(e.grossPay || 0), 0);
+          const casualCpf = casualEmployees.reduce((s, e: any) => s + Number(e.employeeCPF || e.cpfEmployee || 0) + Number(e.employerCPF || e.cpfEmployer || 0), 0);
+          const totals = [
+            { label: 'Staff', value: String(activeEmployeesCount) },
+            { label: 'Gross', value: fmtMoney(ft.reduce((s, x) => s + x.calc.grossSalary, 0) + casualGross) },
+            { label: 'Claims', value: fmtMoney(ft.reduce((s, x) => s + x.approvedClaims, 0)) },
+            { label: 'CPF (total)', value: fmtMoney(ft.reduce((s, x) => s + x.calc.totalCPF, 0) + casualCpf) },
+            { label: 'Net to pay', value: fmtMoney(ft.reduce((s, x) => s + x.calc.netSalary, 0) + casualNet), strong: true },
+          ];
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {totals.map(t => (
+                <div key={t.label} className="rounded-md border bg-card px-3 py-2">
+                  <p className="text-[11px] text-muted-foreground">{t.label}</p>
+                  <p className={t.strong ? 'text-lg font-semibold text-primary' : 'text-lg font-semibold'}>{t.value}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <DollarSign className="w-8 h-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-green-600">Total Payroll</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0) + 
-                        payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0)).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Calculator className="w-8 h-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-purple-600">Total CPF</p>
-                  <p className="text-2xl font-bold text-purple-900">
-                    S${(
-                      payrollState.fullTimeEmployees.reduce((sum, emp) => sum + (emp.cpfEmployer || 0) + (emp.cpfEmployee || 0), 0) + 
-                      payrollState.casualEmployees.reduce((sum, emp) => sum + (emp.employerCPF || 0) + (emp.employeeCPF || 0), 0)
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+          );
+        })()}
 
-        {/* Full-Time Employees - More compact layout */}
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-            <CardTitle className="flex items-center space-x-3 text-blue-900">
-              <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                {fullTimeEmployees.length}
-              </div>
-              <span>Full-Time Employees - {selectedPeriod}</span>
-            </CardTitle>
-            <CardDescription className="text-blue-700">Review and edit salaries, allowances, deductions, and claims for full-time staff</CardDescription>
+        {/* Full-Time review table */}
+        <Card>
+          <CardHeader className="py-3 px-4 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Full-time · {fullTimeEmployees.length}</CardTitle>
+            <span className="text-xs text-muted-foreground">Click any amount to adjust for {selectedPeriod} only</span>
           </CardHeader>
           <CardContent className="p-0">
             {fullTimeEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <Table className="table-fixed w-full">
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold w-[140px]">Employee</TableHead>
-                        <TableHead className="font-semibold w-[100px]">Basic Salary</TableHead>
-                        <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
-                        <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
-                        <TableHead className="font-semibold w-[80px]">Claims</TableHead>
-                        <TableHead className="font-semibold text-right w-[100px]">Net Pay</TableHead>
-                        <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fullTimeEmployees.map((employee) => {
-                        const allowances = employeeAllowances[employee.id] || [];
-                        const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.id);
-                        const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
-                        const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
-                        
-                        // Calculate proper CPF using the 2025 rate table
-                        const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
-                        const cpfCalc = calculateCPF(employee.baseSalary || 0, employee.residencyStatus || 'Singapore Citizen', employeeAge);
-                        
-                        // Build effective employee with merged override allowances/deductions
-                        // so Net Pay matches the displayed Allowances/Deductions columns
-                        const effectiveEmployee = {
-                          ...employee,
-                          // Honour empty per-month overrides (cleared lists must stay cleared).
-                          allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
-                          deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
-                        };
-                        
-                        // Calculate net pay using proper payroll calculation
-                        const payrollCalc = calculateFullTimePayroll(effectiveEmployee, approvedClaims, 0);
-                        const netPay = payrollCalc.netSalary;
-                        
-                        return (
-                          <TableRow key={employee.id} className="hover:bg-gray-50">
-                            <TableCell className="truncate">
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate">{employee.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{employee.id}</p>
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[160px]">Employee</TableHead>
+                      <TableHead className="text-right">Salary</TableHead>
+                      <TableHead>Allowances</TableHead>
+                      <TableHead>Claims</TableHead>
+                      <TableHead className="min-w-[150px]">Leave</TableHead>
+                      <TableHead className="hidden lg:table-cell">Deductions</TableHead>
+                      <TableHead className="hidden xl:table-cell text-right">CPF (ee / er)</TableHead>
+                      <TableHead className="text-right sticky right-0 bg-background z-10">Net pay</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fullTimeEmployees.map((employee) => {
+                      const ft = computeFullTime(employee);
+                      const claimCount = (employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length;
+                      return (
+                        <TableRow key={employee.id} className="align-top">
+                          <TableCell className="sticky left-0 bg-background z-10">
+                            <p className="font-medium truncate max-w-[220px]">{employee.displayName || employee.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{employee.id}</p>
+                            <div className="lg:hidden text-[11px] text-muted-foreground mt-0.5">
+                              CPF {fmtMoney(ft.calc.employeeCPF)}{ft.deductions.length ? ` · Ded −${fmtMoney(ft.calc.totalDeductions)}` : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              disabled={isPeriodLocked}
+                              onClick={() => handleEditSalary(employee)}
+                              className="rounded px-1 hover:bg-muted disabled:hover:bg-transparent"
+                              aria-label="Edit salary"
+                            >
+                              {fmtMoney(ft.proRate ? ft.proRate.amount : ft.contractBase)}
+                            </button>
+                            {ft.proRate && (
+                              <div className="text-[11px] text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 mr-1">Pro-rated</Badge>
+                                {ft.proRate.days}/{ft.proRate.daysInMonth}d of {fmtMoney(ft.contractBase)}
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-1">
-                                <div className="font-medium">
-                                  S${(employee.baseSalary || 0).toLocaleString()}
-                                </div>
-                                {!isPeriodLocked && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditSalary(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-1">
-                                  {allowances.length > 0 ? (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-green-700">
-                                        S${totalAllowances.toLocaleString()}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {allowances.length} item(s)
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">None</span>
-                                  )}
-                                  {!isPeriodLocked && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleEditAllowances(employee)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-1">
-                                  {deductions.length > 0 ? (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-red-700">
-                                        S${totalDeductions.toLocaleString()}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {deductions.length} item(s)
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">None</span>
-                                  )}
-                                  {!isPeriodLocked && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleEditDeductions(employee)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-center">
-                                <div className="bg-blue-50 px-2 py-1 rounded text-sm">
-                                  <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="font-bold text-green-600">
-                                S${netPay.toLocaleString()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <InlineItemsCell label="Allowances" tone="positive" disabled={isPeriodLocked}
+                              items={ft.allowances as any} onSave={(items) => saveItemsOverride('allowances', employee.id, items)} />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {ft.approvedClaims > 0 ? (
+                              <span className="text-primary font-medium">
+                                +{fmtMoney(ft.approvedClaims)}
+                                <span className="block text-[11px] text-muted-foreground font-normal">{claimCount} approved</span>
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <LeaveCell adj={monthAdjustments[employee.id]} unpaidDeduction={ft.unpaidDeduction}
+                              disabled={isPeriodLocked} onSave={(v) => saveLeave(employee.id, v)} />
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <InlineItemsCell label="Deductions" tone="negative" disabled={isPeriodLocked}
+                              items={ft.deductions as any} onSave={(items) => saveItemsOverride('deductions', employee.id, items)} />
+                          </TableCell>
+                          <TableCell className="hidden xl:table-cell text-right whitespace-nowrap text-muted-foreground">
+                            {fmtMoney(ft.calc.employeeCPF)} / {fmtMoney(ft.calc.employerCPF)}
+                          </TableCell>
+                          <TableCell className="text-right sticky right-0 bg-background z-10 whitespace-nowrap">
+                            <span className="font-semibold text-primary">{fmtMoney(ft.calc.netSalary)}</span>
+                            {ft.calc.warnings.length > 0 && (
+                              <AlertCircle className="inline h-3.5 w-3.5 ml-1 text-destructive" aria-label={ft.calc.warnings.join('; ')} />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!isPeriodLocked && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                                aria-label="Remove from this payroll"
+                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg">No full-time employees found</p>
-              </div>
+              <p className="text-center py-10 text-sm text-muted-foreground">No full-time employees this month</p>
             )}
           </CardContent>
         </Card>
@@ -1602,9 +1565,7 @@ const PayrollProcessing = () => {
             : (employeeInfo.deductions || []),
         } : null;
         
-        const recalculated = effectiveEmployee
-          ? calculateFullTimePayroll(effectiveEmployee as any, 0, 0)
-          : null;
+        const recalculated = employeeInfo ? computeFullTime(employeeInfo).calc : null;
         
         const netPay = recalculated ? recalculated.netSalary : (emp.netPay || 0);
         const grossSalary = recalculated ? recalculated.grossSalary : (emp.grossPay || employeeInfo?.baseSalary || 0);
@@ -1848,16 +1809,18 @@ const PayrollProcessing = () => {
         
         // Get gross pay (base salary for full-time, slot booking pay for casual)
         let grossPay = 0;
+        let ftCalc: any = null;
         if (emp.type === 'Full-Time') {
-          grossPay = emp.baseSalary || 0;
+          ftCalc = computeFullTime(emp).calc;
+          grossPay = ftCalc.grossSalary;
         } else {
           // For casual employees, use slot booking pay (gross pay)
           grossPay = casualData?.grossPay || casualData?.totalPay || 0;
         }
         
         // Get CPF values - handle both FullTimeEmployee (cpfEmployee/cpfEmployer) and CasualEmployee (employeeCPF/employerCPF)
-        const employeeCPF = (payrollInfo as any)?.cpfEmployee || (payrollInfo as any)?.employeeCPF || 0;
-        const employerCPF = (payrollInfo as any)?.cpfEmployer || (payrollInfo as any)?.employerCPF || 0;
+        const employeeCPF = ftCalc ? ftCalc.employeeCPF : ((payrollInfo as any)?.cpfEmployee || (payrollInfo as any)?.employeeCPF || 0);
+        const employerCPF = ftCalc ? ftCalc.employerCPF : ((payrollInfo as any)?.cpfEmployer || (payrollInfo as any)?.employerCPF || 0);
         
         return {
           id: emp.id,
@@ -2067,13 +2030,12 @@ const PayrollProcessing = () => {
 
   return (
     <ResponsiveLayout>
-      <div className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-lg border">
-          <div className="flex items-center justify-between">
+      <div className="space-y-4 w-full max-w-none">
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b -mx-2 px-2 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Payroll Processing</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <p className="text-gray-600">Process payroll for {selectedPeriod}</p>
+              <h1 className="text-xl font-semibold">Payroll · {selectedPeriod}</h1>
+              <div className="flex items-center gap-2 mt-0.5">
                 {isPeriodLocked && (
                   <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
                     🔒 Locked
@@ -2086,8 +2048,9 @@ const PayrollProcessing = () => {
                 </p>
               )}
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
+                size="sm"
                 onClick={async () => {
                   if (confirm('This will delete cached payroll and recalculate all employees with current slot booking data. Continue?')) {
                     await forceRecalculatePayroll(selectedPeriod, true);
@@ -2098,16 +2061,16 @@ const PayrollProcessing = () => {
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'Recalculating...' : 'Force Recalculate'}
+                {loading ? 'Recalculating…' : 'Recalculate'}
               </Button>
-              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-4 py-2">
-                1. Processing
+              <Badge variant={currentStep === 'processing' ? 'default' : 'secondary'} className="px-3 py-1">
+                1. Review
               </Badge>
-              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-4 py-2">
-                2. Payment
+              <Badge variant={currentStep === 'payment' ? 'default' : 'secondary'} className="px-3 py-1">
+                2. Pay & Bank
               </Badge>
-              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-4 py-2">
-                3. CPF
+              <Badge variant={currentStep === 'cpf' ? 'default' : 'secondary'} className="px-3 py-1">
+                3. CPF & Finalise
               </Badge>
             </div>
           </div>
