@@ -1168,171 +1168,105 @@ const PayrollProcessing = () => {
           </Card>
         </div>
 
-        {/* Full-Time Employees - More compact layout */}
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-            <CardTitle className="flex items-center space-x-3 text-blue-900">
-              <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                {fullTimeEmployees.length}
-              </div>
-              <span>Full-Time Employees - {selectedPeriod}</span>
-            </CardTitle>
-            <CardDescription className="text-blue-700">Review and edit salaries, allowances, deductions, and claims for full-time staff</CardDescription>
+        {/* Full-Time review table */}
+        <Card>
+          <CardHeader className="py-3 px-4 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Full-time · {fullTimeEmployees.length}</CardTitle>
+            <span className="text-xs text-muted-foreground">Click any amount to adjust for {selectedPeriod} only</span>
           </CardHeader>
           <CardContent className="p-0">
             {fullTimeEmployees.length > 0 ? (
               <div className="overflow-x-auto">
-                <Table className="table-fixed w-full">
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold w-[140px]">Employee</TableHead>
-                        <TableHead className="font-semibold w-[100px]">Basic Salary</TableHead>
-                        <TableHead className="font-semibold w-[120px]">Allowances</TableHead>
-                        <TableHead className="font-semibold w-[120px]">Deductions</TableHead>
-                        <TableHead className="font-semibold w-[80px]">Claims</TableHead>
-                        <TableHead className="font-semibold text-right w-[100px]">Net Pay</TableHead>
-                        <TableHead className="font-semibold text-center w-[60px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fullTimeEmployees.map((employee) => {
-                        const allowances = employeeAllowances[employee.id] || [];
-                        const deductions = employeeDeductions[employee.id] || [];
-                        const approvedClaims = getApprovedClaimsTotal(employee.id);
-                        const totalAllowances = allowances.reduce((sum, a) => sum + Number(a.amount), 0);
-                        const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.amount), 0);
-                        
-                        // Calculate proper CPF using the 2025 rate table
-                        const employeeAge = employee.dateOfBirth ? calculateAge(employee.dateOfBirth) : 30;
-                        const cpfCalc = calculateCPF(employee.baseSalary || 0, employee.residencyStatus || 'Singapore Citizen', employeeAge);
-                        
-                        // Build effective employee with merged override allowances/deductions
-                        // so Net Pay matches the displayed Allowances/Deductions columns
-                        const effectiveEmployee = {
-                          ...employee,
-                          // Honour empty per-month overrides (cleared lists must stay cleared).
-                          allowances: employee.id in employeeAllowances ? (allowances as any) : (employee.allowances || []),
-                          deductions: employee.id in employeeDeductions ? (deductions as any) : (employee.deductions || []),
-                        };
-                        
-                        // Calculate net pay using proper payroll calculation
-                        const payrollCalc = calculateFullTimePayroll(effectiveEmployee, approvedClaims, 0);
-                        const netPay = payrollCalc.netSalary;
-                        
-                        return (
-                          <TableRow key={employee.id} className="hover:bg-gray-50">
-                            <TableCell className="truncate">
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate">{employee.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{employee.id}</p>
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[160px]">Employee</TableHead>
+                      <TableHead className="text-right">Salary</TableHead>
+                      <TableHead>Allowances</TableHead>
+                      <TableHead>Claims</TableHead>
+                      <TableHead className="min-w-[150px]">Leave</TableHead>
+                      <TableHead className="hidden lg:table-cell">Deductions</TableHead>
+                      <TableHead className="hidden xl:table-cell text-right">CPF (ee / er)</TableHead>
+                      <TableHead className="text-right sticky right-0 bg-background z-10">Net pay</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fullTimeEmployees.map((employee) => {
+                      const ft = computeFullTime(employee);
+                      const claimCount = (employeeClaims[employee.id] || []).filter(c => c.status === 'Approved').length;
+                      return (
+                        <TableRow key={employee.id} className="align-top">
+                          <TableCell className="sticky left-0 bg-background z-10">
+                            <p className="font-medium truncate max-w-[220px]">{employee.displayName || employee.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{employee.id}</p>
+                            <div className="lg:hidden text-[11px] text-muted-foreground mt-0.5">
+                              CPF {fmtMoney(ft.calc.employeeCPF)}{ft.deductions.length ? ` · Ded −${fmtMoney(ft.calc.totalDeductions)}` : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              disabled={isPeriodLocked}
+                              onClick={() => handleEditSalary(employee)}
+                              className="rounded px-1 hover:bg-muted disabled:hover:bg-transparent"
+                              aria-label="Edit salary"
+                            >
+                              {fmtMoney(ft.proRate ? ft.proRate.amount : ft.contractBase)}
+                            </button>
+                            {ft.proRate && (
+                              <div className="text-[11px] text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 mr-1">Pro-rated</Badge>
+                                {ft.proRate.days}/{ft.proRate.daysInMonth}d of {fmtMoney(ft.contractBase)}
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-1">
-                                <div className="font-medium">
-                                  S${(employee.baseSalary || 0).toLocaleString()}
-                                </div>
-                                {!isPeriodLocked && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleEditSalary(employee)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-1">
-                                  {allowances.length > 0 ? (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-green-700">
-                                        S${totalAllowances.toLocaleString()}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {allowances.length} item(s)
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">None</span>
-                                  )}
-                                  {!isPeriodLocked && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleEditAllowances(employee)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-1">
-                                  {deductions.length > 0 ? (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-red-700">
-                                        S${totalDeductions.toLocaleString()}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {deductions.length} item(s)
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">None</span>
-                                  )}
-                                  {!isPeriodLocked && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => handleEditDeductions(employee)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-center">
-                                <div className="bg-blue-50 px-2 py-1 rounded text-sm">
-                                  <span className="font-medium text-blue-900">S${approvedClaims.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="font-bold text-green-600">
-                                S${netPay.toLocaleString()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <InlineItemsCell label="Allowances" tone="positive" disabled={isPeriodLocked}
+                              items={ft.allowances as any} onSave={(items) => saveItemsOverride('allowances', employee.id, items)} />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {ft.approvedClaims > 0 ? (
+                              <span className="text-primary font-medium">
+                                +{fmtMoney(ft.approvedClaims)}
+                                <span className="block text-[11px] text-muted-foreground font-normal">{claimCount} approved</span>
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <LeaveCell adj={monthAdjustments[employee.id]} unpaidDeduction={ft.unpaidDeduction}
+                              disabled={isPeriodLocked} onSave={(v) => saveLeave(employee.id, v)} />
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <InlineItemsCell label="Deductions" tone="negative" disabled={isPeriodLocked}
+                              items={ft.deductions as any} onSave={(items) => saveItemsOverride('deductions', employee.id, items)} />
+                          </TableCell>
+                          <TableCell className="hidden xl:table-cell text-right whitespace-nowrap text-muted-foreground">
+                            {fmtMoney(ft.calc.employeeCPF)} / {fmtMoney(ft.calc.employerCPF)}
+                          </TableCell>
+                          <TableCell className="text-right sticky right-0 bg-background z-10 whitespace-nowrap">
+                            <span className="font-semibold text-primary">{fmtMoney(ft.calc.netSalary)}</span>
+                            {ft.calc.warnings.length > 0 && (
+                              <AlertCircle className="inline h-3.5 w-3.5 ml-1 text-destructive" aria-label={ft.calc.warnings.join('; ')} />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!isPeriodLocked && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                                aria-label="Remove from this payroll"
+                                onClick={() => handleRemoveEmployee(employee.id, employee.name)}>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg">No full-time employees found</p>
-              </div>
+              <p className="text-center py-10 text-sm text-muted-foreground">No full-time employees this month</p>
             )}
           </CardContent>
         </Card>
