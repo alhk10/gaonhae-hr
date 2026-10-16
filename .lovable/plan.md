@@ -1,15 +1,12 @@
-# Send old public forms to /hello
-
-## Goal
-/hello becomes the single place to pay grading, register for competitions and buy guards/accessories. The standalone links open /hello instead.
+# Remove old public forms (/hello replaces them)
 
 ## Changes
-1. /pay, /grading, /comps and /guards open /hello instead of their old forms. Old QR codes and shared links keep working; they just land on /hello.
-2. /hello itself is not changed. Its built-in competition form keeps working as it does now.
-3. **/seminars stays as it is for now.** /hello has no seminar option yet, so redirecting it would leave students with nowhere to register. If you want, a later step can add Seminars to /hello and then redirect /seminars too.
+1. Remove the /pay, /grading, /comps and /guards pages, with no redirect. Visiting them will show the normal "page not found" screen. Old QR codes and links to them will stop working.
+2. /hello is not changed. Its built-in grading, competition and guards options keep working.
+3. /seminars, /fees, /register, /rental and /perthcomp stay as they are.
 4. Staff screens in /access (logs, matching, verification) are untouched, so earlier submissions still show and can be processed.
 
 ## Technical details
-- In `src/App.tsx`, change those four routes to `<Navigate to="/hello" replace />`. Keep the page components in the codebase because /hello and staff screens reuse parts of them.
-- Remove the four paths from `public/sitemap.xml` if they're listed.
-- Check: each path ends up at /hello, and /hello loads with no console errors.
+- In `src/App.tsx`, delete those four routes and their now-unused page imports. Keep `CompetitionRegistrationForm` and the services because /hello and staff screens use them. Delete page files only if nothing else imports them.
+- Remove /grading, /comps and /guards from `public/sitemap.xml`.
+- Check: the four paths show Not Found, and /hello loads with no console errors.
