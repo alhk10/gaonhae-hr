@@ -9368,6 +9368,10 @@ export type Database = {
           product_id: string
         }[]
       }
+      get_invoice_pending_requests: {
+        Args: { p_invoice_id: string }
+        Returns: Json
+      }
       get_linked_students_for_auth: {
         Args: { p_email: string }
         Returns: {
@@ -10534,6 +10538,14 @@ export type Database = {
       sms_current_email: { Args: never; Returns: string }
       sms_is_admin: { Args: never; Returns: boolean }
       sms_is_superadmin: { Args: never; Returns: boolean }
+      submit_access_invoice_deletion_request: {
+        Args: { p_actor?: string; p_invoice_id: string; p_reason: string }
+        Returns: string
+      }
+      submit_access_invoice_edit_request: {
+        Args: { p_actor?: string; p_invoice_id: string; p_note: string }
+        Returns: string
+      }
       submit_competition_payment: {
         Args: { _row: Json }
         Returns: {
