@@ -29,6 +29,13 @@ Lock the month. Claims included in it are marked as paid. Payslips are generated
 - Add an **Unpaid Leave** leave type (none exists today). Staff can then request it through the normal leave process, and payroll deducts it.
 - **Excess annual leave counts as unpaid.** Once someone's approved annual leave for the year goes past their entitlement (base days + service bonus + Monday-holiday days), the extra days in that month are deducted as unpaid leave. For example, with 14 days allowed and 16 taken, 2 days are deducted in the month they went over. The row shows "2 excess AL days" and the amount can be overridden.
 
+## Layout
+- Uses the full screen width, with no narrow centred box. The table grows to fill wide screens.
+- Columns adjust to the space available. On medium screens, less important columns (CPF split, deductions) fold into the row, and on phones each person becomes a compact 2-line card.
+- A sticky top bar holds the month picker, the step tabs and the totals (Gross, CPF, Claims, Net), which stay visible while scrolling.
+- Names on the left and net pay on the right stay fixed while the table scrolls sideways.
+- Clean, minimal text: short labels, figures right-aligned, and colour only for warnings and net pay.
+
 ## Speed
 - Load the month in a few combined requests instead of separate queries for each employee.
 - Split the 2,200-line payroll page into smaller pieces so it opens and updates quickly.
