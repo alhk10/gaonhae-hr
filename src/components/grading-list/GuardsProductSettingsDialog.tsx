@@ -22,6 +22,19 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/currencyUtils';
+
+const ageText = (p: { min_age?: number | null; max_age?: number | null }) => {
+  const { min_age: a, max_age: b } = p;
+  if (a != null && b != null) return `Age ${a}–${b}`;
+  if (a != null) return `Age ${a}+`;
+  if (b != null) return `Up to ${b}`;
+  return 'All ages';
+};
+const beltText = (p: { allowed_belt_levels?: string[] | null }) => {
+  const l = p.allowed_belt_levels || [];
+  if (!l.length) return 'All belts';
+  return l.length === 1 ? l[0] : `${l[0]} – ${l[l.length - 1]}`;
+};
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import {
   getGuardsProductsForBranchAdmin,
@@ -153,6 +166,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-xs">Item</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs w-[170px]">Restrictions</TableHead>
                   <TableHead className="text-xs w-[90px]">Default</TableHead>
                   <TableHead className="text-xs w-[120px]">Price</TableHead>
                   <TableHead className="text-xs w-[90px] text-right">Available</TableHead>
@@ -173,6 +187,11 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
                         {p.description && (
                           <p className="text-[11px] text-muted-foreground">{p.description}</p>
                         )}
+                        <p className="sm:hidden text-[11px] text-muted-foreground">{ageText(p)} · {beltText(p)}</p>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-[11px] py-1.5 text-muted-foreground">
+                        <div>{ageText(p)}</div>
+                        <div title={(p.allowed_belt_levels || []).join(', ')}>{beltText(p)}</div>
                       </TableCell>
                       <TableCell className="text-xs py-1.5 text-muted-foreground">
                         {formatCurrency(p.default_price)}
