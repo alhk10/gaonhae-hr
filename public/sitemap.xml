@@ -16,27 +16,7 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://x.gaonhae.app/grading</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://x.gaonhae.app/fees</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://x.gaonhae.app/comps</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://x.gaonhae.app/seminars</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://x.gaonhae.app/guards</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
