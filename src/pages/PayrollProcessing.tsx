@@ -1085,7 +1085,7 @@ const PayrollProcessing = () => {
     console.log('DEBUG PayrollProcessing: Payroll data:', payrollData);
     
     return (
-      <div className="space-y-8">
+      <div className="space-y-4">
         {/* Payroll Period Selector */}
         <PayrollPeriodSelector 
           selectedPeriod={selectedPeriod}
@@ -1121,52 +1121,30 @@ const PayrollProcessing = () => {
           </Alert>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="w-8 h-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-blue-600">Active Employees</p>
-                  <p className="text-2xl font-bold text-blue-900">{activeEmployeesCount}</p>
+        {/* Totals bar */}
+        {(() => {
+          const ft = fullTimeEmployees.map(computeFullTime);
+          const casualNet = casualEmployees.reduce((s, e: any) => s + Number(e.totalPay || e.netPay || 0), 0);
+          const casualGross = casualEmployees.reduce((s, e: any) => s + Number(e.grossPay || 0), 0);
+          const casualCpf = casualEmployees.reduce((s, e: any) => s + Number(e.employeeCPF || e.cpfEmployee || 0) + Number(e.employerCPF || e.cpfEmployer || 0), 0);
+          const totals = [
+            { label: 'Staff', value: String(activeEmployeesCount) },
+            { label: 'Gross', value: fmtMoney(ft.reduce((s, x) => s + x.calc.grossSalary, 0) + casualGross) },
+            { label: 'Claims', value: fmtMoney(ft.reduce((s, x) => s + x.approvedClaims, 0)) },
+            { label: 'CPF (total)', value: fmtMoney(ft.reduce((s, x) => s + x.calc.totalCPF, 0) + casualCpf) },
+            { label: 'Net to pay', value: fmtMoney(ft.reduce((s, x) => s + x.calc.netSalary, 0) + casualNet), strong: true },
+          ];
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {totals.map(t => (
+                <div key={t.label} className="rounded-md border bg-card px-3 py-2">
+                  <p className="text-[11px] text-muted-foreground">{t.label}</p>
+                  <p className={t.strong ? 'text-lg font-semibold text-primary' : 'text-lg font-semibold'}>{t.value}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <DollarSign className="w-8 h-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-green-600">Total Payroll</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    S${(payrollState.fullTimeEmployees.reduce((sum, emp) => sum + emp.netPay, 0) + 
-                        payrollState.casualEmployees.reduce((sum, emp) => sum + emp.totalPay, 0)).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Calculator className="w-8 h-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-purple-600">Total CPF</p>
-                  <p className="text-2xl font-bold text-purple-900">
-                    S${(
-                      payrollState.fullTimeEmployees.reduce((sum, emp) => sum + (emp.cpfEmployer || 0) + (emp.cpfEmployee || 0), 0) + 
-                      payrollState.casualEmployees.reduce((sum, emp) => sum + (emp.employerCPF || 0) + (emp.employeeCPF || 0), 0)
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Full-Time review table */}
         <Card>
