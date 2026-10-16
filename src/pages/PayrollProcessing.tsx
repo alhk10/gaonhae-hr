@@ -38,6 +38,8 @@ import { formatDate } from '@/utils/dateFormat';
 import { buildPayrollWarnings, hasBlockingWarnings } from '@/utils/payrollWarnings';
 import { useIsSuperadminUser } from '@/hooks/useIsSuperadminUser';
 import { generatePayslipPDF } from '@/utils/payslipPDFGenerator';
+import { generateCasualPayslipPDF } from '@/utils/casualPayslipPDFGenerator';
+import { casualNet } from '@/utils/payrollTotals';
 
 // Helper to parse "January 2026" into { year: 2026, monthName: 'January', monthIndex: 1 }
 const parsePeriod = (period: string) => {
@@ -897,6 +899,24 @@ const PayrollProcessing = () => {
   const downloadPayslip = async (emp: any) => {
     try { await generatePayslipPDF(payslipData(emp) as any); }
     catch { toast.error('Could not create payslip'); }
+  };
+
+  const downloadCasualPayslip = async (c: any) => {
+    try {
+      const emp = allEmployees.find(e => e.id === (c.employeeId || c.id)) || {};
+      const claims = Number(c.claims || 0);
+      const empCPF = Number(c.employeeCPF ?? c.cpfEmployee ?? 0);
+      const erCPF = Number(c.employerCPF ?? c.cpfEmployer ?? 0);
+      const slotPay = Number(c.slotBookingPay ?? c.grossPay ?? 0);
+      await generateCasualPayslipPDF({
+        employee: { id: emp.employeeId || emp.id || c.id, name: emp.name || c.name, nric: emp.nric || '', branch: emp.branch, position: emp.position, bankName: emp.bankName, bankAccount: emp.bankAccount },
+        month: selectedPeriod,
+        slots: (c.slotBookingMetadata?.breakdown || []).map((b: any) => ({ date: b.date, branchName: b.branchName, clockIn: null, clockOut: null, hoursWorked: 0, pay: Number(b.pay || 0) })),
+        totalSlotPay: slotPay, totalAllowances: 0, totalDeductions: 0, approvedClaims: claims,
+        grossSalary: Number(c.grossPay || slotPay), employeeCPF: empCPF, employerCPF: erCPF, totalCPF: empCPF + erCPF,
+        netSalary: Number(c.totalPay ?? casualNet(slotPay, claims, empCPF)), allowances: [], deductions: [],
+      });
+    } catch { toast.error('Could not create payslip'); }
   };
 
   const emailAllPayslips = async () => {
@@ -1879,7 +1899,7 @@ const PayrollProcessing = () => {
     );
   };
 
-  const renderCPFStep = () => {
+  const renderCPFStep = (mode: 'cpf' | 'finalise' = 'cpf') => {
     // Filter for CPF eligible employees (Singapore Citizens and PRs only - exclude EP, S Pass, Work Permit)
     // Also filter out resigned employees and remove duplicates
     const cpfEligibleResidencyStatuses = ['Singapore Citizen', 'Citizen', 'PR', 'Permanent Resident'];
@@ -2075,6 +2095,7 @@ const PayrollProcessing = () => {
           <CardDescription>Submit CPF contributions for employees (Claims are not subject to CPF)</CardDescription>
         </CardHeader>
         <CardContent>
+          {mode === 'cpf' && (<>
           <Table>
             <TableHeader>
               <TableRow>
@@ -2122,13 +2143,25 @@ const PayrollProcessing = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export CPF ezpay
               </Button>
-              <Button onClick={handleCPFSubmission} disabled={isPeriodLocked}>
-                <FileText className="w-4 h-4 mr-2" />
-                {isPeriodLocked ? 'Month finalised' : 'Finalise month'}
+              <Button onClick={() => setCurrentStep('cpf')} disabled={hasBlockingWarnings(reviewWarnings)}>
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Next: Finalise
               </Button>
             </div>
           </div>
+          </>)}
 
+          {mode === 'finalise' && (<>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button variant="outline" onClick={() => setCurrentStep('payment')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <Button onClick={handleCPFSubmission} disabled={isPeriodLocked}>
+              <FileText className="w-4 h-4 mr-2" />
+              {isPeriodLocked ? 'Month finalised' : 'Finalise month'}
+            </Button>
+          </div>
           <div className="mt-6 border-t pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <h3 className="text-sm font-semibold">Payslips · {selectedPeriod}</h3>
@@ -2151,8 +2184,20 @@ const PayrollProcessing = () => {
                   </div>
                 );
               })}
+              {payrollState.casualEmployees.filter((c: any) => (c.totalPay || c.grossPay)).map((c: any) => (
+                <div key={c.employeeId || c.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                  <span className="truncate">{c.name} <Badge variant="secondary" className="ml-1 text-[10px]">Casual</Badge></span>
+                  <span className="flex items-center gap-3">
+                    <span className="tabular-nums">S${Number(c.totalPay || c.netPay || 0).toFixed(2)}</span>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadCasualPayslip(c)}>
+                      <Download className="w-3.5 h-3.5" />
+                    </Button>
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
+          </>)}
         </CardContent>
       </Card>
     );
@@ -2196,7 +2241,7 @@ const PayrollProcessing = () => {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 {loading ? 'Recalculating…' : 'Recalculate'}
               </Button>
-              {([['processing', '1. Review'], ['payment', '2. Confirm Bank'], ['cpf', '3. CPF, Finalise & Payslips']] as const).map(([key, label], idx) => {
+              {([['processing', '1. Review'], ['payment', '2. Confirm CPF & Bank'], ['cpf', '3. Finalise & Payslips']] as const).map(([key, label], idx) => {
                 const order = ['processing', 'payment', 'cpf'];
                 const blocked = idx > 0 && hasBlockingWarnings(reviewWarnings);
                 return (
@@ -2212,8 +2257,8 @@ const PayrollProcessing = () => {
         </div>
 
         {currentStep === 'processing' && renderProcessingStep()}
-        {currentStep === 'payment' && renderPaymentStep()}
-        {currentStep === 'cpf' && renderCPFStep()}
+        {currentStep === 'payment' && (<div className="space-y-4">{renderPaymentStep()}{renderCPFStep('cpf')}</div>)}
+        {currentStep === 'cpf' && renderCPFStep('finalise')}
 
         {/* Edit Dialogs */}
         <EditSalaryDialog
