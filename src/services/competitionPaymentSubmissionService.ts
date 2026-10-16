@@ -147,6 +147,7 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     indemnity_template_url: r.indemnity_template_url ?? null,
     indemnity_template_name: r.indemnity_template_name ?? null,
     require_grading_card: r.require_grading_card === true,
+    registration_deadline: r.registration_deadline ?? null,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),
