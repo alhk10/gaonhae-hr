@@ -428,6 +428,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundCreditOpen, setRefundCreditOpen] = useState(false);
   const [refundCreditItemId, setRefundCreditItemId] = useState<string | null>(null);
+  const [pendingReq, setPendingReq] = useState<{ cancel_pending?: boolean; refund_item_ids?: string[] }>({});
 
 
   // Record-payment-with-invoice (create mode)
@@ -738,6 +739,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       ]);
       if (invoiceData) setInvoice(invoiceData);
       setPayments(paymentsData);
+      const { data: pr } = await (supabase as any).rpc('get_invoice_pending_requests', { p_invoice_id: invoiceId });
+      if (pr) setPendingReq(pr);
     } catch {
       toast.error('Failed to load invoice details');
     } finally { setLoading(false); }
@@ -1642,8 +1645,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                       <Trash2 className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Delete</span>
                     </Button>
                   ) : !isVerifiedLocked && (['paid', 'partial', 'partially_paid', 'draft'] as string[]).includes(invoice!.status) && (
-                    <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
-                      <Ban className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Cancel & Refund</span>
+                    <Button variant="destructive" size="sm" className="h-7 text-xs px-2" disabled={!!pendingReq.cancel_pending} onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}>
+                      <Ban className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">{pendingReq.cancel_pending ? 'Pending approval' : 'Cancel & Refund'}</span>
                     </Button>
                   )}
                   {isVerifiedLocked && (
@@ -2118,7 +2121,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                           <div className="flex items-center gap-1.5">
                             {isRefunded && <Badge variant="secondary" className="text-[10px]">Refunded</Badge>}
                             <div className={cn("text-xs font-semibold whitespace-nowrap", isRefunded && "line-through")}>{formatCurrency(item.total_amount)}</div>
-                            {canRefund && (
+                            {canRefund && pendingReq.refund_item_ids?.includes(item.id) && (
+                              <Badge variant="outline" className="text-[10px]">Pending approval</Badge>
+                            )}
+                            {canRefund && !pendingReq.refund_item_ids?.includes(item.id) && (
                               <Button variant="ghost" size="icon" className="h-6 w-6 text-orange-600 hover:text-orange-700" title="Refund as credit" onClick={() => { setRefundCreditItemId(item.id); setRefundCreditOpen(true); }}>
                                 <Undo2 className="h-3 w-3" />
                               </Button>
