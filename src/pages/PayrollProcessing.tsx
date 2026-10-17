@@ -1703,7 +1703,7 @@ const PayrollProcessing = () => {
           bankName: employeeInfo?.bankName || '',
           bankAccount: employeeInfo?.bankAccount || '',
           paymentType: emp.paymentType || 'Monthly',
-          totalPay: netPay + approvedClaims
+          totalPay: netPay // netSalary already includes approved claims, including the saved-net fallback.
         };
       })
       .filter(emp => emp.totalPay > 0);
