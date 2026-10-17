@@ -11,7 +11,7 @@ const paymentRows = new Function(
   'getApprovedClaimsTotal', 'employeeAllowances', 'employeeDeductions', 'computeFullTime',
   `${mapping}\nreturn activeFullTimeEmployees;`,
 );
-const equal = (actual: number, expected: number, rule: string) => {
+const equal = (actual, expected, rule) => {
   if (actual !== expected) throw new Error(`${rule}: expected ${expected}, got ${actual}`);
 };
 
@@ -23,9 +23,9 @@ const rows = paymentRows(
   ] },
   [{ id: 'claims' }, { id: 'no-claims' }],
   'September 2026', () => true,
-  (id: string) => id === 'no-claims' ? 0 : 30,
+  (id) => id === 'no-claims' ? 0 : 30,
   {}, {},
-  (employee: { id: string }) => ({ calc: {
+  (employee) => ({ calc: {
     grossSalary: 2000,
     netSalary: 2000 - 400 + (employee.id === 'claims' ? 30 : 0),
   } }),
@@ -33,6 +33,6 @@ const rows = paymentRows(
 equal(rows[0].totalPay, 1630, 'approved claims added once to full-time bank payment');
 equal(rows[1].totalPay, 1600, 'payment unchanged when no claims');
 equal(rows[2].totalPay, 1630, 'saved net pay is not increased by claims again');
-equal(rows.reduce((sum: number, row: { totalPay: number }) => sum + row.totalPay, 0), 4860,
+equal(rows.reduce((sum, row) => sum + row.totalPay, 0), 4860,
   'payment total includes claims once per employee');
 console.log('payrollPayment ok');
