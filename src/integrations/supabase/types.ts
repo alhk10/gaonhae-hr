@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_unlock_passwords: {
+        Row: {
+          branch_id: string | null
+          password_hash: string
+        }
+        Insert: {
+          branch_id?: string | null
+          password_hash: string
+        }
+        Update: {
+          branch_id?: string | null
+          password_hash?: string
+        }
+        Relationships: []
+      }
       accounting_backfill_runs: {
         Row: {
           created_at: string
@@ -8493,7 +8508,12 @@ export type Database = {
       }
     }
     Functions: {
+      _access_scope: { Args: { p_password: string }; Returns: string }
       _auto_invoice_active: { Args: never; Returns: boolean }
+      _external_stock_move: {
+        Args: { p_by: string; p_invoice: string; p_sign: number }
+        Returns: undefined
+      }
       _next_invoice_number: { Args: never; Returns: string }
       _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
       _remember_student_email: {
@@ -9154,6 +9174,10 @@ export type Database = {
         Returns: number
       }
       can_subscribe_topic: { Args: { _topic: string }; Returns: boolean }
+      cancel_external_invoice: {
+        Args: { p_invoice_id: string; p_password: string; p_reason: string }
+        Returns: string
+      }
       check_employee_admin_access: { Args: never; Returns: boolean }
       check_password_history: {
         Args: { p_email: string; p_new_hash: string }
@@ -9190,7 +9214,10 @@ export type Database = {
         Returns: number
       }
       create_access_invoice: { Args: { p_payload: Json }; Returns: Json }
-      create_external_invoice: { Args: { p_payload: Json }; Returns: Json }
+      create_external_invoice: {
+        Args: { p_password: string; p_payload: Json }
+        Returns: Json
+      }
       create_public_chat_callback: {
         Args: {
           p_branch_id: string
@@ -10294,12 +10321,13 @@ export type Database = {
         }[]
       }
       list_external_invoices: {
-        Args: { p_branch_id?: string }
+        Args: { p_branch_id?: string; p_password: string }
         Returns: {
           amount_paid: number
           balance_due: number
           branch_id: string
           branch_name: string
+          cancel_requested: boolean
           customer_category: string
           customer_email: string
           customer_name: string
@@ -10309,6 +10337,8 @@ export type Database = {
           invoice_number: string
           issue_date: string
           items: string
+          pending_payment: boolean
+          proof_url: string
           status: string
           total_amount: number
         }[]
@@ -10494,10 +10524,11 @@ export type Database = {
       }
       record_external_invoice_payment: {
         Args: {
-          p_actor: string
           p_amount: number
           p_invoice_id: string
           p_method: string
+          p_password: string
+          p_proof_url: string
           p_reference: string
         }
         Returns: undefined
