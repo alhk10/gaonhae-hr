@@ -607,6 +607,7 @@ const InvoiceManagementList: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Students</SelectItem>
+                <SelectItem value="__external__">External customers</SelectItem>
                 {students.map((student) => (
                   <SelectItem key={student.id} value={student.id}>
                     {student.name}

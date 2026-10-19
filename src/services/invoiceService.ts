@@ -120,7 +120,9 @@ export const getInvoices = async (
     }
 
     // Apply student filter
-    if (studentFilter) {
+    if (studentFilter === '__external__') {
+      query = query.eq('customer_type', 'external');
+    } else if (studentFilter) {
       query = query.eq('student_id', studentFilter);
     }
 
@@ -161,7 +163,7 @@ export const getInvoices = async (
     // Transform the data to include student name and branch currency
     const transformedInvoices = (data || []).map(invoice => ({
       ...invoice,
-      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student',
+      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : ((invoice as any).customer_name || 'Unknown Student'),
       branch_currency: invoice.branch_id ? branchCurrencies[invoice.branch_id] || 'SGD' : 'SGD'
     })) as Invoice[];
 
@@ -221,7 +223,7 @@ export const getInvoiceById = async (invoiceId: string): Promise<Invoice & { ite
 
     return {
       ...invoice,
-      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student',
+      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : ((invoice as any).customer_name || 'Unknown Student'),
       items: transformedItems
     } as Invoice & { items: InvoiceItem[] };
   } catch (error) {
@@ -714,7 +716,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
 
     return {
       ...invoice,
-      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : 'Unknown Student'
+      student_name: invoice.students ? `${invoice.students.first_name} ${invoice.students.last_name}` : ((invoice as any).customer_name || 'Unknown Student')
     } as Invoice;
   } catch (error) {
     logger.error('Error in createInvoice', error);
@@ -776,7 +778,7 @@ export const updateInvoiceStatus = async (
 
     return {
       ...data,
-      student_name: data.students ? `${data.students.first_name} ${data.students.last_name}` : 'Unknown Student'
+      student_name: data.students ? `${data.students.first_name} ${data.students.last_name}` : ((data as any).customer_name || 'Unknown Student')
     } as Invoice;
   } catch (error) {
     logger.error('Error in updateInvoiceStatus', error);
