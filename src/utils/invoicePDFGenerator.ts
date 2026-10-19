@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import australiaLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
+import { isClassLineItem } from '@/utils/invoiceLineType';
 
 export interface InvoiceItem {
   id: string;
@@ -282,6 +283,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('Products/Services', margin + 2, yPos);
+  doc.text('Qty', pageWidth - margin - 30, yPos, { align: 'right' });
   doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
 
   yPos += 8;
@@ -304,6 +306,9 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       if (isRefunded) doc.setTextColor(130, 130, 130);
       doc.text(desc, margin + 2, yPos);
       doc.text(amt, pageWidth - margin - 2, yPos, { align: 'right' });
+      if (!isClassLineItem(item)) {
+        doc.text(String(item.quantity ?? 1), pageWidth - margin - 30, yPos, { align: 'right' });
+      }
       if (isRefunded) {
         doc.setDrawColor(130, 130, 130);
         doc.line(margin + 2, yPos - 1.2, margin + 2 + doc.getTextWidth(desc), yPos - 1.2);
