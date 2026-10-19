@@ -10312,12 +10312,17 @@ export type Database = {
         Returns: boolean
       }
       list_external_invoice_products: {
-        Args: never
+        Args: { p_branch_id: string; p_password: string }
         Returns: {
           available_sizes: string[]
           base_price: number
+          branch_price: number
+          category: string
           id: string
+          is_active: boolean
+          is_physical: boolean
           name: string
+          stock_on_hand: number
         }[]
       }
       list_external_invoices: {
