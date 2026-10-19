@@ -149,38 +149,57 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
 interface ProductOption {
   id: string; name: string; category: string; is_active: boolean; is_physical: boolean;
   base_price: number; branch_price: number | null; available_sizes: string[] | null; stock_on_hand: number | null;
+  available_variants?: { sizes?: string[]; colors?: string[] } | null; variant_stock?: Record<string, number> | null;
 }
 
-const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChange: (p: ProductOption) => void; loading?: boolean; error?: string | null; hasBranch?: boolean }> = ({ products, value, onChange, loading, error, hasBranch }) => {
+export const productVariantKeys = (p: Pick<ProductOption, 'available_sizes' | 'available_variants'>): string[] => {
+  const s = (p.available_variants?.sizes ?? []).filter(Boolean);
+  const c = (p.available_variants?.colors ?? []).filter(Boolean);
+  if (s.length && c.length) return c.flatMap(col => s.map(sz => `${col} / ${sz}`));
+  if (s.length || c.length) return s.length ? s : c;
+  return (p.available_sizes ?? []).filter(Boolean);
+};
+
+interface PickOption { key: string; product: ProductOption; variant: string; stock: number | null }
+
+const ProductPicker: React.FC<{ products: ProductOption[]; value: string; variant: string; onChange: (p: ProductOption, variant: string) => void; loading?: boolean; error?: string | null; hasBranch?: boolean }> = ({ products, value, variant, onChange, loading, error, hasBranch }) => {
   const [open, setOpen] = useState(false);
   const selected = products.find(p => p.id === value);
   const groups = useMemo(() => {
-    const m = new Map<string, ProductOption[]>();
-    products.forEach(p => { const k = p.category || 'Other'; m.set(k, [...(m.get(k) || []), p]); });
+    const m = new Map<string, PickOption[]>();
+    products.forEach(p => {
+      const k = p.category || 'Other';
+      const keys = productVariantKeys(p);
+      const opts: PickOption[] = keys.length
+        ? keys.map(v => ({ key: `${p.id}__${v}`, product: p, variant: v, stock: p.variant_stock?.[v] ?? (p.is_physical ? 0 : null) }))
+        : [{ key: p.id, product: p, variant: '', stock: p.stock_on_hand }];
+      m.set(k, [...(m.get(k) || []), ...opts]);
+    });
     return [...m.entries()];
   }, [products]);
+  const label = selected ? (variant ? `${selected.name} — ${variant}` : selected.name) : null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="h-7 text-xs flex-1 min-w-[180px] justify-between font-normal">
-          <span className="truncate">{selected ? selected.name : !hasBranch ? 'Choose a branch first' : error ? 'Products unavailable' : loading ? 'Loading products…' : 'Select product'}</span>
+          <span className="truncate">{label ?? (!hasBranch ? 'Choose a branch first' : error ? 'Products unavailable' : loading ? 'Loading products…' : 'Select product')}</span>
           <ChevronsUpDown className="h-3 w-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[min(90vw,360px)]" align="start">
+      <PopoverContent className="p-0 w-[min(90vw,400px)]" align="start">
         <Command>
           <CommandInput placeholder="Search products…" className="text-xs" />
           <CommandList className="max-h-72">
             <CommandEmpty>{error ? `Could not load products: ${error}` : loading ? 'Loading products…' : !hasBranch ? 'Choose a branch first.' : 'No product found.'}</CommandEmpty>
             {groups.map(([cat, items]) => (
               <CommandGroup key={cat} heading={cat}>
-                {items.map(p => (
-                  <CommandItem key={p.id} value={`${p.name} ${cat}`} onSelect={() => { onChange(p); setOpen(false); }} className="text-xs">
-                    <Check className={`h-3 w-3 mr-1 ${p.id === value ? 'opacity-100' : 'opacity-0'}`} />
-                    <span className="flex-1 break-words">{p.name}</span>
-                    {!p.is_active && <Badge variant="outline" className="text-[9px] ml-1">Inactive</Badge>}
-                    {p.is_physical && p.stock_on_hand != null && <span className="text-[10px] text-muted-foreground ml-1">{p.stock_on_hand} in stock</span>}
-                    <span className="ml-2 text-muted-foreground">{formatCurrency(Number(p.branch_price ?? p.base_price ?? 0))}</span>
+                {items.map(o => (
+                  <CommandItem key={o.key} value={`${o.product.name} ${o.variant} ${cat} ${o.key}`} onSelect={() => { onChange(o.product, o.variant); setOpen(false); }} className="text-xs">
+                    <Check className={`h-3 w-3 mr-1 ${o.product.id === value && o.variant === variant ? 'opacity-100' : 'opacity-0'}`} />
+                    <span className="flex-1 break-words">{o.product.name}{o.variant && <span className="text-muted-foreground"> — {o.variant}</span>}</span>
+                    {!o.product.is_active && <Badge variant="outline" className="text-[9px] ml-1">Inactive</Badge>}
+                    {o.product.is_physical && o.stock != null && <span className="text-[10px] text-muted-foreground ml-1">{o.stock} in stock</span>}
+                    <span className="ml-2 text-muted-foreground">{formatCurrency(Number(o.product.branch_price ?? o.product.base_price ?? 0))}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -258,17 +277,10 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
         <div className="space-y-2 mt-2">
           <Label className="text-xs">Items</Label>
           {lines.map((l, i) => {
-            const p = (products as any[]).find(x => x.id === l.product_id);
             return (
               <div key={i} className="flex flex-wrap gap-1 items-center">
-                <ProductPicker loading={productsLoading} error={productsError ? (productsError as any).message : null} hasBranch={!!branchId} products={products as ProductOption[]} value={l.product_id} onChange={pr =>
-                  setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: '' })} />
-                {p?.available_sizes?.length > 0 && (
-                  <Select value={l.size_variant} onValueChange={v => setLine(i, { size_variant: v })}>
-                    <SelectTrigger className="h-7 text-xs w-20"><SelectValue placeholder="Size" /></SelectTrigger>
-                    <SelectContent>{p.available_sizes.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                )}
+                <ProductPicker loading={productsLoading} error={productsError ? (productsError as any).message : null} hasBranch={!!branchId} products={products as ProductOption[]} value={l.product_id} variant={l.size_variant} onChange={(pr, v) =>
+                  setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: v })} />
                 <Input className="h-7 text-xs w-16" type="number" min={1} value={l.quantity} onChange={e => setLine(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
                 <Input className="h-7 text-xs w-24" type="number" min={0} step="0.01" value={l.unit_price} onChange={e => setLine(i, { unit_price: Math.max(0, Number(e.target.value) || 0) })} />
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setLines(ls => ls.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button>
