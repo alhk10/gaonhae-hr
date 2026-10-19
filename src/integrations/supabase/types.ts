@@ -10315,6 +10315,7 @@ export type Database = {
         Args: { p_branch_id: string; p_password: string }
         Returns: {
           available_sizes: string[]
+          available_variants: Json
           base_price: number
           branch_price: number
           category: string
@@ -10323,6 +10324,7 @@ export type Database = {
           is_physical: boolean
           name: string
           stock_on_hand: number
+          variant_stock: Json
         }[]
       }
       list_external_invoices: {
