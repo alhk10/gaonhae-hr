@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import australiaLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
+import { isClassLineItem } from '@/utils/invoiceLineType';
 
 export interface InvoiceItem {
   id: string;
