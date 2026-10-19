@@ -415,8 +415,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       yPos = 20;
     }
     
-    const qrSize = 42; // 5% larger than original 40
-    const qrX = pageWidth - margin - qrSize; // Right-aligned
+    const qrSize = 30;
     let qrData: LoadedImage | null = null;
     
     // Load QR code if available
@@ -474,10 +473,17 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     
     // Add QR code on the right (below bank transfer info)
     if (qrData) {
-      const qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
-      doc.addImage(qrData.data, 'JPEG', qrX, qrStartY, qrSize, qrSize, undefined, 'FAST');
+      let qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
+      const footerTop = doc.internal.pageSize.getHeight() - 22;
+      let size = Math.min(qrSize, footerTop - qrStartY);
+      if (size < 24) {
+        doc.addPage();
+        qrStartY = 20;
+        size = qrSize;
+      }
+      doc.addImage(qrData.data, 'JPEG', pageWidth - margin - size, qrStartY, size, size, undefined, 'FAST');
       // Ensure yPos accounts for QR height if notes are shorter
-      const qrEndY = qrStartY + qrSize;
+      const qrEndY = qrStartY + size;
       if (yPos < qrEndY) {
         yPos = qrEndY;
       }
