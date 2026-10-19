@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.trg_external_invoice_cancelled() FROM PUBLIC, anon, authenticated;

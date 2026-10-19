@@ -362,6 +362,7 @@ const PublicGradingList: React.FC = () => {
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
         sessionStorage.setItem('guards_list_all_branch_v1', '1');
         sessionStorage.removeItem(LOCKED_BRANCH_KEY);
+        sessionStorage.setItem('access_pw_v1', pwInput);
       } catch {}
       toast.success('Edit mode enabled');
     } else if (branchId) {
@@ -374,6 +375,7 @@ const PublicGradingList: React.FC = () => {
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
         sessionStorage.removeItem('guards_list_all_branch_v1');
         sessionStorage.setItem(LOCKED_BRANCH_KEY, branchId);
+        sessionStorage.setItem('access_pw_v1', pwInput);
       } catch {}
       toast.success('Edit mode enabled for your branch');
     } else {
@@ -391,6 +393,7 @@ const PublicGradingList: React.FC = () => {
       sessionStorage.removeItem('guards_list_unlock_level_v1');
       sessionStorage.removeItem('guards_list_all_branch_v1');
       sessionStorage.removeItem(LOCKED_BRANCH_KEY);
+      sessionStorage.removeItem('access_pw_v1');
     } catch {}
   };
 

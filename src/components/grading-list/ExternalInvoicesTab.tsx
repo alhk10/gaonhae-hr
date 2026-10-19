@@ -8,13 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Image as ImageIcon, XCircle } from 'lucide-react';
+import { openSignedUrl } from '@/components/common/SignedMedia';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate } from '@/utils/dateFormat';
+import { externalInvoiceTotal } from '@/utils/externalInvoiceTotal';
 
 interface Props {
   branchFilter?: string;
@@ -28,10 +30,13 @@ interface Row {
   id: string; invoice_number: string; customer_name: string; customer_category: string | null;
   customer_email: string | null; customer_phone: string | null; branch_id: string; branch_name: string;
   status: string; total_amount: number; amount_paid: number; balance_due: number; issue_date: string; items: string | null;
+  proof_url: string | null; pending_payment: boolean; cancel_requested: boolean;
 }
 interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string }
 
 const rpc = supabase.rpc as any;
+const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
+
 
 const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdit }) => {
   const qc = useQueryClient();
@@ -40,9 +45,10 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
   const [view, setView] = useState<{ id: string; number: string } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['external-invoices', lockedBranchId ?? null],
+    queryKey: ['external-invoices', lockedBranchId ?? null, canEdit],
+    enabled: canEdit,
     queryFn: async () => {
-      const { data, error } = await rpc('list_external_invoices', { p_branch_id: lockedBranchId ?? null });
+      const { data, error } = await rpc('list_external_invoices', { p_password: accessPw(), p_branch_id: lockedBranchId ?? null });
       if (error) throw error;
       return (data ?? []) as Row[];
     },
@@ -51,6 +57,19 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
     lockedBranchId || !branchFilter || branchFilter === 'all' || r.branch_name === branchFilter), [rows, branchFilter, lockedBranchId]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['external-invoices'] });
+  const cancel = useMutation({
+    mutationFn: async (r: Row) => {
+      const reason = window.prompt(`Cancel ${r.invoice_number}? Stock will be returned. Reason:`);
+      if (reason === null) return null;
+      const { data, error } = await rpc('cancel_external_invoice', { p_password: accessPw(), p_invoice_id: r.id, p_reason: reason });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: (res) => { if (!res) return; toast.success(res === 'cancelled' ? 'Invoice cancelled' : 'Cancellation sent to superadmin for approval'); refresh(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (!canEdit) return <Card><CardContent className="p-4 text-sm text-muted-foreground">Unlock edit mode to view external invoices.</CardContent></Card>;
 
   return (
     <Card>
@@ -86,11 +105,25 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
                   <TableCell data-label="Items" className="text-xs break-words">{r.items ?? '—'}</TableCell>
                   <TableCell data-label="Total" className="text-right">{formatCurrency(r.total_amount)}</TableCell>
                   <TableCell data-label="Balance" className="text-right">{formatCurrency(r.balance_due)}</TableCell>
-                  <TableCell data-label="Status"><StatusBadge status={r.status} /></TableCell>
+                  <TableCell data-label="Status">
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <StatusBadge status={r.status} />
+                      {r.pending_payment && <Badge variant="outline" className="text-[10px]">Payment pending verification</Badge>}
+                      {r.cancel_requested && <Badge variant="outline" className="text-[10px]">Cancel pending approval</Badge>}
+                      {r.proof_url && (
+                        <button type="button" title="View proof" onClick={() => openSignedUrl(r.proof_url!)}><ImageIcon className="h-4 w-4 text-primary" /></button>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell data-label="Actions">
-                    {canEdit && r.balance_due > 0 && r.status !== 'cancelled' && (
-                      <Button size="sm" variant="outline" className="h-7" onClick={() => setPayRow(r)}><DollarSign className="h-3 w-3 mr-1" />Record payment</Button>
-                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {r.balance_due > 0 && r.status !== 'cancelled' && (
+                        <Button size="sm" variant="outline" className="h-7" onClick={() => setPayRow(r)}><DollarSign className="h-3 w-3 mr-1" />Record payment</Button>
+                      )}
+                      {r.status !== 'cancelled' && !r.cancel_requested && (
+                        <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => cancel.mutate(r)}><XCircle className="h-3 w-3 mr-1" />Cancel</Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -124,13 +157,12 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
     queryFn: async () => { const { data, error } = await rpc('list_external_invoice_products'); if (error) throw error; return (data ?? []) as any[]; },
   });
   const country = (branches as any[]).find(b => b.id === branchId)?.country;
-  const lineTotal = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
-  const total = country === 'Singapore' ? lineTotal * 1.09 : lineTotal;
+  const total = externalInvoiceTotal(lines, country);
 
   const save = useMutation({
     mutationFn: async () => {
       const items = lines.filter(l => l.product_id);
-      const { data, error } = await rpc('create_external_invoice', { p_payload: {
+      const { data, error } = await rpc('create_external_invoice', { p_password: accessPw(), p_payload: {
         customer_category: category, customer_name: name, customer_email: email, customer_phone: phone,
         customer_reference: reference, branch_id: branchId, notes, items, actor: 'access',
       } });
@@ -209,10 +241,21 @@ const PayDialog: React.FC<{ row: Row; onClose: () => void; onDone: () => void }>
   const [amount, setAmount] = useState(String(row.balance_due));
   const [method, setMethod] = useState('paynow');
   const [reference, setReference] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const needsProof = method === 'paynow' || method === 'bank_transfer';
   const pay = useMutation({
     mutationFn: async () => {
+      let proofUrl: string | null = null;
+      if (file) {
+        if (!file.type.startsWith('image/')) throw new Error('Proof must be an image (PDF not accepted)');
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const path = `external-invoices/${row.id}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        const up = await supabase.storage.from('payment-proofs').upload(path, file, { upsert: false, contentType: file.type });
+        if (up.error) throw new Error('Could not upload the proof, please try again.');
+        proofUrl = `payment-proofs/${path}`;
+      }
       const { error } = await rpc('record_external_invoice_payment', {
-        p_invoice_id: row.id, p_amount: Number(amount), p_method: method, p_reference: reference, p_actor: 'access',
+        p_password: accessPw(), p_invoice_id: row.id, p_amount: Number(amount), p_method: method, p_reference: reference, p_proof_url: proofUrl,
       });
       if (error) throw error;
     },
@@ -235,10 +278,19 @@ const PayDialog: React.FC<{ row: Row; onClose: () => void; onDone: () => void }>
               </SelectContent>
             </Select></div>
           <div><Label className="text-xs">Reference</Label><Input className="h-7 text-xs" value={reference} onChange={e => setReference(e.target.value)} /></div>
+          <div><Label className="text-xs">Proof of payment (image){needsProof ? '' : ' — optional for cash'}</Label>
+            <Input className="h-8 text-xs" type="file" accept="image/*" onChange={e => {
+              const f = e.target.files?.[0] || null;
+              if (f && !f.type.startsWith('image/')) { toast.error('Please upload an image, not a PDF'); e.target.value = ''; return; }
+              setFile(f);
+            }} />
+            {file && <img src={URL.createObjectURL(file)} alt="Proof preview" className="mt-1 max-h-32 rounded border" />}
+            {!(method === 'cash') && <p className="text-[10px] text-muted-foreground mt-1">Non-cash payments are confirmed after staff verification.</p>}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={pay.isPending || !(Number(amount) > 0)} onClick={() => pay.mutate()}>Save</Button>
+          <Button size="sm" disabled={pay.isPending || !(Number(amount) > 0) || (needsProof && !file)} onClick={() => pay.mutate()}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

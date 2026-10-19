@@ -425,12 +425,12 @@ const InvoiceManagementList: React.FC = () => {
       // Get student details to get WhatsApp number
       let studentData;
       try {
-        studentData = await getStudentById(invoice.student_id);
+        studentData = invoice.student_id ? await getStudentById(invoice.student_id) : null;
       } catch {
         studentData = null;
       }
 
-      const whatsappNumber = studentData?.whatsapp || studentData?.phone || '';
+      const whatsappNumber = studentData?.whatsapp || studentData?.phone || (invoice as any).customer_phone || '';
       if (!hasUsableMobileNumber(whatsappNumber)) {
         toast.error('No WhatsApp or phone number found for this student');
         return;
@@ -479,8 +479,8 @@ const InvoiceManagementList: React.FC = () => {
   // Handle email dialog open
   const handleOpenEmailDialog = async (invoice: Invoice) => {
     try {
-      const studentData = await getStudentById(invoice.student_id);
-      setEmailAddress(studentData?.email || '');
+      const studentData = invoice.student_id ? await getStudentById(invoice.student_id) : null;
+      setEmailAddress(studentData?.email || (invoice as any).customer_email || '');
     } catch {
       setEmailAddress('');
     }
@@ -607,6 +607,7 @@ const InvoiceManagementList: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Students</SelectItem>
+                <SelectItem value="__external__">External customers</SelectItem>
                 {students.map((student) => (
                   <SelectItem key={student.id} value={student.id}>
                     {student.name}
