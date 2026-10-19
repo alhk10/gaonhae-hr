@@ -36,7 +36,7 @@ interface Row {
 }
 interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string }
 
-const rpc = supabase.rpc as any;
+const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
 
 
@@ -45,10 +45,25 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
   const [createOpen, setCreateOpen] = useState(false);
   const [payRow, setPayRow] = useState<Row | null>(null);
   const [view, setView] = useState<{ id: string; number: string } | null>(null);
+  const [hasPw, setHasPw] = useState(() => !!accessPw());
+  const [pwInput, setPwInput] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['external-invoices', lockedBranchId ?? null, canEdit],
-    enabled: canEdit,
+  const savePw = async () => {
+    setPwBusy(true);
+    const { error } = await rpc('list_external_invoices', { p_password: pwInput, p_branch_id: lockedBranchId ?? null });
+    setPwBusy(false);
+    if (error) { toast.error(error.message); return; }
+    try { sessionStorage.setItem('access_pw_v1', pwInput); } catch {}
+    setPwInput(''); setHasPw(true);
+    qc.invalidateQueries({ queryKey: ['external-invoices'] });
+    qc.invalidateQueries({ queryKey: ['ext-inv-products'] });
+  };
+
+  const { data: rows = [], isLoading, error: listError } = useQuery({
+    queryKey: ['external-invoices', lockedBranchId ?? null, canEdit, hasPw],
+    enabled: canEdit && hasPw,
+    retry: false,
     queryFn: async () => {
       const { data, error } = await rpc('list_external_invoices', { p_password: accessPw(), p_branch_id: lockedBranchId ?? null });
       if (error) throw error;
@@ -73,6 +88,17 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
 
   if (!canEdit) return <Card><CardContent className="p-4 text-sm text-muted-foreground">Unlock edit mode to view external invoices.</CardContent></Card>;
 
+  if (!hasPw) return (
+    <Card><CardContent className="p-4 space-y-2">
+      <p className="text-sm">Please re-enter your staff password to use External Invoices.</p>
+      <div className="flex gap-2 max-w-sm">
+        <Input type="password" className="h-8 text-xs" value={pwInput} onChange={e => setPwInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && pwInput) savePw(); }} placeholder="Staff password" />
+        <Button size="sm" disabled={!pwInput || pwBusy} onClick={savePw}>Continue</Button>
+      </div>
+    </CardContent></Card>
+  );
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
@@ -80,7 +106,8 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
         {canEdit && <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />New invoice</Button>}
       </CardHeader>
       <CardContent className="access-list-shell">
-        {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : visible.length === 0 ? (
+        {listError ? <p className="text-sm text-destructive">Could not load invoices: {(listError as any).message}</p>
+          : isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : visible.length === 0 ? (
           <p className="text-sm text-muted-foreground">No external invoices yet.</p>
         ) : (
           <Table className="access-list-table">
@@ -147,7 +174,7 @@ interface ProductOption {
   base_price: number; branch_price: number | null; available_sizes: string[] | null; stock_on_hand: number | null;
 }
 
-const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChange: (p: ProductOption) => void }> = ({ products, value, onChange }) => {
+const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChange: (p: ProductOption) => void; loading?: boolean; error?: string | null; hasBranch?: boolean }> = ({ products, value, onChange, loading, error, hasBranch }) => {
   const [open, setOpen] = useState(false);
   const selected = products.find(p => p.id === value);
   const groups = useMemo(() => {
@@ -159,7 +186,7 @@ const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChan
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="h-7 text-xs flex-1 min-w-[180px] justify-between font-normal">
-          <span className="truncate">{selected ? selected.name : products.length ? 'Select product' : 'Choose a branch first'}</span>
+          <span className="truncate">{selected ? selected.name : !hasBranch ? 'Choose a branch first' : error ? 'Products unavailable' : loading ? 'Loading products…' : 'Select product'}</span>
           <ChevronsUpDown className="h-3 w-3 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -167,7 +194,7 @@ const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChan
         <Command>
           <CommandInput placeholder="Search products…" className="text-xs" />
           <CommandList className="max-h-72">
-            <CommandEmpty>No product found.</CommandEmpty>
+            <CommandEmpty>{error ? `Could not load products: ${error}` : loading ? 'Loading products…' : !hasBranch ? 'Choose a branch first.' : 'No product found.'}</CommandEmpty>
             {groups.map(([cat, items]) => (
               <CommandGroup key={cat} heading={cat}>
                 {items.map(p => (
@@ -200,7 +227,8 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
     queryKey: ['ext-inv-branches'],
     queryFn: async () => { const { data } = await supabase.from('branches').select('id,name,country').order('name'); return data ?? []; },
   });
-  const { data: products = [] } = useQuery({
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
+    retry: false,
     queryKey: ['ext-inv-products', branchId],
     enabled: !!branchId,
     queryFn: async () => {
@@ -256,7 +284,7 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
             const p = (products as any[]).find(x => x.id === l.product_id);
             return (
               <div key={i} className="flex flex-wrap gap-1 items-center">
-                <ProductPicker products={products as ProductOption[]} value={l.product_id} onChange={pr =>
+                <ProductPicker loading={productsLoading} error={productsError ? (productsError as any).message : null} hasBranch={!!branchId} products={products as ProductOption[]} value={l.product_id} onChange={pr =>
                   setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: '' })} />
                 {p?.available_sizes?.length > 0 && (
                   <Select value={l.size_variant} onValueChange={v => setLine(i, { size_variant: v })}>
