@@ -154,6 +154,11 @@ const PublicGradingList: React.FC = () => {
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard'>(() => {
     try {
       const lvl = sessionStorage.getItem('guards_list_unlock_level_v1');
+      // Old sessions without a saved password must unlock once more via the normal screen.
+      if (!sessionStorage.getItem('access_pw_v1')) {
+        ['guards_list_unlocked_v1', 'guards_list_unlock_level_v1', 'guards_list_all_branch_v1'].forEach(k => sessionStorage.removeItem(k));
+        return 'none';
+      }
       if (lvl === 'standard' || lvl === 'full') return 'standard';
     } catch {}
     return 'none';
