@@ -294,7 +294,7 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={save.isPending || !name.trim() || !branchId || !lines.some(l => l.product_id) || lines.some(l => {
-            const p = (products as any[]).find(x => x.id === l.product_id); return p?.available_sizes?.length > 0 && !l.size_variant;
+            const p = (products as any[]).find(x => x.id === l.product_id); return !!p && productVariantKeys(p).length > 0 && !l.size_variant;
           })} onClick={() => save.mutate()}>Create invoice</Button>
         </DialogFooter>
       </DialogContent>
