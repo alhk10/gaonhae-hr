@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, DollarSign, Image as ImageIcon, XCircle } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Check, ChevronsUpDown, Image as ImageIcon, XCircle } from 'lucide-react';
 import { openSignedUrl } from '@/components/common/SignedMedia';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -140,6 +142,52 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
   );
 };
 
+interface ProductOption {
+  id: string; name: string; category: string; is_active: boolean; is_physical: boolean;
+  base_price: number; branch_price: number | null; available_sizes: string[] | null; stock_on_hand: number | null;
+}
+
+const ProductPicker: React.FC<{ products: ProductOption[]; value: string; onChange: (p: ProductOption) => void }> = ({ products, value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const selected = products.find(p => p.id === value);
+  const groups = useMemo(() => {
+    const m = new Map<string, ProductOption[]>();
+    products.forEach(p => { const k = p.category || 'Other'; m.set(k, [...(m.get(k) || []), p]); });
+    return [...m.entries()];
+  }, [products]);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-7 text-xs flex-1 min-w-[180px] justify-between font-normal">
+          <span className="truncate">{selected ? selected.name : products.length ? 'Select product' : 'Choose a branch first'}</span>
+          <ChevronsUpDown className="h-3 w-3 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[min(90vw,360px)]" align="start">
+        <Command>
+          <CommandInput placeholder="Search products…" className="text-xs" />
+          <CommandList className="max-h-72">
+            <CommandEmpty>No product found.</CommandEmpty>
+            {groups.map(([cat, items]) => (
+              <CommandGroup key={cat} heading={cat}>
+                {items.map(p => (
+                  <CommandItem key={p.id} value={`${p.name} ${cat}`} onSelect={() => { onChange(p); setOpen(false); }} className="text-xs">
+                    <Check className={`h-3 w-3 mr-1 ${p.id === value ? 'opacity-100' : 'opacity-0'}`} />
+                    <span className="flex-1 break-words">{p.name}</span>
+                    {!p.is_active && <Badge variant="outline" className="text-[9px] ml-1">Inactive</Badge>}
+                    {p.is_physical && p.stock_on_hand != null && <span className="text-[10px] text-muted-foreground ml-1">{p.stock_on_hand} in stock</span>}
+                    <span className="ml-2 text-muted-foreground">{formatCurrency(Number(p.branch_price ?? p.base_price ?? 0))}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onDone: () => void }> = ({ lockedBranchId, onClose, onDone }) => {
   const [category, setCategory] = useState('school_club');
   const [name, setName] = useState(''); const [email, setEmail] = useState('');
@@ -153,8 +201,13 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
     queryFn: async () => { const { data } = await supabase.from('branches').select('id,name,country').order('name'); return data ?? []; },
   });
   const { data: products = [] } = useQuery({
-    queryKey: ['ext-inv-products'],
-    queryFn: async () => { const { data, error } = await rpc('list_external_invoice_products'); if (error) throw error; return (data ?? []) as any[]; },
+    queryKey: ['ext-inv-products', branchId],
+    enabled: !!branchId,
+    queryFn: async () => {
+      const { data, error } = await rpc('list_external_invoice_products', { p_password: accessPw(), p_branch_id: branchId });
+      if (error) throw error;
+      return (data ?? []) as ProductOption[];
+    },
   });
   const country = (branches as any[]).find(b => b.id === branchId)?.country;
   const total = externalInvoiceTotal(lines, country);
@@ -203,13 +256,8 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
             const p = (products as any[]).find(x => x.id === l.product_id);
             return (
               <div key={i} className="flex flex-wrap gap-1 items-center">
-                <Select value={l.product_id} onValueChange={v => {
-                  const pr = (products as any[]).find(x => x.id === v);
-                  setLine(i, { product_id: v, unit_price: Number(pr?.base_price ?? 0), size_variant: '' });
-                }}>
-                  <SelectTrigger className="h-7 text-xs flex-1 min-w-[180px]"><SelectValue placeholder="Select product" /></SelectTrigger>
-                  <SelectContent>{(products as any[]).map(x => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <ProductPicker products={products as ProductOption[]} value={l.product_id} onChange={pr =>
+                  setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: '' })} />
                 {p?.available_sizes?.length > 0 && (
                   <Select value={l.size_variant} onValueChange={v => setLine(i, { size_variant: v })}>
                     <SelectTrigger className="h-7 text-xs w-20"><SelectValue placeholder="Size" /></SelectTrigger>
