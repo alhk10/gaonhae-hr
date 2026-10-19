@@ -481,7 +481,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
         qrStartY = 20;
         size = qrSize;
       }
-      doc.addImage(qrData.data, 'JPEG', pageWidth - margin - size, qrStartY, size, size, undefined, 'FAST');
+      doc.addImage(qrData.data, 'JPEG', rightColumnX, qrStartY, size, size, undefined, 'FAST');
       // Ensure yPos accounts for QR height if notes are shorter
       const qrEndY = qrStartY + size;
       if (yPos < qrEndY) {
