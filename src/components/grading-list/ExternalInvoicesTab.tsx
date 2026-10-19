@@ -45,20 +45,7 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
   const [createOpen, setCreateOpen] = useState(false);
   const [payRow, setPayRow] = useState<Row | null>(null);
   const [view, setView] = useState<{ id: string; number: string } | null>(null);
-  const [hasPw, setHasPw] = useState(() => !!accessPw());
-  const [pwInput, setPwInput] = useState('');
-  const [pwBusy, setPwBusy] = useState(false);
-
-  const savePw = async () => {
-    setPwBusy(true);
-    const { error } = await rpc('list_external_invoices', { p_password: pwInput, p_branch_id: lockedBranchId ?? null });
-    setPwBusy(false);
-    if (error) { toast.error(error.message); return; }
-    try { sessionStorage.setItem('access_pw_v1', pwInput); } catch {}
-    setPwInput(''); setHasPw(true);
-    qc.invalidateQueries({ queryKey: ['external-invoices'] });
-    qc.invalidateQueries({ queryKey: ['ext-inv-products'] });
-  };
+  const hasPw = true;
 
   const { data: rows = [], isLoading, error: listError } = useQuery({
     queryKey: ['external-invoices', lockedBranchId ?? null, canEdit, hasPw],
@@ -88,16 +75,6 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
 
   if (!canEdit) return <Card><CardContent className="p-4 text-sm text-muted-foreground">Unlock edit mode to view external invoices.</CardContent></Card>;
 
-  if (!hasPw) return (
-    <Card><CardContent className="p-4 space-y-2">
-      <p className="text-sm">Please re-enter your staff password to use External Invoices.</p>
-      <div className="flex gap-2 max-w-sm">
-        <Input type="password" className="h-8 text-xs" value={pwInput} onChange={e => setPwInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && pwInput) savePw(); }} placeholder="Staff password" />
-        <Button size="sm" disabled={!pwInput || pwBusy} onClick={savePw}>Continue</Button>
-      </div>
-    </CardContent></Card>
-  );
 
   return (
     <Card>
