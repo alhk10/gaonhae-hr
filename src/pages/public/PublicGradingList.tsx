@@ -36,6 +36,7 @@ import SummaryTab from '@/components/grading-list/SummaryTab';
 import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
 import StudentsTab from '@/components/grading-list/StudentsTab';
 import StudioRentalTab from '@/components/grading-list/StudioRentalTab';
+import ExternalInvoicesTab from '@/components/grading-list/ExternalInvoicesTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -1416,7 +1417,7 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-10 h-auto">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
@@ -1425,6 +1426,7 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
             <TabsTrigger value="rental">Studio Rental</TabsTrigger>
+            <TabsTrigger value="external-invoices">External Invoices</TabsTrigger>
             <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
           </TabsList>
           <TabsContent value="rental" className="mt-4">
@@ -1434,6 +1436,9 @@ const PublicGradingList: React.FC = () => {
               canEdit={editMode}
               isAllBranch={editMode && !lockedBranchId}
             />
+          </TabsContent>
+          <TabsContent value="external-invoices" className="mt-4">
+            <ExternalInvoicesTab branchFilter={branchFilter} lockedBranchId={lockedBranchId ?? undefined} canEdit={editMode} />
           </TabsContent>
           <TabsContent value="students" className="mt-4">
             <StudentsTab canEdit={editMode} lockedBranchId={lockedBranchId ?? undefined} />
