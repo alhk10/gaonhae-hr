@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { sortInvoiceLines } from "./invoiceLineSort";
 import australiaLogo from '@/assets/certificates/au/gaonhae-logo.jpg';
 
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
@@ -291,7 +292,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   // Table rows
   doc.setFont('helvetica', 'normal');
   if (invoice.items && invoice.items.length > 0) {
-    invoice.items.forEach((item) => {
+    sortInvoiceLines(invoice.items).forEach((item) => {
       // Check if we need a new page
       if (yPos > 240) {
         doc.addPage();
@@ -566,7 +567,7 @@ export interface SmsTermInfo {
  */
 const buildItemAndDiscountLines = (invoice: InvoiceData): string[] => {
   const lines: string[] = [];
-  const items = invoice.items || [];
+  const items = sortInvoiceLines(invoice.items || []);
 
   if (items.length === 0) {
     lines.push('No items');
@@ -796,7 +797,7 @@ export const shareInvoiceOverdueReminderViaSMS = async (
 
   // Build items list (en-dash separator)
   const itemsList = invoice.items && invoice.items.length > 0
-    ? invoice.items.map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
+    ? sortInvoiceLines(invoice.items).map(item => `${item.description} \u2013 ${formatCurrency(item.total_amount)}`).join('\n')
     : 'No items';
 
   // Bank transfer info
