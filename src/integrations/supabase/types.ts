@@ -3183,6 +3183,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           created_by: string | null
+          customer_category: string | null
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
@@ -3211,6 +3212,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_category?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -3239,6 +3241,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_category?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -9187,6 +9190,7 @@ export type Database = {
         Returns: number
       }
       create_access_invoice: { Args: { p_payload: Json }; Returns: Json }
+      create_external_invoice: { Args: { p_payload: Json }; Returns: Json }
       create_public_chat_callback: {
         Args: {
           p_branch_id: string
@@ -10280,6 +10284,35 @@ export type Database = {
         Args: { belt_values: string[] }
         Returns: boolean
       }
+      list_external_invoice_products: {
+        Args: never
+        Returns: {
+          available_sizes: string[]
+          base_price: number
+          id: string
+          name: string
+        }[]
+      }
+      list_external_invoices: {
+        Args: { p_branch_id?: string }
+        Returns: {
+          amount_paid: number
+          balance_due: number
+          branch_id: string
+          branch_name: string
+          customer_category: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          customer_reference: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          items: string
+          status: string
+          total_amount: number
+        }[]
+      }
       list_pending_student_merge_requests: {
         Args: never
         Returns: {
@@ -10458,6 +10491,16 @@ export type Database = {
           p_sessions: Json
         }
         Returns: Json
+      }
+      record_external_invoice_payment: {
+        Args: {
+          p_actor: string
+          p_amount: number
+          p_invoice_id: string
+          p_method: string
+          p_reference: string
+        }
+        Returns: undefined
       }
       record_perth_proof_scan: {
         Args: {
