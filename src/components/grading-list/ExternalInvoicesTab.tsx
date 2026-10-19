@@ -18,7 +18,8 @@ import StatusBadge from '@/components/grading-list/StatusBadge';
 import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate } from '@/utils/dateFormat';
-import { externalInvoiceTotal } from '@/utils/externalInvoiceTotal';
+import { externalInvoiceBreakdown, defaultTaxInclusive } from '@/utils/externalInvoiceTotal';
+import { Switch } from '@/components/ui/switch';
 
 interface Props {
   branchFilter?: string;
@@ -234,14 +235,16 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
     },
   });
   const country = (branches as any[]).find(b => b.id === branchId)?.country;
-  const total = externalInvoiceTotal(lines, country);
+  const [inclOverride, setInclOverride] = useState<{ branch: string; value: boolean } | null>(null);
+  const inclusive = inclOverride?.branch === branchId ? inclOverride.value : defaultTaxInclusive(country);
+  const { total, gst, rate } = externalInvoiceBreakdown(lines, country, inclusive);
 
   const save = useMutation({
     mutationFn: async () => {
       const items = lines.filter(l => l.product_id);
       const { data, error } = await rpc('create_external_invoice', { p_password: accessPw(), p_payload: {
         customer_category: category, customer_name: name, customer_email: email, customer_phone: phone,
-        customer_reference: reference, branch_id: branchId, notes, items, actor: 'access',
+        customer_reference: reference, branch_id: branchId, notes, items, tax_inclusive: inclusive, actor: 'access',
       } });
       if (error) throw error;
       return data;
@@ -289,7 +292,10 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
           })}
           <Button size="sm" variant="outline" className="h-7" onClick={() => setLines(ls => [...ls, { product_id: '', quantity: 1, unit_price: 0, size_variant: '' }])}><Plus className="h-3 w-3 mr-1" />Add item</Button>
           <div><Label className="text-xs">Notes</Label><Input className="h-7 text-xs" value={notes} onChange={e => setNotes(e.target.value)} /></div>
-          <div className="text-right font-semibold">Total {country === 'Singapore' ? '(incl. 9% GST)' : country === 'Australia' ? '(GST included)' : ''}: {formatCurrency(total)}</div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {rate > 0 && <label className="flex items-center gap-2 text-xs"><Switch checked={inclusive} onCheckedChange={v => setInclOverride({ branch: branchId, value: v })} />Prices include GST</label>}
+            <div className="text-right font-semibold">Total {rate > 0 ? (inclusive ? `(GST included ${formatCurrency(gst)})` : `(incl. ${Math.round(rate * 100)}% GST ${formatCurrency(gst)})`) : ''}: {formatCurrency(total)}</div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
