@@ -16,6 +16,7 @@ import StatusBadge from '@/components/grading-list/StatusBadge';
 import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatDate } from '@/utils/dateFormat';
+import { externalInvoiceTotal } from '@/utils/externalInvoiceTotal';
 
 interface Props {
   branchFilter?: string;
@@ -36,10 +37,6 @@ interface Line { product_id: string; quantity: number; unit_price: number; size_
 const rpc = supabase.rpc as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
 
-export const externalInvoiceTotal = (lines: { quantity: number; unit_price: number }[], country?: string) => {
-  const sum = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
-  return Math.round((country === 'Singapore' ? sum * 1.09 : sum) * 100) / 100;
-};
 
 const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, canEdit }) => {
   const qc = useQueryClient();
