@@ -1125,8 +1125,9 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
       .filter(p => p.payment_method !== 'credit' && p.verification_status !== 'rejected')
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // Refund payments as student credits
-    if (totalPaid > 0) {
+    // Refund payments as student credits (external customers have no credit
+    // account; their refund is recorded on the invoice by the database instead)
+    if (totalPaid > 0 && invoice.student_id) {
       const { error: creditError } = await supabase
         .from('student_credits')
         .insert({
