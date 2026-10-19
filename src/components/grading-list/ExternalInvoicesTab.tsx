@@ -36,7 +36,7 @@ interface Row {
 }
 interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string }
 
-const rpc = supabase.rpc as any;
+const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
 
 
