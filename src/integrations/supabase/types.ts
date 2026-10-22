@@ -8516,6 +8516,15 @@ export type Database = {
       }
       _next_invoice_number: { Args: never; Returns: string }
       _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
+      _perth_name_match: {
+        Args: {
+          in_first: string
+          in_last: string
+          rec_first: string
+          rec_last: string
+        }
+        Returns: boolean
+      }
       _remember_student_email: {
         Args: { p_email: string; p_student_id: string }
         Returns: undefined
