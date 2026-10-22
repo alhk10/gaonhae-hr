@@ -193,23 +193,23 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   
-  data.slots.forEach((slot, index) => {
-    // Check if we need a new page
-    if (yPos > 250) {
+  const FOOTER_LIMIT = 278;
+  const visibleSlots = data.slots.filter(s => (s.pay || 0) > 0 || (s.hoursWorked || 0) > 0);
+  if (visibleSlots.length === 0) {
+    doc.text('No paid sessions this month', 17, yPos);
+    yPos += 5;
+  }
+  visibleSlots.forEach((slot, index) => {
+    if (yPos > FOOTER_LIMIT - 5) {
       doc.addPage();
       yPos = 20;
     }
-    
-    // Alternate row background
     if (index % 2 === 0) {
       doc.setFillColor(250, 250, 250);
       doc.rect(15, yPos - 3, 180, 5, 'F');
     }
-    
-    // Calculate day rate if not provided (full rate before proration)
     const expectedHours = slot.expectedHours || slot.hoursWorked || 6.33;
     const dayRate = slot.dayRate || (slot.hoursWorked > 0 ? (slot.pay / slot.hoursWorked) * expectedHours : slot.pay);
-    
     doc.text(formatDate(slot.date), 17, yPos);
     doc.text(slot.branchName.substring(0, 15), 42, yPos);
     doc.text(`$${dayRate.toFixed(2)}`, 80, yPos);
@@ -219,24 +219,38 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text(`$${slot.pay.toFixed(2)}`, 175, yPos);
     yPos += 5;
   });
-  
-  // Timesheet total
+
+  // Estimate remaining height: squeeze gaps if overflow < 3 lines, else flow sections to next page
+  const drc = data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0 ? data.dayRateCalculation : null;
+  const hTotal = 15;
+  const hDay = drc ? 20 + drc.breakdown.length * 4 : 0;
+  const hEarn = 25 + Math.max(1, data.allowances.length) * 4 + (data.approvedClaims > 0 ? 4 : 0);
+  const hDed = 29 + data.deductions.length * 4;
+  const hNet = 12;
+  const hCpf = 21;
+  const overflow = yPos + hTotal + hDay + hEarn + hDed + hNet + hCpf - FOOTER_LIMIT;
+  const g = overflow > 0 && overflow <= 12 ? Math.max(0.5, 1 - overflow / 36) : 1;
+  const compress = g < 1;
+  const ensureSpace = (h: number) => {
+    if (!compress && yPos + h > FOOTER_LIMIT) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
+
+  ensureSpace(hTotal);
   yPos += 2;
   doc.line(15, yPos, 195, yPos);
   yPos += 5;
   doc.setFont('helvetica', 'bold');
   doc.text('TOTAL SLOT PAY', 17, yPos);
   doc.text(`$${data.totalSlotPay.toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
 
   // Day Rate Calculation Section (if provided)
   if (data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0) {
     // Check if we need a new page
-    const sectionHeight = 10 + (data.dayRateCalculation.breakdown.length * 4) + 10;
-    if (yPos + sectionHeight > 260) {
-      doc.addPage();
-      yPos = 20;
-    }
+    ensureSpace(hDay);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
@@ -252,6 +266,7 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text('Weekend', 100, yPos, { align: 'right' });
     yPos += 5;
     doc.line(15, yPos - 2, 105, yPos - 2);
+    yPos += 2;
 
     // Breakdown rows
     doc.setFont('helvetica', 'normal');
@@ -273,10 +288,11 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text('TOTAL DAY RATE', 17, yPos);
     doc.text(`$${data.dayRateCalculation.weekdayRate.toFixed(2)}`, 65, yPos, { align: 'right' });
     doc.text(`$${data.dayRateCalculation.weekendRate.toFixed(2)}`, 100, yPos, { align: 'right' });
-    yPos += 8;
+    yPos += 8 * g;
   }
   
   // Earnings section
+  ensureSpace(hEarn);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('ADDITIONAL EARNINGS:', 15, yPos);
@@ -313,9 +329,10 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'bold');
   doc.text('Gross Earnings', 17, yPos);
   doc.text(`$${data.grossSalary.toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
   
   // Deductions section
+  ensureSpace(hDed);
   doc.setFontSize(9);
   doc.text('DEDUCTIONS:', 15, yPos);
   yPos += 5;
@@ -346,18 +363,20 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'bold');
   doc.text('Total Deductions', 17, yPos);
   doc.text(`$${(data.employeeCPF + data.totalDeductions).toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
   
   // Net pay (highlighted)
+  ensureSpace(hNet);
   doc.setFillColor(240, 240, 240);
   doc.rect(15, yPos - 3, 180, 8, 'F');
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('NET PAY', 20, yPos + 2);
   doc.text(`S$ ${data.netSalary.toFixed(2)}`, 170, yPos + 2, { align: 'right' });
-  yPos += 12;
+  yPos += 12 * g;
   
   // CPF summary
+  ensureSpace(hCpf);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('CPF CONTRIBUTIONS SUMMARY:', 15, yPos);
@@ -380,7 +399,11 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   // Footer
   doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('This payslip is computer generated and does not require signature.', 105, 285, { align: 'center' });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.text('This payslip is computer generated and does not require signature.', 105, 288, { align: 'center' });
+  }
   
   const fileName = `${payslipId}_${data.employee.name.replace(/\s+/g, '_')}_Casual.pdf`;
   doc.save(fileName);
