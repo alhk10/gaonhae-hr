@@ -266,6 +266,7 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text('Weekend', 100, yPos, { align: 'right' });
     yPos += 5;
     doc.line(15, yPos - 2, 105, yPos - 2);
+    yPos += 2;
 
     // Breakdown rows
     doc.setFont('helvetica', 'normal');
