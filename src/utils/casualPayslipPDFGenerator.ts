@@ -193,23 +193,23 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   
-  data.slots.forEach((slot, index) => {
-    // Check if we need a new page
-    if (yPos > 250) {
+  const FOOTER_LIMIT = 278;
+  const visibleSlots = data.slots.filter(s => (s.pay || 0) > 0 || (s.hoursWorked || 0) > 0);
+  if (visibleSlots.length === 0) {
+    doc.text('No paid sessions this month', 17, yPos);
+    yPos += 5;
+  }
+  visibleSlots.forEach((slot, index) => {
+    if (yPos > FOOTER_LIMIT - 5) {
       doc.addPage();
       yPos = 20;
     }
-    
-    // Alternate row background
     if (index % 2 === 0) {
       doc.setFillColor(250, 250, 250);
       doc.rect(15, yPos - 3, 180, 5, 'F');
     }
-    
-    // Calculate day rate if not provided (full rate before proration)
     const expectedHours = slot.expectedHours || slot.hoursWorked || 6.33;
     const dayRate = slot.dayRate || (slot.hoursWorked > 0 ? (slot.pay / slot.hoursWorked) * expectedHours : slot.pay);
-    
     doc.text(formatDate(slot.date), 17, yPos);
     doc.text(slot.branchName.substring(0, 15), 42, yPos);
     doc.text(`$${dayRate.toFixed(2)}`, 80, yPos);
@@ -219,15 +219,33 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text(`$${slot.pay.toFixed(2)}`, 175, yPos);
     yPos += 5;
   });
-  
-  // Timesheet total
+
+  // Estimate remaining height: squeeze gaps if overflow < 3 lines, else flow sections to next page
+  const drc = data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0 ? data.dayRateCalculation : null;
+  const hTotal = 15;
+  const hDay = drc ? 20 + drc.breakdown.length * 4 : 0;
+  const hEarn = 25 + Math.max(1, data.allowances.length) * 4 + (data.approvedClaims > 0 ? 4 : 0);
+  const hDed = 29 + data.deductions.length * 4;
+  const hNet = 12;
+  const hCpf = 21;
+  const overflow = yPos + hTotal + hDay + hEarn + hDed + hNet + hCpf - FOOTER_LIMIT;
+  const g = overflow > 0 && overflow <= 12 ? Math.max(0.5, 1 - overflow / 36) : 1;
+  const compress = g < 1;
+  const ensureSpace = (h: number) => {
+    if (!compress && yPos + h > FOOTER_LIMIT) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
+
+  ensureSpace(hTotal);
   yPos += 2;
   doc.line(15, yPos, 195, yPos);
   yPos += 5;
   doc.setFont('helvetica', 'bold');
   doc.text('TOTAL SLOT PAY', 17, yPos);
   doc.text(`$${data.totalSlotPay.toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
 
   // Day Rate Calculation Section (if provided)
   if (data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0) {
