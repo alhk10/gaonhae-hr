@@ -250,11 +250,7 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   // Day Rate Calculation Section (if provided)
   if (data.dayRateCalculation && data.dayRateCalculation.breakdown.length > 0) {
     // Check if we need a new page
-    const sectionHeight = 10 + (data.dayRateCalculation.breakdown.length * 4) + 10;
-    if (yPos + sectionHeight > 260) {
-      doc.addPage();
-      yPos = 20;
-    }
+    ensureSpace(hDay);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
@@ -291,10 +287,11 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
     doc.text('TOTAL DAY RATE', 17, yPos);
     doc.text(`$${data.dayRateCalculation.weekdayRate.toFixed(2)}`, 65, yPos, { align: 'right' });
     doc.text(`$${data.dayRateCalculation.weekendRate.toFixed(2)}`, 100, yPos, { align: 'right' });
-    yPos += 8;
+    yPos += 8 * g;
   }
   
   // Earnings section
+  ensureSpace(hEarn);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('ADDITIONAL EARNINGS:', 15, yPos);
@@ -331,9 +328,10 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'bold');
   doc.text('Gross Earnings', 17, yPos);
   doc.text(`$${data.grossSalary.toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
   
   // Deductions section
+  ensureSpace(hDed);
   doc.setFontSize(9);
   doc.text('DEDUCTIONS:', 15, yPos);
   yPos += 5;
@@ -364,18 +362,20 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   doc.setFont('helvetica', 'bold');
   doc.text('Total Deductions', 17, yPos);
   doc.text(`$${(data.employeeCPF + data.totalDeductions).toFixed(2)}`, 175, yPos);
-  yPos += 8;
+  yPos += 8 * g;
   
   // Net pay (highlighted)
+  ensureSpace(hNet);
   doc.setFillColor(240, 240, 240);
   doc.rect(15, yPos - 3, 180, 8, 'F');
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('NET PAY', 20, yPos + 2);
   doc.text(`S$ ${data.netSalary.toFixed(2)}`, 170, yPos + 2, { align: 'right' });
-  yPos += 12;
+  yPos += 12 * g;
   
   // CPF summary
+  ensureSpace(hCpf);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('CPF CONTRIBUTIONS SUMMARY:', 15, yPos);
@@ -398,7 +398,11 @@ export const generateCasualPayslipPDF = async (data: CasualPayslipData) => {
   // Footer
   doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('This payslip is computer generated and does not require signature.', 105, 285, { align: 'center' });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.text('This payslip is computer generated and does not require signature.', 105, 288, { align: 'center' });
+  }
   
   const fileName = `${payslipId}_${data.employee.name.replace(/\s+/g, '_')}_Casual.pdf`;
   doc.save(fileName);
