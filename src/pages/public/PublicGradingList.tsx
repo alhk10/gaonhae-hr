@@ -20,7 +20,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2 } from 'lucide-react';
+import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2, CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
@@ -354,25 +356,48 @@ const PublicGradingList: React.FC = () => {
     });
   }, [filteredRows]);
 
+  // Date chosen in the edit dialogs (lets staff move an entry to another day)
+  const [editDate, setEditDate] = React.useState<string>('');
+  React.useEffect(() => { setEditDate(slotEditRow?.grading_date || ''); }, [slotEditRow, slotEditRow?.grading_date]);
+  React.useEffect(() => { setEditDate(editRow?.grading_date || ''); }, [editRow, editRow?.grading_date]);
+
   // Slots for the slot-only edit dialog (legacy submission Pencil)
   const { data: editableSlots = [] } = useQuery({
-    queryKey: ['public-grading-slots-by-date', slotEditRow?.grading_date],
-    queryFn: () =>
-      slotEditRow?.grading_date
-        ? getPublicGradingSlotsByDate(slotEditRow.grading_date)
-        : Promise.resolve([] as PublicGradingSlotByDate[]),
-    enabled: !!slotEditRow?.grading_date,
+    queryKey: ['public-grading-slots-by-date', editDate],
+    queryFn: () => getPublicGradingSlotsByDate(editDate),
+    enabled: !!slotEditRow && !!editDate,
   });
 
-  // Slots for the row edit dialog (by the editRow's grading_date)
+  // Slots for the row edit dialog (by the chosen date)
   const { data: editRowSlots = [] } = useQuery({
-    queryKey: ['public-grading-slots-by-date', editRow?.grading_date],
-    queryFn: () =>
-      editRow?.grading_date
-        ? getPublicGradingSlotsByDate(editRow.grading_date)
-        : Promise.resolve([] as PublicGradingSlotByDate[]),
-    enabled: !!editRow?.grading_date,
+    queryKey: ['public-grading-slots-by-date', editDate],
+    queryFn: () => getPublicGradingSlotsByDate(editDate),
+    enabled: !!editRow && !!editDate,
   });
+
+  const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const renderEditDatePicker = (onChange: () => void) => (
+    <div>
+      <label className="text-xs text-muted-foreground">Grading date</label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="w-full justify-start font-normal">
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            {editDate ? formatDate(editDate) : 'Pick a date'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={editDate ? new Date(`${editDate}T00:00:00`) : undefined}
+            onSelect={(d) => { if (d) { setEditDate(toYmd(d)); onChange(); } }}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 
   // Branches for the row edit + mass edit dialogs
   const { data: publicBranches = [] } = useQuery({
@@ -2013,6 +2038,7 @@ const PublicGradingList: React.FC = () => {
             <DialogTitle>Update slot</DialogTitle>
             <DialogDescription>{slotEditRow?.student_name}</DialogDescription>
           </DialogHeader>
+          {renderEditDatePicker(() => setSlotChoice(''))}
           <Select value={slotChoice} onValueChange={setSlotChoice}>
             <SelectTrigger>
               <SelectValue placeholder="Select slot" />
@@ -2367,6 +2393,7 @@ const PublicGradingList: React.FC = () => {
                   </Select>
                 </div>
               </>
+              {renderEditDatePicker(() => setEditForm((f) => ({ ...f, slot_id: '' })))}
               <div>
                 <label className="text-xs text-muted-foreground">Slot</label>
                 <Select value={editForm.slot_id} onValueChange={(v) => setEditForm((f) => ({ ...f, slot_id: v }))}>
