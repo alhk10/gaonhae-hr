@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.prevent_duplicate_grading_submission() FROM PUBLIC, anon, authenticated;
