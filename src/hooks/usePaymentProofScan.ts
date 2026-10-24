@@ -149,3 +149,22 @@ export const recordProofScanBySession = async (
     console.warn('Could not save proof scan result', e);
   }
 };
+
+/**
+ * Asks the server to read the stored proof of unscanned, pending payments and save
+ * the result (matching proofs then auto-verify). Never throws; never blocks saving.
+ */
+export const scanStoredPayments = async (target: { invoiceIds?: string[]; paymentIds?: string[] }) => {
+  const invoice_ids = (target.invoiceIds || []).filter(Boolean);
+  const payment_ids = (target.paymentIds || []).filter(Boolean);
+  if (!invoice_ids.length && !payment_ids.length) return null;
+  try {
+    const { data } = await supabase.functions.invoke('scan-payment-proof', {
+      body: payment_ids.length ? { payment_ids } : { invoice_ids },
+    });
+    return (data?.scanned as Record<string, ProofScanStatus> | undefined) ?? null;
+  } catch (e) {
+    console.warn('Could not scan stored payments', e);
+    return null;
+  }
+};
