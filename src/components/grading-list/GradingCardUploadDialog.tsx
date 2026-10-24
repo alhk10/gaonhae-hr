@@ -52,7 +52,28 @@ const GradingCardUploadDialog: React.FC<Props> = ({
 
   const reset = () => { setFiles([]); setEnlarged(null); setRotation(0); };
 
-  const handlePick = (list: FileList | null) => {
+  const clipboardFiles = (e: React.ClipboardEvent): File[] => {
+    const dt = e.clipboardData;
+    let out = Array.from(dt?.files || []);
+    if (out.length === 0 && dt?.items) {
+      out = Array.from(dt.items).filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean) as File[];
+    }
+    return out.map((f, i) => {
+      if (f.name && f.name !== 'image.png') return f;
+      const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      return new File([f], `grading-card-pasted-${Date.now()}-${i + 1}.${ext}`, { type: f.type });
+    });
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const list = clipboardFiles(e);
+    if (list.length === 0) return;
+    e.preventDefault();
+    if (enlarged) void handleReuploadPick(list[0]);
+    else handlePick(list);
+  };
+
+  const handlePick = (list: FileList | File[] | null) => {
     if (!list) return;
     if (remaining === 0) {
       toast.error(`Maximum of ${MAX_FILES} grading card files reached`);
