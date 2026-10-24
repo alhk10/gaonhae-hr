@@ -8509,6 +8509,10 @@ export type Database = {
     }
     Functions: {
       _access_scope: { Args: { p_password: string }; Returns: string }
+      _activate_trial_for_invoice: {
+        Args: { p_invoice: string }
+        Returns: undefined
+      }
       _auto_invoice_active: { Args: never; Returns: boolean }
       _external_stock_move: {
         Args: { p_by: string; p_invoice: string; p_sign: number }
@@ -9162,6 +9166,7 @@ export type Database = {
         }
         Returns: number
       }
+      auto_inactivate_stale_trials: { Args: never; Returns: number }
       calculate_annual_leave_entitlement: {
         Args: { employee_id: string; reference_year?: number }
         Returns: {
