@@ -9,7 +9,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { supabase } from '@/integrations/supabase/client';
 import { getPendingStudentApprovals } from '@/services/publicStudentApprovalService';
 import { formatDateTime } from '@/utils/dateFormat';
-import { getPublicGradingList, getPublicBranches, getPublicStudentCountsByMonth } from '@/services/gradingPaymentSubmissionService';
+import { getPublicGradingList, getPendingGradingSubmissionMeta, getPublicBranches, getPublicStudentCountsByMonth } from '@/services/gradingPaymentSubmissionService';
 import { getPublicCompetitionList } from '@/services/competitionPaymentSubmissionService';
 import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService';
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
@@ -45,7 +45,7 @@ interface SummaryTabProps {
   lockedBranchName?: string;
   lockedBranchId?: string;
   canApprove?: boolean;
-  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent) => void;
+  onDrill?: (tab: SummaryDrillTab, branch: string, intent: SummaryDrillIntent, gradingDate?: string | null) => void;
   onStudentDrill?: (payFilter: string, branchId?: string) => void;
 }
 
@@ -66,6 +66,7 @@ interface ApprovalItem {
   name: string;
   branch: string;
   amount: number | null;
+  gradingDate?: string | null;
 }
 const rowName = (r: any) =>
   String(r.student_name || r.display_name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '—').toUpperCase();
@@ -99,6 +100,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
+    staleTime: 30 * 1000,
+  });
+  const { data: gradingMeta = [] } = useQuery({
+    queryKey: ['pending-grading-submission-meta'],
+    queryFn: getPendingGradingSubmissionMeta,
     staleTime: 30 * 1000,
   });
   const { data: competitionRows = [], isLoading: l2 } = useQuery({
@@ -184,14 +190,22 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
       items.push({ key: `${type}-${r.id}`, type, at: rowDate(r), name: rowName(r), branch: branch || NO_BRANCH, amount: rowAmount(r) });
     for (const r of studentApprovals as any[]) push(r.kind, r, r.branch_name);
     for (const r of schoolFeesRows as any[]) if (isPending(r.status)) push('school-fees', r, r.branch_name);
-    for (const r of gradingRows as any[]) if (r.source === 'submission' && isPending(r.paid_status)) push('grading', r, r.branch_name);
+    const metaById = new Map(gradingMeta.map((m) => [m.id, m]));
+    for (const r of gradingRows as any[]) {
+      if (r.source !== 'submission' || !isPending(r.paid_status)) continue;
+      const m = metaById.get(r.submission_id);
+      items.push({
+        key: `grading-${r.submission_id}`, type: 'grading', at: m?.created_at || '', name: rowName(r),
+        branch: r.branch_name || NO_BRANCH, amount: rowAmount(r), gradingDate: r.grading_date || null,
+      });
+    }
     for (const r of competitionRows as any[]) if (isPending(r.paid_status)) push('competitions', r, r.branch_name);
     for (const r of seminarRows as any[]) if (isPending(r.paid_status)) push('seminars', r, r.branch_name);
     for (const r of guardsRows as any[]) if (isPending(r.sale_status)) push('guards', r, branchNameById.get(r.branch_id));
     return items
       .filter((i) => !lockedBranchName || i.branch === lockedBranchName)
       .sort((a, b) => (a.at || '').localeCompare(b.at || ''));
-  }, [studentApprovals, schoolFeesRows, gradingRows, competitionRows, seminarRows, guardsRows, branchNameById, lockedBranchName]);
+  }, [studentApprovals, schoolFeesRows, gradingRows, competitionRows, seminarRows, guardsRows, branchNameById, lockedBranchName, gradingMeta]);
 
   const typeCounts = useMemo(() => {
     const m = new Map<ApprovalType, number>();
@@ -242,7 +256,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
       document.getElementById('summary-student-approvals')?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
-    onDrill?.(a.type, a.branch, 'pending');
+    onDrill?.(a.type, a.branch, 'pending', a.gradingDate);
   };
 
   if (isLoading) {

@@ -1504,8 +1504,9 @@ const PublicGradingList: React.FC = () => {
                 setStudentDrill({ filter, branchId, nonce: Date.now() });
                 setActiveTab('students');
               }}
-              onDrill={(tab, branch, intent) => {
+              onDrill={(tab, branch, intent, gradingDate) => {
                 if (!lockedBranchName) setBranchFilter(branch);
+                if (tab === 'grading' && gradingDate) setDateFilter(gradingDate);
                 setDrill({ intent, nonce: Date.now() });
                 setActiveTab(tab);
               }}
