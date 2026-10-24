@@ -578,6 +578,8 @@ export interface SubmitChatPaymentInput {
   proof_file: File | null;
   contact_first_name: string;
   contact_last_name: string;
+  /** Stable checkout reference: retries return the same invoice instead of a duplicate. */
+  client_ref?: string;
   /** Lessons the student planned before paying (school fees only) */
   planned_schedule?: {
     term_id: string;
@@ -645,6 +647,7 @@ export const submitChatPayment = async (input: SubmitChatPaymentInput): Promise<
     p_amount: input.amount,
     p_payment_method: input.payment_method,
     p_proof_url: proofUrl,
+    p_client_ref: input.client_ref ?? null,
   });
   if (error) throw error;
 
