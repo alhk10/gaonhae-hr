@@ -162,7 +162,7 @@ async function scanImage(imageDataUrl: string, expectedAmount: number, currency:
       return { status: "unreadable", amount: scanned, details };
     }
 
-    const status: ScanStatus = Math.abs(scanned - expectedAmount) <= 0.01 ? "match" : "mismatch";
+    const status: ScanStatus = Math.round(scanned * 100) === Math.round(expectedAmount * 100) ? "match" : "mismatch";
     return { status, amount: scanned, details };
   } catch (error) {
     console.error("[scan-payment-proof] error", error);
