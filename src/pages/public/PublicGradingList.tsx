@@ -2704,6 +2704,11 @@ const CompetitionsTab: React.FC<{
   };
 
   const handleVerify = async (submissionId: string) => {
+    const row = (rows as PublicCompetitionListRow[]).find((x) => x.submission_id === submissionId);
+    if (row && (row.grading_card_urls?.length ?? 0) === 0) {
+      setGradingCardDialog({ row, pendingVerify: true });
+      return;
+    }
     await doVerify(submissionId);
   };
 
