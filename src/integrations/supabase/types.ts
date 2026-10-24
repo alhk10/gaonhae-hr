@@ -8618,6 +8618,10 @@ export type Database = {
           student_name: string
         }[]
       }
+      admin_convert_duplicate_grading_to_credit: {
+        Args: { p_actor: string; p_id: string }
+        Returns: number
+      }
       admin_correct_submission_match: {
         Args: {
           p_actor?: string
@@ -9506,6 +9510,14 @@ export type Database = {
           slot_booking_employee: boolean
           social_media: boolean
           submit_claim: boolean
+        }[]
+      }
+      get_pending_grading_submission_meta: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          reference_number: string
         }[]
       }
       get_perth_competition_entries: { Args: never; Returns: Json }

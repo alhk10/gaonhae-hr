@@ -9,3 +9,4 @@
 - Convert invoice-edit overpayments through the database function keyed by invoice reference, so the existing invoice reaches zero balance and repeated saves cannot duplicate student credits.- Payroll month adjustments (pro-ration, unpaid/excess annual leave, encashment) come from `payrollAdjustmentsService` and are applied through `computeFullTime` in Payroll Processing, so review, bank and CPF steps always agree.
 
 - `/access` branch passwords may map to several branches (one `access_unlock_passwords` row per branch; `_access_scope` returns a comma list checked with `_scope_has`); the UI keeps one active branch and offers a switcher, so all tabs keep single-branch filtering.
+- Duplicate grading payments (same matched student + grading slot) are blocked by a database insert trigger and resolved by staff via credit conversion, so checks can't be bypassed by branch or name spelling.
