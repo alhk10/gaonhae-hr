@@ -8550,6 +8550,10 @@ export type Database = {
           term_name: string
         }[]
       }
+      _scope_has: {
+        Args: { p_branch: string; p_scope: string }
+        Returns: boolean
+      }
       _studio_rental_create_invoice: {
         Args: { p_by: string; p_id: string }
         Returns: string

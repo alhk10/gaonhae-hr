@@ -127,14 +127,26 @@ const isWithinResultWindow = (gradingDate: string | null | undefined): boolean =
 const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
 // Branch-scoped passwords: same abilities as the standard password, but every
 // list, count and dropdown is locked to that one branch.
-const BRANCH_UNLOCK_PASSWORDS: Record<string, string> = {
-  Hp96706488: 'balmoral',
-  Hp89234866: 'bukit-merah',
-  Hp84944041: 'kembangan',
-  Hp84128821: 'yishun',
-  Hp88769491: 'jurong-west',
+// A password may cover several branches; staff switch between them.
+const BRANCH_UNLOCK_PASSWORDS: Record<string, string[]> = {
+  Hp96706488: ['balmoral'],
+  Hp89234866: ['bukit-merah', 'BR1769014316844'], // + Carpe Diem Stradia
+  Hp84944041: ['kembangan'],
+  Hp84128821: ['yishun'],
+  Hp88769491: ['jurong-west'],
 };
 const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
+const ALLOWED_BRANCHES_KEY = 'guards_list_allowed_branches_v1';
+const readAllowedBranches = (): string[] => {
+  try {
+    const raw = sessionStorage.getItem(ALLOWED_BRANCHES_KEY);
+    if (raw) return JSON.parse(raw);
+    const pw = sessionStorage.getItem('access_pw_v1');
+    if (pw && BRANCH_UNLOCK_PASSWORDS[pw]) return BRANCH_UNLOCK_PASSWORDS[pw];
+    const one = sessionStorage.getItem(LOCKED_BRANCH_KEY);
+    return one ? [one] : [];
+  } catch { return []; }
+};
 
 const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
@@ -164,6 +176,7 @@ const PublicGradingList: React.FC = () => {
     } catch {}
     return 'none';
   });
+  const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>(() => readAllowedBranches());
   const [lockedBranchId, setLockedBranchId] = useState<string | null>(() => {
     try {
       return sessionStorage.getItem(LOCKED_BRANCH_KEY) || null;
@@ -357,10 +370,12 @@ const PublicGradingList: React.FC = () => {
   // Declared below after selectedRows; see massSlotsQuery.
 
   const handleUnlock = () => {
-    const branchId = BRANCH_UNLOCK_PASSWORDS[pwInput];
+    const branchIds = BRANCH_UNLOCK_PASSWORDS[pwInput];
+    const branchId = branchIds?.[0];
     if (pwInput === ADMIN_UNLOCK_PASSWORD) {
       setUnlockLevel('standard');
       setLockedBranchId(null);
+      setAllowedBranchIds([]);
       setIsAllBranch(true);
       setPwInput('');
       try {
@@ -368,12 +383,14 @@ const PublicGradingList: React.FC = () => {
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
         sessionStorage.setItem('guards_list_all_branch_v1', '1');
         sessionStorage.removeItem(LOCKED_BRANCH_KEY);
+        sessionStorage.removeItem(ALLOWED_BRANCHES_KEY);
         sessionStorage.setItem('access_pw_v1', pwInput);
       } catch {}
       toast.success('Edit mode enabled');
     } else if (branchId) {
       setUnlockLevel('standard');
       setLockedBranchId(branchId);
+      setAllowedBranchIds(branchIds);
       setIsAllBranch(false);
       setPwInput('');
       try {
@@ -381,6 +398,7 @@ const PublicGradingList: React.FC = () => {
         sessionStorage.setItem('guards_list_unlock_level_v1', 'standard');
         sessionStorage.removeItem('guards_list_all_branch_v1');
         sessionStorage.setItem(LOCKED_BRANCH_KEY, branchId);
+        sessionStorage.setItem(ALLOWED_BRANCHES_KEY, JSON.stringify(branchIds));
         sessionStorage.setItem('access_pw_v1', pwInput);
       } catch {}
       toast.success('Edit mode enabled for your branch');
@@ -392,6 +410,7 @@ const PublicGradingList: React.FC = () => {
   const handleLock = () => {
     setUnlockLevel('none');
     setLockedBranchId(null);
+    setAllowedBranchIds([]);
     setIsAllBranch(false);
     setBranchFilter('all');
     try {
@@ -399,6 +418,7 @@ const PublicGradingList: React.FC = () => {
       sessionStorage.removeItem('guards_list_unlock_level_v1');
       sessionStorage.removeItem('guards_list_all_branch_v1');
       sessionStorage.removeItem(LOCKED_BRANCH_KEY);
+      sessionStorage.removeItem(ALLOWED_BRANCHES_KEY);
       sessionStorage.removeItem('access_pw_v1');
     } catch {}
   };
@@ -1409,7 +1429,24 @@ const PublicGradingList: React.FC = () => {
     <div className="min-h-screen bg-muted/30 py-6 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="flex justify-end items-center gap-2">
-          {lockedBranchName && (
+          {lockedBranchName && allowedBranchIds.length > 1 ? (
+            <Select
+              value={lockedBranchId ?? undefined}
+              onValueChange={(id) => {
+                setLockedBranchId(id);
+                try { sessionStorage.setItem(LOCKED_BRANCH_KEY, id); } catch {}
+              }}
+            >
+              <SelectTrigger className="h-8 w-auto text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {allowedBranchIds.map((id) => (
+                  <SelectItem key={id} value={id} className="text-xs">
+                    {(publicBranches as any[]).find((b) => b.id === id)?.name || id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : lockedBranchName && (
             <span className="text-xs font-medium text-muted-foreground">
               {lockedBranchName} only
             </span>
