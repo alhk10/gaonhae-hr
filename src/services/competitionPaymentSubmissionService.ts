@@ -319,6 +319,7 @@ export interface CompetitionStudentMatch {
 }
 
 export interface SubmitCompetitionPaymentInput {
+  tshirt_size?: string | null;
   first_name: string;
   last_name: string;
   email: string;
