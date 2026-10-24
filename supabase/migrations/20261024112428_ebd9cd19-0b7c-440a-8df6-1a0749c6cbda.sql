@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public._auto_verify_scanned_submission() FROM PUBLIC, anon, authenticated;

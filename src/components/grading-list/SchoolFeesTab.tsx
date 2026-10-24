@@ -113,7 +113,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
     const diff = schoolFeesPaidDiff(row);
     const scanned = !!row.proof_url && row.scan_amount != null;
     // No amount read from the screenshot, or screenshots don't add up to the amount due
-    const mismatch = !!row.proof_url && (row.scan_amount == null ? ((row.extra_proofs?.length || 0) === 0 && row.status === 'pending_verification') || (diff != null && Math.abs(diff) > 0.01) : diff != null && Math.abs(diff) > 0.01);
+    const mismatch = !!row.proof_url && (row.scan_amount == null ? ((row.extra_proofs?.length || 0) === 0 && row.status === 'pending_verification') || (diff != null && Math.round(Math.abs(diff) * 100) > 0) : diff != null && Math.round(Math.abs(diff) * 100) > 0);
     return { diff, scanned, mismatch, short: diff != null && diff < -0.01, over: diff != null && diff > 0.01 };
   };
 

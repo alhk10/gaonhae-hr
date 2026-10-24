@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download, UserCog, X } from 'lucide-react';
+import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download, UserCog, X, Copy } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -231,6 +231,10 @@ const PublicHelloChat: React.FC = () => {
   const [payInvoices, setPayInvoices] = useState<ChatInvoice[]>([]);
   const [payInvProofFile, setPayInvProofFile] = useState<File | null>(null);
   const payInvClientRef = useRef(newClientRef());
+  // One reference per checkout; a retry or double tap reuses it so no duplicate is created.
+  const checkoutClientRef = useRef(newClientRef());
+  const submitLockRef = useRef(false);
+  const [lastTxn, setLastTxn] = useState<{ reference: string; amount: number | null; label: string } | null>(null);
   const payInvScan = usePaymentProofScan();
   const [gradingDefaultLogged, setGradingDefaultLogged] = useState(false);
   const [selectedGradingSlotId, setSelectedGradingSlotId] = useState('');
@@ -987,9 +991,12 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Missing required information');
       return;
     }
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
       const submitResult = await submitChatPayment({
+        client_ref: checkoutClientRef.current,
         session_id: sessionId,
         branch_id: branchId,
         category: payCategory.label,
@@ -1027,10 +1034,11 @@ const PublicHelloChat: React.FC = () => {
           : null,
       });
       await recordProofScanForInvoice(sessionId, submitResult.invoice_id, await proofScan.waitForResult());
-      if (payCategory.id === GRADING_CATEGORY_ID) {
-        navigate('/access');
-        return;
-      }
+      setLastTxn(submitResult.invoice_number
+        ? { reference: submitResult.invoice_number, amount: totalWithTax, label: payCategory.label }
+        : null);
+      checkoutClientRef.current = newClientRef();
+      setCart([]);
       if (payCategory.id === SCHOOL_FEES_CATEGORY_ID) {
         if (Object.keys(plannedSlots).length > 0) {
           if (submitResult.schedule_saved) {
@@ -1051,6 +1059,7 @@ const PublicHelloChat: React.FC = () => {
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1078,6 +1087,8 @@ const PublicHelloChat: React.FC = () => {
       toast.error('Missing required information');
       return;
     }
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
       await payChatInvoices({
@@ -1093,6 +1104,11 @@ const PublicHelloChat: React.FC = () => {
       });
       if (payInvProofFile) void scanStoredPayments({ invoiceIds: payInvoices.map((i) => i.id) });
       toast.success('Thank you for your payment. Your payment will be verified by our staff.');
+      setLastTxn({
+        reference: payInvoices.map((i: any) => i.invoice_number).filter(Boolean).join(', '),
+        amount: payInvAmountDue,
+        label: 'Invoice payment',
+      });
       setPayInvoices([]);
       setPayInvProofFile(null);
       queryClient.invalidateQueries({ queryKey: ['hello-past-invoices'] });
@@ -1101,6 +1117,7 @@ const PublicHelloChat: React.FC = () => {
     } catch (e: any) {
       toast.error(e?.message || 'Could not submit payment');
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1874,8 +1891,8 @@ const PublicHelloChat: React.FC = () => {
                 onSuccess={(ref) => {
                   refetchCredit();
                   if (sessionId) logChatEvent(sessionId, 'competition_registration_submitted', { reference: ref }).catch(() => {});
-                  toast.success(`Competition registration submitted. Reference: ${ref}`);
-                  goTo('matched');
+                  setLastTxn({ reference: ref, amount: null, label: 'Competition registration' });
+                  goTo('payment_done');
                 }}
               />}
               <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
@@ -2764,6 +2781,31 @@ const PublicHelloChat: React.FC = () => {
                 <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
                 <span>Thanks! Your payment has been received and is pending verification.</span>
               </div>
+              {lastTxn?.reference && (
+                <div className="mt-2 rounded-md border bg-muted/40 p-2 text-sm">
+                  <div className="text-xs text-muted-foreground">{lastTxn.label} · transaction code</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-semibold break-all">{lastTxn.reference}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(lastTxn.reference).then(
+                          () => toast.success('Copied'),
+                          () => toast.error('Could not copy'),
+                        );
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                    </Button>
+                  </div>
+                  {lastTxn.amount != null && (
+                    <div className="text-xs text-muted-foreground mt-1">Amount: ${lastTxn.amount.toFixed(2)}</div>
+                  )}
+                  <div className="text-[11px] text-muted-foreground mt-1">Please keep this code. You don't need to submit again.</div>
+                </div>
+              )}
             </Bubble>
           )}
 

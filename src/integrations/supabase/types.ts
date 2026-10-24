@@ -8527,6 +8527,7 @@ export type Database = {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
       }
+      _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
       _next_invoice_number: { Args: never; Returns: string }
       _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
       _perth_name_match: {
@@ -10759,6 +10760,7 @@ export type Database = {
           p_amount: number
           p_branch_id: string
           p_category: string
+          p_client_ref?: string
           p_items: Json
           p_payment_method: string
           p_proof_url: string
