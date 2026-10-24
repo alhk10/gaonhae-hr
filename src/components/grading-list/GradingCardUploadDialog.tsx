@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -52,7 +52,7 @@ const GradingCardUploadDialog: React.FC<Props> = ({
 
   const reset = () => { setFiles([]); setEnlarged(null); setRotation(0); };
 
-  const clipboardFiles = (e: React.ClipboardEvent): File[] => {
+  const clipboardFiles = (e: ClipboardEvent): File[] => {
     const dt = e.clipboardData;
     let out = Array.from(dt?.files || []);
     if (out.length === 0 && dt?.items) {
@@ -65,13 +65,35 @@ const GradingCardUploadDialog: React.FC<Props> = ({
     });
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
+  // Keep latest handlers in a ref so the document listener never uses stale state
+  const pasteRef = useRef<(e: ClipboardEvent) => void>(() => {});
+  pasteRef.current = (e: ClipboardEvent) => {
+    if (busy || reuploadBusy) return;
+    const target = e.target as HTMLElement | null;
     const list = clipboardFiles(e);
-    if (list.length === 0) return;
+    if (list.length === 0) {
+      // Let normal text paste work in text fields
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      toast.error('No image found on the clipboard — copy an image or screenshot first');
+      return;
+    }
     e.preventDefault();
-    if (enlarged) void handleReuploadPick(list[0]);
-    else handlePick(list);
+    if (enlarged) {
+      void handleReuploadPick(list[0]);
+    } else {
+      const before = remaining;
+      handlePick(list);
+      const ok = list.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf').length;
+      if (before > 0 && ok > 0) toast.success(ok > 1 ? 'Images pasted' : 'Image pasted');
+    }
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const listener = (e: ClipboardEvent) => pasteRef.current(e);
+    document.addEventListener('paste', listener);
+    return () => document.removeEventListener('paste', listener);
+  }, [open]);
 
   const handlePick = (list: FileList | File[] | null) => {
     if (!list) return;
