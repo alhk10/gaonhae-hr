@@ -10538,6 +10538,10 @@ export type Database = {
         }
         Returns: Json
       }
+      recalc_invoice_from_payments: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       record_external_invoice_payment: {
         Args: {
           p_amount: number
