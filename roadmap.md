@@ -71,3 +71,8 @@
 - [x] Unpaid leave + excess annual leave deducted; encashment added; overridable per month
 - [x] Inline allowance/deduction editing; leave and claims columns; totals bar; full-width sticky header
 - [ ] Verify with a signed-in payroll login (blocked: external Supabase session unavailable)
+
+## Trial status automation
+
+- [x] Trial becomes inactive after 14 days without invoice/payment (daily 03:00 SGT)
+- [x] Trial becomes active when a Classes-category product is invoiced
