@@ -83,7 +83,8 @@ const GradingCardUploadDialog: React.FC<Props> = ({
     } else {
       const before = remaining;
       handlePick(list);
-      if (before > 0) toast.success(list.length > 1 ? 'Images pasted' : 'Image pasted');
+      const ok = list.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf').length;
+      if (before > 0 && ok > 0) toast.success(ok > 1 ? 'Images pasted' : 'Image pasted');
     }
   };
 
