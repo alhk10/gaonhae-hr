@@ -149,6 +149,7 @@ const PublicGradingList: React.FC = () => {
   const [gradingEventsOpen, setGradingEventsOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [drill, setDrill] = useState<{ intent: 'pending' | 'uncollected'; nonce: number } | null>(null);
+  const [studentDrill, setStudentDrill] = useState<{ filter: string; branchId?: string; nonce: number } | null>(null);
   const [refundInvoiceId, setRefundInvoiceId] = useState<string | null>(null);
   const [selectedCerts, setSelectedCerts] = useState<Set<string>>(new Set());
   const [unlockLevel, setUnlockLevel] = useState<'none' | 'standard'>(() => {
@@ -1449,13 +1450,23 @@ const PublicGradingList: React.FC = () => {
             <ExternalInvoicesTab branchFilter={branchFilter} lockedBranchId={lockedBranchId ?? undefined} canEdit={editMode} />
           </TabsContent>
           <TabsContent value="students" className="mt-4">
-            <StudentsTab canEdit={editMode} lockedBranchId={lockedBranchId ?? undefined} />
+            <StudentsTab
+              canEdit={editMode}
+              lockedBranchId={lockedBranchId ?? undefined}
+              initialPayFilter={studentDrill?.filter}
+              initialBranchId={studentDrill?.branchId}
+              drillNonce={studentDrill?.nonce}
+            />
           </TabsContent>
           <TabsContent value="summary" className="space-y-4 mt-4">
             <SummaryTab
               lockedBranchName={lockedBranchName ?? undefined}
               lockedBranchId={lockedBranchId ?? undefined}
               canApprove={editMode}
+              onStudentDrill={(filter, branchId) => {
+                setStudentDrill({ filter, branchId, nonce: Date.now() });
+                setActiveTab('students');
+              }}
               onDrill={(tab, branch, intent) => {
                 if (!lockedBranchName) setBranchFilter(branch);
                 setDrill({ intent, nonce: Date.now() });
