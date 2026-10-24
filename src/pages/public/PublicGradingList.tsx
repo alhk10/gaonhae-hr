@@ -1494,7 +1494,7 @@ const PublicGradingList: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-10 h-auto">
+          <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1 p-1 [&>button]:whitespace-normal [&>button]:text-center [&>button]:leading-tight [&>button]:min-w-[5.5rem] [&>button]:flex-1 [&>button]:basis-auto [&>button]:py-1.5">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>

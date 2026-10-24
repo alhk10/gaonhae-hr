@@ -184,7 +184,16 @@
     }
     .access-list-table tbody td[data-field="actions"]:not(:has(*)) {
       display: none;
-    }
+    }    /* Students list: line 1 identity + actions, line 2 contact and payment. */
+    .students-list tbody td[data-field="student"] { grid-column: span 4; order: 1; }
+    .students-list tbody td[data-field="belt"] { grid-column: span 2; order: 2; }
+    .students-list tbody td[data-field="branch"] { grid-column: span 2; order: 3; }
+    .students-list tbody td[data-field="status"] { grid-column: span 2; order: 4; }
+    .students-list tbody td[data-field="actions"] { grid-column: span 2; order: 5; justify-content: flex-end; }
+    .students-list tbody td[data-field="contact"] { grid-column: span 4; order: 6; }
+    .students-list tbody td[data-field="enrolment"] { grid-column: span 3; order: 7; }
+    .students-list tbody td[data-field="payment"] { grid-column: span 3; order: 8; }
+    .students-list tbody td[data-field="credit"] { grid-column: span 2; order: 9; text-align: left !important; }
   }
   @media (max-width: 767px) {
     .access-list-table,

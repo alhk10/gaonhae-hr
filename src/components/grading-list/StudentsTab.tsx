@@ -377,8 +377,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
           </p>
 
           {/* Desktop table */}
-          <div className="hidden lg:block overflow-x-auto rounded-md border">
-            <Table className="[&_th]:text-left [&_td]:text-left [&_td]:align-middle [&_th]:align-middle">
+          <div className="hidden md:block access-list-shell rounded-md border">
+            <Table className="access-list-table students-list [&_th]:text-left [&_td]:text-left [&_td]:align-middle [&_th]:align-middle">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -395,22 +395,22 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="py-2">
-                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left whitespace-nowrap" />
+                    <TableCell className="py-2" data-field="student" data-label="Name">
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
                       <div className="text-[11px] text-muted-foreground whitespace-nowrap">
                         {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 text-sm whitespace-nowrap">{r.current_belt || '—'}</TableCell>
-                    <TableCell className="py-2 text-sm whitespace-nowrap">{r.branch_name || '—'}</TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2 text-sm whitespace-nowrap" data-field="belt" data-label="Belt">{r.current_belt || '—'}</TableCell>
+                    <TableCell className="py-2 text-sm whitespace-nowrap" data-field="branch" data-label="Branch">{r.branch_name || '—'}</TableCell>
+                    <TableCell className="py-2" data-field="status" data-label="Status">
                       <Badge variant="outline" className={statusBadge(r.status)}>{r.status}</Badge>
                     </TableCell>
-                    <TableCell className="py-2">
-                      <div className="text-sm break-all">{r.email || '—'}</div>
+                    <TableCell className="py-2 max-w-[14rem]" data-field="contact" data-label="Contact">
+                      <div className="text-sm truncate" title={r.email || undefined}>{r.email || '—'}</div>
                       {r.phone && <div className="text-[11px] text-muted-foreground">{r.phone}</div>}
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2" data-field="enrolment" data-label="Enrolment">
                       {r.class_type ? (
                         <>
                           <div className="text-sm">{r.class_type}{r.tier_name ? ` (${r.tier_name})` : ''}</div>
@@ -418,7 +418,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                         </>
                       ) : <span className="text-sm">—</span>}
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2" data-field="payment" data-label="Term payment">
                       <StatusBadge status={r.invoice_status} />
                       {r.invoice_balance != null && r.invoice_balance > 0 && (
                         <div className="text-[11px] text-destructive mt-0.5">
@@ -426,11 +426,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 text-sm !text-right whitespace-nowrap">
+                    <TableCell className="py-2 text-sm !text-right whitespace-nowrap" data-field="credit" data-label="Credit">
                       {r.credit_balance > 0 ? formatCurrency(r.credit_balance) : '—'}
                     </TableCell>
                     {canEdit && (
-                      <TableCell className="py-2">
+                      <TableCell className="py-2" data-field="actions" data-label="">
                         <div className="flex items-center justify-end gap-1">
                           {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
                             <FilePlus className="h-4 w-4" />
@@ -448,7 +448,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
           </div>
 
           {/* Mobile two-line rows */}
-          <div className="lg:hidden space-y-2">
+          <div className="md:hidden space-y-2">
             {rows.map((r) => (
               <Card key={r.id}>
                 <CardContent className="p-3">
