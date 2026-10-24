@@ -358,8 +358,8 @@ const PublicGradingList: React.FC = () => {
 
   // Date chosen in the edit dialogs (lets staff move an entry to another day)
   const [editDate, setEditDate] = React.useState<string>('');
-  React.useEffect(() => { setEditDate(slotEditRow?.grading_date || ''); }, [slotEditRow?.id, slotEditRow?.grading_date]);
-  React.useEffect(() => { setEditDate(editRow?.grading_date || ''); }, [editRow?.id, editRow?.grading_date]);
+  React.useEffect(() => { setEditDate(slotEditRow?.grading_date || ''); }, [slotEditRow, slotEditRow?.grading_date]);
+  React.useEffect(() => { setEditDate(editRow?.grading_date || ''); }, [editRow, editRow?.grading_date]);
 
   // Slots for the slot-only edit dialog (legacy submission Pencil)
   const { data: editableSlots = [] } = useQuery({
