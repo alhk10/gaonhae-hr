@@ -10015,6 +10015,7 @@ export type Database = {
           invoice_number: string
           invoice_status: string
           items: Json
+          origin: string
           overpayment_request_status: string
           paid_total: number
           payment_id: string

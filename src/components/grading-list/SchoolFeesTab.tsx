@@ -335,7 +335,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
         </div>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground py-10 text-center">
-          No school fee payments submitted through /hello yet.
+          No school fee payments found.
         </p>
       ) : (
         <div className="access-list-shell overflow-x-auto">
@@ -380,7 +380,14 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     )}
                   </TableCell>
 
-                  <TableCell data-label="Branch" data-field="branch" className="text-xs">{row.branch_name || '—'}</TableCell>
+                  <TableCell data-label="Branch" data-field="branch" className="text-xs">
+                    {row.branch_name || '—'}
+                    {(row as any).origin && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">
+                        {(row as any).origin === 'hello' ? 'Hello' : (row as any).origin === 'auto' ? 'Auto' : 'Manual'}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell data-label="Items" data-field="details" className="text-xs max-w-[220px]">
                     <span className="line-clamp-2 break-words">{itemsSummary(row) || '—'}</span>
                   </TableCell>
