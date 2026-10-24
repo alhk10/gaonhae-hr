@@ -1720,24 +1720,6 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">
                 Welcome back, <strong>{matched.first_name}</strong>! I found your record
                 {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}.
-                {termCtx && (
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
-                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
-                      <div className="text-base font-semibold tabular-nums">
-                        {termCtx.is_unlimited ? '∞' : termCtx.unbooked_count}
-                      </div>
-                      <div className="text-muted-foreground">Unbooked (term)</div>
-                    </div>
-                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
-                      <div className="text-base font-semibold tabular-nums">{termCtx.attended_this_month}</div>
-                      <div className="text-muted-foreground">Attended (mo)</div>
-                    </div>
-                    <div className="rounded bg-background/60 px-2 py-1.5 text-center">
-                      <div className="text-base font-semibold tabular-nums">{termCtx.missed_this_month}</div>
-                      <div className="text-muted-foreground">Missed (mo)</div>
-                    </div>
-                  </div>
-                )}
                 {Number(availableCredit) > 0.01 && (
                   <div className="mt-2 rounded bg-green-50 px-2 py-1.5 text-[12px] text-green-800">
                     You have <strong>${Number(availableCredit).toFixed(2)}</strong> in credit available. It will be used
