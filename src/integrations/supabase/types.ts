@@ -9409,6 +9409,13 @@ export type Database = {
           rule_id: string
         }[]
       }
+      get_competition_tshirt_sizes: {
+        Args: never
+        Returns: {
+          submission_id: string
+          tshirt_size: string
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_student_id: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
