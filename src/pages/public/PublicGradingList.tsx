@@ -95,6 +95,7 @@ import {
   adminUpdateGradingRegistrationDisplayName,
   adminUpdateStudentCertificateName,
   verifyGradingSubmission,
+  convertDuplicateGradingToCredit,
   importGradingSubmission,
   rejectGradingSubmission,
   adminReplaceGradingSubmissionProof,
@@ -297,6 +298,34 @@ const PublicGradingList: React.FC = () => {
     if (branchFilter !== 'all') res = res.filter((r) => (r.branch_name || '—') === branchFilter);
     return res;
   }, [rows, dateFilter, branchFilter]);
+
+  /** Pending submissions that duplicate an existing paid entry for the same student + slot. */
+  const duplicateOf = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of rows) {
+      if (r.source !== 'submission' || r.paid_status !== 'pending verification' || !r.submission_id || !r.student_id || !r.slot_id) continue;
+      const other = rows.find((o) => o !== r && o.student_id === r.student_id && o.slot_id === r.slot_id
+        && (o.source !== 'submission' || o.paid_status !== 'pending verification'));
+      if (other) m[r.submission_id] = other.invoice_number || 'existing entry';
+    }
+    return m;
+  }, [rows]);
+
+  const handleDuplicateToCredit = async (row: PublicGradingListRow) => {
+    if (!row.submission_id) return;
+    if (!window.confirm(`Turn this duplicate payment of $${Number(row.amount || 0).toFixed(2)} into student credit for ${row.student_name}? The duplicate will be marked rejected.`)) return;
+    setBusyId(row.submission_id);
+    try {
+      const amt = await convertDuplicateGradingToCredit(row.submission_id, verifiedBy);
+      toast.success(`$${amt.toFixed(2)} added as student credit`);
+      qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['pending-grading-submission-meta'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to convert to credit');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const groups = useMemo(() => {
     const map = new Map<string, { header: PublicGradingListRow; items: PublicGradingListRow[] }>();
@@ -512,6 +541,8 @@ const PublicGradingList: React.FC = () => {
 
   const handleVerify = async (row: PublicGradingListRow) => {
     if (!row.submission_id) return;
+    const dup = duplicateOf[row.submission_id];
+    if (dup && !window.confirm(`${row.student_name} has already paid for this grading (${dup}). Verify this second payment anyway?`)) return;
     setBusyId(row.submission_id);
     try {
       await verifyGradingSubmission(row.submission_id, verifiedBy);
@@ -1705,6 +1736,16 @@ const PublicGradingList: React.FC = () => {
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
                           {r.source === 'hello' && <span className="ml-1 rounded bg-secondary px-1 text-[9px] text-secondary-foreground">Hello</span>}
                           <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
+                          {r.submission_id && duplicateOf[r.submission_id] && (
+                            <span className="ml-1 inline-flex items-center gap-1">
+                              <span className="rounded bg-destructive/10 px-1 text-[9px] font-medium text-destructive">Duplicate of {duplicateOf[r.submission_id]}</span>
+                              {editMode && (
+                                <button type="button" className="text-[9px] text-primary underline" disabled={busyId === r.submission_id} onClick={() => handleDuplicateToCredit(r)}>
+                                  Turn into credit
+                                </button>
+                              )}
+                            </span>
+                          )}
                           {r.invoice_id && (
                             <div className="text-[10px]">
                               <InvoiceNumberButton
