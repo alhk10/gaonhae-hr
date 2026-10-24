@@ -41,6 +41,7 @@ export interface InvoiceTemplate {
 
 export interface InvoiceData {
   id: string;
+  customer_type?: string | null;
   invoice_number: string;
   issue_date: string | null;
   due_date: string | null;
