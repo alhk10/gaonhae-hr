@@ -47,6 +47,10 @@ interface Props {
   canEdit?: boolean;
   /** When set, the list is fixed to this branch and the selector is disabled */
   lockedBranchId?: string;
+  /** Drill-through from Summary: payment filter / branch applied when drillNonce changes */
+  initialPayFilter?: string;
+  initialBranchId?: string;
+  drillNonce?: number;
 }
 
 const statusBadge = (s: string) => {
@@ -63,7 +67,7 @@ const statusBadge = (s: string) => {
 };
 
 
-const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
+const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilter, initialBranchId, drillNonce }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
@@ -76,6 +80,12 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const [branchFilter, setBranchFilter] = useState(lockedBranchId || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [payFilter, setPayFilter] = useState('all');
+  React.useEffect(() => {
+    if (!drillNonce) return;
+    setPayFilter(initialPayFilter || 'all');
+    setStatusFilter('all');
+    if (!lockedBranchId) setBranchFilter(initialBranchId || 'all');
+  }, [drillNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
   const [editBelt, setEditBelt] = useState('');
@@ -141,6 +151,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
     return allRows.filter((r) => {
       const st = normalizeStatus(r.invoice_status);
       switch (payFilter) {
+        case 'any_paid': return st === 'paid' || st === 'pending_verification' || st === 'paid_verified';
+        case 'any_unpaid': return st !== 'none' && st !== 'paid' && st !== 'pending_verification' && st !== 'paid_verified';
         case 'none': return st === 'none';
         case 'draft': return st === 'draft';
         case 'due': return st === 'unpaid' || st === 'overdue';
@@ -294,6 +306,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All term payments</SelectItem>
+            <SelectItem value="any_paid">All paid</SelectItem>
+            <SelectItem value="any_unpaid">All unpaid</SelectItem>
             <SelectItem value="none">No invoice</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="due">Unpaid / Sent / Overdue</SelectItem>
