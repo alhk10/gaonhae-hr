@@ -1179,8 +1179,10 @@ export type Database = {
           registration_deadline: string | null
           require_grading_card: boolean
           require_indemnity_form: boolean
+          require_one_option: boolean
           require_passport: boolean
           require_photo: boolean
+          tshirt_size_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -1200,8 +1202,10 @@ export type Database = {
           registration_deadline?: string | null
           require_grading_card?: boolean
           require_indemnity_form?: boolean
+          require_one_option?: boolean
           require_passport?: boolean
           require_photo?: boolean
+          tshirt_size_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -1221,8 +1225,10 @@ export type Database = {
           registration_deadline?: string | null
           require_grading_card?: boolean
           require_indemnity_form?: boolean
+          require_one_option?: boolean
           require_passport?: boolean
           require_photo?: boolean
+          tshirt_size_enabled?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1315,6 +1321,7 @@ export type Database = {
           reviewed_by: string | null
           signature_url: string | null
           status: string
+          tshirt_size: string | null
           updated_at: string
           weight_kg: number | null
         }
@@ -1364,6 +1371,7 @@ export type Database = {
           reviewed_by?: string | null
           signature_url?: string | null
           status?: string
+          tshirt_size?: string | null
           updated_at?: string
           weight_kg?: number | null
         }
@@ -1413,6 +1421,7 @@ export type Database = {
           reviewed_by?: string | null
           signature_url?: string | null
           status?: string
+          tshirt_size?: string | null
           updated_at?: string
           weight_kg?: number | null
         }
@@ -8886,6 +8895,14 @@ export type Database = {
         Args: { p_deadline: string; p_id: string }
         Returns: undefined
       }
+      admin_set_competition_event_form_options: {
+        Args: {
+          p_id: string
+          p_require_one_option: boolean
+          p_tshirt_size_enabled: boolean
+        }
+        Returns: undefined
+      }
       admin_set_competition_grading_cards: {
         Args: { p_id: string; p_urls: string[] }
         Returns: undefined
@@ -9392,6 +9409,13 @@ export type Database = {
           rule_id: string
         }[]
       }
+      get_competition_tshirt_sizes: {
+        Args: never
+        Returns: {
+          submission_id: string
+          tshirt_size: string
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_student_id: { Args: never; Returns: string }
       get_current_user_role: { Args: never; Returns: string }
@@ -9684,8 +9708,10 @@ export type Database = {
           registration_deadline: string
           require_grading_card: boolean
           require_indemnity_form: boolean
+          require_one_option: boolean
           require_passport: boolean
           require_photo: boolean
+          tshirt_size_enabled: boolean
         }[]
       }
       get_public_competition_extra_line_presets: {

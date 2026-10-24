@@ -33,6 +33,7 @@ import {
   submitCompetitionPayment,
   applyHelloCreditToCompetition,
   getPublicCompetitionExtraLinePresets,
+  TSHIRT_SIZES,
   type CompetitionEvent,
 } from '@/services/competitionPaymentSubmissionService';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
@@ -191,6 +192,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const [currentBelt, setCurrentBelt] = useState<string>(prefill?.belt || '');
   const [gender, setGender] = useState<string>(prefill?.gender || '');
   const [selectedExtras, setSelectedExtras] = useState<number[]>([]);
+  const [tshirtSize, setTshirtSize] = useState<string>('');
   const [extraWeights, setExtraWeights] = useState<Record<number, string>>({});
   const [coachingSelected, setCoachingSelected] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'paynow' | 'bank_transfer'>('paynow');
@@ -338,6 +340,14 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !selectedEvent || !dob) return;
+    if (selectedEvent.require_one_option && selectedExtras.length === 0) {
+      toast.error('Please select at least one option.');
+      return;
+    }
+    if (selectedEvent.tshirt_size_enabled && !tshirtSize) {
+      toast.error('Please select a T-shirt size.');
+      return;
+    }
     const hit = await checkPublicSubmissionDuplicate({
       source: 'competition',
       branchId: branchId,
@@ -458,6 +468,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
         coaching_label: selectedEvent.coaching_label || selectedEvent.name,
         coaching_amount: coachingIncluded ? withGst(coachingAmount) : 0,
         extra_lines: extras,
+        tshirt_size: selectedEvent.tshirt_size_enabled ? tshirtSize : null,
         event_id: selectedEvent.id,
         event_name: selectedEvent.name,
         gender,
@@ -870,6 +881,26 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
                   </div>
                 );
               })}
+
+              {selectedEvent.require_one_option && (
+                <p className={`text-xs ${selectedExtras.length === 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  Please select at least one option.
+                </p>
+              )}
+
+              {selectedEvent.tshirt_size_enabled && (
+                <div className="space-y-1">
+                  <Label className="text-sm">T-shirt size (by height) *</Label>
+                  <Select value={tshirtSize} onValueChange={setTshirtSize}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select height (cm)" /></SelectTrigger>
+                    <SelectContent>
+                      {TSHIRT_SIZES.map((sz) => (
+                        <SelectItem key={sz} value={sz}>{sz} cm</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {totalAmount > 0 && (
                 <div className="rounded-md border p-3 bg-background text-sm space-y-1">
