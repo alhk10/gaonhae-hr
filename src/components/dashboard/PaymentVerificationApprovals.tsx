@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ShieldCheck, CheckCircle, Pencil, XCircle, Wallet, FileText, Trash2, ImagePlus } from 'lucide-react';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
 import { deletePayment } from '@/services/paymentService';
+import { scanStoredPayments } from '@/hooks/usePaymentProofScan';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
@@ -55,6 +56,20 @@ const PaymentVerificationApprovals = () => {
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
+
+  // Catch-up: scan pending proofs that were never read, so matching ones auto-verify.
+  const scanAttempted = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    const ids = (unverifiedPayments as any[])
+      .filter((p) => p.proof_of_payment_url && !p.proof_scan_status && p.payment_method !== 'credit' && !scanAttempted.current.has(p.id))
+      .map((p) => p.id as string)
+      .slice(0, 10);
+    if (!ids.length) return;
+    ids.forEach((id) => scanAttempted.current.add(id));
+    void scanStoredPayments({ paymentIds: ids }).then((res) => {
+      if (res && Object.keys(res).length) queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
+    });
+  }, [unverifiedPayments, queryClient]);
 
   const creditStudentIds = React.useMemo(
     () => Array.from(new Set(

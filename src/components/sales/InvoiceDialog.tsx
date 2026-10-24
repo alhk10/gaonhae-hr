@@ -4,6 +4,7 @@
  * Based on CreateInvoiceDialog layout, extended with view/edit/refund capabilities.
  */
 
+import { scanStoredPayments } from '@/hooks/usePaymentProofScan';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasClassTypeException } from '@/utils/classTypeEligibility';
 import { Button } from '@/components/ui/button';
@@ -1189,6 +1190,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           payment,
           actor: user?.email || 'access',
         });
+        if (payment?.proof_of_payment_url) {
+          const newId = (result as any)?.invoice_id ?? (result as any)?.id;
+          if (newId) void scanStoredPayments({ invoiceIds: [newId] });
+        }
         toast.success(`Invoice ${result.invoice_number} created successfully${creditToApply > 0 ? ` — $${creditToApply.toFixed(2)} credit applied` : ''}`);
         setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
       }
@@ -1232,6 +1237,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
               reference_number: payReference || undefined,
               proof_of_payment_url: proofUrl,
             });
+            if (proofUrl) void scanStoredPayments({ invoiceIds: [createdInvoice.id] });
             toast.success(`Invoice created and payment of $${amountToPay.toFixed(2)} recorded`);
             setDialogOpen(false); resetForm(); onInvoiceCreated?.(); return;
           } catch (payErr) {

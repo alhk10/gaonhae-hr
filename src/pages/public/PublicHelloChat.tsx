@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentInfoDisplay from '@/components/payment/PaymentInfoDisplay';
 import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
-import { usePaymentProofScan, recordProofScanForInvoice } from '@/hooks/usePaymentProofScan';
+import { usePaymentProofScan, recordProofScanForInvoice, scanStoredPayments } from '@/hooks/usePaymentProofScan';
 import { newClientRef } from '@/utils/publicPaymentValidation';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import CompetitionRegistrationForm from '@/components/public/CompetitionRegistrationForm';
@@ -1091,6 +1091,7 @@ const PublicHelloChat: React.FC = () => {
         contact_first_name: firstName,
         contact_last_name: lastName,
       });
+      if (payInvProofFile) void scanStoredPayments({ invoiceIds: payInvoices.map((i) => i.id) });
       toast.success('Thank you for your payment. Your payment will be verified by our staff.');
       setPayInvoices([]);
       setPayInvProofFile(null);
