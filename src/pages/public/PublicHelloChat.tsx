@@ -2087,6 +2087,12 @@ const PublicHelloChat: React.FC = () => {
               </Bubble>
               <Card>
                 <CardContent className="p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Please check your name spelling, date of birth and branch.
+                  </p>
+                  <Button variant="outline" className="w-full h-11" onClick={() => goTo('identify')}>
+                    <ChevronLeft className="h-4 w-4" /> Back – check my details
+                  </Button>
                   <Button
                     className="w-full h-11"
                     onClick={() => { setHelpEmail(email); setHelpPhone(phone); goTo('help_find_account'); }}
