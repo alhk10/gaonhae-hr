@@ -67,7 +67,16 @@ const PaymentVerificationApprovals = () => {
     if (!ids.length) return;
     ids.forEach((id) => scanAttempted.current.add(id));
     void scanStoredPayments({ paymentIds: ids }).then((res) => {
-      if (res && Object.keys(res).length) queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
+      if (!res || !Object.keys(res).length) return;
+      // Matched proofs auto-verify on the server; post their accounts like a manual Verify.
+      for (const [pid, status] of Object.entries(res)) {
+        if (status !== 'match') continue;
+        void postPaymentJournal(pid);
+        const inv = (unverifiedPayments as any[]).find((p) => p.id === pid)?.invoice_id;
+        if (inv) void postInvoiceIssuedJournal(inv);
+      }
+      invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
     });
   }, [unverifiedPayments, queryClient]);
 
