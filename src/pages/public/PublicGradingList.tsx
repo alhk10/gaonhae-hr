@@ -2517,6 +2517,16 @@ const CompetitionsTab: React.FC<{
     queryKey: ['public-competition-list', 'v2-dob'],
     queryFn: () => getPublicCompetitionList(null),
   });
+  const { data: tshirtSizes = {} } = useQuery({
+    queryKey: ['public-competition-list', 'tshirt-sizes'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_competition_tshirt_sizes' as any);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      ((data || []) as any[]).forEach((x) => { m[x.submission_id] = x.tshirt_size; });
+      return m;
+    },
+  });
 
   const { data: events = [] } = useQuery({
     queryKey: ['competition-events-filter'],
@@ -3047,7 +3057,12 @@ const CompetitionsTab: React.FC<{
                     return new Date().getFullYear() - y;
                   })()}
                 </TableCell>
-                <TableCell className="text-xs px-2 py-1">{r.current_belt || '—'}</TableCell>
+                <TableCell className="text-xs px-2 py-1">
+                  {r.current_belt || '—'}
+                  {tshirtSizes[r.submission_id] && (
+                    <div className="text-[10px] text-muted-foreground">Tee {tshirtSizes[r.submission_id]}</div>
+                  )}
+                </TableCell>
                 <TableCell className="text-xs px-2 py-1">
                   <div className="text-[11px] leading-tight break-words min-w-0">
                     {cat ? cat.replace(/Singapore Open Poomsae — Category: /, '') : '—'}
@@ -3230,7 +3245,7 @@ const CompetitionsTab: React.FC<{
                 <div className="min-w-0 flex-1 break-words text-sm font-semibold">
                   <StudentNameButton name={r.student_name} studentId={r.matched_student_id} onOpen={setProfileId} />
                   <SubmissionFlagBadges flag={compFlags?.[r.submission_id]} />
-                  <div className="mt-1 text-xs font-normal text-muted-foreground">{r.branch_name || '—'} · {r.current_belt || '—'}</div>
+                  <div className="mt-1 text-xs font-normal text-muted-foreground">{r.branch_name || '—'} · {r.current_belt || '—'}{tshirtSizes[r.submission_id] ? ` · Tee ${tshirtSizes[r.submission_id]}` : ''}</div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span className="text-sm font-semibold tabular-nums">{r.amount != null ? formatCurrency(Number(r.amount)) : '—'}</span>
