@@ -127,7 +127,12 @@ export interface CompetitionEvent {
   indemnity_template_name: string | null;
   require_grading_card: boolean;
   registration_deadline: string | null;
+  require_one_option: boolean;
+  tshirt_size_enabled: boolean;
 }
+
+/** T-shirt sizes offered by height (cm). */
+export const TSHIRT_SIZES = ['100','110','120','130','140','150','160','170','180','190','200'] as const;
 
 export const adminSetCompetitionEventDeadline = async (id: string, deadline: string | null) => {
   const { error } = await supabase.rpc('admin_set_competition_event_deadline' as any, {
@@ -148,6 +153,8 @@ export const getPublicCompetitionEvents = async (): Promise<CompetitionEvent[]> 
     indemnity_template_name: r.indemnity_template_name ?? null,
     require_grading_card: r.require_grading_card === true,
     registration_deadline: r.registration_deadline ?? null,
+    require_one_option: r.require_one_option === true,
+    tshirt_size_enabled: r.tshirt_size_enabled === true,
     extra_lines: Array.isArray(r.extra_lines)
       ? r.extra_lines.map((l: any) => ({
           label: String(l.label || ''),
@@ -175,6 +182,8 @@ export const adminUpsertCompetitionEvent = async (input: {
   indemnity_template_url?: string | null;
   indemnity_template_name?: string | null;
   require_grading_card?: boolean;
+  require_one_option?: boolean;
+  tshirt_size_enabled?: boolean;
 }): Promise<string> => {
   const { data, error } = await supabase.rpc('admin_upsert_competition_event' as any, {
     p_id: input.id,
@@ -199,6 +208,12 @@ export const adminUpsertCompetitionEvent = async (input: {
     p_require_grading_card: input.require_grading_card === true,
   });
   if (error) throw error;
+  const { error: optErr } = await supabase.rpc('admin_set_competition_event_form_options' as any, {
+    p_id: data,
+    p_require_one_option: input.require_one_option === true,
+    p_tshirt_size_enabled: input.tshirt_size_enabled === true,
+  });
+  if (optErr) throw optErr;
   return data as string;
 };
 
@@ -505,6 +520,7 @@ export const submitCompetitionPayment = async (
     coaching_amount: input.coaching_amount,
     extra_lines: input.extra_lines,
     weight_kg: input.weight_kg ?? null,
+    tshirt_size: input.tshirt_size ?? null,
     client_ref: clientRef,
   };
 
