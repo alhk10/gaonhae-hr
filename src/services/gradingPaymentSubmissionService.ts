@@ -300,6 +300,20 @@ export const verifyGradingSubmission = async (submissionId: string, verifiedBy: 
   if (error) throw error;
 };
 
+/** Turn a duplicate pending grading payment into student credit (marks it rejected). */
+export const convertDuplicateGradingToCredit = async (submissionId: string, actor: string): Promise<number> => {
+  const { data, error } = await supabase.rpc('admin_convert_duplicate_grading_to_credit' as any, { p_id: submissionId, p_actor: actor });
+  if (error) throw error;
+  return Number(data ?? 0);
+};
+
+/** Submission dates / references for pending grading payments (Summary list). */
+export const getPendingGradingSubmissionMeta = async (): Promise<Array<{ id: string; created_at: string; reference_number: string | null }>> => {
+  const { data, error } = await supabase.rpc('get_pending_grading_submission_meta' as any);
+  if (error) throw error;
+  return (data || []) as any[];
+};
+
 export const findStudentMatches = async (submissionId: string): Promise<SubmissionStudentMatch[]> => {
   const { data, error } = await supabase.rpc('find_grading_submission_student_matches' as any, { p_id: submissionId });
   if (error) throw error;
