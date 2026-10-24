@@ -2661,7 +2661,7 @@ const PublicHelloChat: React.FC = () => {
                         paynowQrUrl={paynowAllowed ? paymentOptions?.paynow_qr_url : null}
                       />
 
-                      <ProofOfPaymentUpload value={proofFile} onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(amountDue || 0)); }} required />
+                      <ProofOfPaymentUpload value={proofFile} onChange={(f) => { setProofFile(f); void proofScan.scan(f, Number(amountDue || 0)); }} required label="Please upload your payment proof to complete payment process." labelClassName="text-base" />
                       <PaymentProofScanNotice scanning={proofScan.scanning} result={proofScan.result} expectedAmount={Number(amountDue || 0)} />
                     </>
                   )}
@@ -2756,6 +2756,7 @@ const PublicHelloChat: React.FC = () => {
                         value={payInvProofFile}
                         onChange={(f) => { setPayInvProofFile(f); void payInvScan.scan(f, Number(payInvAmountDue || 0)); }}
                         required
+                        label="Please upload your payment proof to complete payment process." labelClassName="text-base"
                       />
                       <PaymentProofScanNotice scanning={payInvScan.scanning} result={payInvScan.result} expectedAmount={Number(payInvAmountDue || 0)} />
                     </>
