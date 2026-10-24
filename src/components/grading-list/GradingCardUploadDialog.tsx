@@ -187,7 +187,7 @@ const GradingCardUploadDialog: React.FC<Props> = ({
             <DialogTitle>Upload grading card</DialogTitle>
             <DialogDescription>
               {pendingVerify
-                ? `A grading card is required before verifying${studentName ? ` ${studentName}` : ''}. Upload one or more images or PDF files, then verify.`
+                ? `Reminder: no grading card uploaded${studentName ? ` for ${studentName}` : ''} yet. Please upload it now, or verify and upload later.`
                 : `Add grading card files${studentName ? ` for ${studentName}` : ''}. Images or PDF accepted.`}
             </DialogDescription>
           </DialogHeader>
@@ -280,7 +280,7 @@ const GradingCardUploadDialog: React.FC<Props> = ({
               {busy
                 ? 'Saving…'
                 : pendingVerify
-                  ? (files.length > 0 ? 'Upload & Verify' : 'Verify')
+                  ? (files.length > 0 ? 'Upload & Verify' : 'Verify without card')
                   : 'Upload'}
             </Button>
           </DialogFooter>
