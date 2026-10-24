@@ -12,3 +12,5 @@
 - Duplicate grading payments (same matched student + grading slot) are blocked by a database insert trigger and resolved by staff via credit conversion, so checks can't be bypassed by branch or name spelling.
 - Grading, competition and guards submissions auto-verify in a database trigger only when matched and the scanned amount equals the amount due to the cent; existing auto-invoice triggers then create the invoice, so staff and /hello paths share one rule.
 - `/hello` checkouts send a stable `client_ref` to `submit_public_chat_invoice`, which returns the existing invoice for a retry and refuses identical items for the same student within 24 hours.
+
+- Every payment insert/update/delete recalculates its invoice via `recalc_invoice_from_payments` (drafts included; pending payments count toward paid), so auto-verified /hello payments never leave invoices showing outstanding.
