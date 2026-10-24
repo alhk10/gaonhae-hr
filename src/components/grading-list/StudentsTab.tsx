@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAuth } from '@/contexts/AuthContext';
-import StatusBadge from './StatusBadge';
+import StatusBadge, { normalizeStatus } from './StatusBadge';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
@@ -139,14 +139,14 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const rows = React.useMemo(() => {
     if (payFilter === 'all') return allRows;
     return allRows.filter((r) => {
-      const st = (r.invoice_status || '').toLowerCase();
+      const st = normalizeStatus(r.invoice_status);
       switch (payFilter) {
-        case 'none': return !st;
+        case 'none': return st === 'none';
         case 'draft': return st === 'draft';
-        case 'due': return ['unpaid', 'sent', 'overdue', 'pending'].includes(st);
-        case 'partial': return st === 'partially_paid' || st === 'partial';
-        case 'paid': return st === 'paid';
-        case 'verified': return st === 'verified';
+        case 'due': return st === 'unpaid' || st === 'overdue';
+        case 'partial': return st === 'partially_paid';
+        case 'paid': return st === 'paid' || st === 'pending_verification';
+        case 'verified': return st === 'paid_verified';
         default: return true;
       }
     });
