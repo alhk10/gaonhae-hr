@@ -5,6 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { InvoiceData } from '@/utils/invoicePDFGenerator';
 import { invoiceCountryCode } from '@/services/invoicePDFTemplate';
+import { formatDate } from '@/utils/dateFormat';
 
 export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceData | null> {
   const { data, error } = await (supabase as any).rpc('get_public_invoice_full', {
@@ -48,7 +49,12 @@ export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceDa
       total_amount: Number(it.total_price || 0),
       tax_rate: 0,
       tax_amount: 0,
-      metadata: it.refunded ? ({ refunded: true } as any) : undefined,
+      metadata: (it.refunded || it.term_id)
+        ? ({ ...(it.refunded ? { refunded: true } : {}), ...(it.term_id ? { term_id: it.term_id } : {}) } as any)
+        : undefined,
+      term_info: it.term_name
+        ? `${it.term_name}${it.term_start && it.term_end ? ` (${formatDate(it.term_start)} - ${formatDate(it.term_end)})` : ''}`
+        : undefined,
     })),
   };
 }
