@@ -14,8 +14,9 @@
    - **Turn into credit:** convert the duplicate $59.95 into student credit.
    - **Reject as duplicate:** reject the entry.
    - **Verify anyway:** verify it with the existing staff override confirmation.
-4. **Fix the missing date** in the Summary list so grading entries show their submitted date and sort oldest first.
-5. **Resolve Zane's case:** once this is built, staff pick one of the actions above for GP-202609-0153. Nothing is changed automatically.
+4. **Prevent duplicates at submission:** /hello and staff grading entry block a second payment for the same student and grading slot (or term) when one is already pending or verified. Instead they show "Already paid — GP-xxxx". The server enforces the same check, so different branches or name spellings ("ZANE HO" and "SHUOJUN ZANE HO") can't get past it. Staff can still override with a confirmation.
+5. **Fix the missing date** in the Summary list so grading entries show their submitted date and sort oldest first.
+6. **Resolve Zane's case:** once this is built, staff pick one of the actions above for GP-202609-0153. Nothing is changed automatically.
 
 ## Technical details
 - Grading list RPC (`getPublicGradingList`) should return `created_at` and `reference_number` for submission rows; SummaryTab `rowDate` uses them.
