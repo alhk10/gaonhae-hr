@@ -56,6 +56,8 @@ const emptyForm = () => ({
   indemnity_template_url: null as string | null,
   indemnity_template_name: null as string | null,
   require_grading_card: false,
+  require_one_option: false,
+  tshirt_size_enabled: false,
   deadline_date: '',
   deadline_time: '',
 });
@@ -139,6 +141,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
       require_grading_card: e.require_grading_card === true,
+      require_one_option: (e as any).require_one_option === true,
+      tshirt_size_enabled: (e as any).tshirt_size_enabled === true,
       deadline_date: splitDeadline(e.registration_deadline).date,
       deadline_time: splitDeadline(e.registration_deadline).time,
     });
@@ -166,6 +170,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
       indemnity_template_url: e.indemnity_template_url ?? null,
       indemnity_template_name: e.indemnity_template_name ?? null,
       require_grading_card: e.require_grading_card === true,
+      require_one_option: (e as any).require_one_option === true,
+      tshirt_size_enabled: (e as any).tshirt_size_enabled === true,
       deadline_date: splitDeadline(e.registration_deadline).date,
       deadline_time: splitDeadline(e.registration_deadline).time,
     } as any);
@@ -202,6 +208,8 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
         indemnity_template_url: form.indemnity_template_url,
         indemnity_template_name: form.indemnity_template_name,
         require_grading_card: form.require_grading_card,
+        require_one_option: form.require_one_option,
+        tshirt_size_enabled: form.tshirt_size_enabled,
       });
       await adminSetCompetitionEventDeadline(form.id || savedId, deadline);
       toast.success(form.id ? 'Event updated' : 'Event created');
@@ -490,6 +498,29 @@ const CompetitionEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange }
                 </div>
               );
             })}
+
+            <div className="space-y-2 border rounded p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="req-one-option"
+                  checked={form.require_one_option}
+                  onCheckedChange={(c) => setForm({ ...form, require_one_option: c === true })}
+                />
+                <Label htmlFor="req-one-option" className="text-xs font-normal cursor-pointer">
+                  Require at least one option (from Categories or Other)
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ask-tshirt"
+                  checked={form.tshirt_size_enabled}
+                  onCheckedChange={(c) => setForm({ ...form, tshirt_size_enabled: c === true })}
+                />
+                <Label htmlFor="ask-tshirt" className="text-xs font-normal cursor-pointer">
+                  Ask for T-shirt size (by height 100–200 cm)
+                </Label>
+              </div>
+            </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Indemnity clause text</Label>
