@@ -9345,6 +9345,17 @@ export type Database = {
         Args: { p_branch_id?: string }
         Returns: Json
       }
+      get_access_student_payment_summary: {
+        Args: { p_branch_id?: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          current_count: number
+          no_invoice_count: number
+          paid_count: number
+          unpaid_count: number
+        }[]
+      }
       get_admin_access_for_auth: {
         Args: { p_employee_id: string }
         Returns: {
