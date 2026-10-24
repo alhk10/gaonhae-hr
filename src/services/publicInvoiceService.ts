@@ -30,6 +30,7 @@ export async function getPublicInvoiceFull(invoiceId: string): Promise<InvoiceDa
     balance_due: Number(raw.balance_due || 0),
     notes: raw.notes ?? null,
     status: raw.status ?? null,
+    customer_type: raw.customer_type ?? null,
     student: {
       name: raw.student?.name || '',
       address: raw.student?.address ?? null,

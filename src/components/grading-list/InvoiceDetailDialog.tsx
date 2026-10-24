@@ -12,7 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Trash2, Undo2 } from 'lucide-react';
+import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -44,7 +45,8 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
   const [number, setNumber] = useState<string | null>(invoiceNumber ?? null);
   const [summary, setSummary] = useState<string>('');
   const [detail, setDetail] = useState<any>(null);
-  const [pending, setPending] = useState<{ edit_pending: boolean; delete_pending: boolean }>({ edit_pending: false, delete_pending: false });
+  const [pending, setPending] = useState<{ edit_pending: boolean; delete_pending: boolean; refund_item_ids?: string[] }>({ edit_pending: false, delete_pending: false });
+  const [refundOpen, setRefundOpen] = useState(false);
   const [action, setAction] = useState<null | 'edit' | 'delete'>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,6 +63,10 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
   };
 
   const isPaid = ['paid', 'verified', 'partially_paid'].includes(String(detail?.status || '')) || Number(detail?.amount_paid || 0) > 0;
+
+  const isExternal = !!detail?.customer_type && detail.customer_type !== 'student';
+  const canRefund = isPaid && !isExternal && !['cancelled', 'refunded'].includes(String(detail?.status || ''));
+  const refundPending = (pending.refund_item_ids?.length || 0) > 0;
 
   const handleEditClick = () => {
     if (signedIn) { setEditorOpen(true); return; }
@@ -184,6 +190,11 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
               <Button variant="outline" size="sm" className="text-xs text-destructive" onClick={() => { setText(''); setAction('delete'); }} disabled={!isSuperadmin && pending.delete_pending}>
                 <Trash2 className="mr-1 h-3 w-3" /> {!isSuperadmin && pending.delete_pending ? 'Delete pending' : 'Delete'}
               </Button>
+              {canRefund && (
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => setRefundOpen(true)} disabled={refundPending}>
+                  <Undo2 className="mr-1 h-3 w-3" /> {refundPending ? 'Refund pending' : 'Refund as credit'}
+                </Button>
+              )}
             </>
           )}
           {url && (
@@ -212,6 +223,15 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
           )}
         </DialogFooter>
       </DialogContent>
+      {refundOpen && invoiceId && (
+        <RefundAsCreditDialog
+          invoiceId={invoiceId}
+          open={refundOpen}
+          onOpenChange={setRefundOpen}
+          publicMode={!signedIn}
+          onRefunded={() => { setRefundOpen(false); loadPending(); setReloadKey((k) => k + 1); }}
+        />
+      )}
       {editorOpen && invoiceId && (
         <InvoiceDialog
           mode="edit"
