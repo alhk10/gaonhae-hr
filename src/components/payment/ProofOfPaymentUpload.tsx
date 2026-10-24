@@ -21,6 +21,7 @@ interface ProofOfPaymentUploadProps {
   compact?: boolean;
   disabled?: boolean;
   className?: string;
+  labelClassName?: string;
 }
 
 const formatBytes = (bytes: number) => {
@@ -39,6 +40,7 @@ const ProofOfPaymentUpload: React.FC<ProofOfPaymentUploadProps> = ({
   compact = false,
   disabled = false,
   className,
+  labelClassName,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -137,7 +139,7 @@ const ProofOfPaymentUpload: React.FC<ProofOfPaymentUploadProps> = ({
   return (
     <div className={cn('space-y-1.5', className)}>
       {label && (
-        <Label className={cn(compact ? 'text-xs' : 'text-sm')}>
+        <Label className={cn(compact ? 'text-xs' : 'text-sm', labelClassName)}>
           {label} {required && '*'}
         </Label>
       )}
