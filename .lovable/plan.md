@@ -20,7 +20,7 @@
 Applies to Grading, Competition, and Uniforms & guards submissions, whether they come from /hello or from staff lists.
 - Auto-verify only when all of these hold:
   - the student is matched;
-  - the screenshot was read and its amount matches the amount due (within $0.05);
+  - the screenshot was read and its amount matches the amount due exactly, to the cent (the current $0.05 allowance is removed everywhere, including school fees and outstanding-invoice scans, so $539.55 against $539.60 is not a match);
   - the payment isn't cash or credit;
   - the submission hasn't been rejected or flagged as a duplicate.
 - Then the system does what staff do today with **Verify payment** followed by **Import as Invoice**. It creates or links one invoice, marks it paid and verified, records the payment, and uses credit first. It never creates a duplicate invoice.
