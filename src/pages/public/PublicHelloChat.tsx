@@ -1546,6 +1546,135 @@ const PublicHelloChat: React.FC = () => {
     </Button>
   );
 
+
+  const mainMenuCard = matched ? (
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  {outstandingInvoices.length > 0 && (
+                    <Button
+                      onClick={() => startPayInvoices(outstandingInvoices)}
+                      variant="destructive"
+                      className="w-full h-11 justify-between"
+                    >
+                      <span>
+                        Outstanding Invoice{outstandingInvoices.length > 1 ? 's' : ''} ({outstandingInvoices.length})
+                        {' · '}${outstandingInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)}
+                      </span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {(() => {
+                    const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="default"
+                        className="w-full h-11 justify-between"
+                      >
+                        Pay Term Fees <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })()}
+                  <Button
+                    disabled
+                    variant="outline"
+                    className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <CalendarClock className="h-4 w-4" />
+                      Schedule / Reschedule a lesson
+                    </span>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
+                  </Button>
+                  {(() => {
+                    const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="outline"
+                        className="w-full h-11 justify-between"
+                      >
+                        Register for grading <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })()}
+                  <Button
+                    onClick={() => goTo('competition')}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    Register for Competition <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  {[
+                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
+                    { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
+                  ].map(btn => {
+                    const cat = CATEGORIES.find(c => c.id === btn.id);
+                    if (!cat) return null;
+                    return (
+                      <Button
+                        key={btn.id}
+                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
+                        variant="outline"
+                        className="w-full h-11 justify-between"
+                      >
+                        {btn.label}
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    onClick={() => {
+                      if (sessionId) logChatEvent(sessionId, 'past_invoices_viewed').catch(() => {});
+                      goTo('past_invoices');
+                    }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Receipt className="h-4 w-4" />
+                      View Past Invoices
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  {matched?.id && sessionLinked && (
+                    <>
+                      <HelloHomeScreenPrompt
+                        suppressed={showOutstandingPopup}
+                        sessionId={sessionId}
+                        studentId={matched.id}
+                        branchId={branchId}
+                        studentName={matched.first_name}
+                      />
+                    </>
+                  )}
+                  <Button
+                    onClick={() => { setPiLoaded(false); setPiPending(null); goTo('personal_info'); }}
+                    variant="outline"
+                    className="w-full h-11 justify-between"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <UserCog className="h-4 w-4" />
+                      Update Personal Information
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+
+              </Card>
+  ) : null;
+
+  const isTerminalStage = TERMINAL_STAGES.includes(stage);
+  useEffect(() => {
+    if (!isTerminalStage) return;
+    setProofFile(null);
+    setPayInvProofFile(null);
+    setStageHistory([]);
+    queryClient.invalidateQueries();
+  }, [isTerminalStage, queryClient]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -1745,122 +1874,7 @@ const PublicHelloChat: React.FC = () => {
                   </div>
                 )}
               </Bubble>
-              <Card>
-                <CardContent className="p-3 space-y-2">
-                  {outstandingInvoices.length > 0 && (
-                    <Button
-                      onClick={() => startPayInvoices(outstandingInvoices)}
-                      variant="destructive"
-                      className="w-full h-11 justify-between"
-                    >
-                      <span>
-                        Outstanding Invoice{outstandingInvoices.length > 1 ? 's' : ''} ({outstandingInvoices.length})
-                        {' · '}${outstandingInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)}
-                      </span>
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {(() => {
-                    const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
-                    if (!cat) return null;
-                    return (
-                      <Button
-                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
-                        variant="default"
-                        className="w-full h-11 justify-between"
-                      >
-                        Pay Term Fees <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    );
-                  })()}
-                  <Button
-                    disabled
-                    variant="outline"
-                    className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <CalendarClock className="h-4 w-4" />
-                      Schedule / Reschedule a lesson
-                    </span>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
-                  </Button>
-                  {(() => {
-                    const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
-                    if (!cat) return null;
-                    return (
-                      <Button
-                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
-                        variant="outline"
-                        className="w-full h-11 justify-between"
-                      >
-                        Register for grading <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    );
-                  })()}
-                  <Button
-                    onClick={() => goTo('competition')}
-                    variant="outline"
-                    className="w-full h-11 justify-between"
-                  >
-                    Register for Competition <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  {[
-                    { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
-                    { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
-                  ].map(btn => {
-                    const cat = CATEGORIES.find(c => c.id === btn.id);
-                    if (!cat) return null;
-                    return (
-                      <Button
-                        key={btn.id}
-                        onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
-                        variant="outline"
-                        className="w-full h-11 justify-between"
-                      >
-                        {btn.label}
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    );
-                  })}
-                  <Button
-                    onClick={() => {
-                      if (sessionId) logChatEvent(sessionId, 'past_invoices_viewed').catch(() => {});
-                      goTo('past_invoices');
-                    }}
-                    variant="outline"
-                    className="w-full h-11 justify-between"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Receipt className="h-4 w-4" />
-                      View Past Invoices
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  {matched?.id && sessionLinked && (
-                    <>
-                      <HelloHomeScreenPrompt
-                        suppressed={showOutstandingPopup}
-                        sessionId={sessionId}
-                        studentId={matched.id}
-                        branchId={branchId}
-                        studentName={matched.first_name}
-                      />
-                    </>
-                  )}
-                  <Button
-                    onClick={() => { setPiLoaded(false); setPiPending(null); goTo('personal_info'); }}
-                    variant="outline"
-                    className="w-full h-11 justify-between"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <UserCog className="h-4 w-4" />
-                      Update Personal Information
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </CardContent>
-
-              </Card>
+              {mainMenuCard}
             </>
           )}
 
@@ -3184,6 +3198,24 @@ const PublicHelloChat: React.FC = () => {
                 <span>Thanks! Your lesson request has been received. We'll confirm and update your attendance shortly.</span>
               </div>
             </Bubble>
+          )}
+
+          {isTerminalStage && (
+            <>
+              <Bubble who="bot">Is there anything else I can help you with?</Bubble>
+              {matched ? mainMenuCard : (
+                <Card>
+                  <CardContent className="p-3 space-y-2">
+                    <Button variant="outline" className="w-full h-11 justify-between" onClick={() => goTo('identify')}>
+                      Start again <ArrowRight className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" className="w-full h-11 justify-between" onClick={() => goTo('choice')}>
+                      Other options <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
 
         </div>
