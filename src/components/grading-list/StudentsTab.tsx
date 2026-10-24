@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useAuth } from '@/contexts/AuthContext';
-import StatusBadge from './StatusBadge';
+import StatusBadge, { normalizeStatus } from './StatusBadge';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
@@ -75,6 +75,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState(lockedBranchId || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [payFilter, setPayFilter] = useState('all');
 
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
   const [editBelt, setEditBelt] = useState('');
@@ -124,7 +125,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: allRows = [], isLoading } = useQuery({
     queryKey: ['public-student-directory', debouncedSearch, branchFilter, statusFilter],
     queryFn: () =>
       getPublicStudentDirectory({
@@ -134,6 +135,22 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
       }),
     staleTime: 30 * 1000,
   });
+
+  const rows = React.useMemo(() => {
+    if (payFilter === 'all') return allRows;
+    return allRows.filter((r) => {
+      const st = normalizeStatus(r.invoice_status);
+      switch (payFilter) {
+        case 'none': return st === 'none';
+        case 'draft': return st === 'draft';
+        case 'due': return st === 'unpaid' || st === 'overdue';
+        case 'partial': return st === 'partially_paid';
+        case 'paid': return st === 'paid' || st === 'pending_verification';
+        case 'verified': return st === 'paid_verified';
+        default: return true;
+      }
+    });
+  }, [allRows, payFilter]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -271,6 +288,20 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
             <SelectItem value="withdrawn">withdrawn</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={payFilter} onValueChange={setPayFilter}>
+          <SelectTrigger className="w-full sm:w-[190px] h-9">
+            <SelectValue placeholder="All term payments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All term payments</SelectItem>
+            <SelectItem value="none">No invoice</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="due">Unpaid / Sent / Overdue</SelectItem>
+            <SelectItem value="partial">Partially paid</SelectItem>
+            <SelectItem value="paid">Paid (awaiting verification)</SelectItem>
+            <SelectItem value="verified">Paid &amp; Verified</SelectItem>
+          </SelectContent>
+        </Select>
         {canEdit && (
           <div className="flex gap-2">
             <Button size="sm" className="h-9" onClick={() => setAddOpen(true)}>
@@ -333,7 +364,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
 
           {/* Desktop table */}
           <div className="hidden lg:block overflow-x-auto rounded-md border">
-            <Table>
+            <Table className="[&_th]:text-left [&_td]:text-left [&_td]:align-middle [&_th]:align-middle">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -343,50 +374,50 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId }) => {
                   <TableHead>Contact</TableHead>
                   <TableHead>Enrolment</TableHead>
                   <TableHead>Term payment</TableHead>
-                  <TableHead className="text-right">Credit</TableHead>
-                  {canEdit && <TableHead className="w-10" />}
+                  <TableHead className="!text-right">Credit</TableHead>
+                  {canEdit && <TableHead className="w-20" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>
-                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium" />
-                      <div className="text-[11px] text-muted-foreground">
+                    <TableCell className="py-2">
+                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left whitespace-nowrap" />
+                      <div className="text-[11px] text-muted-foreground whitespace-nowrap">
                         {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
                       </div>
                     </TableCell>
-                    <TableCell>{r.current_belt || '—'}</TableCell>
-                    <TableCell>{r.branch_name || '—'}</TableCell>
-                    <TableCell>
+                    <TableCell className="py-2 text-sm whitespace-nowrap">{r.current_belt || '—'}</TableCell>
+                    <TableCell className="py-2 text-sm whitespace-nowrap">{r.branch_name || '—'}</TableCell>
+                    <TableCell className="py-2">
                       <Badge variant="outline" className={statusBadge(r.status)}>{r.status}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="text-xs">{r.email || '—'}</div>
-                      <div className="text-[11px] text-muted-foreground">{r.phone || ''}</div>
+                    <TableCell className="py-2">
+                      <div className="text-sm break-all">{r.email || '—'}</div>
+                      {r.phone && <div className="text-[11px] text-muted-foreground">{r.phone}</div>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       {r.class_type ? (
                         <>
-                          <div className="text-xs">{r.class_type}{r.tier_name ? ` (${r.tier_name})` : ''}</div>
-                          <div className="text-[11px] text-muted-foreground">{r.term_name || ''}</div>
+                          <div className="text-sm">{r.class_type}{r.tier_name ? ` (${r.tier_name})` : ''}</div>
+                          {r.term_name && <div className="text-[11px] text-muted-foreground">{r.term_name}</div>}
                         </>
-                      ) : '—'}
+                      ) : <span className="text-sm">—</span>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       <StatusBadge status={r.invoice_status} />
                       {r.invoice_balance != null && r.invoice_balance > 0 && (
-                        <div className="text-[11px] text-red-600 mt-0.5">
+                        <div className="text-[11px] text-destructive mt-0.5">
                           {formatCurrency(r.invoice_balance)} due
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="py-2 text-sm !text-right whitespace-nowrap">
                       {r.credit_balance > 0 ? formatCurrency(r.credit_balance) : '—'}
                     </TableCell>
                     {canEdit && (
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      <TableCell className="py-2">
+                        <div className="flex items-center justify-end gap-1">
                           {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
                             <FilePlus className="h-4 w-4" />
                           </Button>}
