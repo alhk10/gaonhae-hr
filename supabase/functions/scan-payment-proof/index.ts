@@ -196,7 +196,7 @@ async function scanStoredPayments(body: any) {
   if (!paymentIds.length && !invoiceIds.length) return json({ error: "payment_ids or invoice_ids required" }, 400);
 
   let q = admin.from("payments")
-    .select("id, amount, payment_method, proof_of_payment_url, verification_status, is_verified, proof_scan_status, invoice_id, invoices(branch_id, branches(country))")
+    .select("id, amount, payment_method, proof_of_payment_url, verification_status, is_verified, proof_scan_status, invoice_id")
     .is("proof_scan_status", null)
     .eq("is_verified", false)
     .not("proof_of_payment_url", "is", null)
@@ -216,7 +216,9 @@ async function scanStoredPayments(body: any) {
   const results: Record<string, ScanStatus> = {};
   for (const [url, group] of groups) {
     const total = Number(group.reduce((s, r) => s + Number(r.amount || 0), 0).toFixed(2));
-    const country = (group[0] as any)?.invoices?.branches?.country;
+    const { data: inv } = await admin.from("invoices").select("branch_id").eq("id", group[0].invoice_id).maybeSingle();
+    const { data: br } = inv?.branch_id ? await admin.from("branches").select("country").eq("id", inv.branch_id).maybeSingle() : { data: null };
+    const country = (br as any)?.country;
     const currency = String(country || "").toLowerCase().startsWith("aus") ? "AUD" : "SGD";
     let out: ScanOut;
     const path = proofPath(url);
