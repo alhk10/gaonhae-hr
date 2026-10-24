@@ -233,7 +233,7 @@ const GradingCardUploadDialog: React.FC<Props> = ({
                 Add files
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                {totalCount} of {MAX_FILES} files
+                {totalCount} of {MAX_FILES} files · or paste an image (Ctrl+V)
               </span>
             </div>
 
