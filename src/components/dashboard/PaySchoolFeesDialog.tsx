@@ -129,32 +129,18 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
           const productName = metadata.product_name || productNameFallback;
           let selectedClassSlots = metadata.selected_class_slots as string[] | undefined;
 
-          // Fallback: if no selected_class_slots in metadata, query student_scheduled_classes
+          // Fallback: reuse the student's recent lesson bookings as slot suggestions
           if (!selectedClassSlots || selectedClassSlots.length === 0) {
-            // Find enrollments for this student to get scheduled timetable slots
-            const { data: enrollments } = await supabase
-              .from('student_class_enrollments')
-              .select('id')
+            const { data: recent } = await (supabase
+              .from('lesson_bookings' as any)
+              .select('timetable_id, lesson_date') as any)
               .eq('student_id', studentId)
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(5);
-
-            if (enrollments && enrollments.length > 0) {
-              const enrollmentIds = enrollments.map(e => e.id);
-              const { data: scheduledClasses } = await (supabase
-                .from('student_scheduled_classes')
-                .select('timetable_id, scheduled_date') as any)
-                .in('enrollment_id', enrollmentIds)
-                .eq('status', 'scheduled')
-                .order('scheduled_date', { ascending: false })
-                .limit(100);
-
-              if (scheduledClasses && scheduledClasses.length > 0) {
-                selectedClassSlots = scheduledClasses.map(
-                  (sc: any) => `${sc.timetable_id}_${sc.scheduled_date}`
-                );
-              }
+              .neq('status', 'rejected')
+              .not('timetable_id', 'is', null)
+              .order('lesson_date', { ascending: false })
+              .limit(100);
+            if (recent && recent.length > 0) {
+              selectedClassSlots = recent.map((r: any) => `${r.timetable_id}_${r.lesson_date}`);
             }
           }
 
