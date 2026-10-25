@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
-import { WEEKDAY_LABELS, WEEKDAY_OPTIONS } from '@/utils/attendanceWeek';
+import { WEEKDAY_OPTIONS } from '@/utils/attendanceWeek';
 import {
   getAttendanceSettings, saveClassType, saveTerm, saveTermBreak, saveTimetableSlot,
   type AttendanceTerm, type TimetableSlot,
@@ -243,7 +243,6 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
             </TabsContent>
           </Tabs>
         )}
-        <p className="text-[11px] text-muted-foreground">Days are shown Monday first. {WEEKDAY_LABELS.length} weekdays available.</p>
       </DialogContent>
     </Dialog>
   );
