@@ -233,45 +233,16 @@ const fmtDM = (iso: string) => {
 };
 
 export const submitLessonRequest = async (input: SubmitLessonRequestInput): Promise<string> => {
-  const isReschedule = input.cancellations.length > 0;
-  const head = isReschedule
-    ? 'Reschedule lesson request from chat:'
-    : 'Schedule new lesson request from chat:';
-  const lines: (string | null)[] = [
-    head,
-    `Student: ${input.first_name} ${input.last_name} (id: ${input.student_id})`,
-    `Branch: ${input.branch_name ?? ''}`,
-  ];
-  if (input.cancellations.length > 0) {
-    lines.push('Cancel:');
-    input.cancellations.forEach(c => {
-      lines.push(`  - ${fmtDM(c.date)} ${c.start_time.slice(0,5)}–${c.end_time.slice(0,5)}${c.class_type ? ` (${c.class_type})` : ''} [id:${c.scheduled_class_id ?? ''}]`);
-    });
-  }
-  if (input.new_bookings.length > 0) {
-    lines.push('Book:');
-    input.new_bookings.forEach(b => {
-      lines.push(`  - ${fmtDM(b.date)} ${b.start_time.slice(0,5)}–${b.end_time.slice(0,5)}${b.class_type ? ` (${b.class_type})` : ''} [timetable:${b.timetable_id ?? ''}]`);
-    });
-  }
-  if (input.notes) lines.push(`Notes: ${input.notes}`);
-
-  const id = await submitCallback({
-    session_id: input.session_id,
-    branch_id: input.branch_id,
-    branch_name: input.branch_name,
-    first_name: input.first_name,
-    last_name: input.last_name,
-    date_of_birth: input.date_of_birth,
-    contact_phone: input.contact_phone,
-    contact_email: input.contact_email,
-    message: lines.filter(Boolean).join('\n'),
-    type: 'lesson_schedule_request',
-    preferred_time: null,
-    // Link the request to the known student so branch approvers can act on it.
-    matched_student_id: input.student_id,
+  // Requests are saved as pending lesson bookings; staff approve them in /access → Attendance.
+  const { data, error } = await supabase.rpc('hello_submit_lesson_request' as any, {
+    p_session_id: input.session_id,
+    p_student_id: input.student_id,
+    p_bookings: input.new_bookings as any,
+    p_cancellations: input.cancellations as any,
+    p_notes: input.notes ?? null,
   });
-  return id;
+  if (error) throw new Error(error.message);
+  return JSON.stringify(data ?? {});
 };
 
 // ---------- Calendar data RPCs ----------
