@@ -1,0 +1,59 @@
+/** Week helpers for the /access Attendance tab. Weeks start on Monday. */
+
+export const toIsoDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export const parseIsoDate = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
+/** Monday of the week containing `date`. */
+export const mondayOf = (date: Date): Date => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const offset = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+  d.setDate(d.getDate() - offset);
+  return d;
+};
+
+export const addDays = (date: Date, n: number): Date => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setDate(d.getDate() + n);
+  return d;
+};
+
+/** Seven ISO dates Monday → Sunday. */
+export const weekDates = (monday: Date): string[] => Array.from({ length: 7 }, (_, i) => toIsoDate(addDays(monday, i)));
+
+interface SlotLike { id: string; weekday: number; start_time: string }
+interface RangeLike { start_date: string; end_date: string }
+
+/**
+ * Days to show: only days that have at least one active timeslot, skipping public holidays
+ * and term breaks. Each day lists its slots sorted by start time.
+ */
+export function visibleDays<T extends SlotLike>(
+  dates: string[],
+  slots: T[],
+  holidays: string[] = [],
+  breaks: RangeLike[] = [],
+): { date: string; slots: T[] }[] {
+  const holidaySet = new Set(holidays);
+  return dates
+    .map((date) => {
+      const weekday = parseIsoDate(date).getDay();
+      const daySlots = slots
+        .filter((s) => s.weekday === weekday)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+      return { date, slots: daySlots };
+    })
+    .filter(({ date, slots: s }) =>
+      s.length > 0 &&
+      !holidaySet.has(date) &&
+      !breaks.some((b) => date >= b.start_date && date <= b.end_date),
+    );
+}
+
+export const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/** Weekday options in Monday-first order for forms. */
+export const WEEKDAY_OPTIONS = [1, 2, 3, 4, 5, 6, 0].map((v) => ({ value: v, label: WEEKDAY_LABELS[v] }));
