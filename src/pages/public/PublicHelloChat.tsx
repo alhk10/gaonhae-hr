@@ -3082,6 +3082,9 @@ const PublicHelloChat: React.FC = () => {
                                     {attLabel && (
                                       <span className={cn('text-[11px]', attClass)}>{attLabel}</span>
                                     )}
+                                    {b.status === 'requested' && (
+                                      <span className="text-[11px] text-muted-foreground">Awaiting staff approval</span>
+                                    )}
                                   </span>
                                   <span className="text-[11px] shrink-0">
                                     {picked
@@ -3089,7 +3092,7 @@ const PublicHelloChat: React.FC = () => {
                                       : cancellable
                                         ? 'Tap to cancel'
                                         : isAttendanceOnly || (isPast && attLabel)
-                                          ? 'Attended'
+                                          ? (att === 'absent' ? 'Marked' : 'Attended')
                                           : isPast
                                             ? 'Past'
                                             : 'Closed'}

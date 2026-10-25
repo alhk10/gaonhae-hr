@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Lock, Unlock, Trash2, Pencil, Download, CheckCircle, XCircle, Award, AlertTriangle, RotateCw, Settings, PenLine, FileText, IdCard, Printer, Upload, Undo2, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import AttendanceTab from '@/components/attendance/AttendanceTab';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
@@ -1522,6 +1523,7 @@ const PublicGradingList: React.FC = () => {
           <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1 p-1 [&>button]:whitespace-normal [&>button]:text-center [&>button]:leading-tight [&>button]:min-w-[5.5rem] [&>button]:flex-1 [&>button]:basis-auto [&>button]:py-1.5">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="school-fees">School Fees</TabsTrigger>
             <TabsTrigger value="grading">Grading</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
@@ -1541,6 +1543,13 @@ const PublicGradingList: React.FC = () => {
           </TabsContent>
           <TabsContent value="external-invoices" className="mt-4">
             <ExternalInvoicesTab branchFilter={branchFilter} lockedBranchId={lockedBranchId ?? undefined} canEdit={editMode} />
+          </TabsContent>
+          <TabsContent value="attendance" className="mt-4">
+            <AttendanceTab
+              lockedBranchId={lockedBranchId ?? undefined}
+              branches={(publicBranches as any[]).map((b) => ({ id: b.id, name: b.name }))}
+              canEdit={editMode}
+            />
           </TabsContent>
           <TabsContent value="students" className="mt-4">
             <StudentsTab

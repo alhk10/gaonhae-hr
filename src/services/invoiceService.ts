@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
-import { createEnrollment, createScheduledClass } from './classEnrollmentService';
+import { syncInvoiceSlotBookings, removeUnmarkedInvoiceBookings } from './lessonBookingService';
 import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
 import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
 import { toISODate } from '@/utils/dateFormat';
@@ -644,53 +644,15 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             
             if (!branchId) continue;
 
-            // Create enrollment
-            const enrollmentId = await createEnrollment({
-              student_id: invoiceData.student_id,
-              term_id: termId,
-              branch_id: branchId,
-              class_type: className,
-              tier_name: className,
-              total_price: originalItem?.quantity 
-                ? originalItem.quantity * originalItem.unit_price 
-                : 0,
-              invoice_item_id: insertedItem.id,
+            await syncInvoiceSlotBookings({
+              studentId: invoiceData.student_id,
+              branchId,
+              invoiceId: invoice.id,
+              termId,
+              slots: selectedClassSlots,
             });
-
-            // Get timetable data for the selected slots (including class_type for accurate enrollment)
-            const timetableIds = [...new Set(selectedClassSlots.map(s => s.split('_')[0]))];
-            const { data: timetables } = await supabase
-              .from('branch_timetables')
-              .select('id, start_time, end_time, class_type')
-              .in('id', timetableIds);
-
-            const timetableMap = new Map(timetables?.map(t => [t.id, t]) || []);
-            
-            // Use the timetable's class_type for the enrollment (more accurate than product name)
-            const firstTimetable = timetables?.[0];
-            if (firstTimetable?.class_type) {
-              // Update the enrollment's class_type to match the timetable
-              await supabase
-                .from('student_class_enrollments')
-                .update({ class_type: firstTimetable.class_type })
-                .eq('id', enrollmentId);
-            }
-
-            for (const slot of selectedClassSlots) {
-              const [timetableId, date] = slot.split('_');
-              const timetable = timetableMap.get(timetableId);
-              if (timetable && date) {
-                await createScheduledClass({
-                  enrollment_id: enrollmentId,
-                  timetable_id: timetableId,
-                  scheduled_date: date,
-                  start_time: timetable.start_time,
-                  end_time: timetable.end_time,
-                });
-              }
-            }
-
-            logger.info(`Created enrollment and ${selectedClassSlots.length} scheduled classes for invoice ${invoiceNumber}`);
+            void className;
+            logger.info(`Booked ${selectedClassSlots.length} lessons for invoice ${invoiceNumber}`);
           }
         } catch (enrollmentError) {
           logger.error('Failed to create enrollments/scheduled classes (non-fatal)', enrollmentError);
@@ -873,15 +835,7 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
       if (entitlements && entitlements.length > 0) {
         const entitlementIds = entitlements.map(e => e.id);
 
-        // 3. Hard-delete class_attendance records linked to these entitlements
-        const { error: entitlementAttendanceDeleteError } = await supabase
-          .from('class_attendance')
-          .delete()
-          .in('entitlement_id', entitlementIds);
-
-        if (entitlementAttendanceDeleteError) {
-          throw new Error(`Failed to delete entitlement-linked attendance: ${entitlementAttendanceDeleteError.message}`);
-        }
+        // 3. Bookings keep their history; the link to the deleted entitlement is cleared automatically.
 
         // 4. Hard delete entitlements
         const { error: entitlementsDeleteError } = await supabase
@@ -894,55 +848,9 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
         }
       }
 
-      // 5. Find and delete enrollments + scheduled classes
-      const { data: enrollments, error: enrollmentsFetchError } = await supabase
-        .from('student_class_enrollments')
-        .select('id')
-        .in('invoice_item_id', itemIds);
-
-      if (enrollmentsFetchError) {
-        throw new Error(`Failed to fetch enrollments: ${enrollmentsFetchError.message}`);
-      }
-
-      if (enrollments && enrollments.length > 0) {
-        const enrollmentIds = enrollments.map(e => e.id);
-
-        // Delete scheduled classes (hard delete)
-        const { error: scheduledClassesDeleteError } = await supabase
-          .from('student_scheduled_classes')
-          .delete()
-          .in('enrollment_id', enrollmentIds);
-
-        if (scheduledClassesDeleteError) {
-          throw new Error(`Failed to delete scheduled classes: ${scheduledClassesDeleteError.message}`);
-        }
-
-        // Delete enrollments (hard delete)
-        const { error: enrollmentsDeleteError } = await supabase
-          .from('student_class_enrollments')
-          .delete()
-          .in('id', enrollmentIds);
-
-        if (enrollmentsDeleteError) {
-          throw new Error(`Failed to delete enrollments: ${enrollmentsDeleteError.message}`);
-        }
-      }
+      // 5. Remove not-yet-marked lesson bookings created from this invoice
     }
-
-    // 6. Clean up remaining auto-scheduled attendance for this student+branch
-    // (important when old records are detached from entitlements)
-    if (invoice?.student_id && invoice?.branch_id) {
-      const { error: autoScheduledAttendanceDeleteError } = await supabase
-        .from('class_attendance')
-        .delete()
-        .eq('student_id', invoice.student_id)
-        .eq('branch_id', invoice.branch_id)
-        .eq('attendance_method', 'auto_scheduled');
-
-      if (autoScheduledAttendanceDeleteError) {
-        throw new Error(`Failed to delete auto-scheduled attendance: ${autoScheduledAttendanceDeleteError.message}`);
-      }
-    }
+    await removeUnmarkedInvoiceBookings(invoiceId);
 
     // 7. Delete payments linked to this invoice
     const { error: paymentsDeleteError } = await supabase
@@ -1158,19 +1066,8 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
         .in('source_id', itemIds)
         .eq('source_type', 'invoice_item');
 
-      // Deactivate enrollments
-      const { data: enrollments } = await supabase
-        .from('student_class_enrollments')
-        .select('id')
-        .in('invoice_item_id', itemIds);
+      await removeUnmarkedInvoiceBookings(invoiceId);
 
-      if (enrollments && enrollments.length > 0) {
-        const enrollmentIds = enrollments.map(e => e.id);
-        await supabase
-          .from('student_class_enrollments')
-          .update({ status: 'cancelled' })
-          .in('id', enrollmentIds);
-      }
     }
 
     // Update invoice status to cancelled

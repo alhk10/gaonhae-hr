@@ -34,7 +34,6 @@ import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import UnifiedSubmissionApprovals from './UnifiedSubmissionApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
-import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
 import SlotBookingManagementContent from '@/components/slot-booking/SlotBookingManagementContent';
 import NoticeManagementTab from '@/components/notices/NoticeManagementTab';
@@ -228,7 +227,6 @@ const SuperadminDashboard = () => {
         <FailedScheduleAlerts />
         <UnifiedSubmissionApprovals />
         <PublicHelloCallbackApprovals />
-        <PublicHelloLessonRequestApprovals />
         {pendingPaymentDeletionsCount > 0 && <PaymentDeletionApprovals />}
         {pendingInvoiceDeletionsCount > 0 && <InvoiceDeletionApprovals />}
         {pendingGradingDeletionsCount > 0 && <GradingDeletionApprovals />}

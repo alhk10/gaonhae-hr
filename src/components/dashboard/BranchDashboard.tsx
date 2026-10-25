@@ -48,7 +48,6 @@ import {
   rejectRequest 
 } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
-import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchCasualSchedule from './BranchCasualSchedule';
 import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
@@ -93,8 +92,6 @@ import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
 import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
-import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
-import { getPendingLessonRequestCount } from '@/services/chatLessonRequestService';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
@@ -115,7 +112,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const ns = `branch-dash:${branchId}`;
-  const [activeTab, setActiveTab] = useSessionState(`${ns}:tab`, 'timetable');
+  const [activeTab, setActiveTab] = useSessionState(`${ns}:tab`, 'students');
+  useEffect(() => { if (activeTab === 'timetable') setActiveTab('students'); }, [activeTab, setActiveTab]);
   useScrollRestoration(branchId);
   const hasSetInitialTab = useRef(false);
   const [searchTerm, setSearchTerm] = useSessionState(`${ns}:searchTerm`, '');
@@ -1113,12 +1111,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  const { data: pendingLessonReqCount = 0 } = useQuery({
-    queryKey: ['pending-lesson-requests-count', branchId],
-    queryFn: () => getPendingLessonRequestCount(branchId),
-    enabled: !!branchId,
-    refetchInterval: 60_000,
-  });
+  const pendingLessonReqCount = 0;
 
   const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0 || pendingLessonReqCount > 0;
 
@@ -1247,7 +1240,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       return;
     }
     // After initial mount: if approvals transition from 0 -> >0 and user hasn't navigated away from default tab, switch
-    if (!prevHasApprovalsRef.current && hasApprovals && activeTab === 'timetable') {
+    if (!prevHasApprovalsRef.current && hasApprovals && activeTab === 'students') {
       setActiveTab('approvals');
     }
     prevHasApprovalsRef.current = hasApprovals;
@@ -1388,7 +1381,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students{displayTerm ? ` (${uninvoicedCount}/${totalActiveTerm})` : ''}</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({outstandingData.count} | {formatCurrency(outstandingData.amount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
@@ -1894,7 +1886,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <PublicGradingSubmissionApprovals branchId={branchId} />
           <PublicCompetitionSubmissionApprovals branchId={branchId} />
           <PublicGuardsPurchaseApprovals branchId={branchId} />
-          <PublicHelloLessonRequestApprovals branchId={branchId} />
 
           {pendingRequests.length > 0 && (
             <Card>
@@ -1963,9 +1954,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
         <TabsContent value="casual-schedule">
           <BranchCasualSchedule branchId={branchId} />
-        </TabsContent>
-        <TabsContent value="timetable">
-          <BranchWeeklyTimetable branchId={branchId} />
         </TabsContent>
         <TabsContent value="inventory">
           <BranchInventoryTab branchId={branchId} />
