@@ -211,11 +211,12 @@ export async function getStudentAttendance(
 ): Promise<StudentAttendance[]> {
   try {
     const { data, error } = await supabase
-      .from('class_attendance')
-      .select('*')
+      .from('lesson_bookings' as any)
+      .select('*, class_date:lesson_date')
       .eq('student_id', studentId)
-      .order('class_date', { ascending: false })
-      .limit(limit);
+      .in('status', ['attended', 'absent'])
+      .order('lesson_date', { ascending: false })
+      .limit(limit) as any;
 
     if (error) {
       logger.error('Error fetching attendance', error);
@@ -597,11 +598,12 @@ export async function getStudentStats(studentId: string): Promise<{
   try {
     // Get attendance stats
     const { data: attendanceData } = await supabase
-      .from('class_attendance')
+      .from('lesson_bookings' as any)
       .select('status')
-      .eq('student_id', studentId);
+      .eq('student_id', studentId)
+      .in('status', ['attended', 'absent']) as { data: Array<{ status: string }> | null };
 
-    const totalAttendance = attendanceData?.filter(a => a.status === 'present').length || 0;
+    const totalAttendance = attendanceData?.filter(a => a.status === 'attended').length || 0;
     const totalAbsences = attendanceData?.filter(a => a.status === 'absent').length || 0;
     const attendanceRate = attendanceData?.length ? (totalAttendance / attendanceData.length) * 100 : 0;
 

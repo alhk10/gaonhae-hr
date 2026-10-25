@@ -1178,9 +1178,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['invoiced-term-student-ids', branchId] });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_scheduled_classes' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['scheduled-classes', branchId] });
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_registrations', filter: `branch_id=eq.${branchId}` }, () => {
         invalidateRegistrations();
       })

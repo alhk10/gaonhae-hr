@@ -90,19 +90,6 @@ export const refundLineItem = async (
       .eq('source_id', invoiceItemId)
       .eq('source_type', 'invoice_item');
 
-    // 4. Cancel enrollment linked to this item
-    const { data: enrollments } = await supabase
-      .from('student_class_enrollments')
-      .select('id')
-      .eq('invoice_item_id', invoiceItemId);
-
-    if (enrollments && enrollments.length > 0) {
-      const enrollmentIds = enrollments.map(e => e.id);
-      await supabase
-        .from('student_class_enrollments')
-        .update({ status: 'cancelled' })
-        .in('id', enrollmentIds);
-    }
   }
 
   // 4b. Grading registration cleanup for grading-fee or lesson refunds

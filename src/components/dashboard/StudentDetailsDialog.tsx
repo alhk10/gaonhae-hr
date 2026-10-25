@@ -82,17 +82,18 @@ const StudentDetailsDialog: React.FC<StudentDetailsDialogProps> = ({
     queryKey: ['student-attendance-dialog', student?.id, branchId],
     queryFn: async () => {
       let query = supabase
-        .from('class_attendance')
-        .select('id, class_date, status, timetable_id, branch_timetables(class_type, start_time, end_time)')
+        .from('lesson_bookings' as any)
+        .select('id, class_date:lesson_date, status, timetable_id, branch_timetables(class_type, start_time, end_time)')
         .eq('student_id', student!.id)
-        .order('class_date', { ascending: false })
+        .in('status', ['attended', 'absent'])
+        .order('lesson_date', { ascending: false })
         .limit(50);
       if (branchId) {
         query = query.eq('branch_id', branchId);
       }
-      const { data, error } = await query;
+      const { data, error } = await (query as any);
       if (error) throw error;
-      return data || [];
+      return ((data || []) as any[]).map((r: any) => ({ ...r, status: r.status === 'attended' ? 'present' : r.status }));
     },
     enabled: open && !!student?.id,
   });
