@@ -35,7 +35,6 @@ import { createUpdateRequest, getStudentRequests } from '@/services/studentUpdat
 import { getActiveTermsForSelection } from '@/services/termCalendarService';
 import { getGradingSlots } from '@/services/gradingService';
 import { useAuth } from '@/contexts/AuthContext';
-import StudentMyClassSchedule from './StudentMyClassSchedule';
 import QuickActionsSection from './QuickActionsSection';
 import NoticePopupDialog from '@/components/notices/NoticePopupDialog';
 import { getNotices, Notice } from '@/services/noticeService';
@@ -797,7 +796,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           <TabsTrigger value="invoices">
             Invoices{invoices.filter(inv => inv.status !== 'paid').length > 0 && ` (${invoices.filter(inv => inv.status !== 'paid').length})`}
           </TabsTrigger>
-          <TabsTrigger value="schedule">{isMobile ? 'My Classes' : 'My Classes'}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -1210,16 +1208,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           </Card>
         </TabsContent>
 
-        <TabsContent value="schedule">
-          <StudentMyClassSchedule 
-            studentId={studentId!} 
-            branchId={student?.branch_id}
-            entitlements={entitlements}
-            readOnly={readOnly}
-            studentDateOfBirth={student?.date_of_birth}
-            studentCurrentBelt={student?.current_belt}
-          />
-        </TabsContent>
 
       </Tabs>
 
