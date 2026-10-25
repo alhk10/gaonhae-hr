@@ -48,7 +48,6 @@ import {
   rejectRequest 
 } from '@/services/studentUpdateRequestService';
 import { useAuth } from '@/contexts/AuthContext';
-import BranchWeeklyTimetable from './BranchWeeklyTimetable';
 import BranchGradingList from './BranchGradingList';
 import BranchCasualSchedule from './BranchCasualSchedule';
 import { BranchSetupDialog } from '@/components/settings/BranchSetupDialog';
@@ -93,8 +92,6 @@ import StudentRegistrationApprovals from './StudentRegistrationApprovals';
 import PublicGradingSubmissionApprovals from './PublicGradingSubmissionApprovals';
 import PublicCompetitionSubmissionApprovals from './PublicCompetitionSubmissionApprovals';
 import PublicGuardsPurchaseApprovals from './PublicGuardsPurchaseApprovals';
-import PublicHelloLessonRequestApprovals from './PublicHelloLessonRequestApprovals';
-import { getPendingLessonRequestCount } from '@/services/chatLessonRequestService';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import AddStudentDialog from '@/components/sales/AddStudentDialog';
 import AddTrialDialog from '@/components/sales/AddTrialDialog';
@@ -1113,12 +1110,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
     enabled: !!branchId,
   });
 
-  const { data: pendingLessonReqCount = 0 } = useQuery({
-    queryKey: ['pending-lesson-requests-count', branchId],
-    queryFn: () => getPendingLessonRequestCount(branchId),
-    enabled: !!branchId,
-    refetchInterval: 60_000,
-  });
+  const pendingLessonReqCount = 0;
 
   const hasApprovals = pendingRequests.length > 0 || unverifiedPayments.length > 0 || pendingRegCount > 0 || pendingLessonReqCount > 0;
 
@@ -1894,7 +1886,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
           <PublicGradingSubmissionApprovals branchId={branchId} />
           <PublicCompetitionSubmissionApprovals branchId={branchId} />
           <PublicGuardsPurchaseApprovals branchId={branchId} />
-          <PublicHelloLessonRequestApprovals branchId={branchId} />
 
           {pendingRequests.length > 0 && (
             <Card>
@@ -1963,9 +1954,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
 
         <TabsContent value="casual-schedule">
           <BranchCasualSchedule branchId={branchId} />
-        </TabsContent>
-        <TabsContent value="timetable">
-          <BranchWeeklyTimetable branchId={branchId} />
         </TabsContent>
         <TabsContent value="inventory">
           <BranchInventoryTab branchId={branchId} />
