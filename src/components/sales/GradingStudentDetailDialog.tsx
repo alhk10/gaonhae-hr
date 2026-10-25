@@ -134,18 +134,19 @@ const GradingStudentDetailDialog: React.FC<GradingStudentDetailDialogProps> = ({
       if (!studentId || !termStartDate || !termEndDate) return [];
 
       const { data, error } = await supabase
-        .from('class_attendance')
-        .select('id, class_date, status, timetable_id, notes')
+        .from('lesson_bookings' as any)
+        .select('id, class_date:lesson_date, status, timetable_id, notes')
         .eq('student_id', studentId)
         .eq('branch_id', branchId)
-        .gte('class_date', termStartDate)
-        .lte('class_date', termEndDate)
-        .order('class_date', { ascending: true });
+        .in('status', ['attended', 'absent'])
+        .gte('lesson_date', termStartDate)
+        .lte('lesson_date', termEndDate)
+        .order('lesson_date', { ascending: true }) as any;
 
       if (error) throw error;
 
       // Fetch timetable info for class type
-      const timetableIds = [...new Set((data || []).filter(d => d.timetable_id).map(d => d.timetable_id!))];
+      const timetableIds = [...new Set(((data || []) as any[]).filter((d: any) => d.timetable_id).map((d: any) => d.timetable_id as string))];
       let timetableMap: Record<string, any> = {};
       if (timetableIds.length > 0) {
         const { data: timetables } = await supabase
@@ -155,12 +156,12 @@ const GradingStudentDetailDialog: React.FC<GradingStudentDetailDialogProps> = ({
         (timetables || []).forEach(t => { timetableMap[t.id] = t; });
       }
 
-      return (data || []).map(record => {
+      return ((data || []) as any[]).map((record: any) => {
         const tt = record.timetable_id ? timetableMap[record.timetable_id] : null;
         return {
           id: record.id,
           class_date: record.class_date,
-          status: record.status,
+          status: record.status === 'attended' ? 'present' : record.status,
           timetable_id: record.timetable_id,
           class_type: tt?.class_type || null,
           start_time: tt?.start_time || null,
