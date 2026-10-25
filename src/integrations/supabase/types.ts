@@ -8506,6 +8506,10 @@ export type Database = {
         Returns: Json
       }
       _sur_reviewer: { Args: { p_actor: string }; Returns: string }
+      _term_payment_status: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: string
+      }
       _validate_public_chat_session: {
         Args: {
           p_branch_id?: string
