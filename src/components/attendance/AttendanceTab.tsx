@@ -272,6 +272,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
                           {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
                           {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
+                          {b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
+                          {b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
                           <span className="ml-auto flex items-center gap-1">
                             {b.status !== 'requested' && (
                               <>
