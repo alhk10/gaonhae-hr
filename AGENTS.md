@@ -14,3 +14,4 @@
 - `/hello` checkouts send a stable `client_ref` to `submit_public_chat_invoice`, which returns the existing invoice for a retry and refuses identical items for the same student within 24 hours.
 
 - Every payment insert/update/delete recalculates its invoice via `recalc_invoice_from_payments` (drafts included; pending payments count toward paid), so auto-verified /hello payments never leave invoices showing outstanding.
+- Student class attendance lives only in `lesson_bookings` (one row per student/timeslot/date; requested → booked → attended|absent, or rejected), managed through `/access` Attendance RPCs and `/hello` `hello_submit_lesson_request`; a database trigger charges one entitlement lesson per attended/absent mark and refunds it on unmark/delete, so every path agrees on lesson balances.
