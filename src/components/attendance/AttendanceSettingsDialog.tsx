@@ -10,11 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CLASS_COLORS, classColor, classColorVar } from '@/utils/attendanceWeek';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
 import { WEEKDAY_OPTIONS } from '@/utils/attendanceWeek';
 import {
-  getAttendanceSettings, saveClassType, saveTerm, saveTermBreak, saveTimetableSlot,
+  getAttendanceSettings, saveClassType, saveClassTypeColor, saveTerm, saveTermBreak, saveTimetableSlot,
   type AttendanceTerm, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import DateField from './DateField';
@@ -171,6 +172,14 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
                       Save
                     </Button>
                   )}
+                  <span className="flex shrink-0 gap-0.5">
+                    {CLASS_COLORS.map((col) => (
+                      <button key={col} type="button" aria-label={`Colour ${col}`} disabled={saving}
+                        className={cn('h-4 w-4 rounded-full border-2', classColor(c.name, c.color) === col ? 'border-foreground' : 'border-transparent')}
+                        style={{ backgroundColor: classColorVar(col) }}
+                        onClick={() => guard(() => saveClassTypeColor(branchId, c.id, col), 'Colour saved')} />
+                    ))}
+                  </span>
                   <Switch checked={c.is_active} disabled={saving} onCheckedChange={(v) => guard(() => saveClassType(branchId, c.id, c.name, v), v ? 'Class on' : 'Class off')} />
                 </div>
               ))}

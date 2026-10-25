@@ -6,6 +6,14 @@
 
 @layer base {
   :root {
+    --class-red: 0 72% 51%;
+    --class-orange: 25 95% 53%;
+    --class-amber: 43 96% 48%;
+    --class-green: 142 64% 38%;
+    --class-teal: 173 80% 34%;
+    --class-blue: 217 85% 52%;
+    --class-violet: 262 70% 56%;
+    --class-pink: 330 78% 54%;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 

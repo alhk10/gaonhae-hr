@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
-import { addDays, mondayOf, parseIsoDate, toIsoDate, visibleDays, weekDates, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
+import { addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
+import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
   addStudentToSlot, getAttendanceWeek, markBooking, removeBooking, reviewBookingRequest, searchAttendanceStudents,
   type LessonBooking, type TimetableSlot,
@@ -89,8 +90,10 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const qc = useQueryClient();
   const [pickedBranch, setPickedBranch] = useState<string>('');
   const branchId = lockedBranchId || pickedBranch || branches[0]?.id || '';
-  const [monday, setMonday] = useState<Date>(() => mondayOf(new Date()));
+  const [day, setDay] = useState<Date>(() => new Date());
+  const monday = mondayOf(day);
   const weekStart = toIsoDate(monday);
+  const dayIso = toIsoDate(day);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [limitPrompt, setLimitPrompt] = useState<null | { slot: TimetableSlot; date: string; student: { id: string; name: string }; remaining: number; pending: number }>(null);
@@ -105,8 +108,21 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
 
   const days = useMemo(() => {
     if (!data) return [];
-    return visibleDays(weekDates(monday), data.slots || [], (data.holidays || []).map((h) => h.date), data.breaks || []);
-  }, [data, monday]);
+    return visibleDays([dayIso], data.slots || [], (data.holidays || []).map((h) => h.date), data.breaks || []);
+  }, [data, dayIso]);
+
+  const { data: settings } = useQuery({
+    queryKey: ['access-attendance-settings', branchId],
+    queryFn: () => getAttendanceSettings(branchId),
+    enabled: !!branchId,
+  });
+  const savedColors = useMemo(() => {
+    const m: Record<string, string | null | undefined> = {};
+    (settings?.class_types || []).forEach((c) => { m[c.name.trim().toLowerCase()] = c.color; });
+    return m;
+  }, [settings]);
+  const colorOf = (name?: string | null) => classColor(name, savedColors[(name || '').trim().toLowerCase()]);
+  const legend = useMemo(() => Array.from(new Set(days.flatMap((d) => d.slots.map((s) => s.class_type).filter(Boolean) as string[]))), [days]);
 
   const bookingsBySlot = useMemo(() => {
     const m: Record<string, LessonBooking[]> = {};
@@ -114,7 +130,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
     return m;
   }, [data]);
 
-  const hiddenHolidays = (data?.holidays || []).filter((h) => weekDates(monday).includes(h.date));
+  const hiddenHolidays = (data?.holidays || []).filter((h) => h.date === dayIso);
+  const inBreak = (data?.breaks || []).some((b) => dayIso >= b.start_date && dayIso <= b.end_date);
   const termLabel = (data?.terms || []).map((t) => t.name).join(', ');
 
   const run = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
@@ -155,16 +172,16 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
           </Select>
         )}
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setMonday(addDays(monday, -7))} aria-label="Previous week">
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(addDays(day, -1))} aria-label="Previous day">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setMonday(mondayOf(new Date()))}>This week</Button>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setMonday(addDays(monday, 7))} aria-label="Next week">
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDay(new Date())}>Today</Button>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(addDays(day, 1))} aria-label="Next day">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <span className="text-xs font-medium">
-          {formatDate(weekStart)} – {formatDate(toIsoDate(addDays(monday, 6)))}
+          {WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}
           {termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
         </span>
         {canEdit && branchId && (
@@ -204,10 +221,17 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
         </Card>
       )}
 
-      {isLoading && <p className="text-xs text-muted-foreground">Loading week…</p>}
+      {legend.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          {legend.map((n) => (
+            <span key={n} className="flex items-center gap-1"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: classColorVar(colorOf(n)) }} />{n}</span>
+          ))}
+        </div>
+      )}
+      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
       {!isLoading && data && days.length === 0 && (
         <Card><CardContent className="p-4 text-xs text-muted-foreground">
-          No lessons this week{hiddenHolidays.length > 0 ? ` (public holiday: ${hiddenHolidays.map((h) => h.name).join(', ')})` : ''}. Use Settings to set up the branch timetable.
+          No lessons {dayIso === today ? 'today' : 'on this day'}{hiddenHolidays.length > 0 ? ` (public holiday: ${hiddenHolidays.map((h) => h.name).join(', ')})` : inBreak ? ' (term break)' : ''}.
         </CardContent></Card>
       )}
 
@@ -225,8 +249,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
               const count = list.length;
               const full = slot.max_capacity != null && count >= slot.max_capacity;
               return (
-                <div key={slot.id} className="rounded-md border">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-muted/40 px-2 py-1.5 text-xs">
+                <div key={slot.id} className="rounded-md border border-l-4" style={{ borderLeftColor: classColorVar(colorOf(slot.class_type)) }}>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-2 py-1.5 text-xs" style={{ backgroundColor: classColorTint(colorOf(slot.class_type)) }}>
                     <span className="flex items-center gap-1 font-semibold"><Clock className="h-3.5 w-3.5" />{hhmm(slot.start_time)}–{hhmm(slot.end_time)}</span>
                     <span className="text-muted-foreground">{slotMeta(slot)}</span>
                     <Badge variant={full ? 'destructive' : 'outline'} className="text-[10px]">{count}/{slot.max_capacity ?? '∞'}</Badge>

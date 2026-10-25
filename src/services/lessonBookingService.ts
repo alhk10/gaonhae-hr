@@ -122,7 +122,7 @@ export interface AttendanceTerm {
 
 export interface AttendanceSettings {
   slots: TimetableSlot[];
-  class_types: { id: string; name: string; is_active: boolean }[];
+  class_types: { id: string; name: string; is_active: boolean; color?: string | null }[];
   terms: AttendanceTerm[];
 }
 
@@ -172,3 +172,6 @@ export const saveTermBreak = (termId: string, id: string | null, name: string, s
   rpc<void>('access_term_break_save', {
     p_password: accessPassword(), p_term_id: termId, p_id: id, p_name: name, p_start: start || null, p_end: end || null, p_delete: remove,
   });
+
+export const saveClassTypeColor = (branchId: string, id: string, color: string | null) =>
+  rpc<void>('access_class_type_set_color', { p_password: accessPassword(), p_branch_id: branchId, p_id: id, p_color: color });

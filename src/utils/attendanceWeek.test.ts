@@ -1,4 +1,5 @@
 import { mondayOf, toIsoDate, weekDates, visibleDays } from './attendanceWeek';
+import { classColor } from './attendanceWeek';
 
 const equal = (actual: unknown, expected: unknown, rule: string) => {
   const a = JSON.stringify(actual); const e = JSON.stringify(expected);
@@ -26,3 +27,12 @@ equal(visibleDays(dates, slots, ['2026-10-24']).map((d) => d.date), ['2026-10-21
 equal(visibleDays(dates, slots, [], [{ start_date: '2026-10-20', end_date: '2026-10-22' }]).map((d) => d.date), ['2026-10-24'], 'term break Wednesday hidden');
 
 console.log('attendanceWeek tests passed');
+
+describe('classColor', () => {
+  it('gives the same class name the same colour', () => {
+    expect(classColor('Kids')).toBe(classColor(' kids '));
+  });
+  it('uses the saved colour when set', () => {
+    expect(classColor('Kids', 'teal')).toBe('teal');
+  });
+});
