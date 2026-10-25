@@ -43,11 +43,8 @@ export async function syncInvoiceSlotBookings(input: {
     })
     .filter(Boolean);
   if (rows.length === 0) return;
-  // Ignore slots the student is already booked into.
-  const { error } = await (table() as any).upsert(rows, { onConflict: 'student_id,lesson_date,timetable_id', ignoreDuplicates: true });
-  if (error) {
-    for (const r of rows) await (table() as any).insert(r);
-  }
+  // Insert one by one so a slot the student is already booked into is simply skipped.
+  for (const r of rows) await (table() as any).insert(r);
 }
 
 /** Remove not-yet-marked bookings tied to an invoice (used when an invoice is deleted or cancelled). */
