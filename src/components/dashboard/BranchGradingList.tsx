@@ -349,13 +349,13 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
 
       const [attendanceResult, slotsResult, gradingItemsResult] = await Promise.all([
         selectedTermData ? supabase
-          .from('class_attendance')
+          .from('lesson_bookings' as any)
           .select('student_id')
           .in('student_id', branchScopedStudentIds)
           .eq('branch_id', branchId)
-          .eq('status', 'present')
-          .gte('class_date', selectedTermData.start_date)
-          .lte('class_date', selectedTermData.end_date) : Promise.resolve({ data: [] as any[] }),
+          .eq('status', 'attended')
+          .gte('lesson_date', selectedTermData.start_date)
+          .lte('lesson_date', selectedTermData.end_date) : Promise.resolve({ data: [] as any[] }),
         slotIds.length > 0
           ? supabase.from('grading_slots').select('id, title, grading_date').in('id', slotIds)
           : Promise.resolve({ data: [] as any[] }),
