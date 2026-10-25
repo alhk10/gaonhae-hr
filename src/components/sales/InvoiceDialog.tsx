@@ -50,7 +50,7 @@ import CreatePaymentDialog from './CreatePaymentDialog';
 import InvoiceChangeLogDialog from './InvoiceChangeLogDialog';
 import { differenceInYears, differenceInMonths, format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { createEnrollment, createScheduledClass } from '@/services/classEnrollmentService';
+import { syncInvoiceSlotBookings } from '@/services/lessonBookingService';
 import { logInvoiceChange } from '@/services/invoiceChangeLogService';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -1434,35 +1434,19 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       for (const [itemId, slots] of Object.entries(editingClassSlots)) {
         const item = editItems.find(i => i.id === itemId);
         if (!item) continue;
-        let enrollment: { id: string } | null = null;
-        const { data: enrollmentByItem } = await supabase.from('student_class_enrollments').select('id').eq('invoice_item_id', itemId).maybeSingle();
-        enrollment = enrollmentByItem;
         const existingMeta = (item.metadata as any) || {};
-        if (!enrollment && invoice.student_id && existingMeta?.term_id) {
-          const { data: enrollmentByTerm } = await supabase.from('student_class_enrollments').select('id').eq('student_id', invoice.student_id).eq('term_id', existingMeta.term_id).eq('status', 'active').maybeSingle();
-          enrollment = enrollmentByTerm;
-        }
-        if (!enrollment && invoice.student_id && slots.length > 0) {
-          const termId = existingMeta?.term_id || existingMeta?.term_ids?.[0];
-          if (termId && invoice.branch_id) {
-            try {
-              const enrollmentId = await createEnrollment({ student_id: invoice.student_id, term_id: termId, branch_id: invoice.branch_id, class_type: item.description || 'Class', tier_name: item.description || 'Class', total_price: (item.quantity || 1) * (item.unit_price || 0), invoice_item_id: itemId });
-              const ttIds = [...new Set(slots.map(s => s.split('_')[0]))];
-              const { data: tts } = await supabase.from('branch_timetables').select('id, start_time, end_time, class_type').in('id', ttIds);
-              const ttMap = new Map(tts?.map(t => [t.id, t]) || []);
-              if (tts?.[0]?.class_type) await supabase.from('student_class_enrollments').update({ class_type: tts[0].class_type }).eq('id', enrollmentId);
-              for (const slot of slots) { const [ttId, date] = slot.split('_'); const tt = ttMap.get(ttId); if (tt && date) await createScheduledClass({ enrollment_id: enrollmentId, timetable_id: ttId, scheduled_date: date, start_time: tt.start_time, end_time: tt.end_time }); }
-            } catch { console.error('Failed to create enrollment during invoice edit'); }
-          }
-        } else if (enrollment) {
-          await supabase.from('student_scheduled_classes').delete().eq('enrollment_id', enrollment.id).in('status', ['scheduled']);
-          if (slots.length > 0) {
-            const ttIds = [...new Set(slots.map(s => s.split('_')[0]))];
-            const { data: tts } = await supabase.from('branch_timetables').select('id, start_time, end_time').in('id', ttIds);
-            const ttMap = new Map(tts?.map(t => [t.id, t]) || []);
-            const newClasses = slots.map(s => { const [ttId, date] = s.split('_'); const tt = ttMap.get(ttId); if (!tt || !date) return null; return { enrollment_id: enrollment!.id, timetable_id: ttId, scheduled_date: date, start_time: tt.start_time, end_time: tt.end_time, status: 'scheduled' }; }).filter(Boolean);
-            if (newClasses.length > 0) await supabase.from('student_scheduled_classes').insert(newClasses);
-          }
+        const termId = existingMeta?.term_id || existingMeta?.term_ids?.[0] || null;
+        if (invoice.student_id && invoice.branch_id) {
+          try {
+            await syncInvoiceSlotBookings({
+              studentId: invoice.student_id,
+              branchId: invoice.branch_id,
+              invoiceId: invoice.id,
+              termId,
+              slots,
+              createdBy: user?.email || null,
+            });
+          } catch { console.error('Failed to update lesson bookings during invoice edit'); }
         }
       }
 

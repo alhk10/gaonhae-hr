@@ -647,7 +647,7 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
             await syncInvoiceSlotBookings({
               studentId: invoiceData.student_id,
               branchId,
-              invoiceId: invoiceId,
+              invoiceId: invoice.id,
               termId,
               slots: selectedClassSlots,
             });
@@ -1065,6 +1065,8 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
         .update({ is_active: false, notes: 'Deactivated - invoice cancelled' })
         .in('source_id', itemIds)
         .eq('source_type', 'invoice_item');
+
+      await removeUnmarkedInvoiceBookings(invoiceId);
 
     }
 
