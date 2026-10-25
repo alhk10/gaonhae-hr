@@ -112,7 +112,8 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const ns = `branch-dash:${branchId}`;
-  const [activeTab, setActiveTab] = useSessionState(`${ns}:tab`, 'timetable');
+  const [activeTab, setActiveTab] = useSessionState(`${ns}:tab`, 'students');
+  useEffect(() => { if (activeTab === 'timetable') setActiveTab('students'); }, [activeTab, setActiveTab]);
   useScrollRestoration(branchId);
   const hasSetInitialTab = useRef(false);
   const [searchTerm, setSearchTerm] = useSessionState(`${ns}:searchTerm`, '');
@@ -1239,7 +1240,7 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       return;
     }
     // After initial mount: if approvals transition from 0 -> >0 and user hasn't navigated away from default tab, switch
-    if (!prevHasApprovalsRef.current && hasApprovals && activeTab === 'timetable') {
+    if (!prevHasApprovalsRef.current && hasApprovals && activeTab === 'students') {
       setActiveTab('approvals');
     }
     prevHasApprovalsRef.current = hasApprovals;
@@ -1380,7 +1381,6 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="timetable" className="text-xs sm:text-sm">Weekly Timetable</TabsTrigger>
           <TabsTrigger value="students" className="text-xs sm:text-sm">Students{displayTerm ? ` (${uninvoicedCount}/${totalActiveTerm})` : ''}</TabsTrigger>
           <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoice & Payment ({outstandingData.count} | {formatCurrency(outstandingData.amount, branchCurrency)})</TabsTrigger>
           <TabsTrigger value="grading" className="text-xs sm:text-sm">Grading ({gradingPaidCount}/{totalTermStudents})</TabsTrigger>
