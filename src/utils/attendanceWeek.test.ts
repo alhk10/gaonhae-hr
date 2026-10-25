@@ -28,11 +28,5 @@ equal(visibleDays(dates, slots, [], [{ start_date: '2026-10-20', end_date: '2026
 
 console.log('attendanceWeek tests passed');
 
-describe('classColor', () => {
-  it('gives the same class name the same colour', () => {
-    expect(classColor('Kids')).toBe(classColor(' kids '));
-  });
-  it('uses the saved colour when set', () => {
-    expect(classColor('Kids', 'teal')).toBe('teal');
-  });
-});
+equal(classColor('Kids'), classColor(' kids '), 'same class name always gets the same colour');
+equal(classColor('Kids', 'teal'), 'teal', 'saved colour wins');
