@@ -86,6 +86,7 @@ export interface LessonBooking {
   current_belt?: string | null;
   date_of_birth?: string | null;
   student_status?: string | null;
+  term_payment?: 'paid' | 'unpaid' | 'none' | null;
 }
 
 export interface AttendanceWeek {
