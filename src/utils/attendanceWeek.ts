@@ -57,3 +57,19 @@ export function visibleDays<T extends SlotLike>(
 export const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 /** Weekday options in Monday-first order for forms. */
 export const WEEKDAY_OPTIONS = [1, 2, 3, 4, 5, 6, 0].map((v) => ({ value: v, label: WEEKDAY_LABELS[v] }));
+
+/** Class colour palette (CSS variables --class-<name>). */
+export const CLASS_COLORS = ['red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink'] as const;
+export type ClassColor = typeof CLASS_COLORS[number];
+
+/** Saved colour if valid, otherwise a stable pick from the class name. */
+export function classColor(name?: string | null, saved?: string | null): ClassColor {
+  if (saved && (CLASS_COLORS as readonly string[]).includes(saved)) return saved as ClassColor;
+  const key = (name || '').trim().toLowerCase();
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return CLASS_COLORS[h % CLASS_COLORS.length];
+}
+
+export const classColorVar = (c: ClassColor) => `hsl(var(--class-${c}))`;
+export const classColorTint = (c: ClassColor) => `hsl(var(--class-${c}) / 0.12)`;

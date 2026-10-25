@@ -3683,6 +3683,7 @@ export type Database = {
       lesson_class_types: {
         Row: {
           branch_id: string | null
+          color: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -3692,6 +3693,7 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          color?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -3701,6 +3703,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          color?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -8559,6 +8562,15 @@ export type Database = {
       access_attendance_week: {
         Args: { p_branch_id: string; p_password: string; p_week_start: string }
         Returns: Json
+      }
+      access_class_type_set_color: {
+        Args: {
+          p_branch_id: string
+          p_color: string
+          p_id: string
+          p_password: string
+        }
+        Returns: undefined
       }
       access_class_type_upsert: {
         Args: {
