@@ -84,14 +84,12 @@ export async function findDuplicateStudentGroups(
     allIds.map(async (id) => {
       const [inv, enr, att, grd] = await Promise.all([
         supabase.from('invoices').select('id', { head: true, count: 'exact' }).eq('student_id', id),
+        Promise.resolve({ count: 0 }),
         supabase
-          .from('student_class_enrollments')
+          .from('lesson_bookings' as any)
           .select('id', { head: true, count: 'exact' })
-          .eq('student_id', id),
-        supabase
-          .from('class_attendance')
-          .select('id', { head: true, count: 'exact' })
-          .eq('student_id', id),
+          .eq('student_id', id)
+          .in('status', ['attended', 'absent']),
         supabase
           .from('grading_registrations')
           .select('id', { head: true, count: 'exact' })

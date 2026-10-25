@@ -184,13 +184,13 @@ export const deleteBranch = async (branchId: string): Promise<void> => {
       logger.warn('Error clearing branch_id from invoices', invoicesError);
     }
     
-    // 9. Delete class_attendance records for this branch
+    // 9. Delete lesson bookings for this branch
     const { error: classAttendanceError } = await supabase
-      .from('class_attendance')
+      .from('lesson_bookings' as any)
       .delete()
       .eq('branch_id', branchId);
     if (classAttendanceError) {
-      logger.warn('Error deleting class_attendance for branch', classAttendanceError);
+      logger.warn('Error deleting lesson bookings for branch', classAttendanceError);
     }
     
     // 10. Clear branch_id from students (set to null instead of deleting)

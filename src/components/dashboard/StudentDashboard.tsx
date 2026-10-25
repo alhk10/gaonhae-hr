@@ -174,15 +174,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     queryKey: ['student-previous-enrollment', studentId, student?.branch_id],
     queryFn: async () => {
       if (!student?.branch_id) return null;
-      const { data } = await supabase
-        .from('student_class_enrollments')
-        .select('*')
-        .eq('student_id', studentId!)
-        .eq('branch_id', student.branch_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
+      // Class enrolments were replaced by the /access Attendance system.
+      return null as any;
     },
     enabled: !!student?.branch_id && !!studentId,
   });
