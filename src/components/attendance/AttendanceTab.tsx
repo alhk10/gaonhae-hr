@@ -97,6 +97,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const weekStart = toIsoDate(monday);
   const dayIso = toIsoDate(day);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [limitPrompt, setLimitPrompt] = useState<null | { slot: TimetableSlot; date: string; student: { id: string; name: string }; remaining: number; pending: number }>(null);
 
