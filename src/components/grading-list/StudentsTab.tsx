@@ -30,10 +30,13 @@ import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
   getStudentContacts,
+  setStudentEmployee,
   type PublicStudentDirectoryRow,
 } from '@/services/studentDirectoryService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
+import { sortAccessStudents } from '@/utils/accessStudentSort';
+import { Switch } from '@/components/ui/switch';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
@@ -146,9 +149,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
     staleTime: 30 * 1000,
   });
 
+  const isAllBranch = (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
+  const [editEmployee, setEditEmployee] = useState(false);
   const rows = React.useMemo(() => {
-    if (payFilter === 'all') return allRows;
-    return allRows.filter((r) => {
+    if (payFilter === 'all') return sortAccessStudents(allRows);
+    return sortAccessStudents(allRows.filter((r) => {
       const st = normalizeStatus(r.invoice_status);
       switch (payFilter) {
         case 'any_paid': return st === 'paid' || st === 'pending_verification' || st === 'paid_verified';
@@ -161,8 +166,10 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
         case 'verified': return st === 'paid_verified';
         default: return true;
       }
-    });
+    }));
   }, [allRows, payFilter]);
+  const studentCount = rows.filter((r) => !r.is_employee).length;
+  const employeeCount = rows.length - studentCount;
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -172,6 +179,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
 
   const openEdit = (r: PublicStudentDirectoryRow) => {
     setEditRow(r);
+    setEditEmployee(!!r.is_employee);
     setEditBelt(r.current_belt || '');
     setEditBranch(r.branch_id || '');
     setEditStatus(r.status || 'active');
@@ -254,6 +262,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
         },
         actor,
       );
+      if (isAllBranch && editEmployee !== !!editRow.is_employee) {
+        await setStudentEmployee(editRow.id, editEmployee);
+      }
       toast.success('Student updated');
       setEditRow(null);
       qc.invalidateQueries({ queryKey: ['public-student-directory'] });
@@ -373,7 +384,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            Showing {rows.length} student{rows.length === 1 ? '' : 's'}{rows.length >= 200 ? ' (first 200 — refine your search)' : ''}
+            Showing {studentCount} student{studentCount === 1 ? '' : 's'}{employeeCount ? ` + ${employeeCount} employee${employeeCount === 1 ? '' : 's'}` : ''}{rows.length >= 200 ? ' (first 200 — refine your search)' : ''}
           </p>
 
           {/* Desktop table */}
@@ -397,6 +408,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                   <TableRow key={r.id}>
                     <TableCell className="py-2" data-field="student" data-label="Name">
                       <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
+                      {r.is_employee && <Badge variant="secondary" className="ml-1 text-[10px]">Employee</Badge>}
+                      {r.class_group && <Badge variant="outline" className="ml-1 text-[10px]">{r.class_group}</Badge>}
                       <div className="text-[11px] text-muted-foreground whitespace-nowrap">
                         {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
                       </div>
@@ -455,6 +468,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm truncate block" />
+                      {r.is_employee && <Badge variant="secondary" className="ml-1 text-[10px]">Employee</Badge>}
+                      {r.class_group && <Badge variant="outline" className="ml-1 text-[10px]">{r.class_group}</Badge>}
                       <div className="text-[11px] text-muted-foreground">
                         {r.current_belt || 'No belt'} · {r.branch_name || '—'} · {r.status}
                       </div>
@@ -649,6 +664,15 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                 </SelectContent>
               </Select>
             </div>
+            {isAllBranch && (
+              <div className="flex items-center justify-between rounded-md border p-2">
+                <div>
+                  <label className="text-xs font-medium">Employee</label>
+                  <p className="text-[11px] text-muted-foreground">Not counted as a student; listed last.</p>
+                </div>
+                <Switch checked={editEmployee} onCheckedChange={setEditEmployee} />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)} disabled={saving}>Cancel</Button>

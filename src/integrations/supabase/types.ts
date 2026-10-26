@@ -7338,6 +7338,7 @@ export type Database = {
           first_name: string
           gender: string | null
           id: string
+          is_employee: boolean
           languages_spoken: string[] | null
           last_name: string | null
           medical_conditions: string | null
@@ -7386,6 +7387,7 @@ export type Database = {
           first_name: string
           gender?: string | null
           id?: string
+          is_employee?: boolean
           languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
@@ -7434,6 +7436,7 @@ export type Database = {
           first_name?: string
           gender?: string | null
           id?: string
+          is_employee?: boolean
           languages_spoken?: string[] | null
           last_name?: string | null
           medical_conditions?: string | null
@@ -8586,6 +8589,10 @@ export type Database = {
           p_password: string
         }
         Returns: string
+      }
+      access_set_student_employee: {
+        Args: { p_password: string; p_student_id: string; p_value: boolean }
+        Returns: undefined
       }
       access_term_break_save: {
         Args: {
@@ -10128,6 +10135,7 @@ export type Database = {
         Returns: {
           branch_id: string
           branch_name: string
+          class_group: string
           class_type: string
           credit_balance: number
           current_belt: string
@@ -10139,6 +10147,7 @@ export type Database = {
           invoice_balance: number
           invoice_status: string
           invoice_total: number
+          is_employee: boolean
           last_name: string
           name: string
           phone: string
