@@ -55,7 +55,8 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
     setLoadingAction(true);
     try {
       const rows = await getPublicStudentDirectory({ search: s.student_number || s.name });
-      const r = rows.find((x) => x.id === studentId) || null;
+      let r = rows.find((x) => x.id === studentId) || null;
+      if (!r && s.name) r = (await getPublicStudentDirectory({ search: s.name })).find((x) => x.id === studentId) || null;
       if (!r) toast.error('Could not load this student');
       return r;
     } catch (e: any) { toast.error(e?.message || 'Could not load this student'); return null; }
