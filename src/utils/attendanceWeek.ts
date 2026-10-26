@@ -91,3 +91,16 @@ export const copyCandidates = <T extends { student_id: string; status: string; s
 
 export const isUnpaidTerm = (s: { term_payment?: string | null; student_status?: string | null }) =>
   s.student_status !== 'trial' && (s.term_payment === 'unpaid' || s.term_payment === 'none');
+
+/** Day totals across all timeslots; requested bookings are reported separately. */
+export const dayTotals = (bookings: { student_id: string; status: string }[]) => {
+  const counted = bookings.filter((b) => b.status !== 'requested' && b.status !== 'rejected');
+  return {
+    total: counted.length,
+    unique: new Set(counted.map((b) => b.student_id)).size,
+    attended: counted.filter((b) => b.status === 'attended').length,
+    absent: counted.filter((b) => b.status === 'absent').length,
+    unmarked: counted.filter((b) => b.status === 'booked').length,
+    requested: bookings.filter((b) => b.status === 'requested').length,
+  };
+};

@@ -44,3 +44,9 @@ equal(copyCandidates(prev, ['b']).map((x) => x.student_id), ['a', 'e'], 'copy ke
 equal(isUnpaidTerm({ term_payment: 'none', student_status: 'active' }), true, 'no invoice warns');
 equal(isUnpaidTerm({ term_payment: 'unpaid', student_status: 'trial' }), false, 'trial never warns');
 equal(isUnpaidTerm({ term_payment: 'paid', student_status: 'active' }), false, 'paid never warns');
+
+import { dayTotals } from './attendanceWeek';
+equal(dayTotals([
+  { student_id: 'a', status: 'attended' }, { student_id: 'a', status: 'booked' },
+  { student_id: 'b', status: 'absent' }, { student_id: 'c', status: 'requested' },
+]), { total: 3, unique: 2, attended: 1, absent: 1, unmarked: 1, requested: 1 }, 'day totals exclude requested, unique counts once');
