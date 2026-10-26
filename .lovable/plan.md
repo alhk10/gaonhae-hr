@@ -1,7 +1,7 @@
 # Attendance: copy last week's students + unpaid term warning
 
-## 1. "Copy last week" button per timeslot
-- Each timeslot gets its own **Copy last week** button next to Add student.
+## 1. Copy icon per timeslot
+- Each timeslot gets a small copy icon (no text, tooltip "Copy last week") next to Add student.
 - It copies only the students booked in that timeslot on the same weekday 7 days earlier. Other timeslots are not touched.
 - Skips students already in the slot, withdrawn/inactive students, slots now full, and dates that are public holidays or term breaks.
 - Rejected bookings are not copied. Attended/absent/booked are copied as fresh "booked".
