@@ -70,8 +70,8 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
       const terms = data?.terms || [];
       const clash = f.dates.filter((d) => terms.some((t) => (t.breaks || []).some((b: any) => d >= b.start_date && d <= b.end_date)));
       const outside = f.dates.filter((d) => !terms.some((t) => d >= t.start_date && d <= t.end_date));
-      if (clash.length) toast.warning(`Falls in a term break and will be hidden: ${clash.map(formatDate).join(', ')}`);
-      if (outside.length) toast.warning(`Outside any term: ${outside.map(formatDate).join(', ')}`);
+      if (clash.length) toast.warning(`Falls in a term break and will be hidden: ${clash.map((d) => formatDate(d)).join(', ')}`);
+      if (outside.length) toast.warning(`Outside any term: ${outside.map((d) => formatDate(d)).join(', ')}`);
     }
     const ok = await guard(() => saveTimetableSlot({
       id: f.id, branch_id: branchId, weekday: f.repeat === 'weekly' ? Number(f.weekday) : null,
@@ -192,7 +192,7 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
                     <div key={s.id} className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 rounded border px-2 py-1 text-xs', !s.is_active && 'opacity-50')}>
                       <span className="font-medium">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</span>
                       <span>{s.class_type || '—'}</span>
-                      {s.specific_dates?.length ? <span className="text-muted-foreground">{s.specific_dates.slice().sort().map(formatDate).join(', ')}</span> : null}
+                      {s.specific_dates?.length ? <span className="text-muted-foreground">{s.specific_dates.slice().sort().map((d) => formatDate(d)).join(', ')}</span> : null}
                       <span className="text-muted-foreground">Cap {s.max_capacity ?? '∞'}{(s.age_from != null || s.age_to != null) ? ` · Age ${s.age_from ?? '?'}–${s.age_to ?? '+'}` : ''}</span>
                       {!s.is_active && <Badge variant="outline" className="text-[10px]">Off</Badge>}
                       <span className="ml-auto flex items-center gap-1">
