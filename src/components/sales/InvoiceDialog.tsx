@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
 import { transformProduct } from '@/services/productService';
 import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
+import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
