@@ -4,17 +4,23 @@
  * plus their invoices, with line items and payments on tap.
  */
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, FilePlus, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import InvoiceDialog from '@/components/sales/InvoiceDialog';
+import { createAccessInvoice } from '@/services/invoiceService';
+import { useAuth } from '@/contexts/AuthContext';
+import StudentEditDialog from './StudentEditDialog';
 import { formatDate } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { calculateAgeYears } from '@/utils/birthDate';
-import { getPublicStudentProfile } from '@/services/studentDirectoryService';
+import { getPublicStudentProfile, getPublicStudentDirectory, type PublicStudentDirectoryRow } from '@/services/studentDirectoryService';
 import InvoiceNumberButton from './InvoiceNumberButton';
 import InvoiceDetailDialog from './InvoiceDetailDialog';
 
@@ -22,6 +28,8 @@ interface Props {
   studentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Show Edit / Create invoice icons (unlocked /access staff). */
+  canEdit?: boolean;
 }
 
 
@@ -35,7 +43,24 @@ const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, valu
   );
 };
 
-export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange }) => {
+export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange, canEdit }) => {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
+  const [invoiceRow, setInvoiceRow] = useState<PublicStudentDirectoryRow | null>(null);
+  const [loadingAction, setLoadingAction] = useState(false);
+  const loadRow = async (): Promise<PublicStudentDirectoryRow | null> => {
+    const s = data?.student;
+    if (!s || !studentId) return null;
+    setLoadingAction(true);
+    try {
+      const rows = await getPublicStudentDirectory({ search: s.student_number || s.name });
+      const r = rows.find((x) => x.id === studentId) || null;
+      if (!r) toast.error('Could not load this student');
+      return r;
+    } catch (e: any) { toast.error(e?.message || 'Could not load this student'); return null; }
+    finally { setLoadingAction(false); }
+  };
   const [expanded, setExpanded] = useState<string | null>(null);
   const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
 
@@ -51,11 +76,40 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
 
   return (
     <>
+    <StudentEditDialog row={editRow} onClose={() => setEditRow(null)} />
+    {invoiceRow && (
+      <InvoiceDialog
+        key={invoiceRow.id}
+        mode="create"
+        open={!!invoiceRow}
+        onOpenChange={(o) => !o && setInvoiceRow(null)}
+        branchId={invoiceRow.branch_id || undefined}
+        prefilledStudentId={invoiceRow.id}
+        onSubmitOverride={user ? undefined : createAccessInvoice}
+        onInvoiceCreated={() => {
+          setInvoiceRow(null);
+          qc.invalidateQueries({ queryKey: ['public-student-directory'] });
+          qc.invalidateQueries({ queryKey: ['public-student-profile'] });
+        }}
+      />
+    )}
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base">
-            {student?.name || 'Student'}
+          <DialogTitle className="text-base flex items-center gap-1 pr-6">
+            <span className="mr-1">{student?.name || 'Student'}</span>
+            {canEdit && student && (
+              <>
+                <Button size="icon" variant="outline" className="h-7 w-7" aria-label="Edit student" title="Edit student"
+                  disabled={loadingAction} onClick={async () => { const r = await loadRow(); if (r) setEditRow(r); }}>
+                  {loadingAction ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+                </Button>
+                <Button size="icon" variant="outline" className="h-7 w-7" aria-label="Create invoice" title="Create invoice"
+                  disabled={loadingAction} onClick={async () => { const r = await loadRow(); if (r) setInvoiceRow(r); }}>
+                  <FilePlus className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 
