@@ -50,3 +50,12 @@ equal(dayTotals([
   { student_id: 'a', status: 'attended' }, { student_id: 'a', status: 'booked' },
   { student_id: 'b', status: 'absent' }, { student_id: 'c', status: 'requested' },
 ]), { total: 3, unique: 2, attended: 1, absent: 1, unmarked: 1, requested: 1 }, 'day totals exclude requested, unique counts once');
+
+// Specific-date slots
+import { slotRunsOn, previousSessionDate } from './attendanceWeek';
+const dated = { id: 'cd', weekday: null, start_time: '10:00:00', specific_dates: ['2026-11-03', '2026-11-10'] };
+equal(slotRunsOn(dated, '2026-11-03'), true, 'dated slot runs on its date');
+equal(slotRunsOn(dated, '2026-11-17'), false, 'dated slot does not run on same weekday a week later');
+equal(visibleDays(['2026-11-02', '2026-11-03'], [dated]).map((d) => d.date), ['2026-11-03'], 'dated slot shows only on its date');
+equal(previousSessionDate(dated, '2026-11-10'), '2026-11-03', 'copy-previous uses previous dated session');
+equal(previousSessionDate({ weekday: 2 }, '2026-11-10'), '2026-11-03', 'weekly copy-previous is 7 days back');
