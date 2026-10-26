@@ -73,3 +73,21 @@ export function classColor(name?: string | null, saved?: string | null): ClassCo
 
 export const classColorVar = (c: ClassColor) => `hsl(var(--class-${c}))`;
 export const classColorTint = (c: ClassColor) => `hsl(var(--class-${c}) / 0.12)`;
+
+/** Students from last week's bookings of one timeslot that can be copied into this week's same slot. */
+export const copyCandidates = <T extends { student_id: string; status: string; student_status?: string | null }>(
+  previous: T[], currentStudentIds: string[],
+): T[] => {
+  const have = new Set(currentStudentIds);
+  const seen = new Set<string>();
+  return previous.filter((b) => {
+    if (b.status === 'rejected' || b.status === 'requested') return false;
+    if (b.student_status && !['active', 'trial'].includes(b.student_status)) return false;
+    if (have.has(b.student_id) || seen.has(b.student_id)) return false;
+    seen.add(b.student_id);
+    return true;
+  });
+};
+
+export const isUnpaidTerm = (s: { term_payment?: string | null; student_status?: string | null }) =>
+  s.student_status !== 'trial' && (s.term_payment === 'unpaid' || s.term_payment === 'none');
