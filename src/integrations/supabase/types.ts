@@ -8560,6 +8560,7 @@ export type Database = {
           pending: number
           remaining: number
           status: string
+          term_payment: string
           unlimited: boolean
         }[]
       }
