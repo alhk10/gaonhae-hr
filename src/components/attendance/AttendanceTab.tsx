@@ -21,6 +21,8 @@ import {
   type LessonBooking, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
+import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
+import StudentNameButton from '@/components/grading-list/StudentNameButton';
 
 interface Props {
   lockedBranchId?: string;
@@ -237,7 +239,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
           <CardContent className="space-y-1.5 px-3 pb-3">
             {data!.requests.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-2 py-1.5 text-xs">
-                <span className="font-medium">{r.student_name}</span>
+                <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} className="font-medium" />
                 <span>{WEEKDAY_LABELS[parseIsoDate(r.lesson_date).getDay()]} {formatDate(r.lesson_date)} · {hhmm(r.start_time)}–{hhmm(r.end_time)}{r.class_type ? ` · ${r.class_type}` : ''}</span>
                 <Badge variant={r.cancel_requested ? 'destructive' : 'secondary'} className="text-[10px]">
                   {r.cancel_requested ? 'Cancel request' : 'Booking request'}
@@ -309,7 +311,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                     <ul className="divide-y">
                       {list.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-xs">
-                          <span className="min-w-0 font-medium">{b.student_name}</span>
+                          <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
                           <span className="text-muted-foreground">{b.current_belt || 'No belt'}</span>
                           {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
                           {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
@@ -442,6 +444,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
       {settingsOpen && branchId && (
         <AttendanceSettingsDialog open={settingsOpen} onOpenChange={(o) => { setSettingsOpen(o); if (!o) refresh(); }} branchId={branchId} />
       )}
+      <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} />
     </div>
   );
 };
