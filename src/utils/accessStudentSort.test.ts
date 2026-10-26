@@ -1,22 +1,17 @@
 import { sortAccessStudents } from './accessStudentSort';
 
+const equal = (actual: unknown, expected: unknown, rule: string) => {
+  const a = JSON.stringify(actual); const e = JSON.stringify(expected);
+  if (a !== e) throw new Error(`${rule}: expected ${e}, got ${a}`);
+};
 const r = (name: string, belt: string | null, group: string | null, emp = false) =>
   ({ name, current_belt: belt, class_group: group, is_employee: emp });
+const names = (rows: { name: string }[]) => rows.map((x) => x.name);
 
-describe('sortAccessStudents', () => {
-  it('puts employees last', () => {
-    const out = sortAccessStudents([r('A', '1st Dan', 'Little Gaonhae', true), r('B', 'White', 'Team Gaonhae')]);
-    expect(out.map((x) => x.name)).toEqual(['B', 'A']);
-  });
-  it('orders class groups Little, Kids, Teens & Adults, Team, then none', () => {
-    const out = sortAccessStudents([
-      r('T', 'White', 'Team Gaonhae'), r('N', 'White', null), r('K', 'White', 'Kids'),
-      r('A', 'White', 'Teens & Adults'), r('L', 'White', 'Little Gaonhae'),
-    ]);
-    expect(out.map((x) => x.name)).toEqual(['L', 'K', 'A', 'T', 'N']);
-  });
-  it('sorts highest belt first within a group', () => {
-    const out = sortAccessStudents([r('W', 'White', 'Kids'), r('R', 'Red', 'Kids'), r('F', 'Foundation 1', 'Kids')]);
-    expect(out.map((x) => x.name)).toEqual(['R', 'W', 'F']);
-  });
-});
+equal(names(sortAccessStudents([r('A', '1st Dan', 'Little Gaonhae', true), r('B', 'White', 'Team Gaonhae')])), ['B', 'A'], 'employees sort last');
+equal(names(sortAccessStudents([
+  r('T', 'White', 'Team Gaonhae'), r('N', 'White', null), r('K', 'White', 'Kids'),
+  r('A', 'White', 'Teens & Adults'), r('L', 'White', 'Little Gaonhae'),
+])), ['L', 'K', 'A', 'T', 'N'], 'class group order');
+equal(names(sortAccessStudents([r('W', 'White', 'Kids'), r('R', 'Red', 'Kids'), r('F', 'Foundation 1', 'Kids')])), ['R', 'W', 'F'], 'highest belt first');
+console.log('accessStudentSort tests passed');
