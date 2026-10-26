@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
-import { dayTotals, copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
+import { dayTotals, copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, previousSessionDate, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
 import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
   addStudentToSlot, getAttendanceWeek, markBooking, removeBooking, reviewBookingRequest, searchAttendanceStudents,
