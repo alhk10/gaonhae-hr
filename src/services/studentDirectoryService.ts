@@ -25,6 +25,19 @@ export interface PublicStudentDirectoryRow {
   invoice_total: number | null;
   invoice_balance: number | null;
   credit_balance: number;
+  is_employee?: boolean;
+  /** Little Gaonhae | Kids | Teens & Adults | Team Gaonhae, from attended classes (last 90 days) */
+  class_group?: string | null;
+}
+
+/** All-branch password only: tag/untag a student as an employee. */
+export async function setStudentEmployee(studentId: string, value: boolean) {
+  let pw = '';
+  try { pw = sessionStorage.getItem('access_pw_v1') || ''; } catch {}
+  const { error } = await (supabase as any).rpc('access_set_student_employee', {
+    p_password: pw, p_student_id: studentId, p_value: value,
+  });
+  if (error) throw error;
 }
 
 export async function getPublicStudentDirectory(opts: {
