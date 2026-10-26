@@ -406,7 +406,8 @@ export const payChatInvoices = async (input: PayChatInvoicesInput): Promise<PayC
 
 export interface TimetableSlot {
   id: string;
-  weekday: number;
+  weekday: number | null;
+  specific_dates?: string[] | null;
   start_time: string;
   end_time: string;
   class_type: string;

@@ -164,7 +164,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const today = toIsoDate(new Date());
 
   const startCopy = async (slot: TimetableSlot, date: string) => {
-    const fromDate = toIsoDate(addDays(parseIsoDate(date), -7));
+    const fromDate = previousSessionDate(slot, date);
+    if (!fromDate) { toast.info('No earlier session for this timeslot'); return; }
     setBusy(`copy-${slot.id}`);
     try {
       const prev = await getAttendanceWeek(branchId, toIsoDate(mondayOf(parseIsoDate(fromDate))));

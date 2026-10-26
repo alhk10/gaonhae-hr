@@ -25,7 +25,23 @@ export const addDays = (date: Date, n: number): Date => {
 /** Seven ISO dates Monday → Sunday. */
 export const weekDates = (monday: Date): string[] => Array.from({ length: 7 }, (_, i) => toIsoDate(addDays(monday, i)));
 
-interface SlotLike { id: string; weekday: number; start_time: string }
+interface SlotLike { id: string; weekday: number | null; start_time: string; specific_dates?: string[] | null }
+
+/** A slot with specific dates runs only on those dates; otherwise every week on its weekday. */
+export const slotRunsOn = (s: { weekday: number | null; specific_dates?: string[] | null }, isoDate: string): boolean =>
+  s.specific_dates && s.specific_dates.length > 0
+    ? s.specific_dates.includes(isoDate)
+    : s.weekday === parseIsoDate(isoDate).getDay();
+
+/** Previous session date of a slot before `isoDate` (7 days back for weekly slots). */
+export const previousSessionDate = (s: { weekday: number | null; specific_dates?: string[] | null }, isoDate: string): string | null => {
+  if (s.specific_dates && s.specific_dates.length > 0) {
+    const prev = [...s.specific_dates].filter((d) => d < isoDate).sort();
+    return prev.length ? prev[prev.length - 1] : null;
+  }
+  const d = parseIsoDate(isoDate); d.setDate(d.getDate() - 7);
+  return toIsoDate(d);
+};
 interface RangeLike { start_date: string; end_date: string }
 
 /**
@@ -41,9 +57,8 @@ export function visibleDays<T extends SlotLike>(
   const holidaySet = new Set(holidays);
   return dates
     .map((date) => {
-      const weekday = parseIsoDate(date).getDay();
       const daySlots = slots
-        .filter((s) => s.weekday === weekday)
+        .filter((s) => slotRunsOn(s, date))
         .sort((a, b) => a.start_time.localeCompare(b.start_time));
       return { date, slots: daySlots };
     })

@@ -1213,6 +1213,7 @@ const PublicHelloChat: React.FC = () => {
   const planSlotsByWeekday = useMemo(() => {
     const m: Record<number, typeof planSlots> = {};
     relevantPlanSlots.forEach(s => {
+      if (s.weekday == null) return;
       if (planLessonDays && !planLessonDays.has(WEEKDAY_NAMES[s.weekday])) return;
       (m[s.weekday] ||= [] as any).push(s);
     });
@@ -1237,7 +1238,7 @@ const PublicHelloChat: React.FC = () => {
 
   const planSlotsForDate = (date: Date) => {
     const iso = isoOf(date);
-    const all = planSlotsByWeekday[date.getDay()] || [];
+    const all = [...(planSlotsByWeekday[date.getDay()] || []), ...relevantPlanSlots.filter(s => s.specific_dates?.includes(iso))];
     const now = new Date();
     return all.map(s => {
       const booked = (planCapByDateSlot[`${iso}_${s.id}`] || 0) + (plannedSlots[`${iso}_${s.id}`] ? 1 : 0);
@@ -1439,7 +1440,7 @@ const PublicHelloChat: React.FC = () => {
 
   const slotsByWeekday = useMemo(() => {
     const m: Record<number, typeof timetableSlots> = {};
-    timetableSlots.forEach(s => { (m[s.weekday] ||= [] as any).push(s); });
+    timetableSlots.forEach(s => { if (s.weekday != null) (m[s.weekday] ||= [] as any).push(s); });
     return m;
   }, [timetableSlots]);
 
@@ -1449,7 +1450,7 @@ const PublicHelloChat: React.FC = () => {
   const slotsForDate = (date: Date) => {
     const iso = toIso(date);
     const wd = date.getDay();
-    const all = slotsByWeekday[wd] || [];
+    const all = [...(slotsByWeekday[wd] || []), ...timetableSlots.filter(s => s.specific_dates?.includes(iso))];
     const now = new Date();
     return all.map(s => {
       const baseCount = capByDateSlot[`${iso}_${s.id}`] || 0;
