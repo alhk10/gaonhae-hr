@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
-import { copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
+import { dayTotals, copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
 import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
   addStudentToSlot, getAttendanceWeek, markBooking, removeBooking, reviewBookingRequest, searchAttendanceStudents,
@@ -353,6 +353,17 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                 </div>
               );
             })}
+            {(() => {
+              const t = dayTotals(day.slots.flatMap((sl) => bookingsBySlot[`${day.date}_${sl.id}`] || []));
+              return (
+                <div className="rounded-md bg-muted px-2 py-1.5 text-xs">
+                  <span className="font-semibold">Day total: {t.total} student{t.total === 1 ? '' : 's'}</span>
+                  {t.unique !== t.total && <span className="text-muted-foreground"> ({t.unique} unique)</span>}
+                  <span> · {t.attended} attended · {t.absent} absent · {t.unmarked} not marked</span>
+                  {t.requested > 0 && <span> · {t.requested} requested</span>}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       ))}
