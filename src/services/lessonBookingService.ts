@@ -108,6 +108,7 @@ export interface AttendanceStudentOption {
   pending: number;
   unlimited: boolean;
   available: number;
+  term_payment?: 'paid' | 'unpaid' | 'none' | null;
 }
 
 export interface AttendanceTerm {

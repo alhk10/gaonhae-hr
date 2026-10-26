@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Settings, UserPlus, X, Check, Ban, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, UserPlus, X, Check, Ban, Clock, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
-import { addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
+import { copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
 import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
   addStudentToSlot, getAttendanceWeek, markBooking, removeBooking, reviewBookingRequest, searchAttendanceStudents,
@@ -41,7 +41,7 @@ const slotMeta = (s: TimetableSlot) => {
 
 const AddStudentButton: React.FC<{
   branchId: string; date: string; disabled?: boolean;
-  onPick: (s: { id: string; name: string }) => void;
+  onPick: (s: { id: string; name: string; unpaid?: boolean }) => void;
 }> = ({ branchId, date, disabled, onPick }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -68,7 +68,7 @@ const AddStudentButton: React.FC<{
                 <CommandItem
                   key={o.id}
                   value={o.id}
-                  onSelect={() => { setOpen(false); setSearch(''); onPick({ id: o.id, name: o.name }); }}
+                  onSelect={() => { setOpen(false); setSearch(''); onPick({ id: o.id, name: o.name, unpaid: isUnpaidTerm({ term_payment: (o as any).term_payment, student_status: o.status }) }); }}
                   className="flex flex-wrap items-center justify-between gap-1 text-xs"
                 >
                   <span className="font-medium">{o.name}</span>
@@ -98,6 +98,9 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const [busy, setBusy] = useState<string | null>(null);
   const [limitPrompt, setLimitPrompt] = useState<null | { slot: TimetableSlot; date: string; student: { id: string; name: string }; remaining: number; pending: number }>(null);
 
+  const [unpaidPrompt, setUnpaidPrompt] = useState<null | { slot: TimetableSlot; date: string; student: { id: string; name: string } }>(null);
+  const [markPrompt, setMarkPrompt] = useState<null | LessonBooking>(null);
+  const [copyPrompt, setCopyPrompt] = useState<null | { slot: TimetableSlot; date: string; fromDate: string; items: LessonBooking[]; selected: Record<string, boolean> }>(null);
   const queryKey = ['access-attendance-week', branchId, weekStart];
   const { data, isLoading, error } = useQuery({
     queryKey,
@@ -159,6 +162,40 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   };
 
   const today = toIsoDate(new Date());
+
+  const startCopy = async (slot: TimetableSlot, date: string) => {
+    const fromDate = toIsoDate(addDays(parseIsoDate(date), -7));
+    setBusy(`copy-${slot.id}`);
+    try {
+      const prev = await getAttendanceWeek(branchId, toIsoDate(mondayOf(parseIsoDate(fromDate))));
+      const prevList = (prev.bookings || []).filter((b) => b.timetable_id === slot.id && b.lesson_date === fromDate);
+      const current = (bookingsBySlot[`${date}_${slot.id}`] || []).map((b) => b.student_id);
+      const items = copyCandidates(prevList, current);
+      if (items.length === 0) { toast.info(`No new students to copy from ${formatDate(fromDate)}`); return; }
+      const selected: Record<string, boolean> = {};
+      items.forEach((b) => { selected[b.student_id] = true; });
+      setCopyPrompt({ slot, date, fromDate, items, selected });
+    } catch (e: any) { toast.error(e?.message || 'Could not load last week'); }
+    finally { setBusy(null); }
+  };
+
+  const doCopy = async () => {
+    const p = copyPrompt; if (!p) return; setCopyPrompt(null);
+    setBusy(`copy-${p.slot.id}`);
+    let added = 0; const skipped: string[] = [];
+    const cap = p.slot.max_capacity;
+    let count = (bookingsBySlot[`${p.date}_${p.slot.id}`] || []).length;
+    for (const b of p.items.filter((i) => p.selected[i.student_id])) {
+      if (cap != null && count >= cap) { skipped.push(`${b.student_name} (full)`); continue; }
+      try {
+        const res = await addStudentToSlot(p.slot.id, p.date, b.student_id, false);
+        if (!res.ok && res.limit_reached) skipped.push(`${b.student_name} (lesson limit)`);
+        else { added++; count++; }
+      } catch (e: any) { skipped.push(`${b.student_name} (${e?.message || 'error'})`); }
+    }
+    setBusy(null); refresh();
+    toast.success(`Added ${added}${skipped.length ? `, skipped ${skipped.length}: ${skipped.join(', ')}` : ''}`);
+  };
 
   return (
     <div className="space-y-3">
@@ -255,9 +292,13 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                     <span className="text-muted-foreground">{slotMeta(slot)}</span>
                     <Badge variant={full ? 'destructive' : 'outline'} className="text-[10px]">{count}/{slot.max_capacity ?? '∞'}</Badge>
                     {canEdit && (
-                      <span className="ml-auto">
+                      <span className="ml-auto flex items-center gap-1">
+                        <Button type="button" size="icon" variant="outline" className="h-7 w-7" title="Copy last week" aria-label="Copy last week"
+                          disabled={busy === `copy-${slot.id}`} onClick={() => startCopy(slot, day.date)}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
                         <AddStudentButton branchId={branchId} date={day.date} disabled={busy === `add-${slot.id}-${day.date}`}
-                          onPick={(s) => doAdd(slot, day.date, s)} />
+                          onPick={(s) => s.unpaid ? setUnpaidPrompt({ slot, date: day.date, student: s }) : doAdd(slot, day.date, s)} />
                       </span>
                     )}
                   </div>
@@ -279,7 +320,9 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                               <>
                                 <Button size="sm" variant={b.status === 'attended' ? 'default' : 'outline'} className="h-7 px-2 text-xs"
                                   disabled={!canEdit || busy === b.id}
-                                  onClick={() => run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
+                                  onClick={() => (b.status !== 'attended' && isUnpaidTerm(b))
+                                    ? setMarkPrompt(b)
+                                    : run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
                                   <Check className="mr-1 h-3.5 w-3.5" />Attended
                                 </Button>
                                 <Button size="sm" variant={b.status === 'absent' ? 'destructive' : 'outline'} className="h-7 px-2 text-xs"
@@ -329,6 +372,57 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
               const p = limitPrompt; setLimitPrompt(null);
               if (p) doAdd(p.slot, p.date, p.student, true);
             }}>Add anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!unpaidPrompt} onOpenChange={(o) => !o && setUnpaidPrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Term not paid</AlertDialogTitle>
+            <AlertDialogDescription>{unpaidPrompt?.student.name} has not paid for this term. Add anyway?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const p = unpaidPrompt; setUnpaidPrompt(null); if (p) doAdd(p.slot, p.date, p.student); }}>Add anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!markPrompt} onOpenChange={(o) => !o && setMarkPrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Term not paid</AlertDialogTitle>
+            <AlertDialogDescription>{markPrompt?.student_name} has not paid for this term. Mark attended anyway?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const b = markPrompt; setMarkPrompt(null); if (b) run(b.id, () => markBooking(b.id, 'attended')); }}>Mark attended</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!copyPrompt} onOpenChange={(o) => !o && setCopyPrompt(null)}>
+        <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Copy {copyPrompt?.items.length} student{copyPrompt?.items.length === 1 ? '' : 's'} from {copyPrompt ? `${WEEKDAY_LABELS[parseIsoDate(copyPrompt.fromDate).getDay()]} ${formatDate(copyPrompt.fromDate)}` : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>Untick anyone you don't want to add. Students who haven't paid for this term are marked.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-1 text-xs">
+            {copyPrompt?.items.map((b) => (
+              <li key={b.student_id}>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={!!copyPrompt.selected[b.student_id]}
+                    onChange={(e) => setCopyPrompt({ ...copyPrompt, selected: { ...copyPrompt.selected, [b.student_id]: e.target.checked } })} />
+                  <span className="font-medium">{b.student_name}</span>
+                  {isUnpaidTerm(b) && <Badge variant="destructive" className="text-[10px]">{b.term_payment === 'none' ? 'No invoice' : 'Unpaid'}</Badge>}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doCopy}>Copy</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
