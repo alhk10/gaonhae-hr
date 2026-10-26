@@ -30,3 +30,17 @@ console.log('attendanceWeek tests passed');
 
 equal(classColor('Kids'), classColor(' kids '), 'same class name always gets the same colour');
 equal(classColor('Kids', 'teal'), 'teal', 'saved colour wins');
+
+// Copy last week: skip already added, rejected/requested, withdrawn/inactive, duplicates
+import { copyCandidates, isUnpaidTerm } from './attendanceWeek';
+const prev = [
+  { student_id: 'a', status: 'attended', student_status: 'active' },
+  { student_id: 'b', status: 'booked', student_status: 'active' },
+  { student_id: 'c', status: 'rejected', student_status: 'active' },
+  { student_id: 'd', status: 'absent', student_status: 'withdrawn' },
+  { student_id: 'e', status: 'absent', student_status: 'trial' },
+];
+equal(copyCandidates(prev, ['b']).map((x) => x.student_id), ['a', 'e'], 'copy keeps only new active/trial students');
+equal(isUnpaidTerm({ term_payment: 'none', student_status: 'active' }), true, 'no invoice warns');
+equal(isUnpaidTerm({ term_payment: 'unpaid', student_status: 'trial' }), false, 'trial never warns');
+equal(isUnpaidTerm({ term_payment: 'paid', student_status: 'active' }), false, 'paid never warns');
