@@ -57,7 +57,9 @@ export async function removeUnmarkedInvoiceBookings(invoiceId: string): Promise<
 export interface TimetableSlot {
   id: string;
   branch_id: string;
-  weekday: number; // 0 = Sunday … 6 = Saturday
+  weekday: number | null; // 0 = Sunday … 6 = Saturday; null when specific_dates is set
+  /** ISO dates; when set the slot runs only on these dates */
+  specific_dates?: string[] | null;
   start_time: string;
   end_time: string;
   class_type: string | null;

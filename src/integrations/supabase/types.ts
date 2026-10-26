@@ -544,10 +544,11 @@ export type Database = {
           instructor_name: string | null
           is_active: boolean | null
           max_capacity: number | null
+          specific_dates: string[] | null
           start_time: string
           updated_at: string
           updated_by: string | null
-          weekday: number
+          weekday: number | null
         }
         Insert: {
           age_from?: number | null
@@ -565,10 +566,11 @@ export type Database = {
           instructor_name?: string | null
           is_active?: boolean | null
           max_capacity?: number | null
+          specific_dates?: string[] | null
           start_time: string
           updated_at?: string
           updated_by?: string | null
-          weekday: number
+          weekday?: number | null
         }
         Update: {
           age_from?: number | null
@@ -586,10 +588,11 @@ export type Database = {
           instructor_name?: string | null
           is_active?: boolean | null
           max_capacity?: number | null
+          specific_dates?: string[] | null
           start_time?: string
           updated_at?: string
           updated_by?: string | null
-          weekday?: number
+          weekday?: number | null
         }
         Relationships: []
       }
@@ -8513,6 +8516,10 @@ export type Database = {
         Args: { p_student_id: string; p_term_id: string }
         Returns: string
       }
+      _timetable_runs_on: {
+        Args: { p_date: string; p_dates: string[]; p_weekday: number }
+        Returns: boolean
+      }
       _validate_public_chat_session: {
         Args: {
           p_branch_id?: string
@@ -9632,6 +9639,7 @@ export type Database = {
           end_time: string
           id: string
           max_capacity: number
+          specific_dates: string[]
           start_time: string
           weekday: number
         }[]
