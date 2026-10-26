@@ -68,7 +68,7 @@ const AddStudentButton: React.FC<{
                 <CommandItem
                   key={o.id}
                   value={o.id}
-                  onSelect={() => { setOpen(false); setSearch(''); onPick({ id: o.id, name: o.name, unpaid: isUnpaidTerm({ term_payment: (o as any).term_payment, student_status: o.status }) }); }}
+                  onSelect={() => { setOpen(false); setSearch(''); onPick({ id: o.id, name: o.name, unpaid: isUnpaidTerm({ term_payment: o.term_payment, student_status: o.status }) }); }}
                   className="flex flex-wrap items-center justify-between gap-1 text-xs"
                 >
                   <span className="font-medium">{o.name}</span>
