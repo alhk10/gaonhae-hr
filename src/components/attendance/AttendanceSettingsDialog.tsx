@@ -19,16 +19,20 @@ import {
   type AttendanceTerm, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import DateField from './DateField';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, X } from 'lucide-react';
+import { parseIsoDate, toIsoDate } from '@/utils/attendanceWeek';
 
 interface Props { open: boolean; onOpenChange: (o: boolean) => void; branchId: string }
 
 type SlotForm = {
-  id?: string; weekday: string; start_time: string; end_time: string; class_type: string;
+  id?: string; repeat: 'weekly' | 'dates'; dates: string[]; weekday: string; start_time: string; end_time: string; class_type: string;
   age_from: string; age_to: string; belt_levels: string; max_capacity: string; instructor_name: string; is_active: boolean;
 };
-const emptySlot: SlotForm = { weekday: '1', start_time: '', end_time: '', class_type: '', age_from: '', age_to: '', belt_levels: '', max_capacity: '20', instructor_name: '', is_active: true };
+const emptySlot: SlotForm = { repeat: 'weekly', dates: [], weekday: '1', start_time: '', end_time: '', class_type: '', age_from: '', age_to: '', belt_levels: '', max_capacity: '20', instructor_name: '', is_active: true };
 const toForm = (s: TimetableSlot): SlotForm => ({
-  id: s.id, weekday: String(s.weekday), start_time: s.start_time?.slice(0, 5) || '', end_time: s.end_time?.slice(0, 5) || '',
+  id: s.id, repeat: s.specific_dates?.length ? 'dates' : 'weekly', dates: [...(s.specific_dates || [])].sort(), weekday: String(s.weekday ?? 1), start_time: s.start_time?.slice(0, 5) || '', end_time: s.end_time?.slice(0, 5) || '',
   class_type: s.class_type || '', age_from: s.age_from?.toString() ?? '', age_to: s.age_to?.toString() ?? '',
   belt_levels: (s.belt_levels || []).join(', '), max_capacity: s.max_capacity?.toString() ?? '', instructor_name: s.instructor_name || '', is_active: s.is_active,
 });
@@ -61,8 +65,17 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
     if (!slotForm) return;
     const f = slotForm;
     if (!/^\d{2}:\d{2}$/.test(f.start_time) || !/^\d{2}:\d{2}$/.test(f.end_time)) { toast.error('Enter start and end time as HH:MM'); return; }
+    if (f.repeat === 'dates' && f.dates.length === 0) { toast.error('Pick at least one date'); return; }
+    if (f.repeat === 'dates') {
+      const terms = data?.terms || [];
+      const clash = f.dates.filter((d) => terms.some((t) => (t.breaks || []).some((b: any) => d >= b.start_date && d <= b.end_date)));
+      const outside = f.dates.filter((d) => !terms.some((t) => d >= t.start_date && d <= t.end_date));
+      if (clash.length) toast.warning(`Falls in a term break and will be hidden: ${clash.map(formatDate).join(', ')}`);
+      if (outside.length) toast.warning(`Outside any term: ${outside.map(formatDate).join(', ')}`);
+    }
     const ok = await guard(() => saveTimetableSlot({
-      id: f.id, branch_id: branchId, weekday: Number(f.weekday), start_time: f.start_time, end_time: f.end_time,
+      id: f.id, branch_id: branchId, weekday: f.repeat === 'weekly' ? Number(f.weekday) : null,
+      specific_dates: f.repeat === 'dates' ? f.dates : [], start_time: f.start_time, end_time: f.end_time,
       class_type: f.class_type || null, age_from: f.age_from === '' ? null : Number(f.age_from), age_to: f.age_to === '' ? null : Number(f.age_to),
       belt_levels: f.belt_levels.split(',').map((b) => b.trim()).filter(Boolean),
       max_capacity: f.max_capacity === '' ? null : Number(f.max_capacity), instructor_name: f.instructor_name || null, is_active: f.is_active,
@@ -76,7 +89,10 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
     if (ok) setTermForm(null);
   };
 
-  const slotsByDay = WEEKDAY_OPTIONS.map((d) => ({ ...d, slots: (data?.slots || []).filter((s) => s.weekday === d.value) }));
+  const slotsByDay = [
+    ...WEEKDAY_OPTIONS.map((d) => ({ ...d, value: String(d.value), slots: (data?.slots || []).filter((s) => !s.specific_dates?.length && s.weekday === d.value) })),
+    { value: 'dates', label: 'Specific dates', slots: (data?.slots || []).filter((s) => s.specific_dates?.length) },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,12 +114,39 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
               {slotForm && (
                 <div className="space-y-2 rounded-md border p-2">
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div><Label className="text-xs">Repeat</Label>
+                      <Select value={slotForm.repeat} onValueChange={(v) => setSlotForm({ ...slotForm, repeat: v as SlotForm['repeat'] })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="dates">Specific dates</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {slotForm.repeat === 'weekly' ? (
                     <div><Label className="text-xs">Day</Label>
                       <Select value={slotForm.weekday} onValueChange={(v) => setSlotForm({ ...slotForm, weekday: v })}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>{WEEKDAY_OPTIONS.map((d) => <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
+                    ) : (
+                    <div><Label className="text-xs">Dates</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="h-8 w-full justify-start text-xs font-normal">
+                            <CalendarIcon className="mr-1 h-3.5 w-3.5" />{slotForm.dates.length ? `${slotForm.dates.length} date${slotForm.dates.length === 1 ? '' : 's'}` : 'Pick dates'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="multiple" weekStartsOn={1}
+                            selected={slotForm.dates.map(parseIsoDate)}
+                            onSelect={(ds) => setSlotForm({ ...slotForm, dates: (ds || []).map(toIsoDate).sort() })}
+                            className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    )}
                     <div><Label className="text-xs">Start (HH:MM)</Label><Input className="h-8 text-xs" placeholder="16:00" value={slotForm.start_time} onChange={(e) => setSlotForm({ ...slotForm, start_time: e.target.value })} /></div>
                     <div><Label className="text-xs">End (HH:MM)</Label><Input className="h-8 text-xs" placeholder="17:00" value={slotForm.end_time} onChange={(e) => setSlotForm({ ...slotForm, end_time: e.target.value })} /></div>
                     <div><Label className="text-xs">Capacity</Label><Input className="h-8 text-xs" inputMode="numeric" value={slotForm.max_capacity} onChange={(e) => setSlotForm({ ...slotForm, max_capacity: e.target.value.replace(/\D/g, '') })} /></div>
@@ -125,6 +168,15 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
                     <div className="col-span-2"><Label className="text-xs">Instructor</Label><Input className="h-8 text-xs" value={slotForm.instructor_name} onChange={(e) => setSlotForm({ ...slotForm, instructor_name: e.target.value })} /></div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {slotForm.repeat === 'dates' && slotForm.dates.length > 0 && (
+                      <div className="flex w-full flex-wrap gap-1">
+                        {slotForm.dates.map((d) => (
+                          <Badge key={d} variant="secondary" className="gap-1 text-[10px]">{formatDate(d)}
+                            <button type="button" aria-label={`Remove ${formatDate(d)}`} onClick={() => setSlotForm({ ...slotForm, dates: slotForm.dates.filter((x) => x !== d) })}><X className="h-3 w-3" /></button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <label className="flex items-center gap-2 text-xs"><Switch checked={slotForm.is_active} onCheckedChange={(v) => setSlotForm({ ...slotForm, is_active: v })} />Active</label>
                     <span className="ml-auto flex gap-2">
                       <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSlotForm(null)}>Cancel</Button>
@@ -140,6 +192,7 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
                     <div key={s.id} className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 rounded border px-2 py-1 text-xs', !s.is_active && 'opacity-50')}>
                       <span className="font-medium">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</span>
                       <span>{s.class_type || '—'}</span>
+                      {s.specific_dates?.length ? <span className="text-muted-foreground">{s.specific_dates.slice().sort().map(formatDate).join(', ')}</span> : null}
                       <span className="text-muted-foreground">Cap {s.max_capacity ?? '∞'}{(s.age_from != null || s.age_to != null) ? ` · Age ${s.age_from ?? '?'}–${s.age_to ?? '+'}` : ''}</span>
                       {!s.is_active && <Badge variant="outline" className="text-[10px]">Off</Badge>}
                       <span className="ml-auto flex items-center gap-1">
