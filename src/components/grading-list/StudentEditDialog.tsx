@@ -188,7 +188,6 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
   React.useEffect(() => { if (row) openEdit(row); else setEditRow(null); }, [row?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-      {/* Edit dialog */}
       <Dialog open={!!editRow} onOpenChange={(o) => { if (!o) { setEditRow(null); onClose(); } }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
