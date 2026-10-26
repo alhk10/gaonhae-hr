@@ -3,6 +3,7 @@
  * Handles all invoice-related database operations for the Sales Module
  */
 
+import { canCombineGradingItems, combinedFoundationSpan } from '@/utils/foundationGrading';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
@@ -1219,7 +1220,14 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
       if (termId) lessonTermIds.add(termId);
     }
 
-    for (const item of items) {
+    // Foundation 1/2/3 steps billed together share one grading registration
+    // (one per student per term) spanning lowest start → highest target belt.
+    const gradingItems = items.filter(i => (productMetaMap.get(i.product_id)?.category_name || '').toLowerCase() === 'grading');
+    const gradingNames = gradingItems.map(i => productMetaMap.get(i.product_id)?.name || '');
+    const combinedSpan = gradingItems.length > 1 && canCombineGradingItems(gradingNames) ? combinedFoundationSpan(gradingNames) : null;
+    const itemsToSync = combinedSpan ? [gradingItems[0]] : items;
+
+    for (const item of itemsToSync) {
       const meta = productMetaMap.get(item.product_id);
       if (!meta) continue;
       if ((meta.category_name || '').toLowerCase() !== 'grading') continue;
@@ -1233,7 +1241,7 @@ export const syncGradingRegistrationsForInvoice = async (invoiceId: string): Pro
       if (!termId && lessonTermIds.size > 0) termId = Array.from(lessonTermIds)[0];
       if (!termId) continue;
 
-      const { from: parsedFrom, to: parsedTo } = parseBeltTransition(meta.name || '');
+      const { from: parsedFrom, to: parsedTo } = combinedSpan ?? parseBeltTransition(meta.name || '');
       // Source of truth for current_belt is the student's live belt — the invoice
       // product name (e.g. "White >> Yellow Tip") is just a price/SKU label and
       // may not match the student's actual belt at grading time.

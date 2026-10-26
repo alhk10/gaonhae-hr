@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
 import { transformProduct } from '@/services/productService';
 import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
+import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
@@ -957,9 +958,17 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
     // Grading duplicate check
     if (product.category_id === GRADING_CATEGORY_ID) {
-      if (items.some(i => products.find(p => p.id === i.product_id)?.category_id === GRADING_CATEGORY_ID)) {
-        toast.error('Only 1 grading product allowed per invoice.');
-        return;
+      const existingGrading = items.filter(i => products.find(p => p.id === i.product_id)?.category_id === GRADING_CATEGORY_ID);
+      if (existingGrading.length > 0) {
+        const names = [...existingGrading.map(i => products.find(p => p.id === i.product_id)?.name || ''), product.name || ''];
+        if (!canCombineGradingItems(names)) {
+          toast.error('Only 1 grading product allowed per invoice (Foundation 1, 2 and 3 steps may be combined).');
+          return;
+        }
+        if (existingGrading.some(i => (i as any).grading_slot_id && newItem.grading_slot_id && (i as any).grading_slot_id !== newItem.grading_slot_id)) {
+          toast.error('Combined foundation gradings must use the same grading slot.');
+          return;
+        }
       }
     }
 
