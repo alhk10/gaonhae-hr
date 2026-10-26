@@ -1,0 +1,1 @@
+ALTER FUNCTION public._timetable_runs_on(int, date[], date) SET search_path TO 'public';
