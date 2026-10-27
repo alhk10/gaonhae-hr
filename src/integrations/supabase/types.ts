@@ -8615,6 +8615,15 @@ export type Database = {
         }
         Returns: string
       }
+      access_refund_rental_deposit: {
+        Args: {
+          p_invoice_id: string
+          p_note?: string
+          p_password: string
+          p_refund_date?: string
+        }
+        Returns: Json
+      }
       access_set_student_employee: {
         Args: { p_password: string; p_student_id: string; p_value: boolean }
         Returns: undefined
@@ -10445,6 +10454,8 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_reference: string
+          deposit_refunded_on: string
+          has_deposit: boolean
           id: string
           invoice_number: string
           issue_date: string
