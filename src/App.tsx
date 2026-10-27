@@ -11,7 +11,6 @@ import AuthQueryCacheBridge from './components/auth/AuthQueryCacheBridge';
 import PageAccessGuard from './components/auth/PageAccessGuard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { QUERY_CONFIG } from './config/constants';
-import { FinanceBasisProvider } from './contexts/FinanceBasisContext';
 import './App.css';
 
 // Lazy load all page components for better performance
@@ -40,7 +39,6 @@ const PayslipManagement = lazy(() => import('./pages/PayslipManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const Miscellaneous = lazy(() => import('./pages/Miscellaneous'));
 const BranchDashboardPage = lazy(() => import('./pages/BranchDashboardPage'));
@@ -49,17 +47,6 @@ const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary'));
 const SmsBridge = lazy(() => import('./pages/SmsBridge'));
 
 // Finance / Accounting module
-const FinanceDashboard = lazy(() => import('./pages/finance/FinanceDashboard'));
-const ChartOfAccounts = lazy(() => import('./pages/finance/ChartOfAccounts'));
-const Journals = lazy(() => import('./pages/finance/Journals'));
-const NewJournal = lazy(() => import('./pages/finance/NewJournal'));
-const JournalDetail = lazy(() => import('./pages/finance/JournalDetail'));
-const GeneralLedger = lazy(() => import('./pages/finance/GeneralLedger'));
-const BackfillRunner = lazy(() => import('./pages/finance/BackfillRunner'));
-const BranchPnlLive = lazy(() => import('./pages/finance/BranchPnlLive'));
-const TaxCentre = lazy(() => import('./pages/finance/TaxCentre'));
-const TrialBalance = lazy(() => import('./pages/finance/TrialBalance'));
-const BalanceSheet = lazy(() => import('./pages/finance/BalanceSheet'));
 
 
 // Position-based access guard
@@ -218,17 +205,6 @@ function App() {
                     } />
                     
                     {/* Finance / Accounting Routes (superadmin) */}
-                    <Route path="/finance" element={<ProtectedRoute><FinanceBasisProvider><FinanceDashboard /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/chart-of-accounts" element={<ProtectedRoute><FinanceBasisProvider><ChartOfAccounts /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/journals" element={<ProtectedRoute><FinanceBasisProvider><Journals /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/journals/new" element={<ProtectedRoute><FinanceBasisProvider><NewJournal /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/journals/:id" element={<ProtectedRoute><FinanceBasisProvider><JournalDetail /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/general-ledger" element={<ProtectedRoute><FinanceBasisProvider><GeneralLedger /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/backfill" element={<ProtectedRoute><FinanceBasisProvider><BackfillRunner /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/branch-pl-live" element={<ProtectedRoute><FinanceBasisProvider><BranchPnlLive /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/tax" element={<ProtectedRoute><FinanceBasisProvider><TaxCentre /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/reports/trial-balance" element={<ProtectedRoute><FinanceBasisProvider><TrialBalance /></FinanceBasisProvider></ProtectedRoute>} />
-                    <Route path="/finance/reports/balance-sheet" element={<ProtectedRoute><FinanceBasisProvider><BalanceSheet /></FinanceBasisProvider></ProtectedRoute>} />
 
                     {/* Sales Module Routes */}
                     <Route path="/sales" element={<SalesRoute><SalesDashboard /></SalesRoute>} />

@@ -29,48 +29,6 @@ export type Database = {
         }
         Relationships: []
       }
-      accounting_backfill_runs: {
-        Row: {
-          created_at: string
-          error: string | null
-          force: boolean
-          from_date: string | null
-          id: string
-          modules: string[]
-          run_at: string
-          run_by: string | null
-          status: string
-          summary: Json
-          to_date: string | null
-        }
-        Insert: {
-          created_at?: string
-          error?: string | null
-          force?: boolean
-          from_date?: string | null
-          id?: string
-          modules?: string[]
-          run_at?: string
-          run_by?: string | null
-          status?: string
-          summary?: Json
-          to_date?: string | null
-        }
-        Update: {
-          created_at?: string
-          error?: string | null
-          force?: boolean
-          from_date?: string | null
-          id?: string
-          modules?: string[]
-          run_at?: string
-          run_by?: string | null
-          status?: string
-          summary?: Json
-          to_date?: string | null
-        }
-        Relationships: []
-      }
       admin_access: {
         Row: {
           attendance: boolean | null
@@ -428,6 +386,51 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_journal_entries: {
+        Row: {
+          amount: number
+          branch_id: string
+          category: string | null
+          created_at: string
+          created_by_label: string | null
+          description: string
+          direction: string
+          entry_date: string
+          id: string
+          receipt_path: string | null
+          remark: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          branch_id: string
+          category?: string | null
+          created_at?: string
+          created_by_label?: string | null
+          description?: string
+          direction?: string
+          entry_date?: string
+          id?: string
+          receipt_path?: string | null
+          remark?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          category?: string | null
+          created_at?: string
+          created_by_label?: string | null
+          description?: string
+          direction?: string
+          entry_date?: string
+          id?: string
+          receipt_path?: string | null
+          remark?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       branch_operating_schedule: {
         Row: {
           branch_id: string
@@ -461,69 +464,6 @@ export type Database = {
           open_time?: string | null
           updated_at?: string | null
           weekday?: number
-        }
-        Relationships: []
-      }
-      branch_profit_loss_entries: {
-        Row: {
-          amount: number
-          branch_id: string
-          category: string
-          cost_price: number | null
-          created_at: string
-          created_by: string | null
-          description: string | null
-          discount_percentage: number | null
-          id: string
-          month: number
-          quantity: number | null
-          sales_amount: number | null
-          share_percentage: number | null
-          subcategory: string
-          type: string
-          updated_at: string
-          updated_by: string | null
-          year: number
-        }
-        Insert: {
-          amount?: number
-          branch_id: string
-          category: string
-          cost_price?: number | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          discount_percentage?: number | null
-          id?: string
-          month: number
-          quantity?: number | null
-          sales_amount?: number | null
-          share_percentage?: number | null
-          subcategory: string
-          type: string
-          updated_at?: string
-          updated_by?: string | null
-          year: number
-        }
-        Update: {
-          amount?: number
-          branch_id?: string
-          category?: string
-          cost_price?: number | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          discount_percentage?: number | null
-          id?: string
-          month?: number
-          quantity?: number | null
-          sales_amount?: number | null
-          share_percentage?: number | null
-          subcategory?: string
-          type?: string
-          updated_at?: string
-          updated_by?: string | null
-          year?: number
         }
         Relationships: []
       }
@@ -799,72 +739,6 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chart_of_accounts: {
-        Row: {
-          code: string
-          country: string
-          created_at: string
-          default_tax_code_id: string | null
-          description: string | null
-          id: string
-          is_active: boolean
-          name: string
-          parent_id: string | null
-          sort_order: number
-          subtype: string | null
-          system_account: boolean
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          code: string
-          country: string
-          created_at?: string
-          default_tax_code_id?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          parent_id?: string | null
-          sort_order?: number
-          subtype?: string | null
-          system_account?: boolean
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          code?: string
-          country?: string
-          created_at?: string
-          default_tax_code_id?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          parent_id?: string | null
-          sort_order?: number
-          subtype?: string | null
-          system_account?: boolean
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chart_of_accounts_default_tax_code_id_fkey"
-            columns: ["default_tax_code_id"]
-            isOneToOne: false
-            referencedRelation: "tax_codes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chart_of_accounts_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1892,42 +1766,6 @@ export type Database = {
           email?: string
           id?: string
           ip_address?: string | null
-        }
-        Relationships: []
-      }
-      fiscal_periods: {
-        Row: {
-          country: string
-          created_at: string
-          id: string
-          is_locked: boolean
-          locked_at: string | null
-          locked_by: string | null
-          notes: string | null
-          period: string
-          updated_at: string
-        }
-        Insert: {
-          country: string
-          created_at?: string
-          id?: string
-          is_locked?: boolean
-          locked_at?: string | null
-          locked_by?: string | null
-          notes?: string | null
-          period: string
-          updated_at?: string
-        }
-        Update: {
-          country?: string
-          created_at?: string
-          id?: string
-          is_locked?: boolean
-          locked_at?: string | null
-          locked_by?: string | null
-          notes?: string | null
-          period?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -3225,156 +3063,6 @@ export type Database = {
           },
         ]
       }
-      journal_entries: {
-        Row: {
-          branch_id: string | null
-          country: string
-          created_at: string
-          created_by: string | null
-          entry_date: string
-          entry_number: string | null
-          id: string
-          narration: string | null
-          period: string
-          posted_at: string | null
-          posted_by: string | null
-          reference: string | null
-          source_id: string | null
-          source_type: string
-          status: string
-          updated_at: string
-          voided_at: string | null
-          voided_by: string | null
-        }
-        Insert: {
-          branch_id?: string | null
-          country: string
-          created_at?: string
-          created_by?: string | null
-          entry_date: string
-          entry_number?: string | null
-          id?: string
-          narration?: string | null
-          period: string
-          posted_at?: string | null
-          posted_by?: string | null
-          reference?: string | null
-          source_id?: string | null
-          source_type?: string
-          status?: string
-          updated_at?: string
-          voided_at?: string | null
-          voided_by?: string | null
-        }
-        Update: {
-          branch_id?: string | null
-          country?: string
-          created_at?: string
-          created_by?: string | null
-          entry_date?: string
-          entry_number?: string | null
-          id?: string
-          narration?: string | null
-          period?: string
-          posted_at?: string | null
-          posted_by?: string | null
-          reference?: string | null
-          source_id?: string | null
-          source_type?: string
-          status?: string
-          updated_at?: string
-          voided_at?: string | null
-          voided_by?: string | null
-        }
-        Relationships: []
-      }
-      journal_lines: {
-        Row: {
-          account_id: string
-          branch_id: string | null
-          contact_ref: string | null
-          contact_type: string | null
-          created_at: string
-          credit: number
-          debit: number
-          description: string | null
-          id: string
-          journal_id: string
-          line_no: number
-          tax_amount: number
-          tax_base_amount: number
-          tax_code_id: string | null
-        }
-        Insert: {
-          account_id: string
-          branch_id?: string | null
-          contact_ref?: string | null
-          contact_type?: string | null
-          created_at?: string
-          credit?: number
-          debit?: number
-          description?: string | null
-          id?: string
-          journal_id: string
-          line_no?: number
-          tax_amount?: number
-          tax_base_amount?: number
-          tax_code_id?: string | null
-        }
-        Update: {
-          account_id?: string
-          branch_id?: string | null
-          contact_ref?: string | null
-          contact_type?: string | null
-          created_at?: string
-          credit?: number
-          debit?: number
-          description?: string | null
-          id?: string
-          journal_id?: string
-          line_no?: number
-          tax_amount?: number
-          tax_base_amount?: number
-          tax_code_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_lines_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "chart_of_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "v_ledger_lines"
-            referencedColumns: ["entry_id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "v_pnl_lines"
-            referencedColumns: ["journal_id"]
-          },
-          {
-            foreignKeyName: "journal_lines_tax_code_id_fkey"
-            columns: ["tax_code_id"]
-            isOneToOne: false
-            referencedRelation: "tax_codes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       leave_encashment_config: {
         Row: {
           created_at: string
@@ -4658,42 +4346,6 @@ export type Database = {
         }
         Relationships: []
       }
-      pl_categories: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          default_cost_price: number | null
-          id: string
-          name: string
-          sort_order: number | null
-          type: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          default_cost_price?: number | null
-          id?: string
-          name: string
-          sort_order?: number | null
-          type: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          default_cost_price?: number | null
-          id?: string
-          name?: string
-          sort_order?: number | null
-          type?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
       price_rules: {
         Row: {
           belt_max: string | null
@@ -5250,39 +4902,6 @@ export type Database = {
           is_monday_holiday?: boolean
           name?: string
           updated_at?: string | null
-          year?: number
-        }
-        Relationships: []
-      }
-      published_pl_reports: {
-        Row: {
-          branch_id: string
-          created_at: string
-          id: string
-          month: number
-          notes: string | null
-          published_at: string
-          published_by: string | null
-          year: number
-        }
-        Insert: {
-          branch_id: string
-          created_at?: string
-          id?: string
-          month: number
-          notes?: string | null
-          published_at?: string
-          published_by?: string | null
-          year: number
-        }
-        Update: {
-          branch_id?: string
-          created_at?: string
-          id?: string
-          month?: number
-          notes?: string | null
-          published_at?: string
-          published_by?: string | null
           year?: number
         }
         Relationships: []
@@ -7924,93 +7543,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tax_codes: {
-        Row: {
-          code: string
-          country: string
-          created_at: string
-          direction: string
-          id: string
-          is_active: boolean
-          name: string
-          rate: number
-          report_box: string | null
-          updated_at: string
-        }
-        Insert: {
-          code: string
-          country: string
-          created_at?: string
-          direction?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          rate?: number
-          report_box?: string | null
-          updated_at?: string
-        }
-        Update: {
-          code?: string
-          country?: string
-          created_at?: string
-          direction?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          rate?: number
-          report_box?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      tax_returns: {
-        Row: {
-          branch_id: string
-          country: string
-          created_at: string
-          created_by: string | null
-          id: string
-          locked_at: string | null
-          locked_by: string | null
-          pdf_path: string | null
-          period_from: string
-          period_to: string
-          status: string
-          totals: Json
-          updated_at: string
-        }
-        Insert: {
-          branch_id: string
-          country: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          locked_at?: string | null
-          locked_by?: string | null
-          pdf_path?: string | null
-          period_from: string
-          period_to: string
-          status?: string
-          totals?: Json
-          updated_at?: string
-        }
-        Update: {
-          branch_id?: string
-          country?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          locked_at?: string | null
-          locked_by?: string | null
-          pdf_path?: string | null
-          period_from?: string
-          period_to?: string
-          status?: string
-          totals?: Json
-          updated_at?: string
-        }
-        Relationships: []
-      }
       term_breaks: {
         Row: {
           created_at: string | null
@@ -8323,106 +7855,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_ledger_lines: {
-        Row: {
-          account_code: string | null
-          account_country: string | null
-          account_id: string | null
-          account_name: string | null
-          account_subtype: string | null
-          account_type: string | null
-          contact_ref: string | null
-          contact_type: string | null
-          credit: number | null
-          debit: number | null
-          entry_branch_id: string | null
-          entry_country: string | null
-          entry_date: string | null
-          entry_id: string | null
-          entry_number: string | null
-          entry_status: string | null
-          journal_id: string | null
-          line_branch_id: string | null
-          line_description: string | null
-          line_id: string | null
-          line_no: number | null
-          narration: string | null
-          period: string | null
-          posted_at: string | null
-          reference: string | null
-          source_id: string | null
-          source_type: string | null
-          tax_amount: number | null
-          tax_base_amount: number | null
-          tax_code_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_lines_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "chart_of_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "v_ledger_lines"
-            referencedColumns: ["entry_id"]
-          },
-          {
-            foreignKeyName: "journal_lines_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "v_pnl_lines"
-            referencedColumns: ["journal_id"]
-          },
-          {
-            foreignKeyName: "journal_lines_tax_code_id_fkey"
-            columns: ["tax_code_id"]
-            isOneToOne: false
-            referencedRelation: "tax_codes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_pnl_lines: {
-        Row: {
-          account_code: string | null
-          account_id: string | null
-          account_name: string | null
-          account_sort_order: number | null
-          account_subtype: string | null
-          account_type: string | null
-          branch_id: string | null
-          country: string | null
-          credit: number | null
-          debit: number | null
-          entry_date: string | null
-          journal_id: string | null
-          line_id: string | null
-          period: string | null
-          signed_amount: number | null
-          status: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_lines_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "chart_of_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Functions: {
       _access_branch_check: {
@@ -8440,6 +7872,7 @@ export type Database = {
         Returns: undefined
       }
       _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
+      _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _lesson_balance: {
         Args: {
           p_branch_id: string
@@ -8577,6 +8010,23 @@ export type Database = {
       access_attendance_week: {
         Args: { p_branch_id: string; p_password: string; p_week_start: string }
         Returns: Json
+      }
+      access_branch_journal: {
+        Args: {
+          p_branch_id: string
+          p_from: string
+          p_password: string
+          p_to: string
+        }
+        Returns: Json
+      }
+      access_branch_journal_delete: {
+        Args: { p_id: string; p_password: string }
+        Returns: undefined
+      }
+      access_branch_journal_upsert: {
+        Args: { p_entry: Json; p_password: string }
+        Returns: string
       }
       access_class_type_set_color: {
         Args: {

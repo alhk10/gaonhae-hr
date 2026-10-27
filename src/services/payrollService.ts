@@ -4,7 +4,6 @@ import { getEmployeeClaims } from './claimsService';
 import { calculateCPF, calculateAge } from '@/utils/cpfCalculations';
 import { logger } from '@/utils/logger';
 import { withSessionRefresh, ensureValidSession } from './sessionRefreshService';
-import { postPayrollJournals } from './accountingPostings';
 
 export interface PayrollData {
   baseSalary: number;
@@ -438,7 +437,6 @@ export const finalizePayroll = async (period: string, userId: string): Promise<v
         .eq('month', period)
         .neq('id', recordId);
       for (const r of empRecs || []) {
-        void postPayrollJournals(r.id);
       }
     } catch (e) {
       logger.error('Failed to enqueue payroll postings', e);
@@ -570,7 +568,6 @@ export const updateSalaryPaymentStatus = async (
         .select('id')
         .eq('id', recordId)
         .maybeSingle();
-      if (empRec?.id) void postPayrollJournals(empRec.id);
     } catch (e) {
       logger.error('Failed to post payroll journal after salary status change', e);
     }
@@ -638,7 +635,6 @@ export const updateCpfPaymentStatus = async (
 
     // Phase 3: re-post payroll journals for this employee/period
     try {
-      void postPayrollJournals(recordId);
     } catch (e) {
       logger.error('Failed to post payroll journal after CPF status change', e);
     }

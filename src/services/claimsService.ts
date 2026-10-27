@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import { postClaimJournal } from './accountingPostings';
 import { toISODate } from '@/utils/dateFormat';
 
 export interface Claim {
@@ -208,7 +207,6 @@ export const updateClaimStatus = async (
     }
 
     // Phase 3: post accounting journal
-    void postClaimJournal(id);
 
     logger.info('Claim status updated successfully');
   } catch (error) {

@@ -130,23 +130,6 @@ export const deleteBranch = async (branchId: string): Promise<void> => {
       logger.warn('Error deleting branch_timetables for branch', timetablesError);
     }
     
-    // 3. Delete branch_profit_loss_entries records
-    const { error: plEntriesError } = await supabase
-      .from('branch_profit_loss_entries')
-      .delete()
-      .eq('branch_id', branchId);
-    if (plEntriesError) {
-      logger.warn('Error deleting branch_profit_loss_entries for branch', plEntriesError);
-    }
-    
-    // 4. Delete published_pl_reports records
-    const { error: plReportsError } = await supabase
-      .from('published_pl_reports')
-      .delete()
-      .eq('branch_id', branchId);
-    if (plReportsError) {
-      logger.warn('Error deleting published_pl_reports for branch', plReportsError);
-    }
     
     // 5. Delete partner_branch_shares records
     const { error: sharesError } = await supabase

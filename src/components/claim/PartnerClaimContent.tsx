@@ -179,51 +179,6 @@ const PartnerClaimContent: React.FC<PartnerClaimContentProps> = ({ currentEmploy
         .eq('id', Number(newClaimId))
         .maybeSingle();
 
-      // Sync to Branch P&L as expense
-      if (insertedClaim) {
-        const submittedDate = new Date(formData.date);
-        const month = submittedDate.getMonth() + 1;
-        const year = submittedDate.getFullYear();
-
-        const { data: existingEntry } = await supabase
-          .from('branch_profit_loss_entries')
-          .select('id, amount, description')
-          .eq('branch_id', formData.branch_id)
-          .eq('month', month)
-          .eq('year', year)
-          .eq('category', 'Partner Claims')
-          .eq('subcategory', formData.type)
-          .single();
-
-        if (existingEntry) {
-          const newAmount = Number(existingEntry.amount) + claimAmount;
-          const newDescription = `${existingEntry.description || ''} | Claim #${insertedClaim.id}`.trim();
-          
-          await supabase
-            .from('branch_profit_loss_entries')
-            .update({
-              amount: newAmount,
-              description: newDescription.substring(0, 500),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingEntry.id);
-        } else {
-          await supabase
-            .from('branch_profit_loss_entries')
-            .insert({
-              branch_id: formData.branch_id,
-              month,
-              year,
-              category: 'Partner Claims',
-              subcategory: formData.type,
-              description: `Partner claim #${insertedClaim.id}: ${claimDescription.substring(0, 200)}`,
-              amount: claimAmount,
-              share_percentage: 100,
-              type: 'expense',
-              created_by: 'system'
-            });
-        }
-      }
       
       // Reload claims
       const { data: claimsData } = await supabase

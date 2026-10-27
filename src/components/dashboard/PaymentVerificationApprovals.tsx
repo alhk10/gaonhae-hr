@@ -17,7 +17,6 @@ import { scanStoredPayments } from '@/hooks/usePaymentProofScan';
 
 import { toast } from 'sonner';
 import { formatDate } from '@/utils/dateFormat';
-import { postPaymentJournal, postInvoiceIssuedJournal } from '@/services/accountingPostings';
 
 const PaymentVerificationApprovals = () => {
   const { user } = useAuth();
@@ -71,9 +70,7 @@ const PaymentVerificationApprovals = () => {
       // Matched proofs auto-verify on the server; post their accounts like a manual Verify.
       for (const [pid, status] of Object.entries(res)) {
         if (status !== 'match') continue;
-        void postPaymentJournal(pid);
         const inv = (unverifiedPayments as any[]).find((p) => p.id === pid)?.invoice_id;
-        if (inv) void postInvoiceIssuedJournal(inv);
       }
       invalidateQueries();
       queryClient.invalidateQueries({ queryKey: ['superadmin-unverified-payments'] });
@@ -187,8 +184,6 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
-      void postPaymentJournal(payment.id);
-      if (payment.invoice_id) void postInvoiceIssuedJournal(payment.invoice_id);
       toast.success('Payment verified successfully');
     } catch (error) {
       toast.error('Failed to verify payment');
@@ -239,8 +234,6 @@ const PaymentVerificationApprovals = () => {
       }
 
       invalidateQueries();
-      void postPaymentJournal(rejectingPayment.id);
-      if (rejectingPayment.invoice_id) void postInvoiceIssuedJournal(rejectingPayment.invoice_id);
       toast.success('Payment verification rejected');
       setRejectingPayment(null);
       setRejectionReason('');
