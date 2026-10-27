@@ -10,7 +10,6 @@ import { logger } from '@/utils/logger';
 import { COUNTRY_TAX_RATES, DEFAULT_TAX_RATE, COUNTRY_TAX_INCLUDED, DEFAULT_TAX_INCLUDED } from '@/config/constants';
 import { logInvoiceChange } from './invoiceChangeLogService';
 import { syncInvoiceSlotBookings, removeUnmarkedInvoiceBookings } from './lessonBookingService';
-import { postInvoiceIssuedJournal, voidInvoiceJournal } from './accountingPostings';
 import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
 import { toISODate } from '@/utils/dateFormat';
 
@@ -675,7 +674,6 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
     });
 
     // Phase 3: post accounting journal (non-fatal)
-    void postInvoiceIssuedJournal(invoice.id);
 
     return {
       ...invoice,
@@ -734,9 +732,7 @@ export const updateInvoiceStatus = async (
 
     // Phase 3: re-post accounting journal (or void on cancellation)
     if (status === 'cancelled' || status === 'draft') {
-      void voidInvoiceJournal(invoiceId);
     } else {
-      void postInvoiceIssuedJournal(invoiceId);
     }
 
     return {
@@ -884,7 +880,6 @@ export const deleteInvoice = async (invoiceId: string): Promise<void> => {
     }
 
     // Phase 3: void any posted accounting journals for this invoice
-    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in deleteInvoice', error);
     throw error;
@@ -1096,7 +1091,6 @@ export const cancelInvoice = async (invoiceId: string): Promise<void> => {
     });
 
     // Phase 3: void accounting journals on cancellation
-    void voidInvoiceJournal(invoiceId);
   } catch (error) {
     logger.error('Error in cancelInvoice', error);
     throw error;
