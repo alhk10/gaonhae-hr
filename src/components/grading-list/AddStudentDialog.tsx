@@ -31,6 +31,7 @@ export interface AddStudentInitialValues {
   phone?: string | null;
   branchId?: string | null;
   belt?: string | null;
+  status?: 'active' | 'trial' | null;
 }
 
 interface Props {
@@ -89,6 +90,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     setPhone(initialValues.phone || '');
     setBranchId(initialValues.branchId || '');
     setBelt(initialValues.belt || '');
+    if (initialValues.status) setStatus(initialValues.status);
     if (initialValues.dateOfBirth) {
       const [y, m, d] = String(initialValues.dateOfBirth).slice(0, 10).split('-');
       if (y && m && d) {

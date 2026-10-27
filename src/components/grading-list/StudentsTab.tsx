@@ -94,6 +94,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
   const openEdit = (r: PublicStudentDirectoryRow) => setEditRow(r);
   const [addOpen, setAddOpen] = useState(false);
+  const [addTrial, setAddTrial] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [invoiceFor, setInvoiceFor] = useState<PublicStudentDirectoryRow | null>(null);
@@ -197,9 +198,14 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
         </Select>
         {canEdit && (
           <div className="flex gap-2">
-            <Button size="sm" className="h-9" onClick={() => setAddOpen(true)}>
+            <Button size="sm" className="h-9" onClick={() => { setAddTrial(false); setAddOpen(true); }}>
               <UserPlus className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Add Student</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-9" onClick={() => { setAddTrial(true); setAddOpen(true); }}>
+              <UserPlus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Add Trial Student</span>
+              <span className="sm:hidden text-xs">Trial</span>
             </Button>
             <Button size="sm" variant="outline" className="h-9" onClick={() => setMergeOpen(true)}>
               <Merge className="h-4 w-4 sm:mr-1" />
@@ -213,6 +219,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
         open={addOpen}
         onOpenChange={setAddOpen}
         actor={actor}
+        initialValues={addTrial ? { status: 'trial' } : undefined}
         onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
       />
       <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
