@@ -45,20 +45,17 @@ export const DEFAULT_CURRENCY = 'SGD';
  * @returns Formatted currency string
  */
 export const formatCurrency = (amount: number, currency: string = DEFAULT_CURRENCY): string => {
-  const locale = currencyLocaleMap[currency] || 'en-SG';
-  
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch (error) {
-    // Fallback for unsupported currencies
-    const symbol = currencySymbolMap[currency] || currency;
-    return `${symbol}${amount.toFixed(2)}`;
-  }
+  // Always show an explicit symbol (S$ / A$) so Singapore and Australia amounts are distinguishable.
+  const n = Number(amount) || 0;
+  const symbol = currencySymbolMap[currency] || currency;
+  const body = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${n < 0 ? '-' : ''}${symbol}${body}`;
+};
+
+/** Branch country (name or code) → currency code. Australia → AUD, otherwise SGD. */
+export const currencyForCountry = (country?: string | null): string => {
+  const c = (country || '').trim().toLowerCase();
+  return c === 'australia' || c === 'au' ? 'AUD' : 'SGD';
 };
 
 /**
