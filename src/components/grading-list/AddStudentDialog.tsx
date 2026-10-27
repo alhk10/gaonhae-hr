@@ -85,7 +85,8 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
 
   // Prefill from the caller (e.g. a payment submission) each time the dialog opens
   React.useEffect(() => {
-    if (!open || !initialValues) return;
+    if (!open) return;
+    if (!initialValues) { setStatus('active'); return; }
     setFirstName((initialValues.firstName || '').toUpperCase());
     setLastName((initialValues.lastName || '').toUpperCase());
     setEmail(initialValues.email || '');
@@ -272,7 +273,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }} disabled={saving}>Cancel</Button>
           {confirmDuplicate ? (
             <Button onClick={() => submit(true)} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
