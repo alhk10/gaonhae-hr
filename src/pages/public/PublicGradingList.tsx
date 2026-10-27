@@ -40,6 +40,7 @@ import SchoolFeesTab from '@/components/grading-list/SchoolFeesTab';
 import StudentsTab from '@/components/grading-list/StudentsTab';
 import StudioRentalTab from '@/components/grading-list/StudioRentalTab';
 import ExternalInvoicesTab from '@/components/grading-list/ExternalInvoicesTab';
+import FinanceTab from '@/components/grading-list/FinanceTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -1519,7 +1520,7 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
 
-        <Tabs value={!isAllBranch && ['rental', 'external-invoices', 'ai-document'].includes(activeTab) ? 'summary' : activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={!isAllBranch && ['rental', 'external-invoices', 'ai-document', 'finance'].includes(activeTab) ? 'summary' : activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1 p-1 [&>button]:whitespace-normal [&>button]:text-center [&>button]:leading-tight [&>button]:min-w-[5.5rem] [&>button]:flex-1 [&>button]:basis-auto [&>button]:py-1.5">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
@@ -1531,6 +1532,7 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
             {isAllBranch && <TabsTrigger value="rental">Studio Rental</TabsTrigger>}
             {isAllBranch && <TabsTrigger value="external-invoices">External Invoices</TabsTrigger>}
+            {isAllBranch && <TabsTrigger value="finance">Finance</TabsTrigger>}
             {isAllBranch && <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>}
           </TabsList>
           <TabsContent value="rental" className="mt-4">
@@ -1541,6 +1543,7 @@ const PublicGradingList: React.FC = () => {
               isAllBranch={editMode && !lockedBranchId}
             />
           </TabsContent>
+          {isAllBranch && <TabsContent value="finance" className="mt-4"><FinanceTab branches={(publicBranches as any[]).map((b) => ({ id: b.id, name: b.name }))} /></TabsContent>}
           <TabsContent value="external-invoices" className="mt-4">
             <ExternalInvoicesTab branchFilter={branchFilter} lockedBranchId={lockedBranchId ?? undefined} canEdit={editMode} />
           </TabsContent>
