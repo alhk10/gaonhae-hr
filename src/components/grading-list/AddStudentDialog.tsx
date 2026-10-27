@@ -40,9 +40,11 @@ interface Props {
   actor: string;
   onCreated: (studentId?: string) => void;
   initialValues?: AddStudentInitialValues;
+  /** Branch from the /access login password; when set the branch cannot be changed */
+  lockedBranchId?: string;
 }
 
-const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated, initialValues }) => {
+const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreated, initialValues, lockedBranchId }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [day, setDay] = useState('');
@@ -101,6 +103,10 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  React.useEffect(() => {
+    if (open && lockedBranchId) setBranchId(lockedBranchId);
+  }, [open, lockedBranchId, initialValues]);
 
   const reset = () => {
     setFirstName(''); setLastName(''); setDay(''); setMonth(''); setYear('');
@@ -223,7 +229,7 @@ const AddStudentDialog: React.FC<Props> = ({ open, onOpenChange, actor, onCreate
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <label className="text-xs font-medium">Branch *</label>
-              <Select value={branchId} onValueChange={setBranchId}>
+              <Select value={branchId} onValueChange={setBranchId} disabled={!!lockedBranchId}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select branch" /></SelectTrigger>
                 <SelectContent>
                   {(branches as any[]).map((b) => (
