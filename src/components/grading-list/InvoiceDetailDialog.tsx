@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Pencil, Trash2, Undo2 } from 'lucide-react';
+import { DollarSign, Loader2, Pencil, Trash2, Undo2 } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,9 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import InvoiceDialog from '@/components/sales/InvoiceDialog';
-import { deleteInvoice, cancelInvoice } from '@/services/invoiceService';
+import { deleteInvoice, cancelInvoice, createAccessInvoice } from '@/services/invoiceService';
+import CreatePaymentDialog from '@/components/sales/CreatePaymentDialog';
+import AccessRecordPaymentDialog from './AccessRecordPaymentDialog';
 import { getPublicInvoiceFull } from '@/services/publicInvoiceService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import { formatDate } from '@/utils/dateFormat';
@@ -68,10 +70,10 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
   const canRefund = isPaid && !isExternal && !['cancelled', 'refunded'].includes(String(detail?.status || ''));
   const refundPending = (pending.refund_item_ids?.length || 0) > 0;
 
-  const handleEditClick = () => {
-    if (signedIn) { setEditorOpen(true); return; }
-    setText(''); setAction('edit');
-  };
+  const handleEditClick = () => { setEditorOpen(true); };
+  const balance = Number(detail?.balance_due ?? (Number(detail?.total_amount || 0) - Number(detail?.amount_paid || 0)));
+  const canRecordPayment = !!detail && balance > 0.005 && !['cancelled', 'refunded', 'void', 'paid', 'verified'].includes(String(detail?.status || ''));
+  const [payOpen, setPayOpen] = useState(false);
 
   const submitAction = async () => {
     if (!invoiceId || !action) return;
@@ -190,6 +192,17 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
               <Button variant="outline" size="sm" className="text-xs text-destructive" onClick={() => { setText(''); setAction('delete'); }} disabled={!isSuperadmin && pending.delete_pending}>
                 <Trash2 className="mr-1 h-3 w-3" /> {!isSuperadmin && pending.delete_pending ? 'Delete pending' : 'Delete'}
               </Button>
+              {canRecordPayment && (signedIn ? (
+                <CreatePaymentDialog
+                  trigger={<Button variant="outline" size="sm" className="text-xs"><DollarSign className="mr-1 h-3 w-3" /> Record Payment</Button>}
+                  preSelectedInvoiceId={invoiceId || undefined}
+                  onPaymentCreated={() => setReloadKey((k) => k + 1)}
+                />
+              ) : (
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayOpen(true)}>
+                  <DollarSign className="mr-1 h-3 w-3" /> Record Payment
+                </Button>
+              ))}
               {canRefund && (
                 <Button variant="outline" size="sm" className="text-xs" onClick={() => setRefundOpen(true)} disabled={refundPending}>
                   <Undo2 className="mr-1 h-3 w-3" /> {refundPending ? 'Refund pending' : 'Refund as credit'}
@@ -238,7 +251,18 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
           invoiceId={invoiceId}
           open={editorOpen}
           onOpenChange={(o) => { setEditorOpen(o); if (!o) { setReloadKey((k) => k + 1); } }}
-          onInvoiceUpdated={() => setReloadKey((k) => k + 1)}
+          onInvoiceUpdated={() => { setReloadKey((k) => k + 1); loadPending(); }}
+          onSubmitOverride={signedIn ? undefined : createAccessInvoice}
+        />
+      )}
+      {payOpen && invoiceId && detail && (
+        <AccessRecordPaymentDialog
+          invoiceId={invoiceId}
+          invoiceNumber={number || ''}
+          balance={balance}
+          country={detail?.branch?.country || detail?.branch_country || null}
+          onClose={() => setPayOpen(false)}
+          onDone={() => { setPayOpen(false); setReloadKey((k) => k + 1); }}
         />
       )}
     </Dialog>

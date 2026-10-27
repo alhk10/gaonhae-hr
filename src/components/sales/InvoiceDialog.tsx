@@ -735,10 +735,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (!invoiceId) return;
     setLoading(true);
     try {
-      const [invoiceData, paymentsData] = await Promise.all([
-        getInvoiceById(invoiceId),
-        getPaymentsByInvoice(invoiceId)
-      ]);
+      const [invoiceData, paymentsData] = accessMode
+        ? await (async () => {
+            const { data, error } = await (supabase as any).rpc('access_get_invoice_for_edit', { p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoiceId });
+            if (error) throw error;
+            return [data, (data?.payments || [])] as [any, any[]];
+          })()
+        : await Promise.all([getInvoiceById(invoiceId), getPaymentsByInvoice(invoiceId)]);
       if (invoiceData) setInvoice(invoiceData);
       setPayments(paymentsData);
       const { data: pr } = await (supabase as any).rpc('get_invoice_pending_requests', { p_invoice_id: invoiceId });
@@ -1465,6 +1468,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
       queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
 
+      const remarks = editItems.filter((i: any) => (i.remark || '').trim()).map((i: any) => ({ item_id: i.id, description: i.description, remark: i.remark.trim() }));
+      if (remarks.length > 0) {
+        try { await (supabase as any).from('invoice_change_logs').insert({ invoice_id: invoice.id, action: 'edit_remarks', changes: { remarks }, changed_by_email: user?.email || null }); } catch { /* history only */ }
+      }
       toast.success(creditedAmount > 0
         ? `Invoice updated and ${formatCurrency(creditedAmount)} added to student credits`
         : 'Invoice updated successfully');
@@ -1477,11 +1484,29 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const saveOrSubmitAdjustment = async (convertOverpaymentToCredit: boolean) => {
     if (!invoice) return;
+    if (!isSuperadmin && accessMode && !user) {
+      try {
+        setSaving(true);
+        const { error } = await (supabase as any).rpc('access_submit_invoice_adjustment', {
+          p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoice.id,
+          p_request: { editItems, editTotals: { ...editTotals, balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue }, convertOverpaymentToCredit, overpaymentAmount: convertOverpaymentToCredit ? editOverpayment : 0 },
+          p_actor: null,
+        });
+        if (error) throw error;
+        toast.success('Changes sent to superadmin for approval');
+        onInvoiceUpdated?.();
+        setDialogOpen(false);
+      } catch (error: any) { toast.error(`Failed: ${error.message}`); }
+      finally { setSaving(false); }
+      return;
+    }
     if (!isSuperadmin) {
       try {
         setSaving(true);
         await submitActionRequest(invoice.id, 'adjustment', {
           editItems,
+          originalItems: invoice.items.map(i => ({ id: i.id, product_id: i.product_id, description: i.description, quantity: i.quantity, unit_price: i.unit_price, total_amount: i.total_amount, size_variant: i.size_variant })),
+          originalTotal: invoice.total_amount,
           editTotals: {
             ...editTotals,
             balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue,
@@ -1960,7 +1985,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
+                      <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 min-w-[140px]">Remark</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {editItems.map((item) => {
@@ -2049,6 +2074,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                                 ) : <span className="text-muted-foreground text-[10px] leading-tight block">No grading slots for this branch — create one in Sales → Grading</span>
                               ) : <span className="text-muted-foreground">-</span>}
                             </TableCell>
+                            <TableCell className="px-2"><Input value={(item as any).remark || ''} onChange={(e) => { const v = e.target.value; setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : ({ ...ei, remark: v } as any))); }} placeholder="Why this change?" className="h-7 text-xs min-w-[140px]" /></TableCell>
                             <TableCell className="px-2 font-medium text-right">{formatCurrency(item.total_amount)}</TableCell>
                             <TableCell className="px-1"><Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemoveEditItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                           </TableRow>

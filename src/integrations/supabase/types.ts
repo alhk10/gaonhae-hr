@@ -8597,9 +8597,36 @@ export type Database = {
         }
         Returns: string
       }
+      access_get_invoice_for_edit: {
+        Args: { p_invoice_id: string; p_password: string }
+        Returns: Json
+      }
+      access_record_payment: {
+        Args: {
+          p_amount: number
+          p_client_ref?: string
+          p_date: string
+          p_invoice_id: string
+          p_method: string
+          p_notes: string
+          p_password: string
+          p_proof_url: string
+          p_reference: string
+        }
+        Returns: string
+      }
       access_set_student_employee: {
         Args: { p_password: string; p_student_id: string; p_value: boolean }
         Returns: undefined
+      }
+      access_submit_invoice_adjustment: {
+        Args: {
+          p_actor?: string
+          p_invoice_id: string
+          p_password: string
+          p_request: Json
+        }
+        Returns: string
       }
       access_term_break_save: {
         Args: {
