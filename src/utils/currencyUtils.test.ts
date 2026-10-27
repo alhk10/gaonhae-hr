@@ -1,7 +1,9 @@
 import { currencyForCountry, formatCurrency } from './currencyUtils';
 
-describe('invoice currency', () => {
-  it('Australia shows A$', () => expect(formatCurrency(290, currencyForCountry('Australia'))).toBe('A$290.00'));
-  it('Singapore shows S$', () => expect(formatCurrency(290, currencyForCountry('Singapore'))).toBe('S$290.00'));
-  it('unknown defaults to S$', () => expect(formatCurrency(1234.5, currencyForCountry(null))).toBe('S$1,234.50'));
-});
+const equal = (actual: unknown, expected: unknown, rule: string) => {
+  if (actual !== expected) throw new Error(`${rule}: expected ${expected}, got ${actual}`);
+};
+
+equal(formatCurrency(290, currencyForCountry('Australia')), 'A$290.00', 'Australia shows A$');
+equal(formatCurrency(290, currencyForCountry('Singapore')), 'S$290.00', 'Singapore shows S$');
+equal(formatCurrency(1234.5, currencyForCountry(null)), 'S$1,234.50', 'Unknown defaults to S$');
