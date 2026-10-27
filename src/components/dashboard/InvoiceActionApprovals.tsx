@@ -343,7 +343,7 @@ const InvoiceActionApprovals: React.FC = () => {
                     {(request.request_data as any)?.reason && (
                       <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
                     )}
-                    {request.action_type === 'adjustment' && Array.isArray((request.request_data as any)?.editItems) && (
+                    {Array.isArray((request.request_data as any)?.editItems) && (
                       <AdjustmentDiff data={request.request_data as any} />
                     )}
                   </>
