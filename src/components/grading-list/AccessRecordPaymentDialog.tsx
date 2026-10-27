@@ -75,7 +75,8 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
           <div><Label className="text-xs">Reference</Label>
             <Input className="h-7 text-xs" value={reference} onChange={(e) => setReference(e.target.value)} /></div>
           <div><Label className="text-xs">Proof of payment (image){needsProof ? ' *' : ''}</Label>
-            <Input className="h-7 text-xs" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+            <Input className="h-7 text-xs" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{file ? `Selected: ${file.name}` : "Or paste a screenshot with Ctrl/Cmd+V"}</p></div>
           <div><Label className="text-xs">Notes</Label>
             <Textarea className="text-xs" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         </div>
