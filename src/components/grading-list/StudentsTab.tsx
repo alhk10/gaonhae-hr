@@ -220,6 +220,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
         onOpenChange={setAddOpen}
         actor={actor}
         initialValues={addTrial ? { status: 'trial' } : undefined}
+        lockedBranchId={lockedBranchId}
         onCreated={() => qc.invalidateQueries({ queryKey: ['public-student-directory'] })}
       />
       <MergeStudentsDialog open={mergeOpen} onOpenChange={setMergeOpen} actor={actor} />
