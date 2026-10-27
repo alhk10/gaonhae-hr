@@ -1979,7 +1979,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
+                      <TableHead className="px-2">Category</TableHead><TableHead className="px-2">Product</TableHead><TableHead className="px-2 w-12">Qty</TableHead><TableHead className="px-2 w-16">Price</TableHead><TableHead className="px-2 w-14">Disc</TableHead><TableHead className="px-2 w-14">Size</TableHead><TableHead className="px-2 w-14">Color</TableHead><TableHead className="px-2">Term/Slot</TableHead><TableHead className="px-2 min-w-[140px]">Remark</TableHead><TableHead className="px-2 w-16 text-right">Total</TableHead><TableHead className="px-1 w-9"></TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {editItems.map((item) => {
