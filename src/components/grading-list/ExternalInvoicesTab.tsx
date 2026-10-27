@@ -34,6 +34,7 @@ interface Row {
   customer_email: string | null; customer_phone: string | null; branch_id: string; branch_name: string;
   status: string; total_amount: number; amount_paid: number; balance_due: number; issue_date: string; items: string | null;
   proof_url: string | null; pending_payment: boolean; cancel_requested: boolean;
+  has_deposit?: boolean; deposit_refunded_on?: string | null;
 }
 interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string }
 
@@ -71,6 +72,17 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
       return data as string;
     },
     onSuccess: (res) => { if (!res) return; toast.success(res === 'cancelled' ? 'Invoice cancelled' : 'Cancellation sent to superadmin for approval'); refresh(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const refundDeposit = useMutation({
+    mutationFn: async (r: Row) => {
+      const note = window.prompt(`Mark the rental deposit on ${r.invoice_number} as refunded? A "Rental deposit refunded" line will zero the deposit. Optional note:`, '');
+      if (note === null) return null;
+      const { data, error } = await rpc('access_refund_rental_deposit', { p_password: accessPw(), p_invoice_id: r.id, p_note: note || null });
+      if (error) throw error;
+      return data as { amount: number };
+    },
+    onSuccess: (res) => { if (!res) return; toast.success(`Deposit ${formatCurrency(Number(res.amount))} marked refunded`); refresh(); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -127,6 +139,11 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
                       {r.balance_due > 0 && r.status !== 'cancelled' && (
                         <Button size="sm" variant="outline" className="h-7" onClick={() => setPayRow(r)}><DollarSign className="h-3 w-3 mr-1" />Record payment</Button>
                       )}
+                      {r.has_deposit && (r.deposit_refunded_on ? (
+                        <Badge variant="secondary" className="text-[10px]">Deposit refunded {formatDate(r.deposit_refunded_on)}</Badge>
+                      ) : ['paid', 'verified'].includes(r.status) && (
+                        <Button size="sm" variant="outline" className="h-7" disabled={refundDeposit.isPending} onClick={() => refundDeposit.mutate(r)}>Deposit refunded</Button>
+                      ))}
                       {r.status !== 'cancelled' && !r.cancel_requested && (
                         <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => cancel.mutate(r)}><XCircle className="h-3 w-3 mr-1" />Cancel</Button>
                       )}
