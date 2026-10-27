@@ -343,6 +343,9 @@ const InvoiceActionApprovals: React.FC = () => {
                     {(request.request_data as any)?.reason && (
                       <div className="text-xs text-muted-foreground truncate">Reason: {(request.request_data as any).reason}</div>
                     )}
+                    {request.action_type === 'adjustment' && Array.isArray((request.request_data as any)?.editItems) && (
+                      <AdjustmentDiff data={request.request_data as any} />
+                    )}
                   </>
                 )}
               </div>
@@ -428,3 +431,44 @@ const InvoiceActionApprovals: React.FC = () => {
 };
 
 export default InvoiceActionApprovals;
+
+const money = (n: any) => `$${Number(n || 0).toFixed(2)}`;
+/** Line-by-line view of a proposed invoice edit: added, removed and changed lines, with each line's remark. */
+const AdjustmentDiff: React.FC<{ data: any }> = ({ data }) => {
+  const orig: any[] = Array.isArray(data.originalItems) ? data.originalItems : [];
+  const next: any[] = data.editItems || [];
+  const origById = new Map(orig.map(o => [o.id, o]));
+  const keptIds = new Set(next.filter(i => !i.isNew).map(i => i.id));
+  const rows: Array<{ kind: 'added' | 'removed' | 'changed' | 'same'; label: string; before?: string; after?: string; remark?: string }> = [];
+  for (const i of next) {
+    const after = `${i.quantity} × ${money(i.unit_price)}${i.size_variant ? ` (${i.size_variant})` : ''} = ${money(i.total_amount)}`;
+    const o = !i.isNew ? origById.get(i.id) : null;
+    if (!o) { rows.push({ kind: orig.length ? 'added' : 'same', label: i.description, after, remark: i.remark }); continue; }
+    const before = `${o.quantity} × ${money(o.unit_price)}${o.size_variant ? ` (${o.size_variant})` : ''} = ${money(o.total_amount)}`;
+    const changed = o.product_id !== i.product_id || o.description !== i.description || before !== after;
+    rows.push({ kind: changed ? 'changed' : 'same', label: changed && o.description !== i.description ? `${o.description} → ${i.description}` : i.description, before: changed ? before : undefined, after, remark: i.remark });
+  }
+  for (const o of orig) if (!keptIds.has(o.id)) rows.push({ kind: 'removed', label: o.description, before: `${o.quantity} × ${money(o.unit_price)} = ${money(o.total_amount)}` });
+  const cls = { added: 'bg-primary/10', removed: 'bg-destructive/10 line-through text-destructive', changed: 'bg-accent', same: '' } as const;
+  return (
+    <div className="mt-1 overflow-x-auto rounded border">
+      <table className="w-full text-[11px]">
+        <thead className="bg-muted"><tr><th className="px-1.5 py-1 text-left">Item</th><th className="px-1.5 py-1 text-left">Change</th><th className="px-1.5 py-1 text-left">Remark</th></tr></thead>
+        <tbody>
+          {rows.map((r, idx) => (
+            <tr key={idx} className={`border-t ${cls[r.kind]}`}>
+              <td className="px-1.5 py-1 break-words">{r.kind !== 'same' && <span className="mr-1 font-semibold uppercase text-[9px]">{r.kind}</span>}{r.label}</td>
+              <td className="px-1.5 py-1 whitespace-nowrap">{r.before && r.after ? <>{r.before} → <b>{r.after}</b></> : (r.after || r.before)}</td>
+              <td className="px-1.5 py-1 break-words text-muted-foreground">{r.remark || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex justify-end gap-3 border-t px-1.5 py-1 text-[11px]">
+        {data.originalTotal != null && <span>Old total {money(data.originalTotal)}</span>}
+        <span className="font-semibold">New total {money(data.editTotals?.total)}</span>
+      </div>
+    </div>
+  );
+};
+
