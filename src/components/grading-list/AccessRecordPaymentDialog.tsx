@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { toISODate } from '@/utils/dateFormat';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface Props { invoiceId: string; invoiceNumber: string; balance: number; country: string | null; onClose: () => void; onDone: () => void }
 
@@ -59,7 +60,7 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
           <div><Label className="text-xs">Amount (balance ${balance.toFixed(2)})</Label>
             <Input className="h-7 text-xs" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           <div><Label className="text-xs">Payment date</Label>
-            <Input className="h-7 text-xs" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+            <DatePicker className="h-7 w-full text-xs" selected={new Date(date + 'T00:00:00')} onSelect={(d) => d && setDate(toISODate(d))} /></div>
           <div><Label className="text-xs">Method</Label>
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
