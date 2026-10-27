@@ -26,7 +26,6 @@ import SlotBookingDialog from './SlotBookingDialog';
 import SubmitClaimDialog from './SubmitClaimDialog';
 import ViewPayslipDialog from './ViewPayslipDialog';
 import ApplyLeaveDialog from './ApplyLeaveDialog';
-import BranchProfitLossDialog from './BranchProfitLossDialog';
 import BranchDashboard from './BranchDashboard';
 import StudentDashboard from './StudentDashboard';
 import SlotBookingBranchChangeDialog from './SlotBookingBranchChangeDialog';
@@ -81,7 +80,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
   const [showSubmitClaim, setShowSubmitClaim] = useState(false);
   const [showViewPayslip, setShowViewPayslip] = useState(false);
   const [showApplyLeave, setShowApplyLeave] = useState(false);
-  const [showBranchProfitLoss, setShowBranchProfitLoss] = useState(false);
   const [showBranchChange, setShowBranchChange] = useState(false);
   const [showPricingRates, setShowPricingRates] = useState(false);
 
@@ -701,18 +699,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
                 </Button>
               )}
 
-              {isPartnerPosition && hasPartnerBranchShares && (
-                <Button 
-                  className={`justify-start h-auto p-3 md:p-4`} 
-                  variant="outline"
-                  onClick={() => setShowBranchProfitLoss(true)}
-                >
-                  <Building2 className={`mr-3 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                  <div className="text-left">
-                    <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>View Branch Profit & Loss</p>
-                  </div>
-                </Button>
-              )}
 
               {!isFullTime && (
                 <Button
@@ -806,13 +792,6 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ simulatedEmployee
         />
       )}
 
-      {effectiveEmployeeId && isPartnerPosition && hasPartnerBranchShares && (
-        <BranchProfitLossDialog
-          open={showBranchProfitLoss}
-          onOpenChange={setShowBranchProfitLoss}
-          employeeId={effectiveEmployeeId}
-        />
-      )}
 
       {effectiveEmployeeId && employeeData?.type === 'Casual' && (
         <SlotBookingBranchChangeDialog
