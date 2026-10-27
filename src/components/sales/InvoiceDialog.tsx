@@ -557,8 +557,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // When entering edit mode, initialize from invoice (once per invoice load; don't wait for products)
   const editInitKey = useRef<string | null>(null);
   useEffect(() => {
-    if (mode !== 'edit' || !open) { editInitKey.current = null; }
-  }, [mode, open]);
+    if (mode !== 'edit' || !dialogOpen) { editInitKey.current = null; }
+  }, [mode, dialogOpen]);
   useEffect(() => {
     if (mode === 'edit' && invoice && editInitKey.current !== invoice.id) {
       editInitKey.current = invoice.id;
