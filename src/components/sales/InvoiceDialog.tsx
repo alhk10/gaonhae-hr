@@ -2068,6 +2068,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                                 ) : <span className="text-muted-foreground text-[10px] leading-tight block">No grading slots for this branch — create one in Sales → Grading</span>
                               ) : <span className="text-muted-foreground">-</span>}
                             </TableCell>
+                            <TableCell className="px-2"><Input value={(item as any).remark || ''} onChange={(e) => { const v = e.target.value; setEditItems(prev => prev.map(ei => ei.id !== item.id ? ei : ({ ...ei, remark: v } as any))); }} placeholder="Why this change?" className="h-7 text-xs min-w-[140px]" /></TableCell>
                             <TableCell className="px-2 font-medium text-right">{formatCurrency(item.total_amount)}</TableCell>
                             <TableCell className="px-1"><Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemoveEditItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                           </TableRow>
