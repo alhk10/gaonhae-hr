@@ -1468,6 +1468,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       queryClient.invalidateQueries({ queryKey: ['grading-list-count'] });
       queryClient.invalidateQueries({ queryKey: ['grading-registrations'] });
 
+      const remarks = editItems.filter((i: any) => (i.remark || '').trim()).map((i: any) => ({ item_id: i.id, description: i.description, remark: i.remark.trim() }));
+      if (remarks.length > 0) {
+        try { await (supabase as any).from('invoice_change_logs').insert({ invoice_id: invoice.id, action: 'edit_remarks', changes: { remarks }, changed_by_email: user?.email || null }); } catch { /* history only */ }
+      }
       toast.success(creditedAmount > 0
         ? `Invoice updated and ${formatCurrency(creditedAmount)} added to student credits`
         : 'Invoice updated successfully');
@@ -1501,6 +1505,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         setSaving(true);
         await submitActionRequest(invoice.id, 'adjustment', {
           editItems,
+          originalItems: invoice.items.map(i => ({ id: i.id, product_id: i.product_id, description: i.description, quantity: i.quantity, unit_price: i.unit_price, total_amount: i.total_amount, size_variant: i.size_variant })),
+          originalTotal: invoice.total_amount,
           editTotals: {
             ...editTotals,
             balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue,
