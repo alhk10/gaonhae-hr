@@ -184,8 +184,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
       // Partner pages (superadmin can access all)
       adminItems.push(
         { icon: Briefcase, label: 'Partners Claim', path: '/submit-partners-claim' },
-        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' },
-        { icon: BookOpen, label: 'Finance', path: '/finance' },
         { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
 
@@ -314,7 +312,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps = {}) => {
     // Add partner-specific pages based on position (Branch P&L and Miscellaneous - Partners Claim is handled above)
     if (isPartnerPosition) {
       menuItems.push(
-        { icon: FileSpreadsheet, label: 'Branch P&L', path: '/branch-profit-loss' },
         { icon: FileCheck, label: 'Miscellaneous', path: '/miscellaneous' }
       );
     }
