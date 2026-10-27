@@ -735,10 +735,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (!invoiceId) return;
     setLoading(true);
     try {
-      const [invoiceData, paymentsData] = await Promise.all([
-        getInvoiceById(invoiceId),
-        getPaymentsByInvoice(invoiceId)
-      ]);
+      const [invoiceData, paymentsData] = accessMode
+        ? await (async () => {
+            const { data, error } = await (supabase as any).rpc('access_get_invoice_for_edit', { p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoiceId });
+            if (error) throw error;
+            return [data, (data?.payments || [])] as [any, any[]];
+          })()
+        : await Promise.all([getInvoiceById(invoiceId), getPaymentsByInvoice(invoiceId)]);
       if (invoiceData) setInvoice(invoiceData);
       setPayments(paymentsData);
       const { data: pr } = await (supabase as any).rpc('get_invoice_pending_requests', { p_invoice_id: invoiceId });
@@ -1477,6 +1480,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const saveOrSubmitAdjustment = async (convertOverpaymentToCredit: boolean) => {
     if (!invoice) return;
+    if (!isSuperadmin && accessMode && !user) {
+      try {
+        setSaving(true);
+        const { error } = await (supabase as any).rpc('access_submit_invoice_adjustment', {
+          p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoice.id,
+          p_request: { editItems, editTotals: { ...editTotals, balanceDue: convertOverpaymentToCredit ? Math.max(0, editTotals.balanceDue) : editTotals.balanceDue }, convertOverpaymentToCredit, overpaymentAmount: convertOverpaymentToCredit ? editOverpayment : 0 },
+          p_actor: null,
+        });
+        if (error) throw error;
+        toast.success('Changes sent to superadmin for approval');
+        onInvoiceUpdated?.();
+        setDialogOpen(false);
+      } catch (error: any) { toast.error(`Failed: ${error.message}`); }
+      finally { setSaving(false); }
+      return;
+    }
     if (!isSuperadmin) {
       try {
         setSaving(true);
