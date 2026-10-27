@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { SignedImage } from '@/components/common/SignedMedia';
 import { formatDateTime } from '@/utils/dateFormat';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatBranchCurrency } from '@/utils/branchCurrency';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getSchoolFeesList,
@@ -392,7 +393,7 @@ const SchoolFeesTab: React.FC<Props> = ({ branchFilter, canEdit, canDelete, dril
                     <span className="line-clamp-2 break-words">{itemsSummary(row) || '—'}</span>
                   </TableCell>
                   <TableCell data-label="Amount" data-field="amount" className="text-xs text-right whitespace-nowrap">
-                    {formatCurrency(Number(row.amount || 0))}
+                    {formatBranchCurrency(Number(row.amount || 0), row.branch_id || row.branch_name)}
                     {(() => {
                       const x = rowExtras(row);
                       if (!x.mismatch) return null;

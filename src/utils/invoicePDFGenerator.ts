@@ -108,8 +108,14 @@ const loadImage = (url: string, maxWidth = 300, maxHeight = 300): Promise<Loaded
   });
 };
 
+// Symbol for the invoice currently being rendered (S$ / A$ from its branch-country template).
+let currentSymbol = 'S$';
+const setCurrencyFor = (invoice: { template?: { country?: string } | null }) => {
+  currentSymbol = invoice.template?.country === 'AU' ? 'A$' : 'S$';
+};
 const formatCurrency = (amount: number): string => {
-  return `$${amount.toFixed(2)}`;
+  const n = Number(amount) || 0;
+  return `${n < 0 ? '-' : ''}${currentSymbol}${Math.abs(n).toFixed(2)}`;
 };
 
 
@@ -142,6 +148,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   if (!invoice.template?.country || !invoice.template.letterhead_url?.trim()) {
     throw new Error('The country invoice template and letterhead are required to generate this PDF');
   }
+  setCurrencyFor(invoice);
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -567,6 +574,7 @@ export interface SmsTermInfo {
  * Returns formatted lines for the SMS/WhatsApp body.
  */
 const buildItemAndDiscountLines = (invoice: InvoiceData): string[] => {
+  setCurrencyFor(invoice as any);
   const lines: string[] = [];
   const items = sortInvoiceLines(invoice.items || []);
 

@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import StatusBadge from '@/components/grading-list/StatusBadge';
 import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { formatBranchCurrency } from '@/utils/branchCurrency';
 import { formatDate } from '@/utils/dateFormat';
 import { externalInvoiceBreakdown, defaultTaxInclusive } from '@/utils/externalInvoiceTotal';
 import { Switch } from '@/components/ui/switch';
@@ -122,8 +123,8 @@ const ExternalInvoicesTab: React.FC<Props> = ({ branchFilter, lockedBranchId, ca
                   </TableCell>
                   <TableCell data-label="Branch">{r.branch_name}</TableCell>
                   <TableCell data-label="Items" className="text-xs break-words">{r.items ?? '—'}</TableCell>
-                  <TableCell data-label="Total" className="text-right">{formatCurrency(r.total_amount)}</TableCell>
-                  <TableCell data-label="Balance" className="text-right">{formatCurrency(r.balance_due)}</TableCell>
+                  <TableCell data-label="Total" className="text-right">{formatBranchCurrency(r.total_amount, r.branch_id)}</TableCell>
+                  <TableCell data-label="Balance" className="text-right">{formatBranchCurrency(r.balance_due, r.branch_id)}</TableCell>
                   <TableCell data-label="Status">
                     <div className="flex flex-wrap gap-1 items-center">
                       <StatusBadge status={r.status} />
@@ -355,7 +356,7 @@ const PayDialog: React.FC<{ row: Row; onClose: () => void; onDone: () => void }>
       <DialogContent className="max-w-[95vw] sm:max-w-sm text-xs">
         <DialogHeader><DialogTitle>Record payment · {row.invoice_number}</DialogTitle></DialogHeader>
         <div className="space-y-2">
-          <div><Label className="text-xs">Amount (balance {formatCurrency(row.balance_due)})</Label>
+          <div><Label className="text-xs">Amount (balance {formatBranchCurrency(row.balance_due, row.branch_id)})</Label>
             <Input className="h-7 text-xs" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
           <div><Label className="text-xs">Method</Label>
             <Select value={method} onValueChange={setMethod}>

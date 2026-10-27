@@ -305,6 +305,7 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const branch = useMemo(() => branches.find(b => b.id === branchId), [branches, branchId]);
+  const curSym = branch?.country?.toLowerCase() === 'australia' ? 'A$' : 'S$';
 
   const dob = useMemo(() => {
     if (!dobDay || dobMonth === '' || !dobYear) return null;
@@ -1559,7 +1560,7 @@ const PublicHelloChat: React.FC = () => {
                     >
                       <span>
                         Outstanding Invoice{outstandingInvoices.length > 1 ? 's' : ''} ({outstandingInvoices.length})
-                        {' · '}${outstandingInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)}
+                        {' · '}{curSym}{outstandingInvoices.reduce((s, inv) => s + Number(inv.balance_due || 0), 0).toFixed(2)}
                       </span>
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -1841,7 +1842,7 @@ const PublicHelloChat: React.FC = () => {
                           </span>
                         </span>
                         <span className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-destructive">${Number(inv.balance_due).toFixed(2)}</span>
+                          <span className="text-sm font-semibold text-destructive">{curSym}{Number(inv.balance_due).toFixed(2)}</span>
                           <Button
                             size="sm"
                             className="h-7 px-2 text-xs"
@@ -1870,7 +1871,7 @@ const PublicHelloChat: React.FC = () => {
                 {matched.current_belt ? <> ({matched.current_belt} belt)</> : null}.
                 {Number(availableCredit) > 0.01 && (
                   <div className="mt-2 rounded bg-green-50 px-2 py-1.5 text-[12px] text-green-800">
-                    You have <strong>${Number(availableCredit).toFixed(2)}</strong> in credit available. It will be used
+                    You have <strong>{curSym}{Number(availableCredit).toFixed(2)}</strong> in credit available. It will be used
                     automatically on your next payment.
                   </div>
                 )}
@@ -2097,7 +2098,7 @@ const PublicHelloChat: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
                         <span>{formatDate(inv.issue_date)}</span>
-                        <span className="font-medium text-foreground">${Number(inv.total_amount || 0).toFixed(2)}</span>
+                        <span className="font-medium text-foreground">{curSym}{Number(inv.total_amount || 0).toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-[11px] text-primary mt-1">
                         <Download className="h-3 w-3" /> Download PDF
@@ -2632,7 +2633,7 @@ const PublicHelloChat: React.FC = () => {
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Total</span>
-                      <span className="tabular-nums">${payableTotal.toFixed(2)}</span>
+                      <span className="tabular-nums">{curSym}{payableTotal.toFixed(2)}</span>
                     </div>
                     {GST_RATE > 0 && (
                       <div className="flex items-center justify-between">
@@ -2644,17 +2645,17 @@ const PublicHelloChat: React.FC = () => {
                       <>
                         <div className="flex items-center justify-between text-green-700">
                           <span>Credit used</span>
-                          <span className="tabular-nums">−${creditToUse.toFixed(2)}</span>
+                          <span className="tabular-nums">−{curSym}{creditToUse.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                           <span>Credit remaining after this</span>
-                          <span className="tabular-nums">${creditRemaining.toFixed(2)}</span>
+                          <span className="tabular-nums">{curSym}{creditRemaining.toFixed(2)}</span>
                         </div>
                       </>
                     )}
                     <div className="flex items-center justify-between pt-1">
                       <span className="font-semibold">Amount to pay</span>
-                      <span className="text-base font-bold tabular-nums">${amountDue.toFixed(2)}</span>
+                      <span className="text-base font-bold tabular-nums">{curSym}{amountDue.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -2709,7 +2710,7 @@ const PublicHelloChat: React.FC = () => {
                       <div key={inv.id} className="rounded-md border px-3 py-2 space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{inv.invoice_number}</span>
-                          <span className="text-sm font-semibold tabular-nums">${Number(inv.balance_due).toFixed(2)}</span>
+                          <span className="text-sm font-semibold tabular-nums">{curSym}{Number(inv.balance_due).toFixed(2)}</span>
                         </div>
                         <div className="space-y-0.5">
                           {(inv.items || []).map((item) => (
@@ -2730,23 +2731,23 @@ const PublicHelloChat: React.FC = () => {
                   <div className="space-y-1 text-sm border-t pt-2">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Total</span>
-                      <span className="tabular-nums">${payInvTotal.toFixed(2)}</span>
+                      <span className="tabular-nums">{curSym}{payInvTotal.toFixed(2)}</span>
                     </div>
                     {payInvCredit > 0 && (
                       <>
                         <div className="flex items-center justify-between text-green-700">
                           <span>Credit used</span>
-                          <span className="tabular-nums">−${payInvCredit.toFixed(2)}</span>
+                          <span className="tabular-nums">−{curSym}{payInvCredit.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                           <span>Credit remaining after this</span>
-                          <span className="tabular-nums">${payInvCreditRemaining.toFixed(2)}</span>
+                          <span className="tabular-nums">{curSym}{payInvCreditRemaining.toFixed(2)}</span>
                         </div>
                       </>
                     )}
                     <div className="flex items-center justify-between pt-1">
                       <span className="font-semibold">Amount to pay</span>
-                      <span className="text-base font-bold tabular-nums">${payInvAmountDue.toFixed(2)}</span>
+                      <span className="text-base font-bold tabular-nums">{curSym}{payInvAmountDue.toFixed(2)}</span>
                     </div>
                   </div>
 
