@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { currencyForCountry, formatCurrency } from './currencyUtils';
 
 describe('invoice currency', () => {
