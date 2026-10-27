@@ -1519,7 +1519,7 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={!isAllBranch && ['rental', 'external-invoices', 'ai-document'].includes(activeTab) ? 'summary' : activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1 p-1 [&>button]:whitespace-normal [&>button]:text-center [&>button]:leading-tight [&>button]:min-w-[5.5rem] [&>button]:flex-1 [&>button]:basis-auto [&>button]:py-1.5">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
@@ -1529,9 +1529,9 @@ const PublicGradingList: React.FC = () => {
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="seminars">Seminars</TabsTrigger>
             <TabsTrigger value="guards">Uniforms & Guards</TabsTrigger>
-            <TabsTrigger value="rental">Studio Rental</TabsTrigger>
-            <TabsTrigger value="external-invoices">External Invoices</TabsTrigger>
-            <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>
+            {isAllBranch && <TabsTrigger value="rental">Studio Rental</TabsTrigger>}
+            {isAllBranch && <TabsTrigger value="external-invoices">External Invoices</TabsTrigger>}
+            {isAllBranch && <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>}
           </TabsList>
           <TabsContent value="rental" className="mt-4">
             <StudioRentalTab
