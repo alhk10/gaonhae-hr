@@ -554,10 +554,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     })();
   }, [formData.branch_id, invoice?.branch_id, products, viewProducts, isCreateMode]);
 
-  // When entering edit mode, initialize from invoice
+  // When entering edit mode, initialize from invoice (once per invoice load; don't wait for products)
+  const editInitKey = useRef<string | null>(null);
   useEffect(() => {
-    if (mode === 'edit' && invoice && viewProducts.length > 0) {
-      const items: EditableItem[] = invoice.items.map((item) => {
+    if (mode !== 'edit' || !dialogOpen) { editInitKey.current = null; }
+  }, [mode, dialogOpen]);
+  useEffect(() => {
+    if (mode === 'edit' && invoice && editInitKey.current !== invoice.id) {
+      editInitKey.current = invoice.id;
+      const items: EditableItem[] = (invoice.items || []).map((item) => {
         const product = viewProducts.find(p => p.id === item.product_id);
         const meta = item.metadata as any;
         const lineDiscount = meta?.line_discount;
@@ -583,7 +588,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       setEditItems(items.map(recalcItem));
 
       const slots: Record<string, string[]> = {};
-      invoice.items.forEach((item) => {
+      (invoice.items || []).forEach((item) => {
         const metadata = item.metadata as any;
         if (metadata?.selected_class_slots) slots[item.id] = [...metadata.selected_class_slots];
       });
@@ -591,6 +596,18 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       setEditIssueDate(invoice.issue_date || '');
     }
   }, [mode, invoice, viewProducts, branches]);
+
+  // Enrich edit lines with product details once products arrive
+  useEffect(() => {
+    if (mode !== 'edit' || viewProducts.length === 0) return;
+    setEditItems(prev => prev.some(i => i.product_id && i.category_name === undefined)
+      ? prev.map(i => {
+          if (!i.product_id || i.category_name !== undefined) return i;
+          const p = viewProducts.find(x => x.id === i.product_id);
+          return p ? { ...i, category_name: p.category_name, is_lesson: p.is_lesson } : i;
+        })
+      : prev);
+  }, [mode, viewProducts]);
 
   // Load term data and timetable times when invoice loads (view/edit)
   useEffect(() => {
@@ -678,8 +695,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const loadViewProducts = async () => {
     try {
-      const result = await getProducts(1, 1000);
-      setViewProducts(result.products);
+      const result = accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000);
+      setViewProducts(result.products as any);
     } catch { console.error('Error loading products'); }
   };
 
