@@ -1501,6 +1501,23 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const saveOrSubmitAdjustment = async (convertOverpaymentToCredit: boolean) => {
     if (!invoice) return;
+    const isDraftInvoice = String((invoice as any).status || '') === 'draft';
+    if (isDraftInvoice && !isSuperadmin && accessMode && !user) {
+      try {
+        setSaving(true);
+        const { error } = await (supabase as any).rpc('access_apply_draft_invoice_edit', {
+          p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoice.id,
+          p_request: { editItems, editTotals },
+        });
+        if (error) throw error;
+        toast.success('Draft invoice updated');
+        onInvoiceUpdated?.();
+        setDialogOpen(false);
+      } catch (error: any) { toast.error(`Failed: ${error.message}`); }
+      finally { setSaving(false); }
+      return;
+    }
+    if (isDraftInvoice && user) { await handleSave(convertOverpaymentToCredit); return; }
     if (!isSuperadmin && accessMode && !user) {
       try {
         setSaving(true);
