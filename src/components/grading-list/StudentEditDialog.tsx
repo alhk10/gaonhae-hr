@@ -86,7 +86,11 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
     return toISODate(new Date(parseInt(editYear), parseInt(editMonth), d));
   }, [editDay, editMonth, editYear]);
   const [editEmployee, setEditEmployee] = useState(false);
+  const [editDisplay, setEditDisplay] = useState('');
+  const [editCert, setEditCert] = useState('');
   const openEdit = (r: PublicStudentDirectoryRow) => {
+    setEditDisplay(r.display_name || '');
+    setEditCert(r.certificate_name || '');
     setEditRow(r);
     setEditEmployee(!!r.is_employee);
     setEditBelt(r.current_belt || '');
@@ -205,6 +209,16 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
               <div className="space-y-1">
                 <label className="text-xs font-medium">Last name</label>
                 <Input className="h-9" value={editLast} onChange={(e) => setEditLast(e.target.value.toUpperCase())} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Display name</label>
+                <Input className="h-9" value={editDisplay} onChange={(e) => setEditDisplay(e.target.value.toUpperCase())} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Certificate name</label>
+                <Input className="h-9" value={editCert} onChange={(e) => setEditCert(e.target.value.toUpperCase())} />
               </div>
             </div>
             <div className="space-y-1">
