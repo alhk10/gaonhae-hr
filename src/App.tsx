@@ -187,15 +187,6 @@ function App() {
                     
                     {/* Branch Dashboard Route */}
                     <Route path="/branch-dashboard" element={<ProtectedRoute><BranchDashboardPage /></ProtectedRoute>} />
-                    
-                    {/* Partner-only Routes */}
-                    <Route path="/branch-profit-loss" element={
-                      <AuthGuard>
-                        <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
-                          <BranchProfitLoss />
-                        </PositionAccessGuard>
-                      </AuthGuard>
-                    } />
                     <Route path="/miscellaneous" element={
                       <AuthGuard>
                         <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>

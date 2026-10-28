@@ -7961,6 +7961,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      access_apply_draft_invoice_edit: {
+        Args: { p_invoice_id: string; p_password: string; p_request: Json }
+        Returns: undefined
+      }
       access_attendance_add: {
         Args: {
           p_date: string
@@ -8046,6 +8050,10 @@ export type Database = {
           p_password: string
         }
         Returns: string
+      }
+      access_delete_draft_invoice: {
+        Args: { p_invoice_id: string; p_password: string; p_reason?: string }
+        Returns: undefined
       }
       access_get_invoice_for_edit: {
         Args: { p_invoice_id: string; p_password: string }

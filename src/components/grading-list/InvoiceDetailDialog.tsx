@@ -66,6 +66,8 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
 
   const isPaid = ['paid', 'verified', 'partially_paid'].includes(String(detail?.status || '')) || Number(detail?.amount_paid || 0) > 0;
 
+  const isDraft = String(detail?.status || '') === 'draft';
+  const direct = isSuperadmin || isDraft;
   const isExternal = !!detail?.customer_type && detail.customer_type !== 'student';
   const canRefund = isPaid && !isExternal && !['cancelled', 'refunded'].includes(String(detail?.status || ''));
   const refundPending = (pending.refund_item_ids?.length || 0) > 0;
@@ -77,12 +79,21 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
 
   const submitAction = async () => {
     if (!invoiceId || !action) return;
-    if (!text.trim()) { toast.error(action === 'edit' ? 'Describe the change' : 'Enter a reason'); return; }
+    if (!(action === 'delete' && isDraft) && !text.trim()) { toast.error(action === 'edit' ? 'Describe the change' : 'Enter a reason'); return; }
     setBusy(true);
     try {
       if (action === 'delete' && isSuperadmin) {
         if (isPaid) await cancelInvoice(invoiceId); else await deleteInvoice(invoiceId);
         toast.success(isPaid ? 'Invoice cancelled and refunded to credit' : 'Invoice deleted');
+        setAction(null); onOpenChange(false); return;
+      }
+      if (action === 'delete' && isDraft) {
+        if (signedIn) await deleteInvoice(invoiceId);
+        else {
+          const { error } = await (supabase as any).rpc('access_delete_draft_invoice', { p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoiceId, p_reason: text || null });
+          if (error) throw error;
+        }
+        toast.success('Draft invoice deleted');
         setAction(null); onOpenChange(false); return;
       }
       const fn = action === 'edit' ? 'submit_access_invoice_edit_request' : 'submit_access_invoice_deletion_request';
@@ -163,7 +174,7 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
         {action && (
           <div className="space-y-2 rounded-md border p-3">
             <p className="text-xs font-medium">
-              {action === 'edit' ? 'Describe the change needed' : isSuperadmin
+              {action === 'edit' ? 'Describe the change needed' : (isDraft && !isSuperadmin) ? 'Delete this draft invoice?' : isSuperadmin
                 ? (isPaid ? `Cancel this invoice and refund $${Number(detail?.amount_paid || 0).toFixed(2)} paid to student credit?` : 'Delete this invoice with its items, entitlements, bookings and payments?')
                 : 'Why should this invoice be deleted?'}
             </p>
@@ -172,13 +183,13 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
                 {detail.invoice_number} · {detail.student?.name} · Total ${Number(detail.total_amount).toFixed(2)} · Paid ${Number(detail.amount_paid).toFixed(2)}
               </p>
             )}
-            <Textarea value={text} onChange={(e) => setText(e.target.value)} className="text-xs" rows={3} placeholder={action === 'edit' ? 'e.g. Change 1x Weekend to 2x Weekend' : 'Reason'} />
-            {!isSuperadmin && <p className="text-[11px] text-muted-foreground">This goes to a superadmin for approval. The invoice stays unchanged until then.</p>}
+            <Textarea value={text} onChange={(e) => setText(e.target.value)} className="text-xs" rows={3} placeholder={action === 'edit' ? 'e.g. Change 1x Weekend to 2x Weekend' : isDraft ? 'Reason (optional)' : 'Reason'} />
+            {!direct && <p className="text-[11px] text-muted-foreground">This goes to a superadmin for approval. The invoice stays unchanged until then.</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" className="text-xs" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>
               <Button variant={action === 'delete' ? 'destructive' : 'default'} size="sm" className="text-xs" onClick={submitAction} disabled={busy}>
                 {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                {isSuperadmin && action === 'delete' ? (isPaid ? 'Cancel & refund' : 'Delete') : 'Send for approval'}
+                {action === 'delete' && direct ? (isSuperadmin && isPaid ? 'Cancel & refund' : 'Delete') : 'Send for approval'}
               </Button>
             </div>
           </div>
