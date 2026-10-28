@@ -118,7 +118,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
   });
 
   const isAllBranch = (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
-  const rows = React.useMemo(() => {
+  const [showEmployees, setShowEmployees] = useState(false);
+  const rowsAll = React.useMemo(() => {
     if (payFilter === 'all') return sortAccessStudents(allRows);
     return sortAccessStudents(allRows.filter((r) => {
       const st = normalizeStatus(r.invoice_status);
@@ -135,8 +136,9 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
       }
     }));
   }, [allRows, payFilter]);
-  const studentCount = rows.filter((r) => !r.is_employee).length;
-  const employeeCount = rows.length - studentCount;
+  const rows = React.useMemo(() => (showEmployees ? rowsAll : rowsAll.filter((r) => !r.is_employee)), [rowsAll, showEmployees]);
+  const employeeCount = rows.filter((r) => r.is_employee).length;
+  const studentCount = rows.length - employeeCount;
 
   const { data: branches = [] } = useQuery({
     queryKey: ['public-branches'],
@@ -180,6 +182,12 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
             <SelectItem value="withdrawn">withdrawn</SelectItem>
           </SelectContent>
         </Select>
+        {isAllBranch && (
+          <label className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+            <input type="checkbox" checked={showEmployees} onChange={(e) => setShowEmployees(e.target.checked)} />
+            Show employees
+          </label>
+        )}
         <Select value={payFilter} onValueChange={setPayFilter}>
           <SelectTrigger className="w-full sm:w-[190px] h-9">
             <SelectValue placeholder="All term payments" />

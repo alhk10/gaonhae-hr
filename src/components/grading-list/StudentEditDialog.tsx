@@ -193,7 +193,7 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
             <DialogDescription>
-              {editRow?.name} — update details, belt, branch or status. Withdrawal requires superadmin approval and is not available here.
+              {editRow?.name} — update details, belt, branch or status.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -339,6 +339,7 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
                   <SelectItem value="active">active</SelectItem>
                   <SelectItem value="trial">trial</SelectItem>
                   <SelectItem value="inactive">inactive</SelectItem>
+                  <SelectItem value="withdrawn">withdrawn</SelectItem>
                 </SelectContent>
               </Select>
             </div>
