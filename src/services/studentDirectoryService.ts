@@ -10,6 +10,8 @@ export interface PublicStudentDirectoryRow {
   name: string;
   first_name: string | null;
   last_name: string | null;
+  display_name?: string | null;
+  certificate_name?: string | null;
   current_belt: string | null;
   branch_id: string | null;
   branch_name: string | null;
@@ -193,6 +195,13 @@ export async function adminUpdateStudentBasic(
     p_alt_phones: updates.altPhones ?? null,
     p_clear_email: updates.clearEmail === true,
     p_clear_phone: updates.clearPhone === true,
+  });
+  if (error) throw error;
+}
+
+export async function adminUpdateStudentNames(studentId: string, displayName: string, certificateName: string, actor: string): Promise<void> {
+  const { error } = await (supabase as any).rpc('admin_update_student_names', {
+    p_student_id: studentId, p_display_name: displayName, p_certificate_name: certificateName, p_actor: actor,
   });
   if (error) throw error;
 }
