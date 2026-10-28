@@ -8550,6 +8550,15 @@ export type Database = {
         Args: { p_certificate_name: string; p_student_id: string }
         Returns: undefined
       }
+      admin_update_student_names: {
+        Args: {
+          p_actor: string
+          p_certificate_name: string
+          p_display_name: string
+          p_student_id: string
+        }
+        Returns: undefined
+      }
       admin_upsert_competition_event:
         | {
             Args: {
@@ -9637,11 +9646,13 @@ export type Database = {
         Returns: {
           branch_id: string
           branch_name: string
+          certificate_name: string
           class_group: string
           class_type: string
           credit_balance: number
           current_belt: string
           date_of_birth: string
+          display_name: string
           email: string
           enrolled_weekdays: string[]
           first_name: string
