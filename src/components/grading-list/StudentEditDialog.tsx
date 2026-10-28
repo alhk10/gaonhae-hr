@@ -25,6 +25,7 @@ import StatusBadge, { normalizeStatus } from './StatusBadge';
 import {
   getPublicStudentDirectory,
   adminUpdateStudentBasic,
+  adminUpdateStudentNames,
   getStudentContacts,
   setStudentEmployee,
   type PublicStudentDirectoryRow,
@@ -175,6 +176,9 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
         },
         actor,
       );
+      if (editDisplay.trim() !== (editRow.display_name || '') || editCert.trim() !== (editRow.certificate_name || '')) {
+        await adminUpdateStudentNames(editRow.id, editDisplay.trim(), editCert.trim(), actor);
+      }
       if (isAllBranch && editEmployee !== !!editRow.is_employee) {
         await setStudentEmployee(editRow.id, editEmployee);
       }

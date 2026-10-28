@@ -296,7 +296,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                       {r.is_employee && <Badge variant="secondary" className="ml-1 text-[10px]">Employee</Badge>}
                       {r.class_group && <Badge variant="outline" className="ml-1 text-[10px]">{r.class_group}</Badge>}
                       <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}
+                        {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}{(() => { const legal = [r.first_name, r.last_name].filter(Boolean).join(' ').toUpperCase(); const parts = [r.display_name && r.display_name.toUpperCase() !== legal ? `Display: ${r.display_name}` : '', r.certificate_name && r.certificate_name.toUpperCase() !== legal ? `Cert: ${r.certificate_name}` : ''].filter(Boolean); return parts.length ? <span className="block">{parts.join(' · ')}</span> : null; })()}
                       </div>
                     </TableCell>
                     <TableCell className="py-2 text-sm whitespace-nowrap" data-field="belt" data-label="Belt">{r.current_belt || '—'}</TableCell>
