@@ -336,3 +336,62 @@ export const getAllStudentCredits = async (): Promise<StudentCreditSummary[]> =>
     .filter(s => Math.abs(s.credit_balance) > 0.01)
     .sort((a, b) => b.credit_balance - a.credit_balance);
 };
+
+export interface CreditLedgerRow extends StudentCredit {
+  student_name: string;
+  invoice_id: string | null;
+  invoice_number: string | null;
+  balance_after: number;
+}
+
+/** Running balance per student, computed oldest → newest. Returns rows newest first. */
+export const withRunningBalance = <T extends { student_id: string; amount: number; created_at: string; id: string }>(
+  rows: T[]
+): (T & { balance_after: number })[] => {
+  const asc = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+  const bal = new Map<string, number>();
+  const out = asc.map(r => {
+    const next = Math.round(((bal.get(r.student_id) ?? 0) + Number(r.amount)) * 100) / 100;
+    bal.set(r.student_id, next);
+    return { ...r, balance_after: next };
+  });
+  return out.reverse();
+};
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** Full credit ledger (optionally one student) with names, invoice links and running balances. */
+export const getCreditLedger = async (studentId?: string): Promise<CreditLedgerRow[]> => {
+  const all: StudentCredit[] = [];
+  for (let from = 0; ; from += 1000) {
+    let q = supabase.from('student_credits').select('*').order('created_at', { ascending: true }).range(from, from + 999);
+    if (studentId) q = q.eq('student_id', studentId);
+    const { data, error } = await q;
+    if (error) throw error;
+    all.push(...((data || []) as StudentCredit[]));
+    if (!data || data.length < 1000) break;
+  }
+  const refIds = Array.from(new Set(all.map(c => c.reference_id?.match(UUID_RE)?.[0]).filter(Boolean) as string[]));
+  const studentIds = Array.from(new Set(all.map(c => c.student_id)));
+  const invMap = new Map<string, { id: string; invoice_number: string }>();
+  const nameMap = new Map<string, string>();
+  for (let i = 0; i < refIds.length; i += 200) {
+    const chunk = refIds.slice(i, i + 200);
+    const { data: invs } = await supabase.from('invoices').select('id, invoice_number').in('id', chunk);
+    (invs || []).forEach(v => invMap.set(v.id, v as any));
+    const missing = chunk.filter(id => !invMap.has(id));
+    if (missing.length) {
+      const { data: items } = await supabase.from('invoice_items').select('id, invoice_id, invoices(id, invoice_number)').in('id', missing);
+      (items || []).forEach((it: any) => it.invoices && invMap.set(it.id, it.invoices));
+    }
+  }
+  for (let i = 0; i < studentIds.length; i += 200) {
+    const { data: st } = await supabase.from('students').select('id, first_name, last_name').in('id', studentIds.slice(i, i + 200));
+    (st || []).forEach((s: any) => nameMap.set(s.id, `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()));
+  }
+  return withRunningBalance(all.map(c => ({ ...c, amount: Number(c.amount) }))).map(c => {
+    const ref = c.reference_id?.match(UUID_RE)?.[0];
+    const inv = ref ? invMap.get(ref) : undefined;
+    return { ...c, student_name: nameMap.get(c.student_id) || 'Unknown', invoice_id: inv?.id ?? null, invoice_number: inv?.invoice_number ?? null };
+  });
+};
