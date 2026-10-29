@@ -1,6 +1,6 @@
-/**
-import { helloShowsGrading } from "@/utils/gradingReady";
 import { supabase } from "@/integrations/supabase/client";
+import { helloShowsGrading } from "@/utils/gradingReady";
+/**
  * Public /hello — mobile-first chat-style workflow.
  * Steps: identify -> (match? payment : choice) -> payment/register/trial/callback
  * Persistent "Not what I'm looking for" escape hatch -> Callback (emails hello@gaonhaetaekwondo.com).
