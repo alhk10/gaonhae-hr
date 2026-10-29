@@ -10,3 +10,12 @@ const got = JSON.stringify(rows.map(r => [r.id, r.balance_after]));
 const want = JSON.stringify([['c', 50], ['b', 70], ['a', 100]]);
 if (got !== want) throw new Error(`running balance wrong: ${got}`);
 console.log('credit running balance: ok');
+
+import { isCreditReversible } from '@/services/studentCreditService';
+// Rule: reversed lines, reversal lines and hold/pending lines cannot be reversed.
+const done = new Set(['x']);
+if (isCreditReversible({ type: 'credit_applied', reference_id: 'inv' }, done, 'x')) throw new Error('reversed line reversible');
+if (isCreditReversible({ type: 'manual_adjustment', reference_id: 'reversal:x' }, done, 'y')) throw new Error('reversal reversible');
+if (isCreditReversible({ type: 'credit_hold', reference_id: null }, done, 'z')) throw new Error('hold reversible');
+if (!isCreditReversible({ type: 'credit_applied', reference_id: 'inv' }, done, 'w')) throw new Error('normal line not reversible');
+console.log('credit reversible rule: ok');

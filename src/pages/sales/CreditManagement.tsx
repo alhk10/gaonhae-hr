@@ -29,6 +29,7 @@ import {
   type CreditStudentOption,
   type StudentCreditSummary,
   getCreditLedger,
+  reverseStudentCredit,
   type CreditLedgerRow,
 } from '@/services/studentCreditService';
 import CreditLedgerTable, { creditTypeLabel } from '@/components/credits/CreditLedgerTable';
@@ -178,6 +179,24 @@ const CreditManagement: React.FC = () => {
     }
   };
 
+  const [reverseRow, setReverseRow] = useState<CreditLedgerRow | null>(null);
+  const [reverseReason, setReverseReason] = useState('');
+  const [reversing, setReversing] = useState(false);
+  const confirmReverse = async () => {
+    if (!reverseRow || !reverseReason.trim()) return;
+    setReversing(true);
+    try {
+      await reverseStudentCredit(reverseRow.id, reverseReason.trim());
+      toast.success('Credit reversed');
+      setReverseRow(null); setReverseReason('');
+      await loadCredits();
+      if (view === 'transactions') await loadLedger(); else setLedger(null);
+      if (historyOpen && selectedStudent) setCreditHistory(await getCreditLedger(selectedStudent.student_id));
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Reverse failed'); }
+    finally { setReversing(false); }
+  };
+  const onReverse = isSuperadmin ? (r: CreditLedgerRow) => { setReverseReason(''); setReverseRow(r); } : undefined;
+
   const loadLedger = async () => {
     setLedgerLoading(true);
     try { setLedger(await getCreditLedger()); }
@@ -302,7 +321,7 @@ const CreditManagement: React.FC = () => {
                   <Button variant="outline" size="sm" className="ml-auto" onClick={exportCsv} disabled={!ledgerFiltered.length}>Export CSV</Button>
                 </div>
                 {ledgerLoading ? <p className="text-center py-6 text-muted-foreground">Loading...</p> :
-                  <CreditLedgerTable rows={ledgerFiltered} showStudent onStudentClick={openStudentHistory} onInvoiceClick={openInvoice} />}
+                  <CreditLedgerTable rows={ledgerFiltered} showStudent onStudentClick={openStudentHistory} onInvoiceClick={openInvoice} onReverse={onReverse} />}
               </CardContent>
             </Card>
           )}
@@ -382,13 +401,36 @@ const CreditManagement: React.FC = () => {
                 {historyLoading ? (
                   <p className="text-center py-4 text-muted-foreground">Loading...</p>
                 ) : (
-                  <CreditLedgerTable rows={creditHistory} onInvoiceClick={openInvoice} />
+                  <CreditLedgerTable rows={creditHistory} onInvoiceClick={openInvoice} onReverse={onReverse} />
                 )}
               </div>
             </DialogContent>
           </Dialog>
 
           <InvoiceDetailDialog invoiceId={invoiceView?.id ?? null} invoiceNumber={invoiceView?.number ?? null} open={!!invoiceView} onOpenChange={(o) => { if (!o) setInvoiceView(null); }} />
+
+          <Dialog open={!!reverseRow} onOpenChange={(o) => { if (!o) setReverseRow(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reverse credit line</DialogTitle>
+                <DialogDescription>
+                  {reverseRow && <>{reverseRow.student_name} · {creditTypeLabel(reverseRow.type)} · {reverseRow.amount >= 0 ? '+' : '-'}${Math.abs(reverseRow.amount).toFixed(2)} · {formatDate(new Date(reverseRow.created_at))}</>}
+                </DialogDescription>
+              </DialogHeader>
+              {reverseRow && <p className="text-sm text-muted-foreground">{reverseRow.description}</p>}
+              {reverseRow?.type === 'credit_applied' && reverseRow.invoice_number && (
+                <p className="text-sm text-destructive">The credit will also be removed from {reverseRow.invoice_number}, so that amount will be owing again.</p>
+              )}
+              <div className="space-y-1">
+                <Label>Reason</Label>
+                <Textarea value={reverseReason} onChange={e => setReverseReason(e.target.value)} placeholder="Why is this being reversed?" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReverseRow(null)}>Cancel</Button>
+                <Button variant="destructive" disabled={!reverseReason.trim() || reversing} onClick={confirmReverse}>{reversing ? 'Reversing...' : 'Reverse'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Adjustment Dialog */}
           <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>

@@ -8440,6 +8440,10 @@ export type Database = {
         Args: { p_action: string; p_note?: string; p_payment_id: string }
         Returns: undefined
       }
+      admin_reverse_student_credit: {
+        Args: { p_credit_id: string; p_reason: string }
+        Returns: string
+      }
       admin_review_studio_rental: {
         Args: { p_by: string; p_id: string; p_note?: string; p_status: string }
         Returns: undefined
