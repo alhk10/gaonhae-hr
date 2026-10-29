@@ -7892,6 +7892,29 @@ export type Database = {
         }[]
       }
       _next_invoice_number: { Args: never; Returns: string }
+      _payment_counted_amount: {
+        Args: { p: Database["public"]["Tables"]["payments"]["Row"] }
+        Returns: number
+      }
+      _payment_shortage_rows: {
+        Args: never
+        Returns: {
+          amount: number
+          balance_due: number
+          branch_id: string
+          branch_name: string
+          country: string
+          created_at: string
+          invoice_id: string
+          invoice_number: string
+          payment_id: string
+          payment_method: string
+          proof_url: string
+          scanned_amount: number
+          shortfall: number
+          student_name: string
+        }[]
+      }
       _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
       _perth_name_match: {
         Args: {
@@ -8062,6 +8085,25 @@ export type Database = {
       access_get_invoice_for_edit: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
+      }
+      access_list_payment_shortages: {
+        Args: { p_password: string }
+        Returns: {
+          amount: number
+          balance_due: number
+          branch_id: string
+          branch_name: string
+          country: string
+          created_at: string
+          invoice_id: string
+          invoice_number: string
+          payment_id: string
+          payment_method: string
+          proof_url: string
+          scanned_amount: number
+          shortfall: number
+          student_name: string
+        }[]
       }
       access_record_payment: {
         Args: {
@@ -8303,6 +8345,25 @@ export type Database = {
           title: string
         }[]
       }
+      admin_list_payment_shortages: {
+        Args: never
+        Returns: {
+          amount: number
+          balance_due: number
+          branch_id: string
+          branch_name: string
+          country: string
+          created_at: string
+          invoice_id: string
+          invoice_number: string
+          payment_id: string
+          payment_method: string
+          proof_url: string
+          scanned_amount: number
+          shortfall: number
+          student_name: string
+        }[]
+      }
       admin_mark_seminar_collected: {
         Args: { p_by: string; p_collected: boolean; p_id: string }
         Returns: undefined
@@ -8373,6 +8434,10 @@ export type Database = {
           new_salt: string
           target_email: string
         }
+        Returns: undefined
+      }
+      admin_resolve_payment_shortage: {
+        Args: { p_action: string; p_note?: string; p_payment_id: string }
         Returns: undefined
       }
       admin_review_studio_rental: {

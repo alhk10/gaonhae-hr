@@ -32,6 +32,7 @@ import SubmissionDeleteApprovals from './SubmissionDeleteApprovals';
 import { getPendingSubmissionDeletionRequestsCount } from '@/services/submissionDeletionRequestService';
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
+import PaymentShortageList from '@/components/common/PaymentShortageList';
 import UnifiedSubmissionApprovals from './UnifiedSubmissionApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
@@ -223,6 +224,7 @@ const SuperadminDashboard = () => {
         <LeaveApprovals />
         <InvoiceDiscountApprovals />
         <InvoiceActionApprovals />
+        <PaymentShortageList mode="superadmin" />
         <PaymentVerificationApprovals />
         <FailedScheduleAlerts />
         <UnifiedSubmissionApprovals />

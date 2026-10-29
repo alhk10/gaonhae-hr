@@ -15,6 +15,7 @@ import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
+import PaymentShortageList from '@/components/common/PaymentShortageList';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -306,6 +307,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
       <p className="text-[11px] text-muted-foreground -mt-2">
         Current = active and trial students. Paid / Unpaid / No invoice is based on each student's current-term invoice.
       </p>
+
+      <PaymentShortageList mode="access" lockedBranchName={lockedBranchName} />
 
       {/* 2. Approvals & verifications */}
       <Card>
