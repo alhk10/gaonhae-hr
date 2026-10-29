@@ -89,7 +89,14 @@ export interface LessonBooking {
   date_of_birth?: string | null;
   student_status?: string | null;
   term_payment?: 'paid' | 'unpaid' | 'none' | null;
+  term_id?: string | null;
+  grading?: { ready: boolean; paid: boolean } | null;
 }
+
+export const setReadyForGrading = (studentId: string, termId: string, ready: boolean) =>
+  rpc<{ ready: boolean; paid: boolean }>('access_set_ready_for_grading', {
+    p_password: accessPassword(), p_student_id: studentId, p_term_id: termId, p_ready: ready,
+  });
 
 export interface AttendanceWeek {
   slots: TimetableSlot[];
