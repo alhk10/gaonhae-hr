@@ -17,14 +17,17 @@ export type Database = {
       access_unlock_passwords: {
         Row: {
           branch_id: string | null
+          label: string | null
           password_hash: string
         }
         Insert: {
           branch_id?: string | null
+          label?: string | null
           password_hash: string
         }
         Update: {
           branch_id?: string | null
+          label?: string | null
           password_hash?: string
         }
         Relationships: []
@@ -7861,6 +7864,7 @@ export type Database = {
         Args: { p_branch_id: string; p_password: string }
         Returns: string
       }
+      _access_require_all: { Args: { p_password: string }; Returns: undefined }
       _access_scope: { Args: { p_password: string }; Returns: string }
       _activate_trial_for_invoice: {
         Args: { p_invoice: string }
@@ -8108,6 +8112,31 @@ export type Database = {
           shortfall: number
           student_name: string
         }[]
+      }
+      access_password_delete: {
+        Args: { p_key: string; p_password: string }
+        Returns: undefined
+      }
+      access_password_list: {
+        Args: { p_password: string }
+        Returns: {
+          branch_ids: string[]
+          is_all: boolean
+          is_self: boolean
+          label: string
+          password_key: string
+        }[]
+      }
+      access_password_save: {
+        Args: {
+          p_all: boolean
+          p_branch_ids: string[]
+          p_key: string
+          p_label: string
+          p_new_password: string
+          p_password: string
+        }
+        Returns: string
       }
       access_record_payment: {
         Args: {
