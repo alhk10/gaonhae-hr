@@ -130,25 +130,13 @@ const isWithinResultWindow = (gradingDate: string | null | undefined): boolean =
 };
 
 
-const ADMIN_UNLOCK_PASSWORD = 'Hp97533488';
-// Branch-scoped passwords: same abilities as the standard password, but every
-// list, count and dropdown is locked to that one branch.
-// A password may cover several branches; staff switch between them.
-const BRANCH_UNLOCK_PASSWORDS: Record<string, string[]> = {
-  Hp96706488: ['balmoral'],
-  Hp89234866: ['bukit-merah', 'BR1769014316844'], // + Carpe Diem Stradia
-  Hp84944041: ['kembangan'],
-  Hp84128821: ['yishun'],
-  Hp88769491: ['jurong-west'],
-};
+// Passwords and their branches are checked server-side via access_unlock (managed in the Passwords tab).
 const LOCKED_BRANCH_KEY = 'guards_list_locked_branch_v1';
 const ALLOWED_BRANCHES_KEY = 'guards_list_allowed_branches_v1';
 const readAllowedBranches = (): string[] => {
   try {
     const raw = sessionStorage.getItem(ALLOWED_BRANCHES_KEY);
     if (raw) return JSON.parse(raw);
-    const pw = sessionStorage.getItem('access_pw_v1');
-    if (pw && BRANCH_UNLOCK_PASSWORDS[pw]) return BRANCH_UNLOCK_PASSWORDS[pw];
     const one = sessionStorage.getItem(LOCKED_BRANCH_KEY);
     return one ? [one] : [];
   } catch { return []; }
@@ -426,10 +414,12 @@ const PublicGradingList: React.FC = () => {
   // Common selected date across mass-edit selection (if all share one date)
   // Declared below after selectedRows; see massSlotsQuery.
 
-  const handleUnlock = () => {
-    const branchIds = BRANCH_UNLOCK_PASSWORDS[pwInput];
-    const branchId = branchIds?.[0];
-    if (pwInput === ADMIN_UNLOCK_PASSWORD) {
+  const handleUnlock = async () => {
+    const { data: scope, error: scopeErr } = await (supabase.rpc as any)('access_unlock', { p_password: pwInput });
+    if (scopeErr || !scope) { toast.error('Incorrect password'); return; }
+    const branchIds: string[] = scope.branch_ids || [];
+    const branchId = branchIds[0];
+    if (scope.is_all) {
       setUnlockLevel('standard');
       setLockedBranchId(null);
       setAllowedBranchIds([]);
@@ -2030,7 +2020,7 @@ const PublicGradingList: React.FC = () => {
 
           <TabsContent value="ai-document" className="mt-4">
             <AiDocumentTab
-              password={ADMIN_UNLOCK_PASSWORD}
+              password={sessionStorage.getItem('access_pw_v1') || ''}
             />
           </TabsContent>
         </Tabs>
