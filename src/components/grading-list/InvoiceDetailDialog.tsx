@@ -27,6 +27,7 @@ import { getPublicInvoiceFull } from '@/services/publicInvoiceService';
 import { getInvoicePDFBlob } from '@/utils/invoicePDFGenerator';
 import { formatDate } from '@/utils/dateFormat';
 import PdfPagesPreview from '@/components/common/PdfPagesPreview';
+import InvoicePaymentsList from './InvoicePaymentsList';
 
 interface Props {
   invoiceId: string | null;
@@ -171,6 +172,15 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
         ) : url ? (
           <PdfPagesPreview url={url} />
         ) : null}
+        {invoiceId && detail && (
+          <InvoicePaymentsList
+            invoiceId={invoiceId}
+            signedIn={signedIn}
+            reloadKey={reloadKey}
+            balance={Math.max(0, balance)}
+            currency={String(detail?.branch?.country || detail?.branch_country || '').toLowerCase().startsWith('au') ? 'A$' : 'S$'}
+          />
+        )}
         {action && (
           <div className="space-y-2 rounded-md border p-3">
             <p className="text-xs font-medium">
