@@ -355,6 +355,17 @@ const PublicHelloChat: React.FC = () => {
     retry: 2,
   });
 
+  const { data: gradingEligibility } = useQuery({
+    queryKey: ['hello-grading-eligibility', sessionId, matched?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('hello_grading_eligibility' as any, { p_session_id: sessionId, p_student_id: matched!.id } as any);
+      if (error) throw error;
+      return data as { ready: boolean; paid: boolean };
+    },
+    enabled: !!sessionId && !!matched?.id && sessionLinked,
+  });
+  const showGradingOption = helloShowsGrading(gradingEligibility);
+
   useEffect(() => {
     if ((stage === 'payment_pay' || stage === 'competition' || stage === 'pay_invoice') && sessionLinked && matched?.id) refetchCredit();
   }, [stage, sessionLinked, matched?.id, refetchCredit]);
@@ -1591,7 +1602,7 @@ const PublicHelloChat: React.FC = () => {
                   </Button>
                   {(() => {
                     const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
-                    if (!cat) return null;
+                    if (!cat || !showGradingOption) return null;
                     return (
                       <Button
                         onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
@@ -2369,7 +2380,7 @@ const PublicHelloChat: React.FC = () => {
               <Bubble who="bot">What would you like to pay for?</Bubble>
               <Card>
                 <CardContent className="p-3 grid grid-cols-1 gap-2">
-                  {CATEGORIES.map(c => (
+                  {CATEGORIES.filter(c => c.id !== GRADING_CATEGORY_ID || showGradingOption).map(c => (
                     <Button
                       key={c.id}
                       variant="outline"
