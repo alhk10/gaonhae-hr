@@ -7871,6 +7871,10 @@ export type Database = {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
       }
+      _grading_ready_state: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: Json
+      }
       _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _lesson_balance: {
@@ -8079,6 +8083,15 @@ export type Database = {
           p_note?: string
           p_password: string
           p_refund_date?: string
+        }
+        Returns: Json
+      }
+      access_set_ready_for_grading: {
+        Args: {
+          p_password: string
+          p_ready: boolean
+          p_student_id: string
+          p_term_id: string
         }
         Returns: Json
       }
@@ -9871,6 +9884,10 @@ export type Database = {
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
+      hello_grading_eligibility: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: Json
+      }
       hello_submit_lesson_request: {
         Args: {
           p_bookings: Json
