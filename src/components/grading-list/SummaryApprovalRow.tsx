@@ -39,7 +39,6 @@ interface Props {
 }
 
 const money = (n: number | null | undefined) => (n == null ? '—' : `$${Number(n).toFixed(2)}`);
-const isUrl = (u?: string | null) => !!u && /^https?:\/\//.test(u);
 
 const details = (type: PaymentApprovalType, r: any): string[] => {
   const out: string[] = [];
