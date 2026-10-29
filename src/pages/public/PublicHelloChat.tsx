@@ -7,6 +7,8 @@ import { helloShowsGrading } from "@/utils/gradingReady";
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getPublicCompetitionEvents } from '@/services/competitionPaymentSubmissionService';
+import { isPastDeadline } from '@/utils/competitionDeadline';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, MessageCircleQuestion, ArrowRight, ChevronLeft, CalendarClock, Receipt, Download, UserCog, X, Copy } from 'lucide-react';
 
@@ -367,6 +369,12 @@ const PublicHelloChat: React.FC = () => {
     enabled: !!sessionId && !!matched?.id && sessionLinked,
   });
   const showGradingOption = helloShowsGrading(gradingEligibility);
+  const { data: helloCompEvents = [] } = useQuery({
+    queryKey: ['public-competition-events'],
+    queryFn: getPublicCompetitionEvents,
+    staleTime: 60 * 1000,
+  });
+  const hasOpenCompetition = helloCompEvents.some(e => e.is_active && !isPastDeadline(e.registration_deadline));
 
   useEffect(() => {
     if ((stage === 'payment_pay' || stage === 'competition' || stage === 'pay_invoice') && sessionLinked && matched?.id) refetchCredit();
@@ -1615,13 +1623,13 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
-                  <Button
+                  {hasOpenCompetition && <Button
                     onClick={() => goTo('competition')}
                     variant="outline"
                     className="w-full h-11 justify-between"
                   >
                     Register for Competition <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  </Button>}
                   {[
                     { id: UNIFORMS_CATEGORY_ID, label: 'Order Uniforms and Apparel' },
                     { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
