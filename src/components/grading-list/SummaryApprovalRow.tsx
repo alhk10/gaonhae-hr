@@ -14,6 +14,7 @@ import { Check, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
+import { SignedImage, SignedLink } from '@/components/common/SignedMedia';
 import StudentNameButton from './StudentNameButton';
 import InvoiceNumberButton from './InvoiceNumberButton';
 import { verifySchoolFeesSubmission, rejectSchoolFeesSubmission } from '@/services/schoolFeesSubmissionService';
@@ -67,7 +68,7 @@ const details = (type: PaymentApprovalType, r: any): string[] => {
 
 const proofs = (r: any): string[] => {
   const list = [r.proof_url, ...(Array.isArray(r.extra_proofs) ? r.extra_proofs.map((p: any) => p?.url) : []), r.grading_card_url, r.passport_photo_url]
-    .filter(isUrl) as string[];
+    .filter((u: any) => typeof u === 'string' && u.trim() !== '') as string[];
   return Array.from(new Set(list));
 };
 
@@ -154,7 +155,7 @@ const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, b
         <span className="text-muted-foreground text-[11px] flex-1 min-w-[160px] break-words">{details(type, raw).join(' · ')}</span>
         {imgs.map((u) => (
           <button key={u} type="button" onClick={() => setPreview(u)} className="h-10 w-10 rounded border overflow-hidden shrink-0" title="View document">
-            <img src={u} alt="Supporting document" className="h-full w-full object-cover" />
+            <SignedImage src={u} alt="Supporting document" className="h-full w-full object-cover" fallback={<span className="text-[9px] text-muted-foreground">…</span>} />
           </button>
         ))}
         {canApprove && (
@@ -171,7 +172,12 @@ const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, b
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-auto">
-          {preview && <img src={preview} alt="Supporting document" className="w-full h-auto" />}
+          {preview && (
+            <div className="space-y-2">
+              <SignedImage src={preview} alt="Supporting document" className="w-full h-auto" fallback={<p className="text-sm text-muted-foreground">Loading document…</p>} onError={(e) => { (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('p'), { textContent: 'Document unavailable', className: 'text-sm text-muted-foreground' })); }} />
+              <SignedLink href={preview} target="_blank" rel="noreferrer" className="text-primary underline text-xs">Open in new tab</SignedLink>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
