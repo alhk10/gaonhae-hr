@@ -18,8 +18,9 @@ import { dayTotals, copyCandidates, isUnpaidTerm, addDays, classColor, classColo
 import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
   addStudentToSlot, getAttendanceWeek, markBooking, removeBooking, reviewBookingRequest, searchAttendanceStudents,
-  type LessonBooking, type TimetableSlot,
+  setReadyForGrading, type LessonBooking, type TimetableSlot,
 } from '@/services/lessonBookingService';
+import { gradingBadgeState } from '@/utils/gradingReady';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
@@ -319,6 +320,27 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
                           {b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
                           {b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                          {b.term_id && (() => {
+                            const st = gradingBadgeState(b.grading);
+                            if (st === 'paid') return <Badge className="text-[10px]">Grading paid</Badge>;
+                            return (
+                              <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={async () => {
+                                  try { await setReadyForGrading(b.student_id, b.term_id!, st !== 'ready'); refresh(); }
+                                  catch (e) { toast.error((e as Error).message); }
+                                }}
+                                className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                                  st === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground')}
+                              >
+                                <span className={cn('flex h-3 w-3 items-center justify-center rounded-sm border', st === 'ready' && 'border-primary bg-primary text-primary-foreground')}>
+                                  {st === 'ready' && <Check className="h-2.5 w-2.5" />}
+                                </span>
+                                Ready for grading
+                              </button>
+                            );
+                          })()}
                           <span className="ml-auto flex items-center gap-1">
                             {b.status !== 'requested' && (
                               <>
