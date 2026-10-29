@@ -13,11 +13,12 @@ interface Props {
   showStudent?: boolean;
   onStudentClick?: (row: CreditLedgerRow) => void;
   onInvoiceClick?: (row: CreditLedgerRow) => void;
+  onReverse?: (row: CreditLedgerRow) => void;
 }
 
 const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`;
 
-const CreditLedgerTable: React.FC<Props> = ({ rows, showStudent, onStudentClick, onInvoiceClick }) => {
+const CreditLedgerTable: React.FC<Props> = ({ rows, showStudent, onStudentClick, onInvoiceClick, onReverse }) => {
   if (rows.length === 0) return <p className="text-center py-6 text-muted-foreground text-sm">No transactions</p>;
   return (
     <div className="divide-y text-sm">
@@ -39,7 +40,8 @@ const CreditLedgerTable: React.FC<Props> = ({ rows, showStudent, onStudentClick,
               <button type="button" className="hover:underline text-left" onClick={() => onStudentClick?.(r)}>{r.student_name}</button>
             </div>
           )}
-          <div className="md:col-span-1"><Badge variant="outline" className="text-[10px]">{creditTypeLabel(r.type)}</Badge></div>
+          <div className="md:col-span-1"><Badge variant="outline" className="text-[10px]">{creditTypeLabel(r.type)}</Badge>
+            {r.reversed && <Badge variant="secondary" className="text-[10px] ml-1">Reversed</Badge>}</div>
           <div className={`md:col-span-1 text-right font-medium ${r.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>
             {r.amount >= 0 ? '+' : ''}{money(r.amount)}
             <span className="md:hidden text-xs text-muted-foreground font-normal"> → {money(r.balance_after)}</span>
@@ -51,7 +53,10 @@ const CreditLedgerTable: React.FC<Props> = ({ rows, showStudent, onStudentClick,
             ) : <span className="text-muted-foreground">—</span>}
           </div>
           <div className={`col-span-2 ${showStudent ? 'md:col-span-3' : 'md:col-span-5'} text-xs text-muted-foreground break-words`}>{r.description}</div>
-          <div className="col-span-2 md:col-span-1 text-[11px] text-muted-foreground break-all">{r.created_by || '—'}</div>
+          <div className="col-span-2 md:col-span-1 text-[11px] text-muted-foreground break-all">{r.created_by || '—'}
+            {onReverse && r.reversible && (
+              <button type="button" className="block mt-1 text-destructive hover:underline text-[11px]" onClick={() => onReverse(r)}>Reverse</button>
+            )}</div>
         </div>
       ))}
     </div>

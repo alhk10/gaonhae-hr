@@ -342,7 +342,18 @@ export interface CreditLedgerRow extends StudentCredit {
   invoice_id: string | null;
   invoice_number: string | null;
   balance_after: number;
+  reversed: boolean;
+  reversible: boolean;
 }
+
+export const isCreditReversible = (row: { type: string; reference_id: string | null }, reversedIds: Set<string>, id: string) =>
+  !reversedIds.has(id) && !(row.reference_id || '').startsWith('reversal:') &&
+  !['credit_hold', 'credit_hold_released', 'refund_pending'].includes(row.type);
+
+export const reverseStudentCredit = async (creditId: string, reason: string) => {
+  const { error } = await (supabase as any).rpc('admin_reverse_student_credit', { p_credit_id: creditId, p_reason: reason });
+  if (error) throw new Error(error.message);
+};
 
 /** Running balance per student, computed oldest → newest. Returns rows newest first. */
 export const withRunningBalance = <T extends { student_id: string; amount: number; created_at: string; id: string }>(
@@ -389,9 +400,11 @@ export const getCreditLedger = async (studentId?: string): Promise<CreditLedgerR
     const { data: st } = await supabase.from('students').select('id, first_name, last_name').in('id', studentIds.slice(i, i + 200));
     (st || []).forEach((s: any) => nameMap.set(s.id, `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()));
   }
+  const reversedIds = new Set(all.map(c => c.reference_id || '').filter(r => r.startsWith('reversal:')).map(r => r.slice(9)));
   return withRunningBalance(all.map(c => ({ ...c, amount: Number(c.amount) }))).map(c => {
-    const ref = c.reference_id?.match(UUID_RE)?.[0];
+    const ref = (c.reference_id || '').startsWith('reversal:') ? undefined : c.reference_id?.match(UUID_RE)?.[0];
     const inv = ref ? invMap.get(ref) : undefined;
-    return { ...c, student_name: nameMap.get(c.student_id) || 'Unknown', invoice_id: inv?.id ?? null, invoice_number: inv?.invoice_number ?? null };
+    return { ...c, student_name: nameMap.get(c.student_id) || 'Unknown', invoice_id: inv?.id ?? null, invoice_number: inv?.invoice_number ?? null,
+      reversed: reversedIds.has(c.id), reversible: isCreditReversible(c, reversedIds, c.id) };
   });
 };
