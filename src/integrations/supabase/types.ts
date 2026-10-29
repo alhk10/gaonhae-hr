@@ -8203,6 +8203,7 @@ export type Database = {
         Args: { p_password: string; p_row: Json }
         Returns: string
       }
+      access_unlock: { Args: { p_password: string }; Returns: Json }
       add_password_to_history: {
         Args: { p_email: string; p_hash: string; p_salt: string }
         Returns: undefined
