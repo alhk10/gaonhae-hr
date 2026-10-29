@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
+import { describe, it, expect, mock } from 'bun:test';
+mock.module('@/integrations/supabase/client', () => ({ supabase: {} }));
 import { withRunningBalance } from '@/services/studentCreditService';
 
 describe('credit running balance', () => {
