@@ -16,6 +16,9 @@ import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
 import PaymentShortageList from '@/components/common/PaymentShortageList';
+import SummaryApprovalRow from './SummaryApprovalRow';
+import StudentProfileDialog from './StudentProfileDialog';
+import InvoiceDetailDialog from './InvoiceDetailDialog';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -68,6 +71,7 @@ interface ApprovalItem {
   branch: string;
   amount: number | null;
   gradingDate?: string | null;
+  raw?: any;
 }
 const rowName = (r: any) =>
   String(r.student_name || r.display_name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '—').toUpperCase();
@@ -158,6 +162,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
     staleTime: 30 * 1000,
   });
 
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number?: string | null } | null>(null);
   const [typeFilter, setTypeFilter] = useState<ApprovalType | 'all'>('all');
 
   const studentCountTable = useMemo(() => {
@@ -188,7 +194,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
   const approvals = useMemo(() => {
     const items: ApprovalItem[] = [];
     const push = (type: ApprovalType, r: any, branch: string | null | undefined) =>
-      items.push({ key: `${type}-${r.id}`, type, at: rowDate(r), name: rowName(r), branch: branch || NO_BRANCH, amount: rowAmount(r) });
+      items.push({ key: `${type}-${r.id}`, type, at: rowDate(r), name: rowName(r), branch: branch || NO_BRANCH, amount: rowAmount(r), raw: r });
     for (const r of studentApprovals as any[]) push(r.kind, r, r.branch_name);
     for (const r of schoolFeesRows as any[]) if (isPending(r.status)) push('school-fees', r, r.branch_name);
     const metaById = new Map(gradingMeta.map((m) => [m.id, m]));
@@ -197,7 +203,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
       const m = metaById.get(r.submission_id);
       items.push({
         key: `grading-${r.submission_id}`, type: 'grading', at: m?.created_at || '', name: rowName(r),
-        branch: r.branch_name || NO_BRANCH, amount: rowAmount(r), gradingDate: r.grading_date || null,
+        branch: r.branch_name || NO_BRANCH, amount: rowAmount(r), gradingDate: r.grading_date || null, raw: r,
       });
     }
     for (const r of competitionRows as any[]) if (isPending(r.paid_status)) push('competitions', r, r.branch_name);
@@ -338,18 +344,33 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
             <p className="text-sm text-muted-foreground py-4 text-center">Nothing waiting for approval.</p>
           ) : (
             <ul className="divide-y max-h-[480px] overflow-y-auto">
-              {shownApprovals.map((a) => (
+              {shownApprovals.map((a) =>
+                a.type === 'registration' || a.type === 'update_request' ? (
                 <li key={a.key} className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm">
                   <span className="text-muted-foreground w-[120px] shrink-0">{a.at ? formatDateTime(a.at) : '—'}</span>
                   <Badge variant="outline" className="text-[10px] shrink-0">{TYPE_LABEL[a.type]}</Badge>
                   <span className="font-medium flex-1 min-w-[140px] break-words">{a.name}</span>
                   <span className="text-muted-foreground">{a.branch}</span>
-                  {a.amount != null && <span className="w-[72px] text-right">{money(a.amount)}</span>}
                   <Button size="sm" variant="ghost" className="h-7 text-xs text-primary" onClick={() => openApproval(a)}>
-                    Open
+                    Review
                   </Button>
                 </li>
-              ))}
+                ) : (
+                <SummaryApprovalRow
+                  key={a.key}
+                  type={a.type}
+                  typeLabel={TYPE_LABEL[a.type]}
+                  raw={a.raw}
+                  at={a.at}
+                  name={a.name}
+                  branch={a.branch}
+                  amount={a.amount}
+                  canApprove={canApprove}
+                  onOpenStudent={setProfileId}
+                  onOpenInvoice={(id, number) => setInvoiceView({ id, number })}
+                />
+                ),
+              )}
             </ul>
           )}
         </CardContent>
@@ -475,6 +496,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
           </p>
         </CardContent>
       </Card>
+      <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} />
+      <InvoiceDetailDialog
+        invoiceId={invoiceView?.id ?? null}
+        invoiceNumber={invoiceView?.number ?? null}
+        open={!!invoiceView}
+        onOpenChange={(o) => !o && setInvoiceView(null)}
+      />
     </div>
   );
 };
