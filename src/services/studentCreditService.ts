@@ -346,9 +346,10 @@ export interface CreditLedgerRow extends StudentCredit {
   reversible: boolean;
 }
 
-export const isCreditReversible = (row: { type: string; reference_id: string | null }, reversedIds: Set<string>, id: string) =>
+export const isCreditReversible = (row: { type: string; reference_id: string | null; amount?: number }, reversedIds: Set<string>, id: string, invoiceCancelled = false) =>
   !reversedIds.has(id) && !(row.reference_id || '').startsWith('reversal:') &&
-  !['credit_hold', 'credit_hold_released', 'refund_pending'].includes(row.type);
+  !['credit_hold', 'credit_hold_released', 'refund_pending'].includes(row.type) &&
+  !(invoiceCancelled && Number(row.amount ?? 0) > 0);
 
 export const reverseStudentCredit = async (creditId: string, reason: string) => {
   const { error } = await (supabase as any).rpc('admin_reverse_student_credit', { p_credit_id: creditId, p_reason: reason });
@@ -384,15 +385,15 @@ export const getCreditLedger = async (studentId?: string): Promise<CreditLedgerR
   }
   const refIds = Array.from(new Set(all.map(c => c.reference_id?.match(UUID_RE)?.[0]).filter(Boolean) as string[]));
   const studentIds = Array.from(new Set(all.map(c => c.student_id)));
-  const invMap = new Map<string, { id: string; invoice_number: string }>();
+  const invMap = new Map<string, { id: string; invoice_number: string; status?: string }>();
   const nameMap = new Map<string, string>();
   for (let i = 0; i < refIds.length; i += 200) {
     const chunk = refIds.slice(i, i + 200);
-    const { data: invs } = await supabase.from('invoices').select('id, invoice_number').in('id', chunk);
+    const { data: invs } = await supabase.from('invoices').select('id, invoice_number, status').in('id', chunk);
     (invs || []).forEach(v => invMap.set(v.id, v as any));
     const missing = chunk.filter(id => !invMap.has(id));
     if (missing.length) {
-      const { data: items } = await supabase.from('invoice_items').select('id, invoice_id, invoices(id, invoice_number)').in('id', missing);
+      const { data: items } = await supabase.from('invoice_items').select('id, invoice_id, invoices(id, invoice_number, status)').in('id', missing);
       (items || []).forEach((it: any) => it.invoices && invMap.set(it.id, it.invoices));
     }
   }
@@ -405,6 +406,6 @@ export const getCreditLedger = async (studentId?: string): Promise<CreditLedgerR
     const ref = (c.reference_id || '').startsWith('reversal:') ? undefined : c.reference_id?.match(UUID_RE)?.[0];
     const inv = ref ? invMap.get(ref) : undefined;
     return { ...c, student_name: nameMap.get(c.student_id) || 'Unknown', invoice_id: inv?.id ?? null, invoice_number: inv?.invoice_number ?? null,
-      reversed: reversedIds.has(c.id), reversible: isCreditReversible(c, reversedIds, c.id) };
+      reversed: reversedIds.has(c.id), reversible: isCreditReversible(c, reversedIds, c.id, inv?.status === 'cancelled') };
   });
 };

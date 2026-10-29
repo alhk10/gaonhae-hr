@@ -18,4 +18,6 @@ if (isCreditReversible({ type: 'credit_applied', reference_id: 'inv' }, done, 'x
 if (isCreditReversible({ type: 'manual_adjustment', reference_id: 'reversal:x' }, done, 'y')) throw new Error('reversal reversible');
 if (isCreditReversible({ type: 'credit_hold', reference_id: null }, done, 'z')) throw new Error('hold reversible');
 if (!isCreditReversible({ type: 'credit_applied', reference_id: 'inv' }, done, 'w')) throw new Error('normal line not reversible');
+// Rule: a refund credit from a cancelled invoice stays on account and cannot be reversed.
+if (isCreditReversible({ type: 'item_refund', reference_id: 'item', amount: 490.5 }, done, 'r', true)) throw new Error('cancelled-invoice refund reversible');
 console.log('credit reversible rule: ok');
