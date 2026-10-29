@@ -28,8 +28,12 @@ import {
   searchStudentsForCredit,
   type CreditStudentOption,
   type StudentCreditSummary,
-  type StudentCredit
+  getCreditLedger,
+  type CreditLedgerRow,
 } from '@/services/studentCreditService';
+import CreditLedgerTable, { creditTypeLabel } from '@/components/credits/CreditLedgerTable';
+import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 
 const CreditManagement: React.FC = () => {
@@ -42,8 +46,15 @@ const CreditManagement: React.FC = () => {
   // History dialog
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentCreditSummary | null>(null);
-  const [creditHistory, setCreditHistory] = useState<StudentCredit[]>([]);
+  const [creditHistory, setCreditHistory] = useState<CreditLedgerRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [view, setView] = useState<'balances' | 'transactions'>('balances');
+  const [ledger, setLedger] = useState<CreditLedgerRow[] | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [invoiceView, setInvoiceView] = useState<{ id: string; number: string } | null>(null);
 
   // Adjustment dialog
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -83,7 +94,7 @@ const CreditManagement: React.FC = () => {
     setHistoryOpen(true);
     setHistoryLoading(true);
     try {
-      const history = await getStudentCreditHistory(summary.student_id);
+      const history = await getCreditLedger(summary.student_id);
       setCreditHistory(history);
     } catch (error) {
       toast.error('Failed to load credit history');
@@ -156,14 +167,45 @@ const CreditManagement: React.FC = () => {
       loadCredits();
       // Refresh history if open
       if (historyOpen && selectedStudent?.student_id === adjustStudentId) {
-        const history = await getStudentCreditHistory(adjustStudentId);
+        const history = await getCreditLedger(adjustStudentId);
         setCreditHistory(history);
       }
+      setLedger(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Operation failed');
     } finally {
       setAdjustLoading(false);
     }
+  };
+
+  const loadLedger = async () => {
+    setLedgerLoading(true);
+    try { setLedger(await getCreditLedger()); }
+    catch { toast.error('Failed to load credit transactions'); }
+    finally { setLedgerLoading(false); }
+  };
+  useEffect(() => { if (view === 'transactions' && !ledger) loadLedger(); }, [view, ledger]);
+
+  const ledgerFiltered = (ledger || []).filter(r =>
+    r.student_name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    (typeFilter === 'all' || r.type === typeFilter) &&
+    (!fromDate || r.created_at.slice(0, 10) >= fromDate) &&
+    (!toDate || r.created_at.slice(0, 10) <= toDate)
+  );
+
+  const exportCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [['Date', 'Student', 'Type', 'Amount', 'Balance after', 'Invoice', 'Description', 'By'].join(',')];
+    ledgerFiltered.forEach(r => lines.push([formatDate(new Date(r.created_at)), r.student_name, creditTypeLabel(r.type), r.amount.toFixed(2), r.balance_after.toFixed(2), r.invoice_number, r.description, r.created_by].map(esc).join(',')));
+    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'credit-transactions.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+
+  const openInvoice = (r: CreditLedgerRow) => r.invoice_id && setInvoiceView({ id: r.invoice_id, number: r.invoice_number || '' });
+  const openStudentHistory = (r: CreditLedgerRow) => {
+    const s = creditSummaries.find(x => x.student_id === r.student_id) ||
+      { student_id: r.student_id, student_name: r.student_name, credit_balance: r.balance_after, last_transaction_date: null };
+    viewHistory(s);
   };
 
   const filtered = creditSummaries.filter(s =>
@@ -226,6 +268,13 @@ const CreditManagement: React.FC = () => {
             </CardContent>
           </Card>
 
+          <Tabs value={view} onValueChange={(v) => setView(v as any)}>
+            <TabsList>
+              <TabsTrigger value="balances">Balances</TabsTrigger>
+              <TabsTrigger value="transactions">All transactions</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -237,8 +286,29 @@ const CreditManagement: React.FC = () => {
             />
           </div>
 
+          {view === 'transactions' && (
+            <Card>
+              <CardContent className="p-3 space-y-3">
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div>
+                    <Label className="text-xs">Type</Label>
+                    <select className="block h-9 rounded-md border bg-background px-2 text-sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                      <option value="all">All types</option>
+                      {['overpayment','item_refund','manual_adjustment','credit_applied','refund','refund_pending','credit_hold','credit_hold_released'].map(t => <option key={t} value={t}>{creditTypeLabel(t)}</option>)}
+                    </select>
+                  </div>
+                  <div><Label className="text-xs">From</Label><Input type="date" className="h-9" value={fromDate} onChange={e => setFromDate(e.target.value)} /></div>
+                  <div><Label className="text-xs">To</Label><Input type="date" className="h-9" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={exportCsv} disabled={!ledgerFiltered.length}>Export CSV</Button>
+                </div>
+                {ledgerLoading ? <p className="text-center py-6 text-muted-foreground">Loading...</p> :
+                  <CreditLedgerTable rows={ledgerFiltered} showStudent onStudentClick={openStudentHistory} onInvoiceClick={openInvoice} />}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Credits Table */}
-          <Card>
+          <Card className={view === 'balances' ? '' : 'hidden'}>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -301,49 +371,24 @@ const CreditManagement: React.FC = () => {
 
           {/* History Dialog */}
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-4xl max-h-[85vh]">
               <DialogHeader>
                 <DialogTitle>Credit History — {selectedStudent?.student_name}</DialogTitle>
                 <DialogDescription>
                   Current balance: ${selectedStudent?.credit_balance.toFixed(2)}
                 </DialogDescription>
               </DialogHeader>
-              <div className="max-h-80 overflow-y-auto">
+              <div className="max-h-[65vh] overflow-y-auto">
                 {historyLoading ? (
                   <p className="text-center py-4 text-muted-foreground">Loading...</p>
-                ) : creditHistory.length === 0 ? (
-                  <p className="text-center py-4 text-muted-foreground">No transactions</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Description</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {creditHistory.map(c => (
-                        <TableRow key={c.id}>
-                          <TableCell className="text-xs">
-                            {formatDate(new Date(c.created_at))}
-                          </TableCell>
-                          <TableCell>{getTypeBadge(c.type)}</TableCell>
-                          <TableCell className={`text-right font-medium ${c.amount >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                            {c.amount >= 0 ? '+' : ''}${c.amount.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                            {c.description}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <CreditLedgerTable rows={creditHistory} onInvoiceClick={openInvoice} />
                 )}
               </div>
             </DialogContent>
           </Dialog>
+
+          <InvoiceDetailDialog invoiceId={invoiceView?.id ?? null} invoiceNumber={invoiceView?.number ?? null} open={!!invoiceView} onOpenChange={(o) => { if (!o) setInvoiceView(null); }} />
 
           {/* Adjustment Dialog */}
           <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
