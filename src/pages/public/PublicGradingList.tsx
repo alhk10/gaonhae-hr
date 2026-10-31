@@ -42,6 +42,7 @@ import StudioRentalTab from '@/components/grading-list/StudioRentalTab';
 import ExternalInvoicesTab from '@/components/grading-list/ExternalInvoicesTab';
 import FinanceTab from '@/components/grading-list/FinanceTab';
 import PasswordManagerTab from '@/components/grading-list/PasswordManagerTab';
+import FaqTab from '@/components/grading-list/FaqTab';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -1526,7 +1527,9 @@ const PublicGradingList: React.FC = () => {
             {isAllBranch && <TabsTrigger value="finance">Finance</TabsTrigger>}
             {isAllBranch && <TabsTrigger value="ai-document">AI Poster Maker</TabsTrigger>}
             {isAllBranch && <TabsTrigger value="passwords">Passwords</TabsTrigger>}
+            <TabsTrigger value="faq">FAQ</TabsTrigger>
           </TabsList>
+          <TabsContent value="faq" className="mt-4"><FaqTab /></TabsContent>
           <TabsContent value="rental" className="mt-4">
             <StudioRentalTab
               branchFilter={branchFilter}
