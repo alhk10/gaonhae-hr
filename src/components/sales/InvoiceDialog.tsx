@@ -798,14 +798,19 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   };
 
+  const branchPriceCache = useRef<Record<string, Promise<Map<string, number>>>>({});
   const getBranchPrice = async (productId: string, branchId: string): Promise<number | null> => {
     if (!productId || !branchId) return null;
     try {
-      const { data, error } = accessMode
-        ? { data: (await getCatalog()).price_rules.find(r => r.product_id === productId && r.branch_id === branchId && r.is_active) || null, error: null }
-        : await supabase.from('price_rules').select('price_override, is_active').eq('product_id', productId).eq('branch_id', branchId).eq('is_active', true).maybeSingle();
-      if (error || !data) return null;
-      return data.price_override;
+      if (!branchPriceCache.current[branchId]) {
+        branchPriceCache.current[branchId] = (async () => {
+          const { data, error } = await supabase.rpc('get_branch_unit_prices' as any, { p_branch_id: branchId });
+          if (error) throw error;
+          return new Map<string, number>(((data as any[]) || []).map(r => [r.product_id, Number(r.unit_price)]));
+        })().catch(e => { delete branchPriceCache.current[branchId]; throw e; });
+      }
+      const v = (await branchPriceCache.current[branchId]).get(productId);
+      return v == null || isNaN(v) ? null : v;
     } catch { return null; }
   };
 
@@ -926,7 +931,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       const updated = { ...prev, [field]: value };
       if (field === 'product_id' && value) {
         const product = products.find(p => p.id === value);
-        if (product) { updated.unit_price = product.base_price; updated.size_variant = ''; updated.color_variant = ''; }
+        if (product) { updated.size_variant = ''; updated.color_variant = ''; }
       }
       return updated;
     });
@@ -1349,6 +1354,11 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       if (item.id !== itemId) return item;
       return recalcItem({ ...item, product_id: productId, product_name: product.name, description: product.name, unit_price: product.base_price, tax_rate: taxRate, category_name: product.category_name, is_lesson: product.is_lesson });
     }));
+    const bId = invoice?.branch_id;
+    if (bId) getBranchPrice(productId, bId).then(bp => {
+      if (bp === null) return;
+      setEditItems(prev => prev.map(item => item.id === itemId && item.product_id === productId ? recalcItem({ ...item, unit_price: bp }) : item));
+    });
   };
 
   const handleEditItemFieldChange = (itemId: string, field: string, value: number | string) => {
