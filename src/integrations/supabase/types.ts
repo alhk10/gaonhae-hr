@@ -9050,6 +9050,13 @@ export type Database = {
           slotBooking: boolean
         }[]
       }
+      get_branch_unit_prices: {
+        Args: { p_branch_id: string }
+        Returns: {
+          product_id: string
+          unit_price: number
+        }[]
+      }
       get_class_products_for_branch_admin: {
         Args: { p_branch_id: string }
         Returns: {
