@@ -67,7 +67,7 @@ const GUIDES: FaqGuide[] = [
 export default function FaqTab() {
   const [zoom, setZoom] = useState<string | null>(null);
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 text-left">
       <div>
         <h2 className="text-lg font-semibold">FAQ</h2>
         <p className="text-sm text-muted-foreground">Step-by-step guides. Tap a picture to enlarge. Red boxes show where to click.</p>
