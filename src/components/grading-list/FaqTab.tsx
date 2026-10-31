@@ -133,7 +133,7 @@ const SECTIONS: FaqSection[] = [
         title: 'How to change pricing',
         steps: [
           { text: 'Open the School Fees tab and click the gear (Class availability & pricing) button.', image: pricing1 },
-          { text: 'Pick the branch, type the new weekly price next to the class (leave blank to use the base price) and turn classes on or off. Changes save as you edit.', image: pricing2 },
+          { text: 'Pick the branch, type the new weekly price next to the class (leave blank to use the base price) and turn classes on or off. Click Save at the bottom.', image: pricing2 },
         ],
       },
     ],
