@@ -16,6 +16,13 @@
 4. Also save a copy in Files.
 5. Open the FAQ tab to confirm the button downloads the PDF.
 
+## Screenshots
+- Each of the four sections gets one small screenshot of the matching /hello screen (payment, grading, guards, update details), with a red box around the button to tap.
+- All names, dates of birth, phone numbers, emails, invoice numbers and amounts are blurred before use.
+- Layout: 2x2 grid of sections (screenshot + 3-4 short steps each) so everything fits on one page.
+
 ## Technical notes
+- Screenshots captured with Playwright against /hello using a real recognised student session; personal fields blurred with PIL (blur boxes over detected text regions, checked visually).
+- No data is submitted or changed while capturing.
 - PDF built with reportlab in /tmp, uploaded via lovable-assets; FaqTab imports the `.asset.json` pointer and renders an `<a download>` button.
-- Text only (no app screenshots) to stay on one page; instructions written by me and can be reworded.
+- Instructions written by me and can be reworded.
