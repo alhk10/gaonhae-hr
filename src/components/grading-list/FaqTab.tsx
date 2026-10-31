@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, FileDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import parentGuide from '@/assets/faq/gaonhae-hello-parent-guide.pdf.asset.json';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -152,9 +154,16 @@ export default function FaqTab() {
 
   return (
     <div className="space-y-4 text-left">
-      <div>
-        <h2 className="text-lg font-semibold">FAQ</h2>
-        <p className="text-sm text-muted-foreground">Step-by-step guides. Tap a picture to enlarge. Red boxes show where to click.</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold">FAQ</h2>
+          <p className="text-sm text-muted-foreground">Step-by-step guides. Tap a picture to enlarge. Red boxes show where to click.</p>
+        </div>
+        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+          <a href={parentGuide.url} target="_blank" rel="noopener noreferrer" download="gaonhae-hello-parent-guide.pdf">
+            <FileDown className="mr-1 h-4 w-4" /> Parent guide (PDF)
+          </a>
+        </Button>
       </div>
       <div className="relative max-w-sm">
         <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
