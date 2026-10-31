@@ -7871,6 +7871,10 @@ export type Database = {
         Returns: undefined
       }
       _auto_invoice_active: { Args: never; Returns: boolean }
+      _auto_verify_invoice_payments: {
+        Args: { p_invoice_id: string }
+        Returns: boolean
+      }
       _external_stock_move: {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
