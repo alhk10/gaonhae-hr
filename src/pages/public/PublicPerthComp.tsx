@@ -50,7 +50,6 @@ const PublicPerthComp: React.FC = () => {
   const [agree, setAgree] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
   const [proof, setProof] = useState<File | null>(null);
-  const [unpaid, setUnpaid] = useState<boolean>(!!row.is_unpaid);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<{
     id: string; total: number; unit: number; matched: boolean; claimed: boolean;
@@ -634,6 +633,7 @@ const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; on
   const [student, setStudent] = useState<any | null>(row.student_id ? { id: row.student_id, label: 'Linked student' } : null);
   const [q, setQ] = useState(''); const [results, setResults] = useState<any[]>([]);
   const [proof, setProof] = useState<File | null>(null);
+  const [unpaid, setUnpaid] = useState<boolean>(!!row.is_unpaid);
   const [saving, setSaving] = useState(false);
   const scanner = usePaymentProofScan();
   const total = (student ? 40 : 45) * (sem.length + ev.length);
