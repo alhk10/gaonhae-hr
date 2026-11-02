@@ -607,7 +607,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
                 {sec.rows.length === 0 ? <p className="text-muted-foreground">No registrations yet.</p> : sec.rows.map(personLine)}
               </div>
             )) : compGroups.length === 0 ? <p>No competition registrations yet.</p> : compGroups.map((g) => (
-              <div key={`${g.div}|${g.event}|${g.gender}`} className="space-y-1">
+              <div key={`${g.div}|${g.event}|${g.gender}|${g.grade}`} className="space-y-1">
                 <p className="font-semibold text-sm border-b pb-1">{groupTitle(g)}</p>
                 {g.rows.map(personLine)}
               </div>
