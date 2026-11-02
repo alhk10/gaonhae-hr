@@ -171,11 +171,18 @@ const PublicPerthComp: React.FC = () => {
         if (y > pageH - 40) { doc.addPage(); y = 14; }
         doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(eventLabel(ev.code), 14, y + 6);
         doc.setFont('helvetica', 'normal'); y += 9;
-        const divs = [...new Set(inEv.map((r) => r.age_division || ''))].sort((a, b) => divIdx(a) - divIdx(b));
-        divs.forEach((d) => {
-          const list = inEv.filter((r) => (r.age_division || '') === d).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const gOrd = (g: string) => (/^f/i.test(g || '') ? 0 : /^m/i.test(g || '') ? 1 : 2);
+        const gName = (g: string) => (/^f/i.test(g || '') ? 'Female' : /^m/i.test(g || '') ? 'Male' : 'Gender not set');
+        const groups = new Map<string, { d: string; g: string; grade: string; rank: number; list: any[] }>();
+        inEv.forEach((r) => {
+          const k = `${r.age_division || ''}|${gName(r.gender)}|${r.grade || ''}`;
+          if (!groups.has(k)) groups.set(k, { d: r.age_division || '', g: gName(r.gender), grade: r.grade || '', rank: Number(r.grade_rank ?? 0), list: [] });
+          groups.get(k)!.list.push(r);
+        });
+        [...groups.values()].sort((a, b) => divIdx(a.d) - divIdx(b.d) || gOrd(a.g) - gOrd(b.g) || a.rank - b.rank).forEach(({ d, g, grade, list: raw }) => {
+          const list = raw.sort((a, b) => String(a.name).localeCompare(String(b.name)));
           if (y > pageH - 30) { doc.addPage(); y = 14; }
-          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} (${list.length})`, 18, y + 5);
+          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${gradeLabel(grade)} (${list.length})`, 18, y + 5);
           autoTable(doc, {
             startY: y + 7, margin: { left: 18 }, styles: { fontSize: 8 },
             head: [['#', 'Name', 'Club', 'Grade']],
@@ -495,19 +502,19 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     const divOrder = (d: string | null) => { const n = parseInt(d || ''); return isNaN(n) ? 999 : n; };
     const evOrder = (c: string) => { const i = COMP_EVENTS.findIndex((e) => e.code === c); return i < 0 ? 999 : i; };
     const gOrder = (g: string) => (/^f/i.test(g || '') ? 0 : /^m/i.test(g || '') ? 1 : 2);
-    const map = new Map<string, { div: string; event: string; gender: string; rows: any[] }>();
+    const map = new Map<string, { div: string; event: string; gender: string; grade: string; rows: any[] }>();
     compRows.forEach((r) => (r.comp_events as string[]).forEach((ev) => {
-      const key = `${r.age_division}|${ev}|${r.gender}`;
-      if (!map.has(key)) map.set(key, { div: r.age_division || '-', event: ev, gender: r.gender || '-', rows: [] });
+      const key = `${r.age_division}|${ev}|${r.gender}|${r.grade}`;
+      if (!map.has(key)) map.set(key, { div: r.age_division || '-', event: ev, gender: r.gender || '-', grade: r.grade || '', rows: [] });
       map.get(key)!.rows.push(r);
     }));
     const list = [...map.values()];
     list.forEach((g) => g.rows.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)));
-    return list.sort((a, b) => divOrder(a.div) - divOrder(b.div) || evOrder(a.event) - evOrder(b.event) || gOrder(a.gender) - gOrder(b.gender));
+    return list.sort((a, b) => divOrder(a.div) - divOrder(b.div) || evOrder(a.event) - evOrder(b.event) || gOrder(a.gender) - gOrder(b.gender) || String(a.grade).localeCompare(String(b.grade)));
   }, [compRows]);
 
-  const groupTitle = (g: { div: string; event: string; gender: string; rows: any[] }) =>
-    `${g.div} Years · ${g.gender} · ${eventLabel(g.event)} — ${g.rows.length} competitor${g.rows.length === 1 ? '' : 's'}`;
+  const groupTitle = (g: { div: string; event: string; gender: string; grade: string; rows: any[] }) =>
+    `${g.div} Years · ${g.gender} · ${eventLabel(g.event)} · ${gradeLabel(g.grade)} — ${g.rows.length} competitor${g.rows.length === 1 ? '' : 's'}`;
 
   const loadPdf = async (title: string) => {
     const { default: jsPDF } = await import('jspdf');
