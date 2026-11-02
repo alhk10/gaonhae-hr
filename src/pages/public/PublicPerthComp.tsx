@@ -162,7 +162,7 @@ const PublicPerthComp: React.FC = () => {
       doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 21);
       doc.setFontSize(9); doc.text(`${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`, 14, 27);
       let y = 32;
-      const divIdx = (d: string) => { const i = (AGE_DIVISIONS as readonly string[]).indexOf(d); return i < 0 ? 999 : i; };
+      const norm = (s: string) => String(s).replace(/[–—]/g, '-'); const divIdx = (d: string) => { const i = AGE_DIVISIONS.map(norm).indexOf(norm(d)); return i < 0 ? 999 : i; };
       if (!rows.length) doc.text('No competitors registered yet.', 14, y + 6);
       const pageH = doc.internal.pageSize.getHeight();
       COMP_EVENTS.forEach((ev) => {
