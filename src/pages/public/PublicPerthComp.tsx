@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarDays, CheckCircle2, Download, Lock, Mail, MapPin, Receipt, Trash2, Trophy } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Download, Lock, Mail, MapPin, Receipt, Trash2, Trophy, Pencil, Upload, Plus } from 'lucide-react';
 import { usePaymentProofScan } from '@/hooks/usePaymentProofScan';
 import PaymentProofScanNotice from '@/components/public/PaymentProofScanNotice';
 import { toast } from 'sonner';
@@ -440,6 +440,20 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     toast.success('Registration deleted');
   };
 
+  const [editing, setEditing] = useState<any | null>(null);
+  const proofScanner = usePaymentProofScan();
+  const replaceProof = async (r: any, f: File) => {
+    try {
+      const url = await uploadPerthProof(f);
+      proofScanner.scan(f, Number(r.total_amount), 'AUD');
+      const res = await proofScanner.waitForResult();
+      const { error } = await supabase.rpc('admin_perth_set_proof' as any, { p_password: pw, p_id: r.id, p_proof_url: url,
+        p_status: res?.status ?? null, p_amount: res?.amount ?? null, p_details: (res?.details as any) ?? null });
+      if (error) throw error;
+      toast.success('Proof updated'); unlock();
+    } catch (e: any) { toast.error(e?.message || 'Upload failed'); }
+  };
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { comp: 0 };
     SEMINARS.forEach((s) => (c[s.code] = 0));
@@ -527,6 +541,10 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
         {r.proof_scan_status === 'mismatch' && <span className="rounded bg-amber-100 px-1.5 text-amber-800">Amount differs (${Number(r.proof_scan_amount ?? 0).toFixed(2)})</span>}
         {(!r.proof_scan_status || r.proof_scan_status === 'unreadable') && <span className="rounded bg-muted px-1.5">Not read</span>}
         <span>{formatDateTime(r.created_at)}</span>
+        {r.student_id ? <span className="rounded bg-blue-100 px-1.5 text-blue-800">Matched</span> : <span className="rounded bg-muted px-1.5">Not matched</span>}
+        <button className="inline-flex items-center gap-1 text-primary hover:underline" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /> Edit</button>
+        <label className="inline-flex items-center gap-1 text-primary hover:underline cursor-pointer"><Upload className="h-4 w-4" /> Proof
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) replaceProof(r, f); }} /></label>
         <button className="inline-flex items-center gap-1 text-red-600 hover:underline" title="Delete registration" onClick={() => removeRow(r)}><Trash2 className="h-4 w-4" /> Delete</button></div>
     </div>
   );
@@ -549,6 +567,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
             <div className="flex flex-wrap gap-2 items-center border-b pb-2">
               <Button size="sm" variant={tab === 'seminars' ? 'default' : 'outline'} onClick={() => setTab('seminars')}>Seminars</Button>
               <Button size="sm" variant={tab === 'comp' ? 'default' : 'outline'} onClick={() => setTab('comp')}>Competition</Button>
+              <Button size="sm" variant="outline" onClick={() => setEditing({})}><Plus className="h-4 w-4 mr-1" /> Add entry</Button>
               {tab === 'seminars'
                 ? <Button size="sm" variant="secondary" className="ml-auto" onClick={downloadSeminarPdf}><Download className="h-4 w-4 mr-1" /> Seminar Log PDF</Button>
                 : <Button size="sm" variant="secondary" className="ml-auto" onClick={downloadCompetitionPdf}><Download className="h-4 w-4 mr-1" /> Competition Log PDF</Button>}
@@ -566,6 +585,101 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
             ))}
           </div>
         )}
+        {editing && <PerthEntryDialog pw={pw} row={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); unlock(); }} />}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const uploadPerthProof = async (f: File) => {
+  const ext = f.name.split('.').pop() || 'jpg';
+  const path = `public-seminars/perth-2026/staff_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from('payment-proofs').upload(path, f, { upsert: false, contentType: f.type });
+  if (error) throw error;
+  const { data } = await supabase.storage.from('payment-proofs').createSignedUrl(path, 60 * 60 * 24 * 365 * 2);
+  return data?.signedUrl || path;
+};
+
+const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; onSaved: () => void }> = ({ pw, row, onClose, onSaved }) => {
+  const isNew = !row.id;
+  const [f, setF] = useState({
+    first_name: row.first_name || '', last_name: row.last_name || '', gender: row.gender || '', date_of_birth: row.date_of_birth || '',
+    club: row.club || '', grade: row.grade || '', email: row.email || '', phone: row.phone || '',
+  });
+  const [sem, setSem] = useState<string[]>(row.seminars || []);
+  const [ev, setEv] = useState<string[]>(row.comp_events || []);
+  const [student, setStudent] = useState<any | null>(row.student_id ? { id: row.student_id, label: 'Linked student' } : null);
+  const [q, setQ] = useState(''); const [results, setResults] = useState<any[]>([]);
+  const [proof, setProof] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const scanner = usePaymentProofScan();
+  const total = (student ? 40 : 45) * (sem.length + ev.length);
+  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const tog = (l: string[], s: (v: string[]) => void, c: string) => s(l.includes(c) ? l.filter((x) => x !== c) : [...l, c]);
+
+  useEffect(() => {
+    if (q.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('admin_perth_search_students' as any, { p_password: pw, p_query: q });
+      setResults((data as any[]) || []);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, pw]);
+
+  const save = async (override = false) => {
+    setSaving(true);
+    try {
+      const proof_url = proof ? await uploadPerthProof(proof) : '';
+      const { data: id, error } = await supabase.rpc('admin_perth_upsert_registration' as any, {
+        p_password: pw, p_id: row.id ?? null, p_override_cap: override,
+        p: { ...f, seminars: sem, comp_events: ev, student_id: student?.id ?? '', proof_url },
+      });
+      if (error) {
+        if (error.message?.startsWith('CAP:') && window.confirm(`${error.message.slice(4).trim()}. Add anyway?`)) { setSaving(false); return save(true); }
+        throw new Error(error.message.replace(/^DUPLICATE:\s*/, ''));
+      }
+      if (proof) {
+        scanner.scan(proof, total, 'AUD');
+        const res = await scanner.waitForResult();
+        if (res) await supabase.rpc('admin_perth_set_proof' as any, { p_password: pw, p_id: id, p_proof_url: '', p_status: res.status, p_amount: res.amount, p_details: res.details as any });
+      }
+      toast.success(isNew ? 'Entry added' : 'Entry updated'); onSaved();
+    } catch (e: any) { toast.error(e?.message || 'Save failed'); } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto text-xs">
+        <DialogHeader><DialogTitle>{isNew ? 'Add entry' : 'Edit entry'}</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-2">
+          <div><Label>First name</Label><Input value={f.first_name} onChange={(e) => set('first_name', e.target.value)} /></div>
+          <div><Label>Last name</Label><Input value={f.last_name} onChange={(e) => set('last_name', e.target.value)} /></div>
+          <div><Label>Gender</Label><Select value={f.gender} onValueChange={(v) => set('gender', v)}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select></div>
+          <div><Label>Date of birth (DD/MM/YYYY)</Label><Input placeholder="DD/MM/YYYY" defaultValue={f.date_of_birth ? formatDate(f.date_of_birth) : ''}
+            onChange={(e) => { const m = e.target.value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); set('date_of_birth', m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : ''); }} /></div>
+          <div><Label>Club</Label><Input value={f.club} onChange={(e) => set('club', e.target.value)} /></div>
+          <div><Label>Grade</Label><Select value={f.grade} onValueChange={(v) => set('grade', v)}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent>{GRADES.map((g: any) => <SelectItem key={g.code ?? g.value} value={g.code ?? g.value}>{gradeLabel(g.code ?? g.value)}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Email</Label><Input value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
+          <div><Label>Phone</Label><Input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
+        </div>
+        <div><Label>Seminars</Label><div className="flex flex-wrap gap-3">{SEMINARS.map((s) => (
+          <label key={s.code} className="flex items-center gap-1"><Checkbox checked={sem.includes(s.code)} onCheckedChange={() => tog(sem, setSem, s.code)} />{s.name}</label>))}</div></div>
+        <div><Label>Competition events (max 2)</Label><div className="flex flex-wrap gap-3">{COMP_EVENTS.map((e) => (
+          <label key={e.code} className="flex items-center gap-1"><Checkbox checked={ev.includes(e.code)} disabled={!ev.includes(e.code) && ev.length >= 2} onCheckedChange={() => tog(ev, setEv, e.code)} />{eventLabel(e.code)}</label>))}</div></div>
+        <div className="space-y-1"><Label>Gaonhae student match</Label>
+          {student ? <div className="flex items-center gap-2"><span className="rounded bg-blue-100 px-1.5 text-blue-800">{student.label}</span>
+            <Button size="sm" variant="ghost" onClick={() => setStudent(null)}>Unlink</Button></div>
+          : <><Input placeholder="Search name or student number" value={q} onChange={(e) => setQ(e.target.value)} />
+            {results.map((s) => <button key={s.id} type="button" className="block w-full text-left border rounded px-2 py-1 hover:bg-muted"
+              onClick={() => { setStudent({ id: s.id, label: `${s.first_name} ${s.last_name} · ${s.student_number ?? ''}` }); setQ(''); }}>
+              {s.first_name} {s.last_name} · {s.student_number} · {s.date_of_birth ? formatDate(s.date_of_birth) : '-'} · {s.current_belt ?? 'No belt'} · {s.status}</button>)}</>}
+        </div>
+        <div><Label>Payment proof {isNew ? '' : '(leave empty to keep current)'}</Label>
+          <Input type="file" accept="image/*" onChange={(e) => setProof(e.target.files?.[0] || null)} /></div>
+        <p className="font-semibold">Total: ${total.toFixed(2)} ({student ? '$40 Gaonhae rate' : '$45'})</p>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={saving} onClick={() => save()}>{saving ? 'Saving…' : 'Save'}</Button></div>
       </DialogContent>
     </Dialog>
   );
