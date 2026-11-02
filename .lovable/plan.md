@@ -4,6 +4,7 @@
 1. **Fix Leah's entry:** Leah Giam (1 Geup) is currently entered in "Poom/Dan – Taegeuk 8 Jang". Move her to "Geup 1 – Taegeuk 8 Jang", the same form, so she competes with Kayden Hii's group. Her payment and other details stay the same.
 2. **Stop it happening again:** the public form already blocks geup students from Poom/Dan events. Add the same check when entries are saved, including staff Add/Edit entry, so a geup student can't be saved into a Poom/Dan event and a Poom/Dan holder can't be saved into a geup event.
 3. **Check other entries:** look for any other entries with the same mismatch and report them before changing anything.
+4. **Male and Female always separate:** in both competitor PDFs and the on-screen staff list, every event is split into Female and Male divisions with their own heading. Competitors with no gender recorded are listed under "Gender not set" so staff can fix them. Gender becomes required when staff save an entry, so no competitor can end up in a mixed division.
 
 ## Technical details
 - Data update: `perth_event_registrations` row for LEAH GIAM, change `comp_events` from `{pd_t8}` to `{g1}`.
