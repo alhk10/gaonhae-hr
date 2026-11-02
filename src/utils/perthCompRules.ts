@@ -12,7 +12,10 @@ export const SEMINARS = [
 const GEUP_POOMSAE: Record<number, string> = { 10: 'Taegeuk 1 Jang', 9: 'Taegeuk 1 Jang', 8: 'Taegeuk 2 Jang', 7: 'Taegeuk 2 Jang', 6: 'Taegeuk 3 Jang', 5: 'Taegeuk 4 Jang', 4: 'Taegeuk 5 Jang', 3: 'Taegeuk 6 Jang', 2: 'Taegeuk 7 Jang', 1: 'Taegeuk 8 Jang' };
 
 export const COMP_EVENTS = [
-  ...[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((g) => ({ code: `g${g}`, kind: 'geup' as const, label: `Geup ${g} – ${GEUP_POOMSAE[g]}` })),
+  // Geup 10 & 9 share code g9, Geup 8 & 7 share code g7 (eligibility = own grade or higher).
+  { code: 'g9', kind: 'geup' as const, label: `Geup 10 & 9 – ${GEUP_POOMSAE[9]}` },
+  { code: 'g7', kind: 'geup' as const, label: `Geup 8 & 7 – ${GEUP_POOMSAE[7]}` },
+  ...[6, 5, 4, 3, 2, 1].map((g) => ({ code: `g${g}`, kind: 'geup' as const, label: `Geup ${g} – ${GEUP_POOMSAE[g]}` })),
   { code: 'pd_t7', kind: 'poomdan' as const, label: 'Poom/Dan – Taegeuk 7 Jang' },
   { code: 'pd_t8', kind: 'poomdan' as const, label: 'Poom/Dan – Taegeuk 8 Jang' },
   { code: 'pd_koryo', kind: 'poomdan' as const, label: 'Poom/Dan – Koryo' },
