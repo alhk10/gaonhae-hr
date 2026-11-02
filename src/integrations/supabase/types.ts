@@ -7923,6 +7923,7 @@ export type Database = {
           student_name: string
         }[]
       }
+      _perth_check_pw: { Args: { p_password: string }; Returns: undefined }
       _perth_grade_rank: { Args: { p_grade: string }; Returns: number }
       _perth_name_match: {
         Args: {
@@ -8425,6 +8426,38 @@ export type Database = {
       admin_match_seminar_submission: {
         Args: { p_id: string; p_student_id: string }
         Returns: undefined
+      }
+      admin_perth_search_students: {
+        Args: { p_password: string; p_query: string }
+        Returns: {
+          current_belt: string
+          date_of_birth: string
+          first_name: string
+          id: string
+          last_name: string
+          status: string
+          student_number: string
+        }[]
+      }
+      admin_perth_set_proof: {
+        Args: {
+          p_amount?: number
+          p_details?: Json
+          p_id: string
+          p_password: string
+          p_proof_url: string
+          p_status?: string
+        }
+        Returns: undefined
+      }
+      admin_perth_upsert_registration: {
+        Args: {
+          p: Json
+          p_id: string
+          p_override_cap?: boolean
+          p_password: string
+        }
+        Returns: string
       }
       admin_reject_accessory_submission: {
         Args: { p_id: string; p_reason: string; p_reviewed_by: string }
