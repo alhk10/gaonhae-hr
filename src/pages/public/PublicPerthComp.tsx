@@ -526,9 +526,9 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
       doc.setFontSize(11); doc.text(`${sec.title} — ${sec.rows.length}/60`, 14, y + 6);
       autoTable(doc, {
         startY: y + 8, styles: { fontSize: 7 },
-        head: [['#', 'Name', 'Gender', 'DOB', 'Grade', 'Club', 'Contact', 'Amount', 'Gaonhae', 'Submitted']],
+        head: [['#', 'Name', 'Gender', 'DOB', 'Grade', 'Club', 'Contact', 'Amount', 'Paid', 'Gaonhae', 'Submitted']],
         body: sec.rows.length ? sec.rows.map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, r.gender, formatDate(r.date_of_birth), gradeLabel(r.grade), r.club,
-          `${r.email}\n${r.phone}`, `$${Number(r.total_amount).toFixed(2)}`, r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at)]) : [['', 'No registrations', '', '', '', '', '', '', '', '']],
+          `${r.email}\n${r.phone}`, `$${Number(r.total_amount).toFixed(2)}`, r.is_unpaid ? 'No' : 'Yes', r.is_gaonhae_student ? 'Yes' : 'No', formatDateTime(r.created_at)]) : [['', 'No registrations', '', '', '', '', '', '', '', '', '']],
       });
       y = (doc as any).lastAutoTable.finalY + 6;
     });
@@ -544,8 +544,8 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
       doc.setFontSize(11); doc.text(groupTitle(g), 14, y + 6);
       autoTable(doc, {
         startY: y + 8, styles: { fontSize: 8 },
-        head: [['#', 'Name', 'DOB', 'Grade', 'Club', 'Contact', 'Gaonhae']],
-        body: g.rows.map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, formatDate(r.date_of_birth), gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`, r.is_gaonhae_student ? 'Yes' : 'No']),
+        head: [['#', 'Name', 'DOB', 'Grade', 'Club', 'Contact', 'Paid', 'Gaonhae']],
+        body: g.rows.map((r, i) => [i + 1, `${r.first_name} ${r.last_name}`, formatDate(r.date_of_birth), gradeLabel(r.grade), r.club, `${r.email}\n${r.phone}`, r.is_unpaid ? 'No' : 'Yes', r.is_gaonhae_student ? 'Yes' : 'No']),
       });
       y = (doc as any).lastAutoTable.finalY + 6;
     });
@@ -560,7 +560,8 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
         {r.proof_url?.startsWith('http') && <a className="inline-flex items-center gap-1 text-primary" href={r.proof_url} target="_blank" rel="noreferrer" title="View payment proof"><Receipt className="h-4 w-4" /> Proof</a>}
         {r.proof_scan_status === 'match' && <span className="rounded bg-green-100 px-1.5 text-green-800">Amount matches</span>}
         {r.proof_scan_status === 'mismatch' && <span className="rounded bg-amber-100 px-1.5 text-amber-800">Amount differs (${Number(r.proof_scan_amount ?? 0).toFixed(2)})</span>}
-        {(!r.proof_scan_status || r.proof_scan_status === 'unreadable') && <span className="rounded bg-muted px-1.5">Not read</span>}
+        {r.is_unpaid ? <span className="rounded bg-destructive/10 px-1.5 font-medium text-destructive">Not paid</span>
+          : (!r.proof_scan_status || r.proof_scan_status === 'unreadable') && <span className="rounded bg-muted px-1.5">Not read</span>}
         <span>{formatDateTime(r.created_at)}</span>
         {r.student_id ? <span className="rounded bg-blue-100 px-1.5 text-blue-800">Matched</span> : <span className="rounded bg-muted px-1.5">Not matched</span>}
         <button className="inline-flex items-center gap-1 text-primary hover:underline" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" /> Edit</button>
@@ -632,6 +633,7 @@ const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; on
   const [student, setStudent] = useState<any | null>(row.student_id ? { id: row.student_id, label: 'Linked student' } : null);
   const [q, setQ] = useState(''); const [results, setResults] = useState<any[]>([]);
   const [proof, setProof] = useState<File | null>(null);
+  const [unpaid, setUnpaid] = useState<boolean>(!!row.is_unpaid);
   const [saving, setSaving] = useState(false);
   const scanner = usePaymentProofScan();
   const total = (student ? 40 : 45) * (sem.length + ev.length);
@@ -653,7 +655,7 @@ const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; on
       const proof_url = proof ? await uploadPerthProof(proof) : '';
       const { data: id, error } = await supabase.rpc('admin_perth_upsert_registration' as any, {
         p_password: pw, p_id: row.id ?? null, p_override_cap: override,
-        p: { ...f, seminars: sem, comp_events: ev, student_id: student?.id ?? '', proof_url },
+        p: { ...f, seminars: sem, comp_events: ev, student_id: student?.id ?? '', proof_url, is_unpaid: unpaid && !proof },
       });
       if (error) {
         if (error.message?.startsWith('CAP:') && window.confirm(`${error.message.slice(4).trim()}. Add anyway?`)) { setSaving(false); return save(true); }
@@ -698,7 +700,8 @@ const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; on
               {s.first_name} {s.last_name} · {s.student_number} · {s.date_of_birth ? formatDate(s.date_of_birth) : '-'} · {s.current_belt ?? 'No belt'} · {s.status}</button>)}</>}
         </div>
         <div><Label>Payment proof {isNew ? '' : '(leave empty to keep current)'}</Label>
-          <Input type="file" accept="image/*" onChange={(e) => setProof(e.target.files?.[0] || null)} /></div>
+          <Input type="file" accept="image/*" onChange={(e) => { const fl = e.target.files?.[0] || null; setProof(fl); if (fl) setUnpaid(false); }} />
+          <label className="mt-1 flex items-center gap-1"><Checkbox checked={unpaid} onCheckedChange={(v) => setUnpaid(!!v)} /> Not paid (bill later)</label></div>
         <p className="font-semibold">Total: ${total.toFixed(2)} ({student ? '$40 Gaonhae rate' : '$45'})</p>
         <div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={saving} onClick={() => save()}>{saving ? 'Saving…' : 'Save'}</Button></div>
       </DialogContent>
