@@ -156,16 +156,37 @@ const PublicPerthComp: React.FC = () => {
       const rows = (data as any[]) || [];
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.setFontSize(14); doc.text(`Perth Seminars & Poomsae Championship 2026 — Registered Competitors (${rows.length})`, 14, 14);
-      doc.setFontSize(9); doc.text(`Generated ${formatDateTime(new Date())}`, 14, 20);
-      autoTable(doc, {
-        startY: 24, styles: { fontSize: 8 },
-        head: [['#', 'Name', 'Club', 'Age Category', 'Grade', 'Events']],
-        body: rows.length
-          ? rows.map((r, i) => [i + 1, r.name, r.club, r.age_division ? `${r.age_division} Years` : '', gradeLabel(r.grade), (r.events || []).map(eventLabel).join(', ')])
-          : [['', 'No competitors registered yet', '', '', '', '']],
+      const doc = new jsPDF();
+      const entries = rows.reduce((n, r) => n + (r.events || []).length, 0);
+      doc.setFontSize(14); doc.text('Perth Seminars & Poomsae Championship 2026', 14, 14);
+      doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 21);
+      doc.setFontSize(9); doc.text(`${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`, 14, 27);
+      let y = 32;
+      const norm = (s: string) => String(s).replace(/[–—]/g, '-'); const divIdx = (d: string) => { const i = AGE_DIVISIONS.map(norm).indexOf(norm(d)); return i < 0 ? 999 : i; };
+      if (!rows.length) doc.text('No competitors registered yet.', 14, y + 6);
+      const pageH = doc.internal.pageSize.getHeight();
+      COMP_EVENTS.forEach((ev) => {
+        const inEv = rows.filter((r) => (r.events || []).includes(ev.code));
+        if (!inEv.length) return;
+        if (y > pageH - 40) { doc.addPage(); y = 14; }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(eventLabel(ev.code), 14, y + 6);
+        doc.setFont('helvetica', 'normal'); y += 9;
+        const divs = [...new Set(inEv.map((r) => r.age_division || ''))].sort((a, b) => divIdx(a) - divIdx(b));
+        divs.forEach((d) => {
+          const list = inEv.filter((r) => (r.age_division || '') === d).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+          if (y > pageH - 30) { doc.addPage(); y = 14; }
+          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} (${list.length})`, 18, y + 5);
+          autoTable(doc, {
+            startY: y + 7, margin: { left: 18 }, styles: { fontSize: 8 },
+            head: [['#', 'Name', 'Club', 'Grade']],
+            body: list.map((r, i) => [i + 1, r.name, r.club, gradeLabel(r.grade)]),
+          });
+          y = (doc as any).lastAutoTable.finalY + 4;
+        });
+        y += 3;
       });
+      const pages = doc.getNumberOfPages();
+      for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFontSize(8); doc.text(`Page ${p} of ${pages}`, doc.internal.pageSize.getWidth() - 14, pageH - 8, { align: 'right' }); }
       doc.save('perth-2026-registered-competitors.pdf');
     } catch {
       toast.error('Could not load the competitors list. Please try again.');
