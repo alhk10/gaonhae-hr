@@ -4282,6 +4282,7 @@ export type Database = {
           grade: string
           id: string
           is_gaonhae_student: boolean
+          is_unpaid: boolean
           last_name: string
           phone: string
           proof_scan_amount: number | null
@@ -4308,6 +4309,7 @@ export type Database = {
           grade: string
           id?: string
           is_gaonhae_student?: boolean
+          is_unpaid?: boolean
           last_name: string
           phone: string
           proof_scan_amount?: number | null
@@ -4334,6 +4336,7 @@ export type Database = {
           grade?: string
           id?: string
           is_gaonhae_student?: boolean
+          is_unpaid?: boolean
           last_name?: string
           phone?: string
           proof_scan_amount?: number | null
@@ -9234,6 +9237,7 @@ export type Database = {
           grade: string
           id: string
           is_gaonhae_student: boolean
+          is_unpaid: boolean
           last_name: string
           phone: string
           proof_scan_amount: number | null
