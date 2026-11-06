@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Restore legacy Perth competition event entries and verify PDF inclusion.
 - [x] /hello duplicate-submission prevention
 - [x] Success screen shows transaction code + copy
 - [x] Foundation 1/2/3 together (duplicate keys by level)

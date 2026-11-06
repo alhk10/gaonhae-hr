@@ -1,4 +1,5 @@
 # Project architecture
+- Canonicalize legacy Perth competition event codes at database writes and frontend read boundaries, without changing competitor grades, so merged events remain visible in PDFs, logs and editing.
 
 - Staff slot capacity uses the shared `slotCapacity` weekday and availability helpers, never display-formatted dates as configuration keys, so calendars and branch moves agree on daily limits.
 
