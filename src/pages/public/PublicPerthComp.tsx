@@ -25,7 +25,7 @@ import { newClientRef } from '@/utils/publicPaymentValidation';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
 import {
   SEMINARS, COMP_EVENTS, GRADES, GAONHAE_BELTS, AGE_DIVISIONS, PERTH_BANK_INFO,
-  ageByBirthYear, gradeRank, seminarIneligibility, eventIneligibility, ageDivision, eventLabel, seminarLabel, gradeLabel,
+  ageByBirthYear, gradeRank, seminarIneligibility, eventIneligibility, ageDivision, eventLabel, seminarLabel, gradeLabel, normalizeCompEvents,
 } from '@/utils/perthCompRules';
 import kyorugiPoster from '@/assets/perth-kyorugi-seminar.png.asset.json';
 import poomsaePoster from '@/assets/perth-poomsae-seminar.png.asset.json';
@@ -153,7 +153,7 @@ const PublicPerthComp: React.FC = () => {
     try {
       const { data, error } = await supabase.rpc('get_perth_competition_entries' as any);
       if (error) throw error;
-      const rows = (data as any[]) || [];
+      const rows = ((data as any[]) || []).map((r) => ({ ...r, events: normalizeCompEvents(r.events || []) }));
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
@@ -457,7 +457,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     const { data, error } = await supabase.rpc('get_perth_event_log' as any, { p_password: pw });
     setLoading(false);
     if (error) return toast.error('Incorrect password');
-    setRows((data as any[]) || []);
+    setRows(((data as any[]) || []).map((r) => ({ ...r, comp_events: normalizeCompEvents(r.comp_events || []) })));
   };
 
   const removeRow = async (r: any) => {
@@ -636,7 +636,7 @@ const PerthEntryDialog: React.FC<{ pw: string; row: any; onClose: () => void; on
     club: row.club || '', grade: row.grade || '', email: row.email || '', phone: row.phone || '',
   });
   const [sem, setSem] = useState<string[]>(row.seminars || []);
-  const [ev, setEv] = useState<string[]>(row.comp_events || []);
+  const [ev, setEv] = useState<string[]>(() => normalizeCompEvents(row.comp_events || []));
   const [student, setStudent] = useState<any | null>(row.student_id ? { id: row.student_id, label: 'Linked student' } : null);
   const [q, setQ] = useState(''); const [results, setResults] = useState<any[]>([]);
   const [proof, setProof] = useState<File | null>(null);
