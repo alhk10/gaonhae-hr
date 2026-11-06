@@ -182,10 +182,11 @@ const PublicPerthComp: React.FC = () => {
         [...groups.values()].sort((a, b) => divIdx(a.d) - divIdx(b.d) || gOrd(a.g) - gOrd(b.g) || a.rank - b.rank).forEach(({ d, g, grade, list: raw }) => {
           const list = raw.sort((a, b) => String(a.name).localeCompare(String(b.name)));
           if (y > pageH - 30) { doc.addPage(); y = 14; }
-          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${gradeLabel(grade)} (${list.length})`, 18, y + 5);
+          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${gradeLabel(grade)}`, 18, y + 5);
           autoTable(doc, {
-            startY: y + 7, margin: { left: 18 }, styles: { fontSize: 8 },
-            head: [['#', 'Name', 'Club']],
+            startY: y + 7, margin: { left: 18, right: 14 }, styles: { fontSize: 8 },
+            tableWidth: doc.internal.pageSize.getWidth() - 32,
+            columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 85 }, 2: { cellWidth: 'auto' } },
             body: list.map((r, i) => [i + 1, String(r.name || '').toUpperCase(), String(r.club || '').toUpperCase()]),
           });
           y = (doc as any).lastAutoTable.finalY + 4;
