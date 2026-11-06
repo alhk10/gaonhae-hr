@@ -77,5 +77,9 @@ export const eventIneligibility = (code: string, rank: number | null): string | 
   return gradeRank(code) >= rank ? null : 'Below current grade';
 };
 
-export const eventLabel = (code: string) => COMP_EVENTS.find((e) => e.code === code)?.label || code;
+/** Canonical event codes, not competitor grades; keep legacy entries visible. */
+export const normalizeCompEvents = (events: readonly string[] = []): string[] =>
+  [...new Set(events.map((code) => code === 'g10' ? 'g9' : code === 'g8' ? 'g7' : code))];
+
+export const eventLabel = (code: string) => COMP_EVENTS.find((e) => e.code === normalizeCompEvents([code])[0])?.label || code;
 export const seminarLabel = (code: string) => SEMINARS.find((s) => s.code === code)?.name || code;

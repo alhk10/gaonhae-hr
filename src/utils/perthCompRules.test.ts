@@ -1,7 +1,19 @@
 declare const describe: any, it: any, expect: any;
-import { eventIneligibility, gradeRank, seminarIneligibility, ageByBirthYear, ageDivision, SEMINARS } from './perthCompRules';
+import { eventIneligibility, gradeRank, seminarIneligibility, ageByBirthYear, ageDivision, SEMINARS, normalizeCompEvents, COMP_EVENTS } from './perthCompRules';
 
 describe('Perth comp rules', () => {
+  it('includes legacy Geup 10 entries in the merged Geup 10 and 9 event', () => {
+    expect(normalizeCompEvents(['g10'])).toEqual(['g9']);
+    expect(COMP_EVENTS.some(e => normalizeCompEvents(['g10']).includes(e.code))).toBe(true);
+  });
+  it('includes legacy Geup 8 entries in the merged Geup 8 and 7 event', () => {
+    expect(normalizeCompEvents(['g8'])).toEqual(['g7']);
+    expect(COMP_EVENTS.some(e => normalizeCompEvents(['g8']).includes(e.code))).toBe(true);
+  });
+  it('counts a merged event once while preserving separate events', () => {
+    expect(normalizeCompEvents(['g10', 'g9', 'g8', 'g7'])).toEqual(['g9', 'g7']);
+    expect(normalizeCompEvents(['g1', 'pd_t8'])).toEqual(['g1', 'pd_t8']);
+  });
   it('allows own grade and higher, not lower', () => {
     const r = gradeRank('g6');
     expect(eventIneligibility('g6', r)).toBeNull();
