@@ -185,8 +185,8 @@ const PublicPerthComp: React.FC = () => {
           doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${gradeLabel(grade)} (${list.length})`, 18, y + 5);
           autoTable(doc, {
             startY: y + 7, margin: { left: 18 }, styles: { fontSize: 8 },
-            head: [['#', 'Name', 'Club', 'Grade']],
-            body: list.map((r, i) => [i + 1, r.name, r.club, gradeLabel(r.grade)]),
+            head: [['#', 'Name', 'Club']],
+            body: list.map((r, i) => [i + 1, String(r.name || '').toUpperCase(), String(r.club || '').toUpperCase()]),
           });
           y = (doc as any).lastAutoTable.finalY + 4;
         });
