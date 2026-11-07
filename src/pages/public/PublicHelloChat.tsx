@@ -103,14 +103,9 @@ const getVariantArray = (product: ChatProduct, key: string): string[] => {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 };
 
-const getDisplayPrice = (product: ChatProduct, country?: string | null): number => {
-  const sgTarget = Number(product.metadata?.sg_target_price ?? NaN);
-  const auTarget = Number(product.metadata?.au_target_price ?? NaN);
-  const normalizedCountry = country?.toLowerCase();
-  if (normalizedCountry === 'singapore' && Number.isFinite(sgTarget)) return sgTarget;
-  if (normalizedCountry === 'australia' && Number.isFinite(auTarget)) return auTarget;
-  return Number(product.branch_price || 0);
-};
+// Branch price (guards override → branch price rule → base) always wins.
+const getDisplayPrice = (product: ChatProduct, _country?: string | null): number =>
+  Number(product.branch_price || 0);
 
 const isPreorderProduct = (product: ChatProduct): boolean => product.metadata?.is_preorder === true;
 
