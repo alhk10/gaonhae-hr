@@ -155,7 +155,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
     });
     return m;
   }, [convRows]);
-  const [convertFor, setConvertFor] = useState<null | { id: string; name: string }>(null);
+  const [convertFor, setConvertFor] = useState<null | { id: string; name: string; cert: { id: string; rank: string | null } | null }>(null);
 
   const hiddenHolidays = (data?.holidays || []).filter((h) => h.date === dayIso);
   const inBreak = (data?.breaks || []).some((b) => dayIso >= b.start_date && dayIso <= b.end_date);
@@ -336,7 +336,13 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
                           <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
                           {convById[b.student_id]?.due && (
-                            <button type="button" disabled={!canEdit} onClick={() => setConvertFor({ id: b.student_id, name: b.student_name })}>
+                            <button type="button" disabled={!canEdit} onClick={async () => {
+                              let cert: { id: string; rank: string | null } | null = null;
+                              if (convById[b.student_id].pending) {
+                                try { const c = (await getGradingRecords(b.student_id)).certificates.find((x) => x.status === 'awaiting_upload'); if (c) cert = { id: c.id, rank: c.rank }; } catch { /* open without */ }
+                              }
+                              setConvertFor({ id: b.student_id, name: b.student_name, cert });
+                            }}>
                               <Badge className="text-[10px]">{convById[b.student_id].pending ? 'Certificate needed' : 'Conversion due'}</Badge>
                             </button>
                           )}
@@ -493,6 +499,12 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
         <AttendanceSettingsDialog open={settingsOpen} onOpenChange={(o) => { setSettingsOpen(o); if (!o) refresh(); }} branchId={branchId} />
       )}
       <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} canEdit={canEdit} />
+      {convertFor && convById[convertFor.id] && (
+        <ConversionDialog open onOpenChange={(o) => !o && setConvertFor(null)}
+          certificateId={convertFor.cert?.id} defaultRank={convertFor.cert?.rank}
+          student={{ id: convertFor.id, name: convertFor.name, belt: convById[convertFor.id].row.belt, dob: convById[convertFor.id].row.dob,
+            branchId, lastConversion: convById[convertFor.id].row.last_dan_conversion_at }} />
+      )}
     </div>
   );
 };
