@@ -24,6 +24,9 @@ import { gradingBadgeState } from '@/utils/gradingReady';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
+import ConversionDialog from '@/components/conversion/ConversionDialog';
+import { getConversionStatus, getGradingRecords, type ConversionStatus } from '@/services/certificateService';
+import { checkConversionEligibility, conversionDue, formatRankWithPoom } from '@/utils/danConversion';
 
 interface Props {
   lockedBranchId?: string;
@@ -136,6 +139,23 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
     (data?.bookings || []).forEach((b) => { (m[`${b.lesson_date}_${b.timetable_id}`] ||= []).push(b); });
     return m;
   }, [data]);
+
+  const studentIds = useMemo(() => Array.from(new Set((data?.bookings || [])
+    .filter((b) => /Poom|Dan/.test(b.current_belt || '')).map((b) => b.student_id))).sort(), [data]);
+  const { data: convRows } = useQuery({
+    queryKey: ['conversion-status', studentIds],
+    queryFn: () => getConversionStatus(studentIds),
+    enabled: studentIds.length > 0,
+    retry: false,
+  });
+  const convById = useMemo(() => {
+    const m: Record<string, { due: boolean; pending: boolean; row: ConversionStatus }> = {};
+    (convRows || []).forEach((r) => {
+      m[r.id] = { row: r, pending: r.pending_certificate, due: r.pending_certificate || conversionDue(checkConversionEligibility(r.belt, r.dob, r.last_dan_conversion_at)) };
+    });
+    return m;
+  }, [convRows]);
+  const [convertFor, setConvertFor] = useState<null | { id: string; name: string }>(null);
 
   const hiddenHolidays = (data?.holidays || []).filter((h) => h.date === dayIso);
   const inBreak = (data?.breaks || []).some((b) => dayIso >= b.start_date && dayIso <= b.end_date);
@@ -314,7 +334,12 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                       {list.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-xs">
                           <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
-                          <span className="text-muted-foreground">{b.current_belt || 'No belt'}</span>
+                          <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
+                          {convById[b.student_id]?.due && (
+                            <button type="button" disabled={!canEdit} onClick={() => setConvertFor({ id: b.student_id, name: b.student_name })}>
+                              <Badge className="text-[10px]">{convById[b.student_id].pending ? 'Certificate needed' : 'Conversion due'}</Badge>
+                            </button>
+                          )}
                           {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
                           {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
                           {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
