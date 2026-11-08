@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public._cert_can_manage(text, uuid), public._invoice_items_conversion_check(), public._invoice_conversion_paid() FROM PUBLIC, anon, authenticated;

@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import HelloCertificatesDialog from '@/components/conversion/HelloCertificatesDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatDate, toISODate } from '@/utils/dateFormat';
 import { toast } from 'sonner';
@@ -181,6 +182,7 @@ const PublicHelloChat: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [matched, setMatched] = useState<MatchedStudent | null>(null);
   const [sessionLinked, setSessionLinked] = useState(false);
+  const [certsOpen, setCertsOpen] = useState(false);
 
   const goTo = useCallback((next: Stage) => {
     setStageHistory((h) => [...h, stage]);
@@ -1639,6 +1641,14 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
+                  {sessionId && matched?.id && (
+                    <Button onClick={() => setCertsOpen(true)} variant="outline" className="w-full h-11 justify-between">
+                      Gradings &amp; certificates <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {certsOpen && sessionId && matched?.id && (
+                    <HelloCertificatesDialog open onOpenChange={setCertsOpen} sessionId={sessionId} studentId={matched.id} belt={(matched as any).current_belt} />
+                  )}
                   {hasOpenCompetition && <Button
                     onClick={() => goTo('competition')}
                     variant="outline"

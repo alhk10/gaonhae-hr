@@ -6357,6 +6357,68 @@ export type Database = {
           },
         ]
       }
+      student_certificates: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string | null
+          invoice_id: string | null
+          issue_date: string | null
+          rank: string | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scan: Json | null
+          series: string
+          source: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          invoice_id?: string | null
+          issue_date?: string | null
+          rank?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan?: Json | null
+          series?: string
+          source?: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          invoice_id?: string | null
+          issue_date?: string | null
+          rank?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scan?: Json | null
+          series?: string
+          source?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_certificates_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_change_logs: {
         Row: {
           action: string
@@ -6968,6 +7030,7 @@ export type Database = {
           id: string
           is_employee: boolean
           languages_spoken: string[] | null
+          last_dan_conversion_at: string | null
           last_name: string | null
           medical_conditions: string | null
           nationality: string[] | null
@@ -6978,6 +7041,7 @@ export type Database = {
           phone: string | null
           poom_dan_certificate_url: string | null
           postal_code: string | null
+          pre_conversion_poom: string | null
           preferred_name: string | null
           previous_experience: string | null
           referral_source: string | null
@@ -7017,6 +7081,7 @@ export type Database = {
           id?: string
           is_employee?: boolean
           languages_spoken?: string[] | null
+          last_dan_conversion_at?: string | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string[] | null
@@ -7027,6 +7092,7 @@ export type Database = {
           phone?: string | null
           poom_dan_certificate_url?: string | null
           postal_code?: string | null
+          pre_conversion_poom?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
@@ -7066,6 +7132,7 @@ export type Database = {
           id?: string
           is_employee?: boolean
           languages_spoken?: string[] | null
+          last_dan_conversion_at?: string | null
           last_name?: string | null
           medical_conditions?: string | null
           nationality?: string[] | null
@@ -7076,6 +7143,7 @@ export type Database = {
           phone?: string | null
           poom_dan_certificate_url?: string | null
           postal_code?: string | null
+          pre_conversion_poom?: string | null
           preferred_name?: string | null
           previous_experience?: string | null
           referral_source?: string | null
@@ -7878,6 +7946,22 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: boolean
       }
+      _cert_apply: { Args: { p_id: string }; Returns: undefined }
+      _cert_can_manage: {
+        Args: { p_password: string; p_student_id: string }
+        Returns: boolean
+      }
+      _dan_conversion_check: {
+        Args: {
+          p_as_of?: string
+          p_belt: string
+          p_dob: string
+          p_from: string
+          p_last: string
+          p_to: string
+        }
+        Returns: string
+      }
       _external_stock_move: {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
@@ -7886,6 +7970,7 @@ export type Database = {
         Args: { p_student_id: string; p_term_id: string }
         Returns: Json
       }
+      _grading_records: { Args: { p_student_id: string }; Returns: Json }
       _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _lesson_balance: {
@@ -8071,6 +8156,10 @@ export type Database = {
         Args: { p_entry: Json; p_password: string }
         Returns: string
       }
+      access_can_manage_student: {
+        Args: { p_password: string; p_student_id: string }
+        Returns: boolean
+      }
       access_class_type_set_color: {
         Args: {
           p_branch_id: string
@@ -8089,6 +8178,10 @@ export type Database = {
           p_password: string
         }
         Returns: string
+      }
+      access_conversion_status: {
+        Args: { p_password: string; p_student_ids: string[] }
+        Returns: Json
       }
       access_delete_draft_invoice: {
         Args: { p_invoice_id: string; p_password: string; p_reason?: string }
@@ -8146,6 +8239,10 @@ export type Database = {
         }
         Returns: string
       }
+      access_pending_certificates: {
+        Args: { p_password: string }
+        Returns: Json
+      }
       access_record_payment: {
         Args: {
           p_amount: number
@@ -8169,6 +8266,18 @@ export type Database = {
         }
         Returns: Json
       }
+      access_review_certificate: {
+        Args: {
+          p_approve: boolean
+          p_id: string
+          p_issue_date?: string
+          p_password: string
+          p_rank?: string
+          p_reason?: string
+          p_series?: string
+        }
+        Returns: Json
+      }
       access_set_ready_for_grading: {
         Args: {
           p_password: string
@@ -8181,6 +8290,10 @@ export type Database = {
       access_set_student_employee: {
         Args: { p_password: string; p_student_id: string; p_value: boolean }
         Returns: undefined
+      }
+      access_student_grading_records: {
+        Args: { p_password: string; p_student_id: string }
+        Returns: Json
       }
       access_submit_invoice_adjustment: {
         Args: {
@@ -10036,6 +10149,10 @@ export type Database = {
       has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
       hello_grading_eligibility: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: Json
+      }
+      hello_student_grading_records: {
         Args: { p_session_id: string; p_student_id: string }
         Returns: Json
       }

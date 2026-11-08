@@ -6,3 +6,5 @@
 - [x] Auto-verify + invoice for grading/competition/guards
 - [x] Exact-cent scan matching
 - [x] Import errors check (none on record; Import needs verification first)
+- [x] Poom→Dan administrative conversion (rules, products, badges, certificates, /hello uploads)
+- [ ] Set real prices for the 7 STF conversion products (waiting on prices)

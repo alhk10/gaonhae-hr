@@ -23,6 +23,10 @@ import { calculateAgeYears } from '@/utils/birthDate';
 import { getPublicStudentProfile, getPublicStudentDirectory, type PublicStudentDirectoryRow } from '@/services/studentDirectoryService';
 import InvoiceNumberButton from './InvoiceNumberButton';
 import InvoiceDetailDialog from './InvoiceDetailDialog';
+import GradingRecordsSection from '@/components/conversion/GradingRecordsSection';
+import ConversionDialog from '@/components/conversion/ConversionDialog';
+import { getGradingRecords } from '@/services/certificateService';
+import { checkConversionEligibility, conversionDue, formatRankWithPoom } from '@/utils/danConversion';
 
 interface Props {
   studentId: string | null;
@@ -74,6 +78,15 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
   const student = data?.student;
   const enrolment = data?.enrolment;
   const invoices = data?.invoices || [];
+  const [convert, setConvert] = useState<{ certId: string | null; rank: string | null } | null>(null);
+  const { data: records } = useQuery({
+    queryKey: ['grading-records', studentId, false],
+    queryFn: () => getGradingRecords(studentId!),
+    enabled: open && !!studentId,
+    retry: false,
+  });
+  const pendingCert = (records?.certificates || []).find((c) => c.status === 'awaiting_upload');
+  const due = !!pendingCert || conversionDue(checkConversionEligibility(student?.current_belt, student?.date_of_birth, records?.student?.last_dan_conversion_at));
 
   return (
     <>
@@ -131,7 +144,16 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
               <Row label="Student no." value={student.student_number} />
               <Row label="Branch" value={student.branch_name || student.branch_id} />
-              <Row label="Belt" value={student.current_belt || '—'} />
+              <Row label="Belt" value={
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  {formatRankWithPoom(student.current_belt, records?.student?.pre_conversion_poom) || '—'}
+                  {canEdit && due && (
+                    <button type="button" onClick={() => setConvert({ certId: null, rank: null })}>
+                      <Badge className="text-[10px]">{pendingCert ? 'Certificate needed' : 'Conversion due'}</Badge>
+                    </button>
+                  )}
+                </span>
+              } />
               <Row label="Status" value={<span className="capitalize">{student.status}</span>} />
               <Row
                 label="Birth date"
@@ -261,11 +283,24 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
                 })}
               </div>
             </div>
+
+            <Separator />
+            <div>
+              <p className="text-xs font-semibold mb-1">Grading</p>
+              <GradingRecordsSection studentId={student.id || studentId!}
+                onCertificateNeeded={canEdit ? (id, rank) => setConvert({ certId: id, rank }) : undefined} />
+            </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
 
+    {convert && student && (
+      <ConversionDialog open onOpenChange={(o) => !o && setConvert(null)}
+        certificateId={convert.certId ?? pendingCert?.id ?? null}
+        defaultRank={convert.rank ?? pendingCert?.rank ?? null}
+        student={{ id: studentId!, name: student.name, belt: student.current_belt, dob: student.date_of_birth, branchId: student.branch_id, lastConversion: records?.student?.last_dan_conversion_at }} />
+    )}
     <InvoiceDetailDialog
       invoiceId={invoiceView?.id ?? null}
       invoiceNumber={invoiceView?.number ?? null}
