@@ -169,8 +169,8 @@ const PublicPerthComp: React.FC = () => {
         const inEv = rows.filter((r) => (r.events || []).includes(ev.code));
         if (!inEv.length) return;
         if (y > pageH - 40) { doc.addPage(); y = 14; }
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(eventLabel(ev.code), 14, y + 6);
-        doc.setFont('helvetica', 'normal'); y += 9;
+        doc.setFont('helvetica', 'normal');
+        const evFull = String(eventLabel(ev.code)); const pattern = evFull.split(/\s[–—-]\s/).pop() || evFull;
         const gOrd = (g: string) => (/^f/i.test(g || '') ? 0 : /^m/i.test(g || '') ? 1 : 2);
         const gName = (g: string) => (/^f/i.test(g || '') ? 'Female' : /^m/i.test(g || '') ? 'Male' : 'Gender not set');
         const groups = new Map<string, { d: string; g: string; grade: string; rank: number; list: any[] }>();
@@ -182,7 +182,7 @@ const PublicPerthComp: React.FC = () => {
         [...groups.values()].sort((a, b) => divIdx(a.d) - divIdx(b.d) || gOrd(a.g) - gOrd(b.g) || a.rank - b.rank).forEach(({ d, g, grade, list: raw }) => {
           const list = raw.sort((a, b) => String(a.name).localeCompare(String(b.name)));
           if (y > pageH - 30) { doc.addPage(); y = 14; }
-          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${gradeLabel(grade)}`, 18, y + 5);
+          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} · ${g} · ${pattern}`, 18, y + 5);
           autoTable(doc, {
             startY: y + 7, margin: { left: 18, right: 14 }, styles: { fontSize: 8 },
             tableWidth: doc.internal.pageSize.getWidth() - 32,
