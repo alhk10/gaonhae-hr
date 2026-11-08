@@ -33,14 +33,38 @@
 - Invoice form: conversion products show which students are eligible and explain why other students are blocked.
 - Belt dropdowns stop suggesting a Dan as the "next belt" after a Poom.
 
+## Conversion due dialog
+- Clicking "Conversion due" in Attendance or the student profile opens one dialog with two options:
+  - Upload and scan a certificate, for students who already hold the Dan. After approval, this records the conversion without an invoice.
+  - Issue a manual conversion invoice for the next conversion the student is eligible for.
+
+## Conversion products (new "Conversion" category, placeholder prices to update later)
+- STF 1st Poom > 1st Dan, STF 2nd Poom > 1st Dan, STF 3rd Poom > 1st Dan, STF 4th Poom > 1st Dan
+- STF 1st Dan > 2nd Dan, STF 2nd Dan > 3rd Dan, STF 3rd Dan > 4th Dan
+
+## Certificates
+- Two types: STF (Singapore Taekwondo Federation) and Kukkiwon. Both are scanned for issuer, name, rank and Date of Issue.
+- For Singapore branches, the student's rank and the conversion rules use the STF certificates. Kukkiwon certificates are kept as records.
+
+## Grading section in student profile (placed after Invoices)
+- One row for each grading and each conversion: Date of grading or issue, Belt, Result, plus a certificate icon when a certificate has been uploaded. Clicking the icon opens it.
+
+## /hello
+- Signed-in students see their grading results and uploaded certificates.
+- Students can upload existing STF or Kukkiwon certificates. Each upload is scanned automatically and waits in Approvals for branch staff or superadmin to approve or reject.
+- Approved certificates fill in automatically on competition and event forms, the same way passport photos do now. Students can still upload a different one.
+
 ## Technical details
 - `src/constants/beltLevels.ts`: split the next-belt progression into separate Poom and Dan tracks. Black Tip >> 1st Poom (under 15) or 1st Dan (15+). `getNextBeltLevel` never crosses tracks. Remove the "at 15 they convert to Dan" behaviour.
 - New `src/utils/danConversion.ts`: a pure `checkConversionEligibility(belt, dob, lastConversionDate, asOf)` function, plus tests for each birthday, prerequisite and wait boundary.
 - Products: create or update STF conversion products for 1st, 2nd, 3rd and 4th Dan, priced per branch the same way as other products. Prices to be confirmed.
-- Store on the student: `pre_conversion_poom` (shown in brackets) and `last_dan_conversion_at`. New `dan_conversion_certificates` table (student, invoice, target Dan, private image path, scanned issuer/name/issue date, status pending|verified|manual), with branch-scoped RPCs. A trigger creates the pending row when a conversion invoice becomes paid or verified. The belt stays unchanged.
+- Store on the student: `pre_conversion_poom` (shown in brackets) and `last_dan_conversion_at`. New `student_certificates` table (student, optional invoice, series stf|kukkiwon, rank, source staff|hello, private image path in `student-photos`, scanned issuer/name/rank/issue date, status pending|verified|rejected|manual), with branch-scoped RPCs. A trigger creates the pending row when a conversion invoice becomes paid or verified. The belt stays unchanged.
 - The certificate scan runs as an edge function using the Lovable AI vision model. It returns the issuer, name and Date of Issue. Saving the result sets `last_dan_conversion_at` from the Date of Issue.
 - `InvoiceDialog.tsx`: check eligibility when a conversion product is added. The database insert path checks the same rules again, so `/access` and the superadmin pages follow the same rule.
 - Check the auto-conversion's source (likely the next-belt helper used in grading results and profile suggestions) before changing anything, and cover each place that calls it.
 
+- /hello certificate uploads use the server-checked student session (same as passport photos). Competition and event forms copy the approved certificate into each submission.
+- Grading section: merge `student_grading_history` with `student_certificates` per student.
+
 ## Open item
-- Conversion fees for each Dan and each country are needed. Placeholders will be used until you confirm them.
+- Conversion fees for each conversion and each country are needed. Placeholders will be used until you confirm them.
