@@ -527,7 +527,8 @@ export interface SubmitChatPaymentInput {
   branch_id: string;
   category: string;
   items: {
-    product_id: string;
+    product_id: string | null;
+    package_key?: string | null;
     product_name: string;
     size?: string | null;
     variant?: string | null;

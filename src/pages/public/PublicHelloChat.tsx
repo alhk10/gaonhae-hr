@@ -66,6 +66,7 @@ import {
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+import { getPublicGuardsProducts } from '@/services/guardsPurchaseService';
 import {
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
@@ -377,7 +378,26 @@ const PublicHelloChat: React.FC = () => {
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
     queryKey: ['hello-products', branchId, payCategory?.id, sessionId, matched?.id],
-    queryFn: () => getChatProducts(branchId, payCategory!.id, sessionId, matched?.id),
+    queryFn: async () => {
+      const list = await getChatProducts(branchId, payCategory!.id, sessionId, matched?.id);
+      if (payCategory!.id !== PROTECTION_CATEGORY_ID) return list;
+      // Guard packages are bundles (not catalogue products) priced per branch.
+      const guards = await getPublicGuardsProducts(branchId).catch(() => []);
+      const packages = guards
+        .filter((g) => g.item_type === 'package')
+        .map((g) => ({
+          product_id: `package:${g.item_key}`,
+          product_name: g.name,
+          base_price: Number(g.price),
+          branch_price: Number(g.price),
+          requires_size: false,
+          available_sizes: null,
+          available_variants: {},
+          metadata: { item_type: 'package', package_key: g.item_key, description: g.description },
+          is_term_based: false,
+        }));
+      return [...packages, ...list];
+    },
     enabled: !!branchId && !!payCategory && stage === 'payment_products',
   });
 
@@ -1018,7 +1038,8 @@ const PublicHelloChat: React.FC = () => {
         branch_id: branchId,
         category: payCategory.label,
         items: cart.map(c => ({
-          product_id: c.product.product_id,
+          product_id: c.product.metadata?.package_key ? null : c.product.product_id,
+          package_key: c.product.metadata?.package_key ?? null,
           product_name: c.product.product_name,
           size: c.size,
           size_variant: c.size,
