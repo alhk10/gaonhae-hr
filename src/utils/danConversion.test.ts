@@ -1,3 +1,4 @@
+// @ts-nocheck -- vitest types are not part of the app tsconfig
 import { describe, it, expect } from 'vitest';
 import { checkConversionEligibility as check, nextConversionTarget, formatRankWithPoom } from './danConversion';
 import { getNextBeltLevel } from '@/constants/beltLevels';
