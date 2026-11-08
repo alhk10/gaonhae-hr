@@ -176,14 +176,15 @@ const PublicPerthComp: React.FC = () => {
         const gName = (g: string) => (/^f/i.test(g || '') ? 'Female' : /^m/i.test(g || '') ? 'Male' : 'Gender not set');
         const groups = new Map<string, { d: string; g: string; grade: string; rank: number; list: any[] }>();
         inEv.forEach((r) => {
-          const k = `${r.age_division || ''}|${gName(r.gender)}|${r.grade || ''}`;
-          if (!groups.has(k)) groups.set(k, { d: r.age_division || '', g: gName(r.gender), grade: r.grade || '', rank: Number(r.grade_rank ?? 0), list: [] });
+          const dv = norm(r.age_division || '').trim();
+          const k = `${dv}|${gName(r.gender)}`;
+          if (!groups.has(k)) groups.set(k, { d: dv, g: gName(r.gender), grade: r.grade || '', rank: Number(r.grade_rank ?? 0), list: [] });
           groups.get(k)!.list.push(r);
         });
         [...groups.values()].sort((a, b) => divIdx(a.d) - divIdx(b.d) || gOrd(a.g) - gOrd(b.g) || a.rank - b.rank).forEach(({ d, g, grade, list: raw }) => {
           const list = raw.sort((a, b) => String(a.name).localeCompare(String(b.name)));
           if (y > pageH - 30) { doc.addPage(); y = 14; }
-          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'} ${gradePart ? ` · ${gradePart}` : ''} · ${g} · ${pattern}`, 18, y + 5);
+          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'}${gradePart ? ` · ${gradePart}` : ''} · ${g} · ${pattern}`, 18, y + 5);
           autoTable(doc, {
             startY: y + 7, margin: { left: 18, right: 14 }, styles: { fontSize: 8 },
             tableWidth: doc.internal.pageSize.getWidth() - 32,
