@@ -66,6 +66,7 @@ import {
 } from '@/services/publicChatService';
 import { downloadInvoicePDF, type InvoiceData, type InvoiceItem } from '@/utils/invoicePDFGenerator';
 import { computeNextGradingDefault } from '@/utils/nextGradingProduct';
+import { getPublicGuardsProducts } from '@/services/guardsPurchaseService';
 import {
   FOUR_WEEK_NOTE,
   FOUR_WEEK_WEEKS,
