@@ -103,7 +103,7 @@ export const ConversionDialog: React.FC<Props> = ({ open, onOpenChange, student,
               <p className="text-xs font-semibold">Issue conversion invoice</p>
               {check.eligible && product ? (
                 <>
-                  <p className="text-[11px] text-muted-foreground">Add <b>{product}</b> from the Conversions category. After payment, upload the new certificate here. Update the belt by hand afterwards.</p>
+                  <p className="text-[11px] text-muted-foreground">Add <b>{product}</b> from the Conversions category. After payment, upload the new certificate in Approvals. Once verified, the belt updates automatically.</p>
                   <Button size="sm" className="h-7 text-xs" onClick={() => setInvoiceOpen(true)}><FilePlus className="mr-1 h-3.5 w-3.5" />Create invoice</Button>
                 </>
               ) : (
