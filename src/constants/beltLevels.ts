@@ -9,8 +9,8 @@ import { parseDateOnly } from '@/utils/birthDate';
  * - Australia branches use a single "Foundation" belt
  *   then White → Yellow Tip → Yellow → … → 5th Dan.
  *
- * Note: Poom belts are for students under 15 years old.
- * At age 15, they convert to Dan.
+ * Note: Poom belts are for students under 15 years old. Poom → Dan is never
+ * automatic; it needs an STF conversion invoice (see utils/danConversion).
  */
 
 // Common progression after foundation (shared across all countries)
@@ -147,10 +147,27 @@ const resolveList = (country?: string | null): string[] =>
  * Get the next belt level in the progression.
  * Optional country argument — defaults to the SG list to preserve current callers.
  */
+const POOM_TRACK = ['1st Poom', '2nd Poom', '3rd Poom', '4th Poom'];
+const DAN_TRACK = ['1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan'];
+
+/**
+ * Poom and Dan are separate tracks: grading never crosses from Poom to Dan.
+ * Poom → Dan is an administrative conversion (see `@/utils/danConversion`).
+ * Black Tip → 1st Poom, or 1st Dan when the student is already 15+ (dob given).
+ */
 export const getNextBeltLevel = (
   currentBelt: string,
   country?: string | null,
+  dob?: string | Date | null,
 ): string | null => {
+  const poom = POOM_TRACK.indexOf(currentBelt);
+  if (poom !== -1) return POOM_TRACK[poom + 1] ?? null;
+  const dan = DAN_TRACK.indexOf(currentBelt);
+  if (dan !== -1) return DAN_TRACK[dan + 1] ?? null;
+  if (currentBelt === 'Black Tip') {
+    const age = calculateAge(dob ?? null);
+    return age !== null && age >= 15 ? '1st Dan' : '1st Poom';
+  }
   const list = resolveList(country);
   const index = list.indexOf(currentBelt);
   if (index === -1 || index === list.length - 1) return null;
