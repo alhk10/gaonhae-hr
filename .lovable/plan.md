@@ -1,13 +1,7 @@
-# Remaining work: conversion product prices
+Registered Competitors PDF (/perthcomp)
 
-Everything else for the Poom to Dan conversion is done. One task is still open.
+- Remove the bold event title lines (e.g. "Geup 8 & 7 – Taegeuk 2 Jang").
+- Each group sub-heading becomes "Age Years · Gender · Pattern", e.g. "5-6 Years · Male · Taegeuk 2 Jang" (grade text dropped, pattern name taken from the event label after the dash).
+- Group ordering, separation by grade, tables, uppercase names/clubs and page numbers stay unchanged.
 
-## Open task
-- Set real Singapore and Australia prices on the 7 STF conversion products in the Conversion category.
-
-## Blocker
-- I need the conversion fees from you. Until then, the products keep their placeholder prices. Staff can still change the price on each invoice by hand.
-
-## When prices arrive
-- Update each of the 7 products with its base price, plus a branch price rule wherever Australia's price differs.
-- Check that a new conversion invoice picks up the right price in each country.
+Technical: edit the PDF block in `src/pages/public/PublicPerthComp.tsx` — drop the `eventLabel` title line, and replace `gradeLabel(grade)` in the sub-heading with the pattern part of `eventLabel(ev.code)`.
