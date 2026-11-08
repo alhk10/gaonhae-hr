@@ -17,6 +17,7 @@ import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
 import PaymentShortageList from '@/components/common/PaymentShortageList';
 import SummaryApprovalRow from './SummaryApprovalRow';
+import PendingCertificatesCard from '@/components/conversion/PendingCertificatesCard';
 import StudentProfileDialog from './StudentProfileDialog';
 import InvoiceDetailDialog from './InvoiceDetailDialog';
 
@@ -315,6 +316,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
       </p>
 
       <PaymentShortageList mode="access" lockedBranchName={lockedBranchName} />
+
+      <PendingCertificatesCard onOpenStudent={setProfileId} />
 
       {/* 2. Approvals & verifications */}
       <Card>
