@@ -29,6 +29,7 @@
 
 ## Where you will see it
 - Student profile: a "Conversion due" badge when the student is eligible, showing the next conversion and a shortcut to create the invoice.
+- Attendance tab: the same "Conversion due" badge next to the student's other badges (Unpaid, No invoice, Ready for grading).
 - Invoice form: conversion products show which students are eligible and explain why other students are blocked.
 - Belt dropdowns stop suggesting a Dan as the "next belt" after a Poom.
 
