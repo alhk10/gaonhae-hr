@@ -1,26 +1,26 @@
-# Dan to Dan steps become gradings
+# Dan conversion vs Dan grading
+
+## Rule
+A student can convert to a higher Dan only if they held a Poom rank at least as high before converting. If not, they must take a grading.
+
+| Target | Conversion allowed when | Otherwise |
+|---|---|---|
+| 1st Dan | 15th birthday, any Poom (1st–4th) | n/a |
+| 2nd Dan | 16th birthday, holds 1st Dan, 1 year since 1st Dan, previously held 2nd Poom or higher | Grading |
+| 3rd Dan | 18th birthday, holds 2nd Dan, 2 years, previously held 3rd Poom or higher | Grading |
+| 4th Dan | 21st birthday, holds 3rd Dan, 3 years, previously held 4th Poom | Grading |
+
+Example: a 1st Dan student who was 4th Poom can convert to 2nd, 3rd and 4th Dan as each age and wait period is reached. A 1st Dan student who was 1st Poom, or never held Poom, must grade for 2nd Dan and above.
 
 ## What changes
-- Only Poom to 1st Dan (STF 1st–4th Poom > 1st Dan) stays an administrative conversion.
-- 1st > 2nd, 2nd > 3rd and 3rd > 4th Dan become gradings. They are billed with the normal grading products (for example, the existing "1st Dan >> 2nd Dan" grading product). The belt updates through grading results, as with other gradings.
-- The age and wait rules still apply to Dan gradings:
-  - 2nd Dan: from the 16th birthday, 1 year after 1st Dan
-  - 3rd Dan: from the 18th birthday, 2 years after 2nd Dan
-  - 4th Dan: from the 21st birthday, 3 years after 3rd Dan
-
-  Grading invoices and registrations warn about, or block, students who are not yet eligible.
-- The three "STF 1st Dan > 2nd Dan", "STF 2nd Dan > 3rd Dan" and "STF 3rd Dan > 4th Dan" conversion products are switched off. Past invoices keep them.
-- The "Conversion due" badge in Attendance and the student profile only shows for Poom holders aged 15 or older.
-- When a Dan grading result is recorded, the student's last Dan date is set to the grading date, so the next wait period counts from it.
+- The "Conversion due" badge and the conversion dialog only offer a Dan > Dan conversion when the earlier Poom rank allows it. Otherwise the student is treated as a normal grading (for example, the "1st Dan >> 2nd Dan" grading product).
+- Invoices refuse an STF Dan > Dan conversion line if the student's earlier Poom rank is too low, and show the reason.
+- The STF Dan > Dan conversion products stay active, for students who qualify.
+- When a Dan grading result is recorded, the student's last Dan date updates, so wait periods still count correctly.
+- Students with no recorded earlier Poom rank are treated as grading-only. Staff can set the earlier Poom rank on the student's profile.
 
 ## Technical details
-- `src/utils/danConversion.ts`:
-  - `nextConversionTarget` returns 1st Dan only for Poom ranks.
-  - Add `checkDanGradingEligibility` using the existing `DAN_STEPS`.
-  - Update the tests.
-- Database:
-  - `_dan_conversion_check` allows only Poom > 1st Dan conversion lines.
-  - Add a Dan grading eligibility check on invoice lines for Dan >> Dan grading products.
-  - Deactivate the three STF Dan > Dan products.
-  - A grading-result trigger sets `last_dan_conversion_at` when the belt becomes 2nd, 3rd or 4th Dan.
-- Update `ConversionDialog`, `AttendanceTab`, `StudentProfileDialog` and `beltLevels` to use the new rules.
+- In `src/utils/danConversion.ts`, `checkConversionEligibility` gets a `prePoom` argument. Dan steps require the Poom number to be at least the target Dan number. Update the tests.
+- `_dan_conversion_check` checks the student's stored pre-conversion Poom rank in the same way.
+- `AttendanceTab`, `StudentProfileDialog` and `ConversionDialog` pass the earlier Poom rank.
+- A grading-result trigger sets `last_dan_conversion_at` when the belt is promoted to 2nd, 3rd or 4th Dan.
