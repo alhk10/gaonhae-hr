@@ -31,7 +31,7 @@ describe('conversion rules', () => {
     expect(check('3rd Dan', '2005-11-09', '2020-01-01', asOf).eligible).toBe(false);
   });
   it('unknown previous date blocks with dateUnknown', () => {
-    const r = check('1st Dan', '2000-01-01', null, asOf);
+    const r = check('1st Dan', '2000-01-01', null, asOf, '4th Poom');
     expect(r.eligible).toBe(false);
     expect(r.dateUnknown).toBe(true);
   });
