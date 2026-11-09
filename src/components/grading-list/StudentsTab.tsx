@@ -300,7 +300,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                     : (
                       <button type="button" disabled={!canEdit}
                         onClick={async () => {
-                          try { await setReadyForGrading(r.id, r.term_id!, g !== 'ready'); queryClient.invalidateQueries({ queryKey: ['public-student-directory'] }); }
+                          try { await setReadyForGrading(r.id, r.term_id!, g !== 'ready'); qc.invalidateQueries({ queryKey: ['public-student-directory'] }); }
                           catch (err) { toast.error((err as Error).message); }
                         }}
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${g === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
