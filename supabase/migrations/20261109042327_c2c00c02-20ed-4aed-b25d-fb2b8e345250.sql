@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public._grading_history_dan_date() FROM PUBLIC, anon, authenticated;
