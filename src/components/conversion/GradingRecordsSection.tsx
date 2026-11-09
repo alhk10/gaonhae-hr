@@ -66,7 +66,7 @@ export const GradingRecordsSection: React.FC<Props> = ({ studentId, sessionId, o
           ) : r.action ? (
             <button type="button" onClick={r.action}><Badge variant="destructive" className="text-[10px]">Upload certificate</Badge></button>
           ) : r.h && ['pass', 'double'].includes(String(r.h.result || '').toLowerCase()) ? (
-            certificateBelts(r.h.belt_from, r.h.result).map((b) => (
+            certificateBelts(r.h.belt_from, r.h.result, r.h.country).map((b) => (
               <button key={b} type="button" title={`Download ${b} certificate`} aria-label={`Download ${b} certificate`}
                 onClick={() => download(r.h!, b)} className="inline-flex items-center gap-0.5 text-primary">
                 <Award className="h-4 w-4" />{r.h!.result?.toLowerCase() === 'double' && <span className="text-[10px]">{b}</span>}
