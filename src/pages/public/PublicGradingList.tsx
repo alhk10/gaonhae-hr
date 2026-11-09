@@ -118,7 +118,7 @@ import {
   type PublicGradingListRow,
   type PublicGradingSlotByDate,
 } from '@/services/gradingPaymentSubmissionService';
-import { getNextBeltLevel } from '@/constants/beltLevels';
+import { getNextBeltLevel, BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
 import GradingCardUploadDialog from '@/components/grading-list/GradingCardUploadDialog';
 import { tryAutoImport } from '@/utils/submissionAutoImport';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
@@ -1035,7 +1035,11 @@ const PublicGradingList: React.FC = () => {
     };
     groups.forEach((g) => {
       const base = groupTitle(g);
-      const rows = g.items as any[];
+      const rank = (b: any) => { const k = BELT_LEVELS_ARRAY.indexOf(String(b || '')); return k < 0 ? 999 : k; };
+      const rows = [...(g.items as any[])].sort((a, b) =>
+        rank(a.current_belt) - rank(b.current_belt)
+        || String(a.branch_name || '').localeCompare(String(b.branch_name || ''))
+        || String(a.student_name || '').localeCompare(String(b.student_name || '')));
       let i = 0;
       let first = true;
       while (i < rows.length) {
