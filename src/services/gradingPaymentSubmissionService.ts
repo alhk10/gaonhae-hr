@@ -733,7 +733,25 @@ export interface AdminGradingSlot {
   max_age: number | null;
   available_branch_ids: string[] | null;
   registration_count: number;
+  is_hidden?: boolean;
+  slot_kind?: string;
+  grading_year?: number | null;
+  grading_term?: number | null;
 }
+
+export const adminSetGradingSlotMeta = async (
+  id: string,
+  meta: { is_hidden: boolean; slot_kind: string; grading_year: number | null; grading_term: number | null },
+): Promise<void> => {
+  const { error } = await (supabase as any).rpc('admin_set_grading_slot_meta', {
+    p_id: id,
+    p_is_hidden: meta.is_hidden,
+    p_slot_kind: meta.slot_kind,
+    p_year: meta.grading_year,
+    p_term: meta.grading_term,
+  });
+  if (error) throw error;
+};
 
 export const adminListGradingSlots = async (): Promise<AdminGradingSlot[]> => {
   const { data, error } = await (supabase as any).rpc('admin_list_grading_slots');

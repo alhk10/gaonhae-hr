@@ -625,8 +625,11 @@ const PublicGradingList: React.FC = () => {
       } else {
         return;
       }
-      toast.success('Remark updated');
+      toast.success(value === 'Double Testing'
+        ? 'Moved to hidden double promotion slot'
+        : r.remark === 'Double Testing' ? 'Returned to original slot' : 'Remark updated');
       qc.invalidateQueries({ queryKey: ['public-grading-list'] });
+      qc.invalidateQueries({ queryKey: ['admin-grading-slots'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to update remark');
     }
