@@ -934,8 +934,21 @@ const PublicGradingList: React.FC = () => {
     const columnCapacity = contentBottom - contentTop;
 
     // Pre-measure each group's rendered height (matches actual render below)
-    const estRowH = 4.2;
-    const headH = 5.5;
+    // Column widths (mm) shared by measurement and render so wrapping matches
+    const cw = { n: 6, branch: 19, belt: 24, status: 14 };
+    const studentW = colW - cw.n - cw.branch - cw.belt - cw.status;
+    const pdfBelt = (r: any) => shortBeltChange(r.current_belt, r.target_belt).replace(/→/g, '>');
+    const lineH = 7 * 0.3528 * 1.15; // 7pt font
+    const rowH = (r: any) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+      const lines = Math.max(
+        doc.splitTextToSize(r.branch_name || '-', cw.branch - 2).length,
+        doc.splitTextToSize(r.student_name || '', studentW - 2).length,
+        doc.splitTextToSize(pdfBelt(r), cw.belt - 2).length,
+      );
+      return lines * lineH + 2.4;
+    };
+    const headH = 6;
     const measureGroup = (g: typeof groups[number]) => {
       const sub = [
         g.header.grading_date ? formatDate(g.header.grading_date) : 'Unscheduled',
@@ -948,7 +961,7 @@ const PublicGradingList: React.FC = () => {
       doc.setFontSize(9);
       const titleLines = doc.splitTextToSize(title, colW);
       const titleH = titleLines.length * 4;
-      const tableH = headH + g.items.length * estRowH;
+      const tableH = headH + g.items.reduce((a: number, r: any) => a + rowH(r), 0);
       // title (with offset) + table + spacing after
       return 3.5 + titleH + 1 + tableH + 4;
     };
@@ -1013,9 +1026,9 @@ const PublicGradingList: React.FC = () => {
 
       const body = g.items.map((r, i) => [
         String(i + 1),
-        r.branch_name || '—',
+        r.branch_name || '-',
         r.student_name,
-        `${r.current_belt || '—'}${r.target_belt ? ` → ${r.target_belt}` : ''}`,
+        pdfBelt(r),
         r.paid_status,
       ]);
 
@@ -1032,15 +1045,15 @@ const PublicGradingList: React.FC = () => {
         tableWidth: colW,
         head: [['#', 'Branch', 'Student', 'Belt', 'Status']],
         body,
-        styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak', halign: 'center', valign: 'middle' },
+        styles: { fontSize: 7, cellPadding: { top: 1.2, bottom: 1.2, left: 1, right: 1 }, overflow: 'linebreak', halign: 'left', valign: 'middle', lineColor: [225, 225, 225], lineWidth: 0.1 },
         headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'center', valign: 'middle' },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { cellWidth: 6 },
-          1: { cellWidth: 18 },
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 22 },
-          4: { cellWidth: 18 },
+          0: { cellWidth: cw.n, halign: 'center' },
+          1: { cellWidth: cw.branch },
+          2: { cellWidth: studentW },
+          3: { cellWidth: cw.belt },
+          4: { cellWidth: cw.status, halign: 'center' },
         },
         didParseCell: (data) => {
           if (data.section !== 'body') return;
