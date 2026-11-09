@@ -25,7 +25,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import AttendanceTab from '@/components/attendance/AttendanceTab';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
-import StatusBadge from '@/components/grading-list/StatusBadge';
+import StatusBadge, { normalizeStatus } from '@/components/grading-list/StatusBadge';
+import { getPublicStudentDirectory } from '@/services/studentDirectoryService';
+import { classColorVar, classColorTint } from '@/utils/attendanceWeek';
+
+const shortBeltChange = (from?: string | null, to?: string | null) => {
+  if (!from) return to ? `→ ${to}` : '—';
+  if (!to) return from;
+  const a = from.match(/^(.*?)(\d+)$/); const b = to.match(/^(.*?)(\d+)$/);
+  if (a && b && a[1] === b[1]) return `${from} → ${b[2]}`;
+  return `${from} → ${to}`;
+};
 import { generateCompetitionPrintPDF, generateCompetitionPaymentReportPDF } from '@/utils/competitionPrintPDFGenerator';
 import CompetitionEventsSettingsDialog from '@/components/grading-list/CompetitionEventsSettingsDialog';
 import GradingEventsSettingsDialog from '@/components/grading-list/GradingEventsSettingsDialog';
@@ -262,6 +272,13 @@ const PublicGradingList: React.FC = () => {
     () => allDates.map((d) => d.grading_date),
     [allDates],
   );
+
+  const { data: studentDir = [] } = useQuery({
+    queryKey: ['public-student-directory', 'grading-tab'],
+    queryFn: () => getPublicStudentDirectory({}),
+    staleTime: 60 * 1000,
+  });
+  const studentDirMap = useMemo(() => new Map(studentDir.map((d) => [d.id, d])), [studentDir]);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list', dateFilter],
@@ -1720,55 +1737,33 @@ const PublicGradingList: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="access-list-shell pt-0">
-                <Table className="access-list-table">
-                  <TableHeader>
-                    <TableRow>
-                      {editMode && (
-                        <TableHead className="h-7 w-8 px-2">
+                <div className="rounded-md border divide-y text-xs">
+                  {editMode && (
+                    <div className="flex items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground">
                           <Checkbox
                             checked={allSelectedInSlot(g.items)}
                             onCheckedChange={() => toggleSlotAll(g.items)}
                             aria-label="Select all in slot"
                           />
-                        </TableHead>
-                      )}
-                      <TableHead className="h-7 w-8 px-2 text-xs">#</TableHead>
-                      <TableHead className="h-7 px-2 text-[11px]">Branch</TableHead>
-                      <TableHead className="h-7 px-2 text-[11px]">Student</TableHead>
-                      <TableHead className="h-7 px-2 text-[11px]">Belt</TableHead>
-                      <TableHead className="h-7 px-2 text-[11px]">Status</TableHead>
-                      {editMode && (
-                        <>
-                          <TableHead className="h-7 px-2 text-[11px] text-right">Amount</TableHead>
-                          <TableHead className="h-7 px-2 text-[11px]">Proof</TableHead>
-                          <TableHead className="h-7 px-2 text-[11px]">Result</TableHead>
-                          <TableHead className="h-7 px-2 text-[11px]">Remark</TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-8"></TableHead>
-                          <TableHead className="h-7 px-2 text-[11px] w-16"></TableHead>
-                        </>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {g.items.map((r, i) => (
-                      <React.Fragment key={i}>
-                      <TableRow className={i % 2 === 0 ? 'bg-muted/40' : ''}>
+                      <span>Select all</span>
+                    </div>
+                  )}
+                  {g.items.map((r, i) => {
+                    const dir = r.student_id ? studentDirMap.get(r.student_id) : undefined;
+                    const gStatus = normalizeStatus(r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status));
+                    const gradingPaid = gStatus === 'paid' || gStatus === 'paid_verified';
+                    const tStatus = dir ? normalizeStatus(dir.invoice_status) : null;
+                    const tp = !tStatus ? null : tStatus === 'none' ? 'none' : (tStatus === 'paid' || tStatus === 'paid_verified' || tStatus === 'pending_verification') ? 'paid' : 'unpaid';
+                    const greenStyle = { color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') };
+                    const amberStyle = { color: classColorVar('amber'), borderColor: classColorVar('amber'), background: classColorTint('amber') };
+                    return (
+                    <div key={i} className={`flex flex-col gap-0.5 px-3 py-1.5 text-left ${i % 2 === 0 ? 'bg-muted/40' : ''}`}>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         {editMode && (
-                          <TableCell data-label="Select" data-field="selection" className="px-2 py-0.5">
-                            <Checkbox
-                              checked={selectedCerts.has(rowCertKey(r))}
-                              onCheckedChange={() => toggleCert(r)}
-                              aria-label="Select row"
-                            />
-                          </TableCell>
+                          <Checkbox checked={selectedCerts.has(rowCertKey(r))} onCheckedChange={() => toggleCert(r)} aria-label="Select row" />
                         )}
-
-                        <TableCell data-label="#" data-field="number" className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap">{i + 1}</TableCell>
-                        <TableCell data-label="Branch" data-field="branch" className="px-2 py-0.5 text-[11px]">{r.branch_name || '—'}</TableCell>
-                        <TableCell data-label="Student" data-field="student" className="px-2 py-0.5 text-[11px] font-medium">
+                        <span className="tabular-nums text-muted-foreground">{i + 1}</span>
+                        <span className="font-medium">
                           <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} />
                           {r.source === 'hello' && <span className="ml-1 rounded bg-secondary px-1 text-[9px] text-secondary-foreground">Hello</span>}
                           <SubmissionFlagBadges flag={r.submission_id ? gradingFlags?.[r.submission_id] : undefined} />
@@ -1782,52 +1777,19 @@ const PublicGradingList: React.FC = () => {
                               )}
                             </span>
                           )}
-                          {r.invoice_id && (
-                            <div className="text-[10px]">
-                              <InvoiceNumberButton
-                                invoiceId={r.invoice_id}
-                                invoiceNumber={r.invoice_number}
-                                onOpen={(id, num) => setInvoiceView({ id, number: num })}
-                              />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell data-label="Belt" data-field="belt" className="px-2 py-0.5 text-[11px] text-muted-foreground whitespace-nowrap">
-                          {r.current_belt || '—'}{r.target_belt ? ` → ${r.target_belt}` : ''}
-                        </TableCell>
-                        <TableCell data-label="Status" data-field="status" className="px-2 py-0.5">
-                          <StatusBadge status={r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status)} className="text-[10px] px-1.5 py-0" />
-                        </TableCell>
+                        </span>
+                        {dir?.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Trial</Badge>
+                          : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>Term paid</Badge>
+                          : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">Unpaid{dir?.invoice_balance && dir.invoice_balance > 0 ? ` ${formatCurrency(dir.invoice_balance)}` : ''}</Badge>
+                          : tp === 'none' ? <Badge variant="secondary" className="text-[10px]">No invoice</Badge> : null}
+                        {gradingPaid
+                          ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>Grading paid</Badge>
+                          : dir?.grading?.ready
+                            ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Ready for grading</Badge>
+                            : <StatusBadge status={r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status)} className="text-[10px] px-1.5 py-0" />}
+                        <span className="text-muted-foreground whitespace-nowrap">{shortBeltChange(r.current_belt, r.target_belt)}</span>
                         {editMode && (
-                          <>
-                            <TableCell data-label="Amount" data-field="amount" className="px-2 py-0.5 text-[11px] tabular-nums whitespace-nowrap text-right">
-                              {r.amount != null ? `$${Number(r.amount).toFixed(2)}` : '—'}
-                            </TableCell>
-                            <TableCell data-label="Proof" data-field="proof" className="px-2 py-0.5">
-                              {r.proof_url ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openLightbox(
-                                    r.proof_url!,
-                                    r.source === 'submission' && r.submission_id && r.branch_id
-                                      ? { submissionId: r.submission_id, branchId: r.branch_id }
-                                      : undefined,
-                                  )}
-                                  className="block"
-                                  title="Click to enlarge"
-                                >
-                                  <SignedImage
-                                    src={r.proof_url}
-                                    alt="Proof"
-                                    className="h-8 w-8 object-cover rounded border cursor-zoom-in hover:opacity-80"
-                                    fallback={<span className="text-muted-foreground text-xs">—</span>}
-                                  />
-                                </button>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell data-label="Result" data-field="result" className="px-2 py-0.5">
+                          <div className="ml-auto flex flex-wrap items-center gap-1.5">
                               {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.result ?? ''}
@@ -1848,8 +1810,6 @@ const PublicGradingList: React.FC = () => {
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
-                            </TableCell>
-                            <TableCell data-label="Remark" data-field="remark" className="px-2 py-0.5">
                               {(r.registration_id || r.submission_id) ? (
                                 <Select
                                   value={r.remark ?? ''}
@@ -1868,8 +1828,6 @@ const PublicGradingList: React.FC = () => {
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
-                            </TableCell>
-                            <TableCell data-label="Verify" data-field="actions" className="px-2 py-0.5">
                               {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
@@ -1881,8 +1839,6 @@ const PublicGradingList: React.FC = () => {
                                   <CheckCircle className="h-3.5 w-3.5" />
                                 </button>
                               )}
-                            </TableCell>
-                            <TableCell data-label="Reject" data-field="actions" className="px-2 py-0.5">
                               {r.source === 'submission' && r.paid_status === 'pending verification' && (
                                 <button
                                   type="button"
@@ -1894,8 +1850,6 @@ const PublicGradingList: React.FC = () => {
                                   <XCircle className="h-3.5 w-3.5" />
                                 </button>
                               )}
-                            </TableCell>
-                            <TableCell data-label="Actions" data-field="actions" className="px-2 py-0.5">
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -1916,26 +1870,6 @@ const PublicGradingList: React.FC = () => {
                                   </button>
                                 )}
                               </div>
-                            </TableCell>
-
-                            <TableCell data-label="Delete" data-field="actions" className="px-2 py-0.5">
-                              {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
-                                <button
-                                  type="button"
-                                  onClick={() => setPendingDelete({
-                                    kind: 'grading',
-                                    source: r.source as 'submission' | 'registration',
-                                    id: (r.source === 'submission' ? r.submission_id : r.registration_id) as string,
-                                    studentName: r.student_name || '',
-                                  })}
-                                  className="text-red-600 hover:text-red-800"
-                                  title="Delete row"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </TableCell>
-                            <TableCell data-label="Certificates" data-field="actions" className="px-2 py-0.5">
                               {!isCertEligible(r) && (
                                 <span className="text-[10px] text-muted-foreground">{certIneligibleReason(r)}</span>
                               )}
@@ -1964,25 +1898,66 @@ const PublicGradingList: React.FC = () => {
                                   })()}
                                 </div>
                               )}
-                            </TableCell>
-                          </>
+                              {canDelete && (r.source === 'submission' ? r.submission_id : r.registration_id) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingDelete({
+                                    kind: 'grading',
+                                    source: r.source as 'submission' | 'registration',
+                                    id: (r.source === 'submission' ? r.submission_id : r.registration_id) as string,
+                                    studentName: r.student_name || '',
+                                  })}
+                                  className="text-red-600 hover:text-red-800"
+                                  title="Delete row"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                          </div>
                         )}
-                      </TableRow>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground pl-6">
+                        <span>{r.branch_name || '—'}</span>
+                        {r.invoice_id && (<><span>·</span><InvoiceNumberButton invoiceId={r.invoice_id} invoiceNumber={r.invoice_number} onOpen={(id, num) => setInvoiceView({ id, number: num })} /></>)}
+                        {editMode && r.amount != null && <><span>·</span><span className="tabular-nums">${Number(r.amount).toFixed(2)}</span></>}
+                        {editMode && r.proof_url && <><span>·</span>
+                              {r.proof_url ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openLightbox(
+                                    r.proof_url!,
+                                    r.source === 'submission' && r.submission_id && r.branch_id
+                                      ? { submissionId: r.submission_id, branchId: r.branch_id }
+                                      : undefined,
+                                  )}
+                                  className="block"
+                                  title="Click to enlarge"
+                                >
+                                  <SignedImage
+                                    src={r.proof_url}
+                                    alt="Proof"
+                                    className="h-8 w-8 object-cover rounded border cursor-zoom-in hover:opacity-80"
+                                    fallback={<span className="text-muted-foreground text-xs">—</span>}
+                                  />
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                        </>}
+                      </div>
                       {editMode && isMorleyRow(r) && (
-                        <TableRow key={`${i}-scores`} className={i % 2 === 0 ? 'bg-muted/40' : ''}>
-                          <TableCell colSpan={16} className="px-2 pt-0 pb-1">
+                        <div className="pt-1">
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
                               scorecard={r.scorecard as any}
                               onSaved={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
                             />
-                          </TableCell>
-                        </TableRow>
+                        </div>
                       )}
-                      </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           );
