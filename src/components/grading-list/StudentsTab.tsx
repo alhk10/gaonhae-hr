@@ -43,6 +43,15 @@ import MergeStudentsDialog from './MergeStudentsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
 import StudentEditDialog from './StudentEditDialog';
+import { Check } from 'lucide-react';
+import { gradingBadgeState } from '@/utils/gradingReady';
+import { setReadyForGrading } from '@/services/lessonBookingService';
+
+const termBadge = (s: string | null): 'paid' | 'unpaid' | 'none' => {
+  const st = normalizeStatus(s);
+  if (st === 'none') return 'none';
+  return st === 'paid' || st === 'paid_verified' || st === 'pending_verification' ? 'paid' : 'unpaid';
+};
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -272,124 +281,51 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
             Showing {studentCount} student{studentCount === 1 ? '' : 's'}{employeeCount ? ` + ${employeeCount} employee${employeeCount === 1 ? '' : 's'}` : ''}{rows.length >= 200 ? ' (first 200 — refine your search)' : ''}
           </p>
 
-          {/* Desktop table */}
-          <div className="hidden md:block access-list-shell rounded-md border">
-            <Table className="access-list-table students-list [&_th]:text-left [&_td]:text-left [&_td]:align-middle [&_th]:align-middle">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Belt</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Enrolment</TableHead>
-                  <TableHead>Term payment</TableHead>
-                  <TableHead className="!text-right">Credit</TableHead>
-                  {canEdit && <TableHead className="w-20" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="py-2" data-field="student" data-label="Name">
-                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
-                      {r.is_employee && <Badge variant="secondary" className="ml-1 text-[10px]">Employee</Badge>}
-                      {r.class_group && <Badge variant="outline" className="ml-1 text-[10px]">{r.class_group}</Badge>}
-                      <div className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        {r.student_number || ''}{r.date_of_birth ? `${r.student_number ? ' · ' : ''}DOB ${formatDate(r.date_of_birth)}` : ''}{(() => { const legal = [r.first_name, r.last_name].filter(Boolean).join(' ').toUpperCase(); const parts = [r.display_name && r.display_name.toUpperCase() !== legal ? `Display: ${r.display_name}` : '', r.certificate_name && r.certificate_name.toUpperCase() !== legal ? `Cert: ${r.certificate_name}` : ''].filter(Boolean); return parts.length ? <span className="block">{parts.join(' · ')}</span> : null; })()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2 text-sm whitespace-nowrap" data-field="belt" data-label="Belt">{r.current_belt || '—'}</TableCell>
-                    <TableCell className="py-2 text-sm whitespace-nowrap" data-field="branch" data-label="Branch">{r.branch_name || '—'}</TableCell>
-                    <TableCell className="py-2" data-field="status" data-label="Status">
-                      <Badge variant="outline" className={statusBadge(r.status)}>{r.status}</Badge>
-                    </TableCell>
-                    <TableCell className="py-2 max-w-[14rem]" data-field="contact" data-label="Contact">
-                      <div className="text-sm truncate" title={r.email || undefined}>{r.email || '—'}</div>
-                      {r.phone && <div className="text-[11px] text-muted-foreground">{r.phone}</div>}
-                    </TableCell>
-                    <TableCell className="py-2" data-field="enrolment" data-label="Enrolment">
-                      {r.class_type ? (
-                        <>
-                          <div className="text-sm">{r.class_type}{r.tier_name ? ` (${r.tier_name})` : ''}</div>
-                          {r.term_name && <div className="text-[11px] text-muted-foreground">{r.term_name}</div>}
-                        </>
-                      ) : <span className="text-sm">—</span>}
-                    </TableCell>
-                    <TableCell className="py-2" data-field="payment" data-label="Term payment">
-                      <StatusBadge status={r.invoice_status} />
-                      {r.invoice_balance != null && r.invoice_balance > 0 && (
-                        <div className="text-[11px] text-destructive mt-0.5">
-                          {formatCurrency(r.invoice_balance)} due
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 text-sm !text-right whitespace-nowrap" data-field="credit" data-label="Credit">
-                      {r.credit_balance > 0 ? formatCurrency(r.credit_balance) : '—'}
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell className="py-2" data-field="actions" data-label="">
-                        <div className="flex items-center justify-end gap-1">
-                          {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
-                            <FilePlus className="h-4 w-4" />
-                          </Button>}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile two-line rows */}
-          <div className="md:hidden space-y-2">
-            {rows.map((r) => (
-              <Card key={r.id}>
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm truncate block" />
-                      {r.is_employee && <Badge variant="secondary" className="ml-1 text-[10px]">Employee</Badge>}
-                      {r.class_group && <Badge variant="outline" className="ml-1 text-[10px]">{r.class_group}</Badge>}
-                      <div className="text-[11px] text-muted-foreground">
-                        {r.current_belt || 'No belt'} · {r.branch_name || '—'} · {r.status}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <StatusBadge status={r.invoice_status} />
-                      {canEdit && (
-                        <>
-                          {canInvoice && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceFor(r)} title="Add invoice">
-                            <FilePlus className="h-4 w-4" />
-                          </Button>}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)} title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+          <div className="rounded-md border divide-y">
+            {rows.map((r) => {
+              const tp = termBadge(r.invoice_status);
+              const g = gradingBadgeState(r.grading);
+              return (
+                <div key={r.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 text-xs">
+                  <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
+                  <span className="text-muted-foreground">{[r.current_belt || 'No belt', r.class_group, r.branch_name].filter(Boolean).join(' · ')}</span>
+                  {r.is_employee && <Badge variant="secondary" className="text-[10px]">Employee</Badge>}
+                  {r.status !== 'active' && r.status !== 'trial' && <Badge variant="outline" className={`text-[10px] ${statusBadge(r.status)}`}>{r.status}</Badge>}
+                  {r.status === 'trial' ? <Badge variant="outline" className="text-[10px]">Trial</Badge>
+                    : tp === 'paid' ? <Badge className="text-[10px] bg-green-600 hover:bg-green-600 text-white">Paid</Badge>
+                    : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">Unpaid{r.invoice_balance && r.invoice_balance > 0 ? ` ${formatCurrency(r.invoice_balance)} due` : ''}</Badge>
+                    : <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                  {r.term_id && (g === 'paid'
+                    ? <Badge className="text-[10px]">Grading paid</Badge>
+                    : (
+                      <button type="button" disabled={!canEdit}
+                        onClick={async () => {
+                          try { await setReadyForGrading(r.id, r.term_id!, g !== 'ready'); qc.invalidateQueries({ queryKey: ['public-student-directory'] }); }
+                          catch (err) { toast.error((err as Error).message); }
+                        }}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${g === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                        <span className={`flex h-3 w-3 items-center justify-center rounded-sm border ${g === 'ready' ? 'border-primary bg-primary text-primary-foreground' : ''}`}>
+                          {g === 'ready' && <Check className="h-2.5 w-2.5" />}
+                        </span>
+                        Ready for grading
+                      </button>
+                    ))}
+                  {canEdit && (
+                    <span className="ml-auto flex items-center gap-0.5">
+                      {canInvoice && <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceFor(r)} title="Add invoice"><FilePlus className="h-4 w-4" /></Button>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                    </span>
+                  )}
+                  <div className="basis-full text-[11px] text-muted-foreground break-words">
+                    {[r.student_number, r.date_of_birth ? `DOB ${formatDate(r.date_of_birth)}` : '', r.email, r.phone,
+                      r.class_type ? `${r.class_type}${r.term_name ? ` — ${r.term_name}` : ''}` : r.term_name,
+                      (() => { const legal = [r.first_name, r.last_name].filter(Boolean).join(' ').toUpperCase(); return r.certificate_name && r.certificate_name.toUpperCase() !== legal ? `Cert: ${r.certificate_name}` : ''; })(),
+                    ].filter(Boolean).join(' · ')}
+                    {r.credit_balance > 0 && <span className="text-green-700"> · Credit {formatCurrency(r.credit_balance)}</span>}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-1 break-words">
-                    {r.email || ''}{r.phone ? `${r.email ? ' · ' : ''}${r.phone}` : ''}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] mt-1">
-                    {r.class_type && (
-                      <span>{r.class_type}{r.tier_name ? ` (${r.tier_name})` : ''}{r.term_name ? ` — ${r.term_name}` : ''}</span>
-                    )}
-                    {r.invoice_balance != null && r.invoice_balance > 0 && (
-                      <span className="text-red-600">{formatCurrency(r.invoice_balance)} due</span>
-                    )}
-                    {r.credit_balance > 0 && (
-                      <span className="text-green-700">Credit {formatCurrency(r.credit_balance)}</span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

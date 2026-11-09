@@ -30,6 +30,8 @@ export interface PublicStudentDirectoryRow {
   is_employee?: boolean;
   /** Little Gaonhae | Kids | Teens & Adults | Team Gaonhae, from attended classes (last 90 days) */
   class_group?: string | null;
+  term_id?: string | null;
+  grading?: { ready: boolean; paid: boolean } | null;
 }
 
 /** All-branch password only: tag/untag a student as an employee. */
