@@ -1794,7 +1794,7 @@ const PublicGradingList: React.FC = () => {
                         {dir?.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Trial</Badge>
                           : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>{tl}paid</Badge>
                           : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">{tl}unpaid{ts?.term_balance && ts.term_balance > 0 ? ` ${formatCurrency(ts.term_balance)}` : ''}</Badge>
-                          : tp === 'none' ? <Badge variant="secondary" className="text-[10px]">No invoice</Badge> : null}
+                          : tp === 'none' ? <Badge variant="secondary" className="text-[10px]">{tl}no invoice</Badge> : null}
                         {gradingPaid
                           ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>Grading paid</Badge>
                           : ts?.ready
