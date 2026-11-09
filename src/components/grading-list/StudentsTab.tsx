@@ -1,9 +1,9 @@
 /**
-import { classColor, classColorVar, classColorTint } from '@/utils/attendanceWeek';
  * Students tab embedded in /access.
  * Public searchable student directory with enrolment, payment and credit info.
  * Unlocked staff can edit belt, branch and status (withdrawal excluded).
  */
+import { classColor, classColorVar, classColorTint } from '@/utils/attendanceWeek';
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus, FilePlus } from 'lucide-react';
