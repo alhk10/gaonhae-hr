@@ -28,6 +28,7 @@ import {
   adminListGradingProducts,
   adminUpsertGradingSlot,
   adminDeleteGradingSlot,
+  adminSetGradingSlotMeta,
   type AdminGradingSlot,
 } from '@/services/gradingPaymentSubmissionService';
 
@@ -50,6 +51,8 @@ interface SlotForm {
   max_age: string;
   available_branch_ids: string[];
   registration_count: number;
+  is_hidden: boolean;
+  slot_kind: string;
 }
 
 interface EventForm {
@@ -57,6 +60,8 @@ interface EventForm {
   grading_date: string;
   branch_id: string;
   location: string;
+  grading_year: string;
+  grading_term: string;
   slots: SlotForm[];
   deletedIds: string[];
 }
@@ -82,6 +87,8 @@ const emptySlot = (): SlotForm => ({
   max_age: '',
   available_branch_ids: [],
   registration_count: 0,
+  is_hidden: false,
+  slot_kind: 'regular',
 });
 
 const emptyEvent = (): EventForm => ({
@@ -89,6 +96,8 @@ const emptyEvent = (): EventForm => ({
   grading_date: '',
   branch_id: '',
   location: '',
+  grading_year: '',
+  grading_term: '',
   slots: [emptySlot()],
   deletedIds: [],
 });
@@ -196,6 +205,8 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
     max_age: s.max_age != null ? String(s.max_age) : '',
     available_branch_ids: Array.isArray(s.available_branch_ids) ? [...s.available_branch_ids] : [],
     registration_count: asNew ? 0 : Number(s.registration_count || 0),
+    is_hidden: !!s.is_hidden,
+    slot_kind: s.slot_kind || 'regular',
   });
 
   const fillForm = (g: EventGroup, asNew = false) => {
@@ -204,6 +215,8 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
       grading_date: asNew ? '' : g.grading_date,
       branch_id: g.branch_id || '',
       location: g.location || '',
+      grading_year: asNew ? '' : String(g.slots.find(x => x.grading_year)?.grading_year ?? ''),
+      grading_term: asNew ? '' : String(g.slots.find(x => x.grading_term)?.grading_term ?? ''),
       slots: g.slots.map(s => toSlotForm(s, asNew)),
       deletedIds: [],
     });
@@ -289,8 +302,11 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
       for (const id of form.deletedIds) {
         await adminDeleteGradingSlot(id);
       }
+      if (!form.grading_year || !form.grading_term) {
+        throw new Error('Select grading year and term');
+      }
       for (const s of form.slots) {
-        await adminUpsertGradingSlot({
+        const savedId = await adminUpsertGradingSlot({
           id: s.id,
           branch_id: form.branch_id,
           grading_date: form.grading_date,
@@ -303,6 +319,12 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
           min_age: s.min_age !== '' ? parseInt(s.min_age, 10) : null,
           max_age: s.max_age !== '' ? parseInt(s.max_age, 10) : null,
           available_branch_ids: s.available_branch_ids,
+        });
+        await adminSetGradingSlotMeta(savedId || s.id!, {
+          is_hidden: s.is_hidden || s.slot_kind === 'double_promotion',
+          slot_kind: s.slot_kind,
+          grading_year: parseInt(form.grading_year, 10),
+          grading_term: parseInt(form.grading_term, 10),
         });
       }
       toast.success(form.key ? 'Grading event updated' : 'Grading event created');
@@ -379,6 +401,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                         {g.branch_name ? ` · ${g.branch_name}` : ''}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">
+                        {g.slots[0]?.grading_year ? `${g.slots[0].grading_year}${g.slots[0].grading_term ? ' · Term ' + g.slots[0].grading_term : ''} · ` : ''}
                         {g.slots.length} slot{g.slots.length === 1 ? '' : 's'}
                         {g.registration_count > 0 && (
                           <Badge variant="secondary" className="ml-2 text-[10px]">
@@ -462,6 +485,29 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Year *</Label>
+                <Select value={form.grading_year} onValueChange={(v) => setForm(f => ({ ...f, grading_year: v }))}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Year" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i).map(y => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Term *</Label>
+                <Select value={form.grading_term} onValueChange={(v) => setForm(f => ({ ...f, grading_term: v }))}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Term" /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4].map(t => <SelectItem key={t} value={String(t)}>Term {t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-1">
               <Label className="text-xs">Location</Label>
               <Input
@@ -494,6 +540,12 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                           ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                           : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                         <span className="text-xs truncate">{slotLabel(s)}</span>
+                        {s.slot_kind === 'double_promotion' && (
+                          <Badge variant="outline" className="text-[10px]">Double</Badge>
+                        )}
+                        {s.is_hidden && (
+                          <Badge variant="outline" className="text-[10px]">Hidden</Badge>
+                        )}
                         {s.registration_count > 0 && (
                           <Badge variant="secondary" className="text-[10px]">{s.registration_count}</Badge>
                         )}
@@ -543,6 +595,26 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                               onChange={(e) => updateSlot(idx, { end_time: e.target.value })}
                             />
                           </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4">
+                          <label className="flex items-center gap-2 text-xs">
+                            <Checkbox
+                              checked={s.slot_kind === 'double_promotion'}
+                              onCheckedChange={(c) => updateSlot(idx, c
+                                ? { slot_kind: 'double_promotion', is_hidden: true }
+                                : { slot_kind: 'regular' })}
+                            />
+                            Double promotion slot
+                          </label>
+                          <label className="flex items-center gap-2 text-xs">
+                            <Checkbox
+                              checked={s.is_hidden}
+                              disabled={s.slot_kind === 'double_promotion'}
+                              onCheckedChange={(c) => updateSlot(idx, { is_hidden: !!c })}
+                            />
+                            Hidden from /hello
+                          </label>
                         </div>
 
                         <div className="space-y-1">
