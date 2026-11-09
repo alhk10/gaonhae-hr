@@ -981,7 +981,6 @@ const PublicGradingList: React.FC = () => {
         startY: y + 1,
         margin: { left: x, right: pageW - x - colW },
         tableWidth: colW,
-        pageBreak: 'avoid',
         head: [['#', 'Branch', 'Student', 'Belt', 'Status']],
         body,
         styles: { fontSize: 7, cellPadding: { top: 1.2, bottom: 1.2, left: 1, right: 1 }, overflow: 'linebreak', halign: 'left', valign: 'middle', lineColor: [225, 225, 225], lineWidth: 0.1 },
@@ -1042,7 +1041,7 @@ const PublicGradingList: React.FC = () => {
       while (i < rows.length) {
         const title = first ? base : `${base} (cont)`;
         const overhead = 3.5 + titleHeight(title) + 1 + headH;
-        const avail = contentBottom - y - overhead;
+        const avail = contentBottom - y - overhead - 1.5;
         const minNeed = rows.slice(i, i + Math.min(MIN_ROWS, rows.length - i)).reduce((a, r) => a + rowH(r), 0);
         if (avail < minNeed && y > contentTop) { nextColumn(); continue; }
         let used = 0; let n = 0;
