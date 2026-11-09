@@ -913,6 +913,7 @@ const PublicHelloChat: React.FC = () => {
         contact_email: email || null,
         message: cbMessage.trim(),
         type: 'general_callback',
+        matched_student_id: sessionLinked && matched?.id ? matched.id : null,
       });
       goTo('callback_done');
     } catch (e: any) {
