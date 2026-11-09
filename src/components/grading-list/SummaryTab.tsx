@@ -1,3 +1,4 @@
+import PaymentShortageList from '@/components/common/PaymentShortageList';
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -104,6 +105,15 @@ const DrillCell: React.FC<{
 };
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchId, canApprove, onDrill, onStudentDrill }) => {
+  const { data: shortageRows = [] } = useQuery({
+    queryKey: ['payment-shortages', 'access'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('access_list_payment_shortages', { p_password: sessionStorage.getItem('access_pw_v1') || '' });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const shortageByInvoice = new Map<string, any>(shortageRows.map((r: any) => [r.invoice_id, r]));
   const { data: gradingRows = [], isLoading: l1 } = useQuery({
     queryKey: ['public-grading-list'],
     queryFn: () => getPublicGradingList({}),
@@ -377,6 +387,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
             </ul>
           )}
           <div className="mt-3 space-y-3">
+            <PaymentShortageList mode="access" lockedBranchName={lockedBranchName}
+              excludeInvoiceIds={new Set(approvals.map((a: any) => a.raw?.invoice_id || a.raw?.matched_invoice_id).filter(Boolean))} />
             <ChatMessagesList lockedBranchName={lockedBranchName} onOpenStudent={setProfileId} />
           </div>
         </CardContent>
