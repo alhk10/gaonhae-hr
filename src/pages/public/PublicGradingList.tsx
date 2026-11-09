@@ -1898,8 +1898,8 @@ const PublicGradingList: React.FC = () => {
                                   >
                                     <Award className="h-3.5 w-3.5" />
                                   </button>
-                                  {r.result === 'double' && r.target_belt && (() => {
-                                    const next = getNextBeltLevel(r.target_belt);
+                                  {r.result === 'double' && (r.current_belt ?? r.student_current_belt) && (() => {
+                                    const next = getNextBeltLevel((r.current_belt ?? r.student_current_belt)!);
                                     return next ? (
                                       <button
                                         type="button"
