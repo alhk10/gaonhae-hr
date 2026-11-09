@@ -15,7 +15,7 @@ import { getPublicSeminarList } from '@/services/seminarPaymentSubmissionService
 import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
-import PaymentShortageList from '@/components/common/PaymentShortageList';
+
 import ChatMessagesList from '@/components/common/ChatMessagesList';
 import SummaryApprovalRow from './SummaryApprovalRow';
 import PendingCertificatesCard from '@/components/conversion/PendingCertificatesCard';
@@ -368,6 +368,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
                   branch={a.branch}
                   amount={a.amount}
                   canApprove={canApprove}
+                  shortage={shortageByInvoice.get(a.raw?.invoice_id || a.raw?.matched_invoice_id) || null}
                   onOpenStudent={setProfileId}
                   onOpenInvoice={(id, number) => setInvoiceView({ id, number })}
                 />
@@ -376,7 +377,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
             </ul>
           )}
           <div className="mt-3 space-y-3">
-            <PaymentShortageList mode="access" lockedBranchName={lockedBranchName} />
             <ChatMessagesList lockedBranchName={lockedBranchName} onOpenStudent={setProfileId} />
           </div>
         </CardContent>
