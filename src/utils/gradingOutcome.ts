@@ -10,9 +10,9 @@ export const gradingOutcome = (feeName: string | null | undefined, result: strin
 };
 
 /** Belts printed on certificates (each certificate names the belt passed). Double → two certificates. */
-export const certificateBelts = (from: string | null | undefined, result: string | null | undefined): string[] => {
+export const certificateBelts = (from: string | null | undefined, result: string | null | undefined, country?: string | null): string[] => {
   if (!from) return [];
   if (String(result || '').toLowerCase() !== 'double') return [from];
-  const next = getNextBeltLevel(from);
+  const next = getNextBeltLevel(from, country);
   return next ? [from, next] : [from];
 };
