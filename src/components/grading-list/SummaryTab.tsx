@@ -16,6 +16,7 @@ import { listGuardsPurchases } from '@/services/guardsPurchaseService';
 import { getSchoolFeesList } from '@/services/schoolFeesSubmissionService';
 import PendingApprovalsSection from '@/components/grading-list/PendingApprovalsSection';
 import PaymentShortageList from '@/components/common/PaymentShortageList';
+import ChatMessagesList from '@/components/common/ChatMessagesList';
 import SummaryApprovalRow from './SummaryApprovalRow';
 import PendingCertificatesCard from '@/components/conversion/PendingCertificatesCard';
 import StudentProfileDialog from './StudentProfileDialog';
@@ -315,16 +316,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
         Current = active and trial students. Paid / Unpaid / No invoice is based on each student's current-term invoice.
       </p>
 
-      <PaymentShortageList mode="access" lockedBranchName={lockedBranchName} />
-
       <PendingCertificatesCard onOpenStudent={setProfileId} />
 
-      {/* 2. Approvals & verifications */}
+      {/* 2. For Action: approvals, payment shortages, /hello messages */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
-            Approvals &amp; verifications
+            For Action
             <Badge variant={approvals.length > 0 ? 'destructive' : 'secondary'} className="text-[10px]">
               {approvals.length}
             </Badge>
@@ -344,7 +343,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
         </CardHeader>
         <CardContent className="p-3 pt-0">
           {shownApprovals.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Nothing waiting for approval.</p>
+            <p className="text-sm text-muted-foreground py-2 text-center">No approvals or verifications waiting.</p>
           ) : (
             <ul className="divide-y max-h-[480px] overflow-y-auto">
               {shownApprovals.map((a) =>
@@ -376,6 +375,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
               )}
             </ul>
           )}
+          <div className="mt-3 space-y-3">
+            <PaymentShortageList mode="access" lockedBranchName={lockedBranchName} />
+            <ChatMessagesList lockedBranchName={lockedBranchName} onOpenStudent={setProfileId} />
+          </div>
         </CardContent>
       </Card>
 

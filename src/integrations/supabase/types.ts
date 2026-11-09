@@ -4663,6 +4663,9 @@ export type Database = {
           preferred_time: string | null
           rejected_at: string | null
           rejected_reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_note: string | null
           session_id: string | null
           status: string
           type: string
@@ -4687,6 +4690,9 @@ export type Database = {
           preferred_time?: string | null
           rejected_at?: string | null
           rejected_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_note?: string | null
           session_id?: string | null
           status?: string
           type?: string
@@ -4711,6 +4717,9 @@ export type Database = {
           preferred_time?: string | null
           rejected_at?: string | null
           rejected_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_note?: string | null
           session_id?: string | null
           status?: string
           type?: string
@@ -8215,6 +8224,7 @@ export type Database = {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
       }
+      access_list_chat_messages: { Args: { p_password: string }; Returns: Json }
       access_list_payment_shortages: {
         Args: { p_password: string }
         Returns: {
@@ -8285,6 +8295,10 @@ export type Database = {
           p_refund_date?: string
         }
         Returns: Json
+      }
+      access_resolve_chat_message: {
+        Args: { p_id: string; p_note: string; p_password: string }
+        Returns: undefined
       }
       access_review_certificate: {
         Args: {
