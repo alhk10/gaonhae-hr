@@ -47,7 +47,7 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
         p_method: method, p_reference: reference, p_notes: !file && isAllBranch && (method === 'paynow' || method === 'bank_transfer') ? [notes, 'Proof bypassed by all-branch access'].filter(Boolean).join(' · ') : notes, p_proof_url: proofUrl, p_client_ref: clientRef.current,
       });
       if (error) throw error;
-      toast.success('Payment recorded');
+      toast.success(isAllBranch || method === 'cash' ? 'Payment recorded and verified' : 'Payment recorded');
       onDone();
     } catch (e: any) { toast.error(e?.message || 'Failed to record payment'); }
     finally { setBusy(false); }
