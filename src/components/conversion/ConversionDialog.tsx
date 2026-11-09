@@ -26,7 +26,7 @@ const RANKS = ['1st Poom', '2nd Poom', '3rd Poom', '4th Poom', '1st Dan', '2nd D
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  student: { id: string; name: string; belt?: string | null; dob?: string | null; branchId?: string | null; lastConversion?: string | null };
+  student: { id: string; name: string; belt?: string | null; dob?: string | null; branchId?: string | null; lastConversion?: string | null; prePoom?: string | null };
   /** Existing "certificate needed" row (from a paid conversion invoice) */
   certificateId?: string | null;
   defaultRank?: string | null;
@@ -36,7 +36,7 @@ interface Props {
 export const ConversionDialog: React.FC<Props> = ({ open, onOpenChange, student, certificateId, defaultRank, onDone }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const check = checkConversionEligibility(student.belt, student.dob, student.lastConversion);
+  const check = checkConversionEligibility(student.belt, student.dob, student.lastConversion, new Date(), student.prePoom);
   const [series, setSeries] = useState<'stf' | 'kukkiwon'>('stf');
   const [rank, setRank] = useState<string>(defaultRank || student.belt || '1st Dan');
   const [file, setFile] = useState<File | null>(null);
