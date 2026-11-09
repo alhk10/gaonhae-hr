@@ -331,7 +331,8 @@ const PayDialog: React.FC<{ row: Row; onClose: () => void; onDone: () => void }>
   const [method, setMethod] = useState('paynow');
   const [reference, setReference] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const needsProof = method === 'paynow' || method === 'bank_transfer';
+  const isAllBranch = (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
+  const needsProof = !isAllBranch && (method === 'paynow' || method === 'bank_transfer');
   const pay = useMutation({
     mutationFn: async () => {
       let proofUrl: string | null = null;
@@ -367,7 +368,7 @@ const PayDialog: React.FC<{ row: Row; onClose: () => void; onDone: () => void }>
               </SelectContent>
             </Select></div>
           <div><Label className="text-xs">Reference</Label><Input className="h-7 text-xs" value={reference} onChange={e => setReference(e.target.value)} /></div>
-          <div><Label className="text-xs">Proof of payment (image){needsProof ? '' : ' — optional for cash'}</Label>
+          <div><Label className="text-xs">Proof of payment (image){needsProof ? '' : ' — optional'}</Label>
             <Input className="h-8 text-xs" type="file" accept="image/*" onChange={e => {
               const f = e.target.files?.[0] || null;
               if (f && !f.type.startsWith('image/')) { toast.error('Please upload an image, not a PDF'); e.target.value = ''; return; }
