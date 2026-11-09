@@ -1453,8 +1453,10 @@ const PublicGradingList: React.FC = () => {
       const inp = rowToCertInput(r);
       if (inp) inputs.push(inp);
       else { skipped++; continue; }
-      if (r.result === 'double' && r.target_belt) {
-        const next = getNextBeltLevel(r.target_belt);
+      if (r.result === 'double') {
+        // Double: second certificate is the belt after the starting belt (White >> Yellow Tip → White + Yellow Tip)
+        const start = r.current_belt ?? r.student_current_belt;
+        const next = start ? getNextBeltLevel(start) : null;
         if (next) {
           const inp2 = rowToCertInput(r, next);
           if (inp2) inputs.push(inp2);

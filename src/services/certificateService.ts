@@ -9,8 +9,8 @@ export interface StudentCertificate {
   student_id?: string; student_name?: string; branch?: string;
 }
 export interface GradingRecords {
-  student?: { belt: string | null; dob: string | null; last_dan_conversion_at: string | null; pre_conversion_poom: string | null };
-  history: { id: string; date: string | null; belt_from: string | null; belt_to: string | null; result: string | null }[];
+  student?: { belt: string | null; dob: string | null; last_dan_conversion_at: string | null; pre_conversion_poom: string | null; certificate_name?: string | null };
+  history: { id: string; date: string | null; belt_from: string | null; belt_to: string | null; result: string | null; scorecard?: any[]; country?: string | null; fee_name?: string | null }[];
   certificates: StudentCertificate[];
 }
 export interface ConversionStatus { id: string; belt: string | null; dob: string | null; last_dan_conversion_at: string | null; pre_conversion_poom: string | null; pending_certificate: boolean }
