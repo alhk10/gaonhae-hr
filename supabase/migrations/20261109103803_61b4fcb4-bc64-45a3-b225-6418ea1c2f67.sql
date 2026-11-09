@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public._payments_superadmin_autoverify() FROM PUBLIC, anon, authenticated;
