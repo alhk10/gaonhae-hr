@@ -8005,6 +8005,10 @@ export type Database = {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
       }
+      _grading_effective_belts: {
+        Args: { p_reg_id: string }
+        Returns: Record<string, unknown>
+      }
       _grading_ready_state: {
         Args: { p_student_id: string; p_term_id: string }
         Returns: Json
@@ -8026,6 +8030,7 @@ export type Database = {
           unlimited: boolean
         }[]
       }
+      _next_belt: { Args: { p: string }; Returns: string }
       _next_invoice_number: { Args: never; Returns: string }
       _payment_counted_amount: {
         Args: { p: Database["public"]["Tables"]["payments"]["Row"] }
