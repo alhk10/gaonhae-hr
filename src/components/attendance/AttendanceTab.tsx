@@ -107,6 +107,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
 
   const [unpaidPrompt, setUnpaidPrompt] = useState<null | { slot: TimetableSlot; date: string; student: { id: string; name: string } }>(null);
   const [markPrompt, setMarkPrompt] = useState<null | LessonBooking>(null);
+  const [overLimit, setOverLimit] = useState<null | { slot: TimetableSlot; date: string; added: number; skipped: string[]; items: { id: string; name: string; remaining: number; pending: number; on: boolean }[] }>(null);
   const [copyPrompt, setCopyPrompt] = useState<null | { slot: TimetableSlot; date: string; fromDate: string; items: LessonBooking[]; selected: Record<string, boolean> }>(null);
   const queryKey = ['access-attendance-week', branchId, weekStart];
   const { data, isLoading, error } = useQuery({
@@ -208,18 +209,36 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
     const p = copyPrompt; if (!p) return; setCopyPrompt(null);
     setBusy(`copy-${p.slot.id}`);
     let added = 0; const skipped: string[] = [];
+    const over: { id: string; name: string; remaining: number; pending: number; on: boolean }[] = [];
     const cap = p.slot.max_capacity;
     let count = (bookingsBySlot[`${p.date}_${p.slot.id}`] || []).length;
     for (const b of p.items.filter((i) => p.selected[i.student_id])) {
       if (cap != null && count >= cap) { skipped.push(`${b.student_name} (full)`); continue; }
       try {
         const res = await addStudentToSlot(p.slot.id, p.date, b.student_id, false);
-        if (!res.ok && res.limit_reached) skipped.push(`${b.student_name} (lesson limit)`);
+        if (!res.ok && res.limit_reached) over.push({ id: b.student_id, name: b.student_name, remaining: res.remaining ?? 0, pending: res.pending ?? 0, on: true });
         else { added++; count++; }
       } catch (e: any) { skipped.push(`${b.student_name} (${e?.message || 'error'})`); }
     }
     setBusy(null); refresh();
+    if (over.length) { setOverLimit({ slot: p.slot, date: p.date, added, skipped, items: over }); return; }
     toast.success(`Added ${added}${skipped.length ? `, skipped ${skipped.length}: ${skipped.join(', ')}` : ''}`);
+  };
+
+  const finishOverLimit = async (addSelected: boolean) => {
+    const o = overLimit; if (!o) return; setOverLimit(null);
+    let forced = 0; const skipped = [...o.skipped];
+    const cap = o.slot.max_capacity;
+    let count = (bookingsBySlot[`${o.date}_${o.slot.id}`] || []).length + o.added;
+    setBusy(`copy-${o.slot.id}`);
+    for (const it of o.items) {
+      if (!addSelected || !it.on) { skipped.push(`${it.name} (lesson limit)`); continue; }
+      if (cap != null && count >= cap) { skipped.push(`${it.name} (full)`); continue; }
+      try { await addStudentToSlot(o.slot.id, o.date, it.id, true); forced++; count++; }
+      catch (e: any) { skipped.push(`${it.name} (${e?.message || 'error'})`); }
+    }
+    setBusy(null); refresh();
+    toast.success(`Added ${o.added}${forced ? `, ${forced} over limit` : ''}${skipped.length ? `, skipped ${skipped.length}: ${skipped.join(', ')}` : ''}`);
   };
 
   return (
@@ -440,6 +459,28 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
               const p = limitPrompt; setLimitPrompt(null);
               if (p) doAdd(p.slot, p.date, p.student, true);
             }}>Add anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!overLimit} onOpenChange={(o) => { if (!o && overLimit) finishOverLimit(false); }}>
+        <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lesson limit reached</AlertDialogTitle>
+            <AlertDialogDescription>These students have no paid lessons left this term. Tick who to add anyway.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            {overLimit?.items.map((it, i) => (
+              <label key={it.id} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={it.on} onChange={(e) => setOverLimit((s) => s && { ...s, items: s.items.map((x, j) => j === i ? { ...x, on: e.target.checked } : x) })} />
+                <span className="font-medium">{it.name}</span>
+                <span className="text-xs text-muted-foreground">{it.remaining} unused · {it.pending} booked</span>
+              </label>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => { e.preventDefault(); finishOverLimit(false); }}>Skip all</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); finishOverLimit(true); }}>Add selected anyway</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
