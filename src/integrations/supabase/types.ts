@@ -1840,6 +1840,7 @@ export type Database = {
           matched_invoice_id: string | null
           matched_student_id: string | null
           notes: string | null
+          original_resolved_slot_id: string | null
           payment_method: string
           proof_scan_amount: number | null
           proof_scan_details: Json | null
@@ -1872,6 +1873,7 @@ export type Database = {
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
+          original_resolved_slot_id?: string | null
           payment_method?: string
           proof_scan_amount?: number | null
           proof_scan_details?: Json | null
@@ -1904,6 +1906,7 @@ export type Database = {
           matched_invoice_id?: string | null
           matched_student_id?: string | null
           notes?: string | null
+          original_resolved_slot_id?: string | null
           payment_method?: string
           proof_scan_amount?: number | null
           proof_scan_details?: Json | null
@@ -1965,6 +1968,7 @@ export type Database = {
           id: string
           invoice_item_id: string | null
           notes: string | null
+          original_grading_slot_id: string | null
           ready_for_grading: boolean | null
           remark: string | null
           result: string | null
@@ -1988,6 +1992,7 @@ export type Database = {
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
+          original_grading_slot_id?: string | null
           ready_for_grading?: boolean | null
           remark?: string | null
           result?: string | null
@@ -2011,6 +2016,7 @@ export type Database = {
           id?: string
           invoice_item_id?: string | null
           notes?: string | null
+          original_grading_slot_id?: string | null
           ready_for_grading?: boolean | null
           remark?: string | null
           result?: string | null
@@ -2069,12 +2075,16 @@ export type Database = {
           examiner_name: string | null
           grading_date: string
           grading_product_ids: string[] | null
+          grading_term: number | null
+          grading_year: number | null
           id: string
+          is_hidden: boolean
           location: string | null
           max_age: number | null
           max_capacity: number | null
           min_age: number | null
           notes: string | null
+          slot_kind: string
           start_time: string | null
           status: string | null
           title: string | null
@@ -2091,12 +2101,16 @@ export type Database = {
           examiner_name?: string | null
           grading_date: string
           grading_product_ids?: string[] | null
+          grading_term?: number | null
+          grading_year?: number | null
           id?: string
+          is_hidden?: boolean
           location?: string | null
           max_age?: number | null
           max_capacity?: number | null
           min_age?: number | null
           notes?: string | null
+          slot_kind?: string
           start_time?: string | null
           status?: string | null
           title?: string | null
@@ -2113,12 +2127,16 @@ export type Database = {
           examiner_name?: string | null
           grading_date?: string
           grading_product_ids?: string[] | null
+          grading_term?: number | null
+          grading_year?: number | null
           id?: string
+          is_hidden?: boolean
           location?: string | null
           max_age?: number | null
           max_capacity?: number | null
           min_age?: number | null
           notes?: string | null
+          slot_kind?: string
           start_time?: string | null
           status?: string | null
           title?: string | null
@@ -7962,6 +7980,7 @@ export type Database = {
         }
         Returns: string
       }
+      _double_promotion_slot: { Args: { p_slot_id: string }; Returns: string }
       _external_stock_move: {
         Args: { p_by: string; p_invoice: string; p_sign: number }
         Returns: undefined
@@ -8491,11 +8510,15 @@ export type Database = {
           end_time: string
           grading_date: string
           grading_product_ids: string[]
+          grading_term: number
+          grading_year: number
           id: string
+          is_hidden: boolean
           location: string
           max_age: number
           min_age: number
           registration_count: number
+          slot_kind: string
           start_time: string
           title: string
         }[]
@@ -8700,6 +8723,16 @@ export type Database = {
       }
       admin_set_competition_grading_cards: {
         Args: { p_id: string; p_urls: string[] }
+        Returns: undefined
+      }
+      admin_set_grading_slot_meta: {
+        Args: {
+          p_id: string
+          p_is_hidden: boolean
+          p_slot_kind: string
+          p_term: number
+          p_year: number
+        }
         Returns: undefined
       }
       admin_set_guards_product_branch_setting: {
