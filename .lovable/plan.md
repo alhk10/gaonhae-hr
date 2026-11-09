@@ -14,15 +14,23 @@ A grading product named "X >> Y" means the student grades at belt X and becomes 
    - Set her profile belt to **Red**.
 2. **Follow the invoice line from now on**
    - When a passed grading is linked to a grading invoice line "X >> Y", use X as the starting belt and Y as the new belt. This applies to both the grading record and the automatic belt update.
-3. **Check for the same mistake elsewhere**
+3. **Double promotion**
+   - A **Double** result on "X >> Y" moves the student one more belt past Y, following the belt order. For example, White >> Yellow Tip graded Double makes the student **Yellow**.
+   - The grading record shows X → final belt, labelled Double. The profile belt updates to the final belt.
+   - Undoing a Double restores the earlier belt, the same way undoing a Pass does.
+   - Past Double results are recalculated with this rule. Belts staff changed by hand are left alone.
+4. **Check for the same mistake elsewhere**
    - List other passed gradings whose booked belts don't match their invoice line, or whose profile belt is behind the passed result.
    - Report them to you without changing them.
-4. **Certificate download**
+5. **Certificate download**
    - The medal icon on Pass/Double rows becomes a button.
    - Clicking it downloads that grading's certificate PDF, using the same design as the Grading tab.
+   - A Double row shows **two certificate icons**, one for each belt passed (for example White and Yellow Tip). Each icon downloads its own certificate.
+   - The Grading tab's certificate printing also produces two certificates for a Double.
    - Uploaded certificate images keep their existing view icon.
 
 ## Technical
 - Data fix through `run_sql` on `grading_registrations` (`current_belt`/`target_belt`), `student_grading_history` (`belt_from`/`belt_to`) and the student's belt.
 - Update the registration-to-history sync trigger: when the linked `invoice_item` description matches "X >> Y", it overrides the booked belts.
+- Use the shared order in `src/constants/beltLevels.ts` for the next belt after Y on the frontend, and mirror that order in SQL for the trigger. Add a unit test for White >> Yellow Tip + Double = Yellow, and for Red Tip >> Red + Pass = Red.
 - In `GradingRecordsSection`, load the name, country and scorecard from `grading_registration_id`, then call `downloadGradingCertificatePDF`.
