@@ -35,7 +35,7 @@ const PaymentShortageList: React.FC<Props> = ({ mode, lockedBranchName, excludeI
       return (data || []) as Row[];
     },
   });
-  const shown = rows.filter((r) => !lockedBranchName || r.branch_name === lockedBranchName) && !excludeInvoiceIds?.has(r.invoice_id));
+  const shown = rows.filter((r) => (!lockedBranchName || r.branch_name === lockedBranchName) && !excludeInvoiceIds?.has(r.invoice_id));
   if (shown.length === 0) return null;
 
   const resolve = async (r: Row, action: 'accept_scanned' | 'confirm_full' | 'reject') => {
