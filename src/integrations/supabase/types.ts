@@ -6597,6 +6597,7 @@ export type Database = {
           created_by: string | null
           examiner_name: string | null
           grading_date: string
+          grading_registration_id: string | null
           id: string
           notes: string | null
           result: string | null
@@ -6613,6 +6614,7 @@ export type Database = {
           created_by?: string | null
           examiner_name?: string | null
           grading_date: string
+          grading_registration_id?: string | null
           id?: string
           notes?: string | null
           result?: string | null
@@ -6629,6 +6631,7 @@ export type Database = {
           created_by?: string | null
           examiner_name?: string | null
           grading_date?: string
+          grading_registration_id?: string | null
           id?: string
           notes?: string | null
           result?: string | null
@@ -6637,6 +6640,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "student_grading_history_grading_registration_id_fkey"
+            columns: ["grading_registration_id"]
+            isOneToOne: true
+            referencedRelation: "grading_registrations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_grading_history_student_id_fkey"
             columns: ["student_id"]
