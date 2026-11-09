@@ -18,9 +18,9 @@ interface Row {
   proof_url: string | null; created_at: string;
 }
 
-interface Props { mode: 'access' | 'superadmin'; lockedBranchName?: string }
+interface Props { mode: 'access' | 'superadmin'; lockedBranchName?: string; excludeInvoiceIds?: Set<string> }
 
-const PaymentShortageList: React.FC<Props> = ({ mode, lockedBranchName }) => {
+const PaymentShortageList: React.FC<Props> = ({ mode, lockedBranchName, excludeInvoiceIds }) => {
   const qc = useQueryClient();
   const [recording, setRecording] = useState<Row | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -35,7 +35,7 @@ const PaymentShortageList: React.FC<Props> = ({ mode, lockedBranchName }) => {
       return (data || []) as Row[];
     },
   });
-  const shown = rows.filter((r) => !lockedBranchName || r.branch_name === lockedBranchName);
+  const shown = rows.filter((r) => (!lockedBranchName || r.branch_name === lockedBranchName) && !excludeInvoiceIds?.has(r.invoice_id));
   if (shown.length === 0) return null;
 
   const resolve = async (r: Row, action: 'accept_scanned' | 'confirm_full' | 'reject') => {

@@ -12,11 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toISODate } from '@/utils/dateFormat';
 import { DatePicker } from '@/components/ui/date-picker';
 
-interface Props { invoiceId: string; invoiceNumber: string; balance: number; country: string | null; onClose: () => void; onDone: () => void }
+interface Props { invoiceId: string; invoiceNumber: string; balance: number; country: string | null; defaultAmount?: number; onClose: () => void; onDone: () => void }
 
-const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, balance, country, onClose, onDone }) => {
+const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, balance, country, defaultAmount, onClose, onDone }) => {
   const isAU = String(country || '').toUpperCase().startsWith('AU');
-  const [amount, setAmount] = useState(balance.toFixed(2));
+  const [amount, setAmount] = useState(Math.min(defaultAmount ?? balance, balance).toFixed(2));
   const [method, setMethod] = useState(isAU ? 'bank_transfer' : 'paynow');
   const [date, setDate] = useState(toISODate(new Date()));
   const [reference, setReference] = useState('');
@@ -47,7 +47,11 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
         p_method: method, p_reference: reference, p_notes: !file && isAllBranch && (method === 'paynow' || method === 'bank_transfer') ? [notes, 'Proof bypassed by all-branch access'].filter(Boolean).join(' · ') : notes, p_proof_url: proofUrl, p_client_ref: clientRef.current,
       });
       if (error) throw error;
-      toast.success(isAllBranch || method === 'cash' ? 'Payment recorded and verified' : 'Payment recorded');
+      if (proofUrl && !isAllBranch && method !== 'cash') {
+        toast.info('Scanning proof…');
+        await supabase.functions.invoke('scan-payment-proof', { body: { invoice_ids: [invoiceId] } }).catch(() => null);
+      }
+      toast.success(isAllBranch || method === 'cash' ? 'Payment recorded and verified' : proofUrl ? 'Payment recorded and scanned' : 'Payment recorded');
       onDone();
     } catch (e: any) { toast.error(e?.message || 'Failed to record payment'); }
     finally { setBusy(false); }

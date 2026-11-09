@@ -17,6 +17,7 @@ import { tryAutoImport } from '@/utils/submissionAutoImport';
 import { SignedImage, SignedLink } from '@/components/common/SignedMedia';
 import StudentNameButton from './StudentNameButton';
 import InvoiceNumberButton from './InvoiceNumberButton';
+import AccessRecordPaymentDialog from './AccessRecordPaymentDialog';
 import { verifySchoolFeesSubmission, rejectSchoolFeesSubmission } from '@/services/schoolFeesSubmissionService';
 import { verifyGradingSubmission, rejectGradingSubmission, importGradingSubmission } from '@/services/gradingPaymentSubmissionService';
 import { verifyCompetitionSubmission, rejectCompetitionSubmission, importCompetitionSubmission } from '@/services/competitionPaymentSubmissionService';
@@ -36,6 +37,7 @@ interface Props {
   canApprove?: boolean;
   onOpenStudent: (id: string) => void;
   onOpenInvoice: (id: string, number?: string | null) => void;
+  shortage?: { shortfall: number; balance_due: number; country: string | null } | null;
 }
 
 const money = (n: number | null | undefined) => (n == null ? '—' : `$${Number(n).toFixed(2)}`);
@@ -71,7 +73,8 @@ const proofs = (r: any): string[] => {
   return Array.from(new Set(list));
 };
 
-const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, branch, amount, canApprove, onOpenStudent, onOpenInvoice }) => {
+const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, branch, amount, canApprove, onOpenStudent, onOpenInvoice, shortage }) => {
+  const [recording, setRecording] = useState(false);
   const qc = useQueryClient();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'system';
@@ -157,7 +160,15 @@ const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, b
             <SignedImage src={u} alt="Supporting document" className="h-full w-full object-cover" fallback={<span className="text-[9px] text-muted-foreground">…</span>} />
           </button>
         ))}
-        {canApprove && (
+        {shortage && (
+          <div className="flex gap-1 items-center shrink-0">
+            <Badge variant="destructive" className="text-[10px]">Short {money(shortage.shortfall)}</Badge>
+            {invoiceId && Number(shortage.balance_due) > 0.009 && (
+              <Button size="sm" className="h-7 text-xs" onClick={() => setRecording(true)}>Upload & record balance</Button>
+            )}
+          </div>
+        )}
+        {canApprove && !shortage && (
           <div className="flex gap-1 shrink-0">
             <Button size="sm" className="h-7 text-xs" disabled={busy} onClick={verify}>
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}Verify
@@ -179,6 +190,13 @@ const SummaryApprovalRow: React.FC<Props> = ({ type, typeLabel, raw, at, name, b
           )}
         </DialogContent>
       </Dialog>
+
+      {recording && invoiceId && shortage && (
+        <AccessRecordPaymentDialog invoiceId={invoiceId} invoiceNumber={raw.invoice_number || ''} balance={Number(shortage.balance_due)}
+          defaultAmount={Number(shortage.shortfall)} country={shortage.country}
+          onClose={() => setRecording(false)}
+          onDone={() => { setRecording(false); refresh(); qc.invalidateQueries({ queryKey: ['payment-shortages'] }); }} />
+      )}
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
