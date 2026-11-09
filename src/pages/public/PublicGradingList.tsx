@@ -935,9 +935,9 @@ const PublicGradingList: React.FC = () => {
 
     // Pre-measure each group's rendered height (matches actual render below)
     // Column widths (mm) shared by measurement and render so wrapping matches
-    const cw = { n: 6, branch: 19, belt: 24, status: 14 };
+    const cw = { n: 6, branch: 19, belt: 18, status: 14 };
     const studentW = colW - cw.n - cw.branch - cw.belt - cw.status;
-    const pdfBelt = (r: any) => shortBeltChange(r.current_belt, r.target_belt).replace(/→/g, '>');
+    const pdfBelt = (r: any) => r.current_belt || '-';
     const lineH = 7 * 0.3528 * 1.15; // 7pt font
     const rowH = (r: any) => {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
