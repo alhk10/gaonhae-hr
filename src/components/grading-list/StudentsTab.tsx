@@ -3,6 +3,7 @@
  * Public searchable student directory with enrolment, payment and credit info.
  * Unlocked staff can edit belt, branch and status (withdrawal excluded).
  */
+import { classColor, classColorVar, classColorTint } from '@/utils/attendanceWeek';
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Loader2, Search, Users, UserPlus, Merge, X, Plus, FilePlus } from 'lucide-react';
@@ -286,17 +287,20 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
               const tp = termBadge(r.invoice_status);
               const g = gradingBadgeState(r.grading);
               return (
-                <div key={r.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 text-xs">
+                <div key={r.id} className={`flex flex-wrap items-center justify-start gap-x-2 gap-y-1 border-l-4 px-3 py-1.5 text-left text-xs ${['inactive', 'withdrawn'].includes(r.status) ? 'opacity-60' : ''}`}
+                  style={{ borderLeftColor: r.class_group ? classColorVar(classColor(r.class_group)) : 'transparent' }}>
                   <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
-                  <span className="text-muted-foreground">{[r.current_belt || 'No belt', r.class_group, r.branch_name].filter(Boolean).join(' · ')}</span>
+                  <span className="text-muted-foreground">{r.current_belt || 'No belt'}</span>
+                  {r.class_group && <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ color: classColorVar(classColor(r.class_group)), background: classColorTint(classColor(r.class_group)) }}>{r.class_group}</span>}
+                  {r.branch_name && <span className="text-muted-foreground">{r.branch_name}</span>}
                   {r.is_employee && <Badge variant="secondary" className="text-[10px]">Employee</Badge>}
                   {r.status !== 'active' && r.status !== 'trial' && <Badge variant="outline" className={`text-[10px] ${statusBadge(r.status)}`}>{r.status}</Badge>}
-                  {r.status === 'trial' ? <Badge variant="outline" className="text-[10px]">Trial</Badge>
-                    : tp === 'paid' ? <Badge className="text-[10px] bg-green-600 hover:bg-green-600 text-white">Paid</Badge>
+                  {r.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('amber'), borderColor: classColorVar('amber'), background: classColorTint('amber') }}>Trial</Badge>
+                    : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') }}>Paid</Badge>
                     : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">Unpaid{r.invoice_balance && r.invoice_balance > 0 ? ` ${formatCurrency(r.invoice_balance)} due` : ''}</Badge>
                     : <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
                   {r.term_id && (g === 'paid'
-                    ? <Badge className="text-[10px]">Grading paid</Badge>
+                    ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') }}>Grading paid</Badge>
                     : (
                       <button type="button" disabled={!canEdit}
                         onClick={async () => {
@@ -316,12 +320,12 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)} title="Edit"><Pencil className="h-4 w-4" /></Button>
                     </span>
                   )}
-                  <div className="basis-full text-[11px] text-muted-foreground break-words">
+                  <div className="basis-full text-left text-[11px] text-muted-foreground break-words">
                     {[r.student_number, r.date_of_birth ? `DOB ${formatDate(r.date_of_birth)}` : '', r.email, r.phone,
                       r.class_type ? `${r.class_type}${r.term_name ? ` — ${r.term_name}` : ''}` : r.term_name,
                       (() => { const legal = [r.first_name, r.last_name].filter(Boolean).join(' ').toUpperCase(); return r.certificate_name && r.certificate_name.toUpperCase() !== legal ? `Cert: ${r.certificate_name}` : ''; })(),
                     ].filter(Boolean).join(' · ')}
-                    {r.credit_balance > 0 && <span className="text-green-700"> · Credit {formatCurrency(r.credit_balance)}</span>}
+                    {r.credit_balance > 0 && <span style={{ color: classColorVar('green') }}> · Credit {formatCurrency(r.credit_balance)}</span>}
                   </div>
                 </div>
               );
