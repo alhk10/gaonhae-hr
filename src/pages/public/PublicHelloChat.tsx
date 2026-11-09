@@ -1710,6 +1710,13 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  <Button onClick={openCallback} variant="outline" className="w-full h-11 justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <MessageCircleQuestion className="h-4 w-4" />
+                      Others
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                 </CardContent>
 
               </Card>

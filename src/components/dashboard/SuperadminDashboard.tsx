@@ -33,6 +33,7 @@ import { getPendingSubmissionDeletionRequestsCount } from '@/services/submission
 import SlotBookingEditApprovals from './SlotBookingEditApprovals';
 import PaymentVerificationApprovals from './PaymentVerificationApprovals';
 import PaymentShortageList from '@/components/common/PaymentShortageList';
+import ChatMessagesList from '@/components/common/ChatMessagesList';
 import UnifiedSubmissionApprovals from './UnifiedSubmissionApprovals';
 import PublicHelloCallbackApprovals from './PublicHelloCallbackApprovals';
 import InvoiceDiscountApprovals from './InvoiceDiscountApprovals';
@@ -224,7 +225,11 @@ const SuperadminDashboard = () => {
         <LeaveApprovals />
         <InvoiceDiscountApprovals />
         <InvoiceActionApprovals />
-        <PaymentShortageList mode="superadmin" />
+        <section className="space-y-3 rounded-lg border p-3">
+          <h2 className="text-base font-semibold">For Action</h2>
+          <PaymentShortageList mode="superadmin" />
+          <ChatMessagesList />
+          </section>
         <PaymentVerificationApprovals />
         <FailedScheduleAlerts />
         <UnifiedSubmissionApprovals />
