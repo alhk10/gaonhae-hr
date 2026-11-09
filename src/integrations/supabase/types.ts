@@ -9966,6 +9966,7 @@ export type Database = {
           email: string
           enrolled_weekdays: string[]
           first_name: string
+          grading: Json
           id: string
           invoice_balance: number
           invoice_status: string
@@ -9976,6 +9977,7 @@ export type Database = {
           phone: string
           status: string
           student_number: string
+          term_id: string
           term_name: string
           tier_name: string
         }[]
