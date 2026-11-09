@@ -151,7 +151,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const convById = useMemo(() => {
     const m: Record<string, { due: boolean; pending: boolean; row: ConversionStatus }> = {};
     (convRows || []).forEach((r) => {
-      m[r.id] = { row: r, pending: r.pending_certificate, due: r.pending_certificate || conversionDue(checkConversionEligibility(r.belt, r.dob, r.last_dan_conversion_at)) };
+      m[r.id] = { row: r, pending: r.pending_certificate, due: r.pending_certificate || conversionDue(checkConversionEligibility(r.belt, r.dob, r.last_dan_conversion_at, new Date(), r.pre_conversion_poom)) };
     });
     return m;
   }, [convRows]);
@@ -503,7 +503,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
         <ConversionDialog open onOpenChange={(o) => !o && setConvertFor(null)}
           certificateId={convertFor.cert?.id} defaultRank={convertFor.cert?.rank}
           student={{ id: convertFor.id, name: convertFor.name, belt: convById[convertFor.id].row.belt, dob: convById[convertFor.id].row.dob,
-            branchId, lastConversion: convById[convertFor.id].row.last_dan_conversion_at }} />
+            branchId, lastConversion: convById[convertFor.id].row.last_dan_conversion_at, prePoom: convById[convertFor.id].row.pre_conversion_poom }} />
       )}
     </div>
   );

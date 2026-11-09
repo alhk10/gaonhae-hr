@@ -18,22 +18,29 @@ describe('conversion rules', () => {
     expect(check('1st Poom', '2011-11-09', null, asOf).eligible).toBe(false);
   });
   it('2nd Dan needs 16 and 1 year wait', () => {
-    expect(check('1st Dan', '2010-11-08', '2025-11-08', asOf).eligible).toBe(true);
+    expect(check('1st Dan', '2010-11-08', '2025-11-08', asOf, '4th Poom').eligible).toBe(true);
     expect(check('1st Dan', '2010-11-08', '2025-11-09', asOf).eligible).toBe(false);
     expect(check('1st Dan', '2010-11-09', '2020-01-01', asOf).eligible).toBe(false);
   });
   it('3rd Dan needs 18 and 2 years', () => {
-    expect(check('2nd Dan', '2008-11-08', '2024-11-08', asOf).eligible).toBe(true);
+    expect(check('2nd Dan', '2008-11-08', '2024-11-08', asOf, '3rd Poom').eligible).toBe(true);
     expect(check('2nd Dan', '2008-11-08', '2024-11-09', asOf).eligible).toBe(false);
   });
   it('4th Dan needs 21 and 3 years', () => {
-    expect(check('3rd Dan', '2005-11-08', '2023-11-08', asOf).eligible).toBe(true);
+    expect(check('3rd Dan', '2005-11-08', '2023-11-08', asOf, '4th Poom').eligible).toBe(true);
     expect(check('3rd Dan', '2005-11-09', '2020-01-01', asOf).eligible).toBe(false);
   });
   it('unknown previous date blocks with dateUnknown', () => {
     const r = check('1st Dan', '2000-01-01', null, asOf);
     expect(r.eligible).toBe(false);
     expect(r.dateUnknown).toBe(true);
+  });
+  it('Dan > Dan without a high enough Poom requires grading', () => {
+    const r = check('3rd Dan', '2005-11-08', '2023-11-08', asOf, '3rd Poom');
+    expect(r.eligible).toBe(false);
+    expect(r.gradingRequired).toBe(true);
+    expect(check('1st Dan', '2010-11-08', '2025-11-08', asOf, null).gradingRequired).toBe(true);
+    expect(check('1st Dan', '2010-11-08', '2025-11-08', asOf, '2nd Poom').eligible).toBe(true);
   });
   it('shows converted Poom', () => expect(formatRankWithPoom('1st Dan', '4th Poom')).toBe('1st Dan (4th Poom)'));
 });

@@ -6,6 +6,8 @@
  *  2nd Dan: 16th birthday, 1st Dan, 1 year since previous conversion
  *  3rd Dan: 18th birthday, 2nd Dan, 2 years
  *  4th Dan: 21st birthday, 3rd Dan, 3 years
+ *  Dan > Dan also needs a previous Poom rank >= target Dan (e.g. 4th Poom for 4th Dan);
+ *  otherwise the student must take a grading.
  */
 import { parseDateOnly } from '@/utils/birthDate';
 
@@ -32,13 +34,14 @@ export const nextConversionTarget = (belt?: string | null): string | null => {
   return hit ? hit[0] : null;
 };
 
-export interface ConversionCheck { target: string | null; eligible: boolean; reason: string | null; dateUnknown?: boolean }
+export interface ConversionCheck { target: string | null; eligible: boolean; reason: string | null; dateUnknown?: boolean; gradingRequired?: boolean }
 
 export function checkConversionEligibility(
   belt: string | null | undefined,
   dob: string | Date | null | undefined,
   lastConversion: string | Date | null | undefined,
   asOf: Date = new Date(),
+  prePoom?: string | null,
 ): ConversionCheck {
   const target = nextConversionTarget(belt);
   if (!target) return { target: null, eligible: false, reason: 'No conversion for this rank' };
@@ -49,6 +52,8 @@ export function checkConversionEligibility(
     return age >= 15 ? { target, eligible: true, reason: null } : { target, eligible: false, reason: 'Available from the 15th birthday' };
   }
   const step = DAN_STEPS[target];
+  const poomNo = prePoom ? parseInt(prePoom, 10) : 0;
+  if (!(poomNo >= parseInt(target, 10))) return { target, eligible: false, gradingRequired: true, reason: `Needs ${target.replace('Dan', 'Poom')} before conversion - take the grading instead` };
   if (age < step.minAge) return { target, eligible: false, reason: `Available from the ${step.minAge}th birthday` };
   const last = lastConversion ? parseDateOnly(lastConversion) : null;
   if (!last) return { target, eligible: false, dateUnknown: true, reason: `Previous Dan conversion date unknown - upload the ${step.requires} certificate` };
@@ -58,7 +63,7 @@ export function checkConversionEligibility(
 }
 
 /** Badge shown on Attendance / profile: eligible, or Dan holder whose date is unknown but old enough. */
-export const conversionDue = (c: ConversionCheck) => c.eligible || !!c.dateUnknown;
+export const conversionDue = (c: ConversionCheck) => !c.gradingRequired && (c.eligible || !!c.dateUnknown);
 
 /** "1st Dan (4th Poom)" when a Poom was converted. */
 export const formatRankWithPoom = (belt?: string | null, prePoom?: string | null) =>

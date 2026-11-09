@@ -86,7 +86,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
     retry: false,
   });
   const pendingCert = (records?.certificates || []).find((c) => c.status === 'awaiting_upload');
-  const due = !!pendingCert || conversionDue(checkConversionEligibility(student?.current_belt, student?.date_of_birth, records?.student?.last_dan_conversion_at));
+  const due = !!pendingCert || conversionDue(checkConversionEligibility(student?.current_belt, student?.date_of_birth, records?.student?.last_dan_conversion_at, new Date(), records?.student?.pre_conversion_poom));
 
   return (
     <>
@@ -299,7 +299,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
       <ConversionDialog open onOpenChange={(o) => !o && setConvert(null)}
         certificateId={convert.certId ?? pendingCert?.id ?? null}
         defaultRank={convert.rank ?? pendingCert?.rank ?? null}
-        student={{ id: studentId!, name: student.name, belt: student.current_belt, dob: student.date_of_birth, branchId: student.branch_id, lastConversion: records?.student?.last_dan_conversion_at }} />
+        student={{ id: studentId!, name: student.name, belt: student.current_belt, dob: student.date_of_birth, branchId: student.branch_id, lastConversion: records?.student?.last_dan_conversion_at, prePoom: records?.student?.pre_conversion_poom }} />
     )}
     <InvoiceDetailDialog
       invoiceId={invoiceView?.id ?? null}
