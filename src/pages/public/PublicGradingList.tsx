@@ -273,13 +273,6 @@ const PublicGradingList: React.FC = () => {
     [allDates],
   );
 
-  const { data: studentDir = [] } = useQuery({
-    queryKey: ['public-student-directory', 'grading-tab'],
-    queryFn: () => getPublicStudentDirectory({}),
-    staleTime: 60 * 1000,
-  });
-  const studentDirMap = useMemo(() => new Map(studentDir.map((d) => [d.id, d])), [studentDir]);
-
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['public-grading-list', dateFilter],
     queryFn: () => (
@@ -289,6 +282,25 @@ const PublicGradingList: React.FC = () => {
     ),
     staleTime: 30 * 1000,
   });
+
+  const { data: studentDir = [] } = useQuery({
+    queryKey: ['public-student-directory', 'grading-tab'],
+    queryFn: () => getPublicStudentDirectory({}),
+    staleTime: 60 * 1000,
+  });
+  const studentDirMap = useMemo(() => new Map(studentDir.map((d) => [d.id, d])), [studentDir]);
+  const gradingSlotIds = useMemo(() => [...new Set((rows as any[]).map((r) => r.slot_id).filter(Boolean))].sort(), [rows]);
+  const { data: termStatusRows = [] } = useQuery({
+    queryKey: ['grading-term-status', gradingSlotIds],
+    enabled: gradingSlotIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('access_grading_term_status', { p_slot_ids: gradingSlotIds });
+      if (error) throw error;
+      return (data || []) as { slot_id: string; student_id: string; term_label: string | null; term_status: string | null; term_balance: number | null; ready: boolean }[];
+    },
+    staleTime: 30 * 1000,
+  });
+  const termStatusMap = useMemo(() => new Map(termStatusRows.map((t) => [`${t.slot_id}:${t.student_id}`, t])), [termStatusRows]);
 
   // Default to the nearest upcoming grading date (else the most recent past one)
   useEffect(() => {
@@ -1752,8 +1764,9 @@ const PublicGradingList: React.FC = () => {
                     const dir = r.student_id ? studentDirMap.get(r.student_id) : undefined;
                     const gStatus = normalizeStatus(r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status));
                     const gradingPaid = gStatus === 'paid' || gStatus === 'paid_verified';
-                    const tStatus = dir ? normalizeStatus(dir.invoice_status) : null;
-                    const tp = !tStatus ? null : tStatus === 'none' ? 'none' : (tStatus === 'paid' || tStatus === 'paid_verified' || tStatus === 'pending_verification') ? 'paid' : 'unpaid';
+                    const ts = r.slot_id && r.student_id ? termStatusMap.get(`${r.slot_id}:${r.student_id}`) : undefined;
+                    const tp = ts?.term_status === 'paid' ? 'paid' : ts?.term_status === 'unpaid' ? 'unpaid' : ts?.term_status === 'none' ? 'none' : null;
+                    const tl = ts?.term_label ? `${ts.term_label} ` : '';
                     const greenStyle = { color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') };
                     const amberStyle = { color: classColorVar('amber'), borderColor: classColorVar('amber'), background: classColorTint('amber') };
                     return (
@@ -1779,12 +1792,12 @@ const PublicGradingList: React.FC = () => {
                           )}
                         </span>
                         {dir?.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Trial</Badge>
-                          : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>Term paid</Badge>
-                          : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">Unpaid{dir?.invoice_balance && dir.invoice_balance > 0 ? ` ${formatCurrency(dir.invoice_balance)}` : ''}</Badge>
-                          : tp === 'none' ? <Badge variant="secondary" className="text-[10px]">No invoice</Badge> : null}
+                          : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>{tl}paid</Badge>
+                          : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">{tl}unpaid{ts?.term_balance && ts.term_balance > 0 ? ` ${formatCurrency(ts.term_balance)}` : ''}</Badge>
+                          : tp === 'none' ? <Badge variant="secondary" className="text-[10px]">{tl}no invoice</Badge> : null}
                         {gradingPaid
                           ? <Badge variant="outline" className="text-[10px]" style={greenStyle}>Grading paid</Badge>
-                          : dir?.grading?.ready
+                          : ts?.ready
                             ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Ready for grading</Badge>
                             : <StatusBadge status={r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status)} className="text-[10px] px-1.5 py-0" />}
                         <span className="text-muted-foreground whitespace-nowrap">{shortBeltChange(r.current_belt, r.target_belt)}</span>

@@ -8220,6 +8220,18 @@ export type Database = {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
       }
+      access_grading_term_status: {
+        Args: { p_slot_ids: string[] }
+        Returns: {
+          ready: boolean
+          slot_id: string
+          student_id: string
+          term_balance: number
+          term_id: string
+          term_label: string
+          term_status: string
+        }[]
+      }
       access_invoice_payments: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
