@@ -44,7 +44,7 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
       }
       const { error } = await (supabase as any).rpc('access_record_payment', {
         p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoiceId, p_amount: amt, p_date: date,
-        p_method: method, p_reference: reference, p_notes: !file && !needsProof && method !== 'cash' ? [notes, 'Proof bypassed by all-branch access'].filter(Boolean).join(' · ') : notes, p_proof_url: proofUrl, p_client_ref: clientRef.current,
+        p_method: method, p_reference: reference, p_notes: !file && isAllBranch && (method === 'paynow' || method === 'bank_transfer') ? [notes, 'Proof bypassed by all-branch access'].filter(Boolean).join(' · ') : notes, p_proof_url: proofUrl, p_client_ref: clientRef.current,
       });
       if (error) throw error;
       toast.success('Payment recorded');
