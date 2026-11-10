@@ -1537,7 +1537,7 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
 
-        {viewOnly && unlocked ? (
+        {viewOnly && editMode ? (
           <AttendanceTab
             lockedBranchId={lockedBranchId ?? undefined}
             branches={(publicBranches as any[]).map((b) => ({ id: b.id, name: b.name }))}

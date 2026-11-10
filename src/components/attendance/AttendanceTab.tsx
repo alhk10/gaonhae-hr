@@ -37,6 +37,8 @@ interface Props {
   lockedBranchId?: string;
   branches: { id: string; name: string }[];
   canEdit: boolean;
+  /** Read-only attendance password: no edits, no student profiles, Report only. */
+  viewOnly?: boolean;
 }
 
 const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
@@ -291,7 +293,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
           {WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}
           {termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
         </span>
-        {canEdit && branchId && progressOn && (
+        {(canEdit || viewOnly) && branchId && progressOn && (
           <Button size="sm" variant="outline" className="ml-auto h-8 text-xs" disabled={reporting} onClick={downloadReport}>
             <FileText className="mr-1 h-3.5 w-3.5" /> Report
           </Button>
@@ -311,7 +313,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
           <CardContent className="space-y-1.5 px-3 pb-3">
             {data!.requests.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-2 py-1.5 text-xs">
-                <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} className="font-medium" />
+                {viewOnly ? <span className="font-medium">{r.student_name}</span> : <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} className="font-medium" />}
                 <span>{WEEKDAY_LABELS[parseIsoDate(r.lesson_date).getDay()]} {formatDate(r.lesson_date)} · {hhmm(r.start_time)}–{hhmm(r.end_time)}{r.class_type ? ` · ${r.class_type}` : ''}</span>
                 <Badge variant={r.cancel_requested ? 'destructive' : 'secondary'} className="text-[10px]">
                   {r.cancel_requested ? 'Cancel request' : 'Booking request'}
@@ -383,7 +385,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                     <ul className="divide-y">
                       {list.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-xs">
-                          <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
+                          {viewOnly ? <span className="min-w-0 font-medium">{b.student_name}</span> : <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />}
                           <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
                           {convById[b.student_id]?.due && (
                             <button type="button" disabled={!canEdit} onClick={async () => {
