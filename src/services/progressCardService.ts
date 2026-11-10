@@ -14,7 +14,7 @@ export interface ProgressCardRow {
 }
 export interface ProgressReportRow {
   name: string; dob: string | null; term_label: string | null; report_date: string; belt: string | null; age: number | null;
-  ratings: Record<string, string>; grading_readiness: Readiness | null; comments: string | null; paid_date: string | null;
+  ratings: Record<string, string>; grading_readiness: Readiness | null; comments: string | null; paid_date: string | null; has_card?: boolean;
 }
 
 export const progressSettings = (branchId: string, enabled?: boolean) =>

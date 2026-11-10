@@ -29,7 +29,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   doc.text('PROGRESS REPORT SUMMARY', W / 2 + 12, 18, { align: 'center' });
   doc.setFontSize(10); doc.setTextColor(60); doc.setFont('helvetica', 'normal');
   doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), W / 2 + 12, 25, { align: 'center' });
-  const cols = [{ t: '#', w: 10 }, { t: 'Name', w: 70 }, { t: 'Birth Date', w: 28 }, { t: 'Ready for Grading Test', w: 38 }, { t: 'Paid Date', w: 36 }];
+  const cols = [{ t: '#', w: 9 }, { t: 'Name', w: 61 }, { t: 'Birth Date', w: 24 }, { t: 'Progress Card', w: 30 }, { t: 'Ready for Grading Test', w: 30 }, { t: 'Paid Date', w: 28 }];
   const LH = 4.2, PAD = 2;
   let y = 40;
   const header = () => {
@@ -43,7 +43,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   header();
   rows.forEach((r, i) => {
     doc.setFontSize(9);
-    const vals = [String(i + 1), r.name, r.dob ? formatDate(r.dob) : '—', r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? formatDate(r.paid_date) : '—']
+    const vals = [String(i + 1), r.name, r.dob ? formatDate(r.dob) : '—', r.has_card === false ? 'Not done' : `Done ${formatDate(r.report_date)}`, r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? formatDate(r.paid_date) : '—']
       .map((v, k) => doc.splitTextToSize(v, cols[k].w - 2 * PAD) as string[]);
     const h = Math.max(...vals.map((l) => l.length)) * LH + 3;
     if (y + h > 280) { doc.addPage(); y = 16; header(); }
@@ -51,7 +51,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     doc.setDrawColor(220); doc.line(M, y + h, W - M, y + h);
     y += h;
   });
-  if (!rows.length) doc.text('No progress cards for this term yet.', M, y + 6);
+  if (!rows.length) doc.text('No active students in this branch.', M, y + 6);
   const total = doc.getNumberOfPages(), now = new Date();
   const stamp = `Report generated ${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   for (let pg = 1; pg <= total; pg++) {
@@ -62,7 +62,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   }
 
   // One card per student
-  rows.forEach((r, idx) => {
+  rows.filter((r) => r.has_card !== false).forEach((r, idx) => {
     if (!opts.cardOnly || idx > 0) doc.addPage();
     logo(doc, M);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
