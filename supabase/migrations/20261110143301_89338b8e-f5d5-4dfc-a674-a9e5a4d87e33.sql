@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public._grading_steps(uuid) FROM authenticated;
