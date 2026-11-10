@@ -87,7 +87,9 @@ const ProgressCardDialog: React.FC<Props> = ({ open, onOpenChange, onSaved, stud
             </div>
           </div>
         )}
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between gap-2">
+          <Button variant="ghost" size="sm" className="text-destructive sm:mr-auto" disabled={saving || loading}
+            onClick={() => { if (window.confirm('Clear all ratings on this card?')) { setRatings({}); setReady(null); } }}>Clear form</Button>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button size="sm" disabled={saving || loading} onClick={save}>Save</Button>
         </DialogFooter>
