@@ -9173,6 +9173,10 @@ export type Database = {
         }
         Returns: number
       }
+      apply_scanned_payment_amount: {
+        Args: { p_password: string; p_payment_id: string }
+        Returns: string
+      }
       apply_student_credit_to_invoice: {
         Args: {
           p_amount: number
@@ -9188,6 +9192,10 @@ export type Database = {
       }
       approve_public_student_update_request: {
         Args: { p_actor?: string; p_id: string }
+        Returns: undefined
+      }
+      approve_scanned_payment_amount: {
+        Args: { p_request_id: string }
         Returns: undefined
       }
       approve_student_merge_request: {
