@@ -1672,25 +1672,6 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
-                  {progressCards.length > 0 && (
-                    <div className="rounded-md border p-2 space-y-1">
-                      <p className="text-xs font-semibold">Progress cards</p>
-                      {progressCards.map((c) => (
-                        <button key={c.id} type="button" onClick={() => openCard(c)} className="flex w-full items-center justify-between rounded px-1 py-1 text-left text-sm hover:bg-muted">
-                          <span>{c.term_label || 'Progress card'}</span>
-                          <span className="flex items-center gap-1 text-xs text-primary">{!c.viewed_at && <Badge className="text-[10px] px-1.5 py-0">New</Badge>}View PDF</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {sessionId && matched?.id && (
-                    <Button onClick={() => setCertsOpen(true)} variant="outline" className="w-full h-11 justify-between">
-                      Gradings &amp; certificates <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {certsOpen && sessionId && matched?.id && (
-                    <HelloCertificatesDialog open onOpenChange={setCertsOpen} sessionId={sessionId} studentId={matched.id} belt={(matched as any).current_belt} />
-                  )}
                   {hasOpenCompetition && <Button
                     onClick={() => goTo('competition')}
                     variant="outline"
@@ -1752,6 +1733,15 @@ const PublicHelloChat: React.FC = () => {
                     </span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  {sessionId && matched?.id && (
+                    <Button onClick={() => setCertsOpen(true)} variant="outline" className="w-full h-11 justify-between">
+                      Gradings &amp; certificates <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {certsOpen && sessionId && matched?.id && (
+                    <HelloCertificatesDialog open onOpenChange={setCertsOpen} sessionId={sessionId} studentId={matched.id} belt={(matched as any).current_belt}
+                      progressCards={progressCards} onOpenCard={(id) => { const c = progressCards.find((x) => x.id === id); if (c) openCard(c); }} />
+                  )}
                   <Button onClick={openCallback} variant="outline" className="w-full h-11 justify-between">
                     <span className="flex items-center gap-1.5">
                       <MessageCircleQuestion className="h-4 w-4" />
