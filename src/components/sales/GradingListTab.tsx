@@ -617,6 +617,7 @@ const GradingListTab: React.FC = () => {
         result: student.result === 'pass' || student.result === 'double' || student.result === 'fail' ? student.result : null,
         columnOrder: scorecardColumns.map(c => c.label),
         gradingFeeName: student.grading_fee_name,
+        branchCountry: isMorley ? 'Australia' : 'Singapore',
       },
       `Certificate_${safeName}_${safeBelt}_${dateStr}.pdf`,
     );
@@ -666,6 +667,7 @@ const GradingListTab: React.FC = () => {
         result: isDouble ? 'double' : 'pass',
         columnOrder: scorecardColumns.map(c => c.label),
         gradingFeeName: student.grading_fee_name,
+        branchCountry: isMorley ? 'Australia' : 'Singapore',
       });
       if (isDouble) {
         const secondBelt = getNextBeltLevel(baseBelt, 'Australia');
@@ -678,6 +680,7 @@ const GradingListTab: React.FC = () => {
             result: 'double',
             columnOrder: scorecardColumns.map(c => c.label),
             gradingFeeName: student.grading_fee_name,
+        branchCountry: isMorley ? 'Australia' : 'Singapore',
           });
         }
       }
