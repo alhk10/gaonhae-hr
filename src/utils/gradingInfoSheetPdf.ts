@@ -163,5 +163,5 @@ export async function buildGradingInfoSheet(branches: InfoSheetBranch[]): Promis
     page.drawLine({ start: { x: halfW, y }, end: { x: halfW, y: y + 4 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
   }
   const out = await doc.save();
-  return new Blob([out], { type: 'application/pdf' });
+  return new Blob([out as BlobPart], { type: 'application/pdf' });
 }
