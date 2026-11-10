@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { ageOn, termLabelOf } from './progressCard';
 
 describe('progress card helpers', () => {
