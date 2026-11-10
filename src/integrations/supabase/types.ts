@@ -8083,6 +8083,10 @@ export type Database = {
         Args: { p_password: string; p_student_id: string }
         Returns: boolean
       }
+      _cert_can_view: {
+        Args: { p_password: string; p_student_id: string }
+        Returns: boolean
+      }
       _dan_conversion_check: {
         Args: {
           p_as_of?: string

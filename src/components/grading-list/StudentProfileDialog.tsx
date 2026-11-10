@@ -34,6 +34,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Show Edit / Create invoice icons (unlocked /access staff). */
   canEdit?: boolean;
+  readOnly?: boolean;
 }
 
 
@@ -47,7 +48,7 @@ const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, valu
   );
 };
 
-export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange, canEdit }) => {
+export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange, canEdit, readOnly }) => {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
@@ -312,6 +313,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
       invoiceNumber={invoiceView?.number ?? null}
       open={!!invoiceView}
       onOpenChange={(o) => !o && setInvoiceView(null)}
+      readOnly={readOnly}
     />
     </>
   );

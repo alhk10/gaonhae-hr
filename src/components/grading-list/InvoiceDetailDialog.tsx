@@ -34,9 +34,12 @@ interface Props {
   invoiceNumber?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Hide edit/delete/payment/refund actions (view-only access). */
+  readOnly?: boolean;
 }
 
 export const InvoiceDetailDialog: React.FC<Props> = ({
+  readOnly = false,
   invoiceId,
   invoiceNumber,
   open,
@@ -205,7 +208,7 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
           </div>
         )}
         <DialogFooter className="gap-2 flex-wrap">
-          {detail && !action && (
+          {detail && !action && !readOnly && (
             <>
               <Button variant="outline" size="sm" className="text-xs" onClick={handleEditClick} disabled={!signedIn && pending.edit_pending}>
                 <Pencil className="mr-1 h-3 w-3" /> {!signedIn && pending.edit_pending ? 'Edit pending' : 'Edit'}
