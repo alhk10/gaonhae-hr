@@ -430,20 +430,17 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           })()}
                           <span className="ml-auto flex items-center gap-1">
                             {b.status !== 'requested' && (
-                              <>
-                                <Button size="sm" variant={b.status === 'attended' ? 'default' : 'outline'} className="h-7 px-2 text-xs"
-                                  disabled={!canEdit || busy === b.id}
-                                  onClick={() => (b.status !== 'attended' && isUnpaidTerm(b))
-                                    ? setMarkPrompt(b)
-                                    : run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
-                                  <Check className="mr-1 h-3.5 w-3.5" />Attended
-                                </Button>
-                                <Button size="sm" variant={b.status === 'absent' ? 'destructive' : 'outline'} className="h-7 px-2 text-xs"
-                                  disabled={!canEdit || busy === b.id}
-                                  onClick={() => run(b.id, () => markBooking(b.id, b.status === 'absent' ? 'booked' : 'absent'))}>
-                                  <Ban className="mr-1 h-3.5 w-3.5" />Absent
-                                </Button>
-                              </>
+                              <Button size="sm"
+                                variant={b.status === 'attended' ? 'default' : 'destructive'}
+                                className={`h-7 min-w-[84px] px-2 text-xs ${b.status === 'attended' ? 'bg-success text-success-foreground hover:bg-success/90' : ''}`}
+                                disabled={!canEdit || busy === b.id}
+                                onClick={() => (b.status !== 'attended' && isUnpaidTerm(b))
+                                  ? setMarkPrompt(b)
+                                  : run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
+                                {b.status === 'attended'
+                                  ? <><Check className="mr-1 h-3.5 w-3.5" />Present</>
+                                  : <><Ban className="mr-1 h-3.5 w-3.5" />Absent</>}
+                              </Button>
                             )}
                             {b.status === 'requested' && canEdit && (
                               <Button size="sm" className="h-7 px-2 text-xs" disabled={busy === b.id}
