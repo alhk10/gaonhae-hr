@@ -193,6 +193,10 @@ const PublicGradingList: React.FC = () => {
   });
   // True only when unlocked with the all-branch password (Hp97533488);
   // gates the grading report (Summary PDF) button.
+  // View-only attendance password: only the Attendance tab (read-only) + Report.
+  const [viewOnly, setViewOnly] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('access_view_only_v1') === '1'; } catch { return false; }
+  });
   const [isAllBranch, setIsAllBranch] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('guards_list_all_branch_v1') === '1';
@@ -458,6 +462,10 @@ const PublicGradingList: React.FC = () => {
     if (scopeErr || !scope) { toast.error('Incorrect password'); return; }
     const branchIds: string[] = scope.branch_ids || [];
     const branchId = branchIds[0];
+    const vo = !!scope.view_only;
+    setViewOnly(vo);
+    try { if (vo) sessionStorage.setItem('access_view_only_v1', '1'); else sessionStorage.removeItem('access_view_only_v1'); } catch {}
+    if (vo) setActiveTab('attendance');
     if (scope.is_all) {
       setUnlockLevel('standard');
       setLockedBranchId(null);
@@ -498,8 +506,10 @@ const PublicGradingList: React.FC = () => {
     setLockedBranchId(null);
     setAllowedBranchIds([]);
     setIsAllBranch(false);
+    setViewOnly(false);
     setBranchFilter('all');
     try {
+      sessionStorage.removeItem('access_view_only_v1');
       sessionStorage.removeItem('guards_list_unlocked_v1');
       sessionStorage.removeItem('guards_list_unlock_level_v1');
       sessionStorage.removeItem('guards_list_all_branch_v1');
@@ -1527,6 +1537,14 @@ const PublicGradingList: React.FC = () => {
           </Button>
         </div>
 
+        {viewOnly && unlocked ? (
+          <AttendanceTab
+            lockedBranchId={lockedBranchId ?? undefined}
+            branches={(publicBranches as any[]).map((b) => ({ id: b.id, name: b.name }))}
+            canEdit={false}
+            viewOnly
+          />
+        ) : (
         <Tabs value={!isAllBranch && ['rental', 'external-invoices', 'ai-document', 'finance', 'passwords'].includes(activeTab) ? 'summary' : activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1 p-1 [&>button]:whitespace-normal [&>button]:text-center [&>button]:leading-tight [&>button]:min-w-[5.5rem] [&>button]:flex-1 [&>button]:basis-auto [&>button]:py-1.5">
             <TabsTrigger value="summary">Summary</TabsTrigger>
@@ -2011,6 +2029,7 @@ const PublicGradingList: React.FC = () => {
             />
           </TabsContent>
         </Tabs>
+        )}
 
       </div>
 
