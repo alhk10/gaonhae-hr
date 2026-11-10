@@ -6828,6 +6828,7 @@ export type Database = {
           term_calendar_id: string
           term_label: string | null
           updated_at: string
+          viewed_at: string | null
         }
         Insert: {
           age_snapshot?: number | null
@@ -6843,6 +6844,7 @@ export type Database = {
           term_calendar_id: string
           term_label?: string | null
           updated_at?: string
+          viewed_at?: string | null
         }
         Update: {
           age_snapshot?: number | null
@@ -6858,6 +6860,7 @@ export type Database = {
           term_calendar_id?: string
           term_label?: string | null
           updated_at?: string
+          viewed_at?: string | null
         }
         Relationships: [
           {
@@ -10345,6 +10348,14 @@ export type Database = {
       has_sales_access: { Args: never; Returns: boolean }
       has_sales_module_access: { Args: never; Returns: boolean }
       hello_grading_eligibility: {
+        Args: { p_session_id: string; p_student_id: string }
+        Returns: Json
+      }
+      hello_mark_progress_card_viewed: {
+        Args: { p_card_id: string; p_session_id: string; p_student_id: string }
+        Returns: undefined
+      }
+      hello_progress_cards: {
         Args: { p_session_id: string; p_student_id: string }
         Returns: Json
       }
