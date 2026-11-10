@@ -54,6 +54,7 @@ import ExternalInvoicesTab from '@/components/grading-list/ExternalInvoicesTab';
 import FinanceTab from '@/components/grading-list/FinanceTab';
 import PasswordManagerTab from '@/components/grading-list/PasswordManagerTab';
 import FaqTab from '@/components/grading-list/FaqTab';
+import InfoSheetBranchDialog from '@/components/grading-list/InfoSheetBranchDialog';
 
 import EditCompetitionSubmissionDialog from '@/components/grading-list/EditCompetitionSubmissionDialog';
 import {
@@ -182,6 +183,7 @@ const PublicGradingList: React.FC = () => {
     } catch {}
     return 'none';
   });
+  const [infoSheetOpen, setInfoSheetOpen] = useState(false);
   const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>(() => readAllowedBranches());
   const [lockedBranchId, setLockedBranchId] = useState<string | null>(() => {
     try {
@@ -1609,7 +1611,8 @@ const PublicGradingList: React.FC = () => {
 
 
         <Card>
-          <CardContent className="p-3 flex flex-wrap gap-2">
+          <CardContent className="p-3 flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="flex-1 min-w-[140px]">
                 <SelectValue placeholder="All dates" />
@@ -1632,6 +1635,8 @@ const PublicGradingList: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+            </div>
+            <div className="flex flex-wrap gap-2">
             {editMode && (
               <Button
                 type="button"
@@ -1650,28 +1655,27 @@ const PublicGradingList: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={handleDownloadPdf}
               disabled={isLoading || groups.length === 0}
               title="Download PDF"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 mr-1" /> Grading List
             </Button>
-            <Button asChild type="button" variant="outline" size="sm" title="Ready for grading info sheet (2 × A5, double-sided)">
-              <a href="/downloads/ready-for-grading-info-sheet.pdf" download="ready-for-grading-info-sheet.pdf">
-                <FileText className="h-4 w-4 mr-1" /> Info sheet
-              </a>
+            <Button type="button" variant="outline" size="sm" title="Ready for grading info sheet (2 × A5, double-sided)" onClick={() => setInfoSheetOpen(true)}>
+              <FileText className="h-4 w-4 mr-1" /> Info sheet
             </Button>
+            <InfoSheetBranchDialog open={infoSheetOpen} onOpenChange={setInfoSheetOpen} allowedBranchIds={isAllBranch ? [] : allowedBranchIds} />
             {canDelete && isAllBranch && (
               <Button
                 type="button"
                 variant="secondary"
-                size="icon"
+                size="sm"
                 onClick={handleDownloadSummaryPdf}
                 disabled={isLoading || groups.length === 0}
                 title="Download Summary PDF"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-4 w-4 mr-1" /> Grading Summary
               </Button>
             )}
             {editMode && (
@@ -1702,7 +1706,7 @@ const PublicGradingList: React.FC = () => {
                 </Button>
               </>
             )}
-
+            </div>
           </CardContent>
         </Card>
 
