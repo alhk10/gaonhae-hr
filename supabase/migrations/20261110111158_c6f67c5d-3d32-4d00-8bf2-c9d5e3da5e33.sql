@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.approve_scanned_payment_amount(uuid) FROM anon, public;

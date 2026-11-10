@@ -39,7 +39,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useInvoiceAccess } from '@/hooks/useInvoiceAccess';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateTotalDiscount, submitDiscountApproval, DISCOUNT_APPROVAL_THRESHOLD } from '@/services/invoiceDiscountApprovalService';
-import { Loader2, Plus, Trash2, Check, ChevronsUpDown, Percent, DollarSign, Save, X, History, Ban, Wrench, Eye, CreditCard, Undo2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Check, ChevronsUpDown, Percent, DollarSign, Save, X, History, Ban, Wrench, Eye, CreditCard, Undo2, ScanSearch } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -1565,6 +1565,22 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     } else { await handleSave(convertOverpaymentToCredit); }
   };
 
+  const [rescan, setRescan] = useState<Record<string, { busy?: boolean; status?: string; amount?: number | null; applying?: boolean }>>({});
+  const handleRescanPayment = async (paymentId: string) => {
+    setRescan(r => ({ ...r, [paymentId]: { busy: true } }));
+    const { data, error } = await supabase.functions.invoke('scan-payment-proof', { body: { rescan_payment_id: paymentId } });
+    if (error || !data) { toast.error('Could not rescan the proof'); setRescan(r => ({ ...r, [paymentId]: {} })); return; }
+    setRescan(r => ({ ...r, [paymentId]: { status: data.status, amount: data.amount } }));
+  };
+  const handleApplyScannedAmount = async (paymentId: string) => {
+    setRescan(r => ({ ...r, [paymentId]: { ...r[paymentId], applying: true } }));
+    const { data, error } = await (supabase as any).rpc('apply_scanned_payment_amount', { p_password: sessionStorage.getItem('access_pw_v1') || '', p_payment_id: paymentId });
+    if (error) { toast.error(error.message); setRescan(r => ({ ...r, [paymentId]: { ...r[paymentId], applying: false } })); return; }
+    toast.success(data === 'requested' ? 'Amount change sent to superadmin for approval' : 'Payment amount updated');
+    setRescan(r => ({ ...r, [paymentId]: {} }));
+    loadInvoiceData(); onInvoiceUpdated?.();
+  };
+
   const handleSaveWithApproval = async () => {
     if (!invoice) return;
     if (editOverpayment > 0) {
@@ -2257,9 +2273,23 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                         {payment.proof_of_payment_url && (
                           <Button variant="ghost" size="icon" className="h-6 w-6" asChild><a href={payment.proof_of_payment_url} target="_blank" rel="noopener noreferrer"><Eye className="h-3 w-3" /></a></Button>
                         )}
+                        {payment.proof_of_payment_url && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6" title="Rescan image for amount" disabled={rescan[payment.id]?.busy} onClick={() => handleRescanPayment(payment.id)}>{rescan[payment.id]?.busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScanSearch className="h-3 w-3" />}</Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => { setPaymentToDelete(payment); setDeleteReason(''); setDeleteDialogOpen(true); }}><Trash2 className="h-3 w-3" /></Button>
                       </div>
                     </div>
+                    {rescan[payment.id]?.status && (() => {
+                      const rs = rescan[payment.id];
+                      if (rs.status === 'unreadable' || rs.amount == null) return <div className="text-[10px] text-muted-foreground">Couldn't read amount</div>;
+                      const same = Math.round(Number(rs.amount) * 100) === Math.round(Number(payment.amount) * 100);
+                      return (
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                          <span className={same ? 'text-green-600' : 'text-muted-foreground'}>{same ? 'Matches · ' : ''}Proof shows {formatCurrency(Number(rs.amount))} · Recorded {formatCurrency(Number(payment.amount))}</span>
+                          {!same && <Button size="sm" variant="outline" className="h-6 text-[10px]" disabled={rs.applying} onClick={() => handleApplyScannedAmount(payment.id)}>Update payment to {formatCurrency(Number(rs.amount))}</Button>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
                 {invoice.balance_due > 0 && (

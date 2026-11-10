@@ -123,6 +123,7 @@ const InvoiceActionApprovals: React.FC = () => {
       case 'credit_refund': return 'Credit Refund';
       case 'overpayment_credit': return 'Overpayment → Credit';
       case 'adjustment': return 'Adjust';
+      case 'payment_amount': return 'Payment Amount';
       default: return actionType;
     }
   };
@@ -142,6 +143,14 @@ const InvoiceActionApprovals: React.FC = () => {
         const { data: { user } } = await supabase.auth.getUser();
         await reviewOverpaymentCredit(request.id, true, user?.email || 'superadmin');
         toast.success(`$${Number((request.request_data as any)?.amount || 0).toFixed(2)} added to student credits`);
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
+        return;
+      }
+      if (request.action_type === 'payment_amount') {
+        const { error } = await (supabase as any).rpc('approve_scanned_payment_amount', { p_request_id: request.id });
+        if (error) throw error;
+        toast.success('Payment amount updated');
         queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-requests'] });
         queryClient.invalidateQueries({ queryKey: ['pending-invoice-action-count'] });
         return;

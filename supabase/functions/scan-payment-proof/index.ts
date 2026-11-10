@@ -242,10 +242,34 @@ async function scanStoredPayments(body: any) {
   return json({ scanned: results });
 }
 
+// Re-reads one stored payment's proof on demand and overwrites the saved scan result.
+async function rescanPayment(paymentId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(paymentId)) return json({ error: "invalid payment id" }, 400);
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: p } = await admin.from("payments").select("id, amount, invoice_id, proof_of_payment_url").eq("id", paymentId).maybeSingle();
+  if (!p?.proof_of_payment_url) return json({ error: "no proof on this payment" }, 400);
+  const { data: inv } = await admin.from("invoices").select("branch_id").eq("id", p.invoice_id).maybeSingle();
+  const { data: br } = inv?.branch_id ? await admin.from("branches").select("country").eq("id", inv.branch_id).maybeSingle() : { data: null };
+  const currency = String((br as any)?.country || "").toLowerCase().startsWith("aus") ? "AUD" : "SGD";
+  const path = proofPath(p.proof_of_payment_url);
+  const { data: file } = path ? await admin.storage.from("payment-proofs").download(path) : { data: null };
+  let out: ScanOut;
+  if (!file) out = unread("proof_not_found");
+  else if (!file.type?.startsWith("image/")) out = unread("not_image");
+  else if (file.size > MAX_IMAGE_BYTES) out = unread("image_too_large");
+  else out = await scanImage(`data:${file.type};base64,${toBase64(new Uint8Array(await file.arrayBuffer()))}`, Number(p.amount), currency);
+  await admin.from("payments").update({
+    proof_scan_status: out.status, proof_scan_amount: out.amount,
+    proof_scan_details: { ...out.details, source: "rescan", rescanned_at: new Date().toISOString() },
+  }).eq("id", p.id);
+  return json({ status: out.status, amount: out.amount, recorded: Number(p.amount) });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => null);
+    if (body && typeof body.rescan_payment_id === "string") return await rescanPayment(body.rescan_payment_id);
     if (body && (body.payment_ids || body.invoice_ids)) return await scanStoredPayments(body);
     const imageDataUrl: string | undefined = body?.image_data_url;
     if (!imageDataUrl || !imageDataUrl.startsWith("data:image/")) {
