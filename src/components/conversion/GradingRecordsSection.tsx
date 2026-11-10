@@ -43,7 +43,7 @@ export const GradingRecordsSection: React.FC<Props> = ({ studentId, sessionId, o
   const rows: Row[] = [
     ...(data?.history || []).map((h) => {
       const cert = certs.find((c) => c.rank === h.belt_to && c.image_path && !c.invoice_id);
-      return { key: h.id, date: h.date, belt: h.belt_to || h.belt_from || '—', result: h.result || '—', cert, h };
+      return { key: h.id, date: h.date, belt: h.belt_from && h.belt_to ? `${h.belt_from} >> ${h.belt_to}` : (h.belt_to || h.belt_from || '—'), result: h.result || '—', cert, h };
     }),
     ...certs.filter((c) => c.invoice_id || !(data?.history || []).some((h) => h.belt_to === c.rank)).map((c) => ({
       key: c.id, date: c.issue_date || c.created_at?.slice(0, 10), belt: `${c.rank || '—'} (${c.series === 'stf' ? 'STF' : 'Kukkiwon'})`,

@@ -9,5 +9,4 @@ equal(gradingOutcome('White >> Yellow Tip', 'double').to, 'Yellow', 'White >> Ye
 equal(certificateBelts('White', 'double'), ['White', 'Yellow Tip'], 'double from White gives White and Yellow Tip certificates');
 equal(certificateBelts('Red Tip', 'pass'), ['Red Tip'], 'pass gives one certificate');
 
-import { chainFoundationLines } from './gradingOutcome';
-equal(chainFoundationLines('Foundation 1 >> Foundation 2', ['Foundation 2 >> Foundation 3', 'Foundation 3 >> White']), 'Foundation 1 >> White', 'combined Foundation 1-3 lines resolve to White');
+equal(['Foundation 1','Foundation 2','Foundation 3'].flatMap((b) => certificateBelts(b, 'pass')), ['Foundation 1','Foundation 2','Foundation 3'], 'combined Foundation 1-3 gives one certificate per step');
