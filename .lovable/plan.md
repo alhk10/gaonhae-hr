@@ -25,9 +25,15 @@ A printable PDF saved to Files. It's one A4 landscape sheet, printed on both sid
 - The maps are drawn from OpenStreetMap, with its credit shown in small print, because Google's map images need a paid key. The QR codes beside the maps still open Google Maps.
 - I'll use the Gaonhae blue and red already used on the progress cards.
 - Cut guides will run down the centre on both sides.
-- Saved as a new file in Files, e.g. `ready-for-grading-info-sheet.pdf`. Both pages will be checked as images before delivery.
+- I'll check both pages as images before adding the sheet to the app.
+
+## Where to get it
+- Add an **Info sheet** button next to the existing Download PDF button in the /access Grading tab. Clicking it downloads the sheet.
+- The sheet doesn't change, so it's made once and stored in the app. No copy goes to Files.
 
 ## Technical details
+- The prebuilt PDF goes to `public/downloads/ready-for-grading-info-sheet.pdf`.
+- In `src/pages/public/PublicGradingList.tsx`, add an `<a href download>` button with a FileText icon beside the Download PDF button (around line 1654).
 - Python with reportlab and qrcode, A4 landscape, two 148 × 210 mm panels per page.
 - Map images are built by stitching OSM tiles around geocoded coordinates (zoom about 17) and drawing a pin.
 - Back page panels are in reverse order so the halves align when flipped on the long edge.
