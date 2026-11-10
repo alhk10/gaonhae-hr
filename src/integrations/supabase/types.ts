@@ -19,16 +19,19 @@ export type Database = {
           branch_id: string | null
           label: string | null
           password_hash: string
+          view_only: boolean
         }
         Insert: {
           branch_id?: string | null
           label?: string | null
           password_hash: string
+          view_only?: boolean
         }
         Update: {
           branch_id?: string | null
           label?: string | null
           password_hash?: string
+          view_only?: boolean
         }
         Relationships: []
       }
@@ -8059,8 +8062,13 @@ export type Database = {
         Args: { p_branch_id: string; p_password: string }
         Returns: string
       }
+      _access_branch_check_read: {
+        Args: { p_branch_id: string; p_password: string }
+        Returns: string
+      }
       _access_require_all: { Args: { p_password: string }; Returns: undefined }
       _access_scope: { Args: { p_password: string }; Returns: string }
+      _access_scope_read: { Args: { p_password: string }; Returns: string }
       _activate_trial_for_invoice: {
         Args: { p_invoice: string }
         Returns: undefined
