@@ -36,7 +36,9 @@ import {
 } from '@/services/studentDirectoryService';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
 import { BELT_LEVELS_ARRAY } from '@/constants/beltLevels';
-import { sortAccessStudents } from '@/utils/accessStudentSort';
+const sortByName = <T extends { first_name?: string | null; last_name?: string | null; is_employee?: boolean | null }>(rows: T[]): T[] =>
+  [...rows].sort((a, b) => (Number(!!a.is_employee) - Number(!!b.is_employee)) ||
+    [a.first_name, a.last_name].filter(Boolean).join(' ').localeCompare([b.first_name, b.last_name].filter(Boolean).join(' '), undefined, { sensitivity: 'base' }));
 import { Switch } from '@/components/ui/switch';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import AddStudentDialog from './AddStudentDialog';
@@ -92,7 +94,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState(lockedBranchId || 'all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [payFilter, setPayFilter] = useState('all');
   React.useEffect(() => {
     if (!drillNonce) return;
@@ -130,8 +132,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
   const isAllBranch = (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
   const [showEmployees, setShowEmployees] = useState(false);
   const rowsAll = React.useMemo(() => {
-    if (payFilter === 'all') return sortAccessStudents(allRows);
-    return sortAccessStudents(allRows.filter((r) => {
+    if (payFilter === 'all') return sortByName(allRows);
+    return sortByName(allRows.filter((r) => {
       const st = normalizeStatus(r.invoice_status);
       switch (payFilter) {
         case 'any_paid': return st === 'paid' || st === 'pending_verification' || st === 'paid_verified';
