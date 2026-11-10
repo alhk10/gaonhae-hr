@@ -56,7 +56,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   header();
   rows.forEach((r, i) => {
     doc.setFontSize(9);
-    const vals = [String(i + 1), r.name, r.dob ? formatDate(r.dob) : '—', r.has_card === false ? 'Not done' : `Done ${formatDate(r.report_date)}`, r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? `${formatDate(r.paid_date)}${r.paid_amount != null ? `\n${formatBranchCurrency(Number(r.paid_amount), branchName)}` : ''}` : '—']
+    const vals = [String(i + 1), r.name, r.dob ? formatDate(r.dob) : '—', r.has_card === false || !r.report_date ? '-' : formatDate(r.report_date), r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? `${formatDate(r.paid_date)}${r.paid_amount != null ? `\n${formatBranchCurrency(Number(r.paid_amount), branchName)}` : ''}` : '—']
       .map((v, k) => doc.splitTextToSize(v, cols[k].w - 2 * PAD) as string[]);
     const h = Math.max(...vals.map((l) => l.length)) * LH + 3;
     if (y + h > 280) { doc.addPage(); y = 16; header(); }
@@ -66,50 +66,76 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   });
   if (!rows.length) doc.text('No active students in this branch.', M, y + 6);
 
-  // Attendance page
-  doc.addPage(); logo(doc, M);
+  // Attendance page: one column per class date
+  const dateSet = new Set<string>();
+  rows.forEach((r) => Object.keys(r.attendance?.marks || {}).forEach((d) => dateSet.add(d)));
+  const dates = [...dateSet].sort();
+  const land = dates.length > 22;
+  doc.addPage('a4', land ? 'landscape' : 'portrait');
+  const PW = land ? 297 : 210, PH = land ? 210 : 297;
+  logo(doc, M);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...BLUE);
-  doc.text('TERM ATTENDANCE RECORD', W / 2 + 12, 18, { align: 'center' });
+  doc.text('TERM ATTENDANCE RECORD', PW / 2 + 12, 18, { align: 'center' });
   doc.setFontSize(10); doc.setTextColor(60); doc.setFont('helvetica', 'normal');
-  doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), W / 2 + 12, 25, { align: 'center' });
-  const acols = [{ t: '#', w: 10 }, { t: 'Name', w: 80 }, { t: 'Attended', w: 23 }, { t: 'Absent', w: 23 }, { t: 'Booked', w: 23 }, { t: 'Total', w: 23 }];
-  y = 40;
+  doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), PW / 2 + 12, 25, { align: 'center' });
+  const numW = 7, totW = 9, avail = PW - 2 * M - numW - totW;
+  const nameW = Math.min(55, Math.max(35, avail - dates.length * 9));
+  const dW = dates.length ? Math.min(12, (avail - nameW) / dates.length) : 0;
+  const fs = Math.max(5, Math.min(8, dW * 0.9));
+  const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  const bottom = PH - 22;
+  y = 38;
   const aheader = () => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.setFillColor(...BLUE); doc.rect(M, y, W - 2 * M, 8, 'F'); doc.setTextColor(255);
-    let x = M; acols.forEach((c) => { doc.text(c.t, x + PAD, y + 5.5); x += c.w; });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(fs);
+    doc.setFillColor(...BLUE); doc.rect(M, y, PW - 2 * M, 8, 'F'); doc.setTextColor(255);
+    doc.text('#', M + 1, y + 5.2); doc.text('Name', M + numW + 1, y + 5.2);
+    dates.forEach((d, k) => doc.text(ddmm(d), M + numW + nameW + k * dW + dW / 2, y + 5.2, { align: 'center' }));
+    doc.text('P', M + numW + nameW + dates.length * dW + totW / 2, y + 5.2, { align: 'center' });
     y += 8; doc.setFont('helvetica', 'normal'); doc.setTextColor(30);
   };
   aheader();
   rows.forEach((r, i) => {
-    doc.setFontSize(9);
-    const a = r.attendance;
-    const vals = [String(i + 1), r.name, String(a?.attended ?? 0), String(a?.absent ?? 0), String(a?.booked ?? 0), String(a?.total ?? 0)]
-      .map((v, k) => doc.splitTextToSize(v, acols[k].w - 2 * PAD) as string[]);
-    const h = Math.max(...vals.map((l) => l.length)) * LH + 3;
-    if (y + h > 280) { doc.addPage(); y = 16; aheader(); }
-    let x = M; vals.forEach((l, k) => { doc.text(l, x + PAD, y + 4.5); x += acols[k].w; });
-    doc.setDrawColor(220); doc.line(M, y + h, W - M, y + h);
+    doc.setFontSize(fs + 0.5);
+    const nl = doc.splitTextToSize(r.name, nameW - 2) as string[];
+    const h = Math.max(1, nl.length) * (fs * 0.45) + 2.5;
+    if (y + h > bottom) { doc.addPage('a4', land ? 'landscape' : 'portrait'); y = 16; aheader(); doc.setFontSize(fs + 0.5); }
+    doc.text(String(i + 1), M + 1, y + 3.6); doc.text(nl, M + numW + 1, y + 3.6);
+    const marks = r.attendance?.marks || {};
+    let p = 0;
+    dates.forEach((d, k) => {
+      const m = marks[d]; const cx = M + numW + nameW + k * dW + dW / 2;
+      if (m === 'attended') { p++; doc.setTextColor(20, 120, 60); doc.text('P', cx, y + 3.6, { align: 'center' }); }
+      else if (m === 'absent') { doc.setTextColor(...RED); doc.text('A', cx, y + 3.6, { align: 'center' }); }
+    });
+    doc.setTextColor(30); doc.setFont('helvetica', 'bold');
+    doc.text(String(p), M + numW + nameW + dates.length * dW + totW / 2, y + 3.6, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setDrawColor(225); doc.line(M, y + h, PW - M, y + h);
     y += h;
   });
+  if (!dates.length) { doc.setFontSize(9); doc.text('No attendance marked this term.', M, y + 6); }
+  doc.setFontSize(8); doc.setTextColor(60);
+  doc.text('Legend:  P = Present   ·   A = Absent   ·   blank = not booked / not marked   ·   P column = total present', M, PH - 14);
 
   const total = doc.getNumberOfPages(), now = new Date();
   const stamp = `Report generated ${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   for (let pg = 1; pg <= total; pg++) {
     doc.setPage(pg); doc.setFontSize(8); doc.setTextColor(110); doc.setFont('helvetica', 'normal');
-    doc.text(stamp, M, 290); doc.text(`Page ${pg} of ${total}`, W - M, 290, { align: 'right' });
+    const ps = doc.internal.pageSize, pw = ps.getWidth(), ph = ps.getHeight();
+    doc.text(stamp, M, ph - 7); doc.text(`Page ${pg} of ${total}`, pw - M, ph - 7, { align: 'right' });
   }
   doc.setPage(total);
   }
 
   // One card per student
   rows.filter((r) => r.has_card !== false && !!r.report_date).forEach((r, idx) => {
-    if (!opts.cardOnly || idx > 0) doc.addPage();
-    logo(doc, M);
+    if (!opts.cardOnly || idx > 0) doc.addPage('a4', 'portrait');
+    if (logoData) { try { doc.addImage(logoData, 'PNG', M, 4, 31, 18.4, undefined, 'FAST'); } catch { /* optional */ } }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
-    doc.setTextColor(...BLUE); doc.text('PROGRESS', W / 2 - 2, 20, { align: 'right' });
-    doc.setTextColor(...RED); doc.text('REPORT CARD', W / 2 + 2, 20);
-    putArt(doc, 'kick', W - M - 20, 3, 26, 213 / 360);
+    const t1 = 'PROGRESS ', t2 = 'REPORT CARD', tw = doc.getTextWidth(t1) + doc.getTextWidth(t2), tx = W / 2 - tw / 2;
+    doc.setTextColor(...BLUE); doc.text(t1, tx, 18);
+    doc.setTextColor(...RED); doc.text(t2, tx + doc.getTextWidth(t1), 18);
+    putArt(doc, 'kick', W - M - 24, 1, 28.6, 213 / 360);
     doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
     doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
@@ -143,10 +169,9 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, gw, 22, 2, 2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...BLUE);
     doc.text('READY FOR GRADING TEST?', M + gw / 2, gy + 7, { align: 'center' });
-    putArt(doc, 'thumbs', W - M - 30, gy - 8, 52, 201 / 360);
-    putArt(doc, 'bow', M + 4, 246, 38, 160 / 360);
+    putArt(doc, 'thumbs', W - M - 38, gy - 3, 30, 201 / 360);
     (['yes', 'no'] as const).forEach((k, i) => {
-      const x = M + 38 + i * 50;
+      const x = M + gw / 2 - 30 + i * 36;
       doc.setDrawColor(100); doc.rect(x, gy + 11, 6, 6);
       if (r.grading_readiness === k) { doc.setFillColor(...BLUE); doc.rect(x + 1, gy + 12, 4, 4, 'F'); }
       doc.setTextColor(30); doc.setFontSize(10); doc.text(READINESS_LABELS[k].toUpperCase(), x + 9, gy + 16);
