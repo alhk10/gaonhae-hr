@@ -269,6 +269,55 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
     toast.success(`Added ${o.added}${forced ? `, ${forced} over limit` : ''}${skipped.length ? `, skipped ${skipped.length}: ${skipped.join(', ')}` : ''}`);
   };
 
+  const badgesFor = (b: LessonBooking) => (<>
+                          <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
+                          {convById[b.student_id]?.due && (
+                            <button type="button" disabled={!canEdit} onClick={async () => {
+                              let cert: { id: string; rank: string | null } | null = null;
+                              if (convById[b.student_id].pending) {
+                                try { const c = (await getGradingRecords(b.student_id)).certificates.find((x) => x.status === 'awaiting_upload'); if (c) cert = { id: c.id, rank: c.rank }; } catch { /* open without */ }
+                              }
+                              setConvertFor({ id: b.student_id, name: b.student_name, cert });
+                            }}>
+                              <Badge className="text-[10px]">{convById[b.student_id].pending ? 'Certificate needed' : 'Conversion due'}</Badge>
+                            </button>
+                          )}
+                          {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
+                          {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
+                          {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
+                          {!muted && b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
+                          {!muted && b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                          {b.term_id && (() => {
+                            const st = gradingBadgeState(b.grading);
+                            if (st === 'paid') return <Badge className="text-[10px]">Grading paid</Badge>;
+                            return (
+                              <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={async () => {
+                                  try { await setReadyForGrading(b.student_id, b.term_id!, st !== 'ready'); refresh(); }
+                                  catch (e) { toast.error((e as Error).message); }
+                                }}
+                                className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                                  st === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground')}
+                              >
+                                <span className={cn('flex h-3 w-3 items-center justify-center rounded-sm border', st === 'ready' && 'border-primary bg-primary text-primary-foreground')}>
+                                  {st === 'ready' && <Check className="h-2.5 w-2.5" />}
+                                </span>
+                                Ready for grading
+                              </button>
+                            );
+                          })()}
+                          {progressOn && b.term_id && (() => {
+                            const done = cardDone.has(`${b.student_id}_${b.term_id}`);
+                            return (
+                              <button type="button" disabled={!canEdit} onClick={() => setCardFor(b)}>
+                                <Badge variant={done ? 'default' : 'outline'} className="text-[10px]">{done ? 'Progress card ✓' : 'Progress card'}</Badge>
+                              </button>
+                            );
+                          })()}
+  </>);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -386,52 +435,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
                       {list.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-xs">
                           <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
-                          <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
-                          {convById[b.student_id]?.due && (
-                            <button type="button" disabled={!canEdit} onClick={async () => {
-                              let cert: { id: string; rank: string | null } | null = null;
-                              if (convById[b.student_id].pending) {
-                                try { const c = (await getGradingRecords(b.student_id)).certificates.find((x) => x.status === 'awaiting_upload'); if (c) cert = { id: c.id, rank: c.rank }; } catch { /* open without */ }
-                              }
-                              setConvertFor({ id: b.student_id, name: b.student_name, cert });
-                            }}>
-                              <Badge className="text-[10px]">{convById[b.student_id].pending ? 'Certificate needed' : 'Conversion due'}</Badge>
-                            </button>
-                          )}
-                          {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
-                          {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
-                          {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
-                          {!muted && b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
-                          {!muted && b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
-                          {b.term_id && (() => {
-                            const st = gradingBadgeState(b.grading);
-                            if (st === 'paid') return <Badge className="text-[10px]">Grading paid</Badge>;
-                            return (
-                              <button
-                                type="button"
-                                disabled={!canEdit}
-                                onClick={async () => {
-                                  try { await setReadyForGrading(b.student_id, b.term_id!, st !== 'ready'); refresh(); }
-                                  catch (e) { toast.error((e as Error).message); }
-                                }}
-                                className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
-                                  st === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground')}
-                              >
-                                <span className={cn('flex h-3 w-3 items-center justify-center rounded-sm border', st === 'ready' && 'border-primary bg-primary text-primary-foreground')}>
-                                  {st === 'ready' && <Check className="h-2.5 w-2.5" />}
-                                </span>
-                                Ready for grading
-                              </button>
-                            );
-                          })()}
-                          {progressOn && b.term_id && (() => {
-                            const done = cardDone.has(`${b.student_id}_${b.term_id}`);
-                            return (
-                              <button type="button" disabled={!canEdit} onClick={() => setCardFor(b)}>
-                                <Badge variant={done ? 'default' : 'outline'} className="text-[10px]">{done ? 'Progress card ✓' : 'Progress card'}</Badge>
-                              </button>
-                            );
-                          })()}
+                          {badgesFor(b)}
                           <span className="ml-auto flex items-center gap-1">
                             {b.status !== 'requested' && (
                               <Button size="sm"
