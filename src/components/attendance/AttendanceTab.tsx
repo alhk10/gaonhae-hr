@@ -182,7 +182,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
     try {
       const rows = await getProgressReport(branchId, termIds);
       const bName = branches.find((b) => b.id === branchId)?.name || branchId;
-      buildProgressReportPdf(rows, bName, termIds.map((id) => termNameOf(id)).join(', '));
+      await buildProgressReportPdf(rows, bName, termIds.map((id) => termNameOf(id)).join(', '));
     } catch (e) { toast.error((e as Error).message); } finally { setReporting(false); }
   };
 
