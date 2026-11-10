@@ -20,6 +20,8 @@ export interface ProgressReportRow {
 
 export const progressSettings = (branchId: string, enabled?: boolean) =>
   rpc<boolean>('access_progress_settings', { p_password: accessPassword(), p_branch_id: branchId, p_enabled: enabled ?? null });
+export const muteUnpaidSetting = (branchId: string, muted?: boolean) =>
+  rpc<boolean>('access_mute_unpaid_setting', { p_password: accessPassword(), p_branch_id: branchId, p_muted: muted ?? null });
 export const listProgressCards = (branchId: string, termIds: string[]) =>
   rpc<{ student_id: string; term_id: string }[]>('access_progress_card_list', { p_password: accessPassword(), p_branch_id: branchId, p_term_ids: termIds });
 export const getProgressCard = (studentId: string, termId: string) =>

@@ -19,7 +19,7 @@ import {
   type AttendanceTerm, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import DateField from './DateField';
-import { progressSettings } from '@/services/progressCardService';
+import { progressSettings, muteUnpaidSetting } from '@/services/progressCardService';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, X } from 'lucide-react';
@@ -45,6 +45,7 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
   const key = ['access-attendance-settings', branchId];
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => getAttendanceSettings(branchId), enabled: open });
   const reload = () => qc.invalidateQueries({ queryKey: key });
+  const { data: muted } = useQuery({ queryKey: ['mute-unpaid', branchId], queryFn: () => muteUnpaidSetting(branchId), enabled: open });
   const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: open });
   const [saving, setSaving] = useState(false);
 
@@ -106,6 +107,13 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
             catch (e) { toast.error((e as Error).message); }
           }} />
           Progress cards
+        </label>
+        <label className="flex items-center gap-2 rounded border px-2 py-1.5 text-xs">
+          <Switch checked={!!muted} onCheckedChange={async (v) => {
+            try { await muteUnpaidSetting(branchId, v); qc.invalidateQueries({ queryKey: ['mute-unpaid', branchId] }); toast.success(v ? 'Unpaid warnings muted' : 'Unpaid warnings on'); }
+            catch (e) { toast.error((e as Error).message); }
+          }} />
+          Mute unpaid warnings (branch invoiced as a school)
         </label>
         {isLoading ? <p className="text-xs text-muted-foreground">Loading…</p> : (
           <Tabs defaultValue="timetable">

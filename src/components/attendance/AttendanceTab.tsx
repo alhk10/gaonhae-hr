@@ -23,7 +23,7 @@ import {
 import { gradingBadgeState } from '@/utils/gradingReady';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
 import ProgressCardDialog from './ProgressCardDialog';
-import { progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
+import { muteUnpaidSetting, progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
 import { termLabelOf } from '@/utils/progressCard';
 import { buildProgressReportPdf } from '@/utils/progressCardPdf';
 import { FileText } from 'lucide-react';
@@ -168,6 +168,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const termLabel = (data?.terms || []).map((t) => t.name).join(', ');
   const termIds = useMemo(() => (data?.terms || []).map((t) => t.id).sort(), [data]);
   const termNameOf = (id?: string | null) => { const t = (data?.terms || []).find((x) => x.id === id); return termLabelOf(t?.name, t?.start_date); };
+  const { data: muted } = useQuery({ queryKey: ['mute-unpaid', branchId], queryFn: () => muteUnpaidSetting(branchId), enabled: !!branchId, retry: false });
+  const unpaid = (b: Parameters<typeof isUnpaidTerm>[0]) => !muted && isUnpaidTerm(b);
   const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: !!branchId, retry: false });
   const { data: cardRows } = useQuery({
     queryKey: ['progress-cards', branchId, termIds], queryFn: () => listProgressCards(branchId, termIds),
@@ -371,7 +373,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
                         <AddStudentButton branchId={branchId} date={day.date} disabled={busy === `add-${slot.id}-${day.date}`}
-                          onPick={(s) => s.unpaid ? setUnpaidPrompt({ slot, date: day.date, student: s }) : doAdd(slot, day.date, s)} />
+                          onPick={(s) => s.unpaid && !muted ? setUnpaidPrompt({ slot, date: day.date, student: s }) : doAdd(slot, day.date, s)} />
                       </span>
                     )}
                   </div>
@@ -397,8 +399,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                           {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
                           {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
                           {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
-                          {b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
-                          {b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                          {!muted && b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
+                          {!muted && b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
                           {b.term_id && (() => {
                             const st = gradingBadgeState(b.grading);
                             if (st === 'paid') return <Badge className="text-[10px]">Grading paid</Badge>;
@@ -434,7 +436,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                                 variant={b.status === 'attended' ? 'default' : 'destructive'}
                                 className={`h-7 min-w-[84px] px-2 text-xs ${b.status === 'attended' ? 'bg-success text-success-foreground hover:bg-success/90' : ''}`}
                                 disabled={!canEdit || busy === b.id}
-                                onClick={() => (b.status !== 'attended' && isUnpaidTerm(b))
+                                onClick={() => (b.status !== 'attended' && unpaid(b))
                                   ? setMarkPrompt(b)
                                   : run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
                                 {b.status === 'attended'
@@ -558,7 +560,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                   <input type="checkbox" checked={!!copyPrompt.selected[b.student_id]}
                     onChange={(e) => setCopyPrompt({ ...copyPrompt, selected: { ...copyPrompt.selected, [b.student_id]: e.target.checked } })} />
                   <span className="font-medium">{b.student_name}</span>
-                  {isUnpaidTerm(b) && <Badge variant="destructive" className="text-[10px]">{b.term_payment === 'none' ? 'No invoice' : 'Unpaid'}</Badge>}
+                  {unpaid(b) && <Badge variant="destructive" className="text-[10px]">{b.term_payment === 'none' ? 'No invoice' : 'Unpaid'}</Badge>}
                 </label>
               </li>
             ))}
