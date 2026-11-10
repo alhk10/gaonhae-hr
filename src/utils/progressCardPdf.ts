@@ -135,7 +135,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     const t1 = 'PROGRESS ', t2 = 'REPORT CARD', tw = doc.getTextWidth(t1) + doc.getTextWidth(t2), tx = W / 2 - tw / 2;
     doc.setTextColor(...BLUE); doc.text(t1, tx, 18);
     doc.setTextColor(...RED); doc.text(t2, tx + doc.getTextWidth(t1), 18);
-    putArt(doc, 'kick', W - M - 24, 1, 28.6, 213 / 360);
+    putArt(doc, 'kick', W - M - 18, 1, 28.6, 213 / 360);
     doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
     doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
@@ -169,7 +169,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, gw, 22, 2, 2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...BLUE);
     doc.text('READY FOR GRADING TEST?', M + gw / 2, gy + 7, { align: 'center' });
-    putArt(doc, 'thumbs', W - M - 38, gy - 3, 30, 201 / 360);
+    putArt(doc, 'thumbs', W - M - 29.5, gy - 6, 30, 201 / 360);
     (['yes', 'no'] as const).forEach((k, i) => {
       const x = M + gw / 2 - 30 + i * 36;
       doc.setDrawColor(100); doc.rect(x, gy + 11, 6, 6);
