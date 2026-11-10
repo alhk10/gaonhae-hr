@@ -48,3 +48,5 @@ export async function downloadStudentCard(c: StudentCard) {
     ratings: c.ratings || {}, grading_readiness: c.grading_readiness, comments: null, paid_date: null }], '', c.term_label || '',
     { cardOnly: true, fileName: `progress-card-${c.name.replace(/\s+/g, '-').toLowerCase()}-${(c.term_label || '').replace(/\s+/g, '-').toLowerCase()}.pdf` });
 }
+export const calendarTermSetting = (branchId: string, on?: boolean) =>
+  rpc<boolean>('access_calendar_term_setting', { p_password: accessPassword(), p_branch_id: branchId, p_on: on ?? null });
