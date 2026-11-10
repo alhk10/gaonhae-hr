@@ -6670,7 +6670,7 @@ export type Database = {
           {
             foreignKeyName: "student_grading_history_grading_registration_id_fkey"
             columns: ["grading_registration_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "grading_registrations"
             referencedColumns: ["id"]
           },
@@ -8116,6 +8116,14 @@ export type Database = {
         Returns: Json
       }
       _grading_records: { Args: { p_student_id: string }; Returns: Json }
+      _grading_steps: {
+        Args: { p_reg_id: string }
+        Returns: {
+          belt_from: string
+          belt_to: string
+          step: number
+        }[]
+      }
       _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _lesson_balance: {
