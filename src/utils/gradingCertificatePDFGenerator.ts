@@ -403,6 +403,8 @@ const drawScorecardPage = (doc: jsPDF, input: GradingCertificateInput) => {
 
 /** True when no meaningful scorecard data is supplied (skip page 2). */
 const hasScorecardContent = (input: GradingCertificateInput): boolean => {
+  // Singapore branches issue certificates without a scorecard page.
+  if (/^(sg|singapore)$/i.test((input.branchCountry || '').trim())) return false;
   if (input.result) return true;
   return (input.scorecard || []).some(
     r => (r.label?.trim() ?? '') !== '' && !isBlankValue(r.value),
