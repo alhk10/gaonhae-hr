@@ -6,7 +6,7 @@ import type { ProgressReportRow } from '@/services/progressCardService';
 
 const BLUE: [number, number, number] = [21, 63, 145];
 const RED: [number, number, number] = [200, 30, 45];
-const logo = (doc: jsPDF, M: number) => { try { doc.addImage(gaonhaeLogo, 'PNG', M, 8, 28, 15, undefined, 'FAST'); } catch { /* logo optional */ } };
+const logo = (doc: jsPDF, M: number) => { try { doc.addImage(gaonhaeLogo, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
 
 export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
