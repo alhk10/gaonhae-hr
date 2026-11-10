@@ -473,6 +473,69 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_profit_loss_entries: {
+        Row: {
+          amount: number
+          branch_id: string
+          category: string
+          cost_price: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_percentage: number | null
+          id: string
+          month: number
+          quantity: number | null
+          sales_amount: number | null
+          share_percentage: number | null
+          subcategory: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          amount?: number
+          branch_id: string
+          category: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage?: number | null
+          id?: string
+          month: number
+          quantity?: number | null
+          sales_amount?: number | null
+          share_percentage?: number | null
+          subcategory: string
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          category?: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage?: number | null
+          id?: string
+          month?: number
+          quantity?: number | null
+          sales_amount?: number | null
+          share_percentage?: number | null
+          subcategory?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       branch_timetables: {
         Row: {
           age_from: number | null
@@ -4373,6 +4436,42 @@ export type Database = {
         }
         Relationships: []
       }
+      pl_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_cost_price: number | null
+          id: string
+          name: string
+          sort_order: number | null
+          type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_cost_price?: number | null
+          id?: string
+          name: string
+          sort_order?: number | null
+          type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_cost_price?: number | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       price_rules: {
         Row: {
           belt_max: string | null
@@ -4962,6 +5061,39 @@ export type Database = {
           is_monday_holiday?: boolean
           name?: string
           updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      published_pl_reports: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          month: number
+          notes: string | null
+          published_at: string
+          published_by: string | null
+          year: number
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          month: number
+          notes?: string | null
+          published_at?: string
+          published_by?: string | null
+          year: number
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          published_at?: string
+          published_by?: string | null
           year?: number
         }
         Relationships: []
