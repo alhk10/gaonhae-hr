@@ -8251,6 +8251,10 @@ export type Database = {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
       }
+      access_invoice_student_credit: {
+        Args: { p_invoice_id: string; p_password: string }
+        Returns: number
+      }
       access_list_chat_messages: { Args: { p_password: string }; Returns: Json }
       access_list_payment_shortages: {
         Args: { p_password: string }
