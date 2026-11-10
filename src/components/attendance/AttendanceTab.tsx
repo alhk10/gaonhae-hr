@@ -313,7 +313,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
           <CardContent className="space-y-1.5 px-3 pb-3">
             {data!.requests.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-2 py-1.5 text-xs">
-                {viewOnly ? <span className="font-medium">{r.student_name}</span> : <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} className="font-medium" />}
+                <StudentNameButton name={r.student_name} studentId={r.student_id} onOpen={setProfileId} className="font-medium" />
                 <span>{WEEKDAY_LABELS[parseIsoDate(r.lesson_date).getDay()]} {formatDate(r.lesson_date)} · {hhmm(r.start_time)}–{hhmm(r.end_time)}{r.class_type ? ` · ${r.class_type}` : ''}</span>
                 <Badge variant={r.cancel_requested ? 'destructive' : 'secondary'} className="text-[10px]">
                   {r.cancel_requested ? 'Cancel request' : 'Booking request'}
@@ -385,7 +385,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
                     <ul className="divide-y">
                       {list.map((b) => (
                         <li key={b.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-xs">
-                          {viewOnly ? <span className="min-w-0 font-medium">{b.student_name}</span> : <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />}
+                          <StudentNameButton name={b.student_name} studentId={b.student_id} onOpen={setProfileId} className="min-w-0 font-medium" />
                           <span className="text-muted-foreground">{formatRankWithPoom(b.current_belt, convById[b.student_id]?.row.pre_conversion_poom) || 'No belt'}</span>
                           {convById[b.student_id]?.due && (
                             <button type="button" disabled={!canEdit} onClick={async () => {
@@ -583,7 +583,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
           student={{ id: cardFor.student_id, name: cardFor.student_name, belt: cardFor.current_belt || null, dob: cardFor.date_of_birth || null }}
           termId={cardFor.term_id} termLabel={termNameOf(cardFor.term_id)} />
       )}
-      <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} canEdit={canEdit} />
+      <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} canEdit={canEdit && !viewOnly} readOnly={viewOnly} />
       {convertFor && convById[convertFor.id] && (
         <ConversionDialog open onOpenChange={(o) => !o && setConvertFor(null)}
           certificateId={convertFor.cert?.id} defaultRank={convertFor.cert?.rank}
