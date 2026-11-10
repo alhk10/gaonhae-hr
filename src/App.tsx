@@ -35,6 +35,7 @@ const CasualEmployees = lazy(() => import('./pages/CasualEmployees'));
 const AdminSlotBooking = lazy(() => import('./pages/AdminSlotBooking'));
 const SlotBooking = lazy(() => import('./pages/SlotBooking'));
 const Payslips = lazy(() => import('./pages/Payslips'));
+const BranchProfitLoss = lazy(() => import('./pages/BranchProfitLoss'));
 const PayslipManagement = lazy(() => import('./pages/PayslipManagement'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -187,6 +188,13 @@ function App() {
                     
                     {/* Branch Dashboard Route */}
                     <Route path="/branch-dashboard" element={<ProtectedRoute><BranchDashboardPage /></ProtectedRoute>} />
+                    <Route path="/branch-profit-loss" element={
+                      <AuthGuard>
+                        <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
+                          <BranchProfitLoss />
+                        </PositionAccessGuard>
+                      </AuthGuard>
+                    } />
                     <Route path="/miscellaneous" element={
                       <AuthGuard>
                         <PositionAccessGuard allowedPositions={['Partner', 'Senior Partner']}>
