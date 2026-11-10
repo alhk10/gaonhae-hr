@@ -8,3 +8,6 @@ equal(gradingOutcome('Red Tip >> Red', 'pass', { from: 'Blue', to: 'Red' }), { f
 equal(gradingOutcome('White >> Yellow Tip', 'double').to, 'Yellow', 'White >> Yellow Tip double makes a Yellow belt');
 equal(certificateBelts('White', 'double'), ['White', 'Yellow Tip'], 'double from White gives White and Yellow Tip certificates');
 equal(certificateBelts('Red Tip', 'pass'), ['Red Tip'], 'pass gives one certificate');
+
+import { chainFoundationLines } from './gradingOutcome';
+equal(chainFoundationLines('Foundation 1 >> Foundation 2', ['Foundation 2 >> Foundation 3', 'Foundation 3 >> White']), 'Foundation 1 >> White', 'combined Foundation 1-3 lines resolve to White');
