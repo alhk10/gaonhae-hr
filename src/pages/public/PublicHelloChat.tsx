@@ -439,6 +439,18 @@ const PublicHelloChat: React.FC = () => {
   const showOutstandingPopup = stage === 'matched' && !!matched?.id
     && outstandingDismissedFor !== matched.id && outstandingInvoices.length > 0;
 
+  const { data: shopAvailability } = useQuery({
+    queryKey: ['hello-shop-availability', branchId, sessionId, matched?.id],
+    queryFn: async () => {
+      const [u, p] = await Promise.all([
+        getChatProducts(branchId!, UNIFORMS_CATEGORY_ID, sessionId, matched?.id).catch(() => null),
+        getChatProducts(branchId!, PROTECTION_CATEGORY_ID, sessionId, matched?.id).catch(() => null),
+      ]);
+      return { [UNIFORMS_CATEGORY_ID]: u ? u.length > 0 : true, [PROTECTION_CATEGORY_ID]: p ? p.length > 0 : true } as Record<string, boolean>;
+    },
+    enabled: !!branchId && stage === 'matched',
+    staleTime: 60 * 1000,
+  });
   const { data: progressCards = [], refetch: refetchCards } = useQuery({
     queryKey: ['hello-progress-cards', sessionId, matched?.id],
     queryFn: () => helloProgressCards(sessionId!, matched!.id),
@@ -1691,7 +1703,7 @@ const PublicHelloChat: React.FC = () => {
                     { id: PROTECTION_CATEGORY_ID, label: 'Order Protection Guards and Accessories' },
                   ].map(btn => {
                     const cat = CATEGORIES.find(c => c.id === btn.id);
-                    if (!cat) return null;
+                    if (!cat || shopAvailability?.[btn.id] === false) return null;
                     return (
                       <Button
                         key={btn.id}

@@ -1,3 +1,4 @@
+import gaonhaeLogo from '@/assets/certificates/gaonhae-logo-transparent.png';
 import jsPDF from 'jspdf';
 import { formatDate } from '@/utils/dateFormat';
 import { PROGRESS_SECTIONS, RATING_LABELS, READINESS_LABELS, ratingKey, type Rating } from '@/utils/progressCard';
@@ -5,50 +6,74 @@ import type { ProgressReportRow } from '@/services/progressCardService';
 
 const BLUE: [number, number, number] = [21, 63, 145];
 const RED: [number, number, number] = [200, 30, 45];
+let logoData: string | null = null;
+async function loadLogo() {
+  if (logoData) return;
+  try {
+    const bytes = new Uint8Array(await (await fetch(gaonhaeLogo)).arrayBuffer());
+    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    logoData = `data:image/png;base64,${btoa(bin)}`;
+  } catch { logoData = null; }
+}
+const logo = (doc: jsPDF, M: number) => { if (!logoData) return; try { doc.addImage(logoData, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
 
-export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
+export async function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
+  await loadLogo();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, M = 14;
   if (!opts.cardOnly) {
 
   // Summary
+  logo(doc, M);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...BLUE);
-  doc.text('PROGRESS REPORT SUMMARY', W / 2, 20, { align: 'center' });
+  doc.text('PROGRESS REPORT SUMMARY', W / 2 + 12, 18, { align: 'center' });
   doc.setFontSize(10); doc.setTextColor(60); doc.setFont('helvetica', 'normal');
-  doc.text(`${branchName} · ${termLabel}`, W / 2, 27, { align: 'center' });
-  const cols = [{ t: '#', w: 10 }, { t: 'Name', w: 78 }, { t: 'Birth Date', w: 30 }, { t: 'Ready for Grading Test', w: 34 }, { t: 'Paid date', w: 30 }];
-  let y = 36;
+  doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), W / 2 + 12, 25, { align: 'center' });
+  const cols = [{ t: '#', w: 10 }, { t: 'Name', w: 70 }, { t: 'Birth Date', w: 28 }, { t: 'Ready for Grading Test', w: 38 }, { t: 'Paid Date', w: 36 }];
+  const LH = 4.2, PAD = 2;
+  let y = 40;
   const header = () => {
-    doc.setFillColor(...BLUE); doc.rect(M, y - 5, W - 2 * M, 7, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    let x = M + 2; cols.forEach((c) => { doc.text(c.t, x, y); x += c.w; });
-    y += 7; doc.setFont('helvetica', 'normal'); doc.setTextColor(30);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    const hl = cols.map((c) => doc.splitTextToSize(c.t, c.w - 2 * PAD) as string[]);
+    const hh = Math.max(...hl.map((l) => l.length)) * LH + 3;
+    doc.setFillColor(...BLUE); doc.rect(M, y, W - 2 * M, hh, 'F'); doc.setTextColor(255);
+    let x = M; hl.forEach((l, k) => { doc.text(l, x + PAD, y + 4.5); x += cols[k].w; });
+    y += hh; doc.setFont('helvetica', 'normal'); doc.setTextColor(30);
   };
   header();
   rows.forEach((r, i) => {
-    const name = doc.splitTextToSize(r.name, cols[1].w - 3) as string[];
-    const h = Math.max(6, name.length * 4.5 + 1.5);
-    if (y + h > 285) { doc.addPage(); y = 20; header(); }
-    const vals = [String(i + 1), name, r.dob ? formatDate(r.dob) : '—', r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? formatDate(r.paid_date) : '—'];
-    let x = M + 2; vals.forEach((v, k) => { doc.text(v as any, x, y); x += cols[k].w; });
-    doc.setDrawColor(220); doc.line(M, y + h - 4.5, W - M, y + h - 4.5);
+    doc.setFontSize(9);
+    const vals = [String(i + 1), r.name, r.dob ? formatDate(r.dob) : '—', r.grading_readiness ? READINESS_LABELS[r.grading_readiness] : '—', r.paid_date ? formatDate(r.paid_date) : '—']
+      .map((v, k) => doc.splitTextToSize(v, cols[k].w - 2 * PAD) as string[]);
+    const h = Math.max(...vals.map((l) => l.length)) * LH + 3;
+    if (y + h > 280) { doc.addPage(); y = 16; header(); }
+    let x = M; vals.forEach((l, k) => { doc.text(l, x + PAD, y + 4.5); x += cols[k].w; });
+    doc.setDrawColor(220); doc.line(M, y + h, W - M, y + h);
     y += h;
   });
-  if (!rows.length) doc.text('No progress cards for this term yet.', M, y);
+  if (!rows.length) doc.text('No progress cards for this term yet.', M, y + 6);
+  const total = doc.getNumberOfPages(), now = new Date();
+  const stamp = `Report generated ${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  for (let pg = 1; pg <= total; pg++) {
+    doc.setPage(pg); doc.setFontSize(8); doc.setTextColor(110); doc.setFont('helvetica', 'normal');
+    doc.text(stamp, M, 290); doc.text(`Page ${pg} of ${total}`, W - M, 290, { align: 'right' });
+  }
+  doc.setPage(total);
   }
 
   // One card per student
   rows.forEach((r, idx) => {
     if (!opts.cardOnly || idx > 0) doc.addPage();
+    logo(doc, M);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
     doc.setTextColor(...BLUE); doc.text('PROGRESS', W / 2 - 2, 20, { align: 'right' });
     doc.setTextColor(...RED); doc.text('REPORT CARD', W / 2 + 2, 20);
     doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
-    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 18, 2, 2);
+    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
-    const info = (l: string, v: string, x: number, yy: number) => { doc.setFont('helvetica', 'bold'); doc.text(`${l}:`, x, yy); doc.setFont('helvetica', 'normal'); doc.text(v, x + 26, yy); };
+    const info = (l: string, v: string, x: number, yy: number) => { doc.setFont('helvetica', 'bold'); doc.text(`${l}:`, x, yy); doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(v, W / 2 - M - 32) as string[], x + 26, yy); };
     info('Name', r.name, M + 4, 37); info('Current Belt', r.belt || 'No belt', W / 2 + 4, 37);
-    info('Age', r.age != null ? String(r.age) : '—', M + 4, 44); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 44);
+    info('Age', r.age != null ? String(r.age) : '—', M + 4, 46.5); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 46.5);
 
     const bw = (W - 2 * M - 6) / 2;
     PROGRESS_SECTIONS.forEach((s, idx) => {
