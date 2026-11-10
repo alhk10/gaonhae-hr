@@ -10,8 +10,9 @@ let logoData: string | null = null;
 async function loadLogo() {
   if (logoData) return;
   try {
-    const blob = await (await fetch(gaonhaeLogo)).blob();
-    logoData = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.onerror = rej; fr.readAsDataURL(blob); });
+    const bytes = new Uint8Array(await (await fetch(gaonhaeLogo)).arrayBuffer());
+    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    logoData = `data:image/png;base64,${btoa(bin)}`;
   } catch { logoData = null; }
 }
 const logo = (doc: jsPDF, M: number) => { if (!logoData) return; try { doc.addImage(logoData, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
