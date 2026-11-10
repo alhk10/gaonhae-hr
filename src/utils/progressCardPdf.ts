@@ -1,3 +1,6 @@
+import kidThumbs from '@/assets/progress-card/kid-thumbs.png';
+import kidKick from '@/assets/progress-card/kid-kick.png';
+import kidBow from '@/assets/progress-card/kid-bow.png';
 import gaonhaeLogo from '@/assets/certificates/gaonhae-logo-transparent.png';
 import jsPDF from 'jspdf';
 import { formatDate } from '@/utils/dateFormat';
@@ -7,14 +10,23 @@ import type { ProgressReportRow } from '@/services/progressCardService';
 const BLUE: [number, number, number] = [21, 63, 145];
 const RED: [number, number, number] = [200, 30, 45];
 let logoData: string | null = null;
+const art: Record<string, string | null> = {};
+async function toData(url: string): Promise<string | null> {
+  try {
+    const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return `data:image/png;base64,${btoa(bin)}`;
+  } catch { return null; }
+}
 async function loadLogo() {
   if (logoData) return;
-  try {
-    const bytes = new Uint8Array(await (await fetch(gaonhaeLogo)).arrayBuffer());
-    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    logoData = `data:image/png;base64,${btoa(bin)}`;
-  } catch { logoData = null; }
+  const [l, t, k, b] = await Promise.all([toData(gaonhaeLogo), toData(kidThumbs), toData(kidKick), toData(kidBow)]);
+  logoData = l; art.thumbs = t; art.kick = k; art.bow = b;
 }
+const putArt = (doc: jsPDF, key: string, x: number, y: number, h: number, ratio: number) => {
+  const d = art[key]; if (!d) return;
+  try { doc.addImage(d, 'PNG', x, y, h * ratio, h, key, 'FAST'); } catch { /* optional art */ }
+};
 const logo = (doc: jsPDF, M: number) => { if (!logoData) return; try { doc.addImage(logoData, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
 
 export async function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
@@ -68,6 +80,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
     doc.setTextColor(...BLUE); doc.text('PROGRESS', W / 2 - 2, 20, { align: 'right' });
     doc.setTextColor(...RED); doc.text('REPORT CARD', W / 2 + 2, 20);
+    putArt(doc, 'kick', W - M - 20, 3, 26, 213 / 360);
     doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
     doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
@@ -97,11 +110,14 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     });
 
     const gy = 214;
-    doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, W - 2 * M, 22, 2, 2);
+    const gw = W - 2 * M - 42;
+    doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, gw, 22, 2, 2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...BLUE);
-    doc.text('READY FOR GRADING TEST?', W / 2, gy + 7, { align: 'center' });
+    doc.text('READY FOR GRADING TEST?', M + gw / 2, gy + 7, { align: 'center' });
+    putArt(doc, 'thumbs', W - M - 30, gy - 8, 52, 201 / 360);
+    putArt(doc, 'bow', M + 4, 246, 38, 160 / 360);
     (['yes', 'no'] as const).forEach((k, i) => {
-      const x = M + 50 + i * 60;
+      const x = M + 38 + i * 50;
       doc.setDrawColor(100); doc.rect(x, gy + 11, 6, 6);
       if (r.grading_readiness === k) { doc.setFillColor(...BLUE); doc.rect(x + 1, gy + 12, 4, 4, 'F'); }
       doc.setTextColor(30); doc.setFontSize(10); doc.text(READINESS_LABELS[k].toUpperCase(), x + 9, gy + 16);
