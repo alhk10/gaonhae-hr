@@ -442,11 +442,12 @@ const PublicHelloChat: React.FC = () => {
   const { data: shopAvailability } = useQuery({
     queryKey: ['hello-shop-availability', branchId, sessionId, matched?.id],
     queryFn: async () => {
-      const [u, p] = await Promise.all([
+      const [u, p, f] = await Promise.all([
         getChatProducts(branchId!, UNIFORMS_CATEGORY_ID, sessionId, matched?.id).catch(() => null),
         getChatProducts(branchId!, PROTECTION_CATEGORY_ID, sessionId, matched?.id).catch(() => null),
+        getChatProducts(branchId!, SCHOOL_FEES_CATEGORY_ID, sessionId, matched?.id).catch(() => null),
       ]);
-      return { [UNIFORMS_CATEGORY_ID]: u ? u.length > 0 : true, [PROTECTION_CATEGORY_ID]: p ? p.length > 0 : true } as Record<string, boolean>;
+      return { [UNIFORMS_CATEGORY_ID]: u ? u.length > 0 : true, [PROTECTION_CATEGORY_ID]: p ? p.length > 0 : true, [SCHOOL_FEES_CATEGORY_ID]: f ? f.length > 0 : true } as Record<string, boolean>;
     },
     enabled: !!branchId && stage === 'matched',
     staleTime: 60 * 1000,
@@ -1637,7 +1638,7 @@ const PublicHelloChat: React.FC = () => {
                   )}
                   {(() => {
                     const cat = CATEGORIES.find(c => c.id === SCHOOL_FEES_CATEGORY_ID);
-                    if (!cat) return null;
+                    if (!cat || shopAvailability?.[SCHOOL_FEES_CATEGORY_ID] === false) return null;
                     return (
                       <Button
                         onClick={() => { setPayCategory(cat); setCart([]); goTo('payment_products'); }}
@@ -1648,7 +1649,7 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
-                  <Button
+                  {shopAvailability?.[SCHOOL_FEES_CATEGORY_ID] !== false && <Button
                     disabled
                     variant="outline"
                     className="w-full h-11 justify-between opacity-60 cursor-not-allowed"
@@ -1658,7 +1659,7 @@ const PublicHelloChat: React.FC = () => {
                       Schedule / Reschedule a lesson
                     </span>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Coming soon</Badge>
-                  </Button>
+                  </Button>}
                   {(() => {
                     const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
                     if (!cat || !showGradingOption) return null;
