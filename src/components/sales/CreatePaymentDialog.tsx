@@ -205,7 +205,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
       return;
     }
 
-    if (formData.payment_method === 'credit') {
+    if ((formData.payment_method as string) === 'credit') {
       const sel = invoices.find(inv => inv.id === formData.invoice_id);
       const cap = creditPayCap(studentCreditBalance, sel?.balance_due ?? 0);
       const amt = parseFloat(formData.amount);
@@ -620,7 +620,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               </Select>
             </div>
 
-            {formData.payment_method === 'credit' ? (
+            {(formData.payment_method as string) === 'credit' ? (
               <p className="text-xs text-muted-foreground">Credit after payment: {formatCurrencyValue(Math.max(0, studentCreditBalance - (parseFloat(formData.amount) || 0)))}</p>
             ) : (<>
             {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
