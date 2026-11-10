@@ -4,6 +4,6 @@ In the progress report summary's Term Attendance Record page (`src/utils/progres
 
 - Remove the final "P" header column and the per-student present count.
 - Give the freed width (9mm) to the date columns (`totW` set to 0, drop the count logic).
-- Update the legend to: "P = Present · A = Absent · blank = not booked / not marked" (remove "P column = total present").
+- Update the legend to: "P = Present · A = Absent" (remove the "blank" and "P column = total present" entries).
 
 Nothing else changes.
