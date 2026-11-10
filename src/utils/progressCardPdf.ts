@@ -64,6 +64,34 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     y += h;
   });
   if (!rows.length) doc.text('No active students in this branch.', M, y + 6);
+
+  // Attendance page
+  doc.addPage(); logo(doc, M);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...BLUE);
+  doc.text('TERM ATTENDANCE RECORD', W / 2 + 12, 18, { align: 'center' });
+  doc.setFontSize(10); doc.setTextColor(60); doc.setFont('helvetica', 'normal');
+  doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), W / 2 + 12, 25, { align: 'center' });
+  const acols = [{ t: '#', w: 10 }, { t: 'Name', w: 80 }, { t: 'Attended', w: 23 }, { t: 'Absent', w: 23 }, { t: 'Booked', w: 23 }, { t: 'Total', w: 23 }];
+  y = 40;
+  const aheader = () => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.setFillColor(...BLUE); doc.rect(M, y, W - 2 * M, 8, 'F'); doc.setTextColor(255);
+    let x = M; acols.forEach((c) => { doc.text(c.t, x + PAD, y + 5.5); x += c.w; });
+    y += 8; doc.setFont('helvetica', 'normal'); doc.setTextColor(30);
+  };
+  aheader();
+  rows.forEach((r, i) => {
+    doc.setFontSize(9);
+    const a = r.attendance;
+    const vals = [String(i + 1), r.name, String(a?.attended ?? 0), String(a?.absent ?? 0), String(a?.booked ?? 0), String(a?.total ?? 0)]
+      .map((v, k) => doc.splitTextToSize(v, acols[k].w - 2 * PAD) as string[]);
+    const h = Math.max(...vals.map((l) => l.length)) * LH + 3;
+    if (y + h > 280) { doc.addPage(); y = 16; aheader(); }
+    let x = M; vals.forEach((l, k) => { doc.text(l, x + PAD, y + 4.5); x += acols[k].w; });
+    doc.setDrawColor(220); doc.line(M, y + h, W - M, y + h);
+    y += h;
+  });
+
   const total = doc.getNumberOfPages(), now = new Date();
   const stamp = `Report generated ${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   for (let pg = 1; pg <= total; pg++) {
@@ -74,7 +102,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   }
 
   // One card per student
-  rows.filter((r) => r.has_card !== false).forEach((r, idx) => {
+  rows.filter((r) => r.has_card !== false && !!r.report_date).forEach((r, idx) => {
     if (!opts.cardOnly || idx > 0) doc.addPage();
     logo(doc, M);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
