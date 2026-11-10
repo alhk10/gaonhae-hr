@@ -8405,6 +8405,10 @@ export type Database = {
         }
         Returns: string
       }
+      access_progress_cards_for_students: {
+        Args: { p_password: string; p_student_ids: string[] }
+        Returns: Json
+      }
       access_progress_report: {
         Args: { p_branch_id: string; p_password: string; p_term_ids: string[] }
         Returns: Json
