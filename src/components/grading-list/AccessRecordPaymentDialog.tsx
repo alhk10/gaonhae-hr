@@ -1,5 +1,6 @@
 /** Record a payment on an invoice from a password-only /access session (branch-checked on the server). */
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { creditPayCap } from '@/utils/creditPayment';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,11 +26,30 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
   const [busy, setBusy] = useState(false);
   const clientRef = useRef(crypto.randomUUID());
   const isAllBranch = (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
-  const needsProof = !isAllBranch && (method === 'paynow' || method === 'bank_transfer');
+  const [credit, setCredit] = useState(0);
+  useEffect(() => {
+    (supabase as any).rpc('access_invoice_student_credit', { p_password: sessionStorage.getItem('access_pw_v1') || '', p_invoice_id: invoiceId })
+      .then(({ data }: any) => setCredit(Number(data) || 0));
+  }, [invoiceId]);
+  const isCredit = method === 'credit';
+  const onMethod = (m: string) => { setMethod(m); if (m === 'credit') setAmount(creditPayCap(credit, balance).toFixed(2)); };
+  const needsProof = !isCredit && !isAllBranch && (method === 'paynow' || method === 'bank_transfer');
 
   const submit = async () => {
     const amt = Number(amount);
     if (!(amt > 0) || amt > balance + 0.005) { toast.error(`Amount must be between $0.01 and $${balance.toFixed(2)}`); return; }
+    if (isCredit) {
+      if (amt > creditPayCap(credit, balance) + 0.005) { toast.error(`Only $${creditPayCap(credit, balance).toFixed(2)} credit can be used`); return; }
+      setBusy(true);
+      try {
+        const { error } = await (supabase as any).rpc('apply_student_credit_to_invoice', { p_invoice_id: invoiceId, p_amount: amt, p_client_ref: clientRef.current, p_password: sessionStorage.getItem('access_pw_v1') || '' });
+        if (error) throw error;
+        toast.success('Paid with student credit');
+        onDone();
+      } catch (e: any) { toast.error(e?.message || 'Failed to apply credit'); }
+      finally { setBusy(false); }
+      return;
+    }
     if (needsProof && !file) { toast.error('Please upload proof of payment'); return; }
     if (file && !file.type.startsWith('image/')) { toast.error('Proof must be an image (PDF not accepted)'); return; }
     setBusy(true);
@@ -67,9 +87,10 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
           <div><Label className="text-xs">Payment date</Label>
             <DatePicker className="h-7 w-full text-xs" selected={new Date(date + 'T00:00:00')} onSelect={(d) => d && setDate(toISODate(d))} /></div>
           <div><Label className="text-xs">Method</Label>
-            <Select value={method} onValueChange={setMethod}>
+            <Select value={method} onValueChange={onMethod}>
               <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
+                {credit > 0.004 && <SelectItem value="credit">Student credit (${credit.toFixed(2)} available)</SelectItem>}
                 <SelectItem value="paynow">PayNow</SelectItem>
                 <SelectItem value="bank_transfer">Bank transfer</SelectItem>
                 <SelectItem value="cash">Cash</SelectItem>
@@ -77,11 +98,14 @@ const AccessRecordPaymentDialog: React.FC<Props> = ({ invoiceId, invoiceNumber, 
                 <SelectItem value="cheque">Cheque</SelectItem>
               </SelectContent>
             </Select></div>
+          {isCredit && <p className="text-[11px] text-muted-foreground">Credit after payment: ${Math.max(0, credit - (Number(amount) || 0)).toFixed(2)}</p>}
+          {!isCredit && <>
           <div><Label className="text-xs">Reference</Label>
             <Input className="h-7 text-xs" value={reference} onChange={(e) => setReference(e.target.value)} /></div>
           <div><Label className="text-xs">Proof of payment (image){needsProof ? ' *' : ''}</Label>
             <Input className="h-7 text-xs" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             <p className="text-[10px] text-muted-foreground mt-0.5">{file ? `Selected: ${file.name}` : "Or paste a screenshot with Ctrl/Cmd+V"}</p></div>
+          </>}
           <div><Label className="text-xs">Notes</Label>
             <Textarea className="text-xs" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         </div>
