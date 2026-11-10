@@ -1,3 +1,4 @@
+import { helloProgressCards, helloMarkCardViewed, downloadStudentCard, type StudentCard } from '@/services/progressCardService';
 import { supabase } from "@/integrations/supabase/client";
 import { helloShowsGrading } from "@/utils/gradingReady";
 /**
@@ -437,6 +438,23 @@ const PublicHelloChat: React.FC = () => {
   );
   const showOutstandingPopup = stage === 'matched' && !!matched?.id
     && outstandingDismissedFor !== matched.id && outstandingInvoices.length > 0;
+
+  const { data: progressCards = [], refetch: refetchCards } = useQuery({
+    queryKey: ['hello-progress-cards', sessionId, matched?.id],
+    queryFn: () => helloProgressCards(sessionId!, matched!.id),
+    enabled: !!sessionId && !!matched?.id && sessionLinked, retry: false,
+  });
+  const [cardPopupDismissed, setCardPopupDismissed] = useState<string | null>(null);
+  const unviewedCard = progressCards.find((c) => !c.viewed_at);
+  const showCardPopup = stage === 'matched' && !!unviewedCard && !showOutstandingPopup && cardPopupDismissed !== unviewedCard.id;
+  const openCard = async (c: StudentCard) => {
+    await downloadStudentCard(c);
+    if (!c.viewed_at && sessionId && matched?.id) { helloMarkCardViewed(sessionId, matched.id, c.id).then(() => refetchCards()).catch(() => {}); }
+  };
+  const startGradingFlow = () => {
+    const cat = CATEGORIES.find(c => c.id === GRADING_CATEGORY_ID);
+    if (cat) { setPayCategory(cat); setCart([]); goTo('payment_products'); }
+  };
 
   const { data: personalInfo, isLoading: personalInfoLoading, isFetching: personalInfoFetching, refetch: refetchPersonalInfo } = useQuery({
     queryKey: ['hello-personal-info', sessionId, matched?.id],
@@ -1642,6 +1660,17 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
+                  {progressCards.length > 0 && (
+                    <div className="rounded-md border p-2 space-y-1">
+                      <p className="text-xs font-semibold">Progress cards</p>
+                      {progressCards.map((c) => (
+                        <button key={c.id} type="button" onClick={() => openCard(c)} className="flex w-full items-center justify-between rounded px-1 py-1 text-left text-sm hover:bg-muted">
+                          <span>{c.term_label || 'Progress card'}</span>
+                          <span className="flex items-center gap-1 text-xs text-primary">{!c.viewed_at && <Badge className="text-[10px] px-1.5 py-0">New</Badge>}View PDF</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {sessionId && matched?.id && (
                     <Button onClick={() => setCertsOpen(true)} variant="outline" className="w-full h-11 justify-between">
                       Gradings &amp; certificates <ArrowRight className="h-4 w-4" />
@@ -1873,6 +1902,20 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'matched' && matched && (
             <>
+              <Dialog open={showCardPopup} onOpenChange={(o) => { if (!o && unviewedCard) setCardPopupDismissed(unviewedCard.id); }}>
+                <DialogContent className="max-w-[95vw] sm:max-w-md">
+                  <DialogHeader><DialogTitle>New progress card</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">Your {unviewedCard?.term_label || ''} progress report card is ready.</p>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" onClick={() => unviewedCard && openCard(unviewedCard)}>View progress card</Button>
+                    {showGradingOption && (
+                      <Button onClick={() => { if (unviewedCard) { setCardPopupDismissed(unviewedCard.id); openCard(unviewedCard).catch(() => {}); } startGradingFlow(); }}>
+                        Register for grading &amp; upload payment proof
+                      </Button>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Dialog open={showOutstandingPopup} onOpenChange={(o) => { if (!o) setOutstandingDismissedFor(matched.id); }}>
                 <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
                   <DialogHeader>

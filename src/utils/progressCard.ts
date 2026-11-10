@@ -1,5 +1,5 @@
 export type Rating = 'exceptional' | 'acceptable' | 'guidance';
-export type Readiness = 'yes' | 'nearly' | 'no';
+export type Readiness = 'yes' | 'no';
 
 export const PROGRESS_SECTIONS: { key: string; title: string; items: string[] }[] = [
   { key: 'physical', title: 'Physical Development', items: ['Gross Motor Coordination', 'Fine Motor Coordination', 'Hand-Eye Coordination', 'Balance & Stability', 'Flexibility'] },
@@ -9,7 +9,7 @@ export const PROGRESS_SECTIONS: { key: string; title: string; items: string[] }[
 ];
 
 export const RATING_LABELS: Record<Rating, string> = { exceptional: 'Exceptional', acceptable: 'Acceptable', guidance: 'Needs Guidance' };
-export const READINESS_LABELS: Record<Readiness, string> = { yes: 'Yes', nearly: 'Nearly Ready', no: 'No' };
+export const READINESS_LABELS: Record<Readiness, string> = { yes: 'Yes', no: 'No' };
 
 export const ratingKey = (section: string, item: string) => `${section}.${item}`;
 

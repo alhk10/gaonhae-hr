@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
 import { PROGRESS_SECTIONS, RATING_LABELS, READINESS_LABELS, ageOn, ratingKey, type Rating, type Readiness } from '@/utils/progressCard';
@@ -19,7 +18,6 @@ const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const ProgressCardDialog: React.FC<Props> = ({ open, onOpenChange, onSaved, student, termId, termLabel }) => {
   const [ratings, setRatings] = useState<Record<string, string>>({});
   const [ready, setReady] = useState<Readiness | null>(null);
-  const [comments, setComments] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const reportDate = todayIso();
@@ -29,14 +27,15 @@ const ProgressCardDialog: React.FC<Props> = ({ open, onOpenChange, onSaved, stud
     if (!open) return;
     setLoading(true);
     getProgressCard(student.id, termId).then((c) => {
-      setRatings(c?.ratings || {}); setReady(c?.grading_readiness || null); setComments(c?.comments || '');
+      setRatings(c?.ratings || {}); setReady(c?.grading_readiness || null);
     }).catch((e) => toast.error(e.message)).finally(() => setLoading(false));
   }, [open, student.id, termId]);
 
   const save = async () => {
     setSaving(true);
     try {
-      await saveProgressCard(student.id, termId, { term_label: termLabel, report_date: reportDate, belt_snapshot: student.belt, age_snapshot: age, ratings, grading_readiness: ready, comments });
+      await saveProgressCard(student.id, termId, { term_label: termLabel, report_date: reportDate, belt_snapshot: student.belt, age_snapshot: age, ratings , grading_readiness: ready });
+      if (ready === 'yes') toast.success('Ready for grading ticked');
       toast.success('Progress card saved'); onSaved(); onOpenChange(false);
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   };
@@ -86,7 +85,6 @@ const ProgressCardDialog: React.FC<Props> = ({ open, onOpenChange, onSaved, stud
                 ))}
               </div>
             </div>
-            <Textarea placeholder="Comments (optional)" className="text-xs" value={comments} onChange={(e) => setComments(e.target.value)} />
           </div>
         )}
         <DialogFooter>

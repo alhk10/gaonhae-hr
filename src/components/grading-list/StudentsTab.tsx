@@ -49,6 +49,9 @@ import StudentEditDialog from './StudentEditDialog';
 import { Check } from 'lucide-react';
 import { gradingBadgeState } from '@/utils/gradingReady';
 import { setReadyForGrading } from '@/services/lessonBookingService';
+import { cardsForStudents } from '@/services/progressCardService';
+import ProgressCardDialog from '@/components/attendance/ProgressCardDialog';
+import { termLabelOf } from '@/utils/progressCard';
 
 const termBadge = (s: string | null): 'paid' | 'unpaid' | 'none' => {
   const st = normalizeStatus(s);
@@ -149,6 +152,11 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
     }));
   }, [allRows, payFilter]);
   const rows = React.useMemo(() => (showEmployees ? rowsAll : rowsAll.filter((r) => !r.is_employee)), [rowsAll, showEmployees]);
+  const rowIds = React.useMemo(() => rows.map((r) => r.id).sort(), [rows]);
+  const { data: cardInfo } = useQuery({ queryKey: ['progress-cards-students', rowIds], queryFn: () => cardsForStudents(rowIds), enabled: rowIds.length > 0, retry: false });
+  const cardOnBranches = React.useMemo(() => new Set(cardInfo?.enabled_branches || []), [cardInfo]);
+  const cardKeys = React.useMemo(() => new Set((cardInfo?.cards || []).map((c) => `${c.student_id}_${c.term_id}`)), [cardInfo]);
+  const [cardFor, setCardFor] = useState<any>(null);
   const employeeCount = rows.filter((r) => r.is_employee).length;
   const studentCount = rows.length - employeeCount;
 
@@ -260,6 +268,12 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
           }}
         />
       )}
+      {cardFor && (
+        <ProgressCardDialog open onOpenChange={(o) => !o && setCardFor(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['progress-cards-students'] }); qc.invalidateQueries({ queryKey: ['public-student-directory'] }); }}
+          student={{ id: cardFor.id, name: cardFor.name, belt: cardFor.current_belt || null, dob: cardFor.date_of_birth || null }}
+          termId={cardFor.term_id} termLabel={termLabelOf(cardFor.term_name)} />
+      )}
       <StudentProfileDialog
         studentId={profileId}
         open={!!profileId}
@@ -316,6 +330,15 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                         Ready for grading
                       </button>
                     ))}
+                  {r.term_id && r.branch_id && cardOnBranches.has(r.branch_id) && (() => {
+                    const done = cardKeys.has(`${r.id}_${r.term_id}`);
+                    return (
+                      <button type="button" onClick={() => setCardFor(r)}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${done ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
+                        Progress card
+                      </button>
+                    );
+                  })()}
                   {canEdit && (
                     <span className="ml-auto flex items-center gap-0.5">
                       {canInvoice && <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceFor(r)} title="Add invoice"><FilePlus className="h-4 w-4" /></Button>}
