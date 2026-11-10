@@ -4648,18 +4648,21 @@ export type Database = {
       progress_card_settings: {
         Row: {
           branch_id: string
+          calendar_as_term: boolean
           enabled: boolean
           mute_unpaid_warnings: boolean
           updated_at: string
         }
         Insert: {
           branch_id: string
+          calendar_as_term?: boolean
           enabled?: boolean
           mute_unpaid_warnings?: boolean
           updated_at?: string
         }
         Update: {
           branch_id?: string
+          calendar_as_term?: boolean
           enabled?: boolean
           mute_unpaid_warnings?: boolean
           updated_at?: string
@@ -8298,6 +8301,10 @@ export type Database = {
       access_branch_journal_upsert: {
         Args: { p_entry: Json; p_password: string }
         Returns: string
+      }
+      access_calendar_term_setting: {
+        Args: { p_branch_id: string; p_on?: boolean; p_password: string }
+        Returns: boolean
       }
       access_can_manage_student: {
         Args: { p_password: string; p_student_id: string }
