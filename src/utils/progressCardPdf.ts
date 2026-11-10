@@ -126,22 +126,23 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   // One card per student
   rows.filter((r) => r.has_card !== false && !!r.report_date).forEach((r, idx) => {
     if (!opts.cardOnly || idx > 0) doc.addPage('a4', 'portrait');
-    if (logoData) { try { doc.addImage(logoData, 'PNG', M, 4, 31, 18.4, undefined, 'FAST'); } catch { /* optional */ } }
+    const T = 12;
+    if (logoData) { try { doc.addImage(logoData, 'PNG', M, 4 + T, 31, 18.4, undefined, 'FAST'); } catch { /* optional */ } }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
     const t1 = 'PROGRESS ', t2 = 'REPORT CARD', tw = doc.getTextWidth(t1) + doc.getTextWidth(t2), tx = W / 2 - tw / 2;
-    doc.setTextColor(...BLUE); doc.text(t1, tx, 18);
-    doc.setTextColor(...RED); doc.text(t2, tx + doc.getTextWidth(t1), 18);
-    putArt(doc, 'kick', W - M - 18, 1, 28.6, 213 / 360);
-    doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
-    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
+    doc.setTextColor(...BLUE); doc.text(t1, tx, 18 + T);
+    doc.setTextColor(...RED); doc.text(t2, tx + doc.getTextWidth(t1), 18 + T);
+    putArt(doc, 'kick', W - M - 18, 1 + T, 28.6, 213 / 360);
+    doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26 + T, { align: 'center' });
+    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30 + T, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
     const info = (l: string, v: string, x: number, yy: number) => { doc.setFont('helvetica', 'bold'); doc.text(`${l}:`, x, yy); doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(v, W / 2 - M - 32) as string[], x + 26, yy); };
-    info('Name', r.name, M + 4, 37); info('Current Belt', r.belt || 'No belt', W / 2 + 4, 37);
-    info('Age', r.age != null ? String(r.age) : '—', M + 4, 46.5); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 46.5);
+    info('Name', r.name, M + 4, 37 + T); info('Current Belt', r.belt || 'No belt', W / 2 + 4, 37 + T);
+    info('Age', r.age != null ? String(r.age) : '—', M + 4, 46.5 + T); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 46.5 + T);
 
     const bw = (W - 2 * M - 6) / 2;
     PROGRESS_SECTIONS.forEach((s, idx) => {
-      const bx = M + (idx % 2) * (bw + 6), by = 54 + Math.floor(idx / 2) * 78;
+      const bx = M + (idx % 2) * (bw + 6), by = 54 + T + Math.floor(idx / 2) * 78;
       const col = idx % 2 === 0 ? BLUE : RED;
       doc.setDrawColor(...col); doc.roundedRect(bx, by, bw, 72, 2, 2);
       doc.setFillColor(...col); doc.rect(bx, by, bw, 8, 'F');
@@ -160,7 +161,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
       });
     });
 
-    const gy = 214;
+    const gy = 214 + T;
     const gw = W - 2 * M - 42;
     doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, gw, 22, 2, 2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...BLUE);
