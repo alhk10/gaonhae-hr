@@ -78,7 +78,7 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
   doc.text('TERM ATTENDANCE RECORD', PW / 2 + 12, 18, { align: 'center' });
   doc.setFontSize(10); doc.setTextColor(60); doc.setFont('helvetica', 'normal');
   doc.text(doc.splitTextToSize(`${branchName} · ${termLabel}`, 120), PW / 2 + 12, 25, { align: 'center' });
-  const numW = 7, totW = 9, avail = PW - 2 * M - numW - totW;
+  const numW = 7, totW = 0, avail = PW - 2 * M - numW - totW;
   const nameW = Math.min(55, Math.max(35, avail - dates.length * 9));
   const dW = dates.length ? Math.min(12, (avail - nameW) / dates.length) : 0;
   const fs = Math.max(5, Math.min(8, dW * 0.9));
@@ -90,7 +90,6 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     doc.setFillColor(...BLUE); doc.rect(M, y, PW - 2 * M, 8, 'F'); doc.setTextColor(255);
     doc.text('#', M + 1, y + 5.2); doc.text('Name', M + numW + 1, y + 5.2);
     dates.forEach((d, k) => doc.text(ddmm(d), M + numW + nameW + k * dW + dW / 2, y + 5.2, { align: 'center' }));
-    doc.text('P', M + numW + nameW + dates.length * dW + totW / 2, y + 5.2, { align: 'center' });
     y += 8; doc.setFont('helvetica', 'normal'); doc.setTextColor(30);
   };
   aheader();
@@ -101,21 +100,18 @@ export async function buildProgressReportPdf(rows: ProgressReportRow[], branchNa
     if (y + h > bottom) { doc.addPage('a4', land ? 'landscape' : 'portrait'); y = 16; aheader(); doc.setFontSize(fs + 0.5); }
     doc.text(String(i + 1), M + 1, y + 3.6); doc.text(nl, M + numW + 1, y + 3.6);
     const marks = r.attendance?.marks || {};
-    let p = 0;
     dates.forEach((d, k) => {
       const m = marks[d]; const cx = M + numW + nameW + k * dW + dW / 2;
-      if (m === 'attended') { p++; doc.setTextColor(20, 120, 60); doc.text('P', cx, y + 3.6, { align: 'center' }); }
+      if (m === 'attended') { doc.setTextColor(20, 120, 60); doc.text('P', cx, y + 3.6, { align: 'center' }); }
       else if (m === 'absent') { doc.setTextColor(...RED); doc.text('A', cx, y + 3.6, { align: 'center' }); }
     });
-    doc.setTextColor(30); doc.setFont('helvetica', 'bold');
-    doc.text(String(p), M + numW + nameW + dates.length * dW + totW / 2, y + 3.6, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30);
     doc.setDrawColor(225); doc.line(M, y + h, PW - M, y + h);
     y += h;
   });
   if (!dates.length) { doc.setFontSize(9); doc.text('No attendance marked this term.', M, y + 6); }
   doc.setFontSize(8); doc.setTextColor(60);
-  doc.text('Legend:  P = Present   ·   A = Absent   ·   blank = not booked / not marked   ·   P column = total present', M, PH - 14);
+  doc.text('Legend:  P = Present   ·   A = Absent', M, PH - 14);
 
   const total = doc.getNumberOfPages(), now = new Date();
   const stamp = `Report generated ${formatDate(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
