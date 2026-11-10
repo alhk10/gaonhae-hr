@@ -6,9 +6,10 @@ import type { ProgressReportRow } from '@/services/progressCardService';
 const BLUE: [number, number, number] = [21, 63, 145];
 const RED: [number, number, number] = [200, 30, 45];
 
-export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string) {
+export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, M = 14;
+  if (!opts.cardOnly) {
 
   // Summary
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...BLUE);
@@ -34,10 +35,11 @@ export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: st
     y += h;
   });
   if (!rows.length) doc.text('No progress cards for this term yet.', M, y);
+  }
 
   // One card per student
-  rows.forEach((r) => {
-    doc.addPage();
+  rows.forEach((r, idx) => {
+    if (!opts.cardOnly || idx > 0) doc.addPage();
     doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
     doc.setTextColor(...BLUE); doc.text('PROGRESS', W / 2 - 2, 20, { align: 'right' });
     doc.setTextColor(...RED); doc.text('REPORT CARD', W / 2 + 2, 20);
@@ -73,19 +75,16 @@ export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: st
     doc.setDrawColor(...BLUE); doc.roundedRect(M, gy, W - 2 * M, 22, 2, 2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...BLUE);
     doc.text('READY FOR GRADING TEST?', W / 2, gy + 7, { align: 'center' });
-    (['yes', 'nearly', 'no'] as const).forEach((k, i) => {
-      const x = M + 25 + i * 55;
+    (['yes', 'no'] as const).forEach((k, i) => {
+      const x = M + 50 + i * 60;
       doc.setDrawColor(100); doc.rect(x, gy + 11, 6, 6);
       if (r.grading_readiness === k) { doc.setFillColor(...BLUE); doc.rect(x + 1, gy + 12, 4, 4, 'F'); }
       doc.setTextColor(30); doc.setFontSize(10); doc.text(READINESS_LABELS[k].toUpperCase(), x + 9, gy + 16);
     });
-    if (r.comments) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('Comments', M, 246);
-      doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(r.comments, W - 2 * M), M, 252);
-    }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...BLUE);
     doc.text('RESPECT  •  DISCIPLINE  •  CONFIDENCE  •  PERSEVERANCE', W / 2, 288, { align: 'center' });
   });
 
+  if (opts.fileName) { doc.save(opts.fileName); return; }
   doc.save(`progress-report-${branchName.replace(/\s+/g, '-').toLowerCase()}-${termLabel.replace(/\s+/g, '-').toLowerCase()}.pdf`);
 }
