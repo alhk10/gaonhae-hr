@@ -45,6 +45,7 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
   const key = ['access-attendance-settings', branchId];
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => getAttendanceSettings(branchId), enabled: open });
   const reload = () => qc.invalidateQueries({ queryKey: key });
+  const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: open });
   const [saving, setSaving] = useState(false);
 
   const [slotForm, setSlotForm] = useState<SlotForm | null>(null);

@@ -22,6 +22,11 @@ import {
 } from '@/services/lessonBookingService';
 import { gradingBadgeState } from '@/utils/gradingReady';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
+import ProgressCardDialog from './ProgressCardDialog';
+import { progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
+import { termLabelOf } from '@/utils/progressCard';
+import { buildProgressReportPdf } from '@/utils/progressCardPdf';
+import { FileText } from 'lucide-react';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
 import ConversionDialog from '@/components/conversion/ConversionDialog';
@@ -161,6 +166,25 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
   const hiddenHolidays = (data?.holidays || []).filter((h) => h.date === dayIso);
   const inBreak = (data?.breaks || []).some((b) => dayIso >= b.start_date && dayIso <= b.end_date);
   const termLabel = (data?.terms || []).map((t) => t.name).join(', ');
+  const termIds = useMemo(() => (data?.terms || []).map((t) => t.id).sort(), [data]);
+  const termNameOf = (id?: string | null) => { const t = (data?.terms || []).find((x) => x.id === id); return termLabelOf(t?.name, t?.start_date); };
+  const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: !!branchId, retry: false });
+  const { data: cardRows } = useQuery({
+    queryKey: ['progress-cards', branchId, termIds], queryFn: () => listProgressCards(branchId, termIds),
+    enabled: !!progressOn && termIds.length > 0, retry: false,
+  });
+  const cardDone = useMemo(() => new Set((cardRows || []).map((r) => `${r.student_id}_${r.term_id}`)), [cardRows]);
+  const [cardFor, setCardFor] = useState<null | LessonBooking>(null);
+  const [reporting, setReporting] = useState(false);
+  const downloadReport = async () => {
+    if (!termIds.length) { toast.error('No term for this date'); return; }
+    setReporting(true);
+    try {
+      const rows = await getProgressReport(branchId, termIds);
+      const bName = branches.find((b) => b.id === branchId)?.name || branchId;
+      buildProgressReportPdf(rows, bName, termIds.map((id) => termNameOf(id)).join(', '));
+    } catch (e) { toast.error((e as Error).message); } finally { setReporting(false); }
+  };
 
   const run = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
     setBusy(key);
@@ -265,8 +289,13 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
           {WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}
           {termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
         </span>
+        {canEdit && branchId && progressOn && (
+          <Button size="sm" variant="outline" className="ml-auto h-8 text-xs" disabled={reporting} onClick={downloadReport}>
+            <FileText className="mr-1 h-3.5 w-3.5" /> Report
+          </Button>
+        )}
         {canEdit && branchId && (
-          <Button size="sm" variant="outline" className="ml-auto h-8 text-xs" onClick={() => setSettingsOpen(true)}>
+          <Button size="sm" variant="outline" className={cn('h-8 text-xs', !progressOn && 'ml-auto')} onClick={() => setSettingsOpen(true)}>
             <Settings className="mr-1 h-3.5 w-3.5" /> Settings
           </Button>
         )}
@@ -388,6 +417,14 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
                                   {st === 'ready' && <Check className="h-2.5 w-2.5" />}
                                 </span>
                                 Ready for grading
+                              </button>
+                            );
+                          })()}
+                          {progressOn && b.term_id && (() => {
+                            const done = cardDone.has(`${b.student_id}_${b.term_id}`);
+                            return (
+                              <button type="button" disabled={!canEdit} onClick={() => setCardFor(b)}>
+                                <Badge variant={done ? 'default' : 'outline'} className="text-[10px]">{done ? 'Progress card ✓' : 'Progress card'}</Badge>
                               </button>
                             );
                           })()}
@@ -538,6 +575,12 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
 
       {settingsOpen && branchId && (
         <AttendanceSettingsDialog open={settingsOpen} onOpenChange={(o) => { setSettingsOpen(o); if (!o) refresh(); }} branchId={branchId} />
+      )}
+      {cardFor && cardFor.term_id && (
+        <ProgressCardDialog open onOpenChange={(o) => !o && setCardFor(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['progress-cards', branchId] })}
+          student={{ id: cardFor.student_id, name: cardFor.student_name, belt: cardFor.current_belt || null, dob: cardFor.date_of_birth || null }}
+          termId={cardFor.term_id} termLabel={termNameOf(cardFor.term_id)} />
       )}
       <StudentProfileDialog studentId={profileId} open={!!profileId} onOpenChange={(o) => !o && setProfileId(null)} canEdit={canEdit} />
       {convertFor && convById[convertFor.id] && (
