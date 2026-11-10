@@ -27,3 +27,21 @@ export const saveProgressCard = (studentId: string, termId: string, row: Partial
   rpc<string>('access_progress_card_upsert', { p_password: accessPassword(), p_student_id: studentId, p_term_id: termId, p_row: row });
 export const getProgressReport = (branchId: string, termIds: string[]) =>
   rpc<ProgressReportRow[]>('access_progress_report', { p_password: accessPassword(), p_branch_id: branchId, p_term_ids: termIds });
+
+export interface StudentCard {
+  id: string; student_id?: string; term_id: string; term_label: string | null; report_date: string; belt: string | null; age: number | null;
+  ratings: Record<string, string>; grading_readiness: Readiness | null; dob: string | null; name: string; viewed_at?: string | null;
+}
+export const cardsForStudents = (studentIds: string[]) =>
+  rpc<{ enabled_branches: string[]; cards: StudentCard[] }>('access_progress_cards_for_students', { p_password: accessPassword(), p_student_ids: studentIds });
+export const helloProgressCards = (sessionId: string, studentId: string) =>
+  rpc<StudentCard[]>('hello_progress_cards', { p_session_id: sessionId, p_student_id: studentId });
+export const helloMarkCardViewed = (sessionId: string, studentId: string, cardId: string) =>
+  rpc<void>('hello_mark_progress_card_viewed', { p_session_id: sessionId, p_student_id: studentId, p_card_id: cardId });
+
+export async function downloadStudentCard(c: StudentCard) {
+  const { buildProgressReportPdf } = await import('@/utils/progressCardPdf');
+  buildProgressReportPdf([{ name: c.name, dob: c.dob, term_label: c.term_label, report_date: c.report_date, belt: c.belt, age: c.age,
+    ratings: c.ratings || {}, grading_readiness: c.grading_readiness, comments: null, paid_date: null }], '', c.term_label || '',
+    { cardOnly: true, fileName: `progress-card-${c.name.replace(/\s+/g, '-').toLowerCase()}-${(c.term_label || '').replace(/\s+/g, '-').toLowerCase()}.pdf` });
+}

@@ -578,7 +578,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) =
       )}
       {cardFor && cardFor.term_id && (
         <ProgressCardDialog open onOpenChange={(o) => !o && setCardFor(null)}
-          onSaved={() => qc.invalidateQueries({ queryKey: ['progress-cards', branchId] })}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['progress-cards', branchId] }); refresh(); }}
           student={{ id: cardFor.student_id, name: cardFor.student_name, belt: cardFor.current_belt || null, dob: cardFor.date_of_birth || null }}
           termId={cardFor.term_id} termLabel={termNameOf(cardFor.term_id)} />
       )}
