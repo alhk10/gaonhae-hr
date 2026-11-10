@@ -19,6 +19,7 @@ import {
   type AttendanceTerm, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import DateField from './DateField';
+import { progressSettings } from '@/services/progressCardService';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, X } from 'lucide-react';
@@ -98,6 +99,13 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="top-[5%] max-h-[90vh] max-w-2xl translate-y-0 overflow-y-auto">
         <DialogHeader><DialogTitle>Attendance settings</DialogTitle></DialogHeader>
+        <label className="flex items-center gap-2 rounded border px-2 py-1.5 text-xs">
+          <Switch checked={!!progressOn} onCheckedChange={async (v) => {
+            try { await progressSettings(branchId, v); qc.invalidateQueries({ queryKey: ['progress-settings', branchId] }); toast.success(v ? 'Progress cards on' : 'Progress cards off'); }
+            catch (e) { toast.error((e as Error).message); }
+          }} />
+          Progress cards
+        </label>
         {isLoading ? <p className="text-xs text-muted-foreground">Loading…</p> : (
           <Tabs defaultValue="timetable">
             <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
