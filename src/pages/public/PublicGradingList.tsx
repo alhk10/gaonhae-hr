@@ -1,3 +1,4 @@
+import { cardsForStudents, downloadStudentCard } from '@/services/progressCardService';
 /**
  * Public grading list page (no auth).
  * Mounted at /access.
@@ -300,6 +301,12 @@ const PublicGradingList: React.FC = () => {
     },
     staleTime: 30 * 1000,
   });
+  const gradingStudentIds = useMemo(() => [...new Set((rows as any[]).map((r) => r.student_id).filter(Boolean))].sort() as string[], [rows]);
+  const { data: gradingCards } = useQuery({ queryKey: ['progress-cards-students', gradingStudentIds], queryFn: () => cardsForStudents(gradingStudentIds), enabled: gradingStudentIds.length > 0, retry: false });
+  const cardOf = (studentId?: string | null, termLabel?: string | null) => {
+    const list = (gradingCards?.cards || []).filter((c) => c.student_id === studentId);
+    return list.find((c) => termLabel && c.term_label && termLabel.includes(c.term_label)) || list[0];
+  };
   const termStatusMap = useMemo(() => new Map(termStatusRows.map((t) => [`${t.slot_id}:${t.student_id}`, t])), [termStatusRows]);
 
   // Default to the nearest upcoming grading date (else the most recent past one)
@@ -1775,6 +1782,9 @@ const PublicGradingList: React.FC = () => {
                             ? <Badge variant="outline" className="text-[10px]" style={amberStyle}>Ready for grading</Badge>
                             : <StatusBadge status={r.invoice_status || (r.source === 'submission' && r.paid_status === 'paid' ? 'verified' : r.paid_status)} className="text-[10px] px-1.5 py-0" />}
                         <span className="text-muted-foreground whitespace-nowrap">{shortBeltChange(r.current_belt, r.target_belt)}</span>
+                        {(() => { const pc = cardOf((r as any).student_id, ts?.term_label); return pc ? (
+                          <button type="button" onClick={() => downloadStudentCard(pc)} className="rounded-full border border-primary px-2 py-0.5 text-[10px] font-medium text-primary">Progress card PDF</button>
+                        ) : null; })()}
                         {editMode && (
                           <div className="ml-auto flex flex-wrap items-center gap-1.5">
                               {(r.registration_id || r.submission_id) ? (
