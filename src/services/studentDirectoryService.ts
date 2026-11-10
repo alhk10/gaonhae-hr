@@ -227,6 +227,7 @@ export interface PublicStudentProfileInvoicePayment {
 
 export interface PublicStudentProfileInvoice {
   id: string;
+  discount_amount?: number | null;
   invoice_number: string | null;
   issue_date: string | null;
   due_date: string | null;
