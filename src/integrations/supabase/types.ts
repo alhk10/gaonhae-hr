@@ -4642,6 +4642,24 @@ export type Database = {
           },
         ]
       }
+      progress_card_settings: {
+        Row: {
+          branch_id: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       public_chat_callback_requests: {
         Row: {
           branch_id: string | null
@@ -6795,6 +6813,69 @@ export type Database = {
           },
         ]
       }
+      student_progress_cards: {
+        Row: {
+          age_snapshot: number | null
+          belt_snapshot: string | null
+          branch_id: string | null
+          comments: string | null
+          created_at: string
+          grading_readiness: string | null
+          id: string
+          ratings: Json
+          report_date: string
+          student_id: string
+          term_calendar_id: string
+          term_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          age_snapshot?: number | null
+          belt_snapshot?: string | null
+          branch_id?: string | null
+          comments?: string | null
+          created_at?: string
+          grading_readiness?: string | null
+          id?: string
+          ratings?: Json
+          report_date?: string
+          student_id: string
+          term_calendar_id: string
+          term_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age_snapshot?: number | null
+          belt_snapshot?: string | null
+          branch_id?: string | null
+          comments?: string | null
+          created_at?: string
+          grading_readiness?: string | null
+          id?: string
+          ratings?: Json
+          report_date?: string
+          student_id?: string
+          term_calendar_id?: string
+          term_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_progress_cards_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_progress_cards_term_calendar_id_fkey"
+            columns: ["term_calendar_id"]
+            isOneToOne: false
+            referencedRelation: "term_calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_registrations: {
         Row: {
           address: string | null
@@ -8303,6 +8384,31 @@ export type Database = {
       access_pending_certificates: {
         Args: { p_password: string }
         Returns: Json
+      }
+      access_progress_card_get: {
+        Args: { p_password: string; p_student_id: string; p_term_id: string }
+        Returns: Json
+      }
+      access_progress_card_list: {
+        Args: { p_branch_id: string; p_password: string; p_term_ids: string[] }
+        Returns: Json
+      }
+      access_progress_card_upsert: {
+        Args: {
+          p_password: string
+          p_row: Json
+          p_student_id: string
+          p_term_id: string
+        }
+        Returns: string
+      }
+      access_progress_report: {
+        Args: { p_branch_id: string; p_password: string; p_term_ids: string[] }
+        Returns: Json
+      }
+      access_progress_settings: {
+        Args: { p_branch_id: string; p_enabled?: boolean; p_password: string }
+        Returns: boolean
       }
       access_record_payment: {
         Args: {
