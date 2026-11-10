@@ -99,7 +99,7 @@ const AddStudentButton: React.FC<{
   );
 };
 
-const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit }) => {
+const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, viewOnly = false }) => {
   const qc = useQueryClient();
   const [pickedBranch, setPickedBranch] = useState<string>('');
   const branchId = lockedBranchId || pickedBranch || branches[0]?.id || '';
