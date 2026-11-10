@@ -1657,6 +1657,11 @@ const PublicGradingList: React.FC = () => {
             >
               <Download className="h-4 w-4" />
             </Button>
+            <Button asChild type="button" variant="outline" size="sm" title="Ready for grading info sheet (2 × A5, double-sided)">
+              <a href="/downloads/ready-for-grading-info-sheet.pdf" download="ready-for-grading-info-sheet.pdf">
+                <FileText className="h-4 w-4 mr-1" /> Info sheet
+              </a>
+            </Button>
             {canDelete && isAllBranch && (
               <Button
                 type="button"
