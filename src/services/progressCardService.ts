@@ -41,7 +41,7 @@ export const helloMarkCardViewed = (sessionId: string, studentId: string, cardId
 
 export async function downloadStudentCard(c: StudentCard) {
   const { buildProgressReportPdf } = await import('@/utils/progressCardPdf');
-  buildProgressReportPdf([{ name: c.name, dob: c.dob, term_label: c.term_label, report_date: c.report_date, belt: c.belt, age: c.age,
+  await buildProgressReportPdf([{ name: c.name, dob: c.dob, term_label: c.term_label, report_date: c.report_date, belt: c.belt, age: c.age,
     ratings: c.ratings || {}, grading_readiness: c.grading_readiness, comments: null, paid_date: null }], '', c.term_label || '',
     { cardOnly: true, fileName: `progress-card-${c.name.replace(/\s+/g, '-').toLowerCase()}-${(c.term_label || '').replace(/\s+/g, '-').toLowerCase()}.pdf` });
 }

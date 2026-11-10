@@ -6,9 +6,18 @@ import type { ProgressReportRow } from '@/services/progressCardService';
 
 const BLUE: [number, number, number] = [21, 63, 145];
 const RED: [number, number, number] = [200, 30, 45];
-const logo = (doc: jsPDF, M: number) => { try { doc.addImage(gaonhaeLogo, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
+let logoData: string | null = null;
+async function loadLogo() {
+  if (logoData) return;
+  try {
+    const blob = await (await fetch(gaonhaeLogo)).blob();
+    logoData = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.onerror = rej; fr.readAsDataURL(blob); });
+  } catch { logoData = null; }
+}
+const logo = (doc: jsPDF, M: number) => { if (!logoData) return; try { doc.addImage(logoData, 'PNG', M, 6, 27, 16, undefined, 'FAST'); } catch { /* logo optional */ } };
 
-export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
+export async function buildProgressReportPdf(rows: ProgressReportRow[], branchName: string, termLabel: string, opts: { cardOnly?: boolean; fileName?: string } = {}) {
+  await loadLogo();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, M = 14;
   if (!opts.cardOnly) {
@@ -59,11 +68,11 @@ export function buildProgressReportPdf(rows: ProgressReportRow[], branchName: st
     doc.setTextColor(...BLUE); doc.text('PROGRESS', W / 2 - 2, 20, { align: 'right' });
     doc.setTextColor(...RED); doc.text('REPORT CARD', W / 2 + 2, 20);
     doc.setFontSize(8); doc.setTextColor(90); doc.text('TRAINING TODAY, LEADING TOMORROW!', W / 2, 26, { align: 'center' });
-    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 18, 2, 2);
+    doc.setDrawColor(...BLUE); doc.roundedRect(M, 30, W - 2 * M, 21, 2, 2);
     doc.setFontSize(9); doc.setTextColor(30);
-    const info = (l: string, v: string, x: number, yy: number) => { doc.setFont('helvetica', 'bold'); doc.text(`${l}:`, x, yy); doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(v, W / 2 - 34) as string[], x + 26, yy); };
+    const info = (l: string, v: string, x: number, yy: number) => { doc.setFont('helvetica', 'bold'); doc.text(`${l}:`, x, yy); doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(v, W / 2 - M - 32) as string[], x + 26, yy); };
     info('Name', r.name, M + 4, 37); info('Current Belt', r.belt || 'No belt', W / 2 + 4, 37);
-    info('Age', r.age != null ? String(r.age) : '—', M + 4, 44); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 44);
+    info('Age', r.age != null ? String(r.age) : '—', M + 4, 46.5); info('Report Date', `${formatDate(r.report_date)} · ${r.term_label || termLabel}`, W / 2 + 4, 46.5);
 
     const bw = (W - 2 * M - 6) / 2;
     PROGRESS_SECTIONS.forEach((s, idx) => {
