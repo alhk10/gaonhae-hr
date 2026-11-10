@@ -4646,16 +4646,19 @@ export type Database = {
         Row: {
           branch_id: string
           enabled: boolean
+          mute_unpaid_warnings: boolean
           updated_at: string
         }
         Insert: {
           branch_id: string
           enabled?: boolean
+          mute_unpaid_warnings?: boolean
           updated_at?: string
         }
         Update: {
           branch_id?: string
           enabled?: boolean
+          mute_unpaid_warnings?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -8358,6 +8361,10 @@ export type Database = {
           shortfall: number
           student_name: string
         }[]
+      }
+      access_mute_unpaid_setting: {
+        Args: { p_branch_id: string; p_muted?: boolean; p_password: string }
+        Returns: boolean
       }
       access_password_delete: {
         Args: { p_key: string; p_password: string }
