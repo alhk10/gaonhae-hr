@@ -23,7 +23,7 @@ import {
 import { gradingBadgeState } from '@/utils/gradingReady';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
 import ProgressCardDialog from './ProgressCardDialog';
-import { muteUnpaidSetting, progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
+import { calendarTermSetting, muteUnpaidSetting, progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
 import { termLabelOf } from '@/utils/progressCard';
 import { buildProgressReportPdf } from '@/utils/progressCardPdf';
 import { FileText } from 'lucide-react';
@@ -172,6 +172,51 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
   const termNameOf = (id?: string | null) => { const t = (data?.terms || []).find((x) => x.id === id); return termLabelOf(t?.name, t?.start_date); };
   const { data: muted } = useQuery({ queryKey: ['mute-unpaid', branchId], queryFn: () => muteUnpaidSetting(branchId), enabled: !!branchId, retry: false });
   const unpaid = (b: Parameters<typeof isUnpaidTerm>[0]) => !muted && isUnpaidTerm(b);
+  const { data: termView } = useQuery({ queryKey: ['calendar-term', branchId], queryFn: () => calendarTermSetting(branchId), enabled: !!branchId, retry: false });
+  const curTerm = (data?.terms || []).find((t) => dayIso >= t.start_date && dayIso <= t.end_date) || (data?.terms || [])[0];
+  const termWeeks = useMemo(() => {
+    if (!curTerm) return [] as string[];
+    const out: string[] = []; let d = mondayOf(parseIsoDate(curTerm.start_date));
+    while (toIsoDate(d) <= curTerm.end_date) { out.push(toIsoDate(d)); d = addDays(d, 7); }
+    return out;
+  }, [curTerm?.id, curTerm?.start_date, curTerm?.end_date]);
+  const { data: termData, isLoading: termLoading } = useQuery({
+    queryKey: ['access-attendance-week', branchId, 'term', curTerm?.id, termWeeks.join()],
+    queryFn: async () => {
+      const weeks = await Promise.all(termWeeks.map((w) => getAttendanceWeek(branchId, w)));
+      const slots = new Map<string, TimetableSlot>(); const bookings = new Map<string, LessonBooking>();
+      const holidays: string[] = []; const breaks: { start_date: string; end_date: string }[] = [];
+      weeks.forEach((w) => {
+        (w.slots || []).forEach((x) => slots.set(x.id, x));
+        (w.bookings || []).forEach((x) => bookings.set(x.id, x));
+        (w.holidays || []).forEach((h) => holidays.push(h.date));
+        (w.breaks || []).forEach((b) => breaks.push(b));
+      });
+      return { slots: [...slots.values()], bookings: [...bookings.values()], holidays, breaks };
+    },
+    enabled: !!termView && !!branchId && termWeeks.length > 0,
+  });
+  const termGrid = useMemo(() => {
+    if (!termData || !curTerm) return [];
+    const dates: string[] = []; let d = parseIsoDate(curTerm.start_date);
+    while (toIsoDate(d) <= curTerm.end_date) { dates.push(toIsoDate(d)); d = addDays(d, 1); }
+    const vis = visibleDays(dates, termData.slots, termData.holidays, termData.breaks as any);
+    const bySlot = new Map<string, { slot: TimetableSlot; dates: string[] }>();
+    vis.forEach((v) => v.slots.forEach((sl) => {
+      const e = bySlot.get(sl.id) || { slot: sl, dates: [] }; e.dates.push(v.date); bySlot.set(sl.id, e);
+    }));
+    return [...bySlot.values()].sort((a, b) => a.slot.start_time.localeCompare(b.slot.start_time)).map((e) => {
+      const bk = termData.bookings.filter((b) => b.timetable_id === e.slot.id);
+      const cell: Record<string, LessonBooking> = {}; const latest: Record<string, LessonBooking> = {};
+      bk.forEach((b) => {
+        cell[`${b.student_id}_${b.lesson_date}`] = b;
+        if (!latest[b.student_id] || b.lesson_date > latest[b.student_id].lesson_date) latest[b.student_id] = b;
+      });
+      const students = Object.values(latest).sort((a, b) => a.student_name.localeCompare(b.student_name));
+      return { ...e, cell, students };
+    });
+  }, [termData, curTerm]);
+  const showTerm = !!termView && !!curTerm;
   const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: !!branchId, retry: false });
   const { data: cardRows } = useQuery({
     queryKey: ['progress-cards', branchId, termIds], queryFn: () => listProgressCards(branchId, termIds),
@@ -330,17 +375,17 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
           </Select>
         )}
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(addDays(day, -1))} aria-label="Previous day">
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(showTerm ? addDays(parseIsoDate(curTerm!.start_date), -1) : addDays(day, -1))} aria-label={showTerm ? 'Previous term' : 'Previous day'}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDay(new Date())}>Today</Button>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(addDays(day, 1))} aria-label="Next day">
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(showTerm ? addDays(parseIsoDate(curTerm!.end_date), 1) : addDays(day, 1))} aria-label={showTerm ? 'Next term' : 'Next day'}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <span className="text-xs font-medium">
-          {WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}
-          {termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
+          {showTerm ? <>{curTerm!.name} · {formatDate(curTerm!.start_date)} – {formatDate(curTerm!.end_date)}</> : <>{WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}</>}
+          {!showTerm && termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
         </span>
         {(canEdit || viewOnly) && branchId && progressOn && (
           <Button size="sm" variant="outline" className="ml-auto h-8 text-xs" disabled={reporting} onClick={downloadReport}>
@@ -391,14 +436,58 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
           ))}
         </div>
       )}
-      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
-      {!isLoading && data && days.length === 0 && (
+      {(isLoading || (showTerm && termLoading)) && <p className="text-xs text-muted-foreground">Loading…</p>}
+      {showTerm && termGrid.map((g) => (
+        <div key={g.slot.id} className="rounded-md border border-l-4" style={{ borderLeftColor: classColorVar(colorOf(g.slot.class_type)) }}>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-2 py-1.5 text-xs" style={{ backgroundColor: classColorTint(colorOf(g.slot.class_type)) }}>
+            <span className="flex items-center gap-1 font-semibold"><Clock className="h-3.5 w-3.5" />{WEEKDAY_LABELS[parseIsoDate(g.dates[0]).getDay()]} {hhmm(g.slot.start_time)}–{hhmm(g.slot.end_time)}</span>
+            <span className="text-muted-foreground">{slotMeta(g.slot)}</span>
+            <Badge variant="outline" className="text-[10px]">{g.students.length} students</Badge>
+          </div>
+          {g.students.length === 0 ? <p className="px-2 py-1.5 text-xs text-muted-foreground">No students yet.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead><tr>
+                <th className="sticky left-0 z-10 bg-background px-2 py-1 text-left font-medium">Student</th>
+                {g.dates.map((d) => <th key={d} className={cn('px-1 py-1 text-center font-medium whitespace-nowrap', d === today && 'bg-primary/10 text-primary')}>{formatDate(d).slice(0, 5)}</th>)}
+              </tr></thead>
+              <tbody className="divide-y">
+                {g.students.map((st) => (
+                  <tr key={st.student_id}>
+                    <td className="sticky left-0 z-10 bg-background px-2 py-1">
+                      <div className="flex min-w-[16rem] flex-wrap items-center gap-x-2 gap-y-1">
+                        <StudentNameButton name={st.student_name} studentId={st.student_id} onOpen={setProfileId} className="font-medium" />
+                        {badgesFor(st)}
+                      </div>
+                    </td>
+                    {g.dates.map((d) => {
+                      const b = g.cell[`${st.student_id}_${d}`];
+                      return (
+                        <td key={d} className={cn('px-1 py-1 text-center', d === today && 'bg-primary/5')}>
+                          {b && b.status !== 'requested' ? (
+                            <button type="button" disabled={!canEdit || busy === b.id} title={b.status === 'attended' ? 'Present' : 'Absent'}
+                              className={cn('h-6 w-6 rounded text-[10px] font-semibold', b.status === 'attended' ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground', (!canEdit) && 'opacity-80')}
+                              onClick={() => (b.status !== 'attended' && unpaid(b)) ? setMarkPrompt(b) : run(b.id, () => markBooking(b.id, b.status === 'attended' ? 'booked' : 'attended'))}>
+                              {b.status === 'attended' ? 'P' : 'A'}
+                            </button>
+                          ) : b ? <span className="text-[10px] text-muted-foreground">Req</span> : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>)}
+        </div>
+      ))}
+      {!showTerm && !isLoading && data && days.length === 0 && (
         <Card><CardContent className="p-4 text-xs text-muted-foreground">
           No lessons {dayIso === today ? 'today' : 'on this day'}{hiddenHolidays.length > 0 ? ` (public holiday: ${hiddenHolidays.map((h) => h.name).join(', ')})` : inBreak ? ' (term break)' : ''}.
         </CardContent></Card>
       )}
 
-      {days.map((day) => (
+      {!showTerm && days.map((day) => (
         <Card key={day.date} className={cn(day.date === today && 'border-primary')}>
           <CardHeader className="px-3 py-2">
             <CardTitle className="text-sm">
