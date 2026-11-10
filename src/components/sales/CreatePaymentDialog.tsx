@@ -23,6 +23,7 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import { Loader2, Search, FileText, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toISODate } from '@/utils/dateFormat';
+import { creditPayCap } from '@/utils/creditPayment';
 
 interface CreatePaymentDialogProps {
   trigger: React.ReactNode;
@@ -201,6 +202,22 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       toast.error('Please enter a valid payment amount');
+      return;
+    }
+
+    if (formData.payment_method === 'credit') {
+      const sel = invoices.find(inv => inv.id === formData.invoice_id);
+      const cap = creditPayCap(studentCreditBalance, sel?.balance_due ?? 0);
+      const amt = parseFloat(formData.amount);
+      if (amt > cap + 0.005) { toast.error(`Only $${cap.toFixed(2)} credit can be used`); return; }
+      setLoading(true);
+      try {
+        const { error } = await (supabase as any).rpc('apply_student_credit_to_invoice', { p_invoice_id: formData.invoice_id, p_amount: amt, p_client_ref: crypto.randomUUID() });
+        if (error) throw error;
+        toast.success('Paid with student credit');
+        setOpen(false); resetForm(); onPaymentCreated?.();
+      } catch (err) { toast.error(err instanceof Error ? err.message : (err as any)?.message || 'Failed to apply credit'); }
+      finally { setLoading(false); }
       return;
     }
 
@@ -586,11 +603,14 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
 
             <div className="space-y-1">
               <Label htmlFor="payment_method" className="text-xs">Payment Method *</Label>
-              <Select value={formData.payment_method} onValueChange={(value) => handleInputChange('payment_method', value)}>
+              <Select value={formData.payment_method} onValueChange={(value) => { handleInputChange('payment_method', value); if (value === 'credit') handleInputChange('amount', creditPayCap(studentCreditBalance, selectedInvoice?.balance_due ?? 0).toFixed(2)); }}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  {studentCreditBalance > 0.004 && (
+                    <SelectItem value="credit">Student credit ({formatCurrencyValue(studentCreditBalance)} available)</SelectItem>
+                  )}
                   {paymentMethods.map((method) => (
                     <SelectItem key={method.value} value={method.value}>
                       {method.label}
@@ -600,6 +620,9 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               </Select>
             </div>
 
+            {formData.payment_method === 'credit' ? (
+              <p className="text-xs text-muted-foreground">Credit after payment: {formatCurrencyValue(Math.max(0, studentCreditBalance - (parseFloat(formData.amount) || 0)))}</p>
+            ) : (<>
             {/* Payment Info Display - Bank Transfer Info or PayNow QR */}
             <PaymentInfoDisplay
               paymentMethod={formData.payment_method}
@@ -625,7 +648,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
               label={`Proof of Payment${(!isSuperadmin && formData.payment_method !== 'cash') ? '' : ' (optional)'}`}
               compact
             />
-
+            </>)}
           </div>
 
           <DialogFooter>
