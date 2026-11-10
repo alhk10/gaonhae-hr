@@ -374,15 +374,16 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
   yPos += 6;
 
-  doc.text(gstPct ? `GST (${gstPct}%${isAustralian ? ' included' : ''}):` : 'GST:', totalsX, yPos);
-  doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
-  yPos += 6;
-
+  // Discount sits after subtotal and before GST (GST is charged on the discounted amount).
   if (invoice.discount_amount > 0) {
     doc.text('Discount:', totalsX, yPos);
     doc.text(`-${formatCurrency(invoice.discount_amount)}`, pageWidth - margin - 2, yPos, { align: 'right' });
     yPos += 6;
   }
+
+  doc.text(gstPct ? `GST (${gstPct}%${isAustralian ? ' included' : ''}):` : 'GST:', totalsX, yPos);
+  doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
+  yPos += 6;
 
   // Total line
   doc.setDrawColor(100, 100, 100);

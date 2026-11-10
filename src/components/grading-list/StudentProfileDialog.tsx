@@ -253,6 +253,12 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
                               <span className="text-muted-foreground">Subtotal</span>
                               <span>{formatCurrency(Number(inv.subtotal || 0))}</span>
                             </div>
+                            {Number(inv.discount_amount || 0) > 0 && (
+                              <div className="flex justify-between text-[11px]">
+                                <span className="text-muted-foreground">Discount</span>
+                                <span>-{formatCurrency(Number(inv.discount_amount || 0))}</span>
+                              </div>
+                            )}
                             {Number(inv.tax_amount || 0) > 0 && (
                               <div className="flex justify-between text-[11px]">
                                 <span className="text-muted-foreground">GST</span>
