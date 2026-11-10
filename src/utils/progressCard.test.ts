@@ -1,13 +1,12 @@
 import { ageOn, termLabelOf } from './progressCard';
 
-describe('progress card helpers', () => {
-  it('age is whole years, before birthday not counted', () => {
-    expect(ageOn('2018-11-11', new Date(2026, 10, 10))).toBe(7);
-    expect(ageOn('2018-11-10', new Date(2026, 10, 10))).toBe(8);
-    expect(ageOn(null)).toBeNull();
-  });
-  it('term label reads like 2026 Term 4', () => {
-    expect(termLabelOf('Term 4 2026')).toBe('2026 Term 4');
-    expect(termLabelOf('Term 4', '2026-10-01')).toBe('2026 Term 4');
-  });
-});
+const equal = (actual: unknown, expected: unknown, rule: string) => {
+  if (actual !== expected) throw new Error(`${rule}: expected ${String(expected)}, got ${String(actual)}`);
+};
+
+equal(ageOn('2018-11-11', new Date(2026, 10, 10)), 7, 'age before birthday');
+equal(ageOn('2018-11-10', new Date(2026, 10, 10)), 8, 'age on birthday');
+equal(ageOn(null), null, 'no dob');
+equal(termLabelOf('Term 4 2026'), '2026 Term 4', 'term label from name');
+equal(termLabelOf('Term 4', '2026-10-01'), '2026 Term 4', 'term label from start date');
+console.log('progressCard tests passed');
