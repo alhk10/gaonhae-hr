@@ -13,8 +13,9 @@ import { uploadCertificate } from '@/services/certificateService';
 
 const RANKS = ['1st Poom', '2nd Poom', '3rd Poom', '4th Poom', '1st Dan', '2nd Dan', '3rd Dan', '4th Dan', '5th Dan'];
 
-export const HelloCertificatesDialog: React.FC<{ open: boolean; onOpenChange: (o: boolean) => void; sessionId: string; studentId: string; belt?: string | null }> =
-  ({ open, onOpenChange, sessionId, studentId, belt }) => {
+export const HelloCertificatesDialog: React.FC<{ open: boolean; onOpenChange: (o: boolean) => void; sessionId: string; studentId: string; belt?: string | null;
+  progressCards?: { id: string; term_label: string | null; viewed_at?: string | null }[]; onOpenCard?: (id: string) => void }> =
+  ({ open, onOpenChange, sessionId, studentId, belt, progressCards = [], onOpenCard }) => {
     const qc = useQueryClient();
     const [series, setSeries] = useState<'stf' | 'kukkiwon'>('stf');
     const [rank, setRank] = useState(RANKS.includes(belt || '') ? belt! : '1st Poom');
@@ -35,6 +36,17 @@ export const HelloCertificatesDialog: React.FC<{ open: boolean; onOpenChange: (o
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-base">Gradings &amp; certificates</DialogTitle></DialogHeader>
+          {progressCards.length > 0 && (
+            <div className="rounded-md border p-2 space-y-1">
+              <p className="text-xs font-semibold">Progress cards</p>
+              {progressCards.map((c) => (
+                <button key={c.id} type="button" onClick={() => onOpenCard?.(c.id)} className="flex w-full items-center justify-between rounded px-1 py-1 text-left text-sm hover:bg-muted">
+                  <span>{c.term_label || 'Progress card'}</span>
+                  <span className="flex items-center gap-1 text-xs text-primary">{!c.viewed_at && <span className="rounded bg-primary px-1.5 text-[10px] text-primary-foreground">New</span>}View PDF</span>
+                </button>
+              ))}
+            </div>
+          )}
           <GradingRecordsSection studentId={studentId} sessionId={sessionId} />
           <div className="rounded-md border p-2 space-y-2 mt-2">
             <p className="text-xs font-semibold">Upload an existing certificate</p>
