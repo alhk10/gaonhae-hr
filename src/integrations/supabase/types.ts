@@ -9030,6 +9030,15 @@ export type Database = {
         }
         Returns: number
       }
+      apply_student_credit_to_invoice: {
+        Args: {
+          p_amount: number
+          p_client_ref?: string
+          p_invoice_id: string
+          p_password?: string
+        }
+        Returns: string
+      }
       approve_public_student_registration: {
         Args: { p_actor?: string; p_id: string }
         Returns: string
