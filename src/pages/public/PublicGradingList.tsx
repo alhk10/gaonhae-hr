@@ -1666,7 +1666,7 @@ const PublicGradingList: React.FC = () => {
               <FileText className="h-4 w-4 mr-1" /> Info sheet
             </Button>
             <InfoSheetBranchDialog open={infoSheetOpen} onOpenChange={setInfoSheetOpen} allowedBranchIds={isAllBranch ? [] : allowedBranchIds} />
-            {canDelete && isAllBranch && (
+            {((canDelete && isAllBranch) || isSuperadminUser) && (
               <Button
                 type="button"
                 variant="secondary"
