@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_unlock_log: {
+        Row: {
+          id: string
+          password_hash: string
+          scope: string | null
+          unlocked_at: string
+        }
+        Insert: {
+          id?: string
+          password_hash: string
+          scope?: string | null
+          unlocked_at?: string
+        }
+        Update: {
+          id?: string
+          password_hash?: string
+          scope?: string | null
+          unlocked_at?: string
+        }
+        Relationships: []
+      }
       access_unlock_passwords: {
         Row: {
           branch_id: string | null
@@ -8528,6 +8549,13 @@ export type Database = {
       access_password_delete: {
         Args: { p_key: string; p_password: string }
         Returns: undefined
+      }
+      access_password_last_used: {
+        Args: { p_password: string }
+        Returns: {
+          password_key: string
+          unlocked_at: string
+        }[]
       }
       access_password_list: {
         Args: { p_password: string }

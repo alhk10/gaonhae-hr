@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Plus, Pencil, Trash2, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDateTime } from '@/utils/dateFormat';
 
 const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
@@ -33,6 +34,16 @@ export default function PasswordManagerTab({ branches }: Props) {
       return data as Row[];
     },
   });
+  const { data: log = [] } = useQuery({
+    queryKey: ['access-password-log'],
+    queryFn: async () => {
+      const { data, error } = await rpc('access_password_last_used', { p_password: accessPw() });
+      if (error) throw error;
+      return data as { password_key: string; unlocked_at: string }[];
+    },
+  });
+  const lastUsed = (k: string) => log.find((l) => l.password_key === k)?.unlocked_at;
+  const rowFor = (k: string) => data.find((r) => r.password_key === k);
   const name = (id: string) => branches.find((b) => b.id === id)?.name || id;
 
   const open = (r: Row | 'new') => {
@@ -79,6 +90,7 @@ export default function PasswordManagerTab({ branches }: Props) {
                   {r.is_all ? <Badge>All branches</Badge> : r.branch_ids.map((b) => <Badge key={b} variant="secondary">{name(b)}</Badge>)}
                   {r.is_self && <Badge variant="outline">In use</Badge>}
                 </div>
+                <span className="text-xs text-muted-foreground">Last used: {lastUsed(r.password_key) ? formatDateTime(lastUsed(r.password_key)!) : 'never'}</span>
                 {!r.is_self && <>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => open(r)}><Pencil className="h-3.5 w-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => del(r)}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -87,6 +99,20 @@ export default function PasswordManagerTab({ branches }: Props) {
             ))}
           </div>
         )}
+        <h4 className="font-semibold text-sm pt-2">Recent sign-ins</h4>
+        <div className="divide-y border rounded-md text-xs max-h-72 overflow-auto">
+          {log.length === 0 && <p className="p-2 text-muted-foreground">No sign-ins recorded yet.</p>}
+          {log.slice(0, 50).map((l, i) => {
+            const r = rowFor(l.password_key);
+            return (
+              <div key={i} className="flex flex-wrap gap-2 p-2">
+                <span className="min-w-[130px]">{formatDateTime(l.unlocked_at)}</span>
+                <span className="font-mono">{r?.label || '••••'}</span>
+                <span className="text-muted-foreground">{r ? (r.is_all ? 'All branches' : r.branch_ids.map(name).join(', ')) : ''}</span>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
         <DialogContent className="max-w-md">
