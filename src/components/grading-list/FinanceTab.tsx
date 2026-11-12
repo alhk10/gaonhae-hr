@@ -18,6 +18,7 @@ import DateField from '@/components/attendance/DateField';
 import { withRunningBalance, JournalRow, JournalLine } from '@/utils/branchJournal';
 import jsPDF from 'jspdf';
 import BankReconciliation from '@/components/finance/BankReconciliation';
+import AnextVerifiedBadge from '@/components/finance/AnextVerifiedBadge';
 import autoTable from 'jspdf-autotable';
 
 const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
@@ -66,6 +67,17 @@ const JournalView: React.FC<Props> = ({ branches }) => {
     },
   });
   const j = useMemo(() => withRunningBalance(data?.opening_balance ?? 0, data?.rows ?? []), [data]);
+  const paymentIds = useMemo(() => (data?.rows ?? []).filter((r) => r.kind === 'auto' && r.category === 'Payment').map((r) => r.id), [data]);
+  const { data: anextIds } = useQuery({
+    queryKey: ['anext-verified', paymentIds],
+    enabled: paymentIds.length > 0,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await rpc('access_bank_verified_ids', { p_password: accessPw(), p_ids: paymentIds });
+      if (error) throw error;
+      return new Set<string>((data ?? []) as string[]);
+    },
+  });
 
   const save = useMutation({
     mutationFn: async (d: Draft) => {
@@ -157,7 +169,7 @@ const JournalView: React.FC<Props> = ({ branches }) => {
                 <TableRow key={`${l.kind}-${l.id}`} className="text-xs">
                   <TableCell className="whitespace-nowrap">{formatDate(l.date)}</TableCell>
                   <TableCell><Badge variant={l.kind === 'auto' ? 'secondary' : 'outline'}>{l.kind === 'auto' ? 'Auto' : 'Manual'}</Badge></TableCell>
-                  <TableCell className="min-w-[180px]">{l.category && <span className="text-muted-foreground">{l.category} — </span>}{l.description}</TableCell>
+                  <TableCell className="min-w-[180px]">{l.category && <span className="text-muted-foreground">{l.category} — </span>}{l.description}{anextIds?.has(l.id) && <AnextVerifiedBadge className="ml-1" />}</TableCell>
                   <TableCell>{l.reference ?? ''}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">{l.direction === 'in' ? money(l.amount) : ''}</TableCell>
                   <TableCell className="text-right whitespace-nowrap text-destructive">{l.direction === 'out' ? money(l.amount) : ''}</TableCell>

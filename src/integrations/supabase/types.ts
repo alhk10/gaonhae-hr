@@ -386,6 +386,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_payer_aliases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_from_txn: string | null
+          id: string
+          payer_name: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_from_txn?: string | null
+          id?: string
+          payer_name: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_from_txn?: string | null
+          id?: string
+          payer_name?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_payer_aliases_created_from_txn_fkey"
+            columns: ["created_from_txn"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_payer_aliases_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_sync_state: {
         Row: {
           last_count: number | null
@@ -409,6 +451,42 @@ export type Database = {
           sync_token?: string
         }
         Relationships: []
+      }
+      bank_transaction_payments: {
+        Row: {
+          created_at: string
+          id: string
+          payment_id: string
+          txn_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_id: string
+          txn_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_id?: string
+          txn_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transaction_payments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transaction_payments_txn_id_fkey"
+            columns: ["txn_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bank_transactions: {
         Row: {
@@ -8330,23 +8408,27 @@ export type Database = {
         Returns: boolean
       }
       _bank_apply_match: {
-        Args: { p_by: string; p_payment_id: string; p_txn_id: string }
+        Args: { p_by: string; p_payment_ids: string[]; p_txn_id: string }
         Returns: undefined
       }
+      _bank_norm_payer: { Args: { p: string }; Returns: string }
       _bank_ref_match: { Args: { a: string; b: string }; Returns: boolean }
       _bank_txn_candidates: {
         Args: { p_txn_id: string }
         Returns: {
           amount: number
           branch_id: string
+          exact_amount: boolean
           invoice_id: string
           invoice_number: string
           name_match: boolean
+          payer_known: boolean
           payment_date: string
           payment_id: string
           proof_ref: string
           ref_match: boolean
           shortage: boolean
+          student_id: string
           student_name: string
         }[]
       }
@@ -8564,9 +8646,14 @@ export type Database = {
       }
       access_bank_check: { Args: { p_password: string }; Returns: boolean }
       access_bank_match: {
-        Args: { p_password: string; p_payment_id: string; p_txn_id: string }
+        Args: { p_password: string; p_payment_ids: string[]; p_txn_id: string }
         Returns: undefined
       }
+      access_bank_payer_delete: {
+        Args: { p_id: string; p_password: string }
+        Returns: undefined
+      }
+      access_bank_payers: { Args: { p_password: string }; Returns: Json }
       access_bank_transactions: {
         Args: {
           p_from?: string
@@ -8579,6 +8666,10 @@ export type Database = {
       access_bank_unmatch: {
         Args: { p_password: string; p_txn_id: string }
         Returns: undefined
+      }
+      access_bank_verified_ids: {
+        Args: { p_ids: string[]; p_password: string }
+        Returns: string[]
       }
       access_branch_journal: {
         Args: {
