@@ -8582,6 +8582,10 @@ export type Database = {
         Args: { p_student_id: string; p_term_id: string }
         Returns: string
       }
+      _term_required_weeks: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: number
+      }
       _timetable_runs_on: {
         Args: { p_date: string; p_dates: string[]; p_weekday: number }
         Returns: boolean
