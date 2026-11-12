@@ -55,7 +55,20 @@ export const nameSimilarity = (a?: string | null, b?: string | null): number => 
   const right = normaliseName(b);
   if (!left.length || !right.length) return 0;
   const shared = left.filter((t) => right.includes(t)).length;
-  return shared / Math.min(left.length, right.length);
+  // A single shared word (e.g. a common first name) is never the same person,
+  // unless both names are that single word.
+  if (shared < 2 && !(left.length === 1 && right.length === 1 && shared === 1)) {
+    return Math.min(shared / Math.max(left.length, right.length), NAME_SIMILARITY_FLOOR - 0.01);
+  }
+  return shared / Math.max(left.length, right.length);
+};
+
+/** True when every whole word of the candidate's surname appears in the submitted name. */
+export const surnameAgrees = (subjectName?: string | null, lastName?: string | null): boolean => {
+  const sub = normaliseName(subjectName);
+  const last = normaliseName(lastName);
+  if (!last.length) return true;
+  return last.every((t) => sub.includes(t));
 };
 
 const normaliseDate = (value?: string | null): string | null => {
@@ -132,6 +145,9 @@ export const matchContradiction = (
   }
 
   if (subject.name && candidateName && !nameAgrees) return 'name differs';
+  if (subject.name && candidate.last_name && !surnameAgrees(subject.name, candidate.last_name)) {
+    return 'surname differs';
+  }
 
   return null;
 };
@@ -173,6 +189,8 @@ export const personAgrees = (
     candidate.full_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
   if (!subject.name || !candidateName) return false;
   if (nameSimilarity(subject.name, candidateName) < NAME_SIMILARITY_FLOOR) return false;
+  // Both birth dates are required before anything links automatically.
+  if (!normaliseDate(subject.dateOfBirth) || !normaliseDate(candidate.date_of_birth)) return false;
   return matchContradiction(subject, candidate) === null;
 };
 

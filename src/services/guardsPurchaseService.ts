@@ -557,10 +557,15 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
     let score = 0;
     const sfn = norm(s.first_name);
     const sln = norm(s.last_name);
+    // Whole words only: "FARHAN" must never match inside "LANA FARHAN".
+    const words = (v: string) => v.split(/[^A-Z]+/).filter(Boolean);
+    const fnW = words(fn), lnW = words(ln), sfnW = words(sfn), slnW = words(sln);
     if (sfn === fn) score += 3;
-    else if (sfn.includes(fn) || fn.includes(sfn)) score += 1;
+    else if (fnW.length && sfnW.length && fnW.every((w) => sfnW.includes(w))) score += 1;
     if (sln === ln) score += 3;
-    else if (sln.includes(ln) || ln.includes(sln)) score += 1;
+    else if (lnW.length && slnW.length && slnW.every((w) => lnW.includes(w))) score += 1;
+    // A surname that doesn't agree caps the score so it can only ever be a suggestion.
+    const surnameOk = slnW.length > 0 && slnW.every((w) => [...lnW, ...fnW].includes(w));
     if (dob && s.date_of_birth === dob) score += 4;
     if (branchId && s.branch_id === branchId) score += 1;
     const knownEmails = [s.email, ...((s.alt_emails as string[] | null) || [])]
@@ -574,6 +579,7 @@ export const findStudentMatches = async (purchase: GuardsPurchaseRow): Promise<S
       purchaseDigits.length >= 7 &&
       knownPhones.some((d: string) => d.endsWith(purchaseDigits) || purchaseDigits.endsWith(d));
     if (phoneHit && !phoneShared) score += 1;
+    if (!surnameOk) score = Math.min(score, 5);
     return { ...s, score };
   });
   return scored
