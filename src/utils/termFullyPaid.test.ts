@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTermFullyPaid } from './schoolFeePlan';
+import { isTermFullyPaid } from './termFullyPaid';
 
 describe('isTermFullyPaid', () => {
   it('4 of 12 weeks is not paid', () => expect(isTermFullyPaid([{ plan: 'four_weeks', weeks: 4 }], 12)).toBe(false));
