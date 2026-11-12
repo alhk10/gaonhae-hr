@@ -28,3 +28,20 @@ The same check found about 60 other staff actions that can also be called withou
 - Drop the old no-password function versions; revoke from anon.
 - Frontend: pass the /access password from the session context in `guardsPurchaseService`, the class pricing, grading slot and studio rental services. Dialogs (`GuardsProductSettingsDialog` and siblings) take `allowedBranchIds` and `isAllBranch` from the /access session, filter the branch Select, and disable the restriction editors unless all-branch.
 - Browser check with a branch password: only the own branch is listed, and saving another branch through the API is refused.
+
+---
+
+# Also: show guard packages when creating an invoice
+
+## The problem
+The two guard packages, **Gaonhae Protection Guard Set** and **Preorder - Adidas Chest Guard + Head Gear Set**, are switched off as products. The /guards and /hello pages list them through their own package list, but the staff Create Invoice product picker only shows switched-on products. That's why they're missing under Protection Guards & Accessories.
+
+## What will change
+- Both packages appear in the Create and Edit Invoice product picker, under Protection Guards & Accessories.
+- Each package uses the branch's price from Uniforms & Guards availability, otherwise its default price ($174.40 / $284.30).
+- A package switched off for a branch is hidden on that branch's invoices.
+- /hello and /guards stay as they are, so packages don't show twice.
+
+## Technical details
+- In the invoice product loader, include products whose name matches the package list from `get_guards_products_for_branch_admin` (`item_type='package'`), even when `is_active=false`.
+- Map `guards_branch_products.price_override` and `is_available` (keyed by `gaonhae_set` and `adidas_set`) onto those products.
