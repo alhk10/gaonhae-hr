@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public._term_paid_weeks(uuid, uuid) FROM PUBLIC, anon, authenticated;
