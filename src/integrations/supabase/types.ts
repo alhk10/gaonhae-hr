@@ -8574,6 +8574,10 @@ export type Database = {
         Returns: Json
       }
       _sur_reviewer: { Args: { p_actor: string }; Returns: string }
+      _term_coverage: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: Json
+      }
       _term_paid_weeks: {
         Args: { p_student_id: string; p_term_id: string }
         Returns: number
@@ -10130,8 +10134,11 @@ export type Database = {
           p_student_id: string
         }
         Returns: {
+          covered_until: string
           end_date: string
           is_paid: boolean
+          paid_weeks: number
+          remaining_weeks: number
           start_date: string
           term_id: string
           term_name: string
@@ -11177,6 +11184,16 @@ export type Database = {
       sms_current_email: { Args: never; Returns: string }
       sms_is_admin: { Args: never; Returns: boolean }
       sms_is_superadmin: { Args: never; Returns: boolean }
+      student_term_coverage: {
+        Args: { p_student_id: string }
+        Returns: {
+          fully_paid: boolean
+          grading_eligible: boolean
+          paid_weeks: number
+          remaining_weeks: number
+          term_id: string
+        }[]
+      }
       submit_access_invoice_deletion_request: {
         Args: { p_actor?: string; p_invoice_id: string; p_reason: string }
         Returns: string
@@ -11318,6 +11335,17 @@ export type Database = {
         Returns: boolean
       }
       superadmin_pending_counts: { Args: never; Returns: Json }
+      term_payment_statuses: {
+        Args: { p_branch_id: string; p_term_id: string }
+        Returns: {
+          fully_paid: boolean
+          grading_eligible: boolean
+          paid_weeks: number
+          remaining_weeks: number
+          status: string
+          student_id: string
+        }[]
+      }
       unsubscribe_public_chat_push: {
         Args: {
           p_branch_id: string

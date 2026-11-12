@@ -236,20 +236,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
     queryKey: ['student-current-term-invoice-paid', studentId, availableTerms.map(t => t.id).join(','), invoices.map(i => `${i.id}:${i.status}`).join(',')],
     queryFn: async () => {
       if (!availableTerms.length) return true; // No terms = no restriction
+      // Grading needs 50% of the term paid (late joiners: any weeks).
       const termIds = availableTerms.map(t => t.id);
-      const paidInvoiceIds = invoices
-        .filter(i => i.status === 'paid' || i.status === 'verified')
-        .map(i => i.id);
-      if (paidInvoiceIds.length === 0) return false;
-      const { data: items } = await supabase
-        .from('invoice_items')
-        .select('id, invoice_id, metadata')
-        .in('invoice_id', paidInvoiceIds);
-      const hasMatch = items?.some(item => {
-        const meta = item.metadata as any;
-        return meta?.term_id && termIds.includes(meta.term_id);
-      });
-      return !!hasMatch;
+      const { data } = await supabase.rpc('student_term_coverage' as any, { p_student_id: studentId } as any);
+      return ((data as any[]) || []).some(c => termIds.includes(c.term_id) && c.grading_eligible);
     },
     enabled: !!studentId && availableTerms.length > 0,
   });
@@ -1413,7 +1403,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ studentId: propStud
           <AlertDialogHeader>
             <AlertDialogTitle>Term Invoice Payment Required</AlertDialogTitle>
             <AlertDialogDescription>
-              Please pay your current term invoice before paying for grading fees. You can pay your school fees first, then proceed with grading payment.
+              Please pay at least half of the current term's school fees before paying for grading. You can pay your school fees first, then proceed with grading payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

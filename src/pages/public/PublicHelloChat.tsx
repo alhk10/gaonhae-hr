@@ -750,7 +750,7 @@ const PublicHelloChat: React.FC = () => {
         color: existingDraft?.color || '',
         gender: existingDraft?.gender || matched?.gender || gender || '',
         termId: defaultTerm.term_id,
-        qty: Math.max(1, defaultTerm.total_weeks || 1),
+        qty: Math.max(1, defaultTerm.remaining_weeks ?? defaultTerm.total_weeks ?? 1),
         plan: lockedPlan === 'four_weeks' ? 'four_weeks' : latestFeePreference.payment_plan,
       },
     }));
@@ -1204,7 +1204,7 @@ const PublicHelloChat: React.FC = () => {
 
   const planWeeks = useMemo(() => {
     if (!planTerm) return 0;
-    return feeCartItem?.plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, planTerm.total_weeks || 1);
+    return feeCartItem?.plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, planTerm.remaining_weeks ?? planTerm.total_weeks ?? 1);
   }, [planTerm, feeCartItem]);
 
   const planLessonsPerWeek = useMemo(() => {
@@ -1398,7 +1398,7 @@ const PublicHelloChat: React.FC = () => {
       const termName = term?.term_name ?? null;
       const locked = d.termId ? lockedPlans[d.termId] : null;
       const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
-      const weeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, term?.total_weeks || 1);
+      const weeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, term?.remaining_weeks ?? term?.total_weeks ?? 1);
       const planDiscount = showTerms && plan === 'term'
         ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
         : 0;
@@ -3404,7 +3404,7 @@ const ProductRow: React.FC<{
     color: '',
     gender: normalizedDefaultGender,
     termId: defaultTerm?.term_id || '',
-    qty: Math.max(1, defaultTerm?.total_weeks || 1),
+    qty: Math.max(1, defaultTerm?.remaining_weeks ?? defaultTerm?.total_weeks ?? 1),
   };
 
   // Initialise draft on first mount so parent has a record (for defaults)
@@ -3421,7 +3421,7 @@ const ProductRow: React.FC<{
       next = { ...next, gender: normalizedDefaultGender };
     }
     if (showTerms && !next.termId && defaultTerm) {
-      next = { ...next, termId: defaultTerm.term_id, qty: Math.max(1, defaultTerm.total_weeks || 1) };
+      next = { ...next, termId: defaultTerm.term_id, qty: Math.max(1, defaultTerm.remaining_weeks ?? defaultTerm.total_weeks ?? 1) };
     }
     if (next !== draft) onDraftChange(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3467,7 +3467,7 @@ const ProductRow: React.FC<{
             <div className="space-y-2">
               <Select value={d.termId} onValueChange={(v) => {
                 const t = selectableTerms.find(x => x.term_id === v);
-                update({ termId: v, qty: Math.max(1, t?.total_weeks || 1) });
+                update({ termId: v, qty: Math.max(1, t?.remaining_weeks ?? t?.total_weeks ?? 1) });
               }}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick term" /></SelectTrigger>
                 <SelectContent>
@@ -3479,7 +3479,7 @@ const ProductRow: React.FC<{
 
               {(() => {
                 const weekly = getDisplayPrice(product, branchCountry);
-                const termWeeks = Math.max(1, selectedTerm?.total_weeks || 1);
+                const termWeeks = Math.max(1, selectedTerm?.remaining_weeks ?? selectedTerm?.total_weeks ?? 1);
                 const locked = d.termId ? lockedPlans[d.termId] : null;
                 const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
                 const early = earlyPaymentDiscountFor(selectedTerm?.start_date);
@@ -3508,7 +3508,7 @@ const ProductRow: React.FC<{
                           plan === 'term' ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-primary/40',
                         )}
                       >
-                        <p className="text-xs font-medium">Full term</p>
+                        <p className="text-xs font-medium">{(selectedTerm?.paid_weeks ?? 0) > 0 ? 'Rest of term' : 'Full term'}</p>
                         <p className="text-[11px] text-muted-foreground">{termWeeks} × ${weekly.toFixed(2)}</p>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-semibold">${termTotal.toFixed(2)}</p>

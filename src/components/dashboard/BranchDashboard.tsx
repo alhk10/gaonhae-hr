@@ -976,32 +976,10 @@ const BranchDashboard: React.FC<BranchDashboardProps> = ({ branchId }) => {
       // Count term paid: students with paid lesson invoices for this term
       let termPaid = 0;
 
-      if (lessonProductIds.length > 0) {
-        const { data: invoiceItems } = await supabase
-          .from('invoice_items')
-          .select(`
-            metadata,
-            invoices!inner (
-              student_id,
-              branch_id,
-              status
-            )
-          `)
-          .in('product_id', lessonProductIds)
-          .eq('invoices.branch_id', branchId)
-          .in('invoices.status', ['paid', 'verified']);
-
-        const termPaidStudentIds = new Set<string>();
-        (invoiceItems || []).forEach(item => {
-          const metadata = item.metadata as Record<string, any> | null;
-          if (metadata?.term_id === termToUse.id) {
-            const studentId = (item.invoices as any).student_id;
-            if (allStudentIds.has(studentId)) {
-              termPaidStudentIds.add(studentId);
-            }
-          }
-        });
-        termPaid = termPaidStudentIds.size;
+      {
+        // Paid = weeks paid cover today (or the whole term), same rule as /hello and /access.
+        const { data: termStatuses } = await supabase.rpc('term_payment_statuses' as any, { p_branch_id: branchId, p_term_id: termToUse.id } as any);
+        termPaid = ((termStatuses as any[]) || []).filter(t => t.status === 'paid' && allStudentIds.has(t.student_id)).length;
       }
 
       return { total, gradingPaid, ready, termPaid, totalTermStudents };

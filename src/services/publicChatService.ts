@@ -43,6 +43,9 @@ export interface ChatTerm {
   end_date: string;
   total_weeks: number;
   is_paid: boolean;
+  paid_weeks?: number;
+  remaining_weeks?: number;
+  covered_until?: string | null;
 }
 
 export interface ChatFeePreference {

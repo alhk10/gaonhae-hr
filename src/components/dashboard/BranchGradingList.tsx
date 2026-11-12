@@ -344,6 +344,17 @@ const BranchGradingList: React.FC<BranchGradingListProps> = ({ branchId, onStude
         }
       });
 
+      // Part-term payments (weeks paid < term) show as partially paid, not paid.
+      if (selectedTerm && selectedTerm !== 'all') {
+        const { data: termStatuses } = await supabase.rpc('term_payment_statuses' as any, { p_branch_id: branchId, p_term_id: selectedTerm } as any);
+        ((termStatuses as any[]) || []).forEach(ts => {
+          const inv = studentToTermLessonInvoice[ts.student_id];
+          if (inv && !ts.fully_paid && ['paid', 'verified'].includes(inv.status)) {
+            studentToTermLessonInvoice[ts.student_id] = { ...inv, status: 'partially_paid' };
+          }
+        });
+      }
+
       const slotIds = [...new Set(branchScopedRegs.filter(r => r.grading_slot_id).map(r => r.grading_slot_id!))];
       const invoiceItemIds = branchScopedRegs.filter(r => r.invoice_item_id).map(r => r.invoice_item_id!);
 

@@ -200,28 +200,18 @@ const PayGradingDialog: React.FC<PayGradingDialogProps> = ({
   const { data: paidTermIds = [] } = useQuery({
     queryKey: ['student-paid-terms', studentId],
     queryFn: async () => {
-      const { data: invoices } = await supabase
-        .from('invoices')
-        .select('id, status')
-        .eq('student_id', studentId)
-        .in('status', ['paid', 'draft']);
-
-      if (!invoices || invoices.length === 0) return [];
-
-      const invoiceIds = invoices.map(inv => inv.id);
-      const { data: items } = await supabase
-        .from('invoice_items')
-        .select('metadata')
-        .in('invoice_id', invoiceIds);
-
-      if (!items) return [];
-
-      const termIds: string[] = [];
-      items.forEach(item => {
-        const metadata = item.metadata as any;
-        if (metadata?.term_id) termIds.push(metadata.term_id);
-      });
-      return [...new Set(termIds)];
+      // Hide terms that are fully paid (weeks cover the term) or already have a draft.
+      const [{ data: cov }, { data: drafts }] = await Promise.all([
+        supabase.rpc('student_term_coverage' as any, { p_student_id: studentId } as any),
+        supabase.from('invoices').select('id').eq('student_id', studentId).eq('status', 'draft'),
+      ]);
+      const termIds = new Set<string>(((cov as any[]) || []).filter(c => c.fully_paid).map(c => c.term_id));
+      const draftIds = (drafts || []).map(d => d.id);
+      if (draftIds.length) {
+        const { data: items } = await supabase.from('invoice_items').select('metadata').in('invoice_id', draftIds);
+        (items || []).forEach(it => { const m = it.metadata as any; if (m?.term_id) termIds.add(m.term_id); });
+      }
+      return [...termIds];
     },
     enabled: !!studentId && alsoPayTermFees,
   });

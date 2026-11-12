@@ -8,3 +8,4 @@ eq(helloShowsGrading({ ready: false, paid: false }), false, 'hidden when not rea
 eq(helloShowsGrading({ ready: true, paid: false }), true, 'shown when ready');
 eq(helloShowsGrading({ ready: true, paid: true }), false, 'hidden when paid');
 console.log('gradingReady tests passed');
+eq(helloShowsGrading({ ready: true, paid: false, term_eligible: false }), false, 'hidden when under 50% of term paid');
