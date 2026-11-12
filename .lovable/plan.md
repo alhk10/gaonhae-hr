@@ -1,25 +1,29 @@
-# Fix the remaining "paid for the term" mistakes across all branches
+# Part-term payments: paid for the weeks covered, grading after 6 weeks
 
-The check behind /hello, Attendance and the grading status is already fixed. A few other screens still treat any paid class invoice as payment for the whole term. This plan brings them into line in every branch.
+## New rules
+- **Paid for the period covered.** Weeks paid count forward from the first day covered: the term start, or the first invoice date for students who joined late. A student is **paid** while today falls in those weeks, then **unpaid** after that.
+  - Ronan, 4 weeks from 29/09: paid until about 26/10, then unpaid.
+  - Finn, 3 weeks from 11/11: paid until 01/12, then unpaid.
+- Paying for the whole term (or for every remaining week) shows as paid until the term ends.
+- **Grading:** a student can register and pay for grading once they have paid at least **6 weeks** of that term. A late joiner who paid every remaining week also qualifies, even if that's fewer than 6.
+- /hello and the staff Pay School Fees dialog suggest only the **weeks still owed** for the term.
 
-## Places still wrong
-1. **/access Summary: paid / unpaid / no invoice counts.** A student counts as paid as soon as any current-term class invoice is paid. Part-term students like Finn and Ronan should count as **unpaid**.
-2. **Branch dashboard: Grading "Term paid" number.** It counts any paid class line, so part-term students are included.
-3. **Grading list "term paid" badge** (branch dashboard). It shows the invoice status, so a 3-week invoice shows "verified". It should show **partial**.
-4. **Pay School Fees dialog (staff).** It hides a term once any paid or draft invoice exists, so staff can't bill Finn for the rest of Term 4. Paid part-term terms should stay selectable. Draft invoices still hide the term, to avoid duplicates.
-5. **/hello remaining weeks.** It now lets a part-paid student pay again, but suggests the full 12 weeks. It should suggest only the **weeks still owed**: Finn 3, Ronan 6. The 4-week plan lock follows the same idea.
-
-## Unchanged (as you chose)
-- Part-term students can still register and pay for grading. Grading needs only some weeks paid, not the full term.
+## Where it applies (all branches)
+1. /hello: school fee options, the outstanding-fees prompt and grading registration.
+2. /access Attendance unpaid badges, Grading paid badges and Summary paid / unpaid / no-invoice counts.
+3. Branch dashboard: Grading "Term paid" count and the grading list "term paid" badge (paid or partial).
+4. Staff Pay School Fees dialog: terms that are only partly paid stay selectable. Drafts still hide the term, to avoid duplicates.
+5. Staff Pay Grading dialog: needs 6+ paid weeks, unless the grading is billed on the same invoice as the fees (that exception stays).
 
 ## Check after the fix
-- Finn (Kembangan), Ronan, one Perth student (for example Ellie Xu) and one Bukit Merah student (Bernard Angiras) all show as partly paid on Summary, the dashboard and the grading list. /hello offers them only the remaining weeks.
-- Tests cover the remaining-weeks number: Finn 3 → owes 3, Ronan 4 → owes 6, full-term 12 → owes 0.
+- Finn shows paid today and is offered 3 more weeks. Ronan shows unpaid today and is offered 6 more weeks; with 4 weeks paid, he can't register for grading.
+- Tests: covered-until date, paid/unpaid by today's date, remaining weeks, and the 6-week grading threshold.
 
 ## Technical details
-- New `_term_remaining_weeks(student, term)` = max(0, required − paid).
-- `get_public_chat_terms_for_student` also returns `paid_weeks` and `remaining_weeks`. `/hello` uses `remaining_weeks` as the default quantity for a part-paid term.
-- `get_student_fee_plan_for_term`: unchanged for the 4-week lock. The remaining quantity comes from the new column.
-- `get_access_student_payment_summary`: paid means `_term_payment_status = 'paid'`; a part-paid term counts as unpaid.
-- New staff RPC `term_payment_statuses(branch, term)` (staff sign-in or branch-password gated) returns student → paid | partial | unpaid. `BranchDashboard` termPaid, `BranchGradingList` term_paid and `PaySchoolFeesDialog` paidTermIds use it, plus a per-student variant `student_term_statuses(student)`.
-- `src/utils/termFullyPaid.ts`: add `remainingWeeks()` with tests.
+- `_term_coverage(student, term)` returns paid_weeks, required_weeks, covered_from, covered_until = covered_from + paid_weeks*7 − 1 (capped at term end), remaining_weeks and grading_eligible (paid_weeks ≥ LEAST(6, required_weeks)).
+- `_term_payment_status`: 'paid' when fully paid or CURRENT_DATE ≤ covered_until; otherwise 'unpaid'; 'none' unchanged.
+- `get_public_chat_terms_for_student` adds `paid_weeks`, `remaining_weeks` and `covered_until`. `is_paid` means fully paid, so the term stays payable until it's fully covered.
+- The /hello grading prerequisite and the PayGradingDialog / submit paths check `grading_eligible`.
+- `get_access_student_payment_summary` uses `_term_payment_status`.
+- New staff RPC `term_payment_statuses(branch, term)` (staff sign-in or branch password) is used by BranchDashboard, BranchGradingList and PaySchoolFeesDialog.
+- Mirror in `src/utils/termFullyPaid.ts` (`termCoverage`), with tests. Update the AGENTS.md rule and save the 6-week grading rule to memory.
