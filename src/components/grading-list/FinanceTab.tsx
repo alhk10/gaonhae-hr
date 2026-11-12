@@ -17,6 +17,7 @@ import { formatDate, toISODate } from '@/utils/dateFormat';
 import DateField from '@/components/attendance/DateField';
 import { withRunningBalance, JournalRow, JournalLine } from '@/utils/branchJournal';
 import jsPDF from 'jspdf';
+import BankReconciliation from '@/components/finance/BankReconciliation';
 import autoTable from 'jspdf-autotable';
 
 const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
@@ -32,7 +33,20 @@ const monthEnd = () => { const d = new Date(); return toISODate(new Date(d.getFu
 interface Draft { id?: string; entry_date: string; direction: 'in' | 'out'; category: string; description: string; amount: string; remark: string; file: File | null }
 const emptyDraft = (): Draft => ({ entry_date: toISODate(new Date()), direction: 'out', category: 'Other expense', description: '', amount: '', remark: '', file: null });
 
-const FinanceTab: React.FC<Props> = ({ branches }) => {
+const FinanceTab: React.FC<Props> = (props) => {
+  const [view, setView] = useState<'journal' | 'bank'>('journal');
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Button size="sm" variant={view === 'journal' ? 'default' : 'outline'} onClick={() => setView('journal')}>Running journal</Button>
+        <Button size="sm" variant={view === 'bank' ? 'default' : 'outline'} onClick={() => setView('bank')}>Bank reconciliation (SG)</Button>
+      </div>
+      {view === 'journal' ? <JournalView {...props} /> : <BankReconciliation />}
+    </div>
+  );
+};
+
+const JournalView: React.FC<Props> = ({ branches }) => {
   const qc = useQueryClient();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [from, setFrom] = useState(monthStart());

@@ -1,0 +1,2 @@
+INSERT INTO public.bank_sync_state(source) VALUES ('anext_email') ON CONFLICT DO NOTHING;
+ALTER TABLE public.bank_sync_state ADD COLUMN IF NOT EXISTS sync_token text NOT NULL DEFAULT encode(extensions.gen_random_bytes(24), 'hex');

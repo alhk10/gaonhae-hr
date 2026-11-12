@@ -386,6 +386,101 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_sync_state: {
+        Row: {
+          last_count: number | null
+          last_error: string | null
+          last_synced_at: string | null
+          source: string
+          sync_token: string
+        }
+        Insert: {
+          last_count?: number | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          source: string
+          sync_token?: string
+        }
+        Update: {
+          last_count?: number | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          source?: string
+          sync_token?: string
+        }
+        Relationships: []
+      }
+      bank_transactions: {
+        Row: {
+          account_last4: string | null
+          amount: number
+          created_at: string
+          currency: string
+          gmail_message_id: string
+          id: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_payment_id: string | null
+          method: string | null
+          payer_name: string | null
+          raw_snippet: string | null
+          received_at: string
+          source: string
+          status: string
+          status_reason: string | null
+          txn_ref: string
+          updated_at: string
+        }
+        Insert: {
+          account_last4?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          gmail_message_id: string
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_payment_id?: string | null
+          method?: string | null
+          payer_name?: string | null
+          raw_snippet?: string | null
+          received_at: string
+          source?: string
+          status?: string
+          status_reason?: string | null
+          txn_ref: string
+          updated_at?: string
+        }
+        Update: {
+          account_last4?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          gmail_message_id?: string
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_payment_id?: string | null
+          method?: string | null
+          payer_name?: string | null
+          raw_snippet?: string | null
+          received_at?: string
+          source?: string
+          status?: string
+          status_reason?: string | null
+          txn_ref?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_statuses: {
         Row: {
           color: string | null
@@ -8234,6 +8329,27 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: boolean
       }
+      _bank_apply_match: {
+        Args: { p_by: string; p_payment_id: string; p_txn_id: string }
+        Returns: undefined
+      }
+      _bank_ref_match: { Args: { a: string; b: string }; Returns: boolean }
+      _bank_txn_candidates: {
+        Args: { p_txn_id: string }
+        Returns: {
+          amount: number
+          branch_id: string
+          invoice_id: string
+          invoice_number: string
+          name_match: boolean
+          payment_date: string
+          payment_id: string
+          proof_ref: string
+          ref_match: boolean
+          shortage: boolean
+          student_name: string
+        }[]
+      }
       _cert_apply: { Args: { p_id: string }; Returns: undefined }
       _cert_can_manage: {
         Args: { p_password: string; p_student_id: string }
@@ -8445,6 +8561,24 @@ export type Database = {
       access_attendance_week: {
         Args: { p_branch_id: string; p_password: string; p_week_start: string }
         Returns: Json
+      }
+      access_bank_check: { Args: { p_password: string }; Returns: boolean }
+      access_bank_match: {
+        Args: { p_password: string; p_payment_id: string; p_txn_id: string }
+        Returns: undefined
+      }
+      access_bank_transactions: {
+        Args: {
+          p_from?: string
+          p_password: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: Json
+      }
+      access_bank_unmatch: {
+        Args: { p_password: string; p_txn_id: string }
+        Returns: undefined
       }
       access_branch_journal: {
         Args: {
@@ -10815,6 +10949,10 @@ export type Database = {
       recalc_invoice_from_payments: {
         Args: { p_invoice_id: string }
         Returns: undefined
+      }
+      reconcile_bank_transaction: {
+        Args: { p_txn_id: string }
+        Returns: string
       }
       record_external_invoice_payment: {
         Args: {
