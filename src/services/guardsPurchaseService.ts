@@ -2,6 +2,7 @@
  * Service for the public /guards purchase form and /guardspurchase-list admin view.
  * No-auth public submission; superadmin-only reads via RLS.
  */
+import { accessPassword } from '@/utils/accessBranchScope';
 import { supabase } from '@/integrations/supabase/client';
 import { toISODate } from '@/utils/dateFormat';
 
@@ -95,7 +96,7 @@ export interface GuardsBranchAdminItem {
 
 /** Items available for purchase on the public page for a branch. */
 export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsBranchItem[]> => {
-  const { data, error } = await supabase.rpc('get_public_guards_products' as any, { p_branch_id: branchId });
+  const { data, error } = await supabase.rpc('get_public_guards_products' as any, { p_branch_id: branchId, p_password: accessPassword() });
   if (error) throw error;
   return ((data || []) as any[]).map((r) => ({
     ...r,
@@ -107,7 +108,7 @@ export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsB
 };
 
 export const getGuardsProductsForBranchAdmin = async (branchId: string): Promise<GuardsBranchAdminItem[]> => {
-  const { data, error } = await supabase.rpc('get_guards_products_for_branch_admin' as any, { p_branch_id: branchId });
+  const { data, error } = await supabase.rpc('get_guards_products_for_branch_admin' as any, { p_branch_id: branchId, p_password: accessPassword() });
   if (error) throw error;
   return ((data || []) as any[]).map((r) => ({
     ...r,
@@ -131,6 +132,7 @@ export const setGuardsProductBranchSetting = async (
     p_available: available,
     p_price_override: priceOverride,
     p_actor: actor || null,
+    p_password: accessPassword(),
   });
   if (error) throw error;
 };
@@ -149,6 +151,7 @@ export const setGuardsProductRestrictions = async (
     p_max_age: maxAge,
     p_belts: belts && belts.length ? belts : null,
     p_actor: actor || null,
+    p_password: accessPassword(),
   });
   if (error) throw error;
 };

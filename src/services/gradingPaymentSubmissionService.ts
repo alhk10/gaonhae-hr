@@ -2,6 +2,7 @@
  * Service for the public grading payment module.
  * Used by the public /pay and /access pages (no auth required).
  */
+import { accessPassword } from '@/utils/accessBranchScope';
 import { supabase } from '@/integrations/supabase/client';
 import { assertValidPaymentProof, assertValidDateOfBirth, newClientRef } from '@/utils/publicPaymentValidation';
 
@@ -749,6 +750,7 @@ export const adminSetGradingSlotMeta = async (
     p_slot_kind: meta.slot_kind,
     p_year: meta.grading_year,
     p_term: meta.grading_term,
+    p_password: accessPassword(),
   });
   if (error) throw error;
 };
@@ -804,13 +806,14 @@ export const adminUpsertGradingSlot = async (
     p_min_age: input.min_age ?? null,
     p_max_age: input.max_age ?? null,
     p_available_branch_ids: input.available_branch_ids?.length ? input.available_branch_ids : null,
+    p_password: accessPassword(),
   });
   if (error) throw error;
   return data as string;
 };
 
 export const adminDeleteGradingSlot = async (id: string): Promise<void> => {
-  const { error } = await (supabase as any).rpc('admin_delete_grading_slot', { p_id: id });
+  const { error } = await (supabase as any).rpc('admin_delete_grading_slot', { p_id: id, p_password: accessPassword() });
   if (error) throw error;
 };
 

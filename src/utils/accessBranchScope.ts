@@ -14,3 +14,11 @@ export const accessSettingsBranchIds = (): string[] | null => {
 
 export const filterSettingsBranches = <T,>(branches: T[], allowed: string[] | null = accessSettingsBranchIds()): T[] =>
   allowed ? branches.filter((b: any) => allowed.includes(b.branch_id || b.id)) : branches;
+
+/** /access password for server-side settings checks (superadmin pages send null and rely on sign-in). */
+export const accessPassword = (): string | null => {
+  try { return sessionStorage.getItem('access_pw_v1') || null; } catch { return null; }
+};
+
+/** True when the restrictions that apply to every branch may be edited here. */
+export const canEditCompanyWideSettings = (): boolean => accessSettingsBranchIds() === null;

@@ -1,3 +1,4 @@
+import { accessPassword } from '@/utils/accessBranchScope';
 import { supabase } from '@/integrations/supabase/client';
 
 const db = supabase as any;
@@ -50,7 +51,7 @@ export const getRentalSettings = async (): Promise<RentalSettings[]> => {
 export const saveRentalSettings = async (s: RentalSettings) => {
   const { error } = await db.rpc('admin_upsert_studio_rental_settings', {
     p_branch_id: s.branch_id, p_enabled: s.enabled, p_hourly: s.hourly_rate,
-    p_discounted: s.discounted_rate, p_threshold: s.monthly_threshold_hours, p_deposit: s.deposit_amount,
+    p_discounted: s.discounted_rate, p_threshold: s.monthly_threshold_hours, p_deposit: s.deposit_amount, p_password: accessPassword(),
   });
   if (error) throw error;
 };
@@ -181,7 +182,7 @@ export const getAgreementTemplate = async (): Promise<string | null> => {
 };
 
 export const saveAgreementTemplate = async (text: string | null) => {
-  const { error } = await db.rpc('admin_save_studio_rental_agreement_template', { p_text: text, p_actor: 'access' });
+  const { error } = await db.rpc('admin_save_studio_rental_agreement_template', { p_text: text, p_actor: 'access', p_password: accessPassword() });
   if (error) throw error;
 };
 

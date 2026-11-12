@@ -8476,6 +8476,105 @@ export type Database = {
         }[]
       }
       _hello_items_fingerprint: { Args: { p_items: Json }; Returns: string }
+      _impl_delete_grading_slot: { Args: { p_id: string }; Returns: undefined }
+      _impl_guards_products_for_branch_admin: {
+        Args: { p_branch_id: string }
+        Returns: {
+          allowed_belt_levels: string[]
+          default_price: number
+          description: string
+          is_available: boolean
+          item_key: string
+          item_type: string
+          max_age: number
+          min_age: number
+          name: string
+          price_override: number
+          product_id: string
+        }[]
+      }
+      _impl_save_studio_rental_agreement_template: {
+        Args: { p_actor: string; p_text: string }
+        Returns: undefined
+      }
+      _impl_set_class_product_age_range: {
+        Args: {
+          p_actor?: string
+          p_max_age: number
+          p_min_age: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
+      _impl_set_class_product_branch_pricing: {
+        Args: {
+          p_actor?: string
+          p_available: boolean
+          p_branch_id: string
+          p_price_override: number
+          p_product_id: string
+        }
+        Returns: string
+      }
+      _impl_set_grading_slot_meta: {
+        Args: {
+          p_id: string
+          p_is_hidden: boolean
+          p_slot_kind: string
+          p_term: number
+          p_year: number
+        }
+        Returns: undefined
+      }
+      _impl_set_guards_product_branch_setting: {
+        Args: {
+          p_actor?: string
+          p_available: boolean
+          p_branch_id: string
+          p_item_key: string
+          p_price_override: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
+      _impl_set_guards_product_restrictions: {
+        Args: {
+          p_actor?: string
+          p_belts: string[]
+          p_max_age: number
+          p_min_age: number
+          p_product_id: string
+        }
+        Returns: undefined
+      }
+      _impl_upsert_grading_slot: {
+        Args: {
+          p_available_branch_ids?: string[]
+          p_belt_levels?: string[]
+          p_branch_id: string
+          p_end_time?: string
+          p_grading_date: string
+          p_grading_product_ids?: string[]
+          p_id: string
+          p_location?: string
+          p_max_age?: number
+          p_min_age?: number
+          p_start_time?: string
+          p_title?: string
+        }
+        Returns: string
+      }
+      _impl_upsert_studio_rental_settings: {
+        Args: {
+          p_branch_id: string
+          p_deposit: number
+          p_discounted: number
+          p_enabled: boolean
+          p_hourly: number
+          p_threshold: number
+        }
+        Returns: undefined
+      }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _lesson_balance: {
         Args: {
@@ -8555,6 +8654,14 @@ export type Database = {
       _scope_has: {
         Args: { p_branch: string; p_scope: string }
         Returns: boolean
+      }
+      _settings_guard: {
+        Args: {
+          p_branch_id: string
+          p_password: string
+          p_require_all?: boolean
+        }
+        Returns: undefined
       }
       _studio_rental_create_invoice: {
         Args: { p_by: string; p_id: string }
@@ -9018,7 +9125,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
-      admin_delete_grading_slot: { Args: { p_id: string }; Returns: undefined }
+      admin_delete_grading_slot: {
+        Args: { p_id: string; p_password?: string }
+        Returns: undefined
+      }
       admin_delete_grading_submission: {
         Args: { p_id: string }
         Returns: undefined
@@ -9249,7 +9359,7 @@ export type Database = {
         Returns: undefined
       }
       admin_save_studio_rental_agreement_template: {
-        Args: { p_actor: string; p_text: string }
+        Args: { p_actor: string; p_password?: string; p_text: string }
         Returns: undefined
       }
       admin_school_fees_delete_context: {
@@ -9281,6 +9391,7 @@ export type Database = {
           p_actor?: string
           p_max_age: number
           p_min_age: number
+          p_password?: string
           p_product_id: string
         }
         Returns: undefined
@@ -9290,6 +9401,7 @@ export type Database = {
           p_actor?: string
           p_available: boolean
           p_branch_id: string
+          p_password?: string
           p_price_override: number
           p_product_id: string
         }
@@ -9319,6 +9431,7 @@ export type Database = {
         Args: {
           p_id: string
           p_is_hidden: boolean
+          p_password?: string
           p_slot_kind: string
           p_term: number
           p_year: number
@@ -9331,6 +9444,7 @@ export type Database = {
           p_available: boolean
           p_branch_id: string
           p_item_key: string
+          p_password?: string
           p_price_override: number
           p_product_id: string
         }
@@ -9342,6 +9456,7 @@ export type Database = {
           p_belts: string[]
           p_max_age: number
           p_min_age: number
+          p_password?: string
           p_product_id: string
         }
         Returns: undefined
@@ -9504,18 +9619,19 @@ export type Database = {
       }
       admin_upsert_grading_slot: {
         Args: {
-          p_available_branch_ids?: string[]
-          p_belt_levels?: string[]
+          p_available_branch_ids: string[]
+          p_belt_levels: string[]
           p_branch_id: string
-          p_end_time?: string
+          p_end_time: string
           p_grading_date: string
-          p_grading_product_ids?: string[]
+          p_grading_product_ids: string[]
           p_id: string
-          p_location?: string
-          p_max_age?: number
-          p_min_age?: number
-          p_start_time?: string
-          p_title?: string
+          p_location: string
+          p_max_age: number
+          p_min_age: number
+          p_password?: string
+          p_start_time: string
+          p_title: string
         }
         Returns: string
       }
@@ -9546,6 +9662,7 @@ export type Database = {
           p_discounted: number
           p_enabled: boolean
           p_hourly: number
+          p_password?: string
           p_threshold: number
         }
         Returns: undefined
@@ -9917,7 +10034,7 @@ export type Database = {
         }[]
       }
       get_guards_products_for_branch_admin: {
-        Args: { p_branch_id: string }
+        Args: { p_branch_id: string; p_password?: string }
         Returns: {
           allowed_belt_levels: string[]
           default_price: number

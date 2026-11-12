@@ -1,3 +1,4 @@
+import { accessPassword } from '@/utils/accessBranchScope';
 /**
  * Service for school-fee payments submitted through the public /hello chat.
  * Backed by SECURITY DEFINER functions so the public /access page can read
@@ -207,6 +208,7 @@ export const setClassProductBranchPricing = async (
     p_available: available,
     p_price_override: priceOverride,
     p_actor: actor || null,
+    p_password: accessPassword(),
   });
   if (error) throw error;
 };
@@ -223,6 +225,7 @@ export const setClassProductAgeRange = async (
     p_min_age: minAge,
     p_max_age: maxAge,
     p_actor: actor || null,
+    p_password: accessPassword(),
   });
   if (error) throw error;
 };

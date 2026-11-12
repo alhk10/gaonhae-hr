@@ -36,7 +36,7 @@ const beltText = (p: { allowed_belt_levels?: string[] | null }) => {
   return l.length === 1 ? l[0] : `${l[0]} – ${l[l.length - 1]}`;
 };
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
-import { filterSettingsBranches } from '@/utils/accessBranchScope';
+import { filterSettingsBranches, canEditCompanyWideSettings } from '@/utils/accessBranchScope';
 import {
   getGuardsProductsForBranchAdmin,
   setGuardsProductBranchSetting,
@@ -181,7 +181,7 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
     setDraft((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
   const renderRestrictionEditor = (p: GuardsBranchAdminItem, d: DraftRow) => {
-    if (!p.product_id) {
+    if (!p.product_id || !canEditCompanyWideSettings()) {
       return <div className="text-[11px] text-muted-foreground">{ageText(p)} · {beltText(p)}</div>;
     }
     const beltSelect = (value: string, field: 'beltFrom' | 'beltTo', label: string) => (
