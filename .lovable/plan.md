@@ -1,14 +1,14 @@
-# Fix missing products when paging the Products list
+# Remove the duplicate "Gaonhae Protection Guard Set" row
 
-## Cause
-The list fetches 20 products per page first, then hides inactive ones (the default "Active" filter) and branch-hidden ones afterwards. So page 1 showed only 6 of its 20, the count still said 24, and active products on other pages were skipped or shown out of place.
+## Why there are two
+- The row marked **Package** is the real set customers buy (on, S$160 for this branch).
+- The plain row is a copy created on 08/11 so package orders can show their line items on invoices. It is meant to stay behind the scenes, but the guards settings list also shows it as a normal product (toggled off). Nobody has bought it as a separate product.
+- The Adidas set has the same kind of hidden copy. It's inactive, so it doesn't show today.
 
 ## Fix
-- Apply the Active/Inactive filter in the database query itself, before paging, so each page holds 20 matching products and the count is correct.
-- Apply the branch filter the same way (exclude products hidden for that branch inside the query), so "Page X of Y" matches what you see.
-- Jumping filters resets to page 1 (already the case).
+- Hide these behind-the-scenes package copies from the Uniforms & Guards settings list and from the /hello shop product list, so each set appears once, as the Package row.
+- Invoices keep using the copy to show what's in the set, so nothing changes on invoices or past orders.
 
 ## Technical details
-- `getProducts` in `src/services/productService.ts`: add optional `status` (`is_active` eq) and `excludeIds` (`not in`) parameters.
-- `ProductManagementList.tsx` `loadProducts`: load hidden ids for the branch first, pass both to `getProducts`, remove the client-side filtering; also avoid the double load on filter change.
-- Check in the browser: Protection Guards & Accessories, Next page shows the remaining active products and the total matches.
+- Products whose SKU starts with `PKG-` are the package mirrors. Filter them out in `GuardsProductSettingsDialog.tsx`, in the source behind the public guards product list (`_impl_guards_products_for_branch_admin` / the public product fetch), and in `PublicGuardsPurchaseList.tsx` if it lists products directly.
+- No data is deleted.
