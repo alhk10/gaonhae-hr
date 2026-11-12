@@ -36,6 +36,7 @@ const beltText = (p: { allowed_belt_levels?: string[] | null }) => {
   return l.length === 1 ? l[0] : `${l[0]} – ${l[l.length - 1]}`;
 };
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
+import { filterSettingsBranches } from '@/utils/accessBranchScope';
 import {
   getGuardsProductsForBranchAdmin,
   setGuardsProductBranchSetting,
@@ -103,15 +104,16 @@ const GuardsProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, acto
   const [draft, setDraft] = useState<Record<string, DraftRow>>({});
   const [saving, setSaving] = useState(false);
 
-  const { data: branches = [] } = useQuery({
+  const { data: allBranches = [] } = useQuery({
     queryKey: ['public-branches'],
     queryFn: getPublicBranches,
     staleTime: 5 * 60 * 1000,
     enabled: open,
   });
+  const branches = useMemo(() => filterSettingsBranches(allBranches as any[]), [allBranches]);
 
   useEffect(() => {
-    if (open && !branchId && branches.length > 0) {
+    if (open && branches.length > 0 && (!branchId || !(branches as any[]).some((b) => (b.branch_id || b.id) === branchId))) {
       setBranchId((branches[0] as any).branch_id || (branches[0] as any).id || '');
     }
   }, [open, branches, branchId]);

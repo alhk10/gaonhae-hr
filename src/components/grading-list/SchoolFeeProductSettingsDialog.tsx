@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { getPublicBranches } from '@/services/gradingPaymentSubmissionService';
+import { filterSettingsBranches } from '@/utils/accessBranchScope';
 import {
   getClassProductsForBranchAdmin,
   setClassProductBranchPricing,
@@ -51,15 +52,16 @@ const SchoolFeeProductSettingsDialog: React.FC<Props> = ({ open, onOpenChange, a
   const [draft, setDraft] = useState<Record<string, DraftRow>>({});
   const [saving, setSaving] = useState(false);
 
-  const { data: branches = [] } = useQuery({
+  const { data: allBranches = [] } = useQuery({
     queryKey: ['public-branches'],
     queryFn: getPublicBranches,
     staleTime: 5 * 60 * 1000,
     enabled: open,
   });
+  const branches = useMemo(() => filterSettingsBranches(allBranches as any[]), [allBranches]);
 
   useEffect(() => {
-    if (open && !branchId && branches.length > 0) {
+    if (open && branches.length > 0 && (!branchId || !(branches as any[]).some((b) => (b.branch_id || b.id) === branchId))) {
       setBranchId((branches[0] as any).branch_id || (branches[0] as any).id || '');
     }
   }, [open, branches, branchId]);

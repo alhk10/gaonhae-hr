@@ -679,9 +679,21 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     } catch { toast.error('Failed to load students'); }
   };
 
+  // Guard packages are inactive catalogue products (listed separately on /guards & /hello);
+  // append them so staff can invoice them, priced per branch.
+  const withPackages = async <T extends { products: any[] }>(res: T): Promise<T> => {
+    try {
+      const branchId = (isCreateMode ? formData.branch_id : invoice?.branch_id) || lockedBranchId || null;
+      const { data } = await supabase.rpc('get_invoice_package_products' as any, { p_branch_id: branchId });
+      const have = new Set(res.products.map((p: any) => p.id));
+      const extra = ((data as any[]) || []).filter((p) => !have.has(p.id)).map(transformProduct);
+      return { ...res, products: [...res.products, ...extra] };
+    } catch { return res; }
+  };
+
   const loadProducts = async () => {
     try {
-      const response = accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000);
+      const response = await withPackages(accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000));
       setProducts(response.products.map(p => ({
         id: p.id, name: p.name, sku: p.sku, base_price: p.base_price,
         category_id: p.category_id, available_variants: p.available_variants,
@@ -695,7 +707,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const loadViewProducts = async () => {
     try {
-      const result = accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000);
+      const result = await withPackages(accessMode ? { products: (await getCatalog()).products.map(transformProduct) } : await getProducts(1, 1000));
       setViewProducts(result.products as any);
     } catch { console.error('Error loading products'); }
   };

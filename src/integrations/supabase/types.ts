@@ -9932,6 +9932,10 @@ export type Database = {
           product_id: string
         }[]
       }
+      get_invoice_package_products: {
+        Args: { p_branch_id?: string }
+        Returns: Json
+      }
       get_invoice_pending_requests: {
         Args: { p_invoice_id: string }
         Returns: Json
