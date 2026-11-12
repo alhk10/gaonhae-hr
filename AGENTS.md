@@ -25,3 +25,4 @@
 - Dan > Dan conversion requires the stored `pre_conversion_poom` number to be at least the target Dan (checked in `_dan_conversion_check` and `danConversion.ts`); otherwise the student grades, and passed Dan gradings set `last_dan_conversion_at` so wait periods stay consistent.
 - Grading belt outcomes come from the linked fee line "X >> Y" (SQL `_grading_effective_belts`, mirrored in `src/utils/gradingOutcome.ts`); Double adds one belt; combined Foundation lines on one invoice (`_grading_steps`) write one history row per step under a single registration, so each step gets its own certificate.
 - GST is always charged on the subtotal after discount (`src/utils/invoiceTotals.ts`); invoice totals display Subtotal > Discount > GST > Total, so printed math matches what is charged.
+- Attendance term arrows use the full branch calendar from attendance settings and jump to adjacent term start dates; week-scoped terms cannot navigate across term breaks.

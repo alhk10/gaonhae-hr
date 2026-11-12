@@ -21,6 +21,7 @@ import {
   setReadyForGrading, type LessonBooking, type TimetableSlot,
 } from '@/services/lessonBookingService';
 import { gradingBadgeState } from '@/utils/gradingReady';
+import { adjacentAttendanceTerm } from '@/utils/attendanceTerm';
 import AttendanceSettingsDialog from './AttendanceSettingsDialog';
 import ProgressCardDialog from './ProgressCardDialog';
 import { calendarTermSetting, muteUnpaidSetting, progressSettings, listProgressCards, getProgressReport } from '@/services/progressCardService';
@@ -217,6 +218,13 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
     });
   }, [termData, curTerm]);
   const showTerm = !!termView && !!curTerm;
+  const previousTerm = adjacentAttendanceTerm(settings?.terms || [], curTerm, dayIso, -1);
+  const nextTerm = adjacentAttendanceTerm(settings?.terms || [], curTerm, dayIso, 1);
+  const navigate = (direction: -1 | 1) => {
+    if (!termView) { setDay(addDays(day, direction)); return; }
+    const target = direction === -1 ? previousTerm : nextTerm;
+    if (target) setDay(parseIsoDate(target.start_date));
+  };
   const { data: progressOn } = useQuery({ queryKey: ['progress-settings', branchId], queryFn: () => progressSettings(branchId), enabled: !!branchId, retry: false });
   const { data: cardRows } = useQuery({
     queryKey: ['progress-cards', branchId, termIds], queryFn: () => listProgressCards(branchId, termIds),
@@ -375,16 +383,16 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
           </Select>
         )}
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(showTerm ? addDays(parseIsoDate(curTerm!.start_date), -1) : addDays(day, -1))} aria-label={showTerm ? 'Previous term' : 'Previous day'}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => navigate(-1)} disabled={!!termView && !previousTerm} aria-label={termView ? 'Previous term' : 'Previous day'}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDay(new Date())}>Today</Button>
-          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setDay(showTerm ? addDays(parseIsoDate(curTerm!.end_date), 1) : addDays(day, 1))} aria-label={showTerm ? 'Next term' : 'Next day'}>
+          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => navigate(1)} disabled={!!termView && !nextTerm} aria-label={termView ? 'Next term' : 'Next day'}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <span className="text-xs font-medium">
-          {showTerm ? <>{curTerm!.name} · {formatDate(curTerm!.start_date)} – {formatDate(curTerm!.end_date)}</> : <>{WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}</>}
+          {showTerm && curTerm ? <>{curTerm.name} · {formatDate(curTerm.start_date)} – {formatDate(curTerm.end_date)}</> : <>{WEEKDAY_LABELS[day.getDay()]} {formatDate(dayIso)}</>}
           {!showTerm && termLabel && <span className="text-muted-foreground"> · {termLabel}</span>}
         </span>
         {(canEdit || viewOnly) && branchId && progressOn && (
