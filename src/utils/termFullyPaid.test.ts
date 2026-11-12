@@ -1,8 +1,6 @@
-import { describe, it, expect } from 'vitest';
 import { isTermFullyPaid } from './termFullyPaid';
-
-describe('isTermFullyPaid', () => {
-  it('4 of 12 weeks is not paid', () => expect(isTermFullyPaid([{ plan: 'four_weeks', weeks: 4 }], 12)).toBe(false));
-  it('three 4-week plans cover 12 weeks', () => expect(isTermFullyPaid([1, 2, 3].map(() => ({ plan: 'four_weeks', weeks: 4 })), 12)).toBe(true));
-  it('full-term plan is paid', () => expect(isTermFullyPaid([{ plan: 'term' }], 12)).toBe(true));
-});
+const eq = (a: unknown, b: unknown, m: string) => { if (a !== b) throw new Error(`${m}: ${a} !== ${b}`); };
+eq(isTermFullyPaid([{ plan: 'four_weeks', weeks: 4 }], 12), false, '4 of 12 weeks is not paid');
+eq(isTermFullyPaid([1, 2, 3].map(() => ({ plan: 'four_weeks', weeks: 4 })), 12), true, 'three 4-week plans cover 12 weeks');
+eq(isTermFullyPaid([{ plan: 'term' }], 12), true, 'full-term plan is paid');
+console.log('termFullyPaid ok');
