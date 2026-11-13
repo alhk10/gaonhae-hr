@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Restore the `/hello` guard-set request; verified real guard-set and sized-uniform selections reach payment without staff access.
 - [x] Restore legacy Perth competition event entries and verify PDF inclusion.
 - [x] /hello duplicate-submission prevention
 - [x] Success screen shows transaction code + copy

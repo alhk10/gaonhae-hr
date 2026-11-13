@@ -96,7 +96,7 @@ export interface GuardsBranchAdminItem {
 
 /** Items available for purchase on the public page for a branch. */
 export const getPublicGuardsProducts = async (branchId: string): Promise<GuardsBranchItem[]> => {
-  const { data, error } = await supabase.rpc('get_public_guards_products' as any, { p_branch_id: branchId, p_password: accessPassword() });
+  const { data, error } = await supabase.rpc('get_public_guards_products', { p_branch_id: branchId });
   if (error) throw error;
   return ((data || []) as any[]).map((r) => ({
     ...r,
