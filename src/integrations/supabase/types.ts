@@ -8174,6 +8174,56 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_requests: {
+        Row: {
+          branch_id: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          participant_dob: string | null
+          participant_name: string
+          remarks: string | null
+          source: string | null
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          participant_dob?: string | null
+          participant_name: string
+          remarks?: string | null
+          source?: string | null
+          status?: string
+        }
+        Update: {
+          branch_id?: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          participant_dob?: string | null
+          participant_name?: string
+          remarks?: string | null
+          source?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_passwords: {
         Row: {
           created_at: string
@@ -9039,6 +9089,27 @@ export type Database = {
       access_timetable_upsert: {
         Args: { p_password: string; p_row: Json }
         Returns: string
+      }
+      access_trial_request_set_status: {
+        Args: { p_id: string; p_password: string; p_status: string }
+        Returns: undefined
+      }
+      access_trial_requests: {
+        Args: { p_password: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          participant_dob: string
+          participant_name: string
+          remarks: string
+          source: string
+          status: string
+        }[]
       }
       access_unlock: { Args: { p_password: string }; Returns: Json }
       add_password_to_history: {

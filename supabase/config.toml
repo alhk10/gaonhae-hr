@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.sign-payment-proof]
 verify_jwt = false
+
+[functions.receive-trial-request]
+verify_jwt = false
