@@ -1,4 +1,5 @@
 import TrialRequestsList from '@/components/common/TrialRequestsList';
+import GradingOverridesList from '@/components/common/GradingOverridesList';
 import PaymentShortageList from '@/components/common/PaymentShortageList';
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -297,6 +298,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
   return (
     <div className="space-y-4">
       <TrialRequestsList mode="access" branchId={lockedBranchId || null} />
+      <GradingOverridesList mode="access" />
       {/* 1. Student snapshot */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {tiles.map((t) => (

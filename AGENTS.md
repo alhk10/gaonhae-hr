@@ -31,3 +31,4 @@
 - Branch-scoped settings RPCs (guards/class pricing, grading slots, studio rental) are thin wrappers that call `_settings_guard(p_password, branch, require_all)` before a revoked `_impl_*` function; company-wide limits need the all-branch password or superadmin, so branch passwords can't change other branches.
 - Public catalogue reads use the generated Supabase RPC signature without staff-password arguments, so `/hello` works without an `/access` session.
 - Ticking Ready for grading in /access checks term fees via `access_grading_term_fee_status`; staff may set `grading_registrations.fee_override`, which `hello_grading_eligibility` honours, so fee exceptions are explicit and per term.
+- Grading fee overrides are logged in `grading_override_log` by `access_set_ready_for_grading` and shown only to superadmins / the all-branch password, so overrides are always reviewable.

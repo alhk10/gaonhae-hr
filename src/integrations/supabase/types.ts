@@ -2082,6 +2082,51 @@ export type Database = {
           },
         ]
       }
+      grading_override_log: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          id: string
+          paid_weeks: number | null
+          password_label: string | null
+          registration_id: string | null
+          removed_at: string | null
+          seen_at: string | null
+          seen_by: string | null
+          student_id: string
+          term_id: string | null
+          term_weeks: number | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          paid_weeks?: number | null
+          password_label?: string | null
+          registration_id?: string | null
+          removed_at?: string | null
+          seen_at?: string | null
+          seen_by?: string | null
+          student_id: string
+          term_id?: string | null
+          term_weeks?: number | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          paid_weeks?: number | null
+          password_label?: string | null
+          registration_id?: string | null
+          removed_at?: string | null
+          seen_at?: string | null
+          seen_by?: string | null
+          student_id?: string
+          term_id?: string | null
+          term_weeks?: number | null
+        }
+        Relationships: []
+      }
       grading_payment_submissions: {
         Row: {
           amount: number | null
@@ -8898,6 +8943,25 @@ export type Database = {
       access_get_invoice_for_edit: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
+      }
+      access_grading_override_mark_seen: {
+        Args: { p_id: string; p_password: string }
+        Returns: undefined
+      }
+      access_grading_overrides: {
+        Args: { p_password: string }
+        Returns: {
+          branch_name: string
+          created_at: string
+          id: string
+          paid_weeks: number
+          password_label: string
+          removed_at: string
+          seen_at: string
+          student_name: string
+          term_name: string
+          term_weeks: number
+        }[]
       }
       access_grading_term_fee_status: {
         Args: { p_password: string; p_student_id: string; p_term_id: string }
