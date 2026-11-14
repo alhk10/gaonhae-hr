@@ -2525,17 +2525,33 @@ const PublicHelloChat: React.FC = () => {
                           )}
 
                           {/* SG Foundation: show only the auto-selected (current belt) product */}
-                          {isSGFoundation && (FOUNDATION_LEVELS as readonly string[]).map(level => {
-                            if (!selectedFoundationLevels.has(level)) return null;
-                            const prod = findFoundationProduct(level);
-                            if (!prod) return null;
-                            return (
-                              <div key={level} className="border rounded-lg p-2.5">
-                                <p className="text-sm font-medium">{prod.product_name}</p>
-                                <p className="text-xs text-muted-foreground">${getDisplayPrice(prod, branch?.country).toFixed(2)}</p>
-                              </div>
-                            );
-                          })}
+                          {isSGFoundation && (() => {
+                            const levels = FOUNDATION_LEVELS as readonly string[];
+                            const startIdx = levels.indexOf(matched!.current_belt as string);
+                            return levels.map((level, idx) => {
+                              if (idx < startIdx) return null;
+                              const prod = findFoundationProduct(level);
+                              if (!prod) return null;
+                              const checked = selectedFoundationLevels.has(level);
+                              const locked = idx === startIdx;
+                              const toggle = () => {
+                                if (locked) return;
+                                const next = new Set<string>();
+                                const upto = checked ? idx - 1 : idx;
+                                for (let i = startIdx; i <= upto; i++) next.add(levels[i]);
+                                setSelectedFoundationLevels(next);
+                              };
+                              return (
+                                <label key={level} className={`flex items-center gap-2 border rounded-lg p-2.5 ${locked ? '' : 'cursor-pointer'}`}>
+                                  <input type="checkbox" className="h-4 w-4 accent-primary" checked={checked} disabled={locked} onChange={toggle} />
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{prod.product_name}</p>
+                                    <p className="text-xs text-muted-foreground">${getDisplayPrice(prod, branch?.country).toFixed(2)}{locked ? ' · required' : ''}</p>
+                                  </div>
+                                </label>
+                              );
+                            });
+                          })()}
 
                           {/* Grading Slot — below Foundation checkboxes, above Continue */}
                           <div className="space-y-1.5">
