@@ -2,6 +2,7 @@
  * Public studio rental booking + payment form (no auth). Mounted at /rental.
  * Prices are recalculated server-side by submit_studio_rental.
  */
+import { useLocalBranches } from '@/hooks/useLocalBranches';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -59,6 +60,7 @@ const PublicStudioRental: React.FC = () => {
   const { data: settings = [], isLoading } = useQuery({ queryKey: ['studio-rental-settings'], queryFn: getRentalSettings });
   const branches = settings.filter(s => s.enabled);
   const cfg = branches.find(b => b.branch_id === branchId);
+  const { visible: localBranches, toggle: showAllBranches } = useLocalBranches(branches, (b) => b.country, branchId, (b) => b.branch_id);
   const isAU = /australia|^au$/i.test(cfg?.country || '');
   const currency = isAU ? 'AUD' : 'SGD';
 
@@ -150,9 +152,10 @@ const PublicStudioRental: React.FC = () => {
               <Select value={branchId} onValueChange={setBranchId}>
                 <SelectTrigger><SelectValue placeholder={isLoading ? 'Loading…' : 'Select branch'} /></SelectTrigger>
                 <SelectContent>
-                  {branches.map(b => <SelectItem key={b.branch_id} value={b.branch_id}>{b.branch_name}</SelectItem>)}
+                  {localBranches.map(b => <SelectItem key={b.branch_id} value={b.branch_id}>{b.branch_name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {showAllBranches}
               {!isLoading && branches.length === 0 && (
                 <p className="text-xs text-muted-foreground mt-1">Studio rental is not open for booking right now.</p>
               )}

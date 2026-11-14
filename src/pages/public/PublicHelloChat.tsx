@@ -1,4 +1,5 @@
 import { helloProgressCards, helloMarkCardViewed, downloadStudentCard, type StudentCard } from '@/services/progressCardService';
+import { useLocalBranches } from '@/hooks/useLocalBranches';
 import { supabase } from "@/integrations/supabase/client";
 import { helloShowsGrading } from "@/utils/gradingReady";
 /**
@@ -308,6 +309,7 @@ const PublicHelloChat: React.FC = () => {
   });
 
   const branch = useMemo(() => branches.find(b => b.id === branchId), [branches, branchId]);
+  const { visible: localBranches, toggle: showAllBranches } = useLocalBranches(branches, (b: any) => b.country, branchId, (b: any) => b.id);
   const curSym = branch?.country?.toLowerCase() === 'australia' ? 'A$' : 'S$';
 
   const dob = useMemo(() => {
@@ -1851,10 +1853,11 @@ const PublicHelloChat: React.FC = () => {
                     <option value="" disabled>
                       {branchesLoading ? 'Loading branches…' : branchesError ? 'Branches unavailable' : 'Choose your branch'}
                     </option>
-                    {branches.map(b => (
+                    {localBranches.map(b => (
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
+                  {showAllBranches}
                   {branchesError && (
                     <button
                       type="button"

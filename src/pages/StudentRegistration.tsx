@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocalBranches } from '@/hooks/useLocalBranches';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +80,7 @@ const StudentRegistration = () => {
     branch_id: '',
     notes: ''
   });
+  const { visible: localBranches, toggle: showAllBranches } = useLocalBranches(branches, (b: any) => b.country, formData.branch_id, (b: any) => b.id);
 
   // Existing-student detection: once the five identity fields are filled, check
   // whether this student is already registered at that branch.
@@ -360,11 +362,12 @@ const StudentRegistration = () => {
               <Select value={formData.branch_id} onValueChange={(v) => handleInputChange('branch_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger>
                 <SelectContent>
-                  {branches.map(b => (
+                  {localBranches.map(b => (
                     <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {showAllBranches}
             </CardContent>
           </Card>
 

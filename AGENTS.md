@@ -32,3 +32,4 @@
 - Public catalogue reads use the generated Supabase RPC signature without staff-password arguments, so `/hello` works without an `/access` session.
 - Ticking Ready for grading in /access checks term fees via `access_grading_term_fee_status`; staff may set `grading_registrations.fee_override`, which `hello_grading_eligibility` honours, so fee exceptions are explicit and per term.
 - Grading fee overrides are logged in `grading_override_log` by `access_set_ready_for_grading` and shown only to superadmins / the all-branch password, so overrides are always reviewable.
+- Public branch pickers (/hello, /register, /rental) filter by visitor country via `useLocalBranches` (IP lookup, timezone fallback, 'Show all branches' escape), so families see only their local branches.
