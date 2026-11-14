@@ -8807,6 +8807,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      _video_grading_slot: { Args: { p_slot_id: string }; Returns: string }
       access_apply_draft_invoice_edit: {
         Args: { p_invoice_id: string; p_password: string; p_request: Json }
         Returns: undefined

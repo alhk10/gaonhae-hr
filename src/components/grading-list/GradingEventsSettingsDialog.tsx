@@ -333,7 +333,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
           available_branch_ids: s.available_branch_ids,
         });
         await adminSetGradingSlotMeta(savedId || s.id!, {
-          is_hidden: s.is_hidden || s.slot_kind === 'double_promotion',
+          is_hidden: s.is_hidden || s.slot_kind === 'double_promotion' || s.slot_kind === 'video_grading',
           slot_kind: s.slot_kind,
           grading_year: parseInt(form.grading_year, 10),
           grading_term: parseInt(form.grading_term, 10),
@@ -555,6 +555,9 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                         {s.slot_kind === 'double_promotion' && (
                           <Badge variant="outline" className="text-[10px]">Double</Badge>
                         )}
+                        {s.slot_kind === 'video_grading' && (
+                          <Badge variant="outline" className="text-[10px]">Video grading</Badge>
+                        )}
                         {s.is_hidden && (
                           <Badge variant="outline" className="text-[10px]">Hidden</Badge>
                         )}
@@ -621,8 +624,17 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                           </label>
                           <label className="flex items-center gap-2 text-xs">
                             <Checkbox
+                              checked={s.slot_kind === 'video_grading'}
+                              onCheckedChange={(c) => updateSlot(idx, c
+                                ? { slot_kind: 'video_grading', is_hidden: true }
+                                : { slot_kind: 'regular' })}
+                            />
+                            Video grading slot
+                          </label>
+                          <label className="flex items-center gap-2 text-xs">
+                            <Checkbox
                               checked={s.is_hidden}
-                              disabled={s.slot_kind === 'double_promotion'}
+                              disabled={s.slot_kind === 'double_promotion' || s.slot_kind === 'video_grading'}
                               onCheckedChange={(c) => updateSlot(idx, { is_hidden: !!c })}
                             />
                             Hidden from /hello
