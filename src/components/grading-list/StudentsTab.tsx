@@ -48,7 +48,7 @@ import StudentNameButton from './StudentNameButton';
 import StudentEditDialog from './StudentEditDialog';
 import { Check } from 'lucide-react';
 import { gradingBadgeState } from '@/utils/gradingReady';
-import { setReadyForGrading } from '@/services/lessonBookingService';
+import { useReadyForGradingToggle } from '@/components/grading/useReadyForGradingToggle';
 import { cardsForStudents } from '@/services/progressCardService';
 import ProgressCardDialog from '@/components/attendance/ProgressCardDialog';
 import { termLabelOf } from '@/utils/progressCard';
@@ -88,6 +88,7 @@ const statusBadge = (s: string) => {
 
 const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilter, initialBranchId, drillNonce }) => {
   const qc = useQueryClient();
+  const { toggleReady, dialog: readyDialog } = useReadyForGradingToggle();
   const { user } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
   // Signed-in staff save invoices directly; password-only /access sessions
@@ -168,6 +169,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
 
   return (
     <div className="space-y-4">
+      {readyDialog}
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
         <div className="relative flex-1 min-w-[180px]">
@@ -320,7 +322,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                     : (
                       <button type="button" disabled={!canEdit}
                         onClick={async () => {
-                          try { await setReadyForGrading(r.id, r.term_id!, g !== 'ready'); qc.invalidateQueries({ queryKey: ['public-student-directory'] }); }
+                          try { if (await toggleReady(r.id, r.term_id!, g !== 'ready')) qc.invalidateQueries({ queryKey: ['public-student-directory'] }); }
                           catch (err) { toast.error((err as Error).message); }
                         }}
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${g === 'ready' ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'}`}>

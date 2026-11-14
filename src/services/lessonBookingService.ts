@@ -93,9 +93,15 @@ export interface LessonBooking {
   grading?: { ready: boolean; paid: boolean } | null;
 }
 
-export const setReadyForGrading = (studentId: string, termId: string, ready: boolean) =>
+export const setReadyForGrading = (studentId: string, termId: string, ready: boolean, feeOverride = false) =>
   rpc<{ ready: boolean; paid: boolean }>('access_set_ready_for_grading', {
-    p_password: accessPassword(), p_student_id: studentId, p_term_id: termId, p_ready: ready,
+    p_password: accessPassword(), p_student_id: studentId, p_term_id: termId, p_ready: ready, p_fee_override: feeOverride,
+  });
+
+export interface GradingTermFeeStatus { term_name: string | null; paid_weeks: number; term_weeks: number | null; grading_eligible: boolean }
+export const getGradingTermFeeStatus = (studentId: string, termId: string) =>
+  rpc<GradingTermFeeStatus>('access_grading_term_fee_status', {
+    p_password: accessPassword(), p_student_id: studentId, p_term_id: termId,
   });
 
 export interface AttendanceWeek {

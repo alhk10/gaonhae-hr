@@ -2224,6 +2224,7 @@ export type Database = {
           display_name: string | null
           duplicate_override_by: string | null
           duplicate_override_reason: string | null
+          fee_override: boolean
           grading_slot_id: string | null
           id: string
           invoice_item_id: string | null
@@ -2248,6 +2249,7 @@ export type Database = {
           display_name?: string | null
           duplicate_override_by?: string | null
           duplicate_override_reason?: string | null
+          fee_override?: boolean
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -2272,6 +2274,7 @@ export type Database = {
           display_name?: string | null
           duplicate_override_by?: string | null
           duplicate_override_reason?: string | null
+          fee_override?: boolean
           grading_slot_id?: string | null
           id?: string
           invoice_item_id?: string | null
@@ -8896,6 +8899,10 @@ export type Database = {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
       }
+      access_grading_term_fee_status: {
+        Args: { p_password: string; p_student_id: string; p_term_id: string }
+        Returns: Json
+      }
       access_grading_term_status: {
         Args: { p_slot_ids: string[] }
         Returns: {
@@ -9046,6 +9053,7 @@ export type Database = {
       }
       access_set_ready_for_grading: {
         Args: {
+          p_fee_override?: boolean
           p_password: string
           p_ready: boolean
           p_student_id: string

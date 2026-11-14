@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useReadyForGradingToggle } from '@/components/grading/useReadyForGradingToggle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Settings, UserPlus, X, Check, Ban, Clock, Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -102,6 +103,7 @@ const AddStudentButton: React.FC<{
 
 const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, viewOnly = false }) => {
   const qc = useQueryClient();
+  const { toggleReady, dialog: readyDialog } = useReadyForGradingToggle();
   const [pickedBranch, setPickedBranch] = useState<string>('');
   const branchId = lockedBranchId || pickedBranch || branches[0]?.id || '';
   const [day, setDay] = useState<Date>(() => new Date());
@@ -348,7 +350,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
                                 type="button"
                                 disabled={!canEdit}
                                 onClick={async () => {
-                                  try { await setReadyForGrading(b.student_id, b.term_id!, st !== 'ready'); refresh(); }
+                                  try { if (await toggleReady(b.student_id, b.term_id!, st !== 'ready')) refresh(); }
                                   catch (e) { toast.error((e as Error).message); }
                                 }}
                                 className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
@@ -373,6 +375,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
 
   return (
     <div className="space-y-3">
+      {readyDialog}
       <div className="flex flex-wrap items-center gap-2">
         {!lockedBranchId && branches.length > 0 && (
           <Select value={branchId} onValueChange={setPickedBranch}>
