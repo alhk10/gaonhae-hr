@@ -2,8 +2,7 @@
 
 ## What changes
 - When a recognised student logs in to /hello and staff have ticked Ready for grading, a pop-up appears:
-  - **Title:** "You are now ready for grading!"
-  - **Text:** congratulations, plus a reminder to arrive 10 minutes early in a white uniform.
+  - **Title:** "Good work! You are now ready for Grading." (no other text)
   - **Register & pay for grading:** opens the existing grading registration and payment flow (slot choice, payment proof).
   - **Later:** closes the pop-up. It returns on the next login until grading is paid.
 - **When it shows:** the pop-up follows the same rule as the grading button. It shows only when the student is ready, grading isn't paid yet, and term fees are paid (at least 50% of the term, any weeks for a late joiner, or a staff override). Once grading is paid it no longer shows.
