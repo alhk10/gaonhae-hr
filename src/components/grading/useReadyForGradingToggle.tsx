@@ -36,7 +36,6 @@ export function useReadyForGradingToggle() {
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
           <AlertDialogCancel onClick={() => choose('cancel')}>Cancel</AlertDialogCancel>
-          <Button variant="outline" onClick={() => choose('plain')}>Mark ready, fees unpaid</Button>
           <Button onClick={() => choose('override')}>Override and allow grading</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
