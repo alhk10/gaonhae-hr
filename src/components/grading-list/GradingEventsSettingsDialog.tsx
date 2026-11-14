@@ -53,7 +53,14 @@ interface SlotForm {
   registration_count: number;
   is_hidden: boolean;
   slot_kind: string;
+  prefix_location: boolean;
 }
+
+const LOC_SEP = ' · ';
+const withLocation = (title: string, loc: string, on: boolean) => {
+  const t = title.trim(); const l = loc.trim();
+  return on && l ? (t ? `${l}${LOC_SEP}${t}` : l) : t;
+};
 
 interface EventForm {
   key: string | null;          // original group key (date|branch), null when new
@@ -89,6 +96,7 @@ const emptySlot = (): SlotForm => ({
   registration_count: 0,
   is_hidden: false,
   slot_kind: 'regular',
+  prefix_location: false,
 });
 
 const emptyEvent = (): EventForm => ({
@@ -194,11 +202,14 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
     return list;
   }, [slots]);
 
-  const toSlotForm = (s: AdminGradingSlot, asNew: boolean): SlotForm => ({
+  const toSlotForm = (s: AdminGradingSlot, asNew: boolean, loc = ''): SlotForm => {
+    const raw = s.title || ''; const pre = loc.trim() ? `${loc.trim()}${LOC_SEP}` : '';
+    const hasPre = !!pre && (raw.startsWith(pre) || raw === loc.trim());
+    return ({
     id: asNew ? null : s.id,
     start_time: timeStr(s.start_time),
     end_time: timeStr(s.end_time),
-    title: s.title || '',
+    title: hasPre ? raw.slice(pre.length) : raw,
     belt_levels: Array.isArray(s.belt_levels) ? [...s.belt_levels] : [],
     grading_product_ids: Array.isArray(s.grading_product_ids) ? [...s.grading_product_ids] : [],
     min_age: s.min_age != null ? String(s.min_age) : '',
@@ -207,7 +218,8 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
     registration_count: asNew ? 0 : Number(s.registration_count || 0),
     is_hidden: !!s.is_hidden,
     slot_kind: s.slot_kind || 'regular',
-  });
+    prefix_location: hasPre,
+  }); };
 
   const fillForm = (g: EventGroup, asNew = false) => {
     setForm({
@@ -217,7 +229,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
       location: g.location || '',
       grading_year: asNew ? '' : String(g.slots.find(x => x.grading_year)?.grading_year ?? ''),
       grading_term: asNew ? '' : String(g.slots.find(x => x.grading_term)?.grading_term ?? ''),
-      slots: g.slots.map(s => toSlotForm(s, asNew)),
+      slots: g.slots.map(s => toSlotForm(s, asNew, g.location || '')),
       deletedIds: [],
     });
     setOpenSlot(null);
@@ -312,7 +324,7 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
           grading_date: form.grading_date,
           start_time: s.start_time || null,
           end_time: s.end_time || null,
-          title: s.title.trim() || null,
+          title: withLocation(s.title, form.location, s.prefix_location) || null,
           location: form.location.trim() || null,
           belt_levels: s.belt_levels,
           grading_product_ids: s.grading_product_ids,
@@ -615,6 +627,14 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                             />
                             Hidden from /hello
                           </label>
+                          <label className="flex items-center gap-2 text-xs">
+                            <Checkbox
+                              checked={s.prefix_location}
+                              disabled={!form.location.trim()}
+                              onCheckedChange={(c) => updateSlot(idx, { prefix_location: !!c })}
+                            />
+                            Add location before title
+                          </label>
                         </div>
 
                         <div className="space-y-1">
@@ -625,6 +645,9 @@ const GradingEventsSettingsDialog: React.FC<Props> = ({ open, onOpenChange, onCh
                             onChange={(e) => updateSlot(idx, { title: e.target.value })}
                             placeholder="e.g. Stage 1 - 3"
                           />
+                          {s.prefix_location && form.location.trim() && (
+                            <p className="text-[11px] text-muted-foreground">Shown as: {withLocation(s.title, form.location, true)}</p>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
