@@ -461,7 +461,9 @@ const PublicHelloChat: React.FC = () => {
   });
   const [cardPopupDismissed, setCardPopupDismissed] = useState<string | null>(null);
   const unviewedCard = progressCards.find((c) => !c.viewed_at);
-  const showCardPopup = stage === 'matched' && !!unviewedCard && !showOutstandingPopup && cardPopupDismissed !== unviewedCard.id;
+  const [gradingPopupDismissed, setGradingPopupDismissed] = useState<string | null>(null);
+  const showGradingReadyPopup = stage === 'matched' && !!matched?.id && showGradingOption && !showOutstandingPopup && gradingPopupDismissed !== matched.id;
+  const showCardPopup = stage === 'matched' && !!unviewedCard && !showOutstandingPopup && !showGradingReadyPopup && cardPopupDismissed !== unviewedCard.id;
   const openCard = async (c: StudentCard) => {
     await downloadStudentCard(c);
     if (!c.viewed_at && sessionId && matched?.id) { helloMarkCardViewed(sessionId, matched.id, c.id).then(() => refetchCards()).catch(() => {}); }
@@ -1908,6 +1910,15 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'matched' && matched && (
             <>
+              <Dialog open={showGradingReadyPopup} onOpenChange={(o) => { if (!o) setGradingPopupDismissed(matched.id); }}>
+                <DialogContent className="max-w-[95vw] sm:max-w-md">
+                  <DialogHeader><DialogTitle>Good work! You are now ready for Grading.</DialogTitle></DialogHeader>
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={() => { setGradingPopupDismissed(matched.id); startGradingFlow(); }}>Register &amp; pay for grading</Button>
+                    <Button variant="outline" onClick={() => setGradingPopupDismissed(matched.id)}>Later</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Dialog open={showCardPopup} onOpenChange={(o) => { if (!o && unviewedCard) setCardPopupDismissed(unviewedCard.id); }}>
                 <DialogContent className="max-w-[95vw] sm:max-w-md">
                   <DialogHeader><DialogTitle>New progress card</DialogTitle></DialogHeader>
