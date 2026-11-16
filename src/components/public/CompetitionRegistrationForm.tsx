@@ -3,6 +3,7 @@
  * Used by the standalone /comps page (no prefill) and embedded in the /hello
  * chat (prefilled with the recognized student's details, branch locked).
  */
+import { taxFloor } from '@/utils/invoiceTotals';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Download, FileText } from 'lucide-react';
@@ -308,7 +309,7 @@ const CompetitionRegistrationForm: React.FC<CompetitionRegistrationFormProps> = 
   const netSubtotal = (coachingIncluded ? coachingAmount : 0) + extrasTotal;
   const gstRate = gstRateForCountry(selectedBranch?.country);
   const withGst = (v: number) => Number((v * (1 + gstRate)).toFixed(2));
-  const gstAmount = Number((netSubtotal * gstRate).toFixed(2));
+  const gstAmount = taxFloor(netSubtotal * gstRate);
   const totalAmount = Number((netSubtotal + gstAmount).toFixed(2));
   const credit = creditContext ? Math.max(0, Number(creditContext.availableCredit) || 0) : 0;
   const creditToUse = Math.max(0, Math.min(credit, totalAmount));

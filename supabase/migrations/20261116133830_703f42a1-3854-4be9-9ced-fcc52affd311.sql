@@ -1,0 +1,1 @@
+ALTER FUNCTION public._tax_floor(numeric) SET search_path = public;

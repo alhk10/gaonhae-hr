@@ -4,6 +4,7 @@
  * Based on CreateInvoiceDialog layout, extended with view/edit/refund capabilities.
  */
 
+import { taxFloor } from '@/utils/invoiceTotals';
 import { scanStoredPayments } from '@/hooks/usePaymentProofScan';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasClassTypeException } from '@/utils/classTypeEligibility';
@@ -1101,8 +1102,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const { rate, isInclusive } = getSelectedBranchTaxConfig();
     const taxRateDecimal = rate / 100;
     let subtotal: number, taxAmount: number, total: number;
-    if (isInclusive) { total = itemsTotal; subtotal = itemsTotal / (1 + taxRateDecimal); taxAmount = total - subtotal; }
-    else { subtotal = itemsTotal; taxAmount = subtotal * taxRateDecimal; total = subtotal + taxAmount; }
+    if (isInclusive) { total = Math.round(itemsTotal * 100) / 100; taxAmount = taxFloor(total - total / (1 + taxRateDecimal)); subtotal = total - taxAmount; }
+    else { subtotal = Math.round(itemsTotal * 100) / 100; taxAmount = taxFloor(subtotal * taxRateDecimal); total = Math.round((subtotal + taxAmount) * 100) / 100; }
     return { subtotal, taxAmount, total, taxRate: rate, isInclusive };
   };
   const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
@@ -1139,7 +1140,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       const amt = parseFloat(payAmount);
       if (!amt || amt <= 0) { toast.error('Please enter a valid payment amount'); return; }
       if (!payProofFile && payMethod !== 'cash' && !isSuperadmin) { toast.error('Please upload proof of payment'); return; }
-      if (amt > total && !window.confirm(`Payment exceeds the invoice total by $${(amt - total).toFixed(2)}. The excess will be stored as student credit. Continue?`)) return;
+      if (Math.round(amt * 100) > Math.round(total * 100) && !window.confirm(`Payment exceeds the invoice total by $${(amt - total).toFixed(2)}. The excess will be stored as student credit. Continue?`)) return;
     }
     setLoading(true);
     try {
@@ -1323,9 +1324,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const net = Math.max(0, gross - discountAmt);
     if (editIsTaxInclusive) {
       const lineSubtotal = net / (1 + rate);
-      return { ...item, tax_rate: rate, tax_amount: net - lineSubtotal, total_amount: net };
+      return { ...item, tax_rate: rate, tax_amount: taxFloor(net - lineSubtotal), total_amount: net };
     }
-    return { ...item, tax_rate: rate, tax_amount: net * rate, total_amount: net + net * rate };
+    const lineTax = taxFloor(net * rate);
+    return { ...item, tax_rate: rate, tax_amount: lineTax, total_amount: Math.round((net + lineTax) * 100) / 100 };
   };
 
   const editTotals = useMemo(() => {

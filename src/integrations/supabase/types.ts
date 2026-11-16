@@ -8779,6 +8779,7 @@ export type Database = {
         Returns: Json
       }
       _sur_reviewer: { Args: { p_actor: string }; Returns: string }
+      _tax_floor: { Args: { x: number }; Returns: number }
       _term_coverage: {
         Args: { p_student_id: string; p_term_id: string }
         Returns: Json
