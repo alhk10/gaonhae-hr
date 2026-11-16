@@ -1,14 +1,19 @@
-# Student count by month: count only the weeks actually paid
+# Student count by month: count students only in months they mostly paid for
 
-## What changes
-- At the moment, a term payment counts the student in every month of the term, and a 4-week payment counts only in its starting month.
-- New rule: each student counts in a month only if their paid weeks cover part of that month. The paid weeks run forward from the term start, or from the first invoice date for a late joiner. This is the same rule /hello and the fee badges already use.
-- Example: in a 12-week term from September to November, a student who paid all 12 weeks counts in September, October and November. A student who paid only 4 weeks from the term start counts in September only, so October and November show fewer students.
-- The note under the table changes to: "Students count in each month covered by the weeks they paid."
+## Rule
+- A student's paid weeks run forward from the term start, or from the first invoice date for a late joiner. This is the same rule /hello and the fee badges use.
+- For each month, compare the student's paid lessons in that month with the term's lessons in that month.
+- The student counts in a month only when they have paid for **more than half** of that month's term lessons.
+- Example 1: a student pays for 4 weeks of lessons, all in November. They count in November only, not in October or December.
+- Example 2: a student pays for 8 weeks, covering 2 lessons in October, 3 in November and 3 in December, where each month has about 4 term lessons. They count in November and December. October is left out because 2 of 4 lessons is not a majority.
+- A student who paid the full term counts in every month of the term.
 - Trial and ad-hoc lessons stay excluded.
+- The note under the table changes to: "Students count in a month when their paid weeks cover most of that month's lessons."
 
 ## Technical details
-- Rewrite `get_public_student_counts_by_month(p_year)` (migration). For each student and term with a paid or verified Classes invoice, take `covered_from` / `covered_until` from `public._term_coverage(student, term)`. The branch comes from the student's branch.
-- Count `DISTINCT student_id` per branch and month wherever the covered span overlaps the month. The return shape stays the same, so the frontend needs no data changes.
-- Update the caption text in `src/components/grading-list/SummaryTab.tsx`.
-- Check with a query that a part-term student (for example Ronan, paid through 26/10) counts in September and October but not November.
+- Migration: rewrite `get_public_student_counts_by_month(p_year)`.
+  - For each student and term with a paid or verified Classes invoice, read `covered_from` / `covered_until` from `_term_coverage`.
+  - Build the term's weekly lesson dates from the term start (skipping term breaks), then count covered and total lessons per month.
+  - Include the student when covered lessons × 2 > total lessons for that month. Group by the student's branch.
+- The return shape stays the same. Update only the caption in `SummaryTab.tsx`.
+- Verify with queries that a part-term student (for example Ronan, paid through 26/10) drops out of the later months.
