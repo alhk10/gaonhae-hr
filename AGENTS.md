@@ -34,3 +34,4 @@
 - Grading fee overrides are logged in `grading_override_log` by `access_set_ready_for_grading` and shown only to superadmins / the all-branch password, so overrides are always reviewable.
 - Public branch pickers (/hello, /register, /rental) filter by visitor country via `useLocalBranches` (IP lookup, timezone fallback, 'Show all branches' escape), so families see only their local branches.
 - GST/tax is rounded up to the cent via `taxRound` (JS) / `_tax_floor` (SQL, ceil despite name) and payment comparisons use whole cents, so exact payments never show $0.00 overpayments.
+- Monthly student counts (`get_public_student_counts_by_month`) count a student in a month only when `_term_coverage` paid weeks cover more than half that month's term lesson weeks, so part-term payments aren't over-counted.

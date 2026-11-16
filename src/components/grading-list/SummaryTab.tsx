@@ -514,7 +514,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ lockedBranchName, lockedBranchI
             </>
           )}
           <p className="text-[11px] text-muted-foreground mt-2">
-            Term payments count in every month they cover; 4-week payments count only in their starting month.
+            Students count in a month when their paid weeks cover most of that month's lessons.
           </p>
         </CardContent>
       </Card>

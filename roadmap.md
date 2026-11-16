@@ -9,3 +9,4 @@
 - [x] Import errors check (none on record; Import needs verification first)
 - [x] Poom→Dan administrative conversion (rules, products, badges, certificates, /hello uploads)
 - [ ] Set real prices for the 7 STF conversion products (waiting on prices)
+- [x] Student count by month: count a student only in months where paid weeks cover most of that month's lessons
