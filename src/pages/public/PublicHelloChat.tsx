@@ -1,4 +1,4 @@
-import { taxFloor } from '@/utils/invoiceTotals';
+import { taxRound } from '@/utils/invoiceTotals';
 import { helloProgressCards, helloMarkCardViewed, downloadStudentCard, type StudentCard } from '@/services/progressCardService';
 import { useLocalBranches } from '@/hooks/useLocalBranches';
 import { supabase } from "@/integrations/supabase/client";
@@ -825,7 +825,7 @@ const PublicHelloChat: React.FC = () => {
   const isAUBranch = branch?.country?.toLowerCase() === 'australia';
   const GST_RATE = isSGBranch ? 0.09 : isAUBranch ? 0.10 : 0;
   // Singapore prices exclude GST; Australian advertised prices include GST.
-  const gstAmount = taxFloor(isAUBranch
+  const gstAmount = taxRound(isAUBranch
     ? cartTotal - cartTotal / (1 + GST_RATE)
     : cartTotal * GST_RATE);
   const totalWithTax = Number((isAUBranch ? cartTotal : cartTotal + gstAmount).toFixed(2));

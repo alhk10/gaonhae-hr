@@ -3,7 +3,7 @@
  * Mounted at /seminars. Event-driven mirror of /comps: admins define seminar
  * events (packages, indemnity, required uploads) in /access settings.
  */
-import { taxFloor } from '@/utils/invoiceTotals';
+import { taxRound } from '@/utils/invoiceTotals';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { newClientRef } from '@/utils/publicPaymentValidation';
 import { useQuery } from '@tanstack/react-query';
@@ -235,7 +235,7 @@ const PublicSeminarPayment: React.FC = () => {
 
   const discountAmount = combined.discount_amount;
   const gstRate = gstRateForCountry(selectedBranch?.country);
-  const gstAmount = taxFloor(Number(combined.amount || 0) * gstRate);
+  const gstAmount = taxRound(Number(combined.amount || 0) * gstRate);
   const totalAmount = Number((Number(combined.amount || 0) + gstAmount).toFixed(2));
 
   const signatureRequired = !!(selectedEvent?.indemnity_clause && selectedEvent.indemnity_clause.trim().length > 0);

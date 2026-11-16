@@ -4,7 +4,7 @@
  * Based on CreateInvoiceDialog layout, extended with view/edit/refund capabilities.
  */
 
-import { taxFloor } from '@/utils/invoiceTotals';
+import { taxRound } from '@/utils/invoiceTotals';
 import { scanStoredPayments } from '@/hooks/usePaymentProofScan';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasClassTypeException } from '@/utils/classTypeEligibility';
@@ -1102,8 +1102,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const { rate, isInclusive } = getSelectedBranchTaxConfig();
     const taxRateDecimal = rate / 100;
     let subtotal: number, taxAmount: number, total: number;
-    if (isInclusive) { total = Math.round(itemsTotal * 100) / 100; taxAmount = taxFloor(total - total / (1 + taxRateDecimal)); subtotal = total - taxAmount; }
-    else { subtotal = Math.round(itemsTotal * 100) / 100; taxAmount = taxFloor(subtotal * taxRateDecimal); total = Math.round((subtotal + taxAmount) * 100) / 100; }
+    if (isInclusive) { total = Math.round(itemsTotal * 100) / 100; taxAmount = taxRound(total - total / (1 + taxRateDecimal)); subtotal = total - taxAmount; }
+    else { subtotal = Math.round(itemsTotal * 100) / 100; taxAmount = taxRound(subtotal * taxRateDecimal); total = Math.round((subtotal + taxAmount) * 100) / 100; }
     return { subtotal, taxAmount, total, taxRate: rate, isInclusive };
   };
   const { subtotal, taxAmount, total, taxRate, isInclusive } = calculateTotals();
@@ -1324,9 +1324,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const net = Math.max(0, gross - discountAmt);
     if (editIsTaxInclusive) {
       const lineSubtotal = net / (1 + rate);
-      return { ...item, tax_rate: rate, tax_amount: taxFloor(net - lineSubtotal), total_amount: net };
+      return { ...item, tax_rate: rate, tax_amount: taxRound(net - lineSubtotal), total_amount: net };
     }
-    const lineTax = taxFloor(net * rate);
+    const lineTax = taxRound(net * rate);
     return { ...item, tax_rate: rate, tax_amount: lineTax, total_amount: Math.round((net + lineTax) * 100) / 100 };
   };
 

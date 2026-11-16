@@ -2,7 +2,7 @@
  * Service for the public /guards purchase form and /guardspurchase-list admin view.
  * No-auth public submission; superadmin-only reads via RLS.
  */
-import { taxFloor } from '@/utils/invoiceTotals';
+import { taxRound } from '@/utils/invoiceTotals';
 import { accessPassword } from '@/utils/accessBranchScope';
 import { supabase } from '@/integrations/supabase/client';
 import { toISODate } from '@/utils/dateFormat';
@@ -347,7 +347,7 @@ export const submitGuardsPurchase = async (
 
   // Totals — GST is added on top of the listed prices
   const subtotal = input.items.reduce((s, it) => s + it.unit_price_inc * it.qty, 0);
-  const gstAmount = input.is_singapore ? taxFloor(subtotal * GST_RATE) : 0;
+  const gstAmount = input.is_singapore ? taxRound(subtotal * GST_RATE) : 0;
   const totalInc = Number((subtotal + gstAmount).toFixed(2));
 
   const row = {

@@ -1,0 +1,1 @@
+CREATE OR REPLACE FUNCTION public._tax_floor(x numeric) RETURNS numeric LANGUAGE sql IMMUTABLE SET search_path = public AS $$ SELECT ceil(COALESCE(x,0)*100 - 0.000001)/100 $$;

@@ -3,7 +3,7 @@
  * Handles all invoice-related database operations for the Sales Module
  */
 
-import { taxFloor } from '@/utils/invoiceTotals';
+import { taxRound } from '@/utils/invoiceTotals';
 import { canCombineGradingItems, combinedFoundationSpan } from '@/utils/foundationGrading';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -266,12 +266,12 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       
       if (isTaxIncluded) {
         const itemSubtotal = itemPrice / (1 + taxRate);
-        const itemTax = taxFloor(itemPrice - itemSubtotal);
+        const itemTax = taxRound(itemPrice - itemSubtotal);
         subtotal += itemSubtotal;
         taxAmount += itemTax;
       } else {
         subtotal += itemPrice;
-        taxAmount += taxFloor(itemPrice * taxRate);
+        taxAmount += taxRound(itemPrice * taxRate);
       }
     }
     
@@ -333,10 +333,10 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       if (isTaxIncluded) {
         itemTotal = itemPrice;
         itemSubtotal = itemPrice / (1 + taxRate);
-        itemTaxAmount = taxFloor(itemPrice - itemSubtotal);
+        itemTaxAmount = taxRound(itemPrice - itemSubtotal);
       } else {
         itemSubtotal = itemPrice;
-        itemTaxAmount = taxFloor(itemPrice * taxRate);
+        itemTaxAmount = taxRound(itemPrice * taxRate);
         itemTotal = itemSubtotal + itemTaxAmount;
       }
       
