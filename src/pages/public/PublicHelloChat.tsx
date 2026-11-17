@@ -77,6 +77,8 @@ import {
   earlyPaymentDiscountFor,
   getLockedPlanForTerm,
   getPublicSiblingDiscount,
+  siblingEligible,
+  siblingDiscountUsed,
   compareSchoolFeeProducts,
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
@@ -800,6 +802,17 @@ const PublicHelloChat: React.FC = () => {
     return () => { cancelled = true; };
   }, [matched?.id]);
 
+  // Sibling discount only once per student per term.
+  const [siblingUsedTerms, setSiblingUsedTerms] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    let cancelled = false;
+    if (!matched?.id || !chatTerms?.length) { setSiblingUsedTerms(prev => (Object.keys(prev).length ? {} : prev)); return; }
+    Promise.all(chatTerms.map(async (t: any) => [t.term_id, await siblingDiscountUsed(matched.id, t.term_id)] as const))
+      .then(rows => { if (!cancelled) setSiblingUsedTerms(Object.fromEntries(rows)); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matched?.id, chatTerms.map((t: any) => t.term_id).join(',')]);
+
   // 4-week plan locks for terms the student is choosing (plus all offered terms,
   // so the default term choice knows about an existing 4-week lock)
   useEffect(() => {
@@ -1404,8 +1417,9 @@ const PublicHelloChat: React.FC = () => {
       const locked = d.termId ? lockedPlans[d.termId] : null;
       const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
       const weeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, term?.remaining_weeks ?? term?.total_weeks ?? 1);
-      const planDiscount = showTerms && plan === 'term'
-        ? earlyPaymentDiscountFor(term?.start_date) + (siblingDiscount || 0)
+      const siblingForLine = showTerms && siblingEligible(weeks) && !(d.termId && siblingUsedTerms[d.termId]) ? (siblingDiscount || 0) : 0;
+      const planDiscount = showTerms
+        ? (plan === 'term' ? earlyPaymentDiscountFor(term?.start_date) : 0) + siblingForLine
         : 0;
       newCart.push({
         product: p,
@@ -2595,6 +2609,7 @@ const PublicHelloChat: React.FC = () => {
                         isLessonCategory={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
                         isSchoolFees={payCategory?.id === SCHOOL_FEES_CATEGORY_ID}
                         siblingDiscount={siblingDiscount}
+                        siblingUsedTerms={siblingUsedTerms}
                         lockedPlans={lockedPlans}
                         draft={rowDrafts[p.product_id]}
                         onDraftChange={(d) => setRowDrafts(prev => {
@@ -3402,10 +3417,11 @@ const ProductRow: React.FC<{
   isLessonCategory?: boolean;
   isSchoolFees?: boolean;
   siblingDiscount?: number;
+  siblingUsedTerms?: Record<string, boolean>;
   lockedPlans?: Record<string, FeePaymentPlan | null>;
   draft?: RowDraftShape;
   onDraftChange: (d: RowDraftShape) => void;
-}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, isSchoolFees, siblingDiscount = 0, lockedPlans = {}, draft, onDraftChange }) => {
+}> = ({ product, branchCountry, terms, defaultGender, isLessonCategory, isSchoolFees, siblingDiscount: siblingDiscountRaw = 0, siblingUsedTerms = {}, lockedPlans = {}, draft, onDraftChange }) => {
   const sizes = product.requires_size ? (product.available_sizes || getVariantArray(product, 'sizes')) : [];
   const colors = getVariantArray(product, 'colors');
   const genders = getVariantArray(product, 'genders');
@@ -3513,7 +3529,9 @@ const ProductRow: React.FC<{
                 const termWeeks = Math.max(1, selectedTerm?.remaining_weeks ?? selectedTerm?.total_weeks ?? 1);
                 const locked = d.termId ? lockedPlans[d.termId] : null;
                 const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
+                const siblingDiscount = d.termId && siblingUsedTerms[d.termId] ? 0 : siblingDiscountRaw;
                 const early = earlyPaymentDiscountFor(selectedTerm?.start_date);
+                const fourWeekTotal = Math.max(0, weekly * FOUR_WEEK_WEEKS - (siblingDiscount || 0));
                 const termTotal = Math.max(0, weekly * termWeeks - early - (siblingDiscount || 0));
                 return (
                   <div className="space-y-1.5">
@@ -3528,7 +3546,7 @@ const ProductRow: React.FC<{
                       >
                         <p className="text-xs font-medium">4 weeks</p>
                         <p className="text-[11px] text-muted-foreground">4 × ${weekly.toFixed(2)}</p>
-                        <p className="text-xs font-semibold">${(weekly * FOUR_WEEK_WEEKS).toFixed(2)}</p>
+                        <p className="text-xs font-semibold">${fourWeekTotal.toFixed(2)}</p>
                       </button>
                       <button
                         type="button"

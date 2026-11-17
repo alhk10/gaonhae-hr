@@ -35,6 +35,31 @@ export const earlyPaymentDiscountFor = (termStartDate?: string | null): number =
   return today <= start ? EARLY_PAYMENT_DISCOUNT : 0;
 };
 
+/** Sibling / family discount needs at least 4 paid weeks on the line. */
+export const SIBLING_MIN_WEEKS = 4;
+export const siblingEligible = (weeks: number): boolean => Number(weeks || 0) >= SIBLING_MIN_WEEKS;
+
+/** Early payment discount: full term's weeks, paid on or before the term start date. */
+export const earlyEligible = (weeks: number, termWeeks: number, termStartDate?: string | null, payDate: Date = new Date()): boolean => {
+  if (!termStartDate || !termWeeks || Number(weeks || 0) < termWeeks) return false;
+  const d = new Date(payDate); d.setHours(0, 0, 0, 0);
+  const start = new Date(termStartDate); start.setHours(0, 0, 0, 0);
+  return d <= start;
+};
+
+/** True when the student already received a sibling discount for this term. */
+export const siblingDiscountUsed = async (studentId?: string | null, termId?: string | null): Promise<boolean> => {
+  if (!studentId || !termId) return false;
+  try {
+    const { data, error } = await supabase.rpc('sibling_discount_used' as any, { p_student_id: studentId, p_term_id: termId });
+    if (error) throw error;
+    return !!data;
+  } catch (e) {
+    console.warn('siblingDiscountUsed failed', e);
+    return false;
+  }
+};
+
 export interface PlanQuoteInput {
   weeklyPrice: number;
   termWeeks: number;
@@ -57,7 +82,7 @@ export const quotePlan = (plan: FeePaymentPlan, input: PlanQuoteInput): PlanQuot
   const subtotal = Number(input.weeklyPrice || 0) * weeks;
   // Discounts are term-plan only.
   const early = plan === 'term' ? earlyPaymentDiscountFor(input.termStartDate) : 0;
-  const sibling = plan === 'term' ? Math.max(0, input.siblingDiscount || 0) : 0;
+  const sibling = siblingEligible(weeks) ? Math.max(0, input.siblingDiscount || 0) : 0;
   return {
     plan,
     weeks,

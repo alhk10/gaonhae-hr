@@ -1,0 +1,12 @@
+import { siblingEligible, earlyEligible, quotePlan } from './schoolFeePlan';
+let fail = 0;
+const eq = (n: string, a: unknown, b: unknown) => { if (a !== b) { fail++; console.error('FAIL', n, a, b); } else console.log('ok', n); };
+eq('sibling 3 weeks', siblingEligible(3), false);
+eq('sibling 4 weeks', siblingEligible(4), true);
+eq('early 11 of 12', earlyEligible(11, 12, '2026-10-05', new Date('2026-10-01')), false);
+eq('early 12 of 12 before start', earlyEligible(12, 12, '2026-10-05', new Date('2026-10-01')), true);
+eq('early on start date', earlyEligible(12, 12, '2026-10-05', new Date('2026-10-05T10:00:00')), true);
+eq('early day after start', earlyEligible(12, 12, '2026-10-05', new Date('2026-10-06')), false);
+eq('4-week plan gets sibling', quotePlan('four_weeks', { weeklyPrice: 30, termWeeks: 10, siblingDiscount: 20 }).siblingDiscount, 20);
+eq('4-week plan no early', quotePlan('four_weeks', { weeklyPrice: 30, termWeeks: 10, termStartDate: '2999-01-01' }).earlyPaymentDiscount, 0);
+if (fail) process.exit(1);

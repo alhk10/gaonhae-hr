@@ -49,6 +49,7 @@ import FailedScheduleAlerts from './FailedScheduleAlerts';
 
 import TrialRequestsList from '@/components/common/TrialRequestsList';
 import GradingOverridesList from '@/components/common/GradingOverridesList';
+import DiscountOverridesList from '@/components/common/DiscountOverridesList';
 import InvoicesCreatedSection from './InvoicesCreatedSection';
 import NegativeInventoryAlert from './NegativeInventoryAlert';
 import { useAuth } from '@/contexts/AuthContext';
@@ -234,6 +235,7 @@ const SuperadminDashboard = () => {
           </section>
         <TrialRequestsList mode="superadmin" />
         <GradingOverridesList mode="superadmin" />
+        <DiscountOverridesList mode="superadmin" />
         <PaymentVerificationApprovals />
         <FailedScheduleAlerts />
         <UnifiedSubmissionApprovals />

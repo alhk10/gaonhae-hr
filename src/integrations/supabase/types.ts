@@ -3159,6 +3159,51 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_discount_override_log: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          discount_amount: number | null
+          id: string
+          invoice_id: string | null
+          password_label: string | null
+          product_name: string | null
+          reason: string | null
+          seen_at: string | null
+          seen_by: string | null
+          student_id: string | null
+          term_id: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          id?: string
+          invoice_id?: string | null
+          password_label?: string | null
+          product_name?: string | null
+          reason?: string | null
+          seen_at?: string | null
+          seen_by?: string | null
+          student_id?: string | null
+          term_id?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          id?: string
+          invoice_id?: string | null
+          password_label?: string | null
+          product_name?: string | null
+          reason?: string | null
+          seen_at?: string | null
+          seen_by?: string | null
+          student_id?: string | null
+          term_id?: string | null
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string
@@ -8942,6 +8987,25 @@ export type Database = {
         Args: { p_invoice_id: string; p_password: string; p_reason?: string }
         Returns: undefined
       }
+      access_discount_override_mark_seen: {
+        Args: { p_id: string; p_password: string }
+        Returns: undefined
+      }
+      access_discount_overrides: {
+        Args: { p_password: string }
+        Returns: {
+          branch_name: string
+          created_at: string
+          discount_amount: number
+          id: string
+          password_label: string
+          product_name: string
+          reason: string
+          seen_at: string
+          student_name: string
+          term_name: string
+        }[]
+      }
       access_get_invoice_for_edit: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
@@ -11184,6 +11248,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_discount_override: {
+        Args: {
+          p_amount: number
+          p_branch_id: string
+          p_password: string
+          p_product_name: string
+          p_reason: string
+          p_student_id: string
+          p_term_id: string
+        }
+        Returns: undefined
+      }
       log_security_event: {
         Args: {
           p_action: string
@@ -11447,6 +11523,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sibling_discount_used: {
+        Args: { p_student_id: string; p_term_id: string }
+        Returns: boolean
+      }
       sms_current_email: { Args: never; Returns: string }
       sms_is_admin: { Args: never; Returns: boolean }
       sms_is_superadmin: { Args: never; Returns: boolean }

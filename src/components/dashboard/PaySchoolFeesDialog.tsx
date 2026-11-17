@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
+import { siblingEligible, siblingDiscountUsed } from '@/utils/schoolFeePlan';
 import { FOUR_WEEK_NOTE, FOUR_WEEK_WEEKS, getLockedPlanForTerm, type FeePaymentPlan } from '@/utils/schoolFeePlan';
 import { createPayment } from '@/services/paymentService';
 
@@ -552,8 +553,14 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     return today <= termStart ? 10 : 0;
   }, [selectedTerm, feePlan]);
 
-  // Sibling discount applies to term payments only.
-  const siblingDiscount = feePlan === 'term' ? siblingDiscountBase : 0;
+  // Sibling discount: 4+ paid weeks, once per student per term.
+  const { data: siblingUsedThisTerm = false } = useQuery({
+    queryKey: ['sibling-used', studentId, selectedTermId],
+    queryFn: () => siblingDiscountUsed(studentId, selectedTermId),
+    enabled: !!studentId && !!selectedTermId,
+  });
+  const siblingAvailable = siblingUsedThisTerm ? 0 : siblingDiscountBase;
+  const siblingDiscount = siblingEligible(termWeeks) ? siblingAvailable : 0;
 
   // Savings shown on the full-term option (regardless of the plan selected)
   const earlyDiscountBase = useMemo(() => {
@@ -564,12 +571,12 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     termStart.setHours(0, 0, 0, 0);
     return today <= termStart ? 10 : 0;
   }, [selectedTerm]);
-  const termSavings = earlyDiscountBase + siblingDiscountBase;
+  const termSavings = earlyDiscountBase + siblingAvailable;
 
   const fullTermPrice = selectedProduct
     ? Math.max(0, fullTermWeeks * selectedProduct.effective_price - termSavings)
     : 0;
-  const fourWeekPrice = selectedProduct ? FOUR_WEEK_WEEKS * selectedProduct.effective_price : 0;
+  const fourWeekPrice = selectedProduct ? Math.max(0, FOUR_WEEK_WEEKS * selectedProduct.effective_price - siblingAvailable) : 0;
 
   const combinedTotal = Math.max(0, calculatedPrice + (includeGrading ? gradingFee : 0) - earlyPaymentDiscount - siblingDiscount);
 
@@ -641,6 +648,7 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
               selected_class_slots: selectedClassSlots,
               early_payment_discount: earlyPaymentDiscount > 0,
               early_payment_discount_amount: earlyPaymentDiscount > 0 ? earlyPaymentDiscount : undefined,
+              sibling_discount_amount: siblingDiscount > 0 ? siblingDiscount : undefined,
               sibling_discount: siblingDiscount > 0 ? siblingDiscount : undefined,
             },
           },

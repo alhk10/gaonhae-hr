@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
 import { transformProduct } from '@/services/productService';
-import { siblingDiscountForBranch } from '@/utils/schoolFeePlan';
+import { siblingDiscountForBranch, siblingEligible, siblingDiscountUsed } from '@/utils/schoolFeePlan';
 import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -107,6 +107,9 @@ interface InvoiceItem {
   selected_class_slots?: string[];
   discount_type?: 'percentage' | 'amount';
   discount_value?: number;
+  /** Sibling amount resolved for this student/term; applied while qty >= 4. */
+  sibling_amount?: number;
+  sibling_applied?: boolean;
   total: number;
 }
 
@@ -942,6 +945,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     if (field === 'term_id') setSelectedClassSlots([]);
     setNewItem(prev => {
       const updated = { ...prev, [field]: value };
+      const isClasses = categories.find(c => c.id === updated.category_id)?.name === 'Classes'
+        || categories.find(c => c.id === products.find(p => p.id === updated.product_id)?.category_id)?.name === 'Classes';
+      if (isClasses && (field === 'term_id' || field === 'product_id') && updated.term_id) {
+        const t: any = branchTerms.find(bt => bt.id === updated.term_id);
+        updated.quantity = Number(t?.total_weeks) > 0 ? Number(t.total_weeks) : 10;
+      }
       if (field === 'product_id' && value) {
         const product = products.find(p => p.id === value);
         if (product) { updated.size_variant = ''; updated.color_variant = ''; }
@@ -1020,10 +1029,20 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
     let siblingDiscountType: 'amount' | undefined;
     let siblingDiscountValue: number | undefined;
+    let siblingAmount: number | undefined;
     if (term && formData.student_id) {
       const accessStudent = accessMode ? (await getCatalog()).students.find((s: any) => s.id === formData.student_id) : null;
       const discount = accessMode ? (accessStudent && Number(accessStudent.sibling_count) >= 2 ? siblingDiscountForBranch(accessStudent.branch_id) : 0) : await getSiblingDiscount(formData.student_id);
-      if (discount > 0) { siblingDiscountType = 'amount'; siblingDiscountValue = discount; toast.info(`Sibling discount of $${discount.toFixed(2)} auto-applied`); }
+      if (discount > 0) {
+        const usedOnLine = items.some(i => i.term_id === term.id && i.sibling_applied);
+        const usedBefore = usedOnLine || await siblingDiscountUsed(formData.student_id, term.id);
+        if (usedBefore) toast.info('Sibling discount already used for this term');
+        else {
+          siblingAmount = discount;
+          if (siblingEligible(newItem.quantity)) { siblingDiscountType = 'amount'; siblingDiscountValue = discount; toast.info(`Sibling discount of $${discount.toFixed(2)} auto-applied`); }
+          else toast.info('Sibling discount needs at least 4 weeks');
+        }
+      }
     }
 
     const lineTotal = calculateLineTotal(newItem.quantity, newItem.unit_price, siblingDiscountType, siblingDiscountValue);
@@ -1035,6 +1054,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       grading_slot_id: newItem.grading_slot_id || undefined, grading_slot_title: gradingSlot?.title || undefined,
       selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
       discount_type: siblingDiscountType, discount_value: siblingDiscountValue,
+      sibling_amount: siblingAmount, sibling_applied: !!siblingDiscountValue,
       total: lineTotal
     };
     setItems([...items, item]);
@@ -1046,7 +1066,19 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   const updateItemQuantity = (index: number, value: string) => {
     const u = [...items]; const q = value === '' ? 0 : (parseInt(value) || 1);
-    u[index].quantity = q; u[index].total = calculateLineTotal(q || 1, u[index].unit_price, u[index].discount_type, u[index].discount_value);
+    u[index] = { ...u[index], quantity: q };
+    const it = u[index];
+    if (it.sibling_amount && q > 0) {
+      const base = it.discount_type === 'amount' ? (it.discount_value || 0) - (it.sibling_applied ? it.sibling_amount : 0) : 0;
+      if (it.sibling_applied && !siblingEligible(q)) {
+        it.sibling_applied = false; it.discount_type = base > 0 ? 'amount' : undefined; it.discount_value = base > 0 ? base : undefined;
+        toast.info('Sibling discount removed: needs at least 4 weeks');
+      } else if (!it.sibling_applied && siblingEligible(q) && (!it.discount_type || it.discount_type === 'amount')) {
+        it.sibling_applied = true; it.discount_type = 'amount'; it.discount_value = base + it.sibling_amount;
+        toast.info(`Sibling discount of $${it.sibling_amount.toFixed(2)} applied`);
+      }
+    }
+    it.total = calculateLineTotal(q || 1, it.unit_price, it.discount_type, it.discount_value);
     setItems(u);
   };
   const finalizeItemQuantity = (index: number) => {
@@ -1060,7 +1092,31 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const finalizeItemPrice = (index: number) => {
     if (items[index].unit_price < 0) { const u = [...items]; u[index].unit_price = 0; u[index].total = calculateLineTotal(u[index].quantity, 0, u[index].discount_type, u[index].discount_value); setItems(u); }
   };
+  const [discountWarn, setDiscountWarn] = useState<null | { reason: string; amount: number; productName: string; termId?: string; apply: () => void }>(null);
+  /** Returns a warning reason when a manual discount needs staff override, else null. */
+  const discountWarnReason = (prevType: string | undefined, prevValue: number | undefined, type: string, value: number, qty: number, termId?: string): string | null => {
+    if (type !== 'amount' || !(value > 0)) return null;
+    const prev = prevType === 'amount' ? (prevValue || 0) : 0;
+    if (Math.round(value * 100) === 1000 || Math.round((value - prev) * 100) === 1000) {
+      return 'A $10 discount is usually the early payment discount. It only applies when the full term is paid on or before the term start date (sibling discount needs at least 4 weeks).';
+    }
+    if (termId && value > prev && !siblingEligible(qty)) return 'Sibling / family discount needs at least 4 weeks paid on this line.';
+    return null;
+  };
+  const logDiscountOverride = async (reason: string, amount: number, productName: string, termId?: string) => {
+    const { error } = await (supabase as any).rpc('log_discount_override', {
+      p_password: sessionStorage.getItem('access_pw_v1') || '', p_student_id: formData.student_id || null,
+      p_branch_id: formData.branch_id || null, p_term_id: termId || null, p_product_name: productName, p_amount: amount, p_reason: reason,
+    });
+    if (error) console.warn('log_discount_override failed', error);
+  };
   const updateItemDiscount = (index: number, type: 'percentage' | 'amount', value: number) => {
+    const cur = items[index];
+    const reason = discountWarnReason(cur.discount_type, cur.discount_value, type, value, cur.quantity, cur.term_id);
+    if (reason) { setDiscountWarn({ reason, amount: value, productName: cur.product_name || cur.description, termId: cur.term_id, apply: () => applyItemDiscount(index, type, value) }); return; }
+    applyItemDiscount(index, type, value);
+  };
+  const applyItemDiscount = (index: number, type: 'percentage' | 'amount', value: number) => {
     const u = [...items]; u[index].discount_type = type; u[index].discount_value = value;
     u[index].total = calculateLineTotal(u[index].quantity, u[index].unit_price, type, value);
     setItems(u);
@@ -1160,7 +1216,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}) }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}) }
         };
       });
 
@@ -1384,6 +1440,12 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   const handleEditItemDiscountChange = (itemId: string, type: 'percentage' | 'amount', value: number) => {
+    const cur: any = editItems.find(i => i.id === itemId);
+    const reason = cur ? discountWarnReason(cur.discount_type, cur.discount_value, type, value, cur.quantity, cur.term_id || cur.metadata?.term_id) : null;
+    if (reason && cur) { setDiscountWarn({ reason, amount: value, productName: cur.product_name || cur.description, termId: cur.term_id || cur.metadata?.term_id, apply: () => applyEditItemDiscount(itemId, type, value) }); return; }
+    applyEditItemDiscount(itemId, type, value);
+  };
+  const applyEditItemDiscount = (itemId: string, type: 'percentage' | 'amount', value: number) => {
     setEditItems(prev => prev.map(item => item.id !== itemId ? item : recalcItem({ ...item, discount_type: type, discount_value: value })));
   };
 
@@ -2469,6 +2531,18 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!discountWarn} onOpenChange={(o) => { if (!o) setDiscountWarn(null); }}>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Check this discount</AlertDialogTitle>
+            <AlertDialogDescription>{discountWarn?.reason} Overriding will notify the superadmin.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const w = discountWarn; if (!w) return; w.apply(); logDiscountOverride(w.reason, w.amount, w.productName, w.termId); setDiscountWarn(null); }}>Override and apply</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
