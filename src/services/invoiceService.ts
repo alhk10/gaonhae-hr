@@ -265,8 +265,8 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       const itemPrice = item.total_override != null ? item.total_override : item.quantity * item.unit_price;
       
       if (isTaxIncluded) {
-        const itemSubtotal = itemPrice / (1 + taxRate);
-        const itemTax = taxRound(itemPrice - itemSubtotal);
+        const itemTax = taxRound(itemPrice - itemPrice / (1 + taxRate));
+        const itemSubtotal = itemPrice - itemTax;
         subtotal += itemSubtotal;
         taxAmount += itemTax;
       } else {
@@ -332,8 +332,8 @@ export const createInvoice = async (invoiceData: CreateInvoiceData): Promise<Inv
       
       if (isTaxIncluded) {
         itemTotal = itemPrice;
-        itemSubtotal = itemPrice / (1 + taxRate);
-        itemTaxAmount = taxRound(itemPrice - itemSubtotal);
+        itemTaxAmount = taxRound(itemPrice - itemPrice / (1 + taxRate));
+        itemSubtotal = itemPrice - itemTaxAmount;
       } else {
         itemSubtotal = itemPrice;
         itemTaxAmount = taxRound(itemPrice * taxRate);

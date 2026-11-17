@@ -23,14 +23,26 @@ const GradingOverridesList: React.FC<Props> = ({ mode }) => {
         return (data || []) as any[];
       }
       const { data, error } = await (supabase as any).from('grading_override_log')
-        .select('*, students(first_name,last_name), branches(name), term_calendars(name)')
+        .select('*')
         .order('created_at', { ascending: false }).limit(300);
       if (error) throw error;
-      return ((data || []) as any[]).map((r) => ({
-        ...r,
-        student_name: `${r.students?.first_name || ''} ${r.students?.last_name || ''}`.trim(),
-        branch_name: r.branches?.name, term_name: r.term_calendars?.name,
-      }));
+      const list = (data || []) as any[];
+      const ids = (k: string) => [...new Set(list.map((r) => r[k]).filter(Boolean))];
+      const [st, br, tm] = await Promise.all([
+        ids('student_id').length ? supabase.from('students').select('id,first_name,last_name').in('id', ids('student_id')) : Promise.resolve({ data: [] }),
+        ids('branch_id').length ? supabase.from('branches').select('id,name').in('id', ids('branch_id')) : Promise.resolve({ data: [] }),
+        ids('term_id').length ? (supabase as any).from('term_calendars').select('id,name').in('id', ids('term_id')) : Promise.resolve({ data: [] }),
+      ]);
+      const m = (d: any) => new Map(((d?.data || []) as any[]).map((x) => [String(x.id), x]));
+      const sm = m(st), bm = m(br), tmm = m(tm);
+      return list.map((r) => {
+        const s: any = sm.get(String(r.student_id));
+        return {
+          ...r,
+          student_name: s ? `${s.first_name || ''} ${s.last_name || ''}`.trim() : '',
+          branch_name: (bm.get(String(r.branch_id)) as any)?.name, term_name: (tmm.get(String(r.term_id)) as any)?.name,
+        };
+      });
     },
     staleTime: 30 * 1000,
   });
