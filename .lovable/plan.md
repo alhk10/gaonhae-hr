@@ -5,6 +5,7 @@
 1. **Sibling / family discount ($20, Yishun $10) needs 4+ weeks**
    - Applied automatically only when the class line quantity is 4 weeks or more.
    - Recalculated whenever staff change the quantity: drop to 3 weeks removes it, raise to 4 adds it back (e.g. Atahan's 3-week line would lose the $10).
+   - Only once per student per term: if any earlier non-cancelled invoice (or another line on this invoice) already gave the student a sibling discount for that term, it isn't applied again (e.g. a second 4-week payment in the same term pays full price). Adding it manually anyway goes through the override warning and alert.
    - Same rule in /hello "Pay school fees" and the database check for /hello invoices.
 
 2. **Default quantity for Classes products = full term weeks**
