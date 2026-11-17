@@ -1897,7 +1897,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
               <div className="font-medium">Class lessons also valid at</div>
               <p className="mb-1 text-[11px] text-muted-foreground">One pool of lessons usable at any ticked branch. Payment stays at the student's home branch.</p>
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
-                {availableBranches.filter(b => b.id !== formData.branch_id).map(b => (
+                {branches.filter(b => b.id !== formData.branch_id && !['Competition', 'Headquarters', 'Centralised Grading'].includes(b.name)).map(b => (
                   <label key={b.id} className="flex items-center gap-1.5">
                     <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={sharedBranchIds.includes(b.id)}
                       onChange={(e) => setSharedBranchIds(prev => e.target.checked ? [...prev, b.id] : prev.filter(x => x !== b.id))} />
