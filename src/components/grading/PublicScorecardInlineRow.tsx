@@ -1,5 +1,5 @@
 /**
- * Inline score entry for /access grading (Morley only). Each box saves via
+ * Inline score entry for /access grading . Each box saves via
  * the admin_update_grading_scorecard SECURITY DEFINER RPC after a short debounce.
  */
 import React, { useEffect, useRef, useState } from 'react';

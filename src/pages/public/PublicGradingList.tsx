@@ -1773,7 +1773,7 @@ const PublicGradingList: React.FC = () => {
               </CardHeader>
               <CardContent className="access-list-shell pt-0">
                 <div className="rounded-md border divide-y text-xs">
-                  {editMode && g.header.slot_id && g.items.some(isMorleyRow) && (
+                  {editMode && g.header.slot_id && (
                     <SlotScoreSettingsBar
                       slotId={g.header.slot_id}
                       settings={(slotScoreSettings as Record<string, SlotScoreSettings>)[g.header.slot_id]}
@@ -1991,7 +1991,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                         </>}
                       </div>
-                      {editMode && isMorleyRow(r) && (
+                      {editMode && (
                         <div className="pt-1">
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
