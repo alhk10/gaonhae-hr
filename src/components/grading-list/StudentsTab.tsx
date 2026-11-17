@@ -51,6 +51,8 @@ import { gradingBadgeState } from '@/utils/gradingReady';
 import { useReadyForGradingToggle } from '@/components/grading/useReadyForGradingToggle';
 import { cardsForStudents } from '@/services/progressCardService';
 import ProgressCardDialog from '@/components/attendance/ProgressCardDialog';
+import { PayBadgeView, useInvoiceDues } from '@/components/common/PayBadges';
+import { termPayBadge, unpaidInvoiceBadge } from '@/utils/paymentBadges';
 import { termLabelOf } from '@/utils/progressCard';
 
 const termBadge = (s: string | null): 'paid' | 'unpaid' | 'none' => {
@@ -153,6 +155,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
     }));
   }, [allRows, payFilter]);
   const rows = React.useMemo(() => (showEmployees ? rowsAll : rowsAll.filter((r) => !r.is_employee)), [rowsAll, showEmployees]);
+  const dues = useInvoiceDues(rows);
   const rowIds = React.useMemo(() => rows.map((r) => r.id).sort(), [rows]);
   const { data: cardInfo } = useQuery({ queryKey: ['progress-cards-students', rowIds], queryFn: () => cardsForStudents(rowIds), enabled: rowIds.length > 0, retry: false });
   const cardOnBranches = React.useMemo(() => new Set(cardInfo?.enabled_branches || []), [cardInfo]);
@@ -314,9 +317,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                   {r.is_employee && <Badge variant="secondary" className="text-[10px]">Employee</Badge>}
                   {r.status !== 'active' && r.status !== 'trial' && <Badge variant="outline" className={`text-[10px] ${statusBadge(r.status)}`}>{r.status}</Badge>}
                   {r.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('amber'), borderColor: classColorVar('amber'), background: classColorTint('amber') }}>Trial</Badge>
-                    : tp === 'paid' ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') }}>Paid</Badge>
-                    : tp === 'unpaid' ? <Badge variant="destructive" className="text-[10px]">Unpaid{r.invoice_balance && r.invoice_balance > 0 ? ` ${formatCurrency(r.invoice_balance)} due` : ''}</Badge>
-                    : <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                    : <PayBadgeView badge={termPayBadge(tp, dues.get(r.id)?.term_invoice_date)} />}
+                  <PayBadgeView badge={unpaidInvoiceBadge(dues.get(r.id)?.other_unpaid_total, dues.get(r.id)?.other_unpaid_oldest)} />
                   {r.term_id && (g === 'paid'
                     ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('green'), borderColor: classColorVar('green'), background: classColorTint('green') }}>Grading paid</Badge>
                     : (

@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/dateFormat';
+import { PayBadgeView, useInvoiceDues } from '@/components/common/PayBadges';
+import { termPayBadge, unpaidInvoiceBadge } from '@/utils/paymentBadges';
 import { dayTotals, copyCandidates, isUnpaidTerm, addDays, classColor, classColorTint, classColorVar, mondayOf, parseIsoDate, toIsoDate, visibleDays, previousSessionDate, WEEKDAY_LABELS } from '@/utils/attendanceWeek';
 import { getAttendanceSettings } from '@/services/lessonBookingService';
 import {
@@ -171,6 +173,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
   const hiddenHolidays = (data?.holidays || []).filter((h) => h.date === dayIso);
   const inBreak = (data?.breaks || []).some((b) => dayIso >= b.start_date && dayIso <= b.end_date);
   const termLabel = (data?.terms || []).map((t) => t.name).join(', ');
+  const dues = useInvoiceDues(useMemo(() => (data?.bookings || []).map((b) => ({ id: b.student_id, term_id: b.term_id })), [data]));
   const termIds = useMemo(() => (data?.terms || []).map((t) => t.id).sort(), [data]);
   const termNameOf = (id?: string | null) => { const t = (data?.terms || []).find((x) => x.id === id); return termLabelOf(t?.name, t?.start_date); };
   const { data: muted } = useQuery({ queryKey: ['mute-unpaid', branchId], queryFn: () => muteUnpaidSetting(branchId), enabled: !!branchId, retry: false });
@@ -340,8 +343,8 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
                           {b.status === 'requested' && <Badge variant="secondary" className="text-[10px]">Requested</Badge>}
                           {b.cancel_requested && <Badge variant="destructive" className="text-[10px]">Cancel requested</Badge>}
                           {b.student_status === 'trial' && <Badge variant="outline" className="text-[10px]">Trial</Badge>}
-                          {!muted && b.student_status !== 'trial' && b.term_payment === 'unpaid' && <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>}
-                          {!muted && b.student_status !== 'trial' && b.term_payment === 'none' && <Badge variant="secondary" className="text-[10px]">No invoice</Badge>}
+                          {!muted && b.student_status !== 'trial' && <PayBadgeView badge={termPayBadge(b.term_payment, dues.get(b.student_id)?.term_invoice_date)} />}
+                          {!muted && <PayBadgeView badge={unpaidInvoiceBadge(dues.get(b.student_id)?.other_unpaid_total, dues.get(b.student_id)?.other_unpaid_oldest)} />}
                           {b.term_id && (() => {
                             const st = gradingBadgeState(b.grading);
                             if (st === 'paid') return <Badge className="text-[10px]">Grading paid</Badge>;
@@ -666,7 +669,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
                   <input type="checkbox" checked={!!copyPrompt.selected[b.student_id]}
                     onChange={(e) => setCopyPrompt({ ...copyPrompt, selected: { ...copyPrompt.selected, [b.student_id]: e.target.checked } })} />
                   <span className="font-medium">{b.student_name}</span>
-                  {unpaid(b) && <Badge variant="destructive" className="text-[10px]">{b.term_payment === 'none' ? 'No invoice' : 'Unpaid'}</Badge>}
+                  {unpaid(b) && <PayBadgeView badge={termPayBadge(b.term_payment, dues.get(b.student_id)?.term_invoice_date)} />}
                 </label>
               </li>
             ))}

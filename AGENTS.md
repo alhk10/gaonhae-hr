@@ -36,3 +36,4 @@
 - GST/tax is rounded up to the cent via `taxRound` (JS) / `_tax_floor` (SQL, ceil despite name) and payment comparisons use whole cents, so exact payments never show $0.00 overpayments.
 - Monthly student counts (`get_public_student_counts_by_month`) count a student in a month only when `_term_coverage` paid weeks cover more than half that month's term lesson weeks, so part-term payments aren't over-counted.
 - Class-fee discounts use `siblingEligible`/`earlyEligible`/`siblingDiscountUsed` in `src/utils/schoolFeePlan.ts` (SQL `sibling_discount_used`), and staff discount overrides are logged via `log_discount_override` into `invoice_discount_override_log`, so every fee path applies the same rules and overrides stay reviewable.
+- Students tab and Attendance payment badges come from `src/utils/paymentBadges.ts` plus `access_student_invoice_dues` (term invoice date, other unpaid total/oldest), so both pages show identical wording and red/amber/green ageing.

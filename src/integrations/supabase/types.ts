@@ -9199,6 +9199,15 @@ export type Database = {
         Args: { p_password: string; p_student_id: string }
         Returns: Json
       }
+      access_student_invoice_dues: {
+        Args: { p_student_ids: string[]; p_term_id?: string }
+        Returns: {
+          other_unpaid_oldest: string
+          other_unpaid_total: number
+          student_id: string
+          term_invoice_date: string
+        }[]
+      }
       access_submit_invoice_adjustment: {
         Args: {
           p_actor?: string
