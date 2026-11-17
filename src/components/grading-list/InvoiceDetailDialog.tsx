@@ -60,7 +60,8 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
   const [reloadKey, setReloadKey] = useState(0);
   const { user, userrole } = useAuth();
   const isSuperadmin = userrole === 'superadmin';
-  const signedIn = !!user;
+  // Only superadmins use direct-table forms; any other signed-in account falls back to password-checked RPCs (RLS would hide the invoice).
+  const signedIn = !!user && isSuperadmin;
 
   const loadPending = async () => {
     if (!invoiceId) return;
