@@ -19,16 +19,15 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
  * Mirrors SQL `_term_coverage`: weeks paid count forward from the term start (or
- * the first invoice date for late joiners). Paid while today is inside that span.
+ * the first invoice date for new late joiners; returning students always count from term start). Paid while today is inside that span.
  * Grading needs 50% of the term's weeks paid; late joiners need any weeks.
  */
 export const termCoverage = (o: {
-  termStart: string; termEnd: string; termWeeks: number; firstInvoiceDate: string | null;
+  termStart: string; termEnd: string; termWeeks: number; firstInvoiceDate: string | null; returningStudent?: boolean;
   paidWeeks: number; today: string;
 }) => {
-  const from = o.firstInvoiceDate && o.firstInvoiceDate > o.termStart
-    ? (o.firstInvoiceDate < o.termEnd ? o.firstInvoiceDate : o.termEnd) : o.termStart;
-  const late = !!o.firstInvoiceDate && o.firstInvoiceDate > o.termStart;
+  const late = !o.returningStudent && !!o.firstInvoiceDate && o.firstInvoiceDate > o.termStart;
+  const from = late ? (o.firstInvoiceDate! < o.termEnd ? o.firstInvoiceDate! : o.termEnd) : o.termStart;
   const span = (Date.parse(o.termEnd) - Date.parse(from)) / DAY + 1;
   const required = Math.max(1, Math.min(o.termWeeks, Math.ceil(span / 7)));
   const fullyPaid = o.paidWeeks > 0 && o.paidWeeks >= required;

@@ -24,3 +24,9 @@ eq(finn.remainingWeeks, 3, 'Finn owes 3 more weeks');
 eq(finn.gradingEligible, true, 'late joiner exempt from 50% rule');
 eq(termCoverage({ ...T4, firstInvoiceDate: '2026-09-20', paidWeeks: 12, today: '2026-12-15' }).paidToday, true, 'full term paid until term end');
 console.log('termCoverage ok');
+
+// Returning student, October-only invoice issued mid-November: counts from term start
+const skye = termCoverage({ ...T4, firstInvoiceDate: '2026-11-14', returningStudent: true, paidWeeks: 4, today: '2026-11-17' });
+eq(skye.paidToday, false, 'Skye (returning) unpaid in November with 4 weeks');
+eq(termCoverage({ ...T4, firstInvoiceDate: '2026-11-14', returningStudent: true, paidWeeks: 4, today: '2026-10-10' }).paidToday, true, 'returning 4 weeks paid in October');
+eq(termCoverage({ ...T4, firstInvoiceDate: '2026-11-14', returningStudent: true, paidWeeks: 8, today: '2026-11-17' }).paidToday, true, 'Oct+Nov paid in November');
