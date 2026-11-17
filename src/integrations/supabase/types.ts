@@ -1934,6 +1934,7 @@ export type Database = {
         Row: {
           belt_level_scope: string | null
           branch_scope: string | null
+          branch_scopes: string[] | null
           class_type_scope: string | null
           created_at: string
           created_by: string | null
@@ -1955,6 +1956,7 @@ export type Database = {
         Insert: {
           belt_level_scope?: string | null
           branch_scope?: string | null
+          branch_scopes?: string[] | null
           class_type_scope?: string | null
           created_at?: string
           created_by?: string | null
@@ -1976,6 +1978,7 @@ export type Database = {
         Update: {
           belt_level_scope?: string | null
           branch_scope?: string | null
+          branch_scopes?: string[] | null
           class_type_scope?: string | null
           created_at?: string
           created_by?: string | null
@@ -3358,6 +3361,7 @@ export type Database = {
           internal_notes: string | null
           invoice_number: string
           issue_date: string | null
+          issued_at_branch: string | null
           notes: string | null
           payment_terms_days: number | null
           refunded_amount: number
@@ -3387,6 +3391,7 @@ export type Database = {
           internal_notes?: string | null
           invoice_number: string
           issue_date?: string | null
+          issued_at_branch?: string | null
           notes?: string | null
           payment_terms_days?: number | null
           refunded_amount?: number
@@ -3416,6 +3421,7 @@ export type Database = {
           internal_notes?: string | null
           invoice_number?: string
           issue_date?: string | null
+          issued_at_branch?: string | null
           notes?: string | null
           payment_terms_days?: number | null
           refunded_amount?: number
@@ -6830,6 +6836,42 @@ export type Database = {
           },
         ]
       }
+      student_branches: {
+        Row: {
+          added_by: string | null
+          branch_id: string
+          created_at: string
+          student_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          branch_id: string
+          created_at?: string
+          student_id: string
+        }
+        Update: {
+          added_by?: string | null
+          branch_id?: string
+          created_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_branches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_branches_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_certificates: {
         Row: {
           created_at: string
@@ -8806,6 +8848,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _student_at_branch: {
+        Args: { p_branch: string; p_student: string }
+        Returns: boolean
+      }
       _studio_rental_create_invoice: {
         Args: { p_by: string; p_id: string }
         Returns: string
@@ -9193,6 +9239,15 @@ export type Database = {
       }
       access_set_student_employee: {
         Args: { p_password: string; p_student_id: string; p_value: boolean }
+        Returns: undefined
+      }
+      access_student_branch_set: {
+        Args: {
+          p_branch_id: string
+          p_on: boolean
+          p_password: string
+          p_student_id: string
+        }
         Returns: undefined
       }
       access_student_grading_records: {

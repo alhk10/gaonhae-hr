@@ -39,6 +39,7 @@ import AddStudentDialog from './AddStudentDialog';
 import MergeStudentsDialog from './MergeStudentsDialog';
 import StudentProfileDialog from './StudentProfileDialog';
 import StudentNameButton from './StudentNameButton';
+import ExtraBranchesEditor from './ExtraBranchesEditor';
 
 const BELT_OPTIONS = [...new Set(BELT_LEVELS_ARRAY)];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -369,6 +370,9 @@ export const StudentEditDialog: React.FC<EditProps> = ({ row, onClose }) => {
                 </div>
                 <Switch checked={editEmployee} onCheckedChange={setEditEmployee} />
               </div>
+            )}
+            {isAllBranch && editRow?.id && editRow.branch_id && (
+              <ExtraBranchesEditor studentId={editRow.id} homeBranchId={editRow.branch_id} branches={branches as any} />
             )}
           </div>
           <DialogFooter>

@@ -1,3 +1,4 @@
+import { listStudentBranches } from '@/services/studentBranchesService';
 /**
  * Unified Invoice Dialog Component
  * Handles create, view, edit, adjust, and refund workflows.
@@ -26,7 +27,7 @@ import { transformProduct } from '@/services/productService';
 import { siblingDiscountForBranch, siblingEligible, siblingDiscountUsed } from '@/utils/schoolFeePlan';
 import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStudentCreditBalance, applyCredit } from '@/services/studentCreditService';
 import { createPayment, getPaymentsByInvoice, type Payment } from '@/services/paymentService';
 import { getStudents } from '@/services/studentService';
@@ -404,6 +405,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
   const [formData, setFormData] = useState({ student_id: '', branch_id: '', notes: '', issue_date: todayISO() });
+  // Shared term: class lessons valid at several branches (superadmin / all-branch password only)
+  const [sharedBranchIds, setSharedBranchIds] = useState<string[]>([]);
+  const canShareBranches = isSuperadmin || (() => { try { return sessionStorage.getItem('guards_list_all_branch_v1') === '1'; } catch { return false; } })();
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [newItem, setNewItem] = useState({ product_id: '', category_id: '', quantity: 1, unit_price: 0, size_variant: '', color_variant: '', term_id: '', grading_slot_id: '' });
 
@@ -785,9 +789,10 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   };
 
   // ─── Create Mode Logic ─────────────────────────────────────────
+  const { data: extraBranchLinks = [] } = useQuery({ queryKey: ['student-branches', 'all'], queryFn: () => listStudentBranches(), enabled: !!isCreateMode, staleTime: 60_000 });
   const filteredStudents = students.filter(s => {
     const matchesStatus = studentStatusFilter === 'all' ? (s.status === 'active' || s.status === 'trial') : s.status === studentStatusFilter;
-    const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id;
+    const matchesBranch = !formData.branch_id || s.branch_id === formData.branch_id || extraBranchLinks.some(l => l.student_id === s.id && l.branch_id === formData.branch_id);
     return matchesStatus && matchesBranch;
   }).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -1218,7 +1223,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}) }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}), ...(canShareBranches && sharedBranchIds.length && categories.find(c => c.id === products.find(p => p.id === item.product_id)?.category_id)?.name === 'Classes' ? { valid_branch_ids: Array.from(new Set([formData.branch_id, ...sharedBranchIds])) } : {}) }
         };
       });
 
@@ -1887,6 +1892,21 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           </div>
 
           {/* Invoice Items */}
+          {canShareBranches && formData.branch_id && items.some(it => categories.find(c => c.id === products.find(p => p.id === it.product_id)?.category_id)?.name === 'Classes') && (
+            <div className="rounded-md border p-2 text-xs">
+              <div className="font-medium">Class lessons also valid at</div>
+              <p className="mb-1 text-[11px] text-muted-foreground">One pool of lessons usable at any ticked branch. Payment stays at the student's home branch.</p>
+              <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+                {availableBranches.filter(b => b.id !== formData.branch_id).map(b => (
+                  <label key={b.id} className="flex items-center gap-1.5">
+                    <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={sharedBranchIds.includes(b.id)}
+                      onChange={(e) => setSharedBranchIds(prev => e.target.checked ? [...prev, b.id] : prev.filter(x => x !== b.id))} />
+                    {b.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="space-y-2 md:space-y-4">
             <h3 className="text-sm md:text-lg font-medium">Invoice Items</h3>
 

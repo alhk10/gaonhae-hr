@@ -54,6 +54,7 @@ import ProgressCardDialog from '@/components/attendance/ProgressCardDialog';
 import { PayBadgeView, useInvoiceDues } from '@/components/common/PayBadges';
 import { termPayBadge, unpaidInvoiceBadge } from '@/utils/paymentBadges';
 import { termLabelOf } from '@/utils/progressCard';
+import { listStudentBranches } from '@/services/studentBranchesService';
 
 const termBadge = (s: string | null): 'paid' | 'unpaid' | 'none' => {
   const st = normalizeStatus(s);
@@ -157,6 +158,14 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
   const rows = React.useMemo(() => (showEmployees ? rowsAll : rowsAll.filter((r) => !r.is_employee)), [rowsAll, showEmployees]);
   const dues = useInvoiceDues(rows);
   const rowIds = React.useMemo(() => rows.map((r) => r.id).sort(), [rows]);
+  const { data: extraLinks = [] } = useQuery({ queryKey: ['student-branches', 'list', rowIds], queryFn: () => listStudentBranches(rowIds), enabled: rowIds.length > 0, retry: false });
+  const { data: branchList = [] } = useQuery({ queryKey: ['public-branches'], queryFn: getPublicBranches, staleTime: 5 * 60 * 1000 });
+  const extraByStudent = React.useMemo(() => {
+    const names = new Map((branchList as any[]).map((b) => [b.id, b.name]));
+    const m = new Map<string, string[]>();
+    extraLinks.forEach((l) => m.set(l.student_id, [...(m.get(l.student_id) || []), names.get(l.branch_id) || l.branch_id]));
+    return m;
+  }, [extraLinks, branchList]);
   const { data: cardInfo } = useQuery({ queryKey: ['progress-cards-students', rowIds], queryFn: () => cardsForStudents(rowIds), enabled: rowIds.length > 0, retry: false });
   const cardOnBranches = React.useMemo(() => new Set(cardInfo?.enabled_branches || []), [cardInfo]);
   const cardKeys = React.useMemo(() => new Set((cardInfo?.cards || []).map((c) => `${c.student_id}_${c.term_id}`)), [cardInfo]);
@@ -313,7 +322,8 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
                   <StudentNameButton name={r.name} studentId={r.id} onOpen={setProfileId} className="font-medium text-sm text-left" />
                   <span className="text-muted-foreground">{r.current_belt || 'No belt'}</span>
                   {r.class_group && <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ color: classColorVar(classColor(r.class_group)), background: classColorTint(classColor(r.class_group)) }}>{r.class_group}</span>}
-                  {r.branch_name && <span className="text-muted-foreground">{r.branch_name}</span>}
+                  {r.branch_name && <span className="text-muted-foreground">{extraByStudent.has(r.id) ? `Home: ${r.branch_name}` : r.branch_name}</span>}
+                  {extraByStudent.has(r.id) && <Badge variant="outline" className="text-[10px]">Also at: {extraByStudent.get(r.id)!.join(', ')}</Badge>}
                   {r.is_employee && <Badge variant="secondary" className="text-[10px]">Employee</Badge>}
                   {r.status !== 'active' && r.status !== 'trial' && <Badge variant="outline" className={`text-[10px] ${statusBadge(r.status)}`}>{r.status}</Badge>}
                   {r.status === 'trial' ? <Badge variant="outline" className="text-[10px]" style={{ color: classColorVar('amber'), borderColor: classColorVar('amber'), background: classColorTint('amber') }}>Trial</Badge>

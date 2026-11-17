@@ -11,3 +11,4 @@
 - [ ] Set real prices for the 7 STF conversion products (waiting on prices)
 - [x] Student count by month: count a student only in months where paid weeks cover most of that month's lessons
 - [x] Class fee discounts: sibling 4+ weeks once per term, default term weeks, $10 warning + override alerts
+- [x] Multi-branch students (payments/finance at home branch)
