@@ -947,7 +947,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       const updated = { ...prev, [field]: value };
       const isClasses = categories.find(c => c.id === updated.category_id)?.name === 'Classes'
         || categories.find(c => c.id === products.find(p => p.id === updated.product_id)?.category_id)?.name === 'Classes';
-      if (isClasses && (field === 'term_id' || field === 'product_id') && updated.term_id) {
+      const pname = products.find(p => p.id === updated.product_id)?.name || '';
+      const perLesson = /ad[- ]?hoc|per[- ]lesson|casual|trial|private/i.test(pname);
+      if (isClasses && !perLesson && updated.product_id && (field === 'term_id' || field === 'product_id') && updated.term_id) {
         const t: any = branchTerms.find(bt => bt.id === updated.term_id);
         updated.quantity = Number(t?.total_weeks) > 0 ? Number(t.total_weeks) : 10;
       }
