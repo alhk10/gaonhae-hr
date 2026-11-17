@@ -12,6 +12,13 @@ But Skye isn't a new student. She has been with us since June 2026 and has paid 
 - Returning students like Skye always count from the term start. That puts her October-only payment at 29/09 to 26/10, and she shows as owing the remaining weeks.
 - Apply the same rule on the Students tab, Attendance, grading readiness, /hello and the monthly counts, so every page agrees.
 
+## Monthly payers
+Paid weeks always fill the term in order from the start date, one 4-week block per invoice:
+- October invoice (4 weeks): 29/09 to 26/10. Shows paid during October.
+- November invoice (4 more weeks): 27/10 to 23/11.
+- December invoice (4 more weeks): 24/11 to 20/12. Fully paid for the term.
+If the next month's invoice is missing when its block starts, she shows unpaid, even if it gets issued later in the month.
+
 ## Check
 - Skye shows as part-paid (4 of 12 weeks, covered until 26/10).
 - A genuine new student who joins mid-term still counts from their first invoice date.
