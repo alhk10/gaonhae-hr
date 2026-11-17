@@ -92,7 +92,7 @@ const statusBadge = (s: string) => {
 const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilter, initialBranchId, drillNonce }) => {
   const qc = useQueryClient();
   const { toggleReady, dialog: readyDialog } = useReadyForGradingToggle();
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const actor = user?.employeeId || user?.email || 'admin';
   // Signed-in staff save invoices directly; password-only /access sessions
   // save through the create_access_invoice database function instead.
@@ -274,7 +274,7 @@ const StudentsTab: React.FC<Props> = ({ canEdit, lockedBranchId, initialPayFilte
           onOpenChange={(o) => !o && setInvoiceFor(null)}
           branchId={invoiceFor.branch_id || undefined}
           prefilledStudentId={invoiceFor.id}
-          onSubmitOverride={user ? undefined : createAccessInvoice}
+          onSubmitOverride={user && userrole === 'superadmin' ? undefined : createAccessInvoice}
           onInvoiceCreated={() => {
             setInvoiceFor(null);
             qc.invalidateQueries({ queryKey: ['public-student-directory'] });

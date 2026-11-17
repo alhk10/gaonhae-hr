@@ -50,7 +50,7 @@ const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, valu
 
 export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenChange, canEdit, readOnly }) => {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const [editRow, setEditRow] = useState<PublicStudentDirectoryRow | null>(null);
   const [invoiceRow, setInvoiceRow] = useState<PublicStudentDirectoryRow | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
@@ -100,7 +100,7 @@ export const StudentProfileDialog: React.FC<Props> = ({ studentId, open, onOpenC
         onOpenChange={(o) => !o && setInvoiceRow(null)}
         branchId={invoiceRow.branch_id || undefined}
         prefilledStudentId={invoiceRow.id}
-        onSubmitOverride={user ? undefined : createAccessInvoice}
+        onSubmitOverride={user && userrole === 'superadmin' ? undefined : createAccessInvoice}
         onInvoiceCreated={() => {
           setInvoiceRow(null);
           qc.invalidateQueries({ queryKey: ['public-student-directory'] });

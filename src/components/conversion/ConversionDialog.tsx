@@ -35,7 +35,7 @@ interface Props {
 
 export const ConversionDialog: React.FC<Props> = ({ open, onOpenChange, student, certificateId, defaultRank, onDone }) => {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, userrole } = useAuth();
   const check = checkConversionEligibility(student.belt, student.dob, student.lastConversion, new Date(), student.prePoom);
   const [series, setSeries] = useState<'stf' | 'kukkiwon'>('stf');
   const [rank, setRank] = useState<string>(defaultRank || student.belt || '1st Dan');
@@ -85,7 +85,7 @@ export const ConversionDialog: React.FC<Props> = ({ open, onOpenChange, student,
       {invoiceOpen && (
         <InvoiceDialog mode="create" open onOpenChange={(o) => !o && setInvoiceOpen(false)}
           branchId={student.branchId || undefined} prefilledStudentId={student.id}
-          onSubmitOverride={user ? undefined : createAccessInvoice}
+          onSubmitOverride={user && userrole === 'superadmin' ? undefined : createAccessInvoice}
           onInvoiceCreated={() => { setInvoiceOpen(false); refresh(); onOpenChange(false); }} />
       )}
       <Dialog open={open} onOpenChange={onOpenChange}>
