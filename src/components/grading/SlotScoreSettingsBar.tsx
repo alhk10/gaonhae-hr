@@ -7,16 +7,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 
-export interface SlotScoreSettings { extra_fields: string[]; hide_body_metrics: boolean }
+export interface SlotScoreSettings { extra_fields: string[]; hide_body_metrics: boolean; print_scorecard?: boolean }
 
 export const SlotScoreSettingsBar: React.FC<{ slotId: string; settings?: SlotScoreSettings; onChanged: () => void }> = ({ slotId, settings, onChanged }) => {
   const [name, setName] = useState('');
   const fields = settings?.extra_fields ?? [];
   const hide = settings?.hide_body_metrics ?? false;
-  const save = async (nextFields: string[], nextHide: boolean) => {
+  const printCard = settings?.print_scorecard ?? true;
+  const save = async (nextFields: string[], nextHide: boolean, nextPrint: boolean = printCard) => {
     const pw = sessionStorage.getItem('access_pw_v1') || '';
     const { error } = await (supabase.rpc as any)('access_grading_slot_score_settings_set', {
-      p_password: pw, p_slot_id: slotId, p_extra_fields: nextFields, p_hide_body: nextHide,
+      p_password: pw, p_slot_id: slotId, p_extra_fields: nextFields, p_hide_body: nextHide, p_print_scorecard: nextPrint,
     });
     if (error) { toast.error(error.message); return; }
     onChanged();
@@ -33,6 +34,10 @@ export const SlotScoreSettingsBar: React.FC<{ slotId: string; settings?: SlotSco
       <label className="flex items-center gap-1">
         <Checkbox checked={hide} onCheckedChange={(c) => save(fields, !!c)} aria-label="Hide height, weight and BMI" />
         Hide height, weight and BMI
+      </label>
+      <label className="flex items-center gap-1">
+        <Checkbox checked={printCard} onCheckedChange={(c) => save(fields, hide, !!c)} aria-label="Print scorecard on certificate" />
+        Print scorecard on certificate
       </label>
       <span>Custom fields:</span>
       {fields.map(f => (

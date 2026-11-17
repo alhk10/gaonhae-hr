@@ -2379,18 +2379,21 @@ export type Database = {
         Row: {
           extra_fields: string[]
           hide_body_metrics: boolean
+          print_scorecard: boolean
           slot_id: string
           updated_at: string
         }
         Insert: {
           extra_fields?: string[]
           hide_body_metrics?: boolean
+          print_scorecard?: boolean
           slot_id: string
           updated_at?: string
         }
         Update: {
           extra_fields?: string[]
           hide_body_metrics?: boolean
+          print_scorecard?: boolean
           slot_id?: string
           updated_at?: string
         }
@@ -9101,6 +9104,7 @@ export type Database = {
           p_extra_fields: string[]
           p_hide_body: boolean
           p_password: string
+          p_print_scorecard?: boolean
           p_slot_id: string
         }
         Returns: undefined

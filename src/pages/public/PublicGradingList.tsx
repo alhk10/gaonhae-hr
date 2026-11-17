@@ -9,6 +9,7 @@ import { cardsForStudents, downloadStudentCard } from '@/services/progressCardSe
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
+import { DEFAULT_SCORECARD_LABELS } from '@/constants/scorecardLabels';
 import SlotScoreSettingsBar, { SlotScoreSettings } from '@/components/grading/SlotScoreSettingsBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -305,10 +306,10 @@ const PublicGradingList: React.FC = () => {
     enabled: gradingSlotIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from as any)('grading_slot_score_settings')
-        .select('slot_id, extra_fields, hide_body_metrics').in('slot_id', gradingSlotIds);
+        .select('slot_id, extra_fields, hide_body_metrics, print_scorecard').in('slot_id', gradingSlotIds);
       if (error) throw error;
       const m: Record<string, SlotScoreSettings> = {};
-      for (const r of data || []) m[r.slot_id] = { extra_fields: r.extra_fields || [], hide_body_metrics: !!r.hide_body_metrics };
+      for (const r of data || []) m[r.slot_id] = { extra_fields: r.extra_fields || [], hide_body_metrics: !!r.hide_body_metrics, print_scorecard: r.print_scorecard !== false };
       return m;
     },
   });
@@ -1342,14 +1343,21 @@ const PublicGradingList: React.FC = () => {
   ): GradingCertificateInput | null => {
     const belt = beltOverride ?? r.current_belt ?? r.student_current_belt;
     if (!r.grading_date || !belt) return null;
-    const morley = isMorleyRow(r);
     const res = (r.result || '').toLowerCase();
+    const ss = r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id] : undefined;
+    const printCard = ss?.print_scorecard !== false;
+    const hideBody = !!ss?.hide_body_metrics;
+    const allowed = new Set([...DEFAULT_SCORECARD_LABELS, ...(ss?.extra_fields || [])]
+      .filter(l => !(hideBody && (l === 'Height' || l === 'Weight'))).map(l => l.toLowerCase()));
+    const card = printCard && Array.isArray(r.scorecard)
+      ? (r.scorecard as any[]).filter(x => allowed.has(String(x?.label || '').toLowerCase()))
+      : [];
     return {
       studentName: resolveCertName(r),
       beltAchieved: belt,
       gradingDate: r.grading_date,
-      scorecard: morley && Array.isArray(r.scorecard) ? (r.scorecard as any) : [],
-      result: morley && ['pass', 'double', 'fail'].includes(res) ? (res as any) : null,
+      scorecard: card as any,
+      result: card.length > 0 && ['pass', 'double', 'fail'].includes(res) ? (res as any) : null,
       branchCountry: r.branch_country ?? null,
     };
   };
