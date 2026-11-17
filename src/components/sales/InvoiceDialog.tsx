@@ -1359,7 +1359,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
       toast.success('Invoice created successfully');
       setDialogOpen(false); resetForm(); onInvoiceCreated?.();
-    } catch { toast.error('Failed to create invoice'); }
+    } catch (err) { console.error('Create invoice failed:', err); toast.error(`Failed to create invoice${err instanceof Error && err.message ? `: ${err.message}` : ''}`); }
     finally { setLoading(false); }
   };
 
