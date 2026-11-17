@@ -2375,6 +2375,27 @@ export type Database = {
           },
         ]
       }
+      grading_slot_score_settings: {
+        Row: {
+          extra_fields: string[]
+          hide_body_metrics: boolean
+          slot_id: string
+          updated_at: string
+        }
+        Insert: {
+          extra_fields?: string[]
+          hide_body_metrics?: boolean
+          slot_id: string
+          updated_at?: string
+        }
+        Update: {
+          extra_fields?: string[]
+          hide_body_metrics?: boolean
+          slot_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       grading_slots: {
         Row: {
           available_branch_ids: string[] | null
@@ -9074,6 +9095,15 @@ export type Database = {
           term_name: string
           term_weeks: number
         }[]
+      }
+      access_grading_slot_score_settings_set: {
+        Args: {
+          p_extra_fields: string[]
+          p_hide_body: boolean
+          p_password: string
+          p_slot_id: string
+        }
+        Returns: undefined
       }
       access_grading_term_fee_status: {
         Args: { p_password: string; p_student_id: string; p_term_id: string }

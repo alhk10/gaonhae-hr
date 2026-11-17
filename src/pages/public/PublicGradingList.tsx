@@ -9,6 +9,7 @@ import { cardsForStudents, downloadStudentCard } from '@/services/progressCardSe
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
+import SlotScoreSettingsBar, { SlotScoreSettings } from '@/components/grading/SlotScoreSettingsBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -296,7 +297,21 @@ const PublicGradingList: React.FC = () => {
     staleTime: 60 * 1000,
   });
   const studentDirMap = useMemo(() => new Map(studentDir.map((d) => [d.id, d])), [studentDir]);
+  const canOverrideResults = isAllBranch || isSuperadminUser;
+  const resultEditableFor = (d: string | null | undefined) => canOverrideResults || isWithinResultWindow(d);
   const gradingSlotIds = useMemo(() => [...new Set((rows as any[]).map((r) => r.slot_id).filter(Boolean))].sort(), [rows]);
+  const { data: slotScoreSettings = {} } = useQuery({
+    queryKey: ['grading-slot-score-settings', gradingSlotIds],
+    enabled: gradingSlotIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from as any)('grading_slot_score_settings')
+        .select('slot_id, extra_fields, hide_body_metrics').in('slot_id', gradingSlotIds);
+      if (error) throw error;
+      const m: Record<string, SlotScoreSettings> = {};
+      for (const r of data || []) m[r.slot_id] = { extra_fields: r.extra_fields || [], hide_body_metrics: !!r.hide_body_metrics };
+      return m;
+    },
+  });
   const { data: termStatusRows = [] } = useQuery({
     queryKey: ['grading-term-status', gradingSlotIds],
     enabled: gradingSlotIds.length > 0,
@@ -751,7 +766,7 @@ const PublicGradingList: React.FC = () => {
       const currentName = editRow.student_name || '';
       const currentResult = editRow.result || '';
       const currentRemark = editRow.remark || '';
-      const resultEditable = isWithinResultWindow(editRow.grading_date);
+      const resultEditable = resultEditableFor(editRow.grading_date);
 
       if (editRow.source === 'registration' && editRow.registration_id) {
         if (pickedStudent && pickedStudent.id !== editRow.student_id) {
@@ -823,7 +838,7 @@ const PublicGradingList: React.FC = () => {
       for (const r of selectedRows) {
         const ops: Promise<unknown>[] = [];
         if (massForm.changeResult) {
-          const resultEditable = isWithinResultWindow(r.grading_date);
+          const resultEditable = resultEditableFor(r.grading_date);
           if (resultEditable) {
             if (r.source === 'registration' && r.registration_id) {
               ops.push(adminUpdateGradingResult(r.registration_id, massForm.result || null));
@@ -1758,6 +1773,13 @@ const PublicGradingList: React.FC = () => {
               </CardHeader>
               <CardContent className="access-list-shell pt-0">
                 <div className="rounded-md border divide-y text-xs">
+                  {editMode && g.header.slot_id && g.items.some(isMorleyRow) && (
+                    <SlotScoreSettingsBar
+                      slotId={g.header.slot_id}
+                      settings={(slotScoreSettings as Record<string, SlotScoreSettings>)[g.header.slot_id]}
+                      onChanged={() => qc.invalidateQueries({ queryKey: ['grading-slot-score-settings'] })}
+                    />
+                  )}
                   {editMode && (
                     <div className="flex items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground">
                           <Checkbox
@@ -1818,7 +1840,7 @@ const PublicGradingList: React.FC = () => {
                                 <Select
                                   value={r.result ?? ''}
                                   onValueChange={(v) => handleResultChange(r, v)}
-                                  disabled={!(isWithinResultWindow(r.grading_date))}
+                                  disabled={!resultEditableFor(r.grading_date)}
                                 >
                                   <SelectTrigger className="h-7 w-[88px] text-[11px] px-1.5">
                                     <SelectValue placeholder="—" />
@@ -1974,6 +1996,8 @@ const PublicGradingList: React.FC = () => {
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
                               scorecard={r.scorecard as any}
+                              extraFields={r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id]?.extra_fields : undefined}
+                              hideBody={r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id]?.hide_body_metrics : false}
                               onSaved={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
                             />
                         </div>
@@ -2376,7 +2400,7 @@ const PublicGradingList: React.FC = () => {
                   <Select
                     value={editForm.result}
                     onValueChange={(v) => setEditForm((f) => ({ ...f, result: v === '__clear__' ? '' : v }))}
-                    disabled={!(isWithinResultWindow(editRow?.grading_date))}
+                    disabled={!resultEditableFor(editRow?.grading_date)}
                   >
                     <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>

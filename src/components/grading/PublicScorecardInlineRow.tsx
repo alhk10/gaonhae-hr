@@ -52,9 +52,9 @@ const Box: React.FC<{ registrationId: string | null; label: string; initial: str
   );
 };
 
-interface Props { registrationId: string | null; scorecard: ScorecardRow[] | null | undefined; onSaved: () => void }
+interface Props { registrationId: string | null; scorecard: ScorecardRow[] | null | undefined; onSaved: () => void; extraFields?: string[]; hideBody?: boolean }
 
-export const PublicScorecardInline: React.FC<Props> = ({ registrationId, scorecard, onSaved }) => {
+export const PublicScorecardInline: React.FC<Props> = ({ registrationId, scorecard, onSaved, extraFields = [], hideBody = false }) => {
   const [local, setLocal] = useState<ScorecardRow[]>(scorecard || []);
   useEffect(() => { setLocal(scorecard || []); }, [scorecard]);
   const bmi = computeBmi(read(local, 'Height'), read(local, 'Weight'));
@@ -67,10 +67,10 @@ export const PublicScorecardInline: React.FC<Props> = ({ registrationId, scoreca
   };
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
-      {DEFAULT_SCORECARD_LABELS.map(l => (
+      {[...DEFAULT_SCORECARD_LABELS.filter(l => !(hideBody && (l === 'Height' || l === 'Weight'))), ...extraFields].map(l => (
         <Box key={l} registrationId={registrationId} label={l} initial={read(scorecard, l)} onSaved={handleSaved} />
       ))}
-      <span className="text-[10px] text-muted-foreground">BMI <span className="font-medium text-foreground tabular-nums">{bmi ?? '-'}</span></span>
+      {!hideBody && <span className="text-[10px] text-muted-foreground">BMI <span className="font-medium text-foreground tabular-nums">{bmi ?? '-'}</span></span>}
       {!registrationId && <span className="text-[10px] text-muted-foreground italic">Match student first</span>}
     </div>
   );
