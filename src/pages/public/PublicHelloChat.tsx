@@ -194,15 +194,17 @@ const PublicHelloChat: React.FC = () => {
     setStage(next);
   }, [stage]);
 
+  // Every Back (in-page or browser) restarts /hello with all entered data cleared.
   const goBack = useCallback(() => {
-    setStageHistory((h) => {
-      if (h.length === 0) return h;
-      const prev = h[h.length - 1];
-      setStage(prev);
-      return h.slice(0, -1);
-    });
+    window.location.replace('/hello');
   }, []);
 
+  useEffect(() => {
+    window.history.pushState({ helloGuard: true }, '');
+    const onPop = () => window.location.replace('/hello');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Step 1 - identify
   const [firstName, setFirstName] = useState('');
@@ -2041,7 +2043,7 @@ const PublicHelloChat: React.FC = () => {
                   goTo('payment_done');
                 }}
               />}
-              <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
+              <Button variant="outline" className="w-full" onClick={goBack}>
                 Back to menu
               </Button>
             </>
@@ -2235,7 +2237,7 @@ const PublicHelloChat: React.FC = () => {
                       </div>
                     </button>
                   ))}
-                  <Button variant="outline" className="w-full" onClick={() => goTo('matched')}>
+                  <Button variant="outline" className="w-full" onClick={goBack}>
                     <ChevronLeft className="h-4 w-4" /> Back
                   </Button>
                 </CardContent>
@@ -2253,7 +2255,7 @@ const PublicHelloChat: React.FC = () => {
                   <p className="text-xs text-muted-foreground text-center">
                     Please check your name spelling, date of birth and branch.
                   </p>
-                  <Button variant="outline" className="w-full h-11" onClick={() => goTo('identify')}>
+                  <Button variant="outline" className="w-full h-11" onClick={goBack}>
                     <ChevronLeft className="h-4 w-4" /> Back – check my details
                   </Button>
                   <Button
@@ -2331,7 +2333,7 @@ const PublicHelloChat: React.FC = () => {
                   >
                     {submitting ? 'Sending…' : 'Send my details'}
                   </Button>
-                  <Button variant="outline" className="w-full" onClick={() => goTo('choice')}>
+                  <Button variant="outline" className="w-full" onClick={goBack}>
                     <ChevronLeft className="h-4 w-4" /> Back
                   </Button>
                 </CardContent>
@@ -2385,7 +2387,7 @@ const PublicHelloChat: React.FC = () => {
                   >
                     {submitting ? 'Sending…' : 'Send my details'}
                   </Button>
-                  <Button variant="outline" className="w-full" onClick={() => goTo('choice')}>
+                  <Button variant="outline" className="w-full" onClick={goBack}>
                     <ChevronLeft className="h-4 w-4" /> Back
                   </Button>
                 </CardContent>
