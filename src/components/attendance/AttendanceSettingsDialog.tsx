@@ -25,7 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, X } from 'lucide-react';
 import { parseIsoDate, toIsoDate } from '@/utils/attendanceWeek';
 
-interface Props { open: boolean; onOpenChange: (o: boolean) => void; branchId: string }
+interface Props { open: boolean; onOpenChange: (o: boolean) => void; branchId: string; branches?: { id: string; name: string }[] }
 
 type SlotForm = {
   id?: string; repeat: 'weekly' | 'dates'; dates: string[]; weekday: string; start_time: string; end_time: string; class_type: string;
@@ -40,8 +40,10 @@ const toForm = (s: TimetableSlot): SlotForm => ({
 
 type TermForm = { id?: string; name: string; start_date: string; end_date: string; is_active: boolean };
 
-const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchId }) => {
+const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchId: initialBranchId, branches = [] }) => {
   const qc = useQueryClient();
+  const [branchId, setBranchId] = useState(initialBranchId);
+  React.useEffect(() => { if (open) setBranchId(initialBranchId); }, [open, initialBranchId]);
   const key = ['access-attendance-settings', branchId];
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => getAttendanceSettings(branchId), enabled: open });
   const reload = () => qc.invalidateQueries({ queryKey: key });
@@ -102,6 +104,12 @@ const AttendanceSettingsDialog: React.FC<Props> = ({ open, onOpenChange, branchI
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="top-[5%] max-h-[90vh] max-w-2xl translate-y-0 overflow-y-auto">
         <DialogHeader><DialogTitle>Attendance settings</DialogTitle></DialogHeader>
+        {branches.length > 1 && (
+          <Select value={branchId} onValueChange={(v) => { setBranchId(v); setSlotForm(null); setTermForm(null); setNewClass(''); setClassEdits({}); setBreakForm({}); }}>
+            <SelectTrigger className="h-8 text-xs" aria-label="Branch"><SelectValue placeholder="Branch" /></SelectTrigger>
+            <SelectContent>{branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
         <label className="flex items-center gap-2 rounded border px-2 py-1.5 text-xs">
           <Switch checked={!!progressOn} onCheckedChange={async (v) => {
             try { await progressSettings(branchId, v); qc.invalidateQueries({ queryKey: ['progress-settings', branchId] }); toast.success(v ? 'Progress cards on' : 'Progress cards off'); }

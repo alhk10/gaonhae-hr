@@ -682,7 +682,7 @@ const AttendanceTab: React.FC<Props> = ({ lockedBranchId, branches, canEdit, vie
       </AlertDialog>
 
       {settingsOpen && branchId && (
-        <AttendanceSettingsDialog open={settingsOpen} onOpenChange={(o) => { setSettingsOpen(o); if (!o) refresh(); }} branchId={branchId} />
+        <AttendanceSettingsDialog open={settingsOpen} onOpenChange={(o) => { setSettingsOpen(o); if (!o) refresh(); }} branchId={branchId} branches={lockedBranchId ? [] : branches} />
       )}
       {cardFor && cardFor.term_id && (
         <ProgressCardDialog open onOpenChange={(o) => !o && setCardFor(null)}
