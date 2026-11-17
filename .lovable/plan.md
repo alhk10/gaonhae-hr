@@ -1,16 +1,17 @@
-# Print grading scorecards on certificates for every Australian branch
+# Scorecard page on certificates for every branch
 
-## What I found
-- The certificate only adds the scorecard back page for Morley students. Floreat (Leo Hong) and Yokine (Kangjun Cho, Arien Web, Ayden Webb) are skipped.
-- Scores for these four are not saved. Morley has scores for 39 of its 41 students at the 19/09/2026 grading. Floreat and Yokine have none. Until today the score boxes only saved for Morley, so scores typed in for other branches were turned away.
-- As you asked, blank scorecards are skipped: a back page prints only when scores are saved.
-
-## Fix
-- Add the scorecard back page and the Pass/Double/Fail result to certificates for every branch, not only Morley, whenever scores are saved.
-- Staff re-enter the scores for Leo, Kangjun, Arien and Ayden in the Grading list. The score boxes now save for every branch. Then they download the certificates again.
+## What changes
+- Every branch's certificates get the scorecard back page, not only Morley's. This covers Floreat (Leo Hong) and Yokine (Kangjun Cho, Arien Web, Ayden Webb).
+- Each grading's settings bar in the /access Grading list (edit mode) gets a new "Print scorecard on certificate" switch. It is on by default, and when it's off certificates have only the front page.
+- That settings bar is also where staff choose the score fields: add custom fields and tick "Hide height, weight and BMI". The scorecard page shows exactly those fields.
+- Blank scores are left off the page. If a student has no scores saved at all, no back page is printed.
+- No scores are saved yet for these four students, so staff need to type them into the Grading list before printing.
 
 ## Check
-- Enter test scores on one Yokine student, download the certificate, confirm page 2 shows the scorecard, then remove the test scores.
+- Enter test scores on one Yokine student, then download the certificate and confirm page 2 shows only the filled fields.
+- Turn the switch off and confirm the certificate is one page.
+- Remove the test scores and turn the switch back on.
 
 ## Technical details
-- `PublicGradingList.tsx` `rowToCertInput`: drop the `isMorleyRow` gate for `scorecard` and `result`. Apply the same change to any other certificate builders (BranchGradingList / GradingListTab) found with `rg "scorecard:"`.
+- Add `print_scorecard boolean default true` to `grading_slot_score_settings`. Extend `access_grading_slot_score_settings_set` with `p_print_scorecard`, keeping its existing behaviour, and add the checkbox to `SlotScoreSettingsBar`.
+- `rowToCertInput` in `PublicGradingList.tsx`: remove the `isMorleyRow` gate. Pass the scorecard only when `print_scorecard` is on, filtered to non-blank rows, in slot field order (defaults minus Height/Weight when hidden, then extras), and drop BMI when hidden. Apply the same change to the bulk certificate path.
