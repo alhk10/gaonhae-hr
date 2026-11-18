@@ -3889,6 +3889,63 @@ export type Database = {
         }
         Relationships: []
       }
+      limited_edition_products: {
+        Row: {
+          branch_ids: string[] | null
+          created_at: string
+          description: string | null
+          designs: string[]
+          ends_on: string | null
+          id: string
+          image_urls: string[]
+          is_active: boolean
+          name: string
+          price: number
+          product_id: string | null
+          sizes: string[]
+          sort_order: number
+          starts_on: string | null
+          stock_limit: number | null
+          updated_at: string
+        }
+        Insert: {
+          branch_ids?: string[] | null
+          created_at?: string
+          description?: string | null
+          designs?: string[]
+          ends_on?: string | null
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          name: string
+          price?: number
+          product_id?: string | null
+          sizes?: string[]
+          sort_order?: number
+          starts_on?: string | null
+          stock_limit?: number | null
+          updated_at?: string
+        }
+        Update: {
+          branch_ids?: string[] | null
+          created_at?: string
+          description?: string | null
+          designs?: string[]
+          ends_on?: string | null
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          name?: string
+          price?: number
+          product_id?: string | null
+          sizes?: string[]
+          sort_order?: number
+          starts_on?: string | null
+          stock_limit?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       location_exceptions: {
         Row: {
           created_at: string | null
@@ -8785,6 +8842,7 @@ export type Database = {
         Returns: undefined
       }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
+      _le_sold: { Args: { p_id: string }; Returns: number }
       _lesson_balance: {
         Args: {
           p_branch_id: string
@@ -9132,6 +9190,18 @@ export type Database = {
       access_invoice_student_credit: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: number
+      }
+      access_limited_edition_delete: {
+        Args: { p_id: string; p_password: string }
+        Returns: undefined
+      }
+      access_limited_edition_list: {
+        Args: { p_password: string }
+        Returns: Json[]
+      }
+      access_limited_edition_upsert: {
+        Args: { p_password: string; p_row: Json }
+        Returns: string
       }
       access_list_chat_messages: { Args: { p_password: string }; Returns: Json }
       access_list_payment_shortages: {
@@ -10843,6 +10913,20 @@ export type Database = {
         Returns: Json
       }
       get_public_invoice_full: { Args: { p_invoice_id: string }; Returns: Json }
+      get_public_limited_editions: {
+        Args: { p_branch_id: string }
+        Returns: {
+          description: string
+          designs: string[]
+          id: string
+          image_urls: string[]
+          name: string
+          price: number
+          product_id: string
+          remaining: number
+          sizes: string[]
+        }[]
+      }
       get_public_payment_options: {
         Args: { p_branch_id: string; p_current_belt: string }
         Returns: {

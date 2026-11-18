@@ -62,6 +62,9 @@ export interface GuardsCartItem {
   requires_size?: boolean;
   sizes?: string[];
   requires_color?: boolean;
+  /** Limited edition lines carry the chosen size/design directly. */
+  size?: string | null;
+  design?: string | null;
 }
 
 /** An item offered on /guards for a given branch. */
@@ -278,7 +281,8 @@ export const isVariantSelectionComplete = (
   selections: VariantSelectionsMap | null,
 ): boolean => {
   const specs = getComponentsForCart(items, gender);
-  if (!specs.length) return false;
+  // Limited edition lines carry their size/design from the order itself.
+  if (!specs.length) return (items || []).some((it: any) => String(it?.key || '').startsWith('le:'));
   const sel = selections || {};
   return specs.every((s) => {
     const v = sel[s.product_id];
@@ -644,6 +648,21 @@ const buildLinesForKey = async (
   selections: VariantSelectionsMap | null,
   cartItem?: GuardsCartItem,
 ): Promise<BuildLineItemsResult> => {
+  if (key.startsWith('le:') && cartItem?.product_id) {
+    // Limited edition: listed price is before GST, the invoice adds GST.
+    const { data: prod } = await supabase.from('products').select('id, name').eq('id', cartItem.product_id).maybeSingle();
+    const unit = Number(cartItem.unit_price_inc || 0);
+    const variant = [cartItem.design, cartItem.size].filter(Boolean).join(' / ');
+    const items = prod ? [{
+      product_id: prod.id,
+      description: cartItem.label || prod.name,
+      quantity: qty,
+      unit_price: unit,
+      size_variant: variant || undefined,
+      metadata: { size: cartItem.size || undefined, design: cartItem.design || undefined, limited_edition: true },
+    }] : [];
+    return { items, adjustment: 0, targetInc: unit * qty };
+  }
   if (key !== 'gaonhae_set' && key !== 'adidas_set') {
     // Individual catalogue product ordered directly.
     const productId = cartItem?.product_id || key;

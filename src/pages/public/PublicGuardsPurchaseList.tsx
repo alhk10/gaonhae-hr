@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Lock, CheckCircle, XCircle, Trash2, Settings, Undo2, Upload } from 'lucide-react';
 import GuardsProductSettingsDialog from '@/components/grading-list/GuardsProductSettingsDialog';
+import LimitedEditionSettingsDialog from '@/components/grading-list/LimitedEditionSettingsDialog';
+import { Sparkles } from 'lucide-react';
 import RefundAsCreditDialog from '@/components/sales/RefundAsCreditDialog';
 import StudentProfileDialog from '@/components/grading-list/StudentProfileDialog';
 import StudentNameButton from '@/components/grading-list/StudentNameButton';
@@ -65,6 +67,8 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
   const [unlocked, setUnlocked] = useState<boolean>(() => embedded || sessionStorage.getItem(SS_KEY) === '1');
   const [pwInput, setPwInput] = useState('');
   const [productSettingsOpen, setProductSettingsOpen] = useState(false);
+  const [limitedOpen, setLimitedOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>(lockedBranchId || 'all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [collectedFilter, setCollectedFilter] = useState<string>('all');
@@ -147,13 +151,17 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       if (statusFilter !== 'all' && r.sale_status !== statusFilter) return false;
       if (collectedFilter === 'yes' && !r.collected) return false;
       if (collectedFilter === 'no' && r.collected) return false;
+      if (typeFilter !== 'all') {
+        const le = ((r.items || []) as any[]).some((it) => String(it?.key || '').startsWith('le:'));
+        if ((typeFilter === 'limited') !== le) return false;
+      }
       if (q) {
         const hay = `${r.first_name} ${r.last_name} ${r.email || ''} ${r.phone || ''} ${r.reference_number || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [rows, branchFilter, statusFilter, collectedFilter, search]);
+  }, [rows, branchFilter, statusFilter, collectedFilter, typeFilter, search]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['guards-purchases'] });
 
@@ -214,16 +222,22 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
       <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h1 className="text-lg font-semibold">Uniforms and Guards Purchase List</h1>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setProductSettingsOpen(true)}>
-            <Settings className="h-3.5 w-3.5 mr-1" /> Settings
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLimitedOpen(true)}>
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Limited Edition
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setProductSettingsOpen(true)}>
+              <Settings className="h-3.5 w-3.5 mr-1" /> Settings
+            </Button>
+          </div>
         </div>
 
         <GuardsProductSettingsDialog open={productSettingsOpen} onOpenChange={setProductSettingsOpen} />
+        <LimitedEditionSettingsDialog open={limitedOpen} onOpenChange={setLimitedOpen} />
 
 
         <Card>
-          <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
             <Select value={branchFilter} onValueChange={setBranchFilter} disabled={!!lockedBranchId}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
@@ -247,6 +261,14 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
                 <SelectItem value="all">All Collection</SelectItem>
                 <SelectItem value="yes">Collected</SelectItem>
                 <SelectItem value="no">Not Collected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Items</SelectItem>
+                <SelectItem value="limited">Limited Edition</SelectItem>
+                <SelectItem value="regular">Uniforms &amp; Guards</SelectItem>
               </SelectContent>
             </Select>
             <Input className="h-8 text-xs" placeholder="Search name / phone / email / ref" value={search} onChange={e => setSearch(e.target.value)} />

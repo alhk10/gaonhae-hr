@@ -83,6 +83,7 @@ import {
   type FeePaymentPlan,
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
+import LimitedEditionPopup from '@/components/hello/LimitedEditionPopup';
 import { HelloHomeScreenPrompt, HelloNotificationButton } from '@/components/hello/HelloAppExtras';
 
 
@@ -1941,6 +1942,16 @@ const PublicHelloChat: React.FC = () => {
 
           {stage === 'matched' && matched && (
             <>
+              <LimitedEditionPopup
+                enabled={!showOutstandingPopup && !showGradingReadyPopup && !showCardPopup}
+                studentKey={matched.id}
+                branchId={branchId}
+                country={branch?.country}
+                student={matched}
+                dateOfBirth={dob}
+                email={email}
+                phone={phone}
+              />
               <Dialog open={showGradingReadyPopup} onOpenChange={(o) => { if (!o) setGradingPopupDismissed(matched.id); }}>
                 <DialogContent className="max-w-[95vw] sm:max-w-md">
                   <DialogHeader><DialogTitle>Good work! You are now ready for Grading.</DialogTitle></DialogHeader>
