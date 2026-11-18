@@ -1,5 +1,5 @@
 /**
- * Public Perth Seminars & Poomsae Championship 2026 page (/perthcomp).
+ * Public Gaonhae & Friends Competition 2026 page (/perthcomp).
  * Registrations go to perth_event_registrations through SECURITY DEFINER RPCs;
  * pricing, eligibility, caps and deadline are enforced server-side.
  * A discreet lock icon opens a password-checked registration log (PDF export).
@@ -27,8 +27,6 @@ import {
   SEMINARS, COMP_EVENTS, GRADES, GAONHAE_BELTS, AGE_DIVISIONS, PERTH_BANK_INFO,
   ageByBirthYear, gradeRank, seminarIneligibility, eventIneligibility, ageDivision, eventLabel, seminarLabel, gradeLabel, normalizeCompEvents,
 } from '@/utils/perthCompRules';
-import kyorugiPoster from '@/assets/perth-kyorugi-seminar.png.asset.json';
-import poomsaePoster from '@/assets/perth-poomsae-seminar.png.asset.json';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const YEARS = Array.from({ length: 80 }, (_, i) => 2023 - i);
@@ -64,7 +62,7 @@ const PublicPerthComp: React.FC = () => {
   const loadClubs = () => supabase.rpc('get_perth_event_clubs' as any).then(({ data }) => {
     if (data) setClubs(['Gaonhae Taekwondo', ...(data as any[]).map((r) => r.club).filter((c) => c !== 'Gaonhae Taekwondo')]);
   });
-  useEffect(() => { document.title = 'Perth Seminars & Poomsae Championship 2026 | Gaonhae Taekwondo'; loadAvail(); loadClubs(); }, []);
+  useEffect(() => { document.title = 'Gaonhae & Friends Competition 2026 | Gaonhae Taekwondo'; loadAvail(); loadClubs(); }, []);
 
   const effectiveClub = club === '__other__' ? clubOther : club;
 
@@ -108,7 +106,7 @@ const PublicPerthComp: React.FC = () => {
   const submit = async () => {
     if (!first.trim() || !last.trim() || !gender || !dob || !effectiveClub.trim() || !email.trim() || phone.trim().length < 6 || !grade)
       return toast.error('Please complete all participant details');
-    if (seminars.length + events.length === 0) return toast.error('Select at least one seminar or competition event');
+    if (seminars.length + events.length === 0) return toast.error('Select at least one competition event');
     if (!agree || !signature) return toast.error('Please accept the indemnity and sign');
     if (!proof) return toast.error('Please upload your proof of payment');
     setSubmitting(true);
@@ -163,7 +161,7 @@ const PublicPerthComp: React.FC = () => {
         const h = 18, w = h * (img.width / img.height);
         doc.addImage(img, 'PNG', doc.internal.pageSize.getWidth() - 14 - w, 8, w, h);
       } catch { /* logo optional */ }
-      doc.setFontSize(14); doc.text('2026 Gaonhae & Friends Competition', 14, 14);
+      doc.setFontSize(14); doc.text('Gaonhae & Friends Competition 2026', 14, 14);
       doc.setFontSize(9); doc.text('Scarborough Community Centre 2, Function Room, 173 Gildercliffe Street, Scarborough', 14, 20);
       doc.text('Competition starts 9:00AM', 14, 25);
       doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 32);
@@ -243,9 +241,9 @@ const PublicPerthComp: React.FC = () => {
       yPos += h + 8;
     } catch { yPos += 4; }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
-    doc.text('Gaonhae Taekwondo Perth Seminars & Poomsae Championship 2026', 105, yPos, { align: 'center' }); yPos += 6;
+    doc.text('Gaonhae & Friends Competition 2026', 105, yPos, { align: 'center' }); yPos += 6;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    doc.text('28 to 29 November 2026 · Scarborough Community Centre 2, Function Room', 105, yPos, { align: 'center' }); yPos += 10;
+    doc.text('Sunday 29 November 2026 · Scarborough Community Centre 2, Function Room', 105, yPos, { align: 'center' }); yPos += 10;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
     doc.text('REGISTRATION CONFIRMATION', 105, yPos, { align: 'center' }); yPos += 9;
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
@@ -296,9 +294,9 @@ const PublicPerthComp: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 py-8 text-center space-y-3">
           <img src="/lovable-uploads/gaonhae-logo-transparent.png" alt="Gaonhae Taekwondo" className="h-20 mx-auto" />
           <p className="uppercase tracking-[0.3em] text-secondary text-xs font-semibold">Gaonhae Taekwondo</p>
-          <h1 className="text-2xl sm:text-4xl font-extrabold">Perth Seminars &amp; Poomsae Championship 2026</h1>
+          <h1 className="text-2xl sm:text-4xl font-extrabold">Gaonhae &amp; Friends Competition 2026</h1>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm">
-            <span className="flex items-center gap-1"><CalendarDays className="h-4 w-4 text-secondary" /> 28 to 29 November 2026</span>
+            <span className="flex items-center gap-1"><CalendarDays className="h-4 w-4 text-secondary" /> Sunday 29 November 2026</span>
             <span className="flex items-center gap-1"><MapPin className="h-4 w-4 text-secondary" /> Scarborough Community Centre 2, Function Room</span>
           </div>
         </div>
@@ -306,26 +304,6 @@ const PublicPerthComp: React.FC = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-6 text-left">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <img src={poomsaePoster.url} alt="Poomsae Seminar — Master Kang Hyeonman" className="w-full rounded-md border border-border" loading="lazy" />
-          <img src={kyorugiPoster.url} alt="Kyorugi Seminar — Master Jang Heejae" className="w-full rounded-md border border-border" loading="lazy" />
-        </div>
-
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-lg">Saturday 28 Nov 2026 — Seminars</CardTitle>
-            <p className="text-sm text-muted-foreground">$45 per seminar · Gaonhae students $40 · GST included</p></CardHeader>
-          <CardContent className="grid sm:grid-cols-2 gap-2">
-            {SEMINARS.map((s) => (
-              <div key={s.code} className="rounded-md border p-3 border-l-4 border-l-accent">
-                <p className="font-semibold">{s.name}</p>
-                <p className="text-sm">{s.time}</p>
-                <p className="text-xs text-muted-foreground">{s.who}</p>
-                <p className="text-xs mt-1 font-medium">{avail ? (avail.seminars[s.code] > 0 ? `${avail.seminars[s.code]} places left` : 'Full') : ''}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Trophy className="h-5 w-5 text-secondary" /> Sunday 29 Nov 2026 — Poomsae Competition</CardTitle>
             <p className="text-sm text-muted-foreground">$45 per event · Gaonhae students $40 · GST included · No spectator fee · Registration closes 6 Nov 2026, 11:59pm GMT+8 · Max 100 participants{avail ? ` (${Math.max(0, avail.competition_left)} places left)` : ''}</p></CardHeader>
@@ -362,7 +340,7 @@ const PublicPerthComp: React.FC = () => {
           <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Register & pay</DialogTitle>
-              <DialogDescription className="sr-only">Complete participant details, select seminars or events, upload payment proof and submit.</DialogDescription>
+              <DialogDescription className="sr-only">Complete participant details, select events, upload payment proof and submit.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-3">
@@ -414,17 +392,6 @@ const PublicPerthComp: React.FC = () => {
               {grade && <p className="text-xs text-muted-foreground mt-1">{gradeLabel(grade)}</p>}
             </div>
 
-            <div><p className="font-semibold text-sm mb-1">Seminars (28 Nov)</p>
-              <div className="space-y-1">{SEMINARS.map((s) => {
-                const full = avail ? avail.seminars[s.code] <= 0 : false;
-                const why = full ? 'Full' : seminarIneligibility(s.code, age, rank, seminars);
-                return (
-                  <label key={s.code} className={`flex items-start gap-2 text-sm ${why && !seminars.includes(s.code) ? 'opacity-50' : ''}`}>
-                    <Checkbox disabled={!!why && !seminars.includes(s.code)} checked={seminars.includes(s.code)} onCheckedChange={() => toggle(seminars, setSeminars, s.code)} />
-                    <span>{s.name} · {s.time}{why && !seminars.includes(s.code) ? <em className="text-muted-foreground"> — {why}</em> : null}</span>
-                  </label>);
-              })}</div></div>
-
             <div><p className="font-semibold text-sm mb-1">Competition events (29 Nov, max 2)</p>
               {avail?.competition_closed ? <p className="text-sm text-accent">Competition registration has closed.</p>
                 : avail && avail.competition_left <= 0 ? <p className="text-sm text-accent">The competition is full.</p>
@@ -452,7 +419,7 @@ const PublicPerthComp: React.FC = () => {
             </div>
 
             <div className="text-xs text-muted-foreground border rounded-md p-3 max-h-40 overflow-y-auto">
-              The participant (or parent/legal guardian of a participant under 18 years of age) acknowledges that participation in Taekwondo seminars and competitions involves inherent risks of injury, and voluntarily accepts all such risks. The participant and/or parent or legal guardian releases Gaonhae Taekwondo, its instructors, officials, volunteers and venue providers from liability for any injury, loss or damage arising from participation, except where liability cannot be excluded under Australian law, and consents to photographs and videos being used for promotional and educational purposes.
+              The participant (or parent/legal guardian of a participant under 18 years of age) acknowledges that participation in Taekwondo competitions involves inherent risks of injury, and voluntarily accepts all such risks. The participant and/or parent or legal guardian releases Gaonhae Taekwondo, its instructors, officials, volunteers and venue providers from liability for any injury, loss or damage arising from participation, except where liability cannot be excluded under Australian law, and consents to photographs and videos being used for promotional and educational purposes.
             </div>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={agree} onCheckedChange={(v) => setAgree(!!v)} /> I agree to the indemnity above</label>
             <div><Label>Signature (participant or parent/guardian)</Label><SignaturePad value={signature} onChange={setSignature} /></div>
@@ -547,7 +514,7 @@ const PerthLogDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => vo
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(14); doc.text(`Perth Seminars & Poomsae Championship 2026 — ${title}`, 14, 14);
+    doc.setFontSize(14); doc.text(`Gaonhae & Friends Competition 2026 — ${title}`, 14, 14);
     doc.setFontSize(9); doc.text(`Generated ${formatDateTime(new Date())}`, 14, 20);
     return { doc, autoTable };
   };
