@@ -23,6 +23,7 @@ import ProofOfPaymentUpload from '@/components/payment/ProofOfPaymentUpload';
 import SignaturePad from '@/components/common/SignaturePad';
 import { newClientRef } from '@/utils/publicPaymentValidation';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
+const START_TIMES: Record<string, string> = Object.fromEntries(Object.entries({'7-8 Years · Geup 9 & 10 · Female · Taegeuk 1 Jang':'9:15AM','5-6 Years · Geup 7 & 8 · Male · Taegeuk 2 Jang':'9:15AM','7-8 Years · Geup 7 & 8 · Female · Taegeuk 2 Jang':'9:20AM','7-8 Years · Geup 7 & 8 · Male · Taegeuk 2 Jang':'9:25AM','7-8 Years · Geup 6 · Female · Taegeuk 3 Jang':'9:30AM','7-8 Years · Geup 4 · Male · Taegeuk 5 Jang':'9:30AM','9-11 Years · Geup 4 · Male · Taegeuk 5 Jang':'9:35AM','7-8 Years · Geup 3 · Female · Taegeuk 6 Jang':'9:40AM','12-14 Years · Geup 3 · Female · Taegeuk 6 Jang':'9:45AM','15-17 Years · Geup 3 · Female · Taegeuk 6 Jang':'9:50AM','9-11 Years · Geup 2 · Male · Taegeuk 7 Jang':'9:55AM','9-11 Years · Geup 1 · Female · Taegeuk 8 Jang':'10:00AM','9-11 Years · Geup 1 · Male · Taegeuk 8 Jang':'10:00AM','9-11 Years · Poom/Dan · Female · Taegeuk 8 Jang':'10:05AM','9-11 Years · Poom/Dan · Female · Koryo':'10:10AM','9-11 Years · Poom/Dan · Male · Koryo':'10:15AM','12-14 Years · Poom/Dan · Male · Koryo':'10:15AM','15-17 Years · Poom/Dan · Female · Koryo':'10:20AM','12-14 Years · Poom/Dan · Male · Keumgang':'10:20AM','15-17 Years · Poom/Dan · Female · Keumgang':'10:25AM'}).map(([k, v]) => [k.toLowerCase(), v]));
 import {
   SEMINARS, COMP_EVENTS, GRADES, GAONHAE_BELTS, AGE_DIVISIONS, PERTH_BANK_INFO,
   ageByBirthYear, gradeRank, seminarIneligibility, eventIneligibility, ageDivision, eventLabel, seminarLabel, gradeLabel, normalizeCompEvents,
@@ -189,7 +190,8 @@ const PublicPerthComp: React.FC = () => {
         [...groups.values()].sort((a, b) => divIdx(a.d) - divIdx(b.d) || gOrd(a.g) - gOrd(b.g) || a.rank - b.rank).forEach(({ d, g, grade, list: raw }) => {
           const list = raw.sort((a, b) => String(a.name).localeCompare(String(b.name)));
           if (y > pageH - 30) { doc.addPage(); y = 14; }
-          doc.setFontSize(10); doc.text(`${d ? `${d} Years` : 'Age not set'}${gradePart ? ` · ${gradePart}` : ''} · ${g} · ${pattern}`, 18, y + 5);
+          doc.setFontSize(10); const heading = `${d ? `${d} Years` : 'Age not set'}${gradePart ? ` · ${gradePart}` : ''} · ${g} · ${pattern}`; doc.text(heading, 18, y + 5);
+          const est = START_TIMES[heading.replace(/\s+/g, ' ').trim().toLowerCase()]; if (est) doc.text(est, doc.internal.pageSize.getWidth() - 14, y + 5, { align: 'right' });
           autoTable(doc, {
             startY: y + 7, margin: { left: 18, right: 14 }, styles: { fontSize: 8 },
             tableWidth: doc.internal.pageSize.getWidth() - 32,
