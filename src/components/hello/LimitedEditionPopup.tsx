@@ -34,6 +34,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
   const cur = (country || '').toLowerCase() === 'australia' ? 'A$' : 'S$';
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [payMethod, setPayMethod] = useState<'paynow' | 'bank_transfer'>(isSG ? 'paynow' : 'bank_transfer');
   const [proof, setProof] = useState<File | null>(null);
@@ -119,22 +120,28 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
     }
   };
 
+  const incl = (n: number) => (isSG ? taxRound(n * 1.09) : n);
   return (
     <>
+      <Dialog open={!!zoomUrl} onOpenChange={(o) => { if (!o) setZoomUrl(null); }}>
+        <DialogContent className="max-w-[98vw] w-auto p-1 sm:max-w-3xl">
+          {zoomUrl && <img src={zoomUrl} alt="Zoomed product" className="max-w-full max-h-[88vh] w-auto h-auto mx-auto object-contain rounded-md cursor-zoom-out" onClick={() => setZoomUrl(null)} />}
+        </DialogContent>
+      </Dialog>
       <Dialog open={showPopup} onOpenChange={(o) => { if (!o) setDismissedFor(studentKey); }}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader><DialogTitle className="text-base">Limited Edition</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {items.map((it) => (
               <div key={it.id} className="rounded-md border p-3 space-y-2">
                 {it.image_urls.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto">
-                    {it.image_urls.map((u) => <img key={u} src={u} alt={it.name} className="h-40 w-auto rounded-md object-cover" />)}
+                  <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory">
+                    {it.image_urls.map((u) => <img key={u} src={u} alt={it.name} className="w-full h-auto shrink-0 snap-center rounded-md cursor-zoom-in" onClick={() => setZoomUrl(u)} />)}
                   </div>
                 )}
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-sm">{it.name}</p>
-                  <p className="text-sm font-semibold whitespace-nowrap">{cur}{it.price.toFixed(2)}{isSG ? ' + GST' : ''}</p>
+                <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
+                  <p className="font-semibold text-sm break-words min-w-0">{it.name}</p>
+                  <p className="text-sm font-semibold whitespace-nowrap">{cur}{incl(it.price).toFixed(2)}</p>
                 </div>
                 {it.description && <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{it.description}</p>}
                 {it.remaining != null && <p className="text-[11px] text-muted-foreground">{it.remaining} left</p>}
@@ -147,7 +154,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
       </Dialog>
 
       <Dialog open={orderOpen} onOpenChange={(o) => { if (!o && !busy) setOrderOpen(false); }}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader><DialogTitle className="text-base">Order Limited Edition</DialogTitle></DialogHeader>
           {doneRef ? (
             <div className="space-y-3">
@@ -171,7 +178,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
                         </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {it && it.designs.length > 0 && (
                         <div><Label className="text-[11px]">Design</Label>
                           <Select value={l.design} onValueChange={(v) => update(i, { design: v })}>
@@ -190,7 +197,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
                         <Input type="number" min={1} className="h-8 text-xs" value={l.qty}
                           onChange={(e) => update(i, { qty: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} /></div>
                     </div>
-                    {it && <p className="text-[11px] text-muted-foreground text-right">{cur}{(it.price * l.qty).toFixed(2)}</p>}
+                    {it && <p className="text-[11px] text-muted-foreground text-right">{cur}{incl(it.price * l.qty).toFixed(2)}</p>}
                   </div>
                 );
               })}
@@ -199,7 +206,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
               </Button>
               <div className="text-sm space-y-0.5 border-t pt-2">
                 <div className="flex justify-between"><span>Subtotal</span><span>{cur}{subtotal.toFixed(2)}</span></div>
-                {isSG && <div className="flex justify-between"><span>GST 9%</span><span>{cur}{gst.toFixed(2)}</span></div>}
+                {isSG && <div className="flex justify-between"><span>GST 9% (incl.)</span><span>{cur}{gst.toFixed(2)}</span></div>}
                 <div className="flex justify-between font-semibold"><span>Total</span><span>{cur}{total.toFixed(2)}</span></div>
               </div>
               {isSG && (
