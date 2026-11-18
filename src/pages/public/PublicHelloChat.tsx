@@ -199,11 +199,19 @@ const PublicHelloChat: React.FC = () => {
     window.location.replace('/hello');
   }, []);
 
+  // Only trap browser Back once the visitor has entered data or moved past the
+  // identify screen; with nothing entered, Back leaves /hello normally.
+  const backGuardArmedRef = useRef(false);
   useEffect(() => {
-    window.history.pushState({ helloGuard: true }, '');
     const onPop = () => window.location.replace('/hello');
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const armBackGuard = useCallback(() => {
+    if (backGuardArmedRef.current) return;
+    backGuardArmedRef.current = true;
+    window.history.pushState({ helloGuard: true }, '');
   }, []);
 
   // Step 1 - identify
@@ -217,6 +225,12 @@ const PublicHelloChat: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Arm the Back guard once anything is typed or the chat moves past identify.
+  const identifyDataEntered = !!(firstName || lastName || dobDay || dobMonth || dobYear || email || phone || branchId || gender);
+  useEffect(() => {
+    if (stage !== 'identify' || identifyDataEntered) armBackGuard();
+  }, [stage, identifyDataEntered, armBackGuard]);
 
   // Callback step
   const [cbMessage, setCbMessage] = useState('');
