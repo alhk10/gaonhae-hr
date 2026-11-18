@@ -1130,6 +1130,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
     if (items[index].unit_price < 0) { const u = [...items]; u[index].unit_price = 0; u[index].total = calculateLineTotal(u[index].quantity, 0, u[index].discount_type, u[index].discount_value); setItems(u); }
   };
+  const discountWarnConfirmed = useRef(false);
   const [discountWarn, setDiscountWarn] = useState<null | { reason: string; amount: number; productName: string; termId?: string; apply: () => void; cancel?: () => void; logReason?: string }>(null);
   /** Returns a warning reason when a manual discount needs staff override, else null. */
   const discountWarnReason = (prevType: string | undefined, prevValue: number | undefined, type: string, value: number, qty: number, termId?: string): string | null => {
@@ -2584,7 +2585,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!discountWarn} onOpenChange={(o) => { if (!o) { discountWarn?.cancel?.(); setDiscountWarn(null); } }}>
+      <AlertDialog open={!!discountWarn} onOpenChange={(o) => { if (!o) { if (!discountWarnConfirmed.current) discountWarn?.cancel?.(); discountWarnConfirmed.current = false; setDiscountWarn(null); } }}>
         <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{discountWarn?.cancel ? 'Check this price' : 'Check this discount'}</AlertDialogTitle>
@@ -2592,7 +2593,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const w = discountWarn; if (!w) return; w.apply(); logDiscountOverride(w.logReason || w.reason, w.amount, w.productName, w.termId); setDiscountWarn(null); }}>Override and apply</AlertDialogAction>
+            <AlertDialogAction onClick={() => { const w = discountWarn; if (!w) return; discountWarnConfirmed.current = true; w.apply(); logDiscountOverride(w.logReason || w.reason, w.amount, w.productName, w.termId); setDiscountWarn(null); }}>Override and apply</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
