@@ -161,12 +161,12 @@ const PublicPerthComp: React.FC = () => {
         const h = 18, w = h * (img.width / img.height);
         doc.addImage(img, 'PNG', doc.internal.pageSize.getWidth() - 14 - w, 8, w, h);
       } catch { /* logo optional */ }
-      doc.setFontSize(14); doc.text('Gaonhae & Friends Competition 2026', 14, 14);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text('Gaonhae & Friends Competition 2026', 14, 14); doc.setFont('helvetica', 'normal');
       doc.setFontSize(9); doc.text('Scarborough Community Centre 2, Function Room, 173 Gildercliffe Street, Scarborough', 14, 20);
       doc.text('Competition starts 9:00AM', 14, 25);
       doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 32);
-      doc.setFontSize(9); doc.text(`${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`, 14, 38);
-      let y = 43;
+      const footerInfo = `${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`;
+      let y = 36;
       const norm = (s: string) => String(s).replace(/[–—]/g, '-'); const divIdx = (d: string) => { const i = AGE_DIVISIONS.map(norm).indexOf(norm(d)); return i < 0 ? 999 : i; };
       if (!rows.length) doc.text('No competitors registered yet.', 14, y + 6);
       const pageH = doc.internal.pageSize.getHeight();
@@ -218,7 +218,7 @@ const PublicPerthComp: React.FC = () => {
         wrapped.forEach((lines) => { doc.text('•', 18, y); doc.text(lines, 23, y); y += lines.length * 5 + 1; });
       }
       const pages = doc.getNumberOfPages();
-      for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFontSize(8); doc.text(`Page ${p} of ${pages}`, doc.internal.pageSize.getWidth() - 14, pageH - 8, { align: 'right' }); }
+      for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(footerInfo, 14, pageH - 8); doc.text(`Page ${p} of ${pages}`, doc.internal.pageSize.getWidth() - 14, pageH - 8, { align: 'right' }); }
       doc.save('perth-2026-registered-competitors.pdf');
     } catch {
       toast.error('Could not load the competitors list. Please try again.');
