@@ -25,11 +25,13 @@ interface Props {
   dateOfBirth: string | null;
   email: string;
   phone: string;
+  /** Increment to reopen the list (menu button). */
+  openSignal?: number;
 }
 
 interface Line { itemId: string; design: string; size: string; qty: number }
 
-const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, country, student, dateOfBirth, email, phone }) => {
+const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, country, student, dateOfBirth, email, phone, openSignal = 0 }) => {
   const isSG = (country || '').toLowerCase() === 'singapore';
   const cur = (country || '').toLowerCase() === 'australia' ? 'A$' : 'S$';
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
@@ -45,7 +47,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
   const { data: items = [] } = useQuery({
     queryKey: ['hello-limited-editions', branchId],
     queryFn: () => getPublicLimitedEditions(branchId),
-    enabled: !!branchId && enabled,
+    enabled: !!branchId,
     staleTime: 60_000,
   });
   const { data: payOpts } = useQuery({
@@ -53,16 +55,18 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
     queryFn: () => getPublicPaymentOptions(branchId, 'White'),
     enabled: !!branchId && orderOpen,
   });
+  const [forced, setForced] = useState(false);
+  useEffect(() => { if (openSignal > 0) setForced(true); }, [openSignal]);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   useEffect(() => { setPayMethod(isSG ? 'paynow' : 'bank_transfer'); }, [isSG]);
 
-  const showPopup = enabled && items.length > 0 && dismissedFor !== studentKey && !orderOpen;
+  const showPopup = items.length > 0 && !orderOpen && (forced || (enabled && dismissedFor !== studentKey));
 
   const newLine = (it: LimitedEditionProduct): Line => ({ itemId: it.id, design: it.designs[0] || '', size: it.sizes[0] || '', qty: 1 });
   const startOrder = (it: LimitedEditionProduct) => {
     setLines([newLine(it)]);
     setProof(null); setDoneRef(null);
-    setDismissedFor(studentKey);
+    setDismissedFor(studentKey); setForced(false);
     setOrderOpen(true);
   };
   const update = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -128,7 +132,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
           {zoomUrl && <img src={zoomUrl} alt="Zoomed product" className="max-w-full max-h-[88vh] w-auto h-auto mx-auto object-contain rounded-md cursor-zoom-out" onClick={() => setZoomUrl(null)} />}
         </DialogContent>
       </Dialog>
-      <Dialog open={showPopup} onOpenChange={(o) => { if (!o) setDismissedFor(studentKey); }}>
+      <Dialog open={showPopup} onOpenChange={(o) => { if (!o) { setDismissedFor(studentKey); setForced(false); } }}>
         <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader><DialogTitle className="text-base">Limited Edition</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -148,7 +152,7 @@ const LimitedEditionPopup: React.FC<Props> = ({ enabled, studentKey, branchId, c
                 <Button size="sm" className="w-full" onClick={() => startOrder(it)}>Order</Button>
               </div>
             ))}
-            <Button variant="outline" className="w-full" onClick={() => setDismissedFor(studentKey)}>Later</Button>
+            <Button variant="outline" className="w-full" onClick={() => { setDismissedFor(studentKey); setForced(false); }}>Later</Button>
           </div>
         </DialogContent>
       </Dialog>

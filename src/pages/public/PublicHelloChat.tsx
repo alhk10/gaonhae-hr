@@ -84,6 +84,7 @@ import {
 } from '@/utils/schoolFeePlan';
 import { isBlockedEmail, BLOCKED_EMAIL_MESSAGE } from '@/utils/blockedEmails';
 import LimitedEditionPopup from '@/components/hello/LimitedEditionPopup';
+import { getPublicLimitedEditions } from '@/services/limitedEditionService';
 import { HelloHomeScreenPrompt, HelloNotificationButton } from '@/components/hello/HelloAppExtras';
 
 
@@ -269,6 +270,13 @@ const PublicHelloChat: React.FC = () => {
   const feePreferenceAppliedRef = useRef(false);
   // School fees: sibling discount and 4-week plan locks per term
   const [siblingDiscount, setSiblingDiscount] = useState(0);
+  const [leOpenSignal, setLeOpenSignal] = useState(0);
+  const { data: limitedEditions = [] } = useQuery({
+    queryKey: ['hello-limited-editions', branchId],
+    queryFn: () => getPublicLimitedEditions(branchId),
+    enabled: !!branchId,
+    staleTime: 60_000,
+  });
   const [lockedPlans, setLockedPlans] = useState<Record<string, FeePaymentPlan | null>>({});
   const [pendingPreorder, setPendingPreorder] = useState<{
     product: ChatProduct;
@@ -1685,6 +1693,11 @@ const PublicHelloChat: React.FC = () => {
                       </Button>
                     );
                   })()}
+                  {limitedEditions.length > 0 && (
+                    <Button onClick={() => setLeOpenSignal((n) => n + 1)} variant="outline" className="w-full h-11 justify-between">
+                      Order Limited Edition Products <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
                   {shopAvailability?.[SCHOOL_FEES_CATEGORY_ID] !== false && <Button
                     disabled
                     variant="outline"
@@ -1951,6 +1964,7 @@ const PublicHelloChat: React.FC = () => {
                 dateOfBirth={dob}
                 email={email}
                 phone={phone}
+                openSignal={leOpenSignal}
               />
               <Dialog open={showGradingReadyPopup} onOpenChange={(o) => { if (!o) setGradingPopupDismissed(matched.id); }}>
                 <DialogContent className="max-w-[95vw] sm:max-w-md">
