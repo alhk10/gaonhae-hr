@@ -158,10 +158,12 @@ const PublicPerthComp: React.FC = () => {
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       const entries = rows.reduce((n, r) => n + (r.events || []).length, 0);
-      doc.setFontSize(14); doc.text('Perth Seminars & Poomsae Championship 2026', 14, 14);
-      doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 21);
-      doc.setFontSize(9); doc.text(`${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`, 14, 27);
-      let y = 32;
+      doc.setFontSize(14); doc.text('2026 Gaonhae & Friends Competition', 14, 14);
+      doc.setFontSize(9); doc.text('Scarborough Community Centre 2, Function Room, 173 Gildercliffe Street, Scarborough', 14, 20);
+      doc.text('Competition starts 9:00AM', 14, 25);
+      doc.setFontSize(11); doc.text('Registered Competitors — by Event & Age Category', 14, 32);
+      doc.setFontSize(9); doc.text(`${rows.length} competitors · ${entries} entries · Generated ${formatDateTime(new Date())}`, 14, 38);
+      let y = 43;
       const norm = (s: string) => String(s).replace(/[–—]/g, '-'); const divIdx = (d: string) => { const i = AGE_DIVISIONS.map(norm).indexOf(norm(d)); return i < 0 ? 999 : i; };
       if (!rows.length) doc.text('No competitors registered yet.', 14, y + 6);
       const pageH = doc.internal.pageSize.getHeight();
