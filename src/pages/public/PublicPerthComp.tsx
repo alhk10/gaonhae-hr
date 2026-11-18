@@ -158,6 +158,11 @@ const PublicPerthComp: React.FC = () => {
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       const entries = rows.reduce((n, r) => n + (r.events || []).length, 0);
+      try {
+        const img = new Image(); img.src = '/lovable-uploads/gaonhae-logo-transparent.png'; await img.decode();
+        const h = 18, w = h * (img.width / img.height);
+        doc.addImage(img, 'PNG', doc.internal.pageSize.getWidth() - 14 - w, 8, w, h);
+      } catch { /* logo optional */ }
       doc.setFontSize(14); doc.text('2026 Gaonhae & Friends Competition', 14, 14);
       doc.setFontSize(9); doc.text('Scarborough Community Centre 2, Function Room, 173 Gildercliffe Street, Scarborough', 14, 20);
       doc.text('Competition starts 9:00AM', 14, 25);
@@ -197,6 +202,23 @@ const PublicPerthComp: React.FC = () => {
         });
         y += 3;
       });
+      {
+        const pw = doc.internal.pageSize.getWidth();
+        const rules = [
+          'Full Taekwondo uniform with the colour belt matching the event.',
+          'No undershirt for males. Plain white T-shirt under the uniform for females.',
+          'No accessories, including hair pins, watches, bracelets, necklaces and earrings. Non-jewellery ear studs are allowed.',
+          'Long hair must be tied in a single ponytail or bun.',
+        ];
+        doc.setFontSize(10);
+        const wrapped = rules.map((r) => doc.splitTextToSize(r, pw - 40) as string[]);
+        const need = 12 + wrapped.reduce((n, l) => n + l.length * 5 + 1, 0);
+        if (y + need > pageH - 16) { doc.addPage(); y = 14; }
+        y += 4;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('Competition Attire', 14, y + 5); y += 11;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+        wrapped.forEach((lines) => { doc.text('•', 18, y); doc.text(lines, 23, y); y += lines.length * 5 + 1; });
+      }
       const pages = doc.getNumberOfPages();
       for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFontSize(8); doc.text(`Page ${p} of ${pages}`, doc.internal.pageSize.getWidth() - 14, pageH - 8, { align: 'right' }); }
       doc.save('perth-2026-registered-competitors.pdf');
