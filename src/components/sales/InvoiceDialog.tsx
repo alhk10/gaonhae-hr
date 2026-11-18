@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
 import { transformProduct } from '@/services/productService';
-import { siblingDiscountForBranch, siblingEligible, siblingDiscountUsed } from '@/utils/schoolFeePlan';
+import { siblingDiscountForBranch, siblingEligible, siblingDiscountUsed, AD_HOC_LESSON_PRODUCT, adHocWeekPrice, classLineUnitPrice } from '@/utils/schoolFeePlan';
 import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -111,6 +111,11 @@ interface InvoiceItem {
   /** Sibling amount resolved for this student/term; applied while qty >= 4. */
   sibling_amount?: number;
   sibling_applied?: boolean;
+  /** Normal weekly price and 1-week ad-hoc price for class lines. */
+  weekly_price?: number;
+  adhoc_price?: number;
+  /** Staff confirmed a custom price on a 1-week class line. */
+  price_override_logged?: boolean;
   total: number;
 }
 
@@ -1052,10 +1057,21 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       }
     }
 
-    const lineTotal = calculateLineTotal(newItem.quantity, newItem.unit_price, siblingDiscountType, siblingDiscountValue);
+    let weeklyPrice: number | undefined; let adhocPrice: number | undefined; let unitPrice = newItem.unit_price;
+    if (selectedCategory?.name === 'Classes' && term) {
+      const adhoc = products.find(p => p.name === AD_HOC_LESSON_PRODUCT);
+      if (adhoc) {
+        const bp = formData.branch_id ? await getBranchPrice(adhoc.id, formData.branch_id) : null;
+        weeklyPrice = newItem.unit_price;
+        adhocPrice = adHocWeekPrice((product as any).lessons_per_week, bp ?? adhoc.base_price);
+        unitPrice = classLineUnitPrice(newItem.quantity, weeklyPrice, adhocPrice);
+        if (unitPrice !== weeklyPrice) toast.info(`1 week uses the Ad-Hoc Lesson price ($${adhocPrice.toFixed(2)})`);
+      }
+    }
+    const lineTotal = calculateLineTotal(newItem.quantity, unitPrice, siblingDiscountType, siblingDiscountValue);
     const item: InvoiceItem = {
       product_id: newItem.product_id, product_name: product.name, description: product.name,
-      quantity: newItem.quantity, unit_price: newItem.unit_price,
+      quantity: newItem.quantity, unit_price: unitPrice, weekly_price: weeklyPrice, adhoc_price: adhocPrice,
       size_variant: newItem.size_variant || undefined, color_variant: newItem.color_variant || undefined,
       term_id: newItem.term_id || undefined, term_name: term?.name || undefined,
       grading_slot_id: newItem.grading_slot_id || undefined, grading_slot_title: gradingSlot?.title || undefined,
@@ -1075,6 +1091,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const u = [...items]; const q = value === '' ? 0 : (parseInt(value) || 1);
     u[index] = { ...u[index], quantity: q };
     const it = u[index];
+    if (it.weekly_price != null && it.adhoc_price != null && q > 0 && !it.price_override_logged) {
+      it.unit_price = classLineUnitPrice(q, it.weekly_price, it.adhoc_price);
+    }
     if (it.sibling_amount && q > 0) {
       const base = it.discount_type === 'amount' ? (it.discount_value || 0) - (it.sibling_applied ? it.sibling_amount : 0) : 0;
       if (it.sibling_applied && !siblingEligible(q)) {
@@ -1097,9 +1116,21 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     setItems(u);
   };
   const finalizeItemPrice = (index: number) => {
+    const cur = items[index];
+    if (cur.adhoc_price != null && cur.quantity === 1 && !cur.price_override_logged && Math.round(cur.unit_price * 100) !== Math.round(cur.adhoc_price * 100)) {
+      const custom = cur.unit_price; const adhoc = cur.adhoc_price;
+      setDiscountWarn({
+        reason: `1 week of classes normally uses the Ad-Hoc Lesson price ($${adhoc.toFixed(2)}). You entered $${custom.toFixed(2)}.`,
+        amount: Math.round((adhoc - custom) * 100) / 100, productName: cur.product_name || cur.description, termId: cur.term_id,
+        logReason: `1-week class price override: $${custom.toFixed(2)} used instead of ad-hoc price $${adhoc.toFixed(2)}`,
+        apply: () => setItems(prev => prev.map((x, i) => i === index ? { ...x, price_override_logged: true } : x)),
+        cancel: () => setItems(prev => prev.map((x, i) => i === index ? { ...x, unit_price: adhoc, total: calculateLineTotal(x.quantity, adhoc, x.discount_type, x.discount_value) } : x)),
+      });
+      return;
+    }
     if (items[index].unit_price < 0) { const u = [...items]; u[index].unit_price = 0; u[index].total = calculateLineTotal(u[index].quantity, 0, u[index].discount_type, u[index].discount_value); setItems(u); }
   };
-  const [discountWarn, setDiscountWarn] = useState<null | { reason: string; amount: number; productName: string; termId?: string; apply: () => void }>(null);
+  const [discountWarn, setDiscountWarn] = useState<null | { reason: string; amount: number; productName: string; termId?: string; apply: () => void; cancel?: () => void; logReason?: string }>(null);
   /** Returns a warning reason when a manual discount needs staff override, else null. */
   const discountWarnReason = (prevType: string | undefined, prevValue: number | undefined, type: string, value: number, qty: number, termId?: string): string | null => {
     if (type !== 'amount' || !(value > 0)) return null;
@@ -2553,15 +2584,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!discountWarn} onOpenChange={(o) => { if (!o) setDiscountWarn(null); }}>
+      <AlertDialog open={!!discountWarn} onOpenChange={(o) => { if (!o) { discountWarn?.cancel?.(); setDiscountWarn(null); } }}>
         <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Check this discount</AlertDialogTitle>
+            <AlertDialogTitle>{discountWarn?.cancel ? 'Check this price' : 'Check this discount'}</AlertDialogTitle>
             <AlertDialogDescription>{discountWarn?.reason} Overriding will notify the superadmin.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const w = discountWarn; if (!w) return; w.apply(); logDiscountOverride(w.reason, w.amount, w.productName, w.termId); setDiscountWarn(null); }}>Override and apply</AlertDialogAction>
+            <AlertDialogAction onClick={() => { const w = discountWarn; if (!w) return; w.apply(); logDiscountOverride(w.logReason || w.reason, w.amount, w.productName, w.termId); setDiscountWarn(null); }}>Override and apply</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

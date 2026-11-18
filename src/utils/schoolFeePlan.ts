@@ -150,3 +150,12 @@ export const getPublicSiblingDiscount = async (studentId?: string | null): Promi
   }
 };
 
+
+/** Product whose price is charged per lesson when only 1 week of a class plan is paid. */
+export const AD_HOC_LESSON_PRODUCT = 'Ad-Hoc Lesson';
+/** Price of a 1-week class line: one ad-hoc lesson per weekly lesson. */
+export const adHocWeekPrice = (lessonsPerWeek: number | null | undefined, adHocUnitPrice: number): number =>
+  Math.round(Math.max(1, Number(lessonsPerWeek) || 1) * Number(adHocUnitPrice || 0) * 100) / 100;
+/** Unit price for a class line: ad-hoc week price at 1 week, otherwise the normal weekly price. */
+export const classLineUnitPrice = (weeks: number, weeklyPrice: number, adHocPrice: number | null | undefined): number =>
+  Number(weeks) === 1 && adHocPrice != null ? adHocPrice : weeklyPrice;
