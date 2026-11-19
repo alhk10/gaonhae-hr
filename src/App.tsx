@@ -1,3 +1,4 @@
+import { setAccessAutoRefreshClient } from '@/utils/accessAutoRefresh';
 import { lazy, Suspense, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import type { AdminAccessPermissions, EmployeePageAccessPermissions } from './types/employee';
@@ -88,6 +89,7 @@ const SocialCaricatureLibrary = lazy(() => import('./pages/social/CaricatureLibr
 
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient(QUERY_CONFIG);
+setAccessAutoRefreshClient(queryClient);
 
 // Loading fallback component
 const LoadingFallback = () => (
