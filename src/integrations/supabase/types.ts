@@ -2035,6 +2035,33 @@ export type Database = {
         }
         Relationships: []
       }
+      grading_branch_score_settings: {
+        Row: {
+          branch_id: string
+          extra_fields: string[]
+          hide_body_metrics: boolean
+          print_scorecard: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          extra_fields?: string[]
+          hide_body_metrics?: boolean
+          print_scorecard?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          extra_fields?: string[]
+          hide_body_metrics?: boolean
+          print_scorecard?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       grading_deletion_requests: {
         Row: {
           created_at: string
@@ -9137,6 +9164,16 @@ export type Database = {
       access_get_invoice_for_edit: {
         Args: { p_invoice_id: string; p_password: string }
         Returns: Json
+      }
+      access_grading_branch_score_settings_set: {
+        Args: {
+          p_branch_id: string
+          p_extra_fields: string[]
+          p_hide_body: boolean
+          p_password: string
+          p_print_scorecard: boolean
+        }
+        Returns: undefined
       }
       access_grading_override_mark_seen: {
         Args: { p_id: string; p_password: string }

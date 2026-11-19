@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
 import { DEFAULT_SCORECARD_LABELS } from '@/constants/scorecardLabels';
-import SlotScoreSettingsBar, { SlotScoreSettings } from '@/components/grading/SlotScoreSettingsBar';
+import GradingScoreSettingsDialog, { BranchScoreSettings as SlotScoreSettings } from '@/components/grading/GradingScoreSettingsDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -301,15 +301,15 @@ const PublicGradingList: React.FC = () => {
   const canOverrideResults = isAllBranch || isSuperadminUser;
   const resultEditableFor = (d: string | null | undefined) => canOverrideResults || isWithinResultWindow(d);
   const gradingSlotIds = useMemo(() => [...new Set((rows as any[]).map((r) => r.slot_id).filter(Boolean))].sort(), [rows]);
+  const [scoreSettingsOpen, setScoreSettingsOpen] = useState(false);
   const { data: slotScoreSettings = {} } = useQuery({
-    queryKey: ['grading-slot-score-settings', gradingSlotIds],
-    enabled: gradingSlotIds.length > 0,
+    queryKey: ['grading-branch-score-settings'],
     queryFn: async () => {
-      const { data, error } = await (supabase.from as any)('grading_slot_score_settings')
-        .select('slot_id, extra_fields, hide_body_metrics, print_scorecard').in('slot_id', gradingSlotIds);
+      const { data, error } = await (supabase.from as any)('grading_branch_score_settings')
+        .select('branch_id, extra_fields, hide_body_metrics, print_scorecard');
       if (error) throw error;
       const m: Record<string, SlotScoreSettings> = {};
-      for (const r of data || []) m[r.slot_id] = { extra_fields: r.extra_fields || [], hide_body_metrics: !!r.hide_body_metrics, print_scorecard: r.print_scorecard !== false };
+      for (const r of data || []) m[r.branch_id] = { extra_fields: r.extra_fields || [], hide_body_metrics: !!r.hide_body_metrics, print_scorecard: r.print_scorecard !== false };
       return m;
     },
   });
@@ -1344,7 +1344,7 @@ const PublicGradingList: React.FC = () => {
     const belt = beltOverride ?? r.current_belt ?? r.student_current_belt;
     if (!r.grading_date || !belt) return null;
     const res = (r.result || '').toLowerCase();
-    const ss = r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id] : undefined;
+    const ss = r.branch_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.branch_id] : undefined;
     const printCard = ss?.print_scorecard !== false;
     const hideBody = !!ss?.hide_body_metrics;
     const allowed = new Set([...DEFAULT_SCORECARD_LABELS, ...(ss?.extra_fields || [])]
@@ -1678,6 +1678,18 @@ const PublicGradingList: React.FC = () => {
             </Select>
             </div>
             <div className="flex flex-wrap gap-2">
+            {editMode && (isAllBranch || isSuperadminUser) && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setScoreSettingsOpen(true)} title="Scorecard settings by branch">
+                <Settings className="h-3.5 w-3.5 mr-1" /> Settings
+              </Button>
+            )}
+            <GradingScoreSettingsDialog
+              open={scoreSettingsOpen}
+              onOpenChange={setScoreSettingsOpen}
+              branches={(publicBranches as any[]).map((b) => ({ id: b.id, name: b.name }))}
+              settings={slotScoreSettings as Record<string, SlotScoreSettings>}
+              onChanged={() => qc.invalidateQueries({ queryKey: ['grading-branch-score-settings'] })}
+            />
             {editMode && (
               <Button
                 type="button"
@@ -1781,13 +1793,6 @@ const PublicGradingList: React.FC = () => {
               </CardHeader>
               <CardContent className="access-list-shell pt-0">
                 <div className="rounded-md border divide-y text-xs">
-                  {editMode && g.header.slot_id && (
-                    <SlotScoreSettingsBar
-                      slotId={g.header.slot_id}
-                      settings={(slotScoreSettings as Record<string, SlotScoreSettings>)[g.header.slot_id]}
-                      onChanged={() => qc.invalidateQueries({ queryKey: ['grading-slot-score-settings'] })}
-                    />
-                  )}
                   {editMode && (
                     <div className="flex items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground">
                           <Checkbox
@@ -2004,8 +2009,8 @@ const PublicGradingList: React.FC = () => {
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
                               scorecard={r.scorecard as any}
-                              extraFields={r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id]?.extra_fields : undefined}
-                              hideBody={r.slot_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.slot_id]?.hide_body_metrics : false}
+                              extraFields={r.branch_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.branch_id]?.extra_fields : undefined}
+                              hideBody={r.branch_id ? (slotScoreSettings as Record<string, SlotScoreSettings>)[r.branch_id]?.hide_body_metrics : false}
                               onSaved={() => qc.invalidateQueries({ queryKey: ['public-grading-list'] })}
                             />
                         </div>
