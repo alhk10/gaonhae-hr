@@ -290,7 +290,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const tableStartY = yPos;
   // Table header background
   doc.setFillColor(245, 245, 245);
-  doc.rect(margin, yPos - 5, pageWidth - margin * 2, 10, 'F');
+  doc.rect(margin, yPos - (isExt ? 4.5 : 5), pageWidth - margin * 2, isExt ? 7 : 10, 'F');
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
@@ -308,7 +308,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
   }
 
-  yPos += g(8);
+  yPos += isExt ? 7 : 8;
 
   // Table rows
   doc.setFont('helvetica', 'normal');
