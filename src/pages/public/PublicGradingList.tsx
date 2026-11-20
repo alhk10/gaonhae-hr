@@ -2004,7 +2004,7 @@ const PublicGradingList: React.FC = () => {
                               )}
                         </>}
                       </div>
-                      {editMode && (
+                      {editMode && (!r.branch_id || (slotScoreSettings as Record<string, SlotScoreSettings>)[r.branch_id]?.print_scorecard !== false) && (
                         <div className="pt-1">
                             <PublicScorecardInline
                               registrationId={r.source === 'registration' ? r.registration_id : null}
