@@ -19,7 +19,8 @@ const sgd = (n: number) => `S$${Number(n).toFixed(2)}`;
 interface Candidate { payment_id: string; invoice_number: string; student_name: string; branch_id: string; amount: number; payment_date: string; proof_ref: string | null; ref_match: boolean; name_match: boolean; shortage: boolean; exact_amount: boolean; payer_known: boolean }
 interface Linked { payment_id: string; invoice_number: string; amount: number; student_name: string }
 interface Payer { id: string; payer_name: string; student_name: string; created_by: string | null; created_at: string }
-interface Txn { id: string; txn_ref: string; amount: number; received_at: string; payer_name: string; method: string; account_last4: string; status: 'matched' | 'unmatched' | 'review'; status_reason: string | null; matched_by: string | null; matched_at: string | null; linked: Linked[] | null; candidates: Candidate[] | null }
+interface Txn { id: string; txn_ref: string; amount: number; received_at: string; payer_name: string; method: string; account_last4: string; status: 'matched' | 'unmatched' | 'review'; status_reason: string | null; matched_by: string | null; matched_at: string | null; linked: Linked[] | null; candidates: Candidate[] | null; external_candidates?: ExtCandidate[] | null }
+interface ExtCandidate { invoice_id: string; invoice_number: string; customer_name: string; balance_due: number; issue_date: string; ref_match: boolean; name_match: boolean; payer_known: boolean }
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { matched: 'default', review: 'secondary', unmatched: 'outline' };
 
@@ -67,6 +68,11 @@ const BankReconciliation: React.FC = () => {
     onSuccess: (_d, v) => { toast.success(`${v.payments.length} payment(s) verified; payer remembered`); setPicked((m) => ({ ...m, [v.txn]: [] })); refresh(); },
     onError: (e: any) => toast.error(e?.message || 'Could not match'),
   });
+  const matchExternal = async (t: Txn, c: ExtCandidate) => {
+    if (!confirm(`Record ${sgd(t.amount)} from ${t.payer_name || 'this transfer'} as payment for ${c.invoice_number} (${c.customer_name})?`)) return;
+    const { error } = await rpc('access_bank_match_external', { p_password: accessPw(), p_txn_id: t.id, p_invoice_id: c.invoice_id });
+    if (error) toast.error(error.message); else { toast.success(`${c.invoice_number} paid; payer remembered`); refresh(); }
+  };
   const unmatch = async (id: string) => {
     if (!confirm('Unlink this bank transaction? The payment stays verified; review it separately if needed.')) return;
     const { error } = await rpc('access_bank_unmatch', { p_password: accessPw(), p_txn_id: id });
@@ -143,6 +149,18 @@ const BankReconciliation: React.FC = () => {
                       {c.name_match && <Badge variant="secondary">name match</Badge>}
                       {c.shortage && <Badge variant="destructive">shortage</Badge>}
                     </label>
+                  ))}
+                  {(t.external_candidates ?? []).map((c) => (
+                    <div key={c.invoice_id} className="flex flex-wrap items-center gap-2 rounded border p-2">
+                      <Badge variant="outline">External</Badge>
+                      <span className="font-medium">{c.customer_name}</span>
+                      <span>{c.invoice_number}</span>
+                      <span>Balance {sgd(c.balance_due)} · issued {formatDate(c.issue_date)}</span>
+                      {c.payer_known && <Badge>known payer</Badge>}
+                      {c.ref_match && <Badge>ref match</Badge>}
+                      {c.name_match && <Badge variant="secondary">name match</Badge>}
+                      <Button size="sm" variant="outline" className="h-6 px-2 ml-auto" onClick={() => matchExternal(t, c)}><Link2 className="h-3 w-3 mr-1" />Match & mark paid</Button>
+                    </div>
                   ))}
                   {(t.candidates ?? []).length > 0 && (() => {
                     const sel = (t.candidates ?? []).filter((c) => (picked[t.id] ?? []).includes(c.payment_id));

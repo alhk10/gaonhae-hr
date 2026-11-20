@@ -391,25 +391,28 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_from_txn: string | null
+          customer_name: string | null
           id: string
           payer_name: string
-          student_id: string
+          student_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           created_from_txn?: string | null
+          customer_name?: string | null
           id?: string
           payer_name: string
-          student_id: string
+          student_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           created_from_txn?: string | null
+          customer_name?: string | null
           id?: string
           payer_name?: string
-          student_id?: string
+          student_id?: string | null
         }
         Relationships: [
           {
@@ -8700,10 +8703,29 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: boolean
       }
+      _bank_apply_external: {
+        Args: { p_by: string; p_invoice_id: string; p_txn_id: string }
+        Returns: undefined
+      }
       _bank_apply_match: {
         Args: { p_by: string; p_payment_ids: string[]; p_txn_id: string }
         Returns: undefined
       }
+      _bank_external_candidates: {
+        Args: { p_txn_id: string }
+        Returns: {
+          balance_due: number
+          branch_id: string
+          customer_name: string
+          invoice_id: string
+          invoice_number: string
+          issue_date: string
+          name_match: boolean
+          payer_known: boolean
+          ref_match: boolean
+        }[]
+      }
+      _bank_name_key: { Args: { p: string }; Returns: string }
       _bank_norm_payer: { Args: { p: string }; Returns: string }
       _bank_ref_match: { Args: { a: string; b: string }; Returns: boolean }
       _bank_txn_candidates: {
@@ -9066,6 +9088,10 @@ export type Database = {
       access_bank_check: { Args: { p_password: string }; Returns: boolean }
       access_bank_match: {
         Args: { p_password: string; p_payment_ids: string[]; p_txn_id: string }
+        Returns: undefined
+      }
+      access_bank_match_external: {
+        Args: { p_invoice_id: string; p_password: string; p_txn_id: string }
         Returns: undefined
       }
       access_bank_payer_delete: {
