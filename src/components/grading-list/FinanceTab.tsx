@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Download, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,10 +28,15 @@ const CATEGORIES = ['Rent', 'Salaries', 'Utilities', 'Supplies', 'Inventory', 'M
 
 interface Props { branches: { id: string; name: string }[] }
 
+const SG_GROUP = ['Balmoral', 'Jurong West', 'Kembangan', 'Yishun', 'Bukit Merah'];
+const AU_GROUP = ['Morley', 'Greenwood', 'Yokine', 'Floreat'];
+const GROUPS: Record<string, { label: string; names: string[] }> = { 'sg-all': { label: 'All Singapore', names: SG_GROUP }, 'au-all': { label: 'All Australia', names: AU_GROUP } };
+type BranchRow = JournalRow & { branch_id?: string; branch_name?: string };
+
 const monthStart = () => { const d = new Date(); return toISODate(new Date(d.getFullYear(), d.getMonth(), 1)); };
 const monthEnd = () => { const d = new Date(); return toISODate(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
 
-interface Draft { id?: string; entry_date: string; direction: 'in' | 'out'; category: string; description: string; amount: string; remark: string; file: File | null }
+interface Draft { id?: string; branch_id?: string; entry_date: string; direction: 'in' | 'out'; category: string; description: string; amount: string; remark: string; file: File | null }
 const emptyDraft = (): Draft => ({ entry_date: toISODate(new Date()), direction: 'out', category: 'Other expense', description: '', amount: '', remark: '', file: null });
 
 const FinanceTab: React.FC<Props> = (props) => {
@@ -53,17 +58,29 @@ const JournalView: React.FC<Props> = ({ branches }) => {
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(monthEnd());
   const [draft, setDraft] = useState<Draft | null>(null);
-  const branchName = branches.find((b) => b.id === branchId)?.name ?? '';
-  const money = (n: number) => formatBranchCurrency(n, branchId);
+  const group = GROUPS[branchId];
+  const byName = (n: string) => branches.find((b) => b.name.toLowerCase() === n.toLowerCase());
+  const groupBranches = group ? group.names.map(byName).filter(Boolean) as { id: string; name: string }[] : [];
+  const ids = group ? groupBranches.map((b) => b.id) : branchId ? [branchId] : [];
+  const branchName = group ? group.label : branches.find((b) => b.id === branchId)?.name ?? '';
+  const money = (n: number) => formatBranchCurrency(n, ids[0] ?? branchId);
+  const inGroup = (n: string) => [...SG_GROUP, ...AU_GROUP].some((g) => g.toLowerCase() === n.toLowerCase());
+  const others = branches.filter((b) => !inGroup(b.name));
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['branch-journal', branchId, from, to],
-    enabled: !!branchId && !!from && !!to,
+    queryKey: ['branch-journal', branchId, ids.join(','), from, to],
+    enabled: ids.length > 0 && !!from && !!to,
     retry: false,
     queryFn: async () => {
-      const { data, error } = await rpc('access_branch_journal', { p_password: accessPw(), p_branch_id: branchId, p_from: from, p_to: to });
-      if (error) throw error;
-      return data as { opening_balance: number; rows: JournalRow[] };
+      const parts = await Promise.all(ids.map(async (id) => {
+        const { data, error } = await rpc('access_branch_journal', { p_password: accessPw(), p_branch_id: id, p_from: from, p_to: to });
+        if (error) throw error;
+        const name = branches.find((b) => b.id === id)?.name ?? '';
+        return { opening: Number(data?.opening_balance) || 0, rows: ((data?.rows ?? []) as JournalRow[]).map((r) => ({ ...r, branch_id: id, branch_name: name })) };
+      }));
+      const rows: BranchRow[] = parts.flatMap((p) => p.rows);
+      if (parts.length > 1) rows.sort((a, b) => a.date.localeCompare(b.date));
+      return { opening_balance: parts.reduce((t, p) => t + p.opening, 0), rows };
     },
   });
   const j = useMemo(() => withRunningBalance(data?.opening_balance ?? 0, data?.rows ?? []), [data]);
@@ -84,17 +101,18 @@ const JournalView: React.FC<Props> = ({ branches }) => {
       const amt = Number(d.amount);
       if (!(amt > 0)) throw new Error('Enter an amount above zero');
       if (!d.description.trim()) throw new Error('Enter a description');
+      if (group && !d.branch_id) throw new Error('Choose a branch for this entry');
       let receipt: string | null = null;
       if (d.file) {
         if (!d.file.type.startsWith('image/')) throw new Error('Receipt must be an image (PDF not accepted)');
         const ext = (d.file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const path = `branch-journal/${branchId}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        const path = `branch-journal/${d.branch_id || branchId}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
         const up = await supabase.storage.from('payment-proofs').upload(path, d.file, { upsert: false, contentType: d.file.type });
         if (up.error) throw new Error('Could not upload the receipt, please try again.');
         receipt = `payment-proofs/${path}`;
       }
       const { error } = await rpc('access_branch_journal_upsert', { p_password: accessPw(), p_entry: {
-        id: d.id ?? null, branch_id: branchId, entry_date: d.entry_date, direction: d.direction, category: d.category,
+        id: d.id ?? null, branch_id: d.branch_id || branchId, entry_date: d.entry_date, direction: d.direction, category: d.category,
         description: d.description.trim(), amount: amt, remark: d.remark.trim(), receipt_path: receipt,
       } });
       if (error) throw error;
@@ -112,7 +130,7 @@ const JournalView: React.FC<Props> = ({ branches }) => {
 
   const exportRows = () => [
     ['', '', 'Opening balance', '', '', '', j.opening.toFixed(2), ''],
-    ...j.lines.map((l) => [formatDate(l.date), l.kind === 'auto' ? 'Auto' : 'Manual', `${l.category ? l.category + ' — ' : ''}${l.description}`, l.reference ?? '',
+    ...j.lines.map((l) => [formatDate(l.date), l.kind === 'auto' ? 'Auto' : 'Manual', `${group && (l as BranchRow).branch_name ? '[' + (l as BranchRow).branch_name + '] ' : ''}${l.category ? l.category + ' — ' : ''}${l.description}`, l.reference ?? '',
       l.direction === 'in' ? l.amount.toFixed(2) : '', l.direction === 'out' ? l.amount.toFixed(2) : '', l.balance.toFixed(2), l.remark ?? '']),
   ];
   const head = ['Date', 'Type', 'Description', 'Reference', 'In', 'Out', 'Balance', 'Remark'];
@@ -136,7 +154,17 @@ const JournalView: React.FC<Props> = ({ branches }) => {
         <div className="space-y-1"><Label className="text-xs">Branch</Label>
           <Select value={branchId} onValueChange={setBranchId}>
             <SelectTrigger className="h-8 w-48 text-xs"><SelectValue placeholder="Branch" /></SelectTrigger>
-            <SelectContent>{branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              {(['sg-all', 'au-all'] as const).map((g) => (
+                <SelectGroup key={g}>
+                  <SelectLabel className="text-xs">{g === 'sg-all' ? 'Singapore' : 'Australia'}</SelectLabel>
+                  <SelectItem value={g}>{GROUPS[g].label}</SelectItem>
+                  {GROUPS[g].names.map(byName).filter(Boolean).map((b) => <SelectItem key={b!.id} value={b!.id}>{b!.name}</SelectItem>)}
+                </SelectGroup>
+              ))}
+              {others.length > 0 && <SelectGroup><SelectLabel className="text-xs">Other</SelectLabel>
+                {others.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectGroup>}
+            </SelectContent>
           </Select></div>
         <div className="space-y-1"><Label className="text-xs">From</Label><DateField value={from} onChange={setFrom} /></div>
         <div className="space-y-1"><Label className="text-xs">To</Label><DateField value={to} onChange={setTo} /></div>
@@ -169,7 +197,7 @@ const JournalView: React.FC<Props> = ({ branches }) => {
                 <TableRow key={`${l.kind}-${l.id}`} className="text-xs">
                   <TableCell className="whitespace-nowrap">{formatDate(l.date)}</TableCell>
                   <TableCell><Badge variant={l.kind === 'auto' ? 'secondary' : 'outline'}>{l.kind === 'auto' ? 'Auto' : 'Manual'}</Badge></TableCell>
-                  <TableCell className="min-w-[180px]">{l.category && <span className="text-muted-foreground">{l.category} — </span>}{l.description}{anextIds?.has(l.id) && <AnextVerifiedBadge className="ml-1" />}</TableCell>
+                  <TableCell className="min-w-[180px]">{group && (l as BranchRow).branch_name && <Badge variant="outline" className="mr-1">{(l as BranchRow).branch_name}</Badge>}{l.category && <span className="text-muted-foreground">{l.category} — </span>}{l.description}{anextIds?.has(l.id) && <AnextVerifiedBadge className="ml-1" />}</TableCell>
                   <TableCell>{l.reference ?? ''}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">{l.direction === 'in' ? money(l.amount) : ''}</TableCell>
                   <TableCell className="text-right whitespace-nowrap text-destructive">{l.direction === 'out' ? money(l.amount) : ''}</TableCell>
@@ -178,7 +206,7 @@ const JournalView: React.FC<Props> = ({ branches }) => {
                   <TableCell className="whitespace-nowrap">
                     {l.receipt_path && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openSignedUrl(l.receipt_path!)}><ImageIcon className="h-3.5 w-3.5" /></Button>}
                     {l.kind === 'manual' && <>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDraft({ id: l.id, entry_date: l.date, direction: l.direction, category: l.category ?? 'Other expense', description: l.description, amount: String(l.amount), remark: l.remark ?? '', file: null })}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDraft({ id: l.id, branch_id: (l as BranchRow).branch_id, entry_date: l.date, direction: l.direction, category: l.category ?? 'Other expense', description: l.description, amount: String(l.amount), remark: l.remark ?? '', file: null })}><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(l)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </>}
                   </TableCell>
@@ -201,6 +229,11 @@ const JournalView: React.FC<Props> = ({ branches }) => {
                   <SelectContent><SelectItem value="out">Money out (expense)</SelectItem><SelectItem value="in">Money in (income)</SelectItem></SelectContent>
                 </Select></div>
             </div>
+            {group && <div className="space-y-1"><Label className="text-xs">Branch</Label>
+              <Select value={draft.branch_id ?? ''} onValueChange={(v) => setDraft({ ...draft, branch_id: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose branch" /></SelectTrigger>
+                <SelectContent>{groupBranches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+              </Select></div>}
             <div className="space-y-1"><Label className="text-xs">Category</Label>
               <Select value={draft.category} onValueChange={(v) => setDraft({ ...draft, category: v })}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>

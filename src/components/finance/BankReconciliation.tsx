@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RefreshCw, Link2, Unlink, Users, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import AnextVerifiedBadge from '@/components/finance/AnextVerifiedBadge';
-import { selectionMatchesTransfer, selectionTotal } from '@/utils/bankMatch';
+import { selectionTotal, allocationFits, exactCombos } from '@/utils/bankMatch';
+import ManualBankMatch from '@/components/finance/ManualBankMatch';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, formatDateTime } from '@/utils/dateFormat';
@@ -19,16 +21,18 @@ const sgd = (n: number) => `S$${Number(n).toFixed(2)}`;
 interface Candidate { payment_id: string; invoice_number: string; student_name: string; branch_id: string; amount: number; payment_date: string; proof_ref: string | null; ref_match: boolean; name_match: boolean; shortage: boolean; exact_amount: boolean; payer_known: boolean }
 interface Linked { payment_id: string; invoice_number: string; amount: number; student_name: string }
 interface Payer { id: string; payer_name: string; student_name: string; created_by: string | null; created_at: string }
-interface Txn { id: string; txn_ref: string; amount: number; received_at: string; payer_name: string; method: string; account_last4: string; status: 'matched' | 'unmatched' | 'review'; status_reason: string | null; matched_by: string | null; matched_at: string | null; linked: Linked[] | null; candidates: Candidate[] | null; external_candidates?: ExtCandidate[] | null }
+interface Txn { id: string; txn_ref: string; amount: number; received_at: string; payer_name: string; method: string; account_last4: string; status: 'matched' | 'unmatched' | 'review' | 'partial'; allocated?: number; status_reason: string | null; matched_by: string | null; matched_at: string | null; linked: Linked[] | null; candidates: Candidate[] | null; external_candidates?: ExtCandidate[] | null }
 interface ExtCandidate { invoice_id: string; invoice_number: string; customer_name: string; balance_due: number; issue_date: string; ref_match: boolean; name_match: boolean; payer_known: boolean }
 
-const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { matched: 'default', review: 'secondary', unmatched: 'outline' };
+const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { matched: 'default', review: 'secondary', unmatched: 'outline', partial: 'secondary' };
+const dayGap = (d: string, at: string) => { const n = Math.round((new Date(d + 'T12:00:00').getTime() - new Date(new Date(at).toDateString() + ' 12:00').getTime()) / 86400000); return n === 0 ? 'same day' : `${Math.abs(n)}d ${n < 0 ? 'earlier' : 'later'}`; };
 
 const BankReconciliation: React.FC = () => {
   const qc = useQueryClient();
   const [status, setStatus] = useState<string>('open');
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [showPayers, setShowPayers] = useState(false);
+  const [manualFor, setManualFor] = useState<string | null>(null);
   const payers = useQuery({
     queryKey: ['bank-payers'], enabled: showPayers, retry: false,
     queryFn: async () => { const { data, error } = await rpc('access_bank_payers', { p_password: accessPw() }); if (error) throw error; return (data ?? []) as Payer[]; },
@@ -62,7 +66,7 @@ const BankReconciliation: React.FC = () => {
   });
   const match = useMutation({
     mutationFn: async ({ txn, payments }: { txn: string; payments: string[] }) => {
-      const { error } = await rpc('access_bank_match', { p_password: accessPw(), p_txn_id: txn, p_payment_ids: payments });
+      const { error } = await rpc('access_bank_allocate', { p_password: accessPw(), p_txn_id: txn, p_allocations: payments.map((id) => ({ payment_id: id })) });
       if (error) throw error;
     },
     onSuccess: (_d, v) => { toast.success(`${v.payments.length} payment(s) verified; payer remembered`); setPicked((m) => ({ ...m, [v.txn]: [] })); refresh(); },
@@ -88,6 +92,7 @@ const BankReconciliation: React.FC = () => {
             <SelectItem value="open">Needs attention</SelectItem>
             <SelectItem value="review">Needs review</SelectItem>
             <SelectItem value="unmatched">Unmatched</SelectItem>
+            <SelectItem value="partial">Partially allocated</SelectItem>
             <SelectItem value="matched">Matched</SelectItem>
             <SelectItem value="all">All</SelectItem>
           </SelectContent>
@@ -124,7 +129,8 @@ const BankReconciliation: React.FC = () => {
                 <span>{formatDateTime(t.received_at)}</span>
                 <span className="font-medium break-words">{t.payer_name}</span>
                 <Badge variant="outline">{t.method}</Badge>
-                <Badge variant={statusVariant[t.status]}>{t.status === 'review' ? 'needs review' : t.status}</Badge>
+                <Badge variant={statusVariant[t.status]}>{t.status === 'review' ? 'needs review' : t.status === 'partial' ? 'partially allocated' : t.status}</Badge>
+                {t.status === 'partial' && <span>Allocated {sgd(t.allocated ?? 0)} · {sgd(t.amount - (t.allocated ?? 0))} open</span>}
                 <span className="text-muted-foreground break-all">Ref {t.txn_ref}</span>
               </div>
               {t.status === 'matched' ? (
@@ -136,12 +142,20 @@ const BankReconciliation: React.FC = () => {
               ) : (
                 <div className="space-y-1">
                   {t.status_reason && <div className="text-muted-foreground">{t.status_reason}</div>}
-                  {(t.candidates ?? []).map((c) => (
+                  {t.status === 'partial' && (t.linked ?? []).length > 0 && <div className="text-muted-foreground">Linked so far: {(t.linked ?? []).map((l) => `${l.invoice_number} ${l.student_name} (${sgd(l.amount)})`).join(', ')}</div>}
+                  {(() => { const rem = t.amount - (t.allocated ?? 0); const combos = exactCombos((t.candidates ?? []).filter((c) => !c.shortage), rem);
+                    return combos.map((cb, i) => (
+                      <div key={i} className="flex flex-wrap items-center gap-2 rounded bg-muted/50 p-2">
+                        <span className="font-medium">Suggested combination:</span>
+                        <span>{cb.map((c) => `${c.invoice_number} ${c.student_name} (${sgd(c.amount)})`).join(' + ')} = {sgd(rem)}</span>
+                        <Button size="sm" variant="outline" className="h-6 px-2 ml-auto" onClick={() => setPicked((m) => ({ ...m, [t.id]: cb.map((c) => c.payment_id) }))}>Select these</Button>
+                      </div>)); })()}
+                  {[...(t.candidates ?? [])].sort((a, b) => Math.abs(new Date(a.payment_date).getTime() - new Date(t.received_at).getTime()) - Math.abs(new Date(b.payment_date).getTime() - new Date(t.received_at).getTime())).map((c) => (
                     <label key={c.payment_id} className="flex flex-wrap items-center gap-2 rounded border p-2 cursor-pointer">
                       <Checkbox checked={(picked[t.id] ?? []).includes(c.payment_id)} disabled={c.shortage} onCheckedChange={() => toggle(t.id, c.payment_id)} />
                       <span className="font-medium">{c.student_name}</span>
                       <span>{c.invoice_number}</span>
-                      <span>{sgd(c.amount)} · {formatDate(c.payment_date)}</span>
+                      <span>{sgd(c.amount)} · {formatDate(c.payment_date)} · {dayGap(c.payment_date, t.received_at)}</span>
                       {c.proof_ref && <span className="text-muted-foreground break-all">Proof ref {c.proof_ref}</span>}
                       {c.exact_amount && <Badge variant="outline">exact amount</Badge>}
                       {c.payer_known && <Badge>known payer</Badge>}
@@ -163,18 +177,22 @@ const BankReconciliation: React.FC = () => {
                     </div>
                   ))}
                   {(t.candidates ?? []).length > 0 && (() => {
+                    const rem = t.amount - (t.allocated ?? 0);
                     const sel = (t.candidates ?? []).filter((c) => (picked[t.id] ?? []).includes(c.payment_id));
-                    const ok = selectionMatchesTransfer(sel.map((c) => c.amount), t.amount);
+                    const tot = selectionTotal(sel.map((c) => c.amount));
+                    const ok = allocationFits(sel.map((c) => c.amount), rem);
                     return (
                       <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <span className={ok ? 'text-primary' : 'text-muted-foreground'}>Selected {sgd(selectionTotal(sel.map((c) => c.amount)))} of {sgd(t.amount)}</span>
+                        <span className={ok ? 'text-primary' : 'text-muted-foreground'}>Selected {sgd(tot)} of {sgd(rem)}{ok && Math.round(tot * 100) < Math.round(rem * 100) ? ' (rest stays open)' : ''}</span>
                         <Button size="sm" variant="outline" className="h-6 px-2 ml-auto" disabled={!ok || match.isPending}
-                          onClick={() => confirm(`Verify ${sel.length} payment(s) totalling ${sgd(t.amount)} with this transfer and remember ${t.payer_name} as their payer?`) && match.mutate({ txn: t.id, payments: sel.map((c) => c.payment_id) })}>
+                          onClick={() => confirm(`Verify ${sel.length} payment(s) totalling ${sgd(tot)} with this transfer and remember ${t.payer_name} as their payer?`) && match.mutate({ txn: t.id, payments: sel.map((c) => c.payment_id) })}>
                           <Link2 className="h-3 w-3 mr-1" />Match & verify
                         </Button>
                       </div>
                     );
                   })()}
+                  <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setManualFor(manualFor === t.id ? null : t.id)}><Search className="h-3 w-3 mr-1" />{manualFor === t.id ? 'Hide search' : 'Search other payments'}</Button>
+                  {manualFor === t.id && <ManualBankMatch txnId={t.id} receivedAt={t.received_at} remaining={t.amount - (t.allocated ?? 0)} payerName={t.payer_name} onDone={() => { setManualFor(null); refresh(); }} />}
                 </div>
               )}
             </CardContent></Card>

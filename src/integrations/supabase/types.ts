@@ -8728,6 +8728,7 @@ export type Database = {
       _bank_name_key: { Args: { p: string }; Returns: string }
       _bank_norm_payer: { Args: { p: string }; Returns: string }
       _bank_ref_match: { Args: { a: string; b: string }; Returns: boolean }
+      _bank_txn_allocated: { Args: { p_txn_id: string }; Returns: number }
       _bank_txn_candidates: {
         Args: { p_txn_id: string }
         Returns: {
@@ -9085,7 +9086,23 @@ export type Database = {
         Args: { p_branch_id: string; p_password: string; p_week_start: string }
         Returns: Json
       }
+      access_bank_allocate: {
+        Args: { p_allocations: Json; p_password: string; p_txn_id: string }
+        Returns: Json
+      }
       access_bank_check: { Args: { p_password: string }; Returns: boolean }
+      access_bank_manual_search: {
+        Args: {
+          p_amount_max?: number
+          p_amount_min?: number
+          p_from?: string
+          p_password: string
+          p_text?: string
+          p_to?: string
+          p_txn_id: string
+        }
+        Returns: Json
+      }
       access_bank_match: {
         Args: { p_password: string; p_payment_ids: string[]; p_txn_id: string }
         Returns: undefined
