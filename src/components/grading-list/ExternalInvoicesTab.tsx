@@ -19,7 +19,7 @@ import InvoiceDetailDialog from '@/components/grading-list/InvoiceDetailDialog';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { formatBranchCurrency } from '@/utils/branchCurrency';
 import { formatDate } from '@/utils/dateFormat';
-import { externalInvoiceBreakdown, defaultTaxInclusive } from '@/utils/externalInvoiceTotal';
+import { externalInvoiceBreakdown, defaultTaxInclusive, lineNet } from '@/utils/externalInvoiceTotal';
 import { Switch } from '@/components/ui/switch';
 
 interface Props {
@@ -37,7 +37,7 @@ interface Row {
   proof_url: string | null; pending_payment: boolean; cancel_requested: boolean;
   has_deposit?: boolean; deposit_refunded_on?: string | null;
 }
-interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string; custom?: boolean; description?: string }
+interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string; custom?: boolean; description?: string; discount_type?: 'percentage' | 'amount'; discount_value?: number }
 
 const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
@@ -255,12 +255,12 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
   const country = (branches as any[]).find(b => b.id === branchId)?.country;
   const [inclOverride, setInclOverride] = useState<{ branch: string; value: boolean } | null>(null);
   const inclusive = inclOverride?.branch === branchId ? inclOverride.value : defaultTaxInclusive(country);
-  const { total, gst, rate } = externalInvoiceBreakdown(lines, country, inclusive);
+  const { total, gst, rate, subtotal, discount } = externalInvoiceBreakdown(lines, country, inclusive);
 
   const save = useMutation({
     mutationFn: async () => {
       const items = lines.filter(l => l.custom ? (l.description ?? '').trim() : l.product_id)
-        .map(l => l.custom ? { product_id: null, description: (l.description ?? '').trim(), quantity: l.quantity, unit_price: l.unit_price } : l);
+        .map(l => l.custom ? { product_id: null, description: (l.description ?? '').trim(), quantity: l.quantity, unit_price: l.unit_price, discount_type: l.discount_type, discount_value: l.discount_value } : l);
       const { data, error } = await rpc('create_external_invoice', { p_password: accessPw(), p_payload: {
         customer_category: category, customer_name: name, customer_email: email, customer_phone: phone,
         customer_reference: reference, branch_id: branchId, notes, items, tax_inclusive: inclusive, actor: 'access',
@@ -298,6 +298,7 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
         </div>
         <div className="space-y-2 mt-2">
           <Label className="text-xs">Items</Label>
+          <div className="hidden sm:flex gap-1 text-[10px] text-muted-foreground uppercase"><span className="flex-1">Item</span><span className="w-16">Qty</span><span className="w-24">Price</span><span className="w-20">Disc</span><span className="w-24 text-right">Line total</span><span className="w-7" /></div>
           {lines.map((l, i) => {
             return (
               <div key={i} className="flex flex-wrap gap-1 items-center">
@@ -308,6 +309,8 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
                   setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: v })} />}
                 <Input className="h-7 text-xs w-16" type="number" min={1} value={l.quantity} onChange={e => setLine(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
                 <Input className="h-7 text-xs w-24" type="number" min={0} step="0.01" value={l.unit_price} onChange={e => setLine(i, { unit_price: Math.max(0, Number(e.target.value) || 0) })} />
+                <DiscountField line={l} onChange={(t, v) => setLine(i, { discount_type: t, discount_value: v })} />
+                <div className="w-24 text-right font-medium tabular-nums">{formatCurrency(lineNet(l))}</div>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setLines(ls => ls.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button>
               </div>
             );
@@ -316,6 +319,7 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
           <div><Label className="text-xs">Notes</Label><Input className="h-7 text-xs" value={notes} onChange={e => setNotes(e.target.value)} /></div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             {rate > 0 && <label className="flex items-center gap-2 text-xs"><Switch checked={inclusive} onCheckedChange={v => setInclOverride({ branch: branchId, value: v })} />Prices include GST</label>}
+            {discount > 0 && <div className="text-right text-muted-foreground">Subtotal {formatCurrency(subtotal)} · Discount −{formatCurrency(discount)}</div>}
             <div className="text-right font-semibold">Total {rate > 0 ? (inclusive ? `(GST included ${formatCurrency(gst)})` : `(incl. ${Math.round(rate * 100)}% GST ${formatCurrency(gst)})`) : ''}: {formatCurrency(total)}</div>
           </div>
         </div>
@@ -327,6 +331,17 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const DiscountField: React.FC<{ line: Line; onChange: (t: 'percentage' | 'amount', v: number) => void }> = ({ line, onChange }) => {
+  const t = line.discount_type ?? 'percentage'; const v = line.discount_value ?? 0;
+  return (
+    <div className="flex w-20 h-7 border rounded-md overflow-hidden">
+      <button type="button" className="px-1.5 bg-muted text-[11px] font-semibold" title="Switch % / $" onClick={() => onChange(t === 'percentage' ? 'amount' : 'percentage', v)}>{t === 'percentage' ? '%' : '$'}</button>
+      <input className="w-full px-1 text-xs bg-background outline-none" type="number" min={0} step="0.01" placeholder="0" value={v || ''}
+        onChange={e => onChange(t, Math.max(0, Number(e.target.value) || 0))} aria-label="Discount" />
+    </div>
   );
 };
 
