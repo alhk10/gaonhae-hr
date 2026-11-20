@@ -37,7 +37,7 @@ interface Row {
   proof_url: string | null; pending_payment: boolean; cancel_requested: boolean;
   has_deposit?: boolean; deposit_refunded_on?: string | null;
 }
-interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string }
+interface Line { product_id: string; quantity: number; unit_price: number; size_variant: string; custom?: boolean; description?: string }
 
 const rpc = ((fn: string, args?: any) => (supabase.rpc as any).call(supabase, fn, args)) as any;
 const accessPw = () => { try { return sessionStorage.getItem('access_pw_v1') || ''; } catch { return ''; } };
@@ -259,7 +259,8 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
 
   const save = useMutation({
     mutationFn: async () => {
-      const items = lines.filter(l => l.product_id);
+      const items = lines.filter(l => l.custom ? (l.description ?? '').trim() : l.product_id)
+        .map(l => l.custom ? { product_id: null, description: (l.description ?? '').trim(), quantity: l.quantity, unit_price: l.unit_price } : l);
       const { data, error } = await rpc('create_external_invoice', { p_password: accessPw(), p_payload: {
         customer_category: category, customer_name: name, customer_email: email, customer_phone: phone,
         customer_reference: reference, branch_id: branchId, notes, items, tax_inclusive: inclusive, actor: 'access',
@@ -300,8 +301,11 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
           {lines.map((l, i) => {
             return (
               <div key={i} className="flex flex-wrap gap-1 items-center">
+                <Button size="sm" variant={l.custom ? 'default' : 'outline'} className="h-7 text-[11px] px-2" title="Switch between product and custom item"
+                  onClick={() => setLine(i, l.custom ? { custom: false, description: '' } : { custom: true, product_id: '', size_variant: '', unit_price: 0 })}>{l.custom ? 'Custom' : 'Product'}</Button>
+                {l.custom ? <Input className="h-7 text-xs flex-1 min-w-[160px]" maxLength={200} placeholder="Description (e.g. Demo performance fee)" value={l.description ?? ''} onChange={e => setLine(i, { description: e.target.value })} /> :
                 <ProductPicker loading={productsLoading} error={productsError ? (productsError as any).message : null} hasBranch={!!branchId} products={products as ProductOption[]} value={l.product_id} variant={l.size_variant} onChange={(pr, v) =>
-                  setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: v })} />
+                  setLine(i, { product_id: pr.id, unit_price: Number(pr.branch_price ?? pr.base_price ?? 0), size_variant: v })} />}
                 <Input className="h-7 text-xs w-16" type="number" min={1} value={l.quantity} onChange={e => setLine(i, { quantity: Math.max(1, Number(e.target.value) || 1) })} />
                 <Input className="h-7 text-xs w-24" type="number" min={0} step="0.01" value={l.unit_price} onChange={e => setLine(i, { unit_price: Math.max(0, Number(e.target.value) || 0) })} />
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setLines(ls => ls.filter((_, idx) => idx !== i))}><Trash2 className="h-3 w-3" /></Button>
@@ -317,7 +321,7 @@ const CreateDialog: React.FC<{ lockedBranchId?: string; onClose: () => void; onD
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={save.isPending || !name.trim() || !branchId || !lines.some(l => l.product_id) || lines.some(l => {
+          <Button size="sm" disabled={save.isPending || !name.trim() || !branchId || !lines.some(l => l.product_id || (l.custom && (l.description ?? '').trim())) || lines.some(l => l.custom && (!(l.description ?? '').trim() || l.unit_price <= 0)) || lines.some(l => {
             const p = (products as any[]).find(x => x.id === l.product_id); return !!p && productVariantKeys(p).length > 0 && !l.size_variant;
           })} onClick={() => save.mutate()}>Create invoice</Button>
         </DialogFooter>
