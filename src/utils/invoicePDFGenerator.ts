@@ -152,7 +152,10 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
-  let yPos = 20;
+  const isExt = invoice.customer_type === 'external';
+  // External invoices use a compact layout (20% less top margin, ~25% tighter gaps) to fit one page.
+  const g = (n: number) => (isExt ? Math.max(3, n * 0.75) : n);
+  let yPos = isExt ? 16 : 20;
 
   // Load and add logo with proper aspect ratio (downscaled to ~200px)
   const savedLogo = invoice.template.logo_url ? await loadImage(invoice.template.logo_url, 200, 200) : null;
@@ -196,12 +199,12 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'bold');
   doc.text('INVOICE', pageWidth - margin, yPos + headerHeight + 10, { align: 'right' });
 
-  yPos += headerHeight + 17;
+  yPos += headerHeight + g(17);
 
   // Draw a line
   doc.setDrawColor(200, 200, 200);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 10;
+  yPos += g(10);
 
   // Invoice details section
   doc.setFontSize(10);
@@ -215,7 +218,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'normal');
   doc.text(formatDate(invoice.issue_date), pageWidth - margin - 25, yPos);
 
-  yPos += 7;
+  yPos += g(7);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Status:', margin, yPos);
@@ -254,34 +257,34 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.setFont('helvetica', 'normal');
   doc.text(formatDate(invoice.due_date), pageWidth - margin - 25, yPos);
 
-  yPos += 15;
+  yPos += g(15);
 
   // Bill To section
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('Bill To:', margin, yPos);
-  yPos += 7;
+  yPos += g(7);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if (invoice.student) {
     doc.text(invoice.student.name, margin, yPos);
-    yPos += 5;
+    yPos += g(5);
     if (invoice.student.address) {
       doc.text(invoice.student.address, margin, yPos);
-      yPos += 5;
+      yPos += g(5);
     }
     if (invoice.student.phone) {
       doc.text(`Phone: ${invoice.student.phone}`, margin, yPos);
-      yPos += 5;
+      yPos += g(5);
     }
     if (invoice.student.email) {
       doc.text(`Email: ${invoice.student.email}`, margin, yPos);
-      yPos += 5;
+      yPos += g(5);
     }
   }
 
-  yPos += 10;
+  yPos += g(10);
 
   // Items table header
   const tableStartY = yPos;
@@ -291,7 +294,6 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  const isExt = invoice.customer_type === 'external';
   // External layout columns (right edges): Qty, Unit Price, Discount, Tax, Total
   const extCols = { qty: pageWidth - margin - 104, unit: pageWidth - margin - 80, disc: pageWidth - margin - 56, tax: pageWidth - margin - 30, total: pageWidth - margin - 2 };
   doc.text('Products/Services', margin + 2, yPos);
@@ -306,10 +308,13 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
   }
 
-  yPos += 8;
+  yPos += g(8);
 
   // Table rows
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const printedLines = (invoice.items || []).reduce((n, it) => n + (doc.splitTextToSize(it.description, extCols.qty - 12 - margin - 2) as string[]).length, 0);
+  const fitsOnePage = isExt && ((invoice.items?.length ?? 0) <= 6 || printedLines <= 12);
   if (invoice.items && invoice.items.length > 0) {
     sortInvoiceLines(invoice.items).forEach((item) => {
       // Check if we need a new page
@@ -339,7 +344,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
         doc.text(disc > 0 ? `-${formatCurrency(disc)}` : '-', extCols.disc, yPos, { align: 'right' });
         doc.text(formatCurrency(taxShown), extCols.tax, yPos, { align: 'right' });
         doc.text(formatCurrency(tot), extCols.total, yPos, { align: 'right' });
-        yPos += 6 + (wrapped.length - 1) * 4;
+        yPos += 5 + (wrapped.length - 1) * 3.6;
         return;
       }
       const desc = item.description.substring(0, 80);
@@ -361,7 +366,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
         yPos += 4.5;
       }
       
-      yPos += 6;
+      yPos += g(6);
 
       // Add grading info if available (gray, smaller text - 9pt)
       if (item.grading_info) {
@@ -369,7 +374,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
         doc.setTextColor(100, 100, 100);
         doc.text(`  Grading: ${item.grading_info}`, margin + 2, yPos);
         doc.setTextColor(0, 0, 0);
-        yPos += 5;
+        yPos += g(5);
       }
 
       // Add term info if available (gray, smaller text - 9pt)
@@ -378,20 +383,20 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
         doc.setTextColor(100, 100, 100);
         doc.text(`  ${item.term_info}`, margin + 2, yPos);
         doc.setTextColor(0, 0, 0);
-        yPos += 5;
+        yPos += g(5);
       }
 
-      yPos += 2;
+      yPos += g(2);
     });
   } else {
     doc.text('No items', margin + 2, yPos);
-    yPos += 7;
+    yPos += g(7);
   }
 
   // Draw line after items
   doc.setDrawColor(200, 200, 200);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 10;
+  yPos += g(10);
 
   // Totals section (aligned right)
   const totalsX = pageWidth - margin - 80;
@@ -404,41 +409,41 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
     : null;
   doc.text(gstPct ? 'Subtotal (before GST):' : 'Subtotal:', totalsX, yPos);
   doc.text(formatCurrency(invoice.subtotal), pageWidth - margin - 2, yPos, { align: 'right' });
-  yPos += 6;
+  yPos += g(6);
 
   // Discount sits after subtotal and before GST (GST is charged on the discounted amount).
   if (invoice.discount_amount > 0) {
     doc.text('Discount:', totalsX, yPos);
     doc.text(`-${formatCurrency(invoice.discount_amount)}`, pageWidth - margin - 2, yPos, { align: 'right' });
-    yPos += 6;
+    yPos += g(6);
   }
 
   doc.text(gstPct ? `GST (${gstPct}%${isAustralian ? ' included' : ''}):` : 'GST:', totalsX, yPos);
   doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin - 2, yPos, { align: 'right' });
-  yPos += 6;
+  yPos += g(6);
 
   // Total line
   doc.setDrawColor(100, 100, 100);
   doc.line(totalsX - 5, yPos - 2, pageWidth - margin, yPos - 2);
-  yPos += 4;
+  yPos += g(4);
 
   // Total (reduced from 11pt to 10pt)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('Total:', totalsX, yPos);
   doc.text(formatCurrency(invoice.total_amount), pageWidth - margin - 2, yPos, { align: 'right' });
-  yPos += 8;
+  yPos += g(8);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Amount Paid:', totalsX, yPos);
   doc.text(formatCurrency(invoice.amount_paid), pageWidth - margin - 2, yPos, { align: 'right' });
-  yPos += 6;
+  yPos += g(6);
 
   if (Number(invoice.refunded_amount || 0) > 0) {
     doc.text('Refunded as Credit:', totalsX, yPos);
     doc.text(`-${formatCurrency(Number(invoice.refunded_amount))}`, pageWidth - margin - 2, yPos, { align: 'right' });
-    yPos += 6;
+    yPos += g(6);
   }
 
   // Balance Due (increased from 10pt to 11pt)
@@ -447,7 +452,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   doc.text('Balance Due:', totalsX, yPos);
   doc.text(formatCurrency(invoice.balance_due), pageWidth - margin - 2, yPos, { align: 'right' });
 
-  yPos += 20;
+  yPos += g(20);
 
   // Notes, Bank Transfer Info and PayNow QR Code section
   const hasQrCode = invoice.template?.paynow_qr_url;
@@ -457,7 +462,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
   
   if (hasQrCode || hasDefaultNotes || hasInvoiceNotes || hasBankTransferInfo) {
     // Check if we need a new page
-    if (yPos > 220) {
+    if (yPos > (fitsOnePage ? 260 : 220)) {
       doc.addPage();
       yPos = 20;
     }
@@ -482,22 +487,22 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text('Notes:', margin, yPos);
-      yPos += 6;
+      yPos += g(6);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
+      doc.setFontSize(isExt ? 8 : 9);
       
       // Template default notes first
       if (hasDefaultNotes) {
         const splitDefaultNotes = doc.splitTextToSize(invoice.template!.default_notes!, notesMaxWidth);
         doc.text(splitDefaultNotes, margin, yPos);
-        yPos += splitDefaultNotes.length * 4 + 4;
+        yPos += splitDefaultNotes.length * (isExt ? 3.4 : 4) + g(4);
       }
       
       // Invoice-specific notes
       if (hasInvoiceNotes) {
         const splitNotes = doc.splitTextToSize(invoice.notes!, notesMaxWidth);
         doc.text(splitNotes, margin, yPos);
-        yPos += splitNotes.length * 4;
+        yPos += splitNotes.length * (isExt ? 3.4 : 4);
       }
     }
     
@@ -513,7 +518,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       let bankY = notesStartY + 5;
       bankLines.forEach((line) => {
         doc.text(line.trim(), rightColumnX, bankY);
-        bankY += 4;
+        bankY += isExt ? 3.5 : 4;
       });
       bankInfoEndY = bankY + 2;
     }
@@ -523,7 +528,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       let qrStartY = hasBankTransferInfo ? bankInfoEndY : notesStartY;
       const footerTop = doc.internal.pageSize.getHeight() - 22;
       let size = Math.min(qrSize, footerTop - qrStartY);
-      if (size < 24) {
+      if (size < (fitsOnePage ? 18 : 24)) {
         doc.addPage();
         qrStartY = 20;
         size = qrSize;
@@ -538,7 +543,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       yPos = bankInfoEndY;
     }
     
-    yPos += 10;
+    yPos += g(10);
   }
 
   // Footer
