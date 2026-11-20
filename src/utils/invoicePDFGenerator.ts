@@ -315,7 +315,7 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       if (isRefunded) doc.setTextColor(130, 130, 130);
       doc.text(desc, margin + 2, yPos);
       doc.text(amt, pageWidth - margin - 2, yPos, { align: 'right' });
-      if (!isClassLineItem(item)) {
+      if (invoice.customer_type === 'external' || !isClassLineItem(item)) {
         doc.text(String(item.quantity ?? 1), pageWidth - margin - 30, yPos, { align: 'right' });
       }
       if (isRefunded) {
