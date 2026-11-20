@@ -291,9 +291,20 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
+  const isExt = invoice.customer_type === 'external';
+  // External layout columns (right edges): Qty, Unit Price, Discount, Tax, Total
+  const extCols = { qty: pageWidth - margin - 104, unit: pageWidth - margin - 80, disc: pageWidth - margin - 56, tax: pageWidth - margin - 30, total: pageWidth - margin - 2 };
   doc.text('Products/Services', margin + 2, yPos);
-  doc.text('Qty', pageWidth - margin - 30, yPos, { align: 'right' });
-  doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
+  if (isExt) {
+    doc.text('Qty', extCols.qty, yPos, { align: 'right' });
+    doc.text('Unit Price', extCols.unit, yPos, { align: 'right' });
+    doc.text('Discount', extCols.disc, yPos, { align: 'right' });
+    doc.text('Tax', extCols.tax, yPos, { align: 'right' });
+    doc.text('Total', extCols.total, yPos, { align: 'right' });
+  } else {
+    doc.text('Qty', pageWidth - margin - 30, yPos, { align: 'right' });
+    doc.text('Total', pageWidth - margin - 2, yPos, { align: 'right' });
+  }
 
   yPos += 8;
 
@@ -310,6 +321,27 @@ export const generateInvoicePDF = async (invoice: InvoiceData): Promise<jsPDF> =
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       const isRefunded = (item.metadata as any)?.refunded === true;
+      if (isExt) {
+        const m = item.description.match(/\s*\(less (\$)?([\d.]+)(%)?\)\s*$/);
+        const clean = m ? item.description.slice(0, m.index) : item.description;
+        const qty = Number(item.quantity ?? 1), unit = Number(item.unit_price ?? 0), tax = Number(item.tax_amount ?? 0), tot = Number(item.total_amount ?? 0);
+        const gross = qty * unit;
+        let disc = 0;
+        if (m) disc = Math.min(gross, Math.round((m[1] ? Number(m[2]) : gross * Number(m[2]) / 100) * 100) / 100);
+        const net = Math.round((gross - disc) * 100) / 100;
+        const taxShown = tax > 0 ? tax : tot - net > 0.004 ? Math.round((tot - net) * 100) / 100
+          : Number(item.tax_rate) > 0 ? Math.round((tot - tot / (1 + Number(item.tax_rate))) * 100) / 100 : 0;
+        const wrapped = doc.splitTextToSize(clean, extCols.qty - 12 - margin - 2) as string[];
+        if (yPos + wrapped.length * 4.5 > 270) { doc.addPage(); yPos = 20; }
+        doc.text(wrapped, margin + 2, yPos);
+        doc.text(String(qty), extCols.qty, yPos, { align: 'right' });
+        doc.text(formatCurrency(unit), extCols.unit, yPos, { align: 'right' });
+        doc.text(disc > 0 ? `-${formatCurrency(disc)}` : '-', extCols.disc, yPos, { align: 'right' });
+        doc.text(formatCurrency(taxShown), extCols.tax, yPos, { align: 'right' });
+        doc.text(formatCurrency(tot), extCols.total, yPos, { align: 'right' });
+        yPos += 6 + (wrapped.length - 1) * 4;
+        return;
+      }
       const desc = item.description.substring(0, 80);
       const amt = formatCurrency(item.total_amount);
       if (isRefunded) doc.setTextColor(130, 130, 130);
