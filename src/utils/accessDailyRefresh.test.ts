@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { shouldRefreshToday, sgtDateKey } from './accessDailyRefresh';
 
 describe('access daily refresh', () => {
