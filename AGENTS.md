@@ -41,3 +41,4 @@
 - Limited edition items live in `limited_edition_products` (all-branch password via `access_limited_edition_*`), each backed by a `products` row; /hello orders are `guards_purchases` lines keyed `le:<id>:<design>:<size>`, so they share the Uniforms & Guards list, verification and invoicing.
 - Grading scorecard options are per branch in `grading_branch_score_settings`, changed only via `access_grading_branch_score_settings_set` (all-branch/superadmin), so branch staff can't alter them.
 - /access refetches react-query data after Supabase writes via `src/utils/accessAutoRefresh.ts` (imported first in main.tsx), so tabs update without manual refresh.
+- /access reloads once per Singapore calendar day via `src/utils/accessDailyRefresh.ts` (date saved before reload), so staff start each day on the latest version without reload loops.

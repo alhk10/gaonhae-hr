@@ -7,6 +7,7 @@ import { cardsForStudents, downloadStudentCard } from '@/services/progressCardSe
  * delete/update-slot, plus amount + proof columns for submission rows.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { runAccessDailyRefresh } from '@/utils/accessDailyRefresh';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import PublicScorecardInline from '@/components/grading/PublicScorecardInlineRow';
 import { DEFAULT_SCORECARD_LABELS } from '@/constants/scorecardLabels';
@@ -162,6 +163,12 @@ const isPdfUrl = (url?: string | null) => /\.pdf(\?|$)/i.test(url || '');
 
 const isMorleyRow = (r: PublicGradingListRow) => (r.branch_name || '').trim().toLowerCase() === 'morley';
 const PublicGradingList: React.FC = () => {
+  useEffect(() => {
+    runAccessDailyRefresh();
+    const onVis = () => { if (document.visibilityState === 'visible') runAccessDailyRefresh(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
   const qc = useQueryClient();
   const { user } = useAuth();
   const verifiedBy = user?.employeeId || user?.email || 'system';
