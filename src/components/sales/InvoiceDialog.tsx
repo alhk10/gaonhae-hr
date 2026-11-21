@@ -1113,6 +1113,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const updateItemPrice = (index: number, value: string) => {
     const u = [...items]; const p = value === '' ? 0 : (parseFloat(value) || 0);
     u[index].unit_price = p; u[index].total = calculateLineTotal(u[index].quantity, p, u[index].discount_type, u[index].discount_value);
+    // Staff-typed price on a multi-week class line is a manual override: keep it when weeks change.
+    // (1-week lines keep the ad-hoc price warning flow in finalizeItemPrice instead.)
+    if (u[index].weekly_price != null && u[index].quantity !== 1) u[index].price_override_logged = true;
     setItems(u);
   };
   const finalizeItemPrice = (index: number) => {
