@@ -132,6 +132,7 @@ const PublicGuardsPurchaseList: React.FC<PublicGuardsPurchaseListProps> = ({ emb
     staleTime: 30 * 1000,
   });
 
+
   const tryUnlock = () => {
     if (PASSWORDS.includes(pwInput)) {
       sessionStorage.setItem(SS_KEY, '1');

@@ -42,3 +42,5 @@
 - Grading scorecard options are per branch in `grading_branch_score_settings`, changed only via `access_grading_branch_score_settings_set` (all-branch/superadmin), so branch staff can't alter them.
 - /access refetches react-query data after Supabase writes via `src/utils/accessAutoRefresh.ts` (imported first in main.tsx), so tabs update without manual refresh.
 - /access reloads once per Singapore calendar day via `src/utils/accessDailyRefresh.ts` (date saved before reload), so staff start each day on the latest version without reload loops.
+
+- Uniforms & Guards / Limited Edition orders are proof-scanned server-side by `scan-payment-proof` (`guards_purchase_ids`) right after submit; `_guards_auto_invoice` trigger invoices verified, matched limited-edition-only carts, so auto-verified orders never wait for staff.

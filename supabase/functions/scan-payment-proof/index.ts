@@ -242,6 +242,38 @@ async function scanStoredPayments(body: any) {
   return json({ scanned: results });
 }
 
+// Server-side scan of pending Uniforms & Guards / Limited Edition orders.
+// Saves the result so the auto-verify trigger can verify exact, matched payments.
+async function scanGuardsPurchases(ids: string[]) {
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const list = ids.filter((x) => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 50);
+  if (!list.length) return json({ error: "guards_purchase_ids required" }, 400);
+  const { data: rows, error } = await admin.from("guards_purchases")
+    .select("id, total, branch_id, proof_url, payment_method")
+    .in("id", list).is("proof_scan_status", null).eq("sale_status", "pending_verification")
+    .not("proof_url", "is", null);
+  if (error) return json({ error: error.message }, 400);
+  const results: Record<string, ScanStatus> = {};
+  for (const r of rows || []) {
+    if (["cash", "credit"].includes(String(r.payment_method || "").toLowerCase())) continue;
+    const { data: br } = await admin.from("branches").select("country").eq("id", r.branch_id).maybeSingle();
+    const currency = String((br as any)?.country || "").toLowerCase().startsWith("aus") ? "AUD" : "SGD";
+    const path = proofPath(r.proof_url as string);
+    const { data: file } = path ? await admin.storage.from("payment-proofs").download(path) : { data: null };
+    let out: ScanOut;
+    if (!file) out = unread("proof_not_found");
+    else if (!file.type?.startsWith("image/")) out = unread("not_image");
+    else if (file.size > MAX_IMAGE_BYTES) out = unread("image_too_large");
+    else out = await scanImage(`data:${file.type};base64,${toBase64(new Uint8Array(await file.arrayBuffer()))}`, Number(r.total), currency);
+    await admin.from("guards_purchases").update({
+      proof_scan_status: out.status, proof_scan_amount: out.amount,
+      proof_scan_details: { ...out.details, source: "server_scan" },
+    }).eq("id", r.id).is("proof_scan_status", null);
+    results[r.id] = out.status;
+  }
+  return json({ scanned: results });
+}
+
 // Re-reads one stored payment's proof on demand and overwrites the saved scan result.
 async function rescanPayment(paymentId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(paymentId)) return json({ error: "invalid payment id" }, 400);
@@ -270,6 +302,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => null);
     if (body && typeof body.rescan_payment_id === "string") return await rescanPayment(body.rescan_payment_id);
+    if (body && Array.isArray(body.guards_purchase_ids)) return await scanGuardsPurchases(body.guards_purchase_ids);
     if (body && (body.payment_ids || body.invoice_ids)) return await scanStoredPayments(body);
     const imageDataUrl: string | undefined = body?.image_data_url;
     if (!imageDataUrl || !imageDataUrl.startsWith("data:image/")) {

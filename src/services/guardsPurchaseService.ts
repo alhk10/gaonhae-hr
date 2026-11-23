@@ -387,6 +387,11 @@ export const submitGuardsPurchase = async (
   if (!inserted) throw new Error('Submission failed: no record returned');
   console.info('[/guards] submitted', inserted);
 
+  // Server reads the proof; an exact, matched amount auto-verifies via DB trigger.
+  void supabase.functions.invoke('scan-payment-proof', {
+    body: { guards_purchase_ids: [(inserted as any).id] },
+  }).catch(() => null);
+
   // Fire-and-forget confirmation email
   if (input.email?.trim()) {
     void supabase.functions.invoke('send-transactional-email', {
