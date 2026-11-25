@@ -33,13 +33,19 @@ const STAGE_BANDS: Record<string, { from: number; to: number; nextBelt: string }
   '3rd Dan': { from: 11, to: 26, nextBelt: '' },
 };
 
-const parseStageNumber = (name: string): number | null => {
-  const m = name.trim().match(/^stage\s+(\d+)/i);
-  return m ? parseInt(m[1], 10) : null;
+const parseStageRange = (name: string): { from: number; to: number } | null => {
+  const m = name.trim().match(/^stage\s+(\d+)(?:\s*-\s*(\d+))?/i);
+  if (!m) return null;
+  const from = parseInt(m[1], 10);
+  const to = m[2] ? parseInt(m[2], 10) : from;
+  return { from, to: Math.max(from, to) };
 };
 
 const findStageProduct = (products: ChatProduct[], stageNum: number): ChatProduct | null => {
-  return products.find(p => parseStageNumber(p.product_name) === stageNum) ?? null;
+  return products.find(p => {
+    const r = parseStageRange(p.product_name);
+    return !!r && stageNum >= r.from && stageNum <= r.to;
+  }) ?? null;
 };
 
 const findBeltTransitionProduct = (products: ChatProduct[], fromBelt: string): ChatProduct | null => {
