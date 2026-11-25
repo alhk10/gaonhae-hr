@@ -812,8 +812,8 @@ export const createInvoiceForPurchase = async (
     } as any)
     .eq('id', invoice.id);
 
-  // Persist link on purchase
-  await supabase
+  // Persist link on purchase (the invoice-items trigger also links it server-side).
+  const { error: linkErr } = await supabase
     .from('guards_purchases')
     .update({
       matched_student_id: studentId,
@@ -821,6 +821,10 @@ export const createInvoiceForPurchase = async (
       sale_status: 'verified',
     } as any)
     .eq('id', purchase.id);
+  if (linkErr) {
+    const { data: linked } = await supabase.from('guards_purchases').select('invoice_id').eq('id', purchase.id).maybeSingle();
+    if ((linked as any)?.invoice_id !== invoice.id) throw new Error(`Invoice created but order link failed: ${linkErr.message}`);
+  }
 
   // Remember the purchase email on the student so future submissions match.
   await supabase
