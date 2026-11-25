@@ -1,23 +1,19 @@
-import { describe, it, expect } from 'vitest';
 import { computeNextGradingDefault } from './nextGradingProduct';
+import type { ChatProduct } from '@/services/publicChatService';
 
 const prods = [
-  { id: 'a', product_name: 'Stage 1 - 3' },
-  { id: 'b', product_name: 'Stage 4 - 10' },
-  { id: 'c', product_name: 'Stage 11-26' },
-] as any;
+  { product_id: 'a', product_name: 'Stage 1 - 3' },
+  { product_id: 'b', product_name: 'Stage 4 - 10' },
+  { product_id: 'c', product_name: 'Stage 11-26' },
+] as unknown as ChatProduct[];
 
-describe('stage range products', () => {
-  it('Stage 2 picks Stage 1 - 3', () => {
-    expect(computeNextGradingDefault('1st Poom', [1], prods).product?.id).toBe('a');
-  });
-  it('Stage 3 picks Stage 1 - 3', () => {
-    expect(computeNextGradingDefault('1st Poom', [1, 2], prods).product?.id).toBe('a');
-  });
-  it('Stage 5 picks Stage 4 - 10', () => {
-    expect(computeNextGradingDefault('2nd Poom', [4], prods).product?.id).toBe('b');
-  });
-  it('Stage 12 picks Stage 11-26', () => {
-    expect(computeNextGradingDefault('3rd Dan', [11], prods).product?.id).toBe('c');
-  });
-});
+const check = (belt: string, done: number[], expected: string) => {
+  const got = computeNextGradingDefault(belt, done, prods).product?.product_id;
+  if (got !== expected) throw new Error(`${belt} ${done}: expected ${expected}, got ${got}`);
+};
+
+check('1st Poom', [1], 'a');
+check('1st Poom', [1, 2], 'a');
+check('2nd Poom', [4], 'b');
+check('3rd Dan', [11], 'c');
+console.log('nextGradingProduct: all checks passed');
