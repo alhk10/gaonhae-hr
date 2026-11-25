@@ -918,13 +918,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.rpc('get_public_limited_editions' as any, { p_branch_id: formData.branch_id || null } as any);
+      const { data } = await supabase.rpc('get_public_limited_editions' as any, { p_branch_id: (isCreateMode ? formData.branch_id : invoice?.branch_id) || formData.branch_id || null } as any);
       const map: Record<string, { name: string; designs: string[]; sizes: string[] }> = {};
       ((data as any[]) || []).forEach((l: any) => { if (l.product_id) map[l.product_id] = { name: l.name, designs: l.designs || [], sizes: l.sizes || [] }; });
       setLeByProduct(map);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.branch_id]);
+  }, [formData.branch_id, invoice?.branch_id, isCreateMode]);
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const selectedLe = selectedProduct ? leByProduct[selectedProduct.id] : undefined;
   const sizeOptions = selectedLe?.sizes?.length ? selectedLe.sizes : selectedProduct?.available_variants?.sizes?.length ? selectedProduct.available_variants.sizes : (selectedProduct?.available_sizes || []);
@@ -1499,8 +1499,17 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const handleEditItemFieldChange = (itemId: string, field: string, value: number | string) => {
     setEditItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
-      const updated = { ...item, [field]: value };
-      return (field === 'size_variant' || field === 'color_variant') ? updated : recalcItem(updated);
+      const updated: any = { ...item, [field]: value };
+      if (field === 'size_variant' || field === 'color_variant') {
+        const le = leByProduct[item.product_id] || ((item.metadata as any)?.limited_edition ? { name: String(item.description || '').replace(/^Limited Edition - /, '').replace(/\s*\([^)]*\)\s*$/, '') } : null);
+        if (le) {
+          const opts = [updated.color_variant, updated.size_variant].filter(Boolean).join(' / ');
+          updated.description = `Limited Edition - ${le.name}${opts ? ` (${opts})` : ''}`;
+          updated.metadata = { ...(item.metadata || {}), limited_edition: true, design: updated.color_variant || undefined, size: updated.size_variant || undefined };
+        }
+        return updated;
+      }
+      return recalcItem(updated);
     }));
   };
 
@@ -2253,13 +2262,13 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue placeholder="Size" /></SelectTrigger>
                                 <SelectContent>{availableSizes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                               </Select>
-                            ) : <span className="text-muted-foreground">-</span>}</TableCell>
+                            ) : <span className="text-muted-foreground">{item.size_variant || '-'}</span>}</TableCell>
                             <TableCell className="px-2">{availableColors.length > 0 ? (
                               <Select value={item.color_variant || ''} onValueChange={(v) => handleEditItemFieldChange(item.id, 'color_variant', v)}>
                                 <SelectTrigger className="h-7 w-16 text-xs"><SelectValue placeholder="Color" /></SelectTrigger>
                                 <SelectContent>{availableColors.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                               </Select>
-                            ) : <span className="text-muted-foreground">-</span>}</TableCell>
+                            ) : <span className="text-muted-foreground">{item.color_variant || '-'}</span>}</TableCell>
                             <TableCell className="px-2">
                               {isClassItem && invoice.branch_id ? (
                                 branchTerms.length > 0 ? (
