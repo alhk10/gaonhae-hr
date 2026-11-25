@@ -386,15 +386,6 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
   // Limited Edition products: product_id -> { name, designs, sizes }
   const [leByProduct, setLeByProduct] = useState<Record<string, { name: string; designs: string[]; sizes: string[] }>>({});
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.rpc('get_public_limited_editions' as any, { p_branch_id: formData.branch_id || null } as any);
-      const map: Record<string, { name: string; designs: string[]; sizes: string[] }> = {};
-      ((data as any[]) || []).forEach((l: any) => { if (l.product_id) map[l.product_id] = { name: l.name, designs: l.designs || [], sizes: l.sizes || [] }; });
-      setLeByProduct(map);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.branch_id]);
   const [viewProducts, setViewProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number, category_name?: string, is_lesson?: boolean, is_active?: boolean, tax_rate?: number, available_sizes?: string[], available_variants?: any, allowed_class_types?: string[], lesson_days?: string[], lessons_per_week?: number}>>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -923,6 +914,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
   }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.rpc('get_public_limited_editions' as any, { p_branch_id: formData.branch_id || null } as any);
+      const map: Record<string, { name: string; designs: string[]; sizes: string[] }> = {};
+      ((data as any[]) || []).forEach((l: any) => { if (l.product_id) map[l.product_id] = { name: l.name, designs: l.designs || [], sizes: l.sizes || [] }; });
+      setLeByProduct(map);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.branch_id]);
   const selectedProduct = products.find(p => p.id === newItem.product_id);
   const selectedLe = selectedProduct ? leByProduct[selectedProduct.id] : undefined;
   const sizeOptions = selectedLe?.sizes?.length ? selectedLe.sizes : selectedProduct?.available_variants?.sizes?.length ? selectedProduct.available_variants.sizes : (selectedProduct?.available_sizes || []);
