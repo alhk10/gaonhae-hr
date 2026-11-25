@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getAccessInvoiceCatalog, type AccessInvoiceCatalog } from '@/services/invoiceService';
 import { transformProduct } from '@/services/productService';
-import { siblingDiscountForBranch, siblingEligible, siblingDiscountUsed, AD_HOC_LESSON_PRODUCT, adHocWeekPrice, classLineUnitPrice } from '@/utils/schoolFeePlan';
+import { siblingDiscountForBranch, siblingEligible, siblingAmountFor, siblingDiscountUsed, AD_HOC_LESSON_PRODUCT, adHocWeekPrice, classLineUnitPrice } from '@/utils/schoolFeePlan';
 import { canCombineGradingItems } from '@/utils/foundationGrading';
 import { createInvoice, getSiblingDiscount, getInvoiceById, cancelInvoice, deleteInvoice, syncGradingRegistrationsForInvoice, type CreateInvoiceData, type Invoice, type InvoiceItem as ServiceInvoiceItem } from '@/services/invoiceService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -110,6 +110,8 @@ interface InvoiceItem {
   discount_value?: number;
   /** Sibling amount resolved for this student/term; applied while qty >= 4. */
   sibling_amount?: number;
+  sibling_value?: number;
+  term_weeks?: number;
   sibling_applied?: boolean;
   /** Normal weekly price and 1-week ad-hoc price for class lines. */
   weekly_price?: number;
@@ -1061,12 +1063,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       const accessStudent = accessMode ? (await getCatalog()).students.find((s: any) => s.id === formData.student_id) : null;
       const discount = accessMode ? (accessStudent && Number(accessStudent.sibling_count) >= 2 ? siblingDiscountForBranch(accessStudent.branch_id) : 0) : await getSiblingDiscount(formData.student_id);
       if (discount > 0) {
+        const tw = Number((term as any).total_weeks) || null;
+        const partial = !!tw && newItem.quantity < tw;
         const usedOnLine = items.some(i => i.term_id === term.id && i.sibling_applied);
-        const usedBefore = usedOnLine || await siblingDiscountUsed(formData.student_id, term.id);
+        const usedBefore = usedOnLine || (!partial && await siblingDiscountUsed(formData.student_id, term.id));
         if (usedBefore) toast.info('Sibling discount already used for this term');
         else {
           siblingAmount = discount;
-          if (siblingEligible(newItem.quantity)) { siblingDiscountType = 'amount'; siblingDiscountValue = discount; toast.info(`Sibling discount of $${discount.toFixed(2)} auto-applied`); }
+          const amt = siblingAmountFor(newItem.quantity, tw, discount);
+          if (amt > 0) { siblingDiscountType = 'amount'; siblingDiscountValue = amt; toast.info(`Sibling discount of $${amt.toFixed(2)} auto-applied`); }
           else toast.info('Sibling discount needs at least 4 weeks');
         }
       }
@@ -1093,7 +1098,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       grading_slot_id: newItem.grading_slot_id || undefined, grading_slot_title: gradingSlot?.title || undefined,
       selected_class_slots: selectedClassSlots.length > 0 ? [...selectedClassSlots] : undefined,
       discount_type: siblingDiscountType, discount_value: siblingDiscountValue,
-      sibling_amount: siblingAmount, sibling_applied: !!siblingDiscountValue,
+      sibling_amount: siblingAmount, sibling_applied: !!siblingDiscountValue, sibling_value: siblingDiscountValue, term_weeks: Number((term as any)?.total_weeks) || undefined,
       total: lineTotal
     };
     setItems([...items, item]);
@@ -1111,13 +1116,15 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
       it.unit_price = classLineUnitPrice(q, it.weekly_price, it.adhoc_price);
     }
     if (it.sibling_amount && q > 0) {
-      const base = it.discount_type === 'amount' ? (it.discount_value || 0) - (it.sibling_applied ? it.sibling_amount : 0) : 0;
-      if (it.sibling_applied && !siblingEligible(q)) {
-        it.sibling_applied = false; it.discount_type = base > 0 ? 'amount' : undefined; it.discount_value = base > 0 ? base : undefined;
+      const prevVal = it.sibling_applied ? (it.sibling_value ?? it.sibling_amount) : 0;
+      const base = it.discount_type === 'amount' ? (it.discount_value || 0) - prevVal : 0;
+      const amt = siblingAmountFor(q, it.term_weeks, it.sibling_amount);
+      if (it.sibling_applied && amt === 0) {
+        it.sibling_applied = false; it.sibling_value = undefined; it.discount_type = base > 0 ? 'amount' : undefined; it.discount_value = base > 0 ? base : undefined;
         toast.info('Sibling discount removed: needs at least 4 weeks');
-      } else if (!it.sibling_applied && siblingEligible(q) && (!it.discount_type || it.discount_type === 'amount')) {
-        it.sibling_applied = true; it.discount_type = 'amount'; it.discount_value = base + it.sibling_amount;
-        toast.info(`Sibling discount of $${it.sibling_amount.toFixed(2)} applied`);
+      } else if (amt > 0 && amt !== prevVal && (it.sibling_applied || !it.discount_type || it.discount_type === 'amount')) {
+        it.sibling_applied = true; it.sibling_value = amt; it.discount_type = 'amount'; it.discount_value = base + amt;
+        toast.info(`Sibling discount of $${amt.toFixed(2)} applied`);
       }
     }
     it.total = calculateLineTotal(q || 1, it.unit_price, it.discount_type, it.discount_value);
@@ -1274,7 +1281,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.color_variant ? { color_variant: item.color_variant, ...(leByProduct[item.product_id] ? { design: item.color_variant, limited_edition: true } : {}) } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}), ...(canShareBranches && sharedBranchIds.length && categories.find(c => c.id === products.find(p => p.id === item.product_id)?.category_id)?.name === 'Classes' ? { valid_branch_ids: Array.from(new Set([formData.branch_id, ...sharedBranchIds])) } : {}) }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.color_variant ? { color_variant: item.color_variant, ...(leByProduct[item.product_id] ? { design: item.color_variant, limited_edition: true } : {}) } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_value ?? item.sibling_amount } : {}), ...(canShareBranches && sharedBranchIds.length && categories.find(c => c.id === products.find(p => p.id === item.product_id)?.category_id)?.name === 'Classes' ? { valid_branch_ids: Array.from(new Set([formData.branch_id, ...sharedBranchIds])) } : {}) }
         };
       });
 

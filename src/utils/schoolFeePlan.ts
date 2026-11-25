@@ -39,6 +39,18 @@ export const earlyPaymentDiscountFor = (termStartDate?: string | null): number =
 export const SIBLING_MIN_WEEKS = 4;
 export const siblingEligible = (weeks: number): boolean => Number(weeks || 0) >= SIBLING_MIN_WEEKS;
 
+/** Sibling discount paid monthly / 4 weeks (less than the full term). */
+export const SIBLING_DISCOUNT_PARTIAL = 5;
+/** Full-term lines get the full sibling discount; 4+ weeks short of the term get $5; under 4 weeks get 0. */
+export const siblingAmountFor = (weeks: number, termWeeks: number | null | undefined, fullAmount: number): number => {
+  if (!siblingEligible(weeks) || !(fullAmount > 0)) return 0;
+  if (termWeeks && Number(weeks) < Number(termWeeks)) return Math.min(SIBLING_DISCOUNT_PARTIAL, fullAmount);
+  return fullAmount;
+};
+/** Monthly / partial-term lines may get the sibling discount on every invoice in the term. */
+export const isPartialTerm = (weeks: number, termWeeks: number | null | undefined): boolean =>
+  !!termWeeks && Number(weeks) < Number(termWeeks);
+
 /** Early payment discount: full term's weeks, paid on or before the term start date. */
 export const earlyEligible = (weeks: number, termWeeks: number, termStartDate?: string | null, payDate: Date = new Date()): boolean => {
   if (!termStartDate || !termWeeks || Number(weeks || 0) < termWeeks) return false;
@@ -82,7 +94,7 @@ export const quotePlan = (plan: FeePaymentPlan, input: PlanQuoteInput): PlanQuot
   const subtotal = Number(input.weeklyPrice || 0) * weeks;
   // Discounts are term-plan only.
   const early = plan === 'term' ? earlyPaymentDiscountFor(input.termStartDate) : 0;
-  const sibling = siblingEligible(weeks) ? Math.max(0, input.siblingDiscount || 0) : 0;
+  const sibling = siblingAmountFor(weeks, input.termWeeks, Math.max(0, input.siblingDiscount || 0));
   return {
     plan,
     weeks,

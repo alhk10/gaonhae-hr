@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import { parseISO, differenceInYears, differenceInMonths, subDays } from 'date-fns';
 import { Term, calculateTeachingWeeks, calculateRemainingTeachingWeeks, isInsideTerm } from '@/services/termCalendarService';
 import { createInvoice, getSiblingDiscount } from '@/services/invoiceService';
-import { siblingEligible, siblingDiscountUsed } from '@/utils/schoolFeePlan';
+import { siblingAmountFor, siblingDiscountUsed } from '@/utils/schoolFeePlan';
 import { FOUR_WEEK_NOTE, FOUR_WEEK_WEEKS, getLockedPlanForTerm, type FeePaymentPlan } from '@/utils/schoolFeePlan';
 import { createPayment } from '@/services/paymentService';
 
@@ -559,8 +559,9 @@ const PaySchoolFeesDialog: React.FC<PaySchoolFeesDialogProps> = ({
     queryFn: () => siblingDiscountUsed(studentId, selectedTermId),
     enabled: !!studentId && !!selectedTermId,
   });
-  const siblingAvailable = siblingUsedThisTerm ? 0 : siblingDiscountBase;
-  const siblingDiscount = siblingEligible(termWeeks) ? siblingAvailable : 0;
+  const partialPlan = termWeeks < fullTermWeeks;
+  const siblingAvailable = siblingUsedThisTerm && !partialPlan ? 0 : siblingDiscountBase;
+  const siblingDiscount = siblingAmountFor(termWeeks, fullTermWeeks, siblingAvailable);
 
   // Savings shown on the full-term option (regardless of the plan selected)
   const earlyDiscountBase = useMemo(() => {

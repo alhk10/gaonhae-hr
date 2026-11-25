@@ -77,7 +77,7 @@ import {
   earlyPaymentDiscountFor,
   getLockedPlanForTerm,
   getPublicSiblingDiscount,
-  siblingEligible,
+  siblingAmountFor,
   siblingDiscountUsed,
   compareSchoolFeeProducts,
   type FeePaymentPlan,
@@ -1442,7 +1442,9 @@ const PublicHelloChat: React.FC = () => {
       const locked = d.termId ? lockedPlans[d.termId] : null;
       const plan: FeePaymentPlan = locked === 'four_weeks' ? 'four_weeks' : (d.plan || 'term');
       const weeks = plan === 'four_weeks' ? FOUR_WEEK_WEEKS : Math.max(1, term?.remaining_weeks ?? term?.total_weeks ?? 1);
-      const siblingForLine = showTerms && siblingEligible(weeks) && !(d.termId && siblingUsedTerms[d.termId]) ? (siblingDiscount || 0) : 0;
+      const fullWeeks = term?.remaining_weeks ?? term?.total_weeks ?? null;
+      const partialLine = !!fullWeeks && weeks < fullWeeks;
+      const siblingForLine = showTerms && (partialLine || !(d.termId && siblingUsedTerms[d.termId])) ? siblingAmountFor(weeks, fullWeeks, siblingDiscount || 0) : 0;
       const planDiscount = showTerms
         ? (plan === 'term' ? earlyPaymentDiscountFor(term?.start_date) : 0) + siblingForLine
         : 0;
