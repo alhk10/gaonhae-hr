@@ -8893,6 +8893,7 @@ export type Database = {
       }
       _journal_require_all: { Args: { p_password: string }; Returns: undefined }
       _le_sold: { Args: { p_id: string }; Returns: number }
+      _le_sync_invoice: { Args: { p_inv: string }; Returns: undefined }
       _lesson_balance: {
         Args: {
           p_branch_id: string

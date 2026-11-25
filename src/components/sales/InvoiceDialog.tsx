@@ -384,6 +384,17 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   // ─── Shared Data ────────────────────────────────────────────────
   const [students, setStudents] = useState<Array<{id: string, name: string, email: string, branch_id?: string, status?: string, current_belt?: string, date_of_birth?: string, allowed_class_types?: string[]}>>([]);
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
+  // Limited Edition products: product_id -> { name, designs, sizes }
+  const [leByProduct, setLeByProduct] = useState<Record<string, { name: string; designs: string[]; sizes: string[] }>>({});
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.rpc('get_public_limited_editions' as any, { p_branch_id: formData.branch_id || null } as any);
+      const map: Record<string, { name: string; designs: string[]; sizes: string[] }> = {};
+      ((data as any[]) || []).forEach((l: any) => { if (l.product_id) map[l.product_id] = { name: l.name, designs: l.designs || [], sizes: l.sizes || [] }; });
+      setLeByProduct(map);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.branch_id]);
   const [viewProducts, setViewProducts] = useState<Array<{id: string, name: string, sku: string, base_price: number, category_name?: string, is_lesson?: boolean, is_active?: boolean, tax_rate?: number, available_sizes?: string[], available_variants?: any, allowed_class_types?: string[], lesson_days?: string[], lessons_per_week?: number}>>([]);
   const [branches, setBranches] = useState<Array<{id: string, name: string, country: string | null}>>([]);
   const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
@@ -590,7 +601,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
           tax_amount: item.tax_amount,
           total_amount: item.total_amount,
           size_variant: item.size_variant,
-          color_variant: meta?.color_variant || '',
+          color_variant: meta?.color_variant || meta?.design || '',
           metadata: item.metadata,
           category_name: product?.category_name,
           is_lesson: product?.is_lesson,
@@ -913,8 +924,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
   }, [gradingSlots, formData.branch_id, studentBelt, newItem.category_id, newItem.grading_slot_id, categories]);
 
   const selectedProduct = products.find(p => p.id === newItem.product_id);
-  const sizeOptions = selectedProduct?.available_variants?.sizes?.length ? selectedProduct.available_variants.sizes : (selectedProduct?.available_sizes || []);
-  const colorOptions = selectedProduct?.available_variants?.colors || [];
+  const selectedLe = selectedProduct ? leByProduct[selectedProduct.id] : undefined;
+  const sizeOptions = selectedLe?.sizes?.length ? selectedLe.sizes : selectedProduct?.available_variants?.sizes?.length ? selectedProduct.available_variants.sizes : (selectedProduct?.available_sizes || []);
+  const colorOptions = selectedLe?.designs?.length ? selectedLe.designs : (selectedProduct?.available_variants?.colors || []);
   const selectedCategory = categories.find(c => c.id === newItem.category_id);
   const isUniformProduct = selectedProduct?.category_id === UNIFORMS_CATEGORY_ID;
   const showSizeInput = sizeOptions.length > 0 || selectedProduct?.requires_size || isUniformProduct;
@@ -1014,6 +1026,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     const product = products.find(p => p.id === newItem.product_id);
     if (!product) { toast.error('Product not found'); return; }
     if (showSizeInput && !newItem.size_variant) { toast.error('Please select or enter a size for this product'); return; }
+    const le = leByProduct[product.id];
+    if (le && le.designs.length > 0 && !newItem.color_variant) { toast.error('Please select a design for this Limited Edition item'); return; }
+    if (le && le.sizes.length > 0 && !newItem.size_variant) { toast.error('Please select a size for this Limited Edition item'); return; }
 
     // Grading duplicate check
     if (product.category_id === GRADING_CATEGORY_ID) {
@@ -1070,7 +1085,8 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
     }
     const lineTotal = calculateLineTotal(newItem.quantity, unitPrice, siblingDiscountType, siblingDiscountValue);
     const item: InvoiceItem = {
-      product_id: newItem.product_id, product_name: product.name, description: product.name,
+      product_id: newItem.product_id, product_name: product.name,
+      description: le ? `Limited Edition - ${le.name} (${[newItem.color_variant, newItem.size_variant].filter(Boolean).join(' / ')})` : product.name,
       quantity: newItem.quantity, unit_price: unitPrice, weekly_price: weeklyPrice, adhoc_price: adhocPrice,
       size_variant: newItem.size_variant || undefined, color_variant: newItem.color_variant || undefined,
       term_id: newItem.term_id || undefined, term_name: term?.name || undefined,
@@ -1258,7 +1274,7 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
         return {
           product_id: item.product_id, description: item.description, quantity: item.quantity, unit_price: item.unit_price,
           size_variant: item.size_variant || undefined, total_override: item.total,
-          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}), ...(canShareBranches && sharedBranchIds.length && categories.find(c => c.id === products.find(p => p.id === item.product_id)?.category_id)?.name === 'Classes' ? { valid_branch_ids: Array.from(new Set([formData.branch_id, ...sharedBranchIds])) } : {}) }
+          metadata: { ...(item.term_id ? { term_id: item.term_id } : {}), ...(item.selected_class_slots?.length ? { selected_class_slots: item.selected_class_slots } : {}), ...(item.grading_slot_id ? { grading_slot_id: item.grading_slot_id } : {}), ...(ld ? { line_discount: ld } : {}), ...(item.color_variant ? { color_variant: item.color_variant, ...(leByProduct[item.product_id] ? { design: item.color_variant, limited_edition: true } : {}) } : {}), ...(item.sibling_applied && item.sibling_amount ? { sibling_discount: true, sibling_discount_amount: item.sibling_amount } : {}), ...(canShareBranches && sharedBranchIds.length && categories.find(c => c.id === products.find(p => p.id === item.product_id)?.category_id)?.name === 'Classes' ? { valid_branch_ids: Array.from(new Set([formData.branch_id, ...sharedBranchIds])) } : {}) }
         };
       });
 
@@ -2186,8 +2202,9 @@ const InvoiceDialog: React.FC<InvoiceDialogProps> = ({
                         const isClassItem = item.category_name === 'Classes' || item.is_lesson;
                         const termIds: string[] = metadata?.term_ids || (metadata?.term_id ? [metadata.term_id] : []);
                         const product = viewProducts.find(p => p.id === item.product_id);
-                        const availableSizes: string[] = (product as any)?.available_sizes || (product as any)?.available_variants?.sizes || [];
-                        const availableColors: string[] = (product as any)?.available_variants?.colors || [];
+                        const leEdit = leByProduct[item.product_id];
+                        const availableSizes: string[] = leEdit?.sizes?.length ? leEdit.sizes : ((product as any)?.available_sizes || (product as any)?.available_variants?.sizes || []);
+                        const availableColors: string[] = leEdit?.designs?.length ? leEdit.designs : ((product as any)?.available_variants?.colors || []);
                         const isGradingItem = (product?.category_name || item.category_name) === 'Grading';
                         const currentSlotId = metadata?.grading_slot_id || '';
                         const branchSlots = gradingSlots.filter(s =>
