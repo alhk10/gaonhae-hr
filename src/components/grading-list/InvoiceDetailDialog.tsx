@@ -78,6 +78,8 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
   const refundPending = (pending.refund_item_ids?.length || 0) > 0;
 
   const handleEditClick = () => { setEditorOpen(true); };
+  // Currency follows the invoice's own country: branch first, then its template (external invoices have no branch row loaded).
+  const invoiceCountry = String(detail?.branch?.country || detail?.branch_country || detail?.template?.country || '');
   const balance = Number(detail?.balance_due ?? (Number(detail?.total_amount || 0) - Number(detail?.amount_paid || 0)));
   const canRecordPayment = !!detail && balance > 0.005 && !['cancelled', 'refunded', 'void', 'paid', 'verified'].includes(String(detail?.status || ''));
   const [payOpen, setPayOpen] = useState(false);
@@ -182,7 +184,7 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
             signedIn={signedIn}
             reloadKey={reloadKey}
             balance={Math.max(0, balance)}
-            currency={String(detail?.branch?.country || detail?.branch_country || '').toLowerCase().startsWith('au') ? 'A$' : 'S$'}
+            currency={invoiceCountry.toLowerCase().startsWith('au') ? 'A$' : 'S$'}
           />
         )}
         {action && (
@@ -285,7 +287,7 @@ export const InvoiceDetailDialog: React.FC<Props> = ({
           invoiceId={invoiceId}
           invoiceNumber={number || ''}
           balance={balance}
-          country={detail?.branch?.country || detail?.branch_country || null}
+          country={invoiceCountry || null}
           onClose={() => setPayOpen(false)}
           onDone={() => { setPayOpen(false); setReloadKey((k) => k + 1); }}
         />

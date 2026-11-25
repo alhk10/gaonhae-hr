@@ -331,14 +331,11 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const formatCurrencyValue = (amount: number) => {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD'
-    }).format(amount);
-  };
-
   const selectedInvoice = invoices.find(inv => inv.id === formData.invoice_id);
+  const formatCurrencyValue = (amount: number, inv: InvoiceOption | undefined = selectedInvoice) => {
+    const au = String(inv?.branch_country || '').toLowerCase().startsWith('au');
+    return new Intl.NumberFormat(au ? 'en-AU' : 'en-SG', { style: 'currency', currency: au ? 'AUD' : 'SGD' }).format(amount);
+  };
 
   // Fetch invoice items and student credit when invoice is selected
   useEffect(() => {
@@ -483,7 +480,7 @@ const CreatePaymentDialog: React.FC<CreatePaymentDialogProps> = ({
                             </span>
                           </div>
                           <span className="text-sm font-medium">
-                            Balance: {formatCurrencyValue(invoice.balance_due)}
+                            Balance: {formatCurrencyValue(invoice.balance_due, invoice)}
                           </span>
                         </div>
                       </SelectItem>
