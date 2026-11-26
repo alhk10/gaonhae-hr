@@ -1,5 +1,5 @@
 /** Per-branch scorecard settings (print on certificate, hide body metrics, custom fields). Superadmin / all-branch password only. */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,15 @@ import { X } from 'lucide-react';
 
 export interface BranchScoreSettings { extra_fields: string[]; hide_body_metrics: boolean; print_scorecard: boolean }
 
-const BranchRow: React.FC<{ branch: { id: string; name: string }; settings?: BranchScoreSettings; onChanged: () => void }> = ({ branch, settings, onChanged }) => {
+const BranchRow: React.FC<{ branch: { id: string; name: string }; settings?: BranchScoreSettings; onChanged: () => void; partnerPaid: boolean; onPartnerChanged: () => void }> = ({ branch, settings, onChanged, partnerPaid, onPartnerChanged }) => {
+  const setPartner = async (v: boolean) => {
+    const { error } = await (supabase.rpc as any)('access_branch_term_fees_external_set', {
+      p_password: sessionStorage.getItem('access_pw_v1') || '', p_branch_id: branch.id, p_value: v,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success(v ? `${branch.name}: term fees paid by partner` : `${branch.name}: normal term fee check`);
+    onPartnerChanged();
+  };
   const [name, setName] = useState('');
   const fields = settings?.extra_fields ?? [];
   const hide = settings?.hide_body_metrics ?? false;
@@ -41,6 +49,10 @@ const BranchRow: React.FC<{ branch: { id: string; name: string }; settings?: Bra
           <Checkbox checked={hide} onCheckedChange={(c) => save(fields, !!c, printCard)} aria-label={`Hide height, weight and BMI for ${branch.name}`} />
           Hide height, weight and BMI
         </label>
+        <label className="flex items-center gap-1.5">
+          <Checkbox checked={partnerPaid} onCheckedChange={(c) => setPartner(!!c)} aria-label={`Term fees paid by partner for ${branch.name}`} />
+          Term fees paid by partner (school-billed)
+        </label>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         <span className="text-muted-foreground">Custom fields:</span>
@@ -60,14 +72,24 @@ const BranchRow: React.FC<{ branch: { id: string; name: string }; settings?: Bra
 export const GradingScoreSettingsDialog: React.FC<{
   open: boolean; onOpenChange: (o: boolean) => void;
   branches: { id: string; name: string }[]; settings: Record<string, BranchScoreSettings>; onChanged: () => void;
-}> = ({ open, onOpenChange, branches, settings, onChanged }) => (
+}> = ({ open, onOpenChange, branches, settings, onChanged }) => {
+  const [partner, setPartner] = useState<Record<string, boolean>>({});
+  const load = async () => {
+    const { data } = await (supabase.from('branches') as any).select('id, term_fees_external');
+    const m: Record<string, boolean> = {};
+    (data || []).forEach((r: any) => { m[r.id] = !!r.term_fees_external; });
+    setPartner(m);
+  };
+  useEffect(() => { if (open) load(); }, [open]);
+  return (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
       <DialogHeader><DialogTitle>Scorecard settings by branch</DialogTitle></DialogHeader>
       <div className="divide-y">
-        {branches.map(b => <BranchRow key={b.id} branch={b} settings={settings[b.id]} onChanged={onChanged} />)}
+        {branches.map(b => <BranchRow key={b.id} branch={b} settings={settings[b.id]} onChanged={onChanged} partnerPaid={!!partner[b.id]} onPartnerChanged={load} />)}
       </div>
     </DialogContent>
   </Dialog>
-);
+  );
+};
 export default GradingScoreSettingsDialog;

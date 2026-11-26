@@ -9158,6 +9158,10 @@ export type Database = {
         Args: { p_entry: Json; p_password: string }
         Returns: string
       }
+      access_branch_term_fees_external_set: {
+        Args: { p_branch_id: string; p_password: string; p_value: boolean }
+        Returns: undefined
+      }
       access_calendar_term_setting: {
         Args: { p_branch_id: string; p_on?: boolean; p_password: string }
         Returns: boolean
