@@ -44,3 +44,4 @@
 - /access reloads once per Singapore calendar day via `src/utils/accessDailyRefresh.ts` (date saved before reload), so staff start each day on the latest version without reload loops.
 
 - Uniforms & Guards / Limited Edition orders are proof-scanned server-side by `scan-payment-proof` (`guards_purchase_ids`) right after submit; `_guards_auto_invoice` trigger invoices verified, matched limited-edition-only carts, so auto-verified orders never wait for staff.
+- Branches with `term_fees_external` (partner/school-billed, e.g. Carpe Diem) count as term-fee-paid for grading via `_branch_fees_external` in `hello_grading_eligibility` and `access_grading_term_fee_status`, so /hello and /access agree without per-child class invoices.

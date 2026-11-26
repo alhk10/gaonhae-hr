@@ -812,6 +812,7 @@ export type Database = {
           id: string
           name: string
           stripe_account_id: string | null
+          term_fees_external: boolean
           updated_at: string | null
         }
         Insert: {
@@ -823,6 +824,7 @@ export type Database = {
           id: string
           name: string
           stripe_account_id?: string | null
+          term_fees_external?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -834,6 +836,7 @@ export type Database = {
           id?: string
           name?: string
           stripe_account_id?: string | null
+          term_fees_external?: boolean
           updated_at?: string | null
         }
         Relationships: []
@@ -8747,6 +8750,10 @@ export type Database = {
           student_id: string
           student_name: string
         }[]
+      }
+      _branch_fees_external: {
+        Args: { p_student_id: string }
+        Returns: boolean
       }
       _cert_apply: { Args: { p_id: string }; Returns: undefined }
       _cert_can_manage: {
